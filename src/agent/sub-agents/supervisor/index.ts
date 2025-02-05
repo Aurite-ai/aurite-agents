@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import AgentOptions from "../../../interfaces/agent-options.interface";
 import { openai } from "@ai-sdk/openai";
-import { researcherTool } from "./tools";
+import { researcherAgent } from "./tools";
 
 export default async function runSupervisor(options: AgentOptions) {
   const { text } = await generateText({
@@ -9,8 +9,9 @@ export default async function runSupervisor(options: AgentOptions) {
     model: openai("gpt-4o"),
     temperature: 0.2,
     tools: {
-      researcher: researcherTool,
+      researcher: researcherAgent,
     },
+    maxSteps: 2,
   });
 
   console.log(text);

@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.1.9",
     "ai": "^4.1.17",
+    "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "jest": "^29.7.0",
     "zod": "^3.24.1"

@@ -1,23 +1,22 @@
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
+import runResearcher from "../researcher";
 
-const researcherTool = tool({
+const researcherAgent = tool({
   description: "A tool that runs the researcher agent",
   parameters: z.object({
     prompt: z.string(),
   }),
   execute: async ({ prompt }) => {
     try {
-    } catch (error) {}
-    const { text } = await generateText({
-      prompt: prompt,
-      model: openai("o3-mini"),
-      temperature: 0.2,
-    });
-
-    return text;
+      const text = await runResearcher(prompt);
+      return text;
+    } catch (error) {
+      console.error("Error in researcherAgent:", error);
+      return `Error: ${error}`;
+    }
   },
 });
 
-export { researcherTool };
+export { researcherAgent };
