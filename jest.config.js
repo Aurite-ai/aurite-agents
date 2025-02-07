@@ -5,4 +5,7 @@ module.exports = {
     "^.+.tsx?$": ["ts-jest", {}],
   },
   setupFiles: ["<rootDir>/src/tests/jest.setup.ts"],
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
 };

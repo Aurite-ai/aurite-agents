@@ -6,6 +6,7 @@ import StateManager from "../modules/state/state-manager";
 import Agent from "../agent";
 import { handleAgentError, sendOutput } from "./tool-utils";
 import ResearcherAgent from "../sub-agents/researcher/agent";
+import pickAgent from "../sub-agents/router";
 
 const agentNames = ["researcher", "evaluator", "planner"] as const;
 
@@ -25,11 +26,18 @@ export function createAgentTool(options: CreateCallAgentTool) {
       const { instructions } = params;
 
       try {
+        const Agent = pickAgent(options.name);
+
         // Initialize the agent with the provided config and state manager
-        const agent = new ResearcherAgent(options.config, options.stateManager);
+        const agent = new Agent(options.config, options.stateManager);
+
+        console.log(
+          `Executing agent ${options.name} with instructions:`,
+          instructions
+        );
 
         // Call the agent's method with the provided instructions
-        const output = await agent[options.name].execute(instructions);
+        const output = await agent.execute(instructions);
 
         // Send the output using the provided config
         return sendOutput(
