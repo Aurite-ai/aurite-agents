@@ -2,7 +2,6 @@ import StateManager from "./state-manager";
 
 describe("StateManager", () => {
   interface TestState {
-    status: string;
     count: number;
   }
 
@@ -10,7 +9,9 @@ describe("StateManager", () => {
   let stateManager: StateManager<TestState>;
 
   beforeEach(() => {
-    initialState = { status: "idle", count: 0 };
+    initialState = {
+      count: 0,
+    };
     stateManager = new StateManager<TestState>(initialState);
   });
 
@@ -29,8 +30,7 @@ describe("StateManager", () => {
   });
 
   test("should return correct value using getStateValue", () => {
-    expect(stateManager.getStateValue("status")).toBe("idle");
-    expect(stateManager.getStateValue("count")).toBe(0);
+    expect(stateManager.get("count")).toBe(0);
   });
 
   test("should handle multiple updates correctly", () => {
