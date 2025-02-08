@@ -1,4 +1,4 @@
-import { CoreMessage } from "ai";
+import { CoreMessage, ToolResult, ToolResultPart } from "ai";
 
 interface StateUpdate {
   type: string;
@@ -9,6 +9,7 @@ interface InternalMessage {
   agentName: string;
   agentId: string;
   message: string;
+  toolResults: ToolResultPart[];
   createdAt: Date;
 }
 

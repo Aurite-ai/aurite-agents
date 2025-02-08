@@ -8,10 +8,14 @@ export default class SupervisorAgent extends Agent {
     const stateManager = this.stateManager;
 
     const { text } = await generateText({
-      prompt: instructions,
+      prompt: `
+      You are a supervisor agent. Your job is to coordinate the work of other agents to accomplish a goal.
+      You have access to research and planning tools to help you with this.
+      ${instructions}`,
       model: openai(this.config.defaultModel),
       temperature: 0.2,
-      onStepFinish: ({ text }) => this.addInternalMessage(text),
+      onStepFinish: ({ text, toolResults }) =>
+        this.addInternalMessage(text, toolResults),
       tools: {
         researcher: createAgentTool({
           name: "researcher",
