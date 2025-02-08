@@ -1,7 +1,6 @@
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
-import runResearcher from "../researcher";
 
 const researcherAgent = tool({
   description: "A tool that runs the researcher agent",
@@ -20,3 +19,6 @@ const researcherAgent = tool({
 });
 
 export { researcherAgent };
+function runResearcher(prompt: string) {
+  throw new Error("Function not implemented.");
+}

@@ -56,3 +56,9 @@ __fixtures__/custom-modules-dir/patches/
 
 .env
 .env.test
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
