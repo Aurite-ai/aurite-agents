@@ -3,6 +3,10 @@ import StateManager from "@/agent/modules/state/state-manager";
 import SupervisorAgent from "@/agent/sub-agents/supervisor/agent";
 import { generateId } from "ai";
 import express, { Router, Request, Response } from "express";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 // Type definitions
 interface Message {
@@ -178,6 +182,7 @@ router.post(
 
       res.json(completion);
     } catch (error) {
+      console.error("Error generating response:", error);
       res.status(500).json({
         error: {
           message: "Internal server error",
