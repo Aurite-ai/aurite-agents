@@ -19,7 +19,7 @@ describe("Supervisor", () => {
     const supervisor = new SupervisorAgent(config, state);
 
     const text = await supervisor.execute(
-      "What is your prediction for the 2025 superbowl winner? Output your answer as markdown."
+      "Who won the 2025 superbowl and how? Output your answer as markdown."
     );
 
     // write to file for debugging
