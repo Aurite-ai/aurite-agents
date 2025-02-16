@@ -1,5 +1,5 @@
 import { AgentConfig } from '@/types/agent.interface';
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 import SupervisorAgent from '@/agents/coordination/supervisor.agent';
 import { generateId } from 'ai';
 import express, { Router, Request, Response } from 'express';

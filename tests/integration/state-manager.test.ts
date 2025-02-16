@@ -1,5 +1,5 @@
 import { BaseState } from '@/types/state.interface';
-import StateManager from '../../src/state/state-manager';
+import StateManager from '../../src/context/state-manager';
 
 describe('StateManager', () => {
   let initialState: BaseState;
