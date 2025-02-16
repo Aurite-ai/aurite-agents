@@ -171,7 +171,7 @@ class MCPHost:
 
     async def execute_prompt(
         self, name: str, arguments: Dict[str, Any], client_id: str
-    ) -> types.PromptResult:
+    ) -> types.GetPromptResult:
         """Execute a prompt with given arguments"""
         prompt = await self._prompt_manager.get_prompt(name, client_id)
         if not prompt:
@@ -191,7 +191,7 @@ class MCPHost:
         """List all available resources, optionally filtered by client"""
         return await self._resource_manager.list_resources(client_id)
 
-    async def read_resource(self, uri: str, client_id: str) -> types.ResourceContent:
+    async def read_resource(self, uri: str, client_id: str) -> types.ResourceContents:
         """Read a resource's content"""
         # Validate access
         await self._resource_manager.validate_resource_access(
