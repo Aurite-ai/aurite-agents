@@ -24,6 +24,12 @@ class MessageRouter:
         # tool_name -> List[str] (capabilities)
         self._tool_capabilities: Dict[str, List[str]] = {}
 
+        # prompt_name -> client_id
+        self._prompt_routes: Dict[str, str] = {}
+
+        # client_id -> Set[str] (prompt names)
+        self._client_prompts: Dict[str, Set[str]] = {}
+
     async def initialize(self):
         """Initialize the message router"""
         logger.info("Initializing message router")
@@ -53,13 +59,34 @@ class MessageRouter:
             f"with capabilities: {capabilities}"
         )
 
+    async def register_prompt(self, prompt_name: str, client_id: str):
+        """Register which client provides a prompt"""
+        if prompt_name in self._prompt_routes:
+            logger.warning(f"Overwriting existing route for prompt: {prompt_name}")
+        self._prompt_routes[prompt_name] = client_id
+
+        # Update client prompts
+        if client_id not in self._client_prompts:
+            self._client_prompts[client_id] = set()
+        self._client_prompts[client_id].add(prompt_name)
+
+        logger.info(f"Registered prompt {prompt_name} for client {client_id}")
+
     async def get_client_for_tool(self, tool_name: str) -> Optional[str]:
         """Get the client ID that provides a specific tool"""
         return self._tool_routes.get(tool_name)
 
+    async def get_client_for_prompt(self, prompt_name: str) -> Optional[str]:
+        """Get the client ID that provides a specific prompt"""
+        return self._prompt_routes.get(prompt_name)
+
     async def get_tools_for_client(self, client_id: str) -> Set[str]:
         """Get all tools provided by a specific client"""
         return self._client_tools.get(client_id, set())
+
+    async def get_prompts_for_client(self, client_id: str) -> Set[str]:
+        """Get all prompts provided by a specific client"""
+        return self._client_prompts.get(client_id, set())
 
     async def get_tool_capabilities(self, tool_name: str) -> List[str]:
         """Get the capabilities of a specific tool"""
@@ -80,3 +107,5 @@ class MessageRouter:
         self._tool_routes.clear()
         self._client_tools.clear()
         self._tool_capabilities.clear()
+        self._prompt_routes.clear()
+        self._client_prompts.clear()

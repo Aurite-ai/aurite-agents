@@ -3,7 +3,7 @@ MCP Host implementation for managing multiple tool servers and clients.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import asyncio
 import logging
 from pathlib import Path
@@ -19,6 +19,8 @@ import mcp.types as types
 from .transport import TransportManager
 from .roots import RootManager, RootConfig
 from .routing import MessageRouter
+from .prompts import PromptManager
+from .resources import ResourceManager
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,8 @@ class MCPHost:
         self._transport_manager = TransportManager()
         self._root_manager = RootManager()
         self._message_router = MessageRouter()
+        self._prompt_manager = PromptManager()
+        self._resource_manager = ResourceManager()
 
         # State management
         self._config = config
@@ -70,6 +74,8 @@ class MCPHost:
         await self._transport_manager.initialize()
         await self._root_manager.initialize()
         await self._message_router.initialize()
+        await self._prompt_manager.initialize()
+        await self._resource_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
@@ -107,6 +113,8 @@ class MCPHost:
                         else None,
                         sampling={} if "sampling" in config.capabilities else None,
                         experimental={},
+                        prompts={} if "prompts" in config.capabilities else None,
+                        resources={} if "resources" in config.capabilities else None,
                     ),
                 ),
             )
@@ -134,6 +142,20 @@ class MCPHost:
                     capabilities=config.capabilities,
                 )
 
+            # Initialize prompts if supported
+            if "prompts" in config.capabilities:
+                prompts_response = await session.list_prompts()
+                await self._prompt_manager.register_client_prompts(
+                    config.client_id, prompts_response.prompts
+                )
+
+            # Initialize resources if supported
+            if "resources" in config.capabilities:
+                resources_response = await session.list_resources()
+                await self._resource_manager.register_client_resources(
+                    config.client_id, resources_response.resources
+                )
+
             logger.info(
                 f"Client {config.client_id} initialized with tools: {[t.name for t in tools_response.tools]}"
             )
@@ -141,6 +163,61 @@ class MCPHost:
         except Exception as e:
             logger.error(f"Failed to initialize client {config.client_id}: {e}")
             raise
+
+    # Prompt-related methods
+    async def list_prompts(self, client_id: Optional[str] = None) -> List[types.Prompt]:
+        """List all available prompts, optionally filtered by client"""
+        return await self._prompt_manager.list_prompts(client_id)
+
+    async def execute_prompt(
+        self, name: str, arguments: Dict[str, Any], client_id: str
+    ) -> types.PromptResult:
+        """Execute a prompt with given arguments"""
+        prompt = await self._prompt_manager.get_prompt(name, client_id)
+        if not prompt:
+            raise ValueError(f"Prompt not found: {name}")
+
+        # Validate arguments
+        await self._prompt_manager.validate_prompt_arguments(prompt, arguments)
+
+        # Execute prompt through client
+        client = self._clients[client_id]
+        return await client.execute_prompt(name, arguments)
+
+    # Resource-related methods
+    async def list_resources(
+        self, client_id: Optional[str] = None
+    ) -> List[types.Resource]:
+        """List all available resources, optionally filtered by client"""
+        return await self._resource_manager.list_resources(client_id)
+
+    async def read_resource(self, uri: str, client_id: str) -> types.ResourceContent:
+        """Read a resource's content"""
+        # Validate access
+        await self._resource_manager.validate_resource_access(
+            uri, client_id, self._root_manager
+        )
+
+        # Get resource through client
+        client = self._clients[client_id]
+        return await client.read_resource(uri)
+
+    async def subscribe_to_resource(self, uri: str, client_id: str):
+        """Subscribe to resource updates"""
+        await self._resource_manager.subscribe(uri, client_id)
+
+    async def unsubscribe_from_resource(self, uri: str, client_id: str):
+        """Unsubscribe from resource updates"""
+        await self._resource_manager.unsubscribe(uri, client_id)
+
+    async def handle_resource_update(self, uri: str):
+        """Handle resource content changes"""
+        subscribers = await self._resource_manager.get_subscribers(uri)
+        for client_id in subscribers:
+            client = self._clients[client_id]
+            await client.send_notification(
+                "notifications/resources/updated", {"uri": uri}
+            )
 
     async def call_tool(
         self, tool_name: str, arguments: Dict[str, Any]
@@ -188,5 +265,7 @@ class MCPHost:
         await self._transport_manager.shutdown()
         await self._root_manager.shutdown()
         await self._message_router.shutdown()
+        await self._prompt_manager.shutdown()
+        await self._resource_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
