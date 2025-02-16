@@ -245,12 +245,23 @@ class MCPHost:
         # Call the tool
         try:
             result = await client.call_tool(tool_name, arguments)
+            # Convert result to proper types if it's been serialized to tuples
+            if isinstance(result, tuple):
+                result_dict = dict(result)
+                return [
+                    types.TextContent(type="text", text=c.text)
+                    if hasattr(c, "text")
+                    else types.TextContent(type="text", text=str(c))
+                    for c in result_dict.get("content", [])
+                ]
             # Handle the result directly as a CallToolResult
-            if result.isError:
+            if hasattr(result, "isError") and result.isError:
                 raise ValueError(
                     result.content[0].text if result.content else "Unknown error"
                 )
-            return result.content
+            if hasattr(result, "content"):
+                return result.content
+            return result
         except Exception as e:
             logger.error(f"Tool call failed - {tool_name}: {e}")
             raise

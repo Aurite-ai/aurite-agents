@@ -113,7 +113,7 @@ async def main():
                 RootConfig(
                     uri="weather://api.weather.gov",
                     name="NWS Weather API",
-                    capabilities=["get_alerts", "get_forecast"],
+                    capabilities=["read", "execute"],
                 ),
                 RootConfig(
                     uri="weather://cache",

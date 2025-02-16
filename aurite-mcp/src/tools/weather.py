@@ -82,7 +82,7 @@ def format_alert(feature: AlertFeature) -> str:
 
 async def get_alerts(
     arguments: dict,
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+) -> list[Dict[str, Any]]:
     """Get weather alerts for a US state.
 
     Args:
@@ -100,19 +100,18 @@ async def get_alerts(
     data = await make_nws_request(url)
 
     if not data or "features" not in data:
-        return [types.TextContent(text="Failed to retrieve alerts data", type="text")]
+        return [{"type": "text", "text": "Failed to retrieve alerts data"}]
 
     features = data["features"]
     if not features:
-        return [
-            types.TextContent(text=f"No active alerts for {state_code}", type="text")
-        ]
+        return [{"type": "text", "text": f"No active alerts for {state_code}"}]
 
     alerts = [format_alert(AlertFeature(feature["properties"])) for feature in features]
     return [
-        types.TextContent(
-            text=f"Active alerts for {state_code}:\n\n" + "\n".join(alerts), type="text"
-        )
+        {
+            "type": "text",
+            "text": f"Active alerts for {state_code}:\n\n" + "\n".join(alerts),
+        }
     ]
 
 

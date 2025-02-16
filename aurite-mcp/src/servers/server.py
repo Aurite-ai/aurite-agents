@@ -212,34 +212,51 @@ def create_server() -> Server:
             raise ValueError(f"Resource content not implemented: {uri_str}")
 
     @app.call_tool()
-    async def call_tool(name: str, arguments: Dict[str, Any]) -> types.CallToolResult:
+    async def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a weather tool"""
         from src.tools.weather import get_alerts, get_forecast
 
         try:
             if name == "get_alerts":
                 content = await get_alerts(arguments)
-                # Use content directly since it's already properly formatted
-                return types.CallToolResult(
-                    content=content,  # content is already a list of TextContent objects
-                    meta=None,
-                    isError=False,
+                # Return a dictionary that matches the exact structure needed
+                return dict(
+                    __root__={
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": c.text if hasattr(c, "text") else str(c),
+                            }
+                            for c in content
+                        ],
+                        "isError": False,
+                        "meta": None,
+                    }
                 )
             elif name == "get_forecast":
                 content = await get_forecast(arguments)
-                # Use content directly since it's already properly formatted
-                return types.CallToolResult(
-                    content=content,  # content is already a list of TextContent objects
-                    meta=None,
-                    isError=False,
+                # Return a dictionary that matches the exact structure needed
+                return dict(
+                    __root__={
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": c.text if hasattr(c, "text") else str(c),
+                            }
+                            for c in content
+                        ],
+                        "isError": False,
+                        "meta": None,
+                    }
                 )
             raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
-            # Return error result
-            return types.CallToolResult(
-                content=[types.TextContent(type="text", text=str(e))],
-                meta=None,
-                isError=True,
+            return dict(
+                __root__={
+                    "content": [{"type": "text", "text": str(e)}],
+                    "isError": True,
+                    "meta": None,
+                }
             )
 
     return app
