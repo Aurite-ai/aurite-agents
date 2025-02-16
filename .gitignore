@@ -68,3 +68,5 @@ __fixtures__/custom-modules-dir/patches/
 **/__ruff_cache__/**
 **/__pytest__/**
 **/__pytest_cache__/**
+
+aurite-mcp/.venv/

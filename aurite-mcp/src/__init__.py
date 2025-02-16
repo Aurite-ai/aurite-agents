@@ -1,0 +1,1 @@
+"""Aurite MCP package."""

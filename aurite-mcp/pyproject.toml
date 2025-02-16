@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "aurite-mcp"
 version = "0.1.0"
@@ -9,4 +13,48 @@ dependencies = [
     "httpx>=0.25.0",
     "anyio>=3.8.0",
     "sqlalchemy>=2.0.0",
+    "anthropic>=0.39.0",
 ]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+namespaces = false
+
+# Pytest configuration
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "INFO"
+markers = [
+    "unit: mark test as unit test",
+    "integration: mark test as integration test",
+    "e2e: mark test as end-to-end test",
+    "asyncio: mark test as async test",
+    "core: mark test as core functionality test",
+    "user: mark test as requiring user credentials",
+    "extended: mark test as extended functionality test",
+    "agent: mark test as agent test",
+    "infrastructure: mark test as infrastructure/setup verification",
+]
+pythonpath = [".", "src"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    "ignore::RuntimeWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestUnknownMarkWarning",
+    "ignore::pytest.PytestConfigWarning",
+    "ignore::pytest.PytestUnhandledCoroutineWarning",
+]
+
+[project.scripts]
+mcp-server = "src.servers.server:main"
