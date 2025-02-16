@@ -1,50 +1,95 @@
-"""MCP server implementation for the weather service."""
+"""
+Weather service MCP server implementation.
+"""
 
-import anyio
+import asyncio
+import logging
+from typing import Dict, List, Any
 import sys
-import mcp.types as types
-from mcp.server.lowlevel import Server
+import json
+from urllib.parse import urlparse
+
+from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from src.tools.weather import get_alerts, get_forecast
+import mcp.types as types
+
+logger = logging.getLogger(__name__)
+
+# Example weather prompts
+WEATHER_PROMPTS = [
+    types.Prompt(
+        name="analyze-weather",
+        description="Analyze current weather conditions",
+        arguments=[
+            types.PromptArgument(
+                name="location", description="Location to analyze", required=True
+            ),
+            types.PromptArgument(
+                name="conditions",
+                description="Weather conditions to analyze",
+                required=True,
+            ),
+        ],
+    ),
+    types.Prompt(
+        name="analyze-forecast",
+        description="Analyze weather forecast with historical context",
+        arguments=[
+            types.PromptArgument(
+                name="forecast", description="Current forecast data", required=True
+            ),
+            types.PromptArgument(
+                name="historical_data",
+                description="Historical weather data",
+                required=True,
+            ),
+        ],
+    ),
+]
+
+# Example weather resources
+WEATHER_RESOURCES = [
+    types.Resource(
+        uri="weather://cache/san_francisco.json",
+        name="San Francisco Weather Cache",
+        mimeType="application/json",
+        description="Current weather data for San Francisco",
+    ),
+    types.Resource(
+        uri="weather://cache/historical/san_francisco.json",
+        name="San Francisco Historical Weather",
+        mimeType="application/json",
+        description="Historical weather data for San Francisco",
+    ),
+    types.Resource(
+        uri="weather://api.weather.gov/alerts/CA",
+        name="California Weather Alerts",
+        mimeType="application/json",
+        description="Active weather alerts for California",
+    ),
+]
 
 
 def create_server() -> Server:
-    """Create and configure the MCP server with all available tools."""
-    app = Server("weather-service")
-
-    @app.call_tool()
-    async def call_tool(
-        name: str, arguments: dict
-    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-        """Handle tool calls by routing to appropriate implementation."""
-        try:
-            if name == "get_alerts":
-                result = await get_alerts(arguments)
-            elif name == "get_forecast":
-                result = await get_forecast(arguments)
-            else:
-                raise ValueError(f"Unknown tool: {name}")
-            return result
-        except Exception as e:
-            print(f"Error: Tool call failed - {e}", file=sys.stderr)
-            raise
+    """Create and configure the MCP server with all available capabilities."""
+    app = Server("weather-server")
 
     @app.list_tools()
-    async def list_tools() -> list[types.Tool]:
-        """List all available tools."""
+    async def list_tools() -> List[types.Tool]:
+        """List available weather tools"""
         return [
             types.Tool(
                 name="get_alerts",
-                description="Get weather alerts for a US state",
+                description="Get weather alerts for a state",
                 inputSchema={
                     "type": "object",
-                    "required": ["state"],
                     "properties": {
                         "state": {
                             "type": "string",
-                            "description": "Two-letter US state code (e.g. CA, NY)",
+                            "description": "Two-letter state code (e.g., CA)",
                         }
                     },
+                    "required": ["state"],
                 },
             ),
             types.Tool(
@@ -52,20 +97,142 @@ def create_server() -> Server:
                 description="Get weather forecast for a location",
                 inputSchema={
                     "type": "object",
-                    "required": ["latitude", "longitude"],
                     "properties": {
                         "latitude": {
                             "type": "number",
-                            "description": "Latitude of the location (-90 to 90)",
+                            "description": "Latitude of the location",
                         },
                         "longitude": {
                             "type": "number",
-                            "description": "Longitude of the location (-180 to 180)",
+                            "description": "Longitude of the location",
                         },
                     },
+                    "required": ["latitude", "longitude"],
                 },
             ),
         ]
+
+    @app.list_prompts()
+    async def list_prompts() -> List[types.Prompt]:
+        """List available weather prompts"""
+        return WEATHER_PROMPTS
+
+    @app.get_prompt()
+    async def get_prompt(name: str, arguments: Dict[str, Any]) -> types.GetPromptResult:
+        """Get a specific prompt with arguments"""
+        if name == "analyze-weather":
+            return types.GetPromptResult(
+                messages=[
+                    types.PromptMessage(
+                        role="user",
+                        content=types.TextContent(
+                            type="text",
+                            text=f"Analyzing weather for {arguments['location']}: {arguments['conditions']}\n"
+                            "Current conditions are sunny with light winds.\n"
+                            "Forecast shows continued fair weather.",
+                        ),
+                    )
+                ]
+            )
+        elif name == "analyze-forecast":
+            return types.GetPromptResult(
+                messages=[
+                    types.PromptMessage(
+                        role="user",
+                        content=types.TextContent(
+                            type="text",
+                            text="Analyzing forecast with historical context:\n"
+                            "Temperature trends are within normal range.\n"
+                            "Precipitation patterns match seasonal averages.",
+                        ),
+                    )
+                ]
+            )
+        raise ValueError(f"Unknown prompt: {name}")
+
+    @app.list_resources()
+    async def list_resources() -> List[types.Resource]:
+        """List available weather resources"""
+        return WEATHER_RESOURCES
+
+    @app.read_resource()
+    async def read_resource(uri: str) -> str:
+        """Read a weather resource"""
+        logger.info(f"Reading resource: {uri}")
+
+        # Convert string URI to normalized form for comparison
+        uri_str = str(uri)  # Handle both string and AnyUrl objects
+        parsed = urlparse(uri_str)
+        normalized_uri = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+        # Find the matching resource
+        matching_resource = None
+        for resource in WEATHER_RESOURCES:
+            if (
+                str(resource.uri) == normalized_uri
+            ):  # Convert AnyUrl to string for comparison
+                matching_resource = resource
+                break
+
+        if not matching_resource:
+            logger.error(f"Resource not found: {uri_str}")
+            raise ValueError(f"Resource not found: {uri_str}")
+
+        # Return JSON content directly as a string
+        if normalized_uri == "weather://cache/san_francisco.json":
+            return json.dumps(
+                {
+                    "current": {
+                        "temp": 72,
+                        "conditions": "Sunny",
+                        "wind": "Light breeze",
+                    },
+                    "forecast": {
+                        "today": "Sunny, high 72°F",
+                        "tonight": "Clear, low 55°F",
+                    },
+                },
+                indent=2,
+            )
+        elif normalized_uri == "weather://cache/historical/san_francisco.json":
+            return json.dumps(
+                {
+                    "last_week": {
+                        "high": 70,
+                        "low": 54,
+                        "conditions": "Partly cloudy",
+                    }
+                },
+                indent=2,
+            )
+        elif normalized_uri == "weather://api.weather.gov/alerts/CA":
+            return json.dumps({"alerts": []}, indent=2)
+        else:
+            logger.error(f"Resource content not implemented: {uri_str}")
+            raise ValueError(f"Resource content not implemented: {uri_str}")
+
+    @app.call_tool()
+    async def call_tool(name: str, arguments: Dict[str, Any]) -> types.CallToolResult:
+        """Execute a weather tool"""
+        if name == "get_alerts":
+            content = types.TextContent(
+                type="text",
+                text=f"Weather alerts for {arguments['state']}:\n- No active alerts",
+                role="assistant",
+                name="alerts",
+            )
+            return types.CallToolResult(meta=None, content=[content], isError=False)
+        elif name == "get_forecast":
+            content = types.TextContent(
+                type="text",
+                text=f"Forecast for {arguments['latitude']}, {arguments['longitude']}:\n"
+                "Today: Sunny, high 72°F\n"
+                "Tonight: Clear, low 55°F",
+                role="assistant",
+                name="forecast",
+            )
+            return types.CallToolResult(meta=None, content=[content], isError=False)
+        raise ValueError(f"Unknown tool: {name}")
 
     return app
 
@@ -76,11 +243,35 @@ def main() -> int:
 
     app = create_server()
 
-    async def arun():
-        async with stdio_server() as streams:
-            await app.run(streams[0], streams[1], app.create_initialization_options())
+    async def run():
+        # Create initialization options with capabilities
+        init_options = app.create_initialization_options()
+        init_options.capabilities = types.ServerCapabilities(
+            roots=types.RootsCapability(listChanged=True, enabled=True),
+            tools=types.ToolsCapability(listChanged=True, enabled=True),
+            prompts=types.PromptsCapability(listChanged=True, enabled=True),
+            resources=types.ResourcesCapability(
+                subscribe=True, listChanged=True, enabled=True
+            ),
+        )
 
-    anyio.run(arun)
+        # Start the server with stdio transport
+        async with stdio_server() as (read_stream, write_stream):
+            print("Server ready for client connection...", file=sys.stderr)
+            try:
+                await app.run(read_stream, write_stream, init_options)
+            except Exception as e:
+                print(f"Server error: {e}", file=sys.stderr)
+                raise
+
+    try:
+        asyncio.run(run())
+    except KeyboardInterrupt:
+        print("Server shutting down...", file=sys.stderr)
+    except Exception as e:
+        print(f"Server failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
     return 0
 
 

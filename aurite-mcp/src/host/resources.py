@@ -44,20 +44,24 @@ class ResourceManager:
     ):
         """Register resources available from a client"""
         logger.info(
-            f"Registering resources for client {client_id}: {[r.uri for r in resources]}"
+            f"Registering resources for client {client_id}: {[str(r.uri) for r in resources]}"
         )
 
         if client_id not in self._resources:
             self._resources[client_id] = {}
 
         for resource in resources:
-            self._resources[client_id][resource.uri] = resource
+            self._resources[client_id][str(resource.uri)] = resource
 
     async def get_resource(self, uri: str, client_id: str) -> Optional[types.Resource]:
         """Get a specific resource"""
-        if client_id not in self._resources or uri not in self._resources[client_id]:
+        uri_str = str(uri)
+        if (
+            client_id not in self._resources
+            or uri_str not in self._resources[client_id]
+        ):
             return None
-        return self._resources[client_id][uri]
+        return self._resources[client_id][uri_str]
 
     async def list_resources(
         self, client_id: Optional[str] = None
@@ -94,24 +98,31 @@ class ResourceManager:
         self, uri: str, client_id: str, root_manager: Any
     ) -> bool:
         """Validate resource access against client's root boundaries"""
-        # Parse the resource URI
-        parsed = urlparse(uri)
+        # Convert URI to string if it's an AnyUrl
+        uri_str = str(uri)
+        parsed = urlparse(uri_str)
 
         # Get client's root URIs
         roots = await root_manager.get_client_roots(client_id)
 
         # Check if resource URI is within any of the client's roots
         for root in roots:
-            root_parsed = urlparse(root.uri)
-            if (
-                parsed.scheme == root_parsed.scheme
-                and parsed.netloc == root_parsed.netloc
-                and parsed.path.startswith(root_parsed.path)
-            ):
-                return True
+            root_str = str(root.uri)  # Convert root URI to string
+            root_parsed = urlparse(root_str)
+
+            # For custom schemes like weather://, just check if the URI starts with the root URI
+            if parsed.scheme == root_parsed.scheme:
+                resource_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                root_path = (
+                    f"{root_parsed.scheme}://{root_parsed.netloc}{root_parsed.path}"
+                )
+
+                if resource_path.startswith(root_path):
+                    logger.info(f"Resource {uri_str} validated against root {root_str}")
+                    return True
 
         raise ValueError(
-            f"Resource {uri} is not accessible within client {client_id}'s roots"
+            f"Resource {uri_str} is not accessible within client {client_id}'s roots"
         )
 
     async def shutdown(self):
