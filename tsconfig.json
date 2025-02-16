@@ -21,7 +21,7 @@
       "@/*": ["src/*"],
       "@/types/*": ["src/types/*"],
       "@/agents/*": ["src/agents/*"],
-      "@/state/*": ["src/state/*"],
+      "@/state/*": ["src/context/*"],
       "@/tools/*": ["src/tools/*"]
     }
   }

@@ -3,7 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { generateText, tool } from 'ai';
 import { z } from 'zod';
 import { researcherAgent } from './researcher.agent';
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 
 export default class PlannerAgent extends Agent {
   async execute(instructions: string) {

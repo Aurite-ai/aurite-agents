@@ -1,5 +1,5 @@
 import { generateId, ToolResult, ToolResultPart } from 'ai';
-import StateManager from '../state/state-manager';
+import StateManager from '../context/state-manager';
 
 interface SubAgentConfig {}
 

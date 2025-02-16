@@ -1,6 +1,6 @@
 import { AgentConfig } from '@/types/agent.interface';
 import ResearchAgent from '../../src/agents/planning/researcher.agent';
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 
 const fs = require('fs');
 

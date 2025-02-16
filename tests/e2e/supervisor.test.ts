@@ -1,6 +1,6 @@
 import { AgentConfig } from '@/types/agent.interface';
 import SupervisorAgent from '../../src/agents/coordination/supervisor.agent';
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 
 const fs = require('fs');
 

@@ -1,4 +1,4 @@
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 import Agent from '@/types/agent.interface';
 
 describe('Agent', () => {

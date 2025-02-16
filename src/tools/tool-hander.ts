@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { defaultToolSchema } from '@/types/tool.interface';
-import StateManager from '@/state/state-manager';
+import StateManager from '@/context/state-manager';
 import pickAgent from '@/routes/agent.router';
 import { ToolOutput, ToolDetails } from '@/types/tool.interface';
 import { Agent, AgentConfig } from '@/types/agent.interface';
