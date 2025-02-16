@@ -212,52 +212,26 @@ def create_server() -> Server:
             raise ValueError(f"Resource content not implemented: {uri_str}")
 
     @app.call_tool()
-    async def call_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def call_tool(
+        name: str, arguments: Dict[str, Any]
+    ) -> List[types.TextContent]:
         """Execute a weather tool"""
         from src.tools.weather import get_alerts, get_forecast
 
         try:
             if name == "get_alerts":
                 content = await get_alerts(arguments)
-                # Return a dictionary that matches the exact structure needed
-                return dict(
-                    __root__={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": c.text if hasattr(c, "text") else str(c),
-                            }
-                            for c in content
-                        ],
-                        "isError": False,
-                        "meta": None,
-                    }
-                )
+                # Return just the list of TextContent objects
+                return [
+                    types.TextContent(type=c["type"], text=c["text"]) for c in content
+                ]
             elif name == "get_forecast":
                 content = await get_forecast(arguments)
-                # Return a dictionary that matches the exact structure needed
-                return dict(
-                    __root__={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": c.text if hasattr(c, "text") else str(c),
-                            }
-                            for c in content
-                        ],
-                        "isError": False,
-                        "meta": None,
-                    }
-                )
+                # Content is already proper TextContent objects
+                return content
             raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
-            return dict(
-                __root__={
-                    "content": [{"type": "text", "text": str(e)}],
-                    "isError": True,
-                    "meta": None,
-                }
-            )
+            raise ValueError(str(e))
 
     return app
 
