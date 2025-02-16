@@ -214,25 +214,33 @@ def create_server() -> Server:
     @app.call_tool()
     async def call_tool(name: str, arguments: Dict[str, Any]) -> types.CallToolResult:
         """Execute a weather tool"""
-        if name == "get_alerts":
-            content = types.TextContent(
-                type="text",
-                text=f"Weather alerts for {arguments['state']}:\n- No active alerts",
-                role="assistant",
-                name="alerts",
+        from src.tools.weather import get_alerts, get_forecast
+
+        try:
+            if name == "get_alerts":
+                content = await get_alerts(arguments)
+                # Use content directly since it's already properly formatted
+                return types.CallToolResult(
+                    content=content,  # content is already a list of TextContent objects
+                    meta=None,
+                    isError=False,
+                )
+            elif name == "get_forecast":
+                content = await get_forecast(arguments)
+                # Use content directly since it's already properly formatted
+                return types.CallToolResult(
+                    content=content,  # content is already a list of TextContent objects
+                    meta=None,
+                    isError=False,
+                )
+            raise ValueError(f"Unknown tool: {name}")
+        except Exception as e:
+            # Return error result
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=str(e))],
+                meta=None,
+                isError=True,
             )
-            return types.CallToolResult(meta=None, content=[content], isError=False)
-        elif name == "get_forecast":
-            content = types.TextContent(
-                type="text",
-                text=f"Forecast for {arguments['latitude']}, {arguments['longitude']}:\n"
-                "Today: Sunny, high 72°F\n"
-                "Tonight: Clear, low 55°F",
-                role="assistant",
-                name="forecast",
-            )
-            return types.CallToolResult(meta=None, content=[content], isError=False)
-        raise ValueError(f"Unknown tool: {name}")
 
     return app
 

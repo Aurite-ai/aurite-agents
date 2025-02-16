@@ -182,7 +182,7 @@ class MCPHost:
 
         # Execute prompt through client
         client = self._clients[client_id]
-        return await client.execute_prompt(name, arguments)
+        return await client.get_prompt(name, arguments)
 
     # Resource-related methods
     async def list_resources(
@@ -245,6 +245,11 @@ class MCPHost:
         # Call the tool
         try:
             result = await client.call_tool(tool_name, arguments)
+            # Handle the result directly as a CallToolResult
+            if result.isError:
+                raise ValueError(
+                    result.content[0].text if result.content else "Unknown error"
+                )
             return result.content
         except Exception as e:
             logger.error(f"Tool call failed - {tool_name}: {e}")
