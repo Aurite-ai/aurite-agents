@@ -18,7 +18,11 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@/types/*": ["src/types/*"],
+      "@/agents/*": ["src/agents/*"],
+      "@/state/*": ["src/state/*"],
+      "@/tools/*": ["src/tools/*"]
     }
   }
 }
