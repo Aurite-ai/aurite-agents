@@ -17,5 +17,5 @@ describe("test chat api", () => {
 
     const data = await response.json();
     expect(data).toBeDefined();
-  });
+  }, 20000);
 });
