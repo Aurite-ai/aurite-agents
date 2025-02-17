@@ -1,5 +1,7 @@
-import { generateId, ToolResult, ToolResultPart } from 'ai';
-import StateManager from '../context/state-manager';
+import { generateId, tool, ToolResult, ToolResultPart } from "ai";
+import StateManager from "../context/state-manager";
+import { z } from "zod";
+import Logger from "@/lib/logger";
 
 interface SubAgentConfig {}
 
@@ -18,6 +20,10 @@ class Agent {
     protected stateManager: StateManager<any>,
     protected id: string = generateId()
   ) {}
+
+  async execute(input: string): Promise<any> {
+    return input;
+  }
 
   addInternalMessage(message: string, toolResults: ToolResultPart[] = []) {
     this.stateManager.addInternalMessage({
