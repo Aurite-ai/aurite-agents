@@ -17,12 +17,15 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
+    "types": ["jest", "node"],
     "paths": {
       "@/*": ["src/*"],
       "@/types/*": ["src/types/*"],
       "@/agents/*": ["src/agents/*"],
       "@/state/*": ["src/context/*"],
-      "@/tools/*": ["src/tools/*"]
+      "@/tools/*": ["src/tools/*"],
+      "@/lib/*": ["src/lib/*"]
     }
-  }
+  },
+  "include": ["src/**/*", "tests/**/*"] // Add this line
 }

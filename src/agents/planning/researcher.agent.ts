@@ -1,8 +1,8 @@
-import Agent from '@/types/agent.interface';
-import { openai } from '@ai-sdk/openai';
-import { generateText, tool } from 'ai';
-import { createPlaywrightTool, createTavilySearchTool } from '@/tools/search';
-import { z } from 'zod';
+import Agent from "@/types/agent.interface";
+import { openai } from "@ai-sdk/openai";
+import { generateText, tool } from "ai";
+import { createPlaywrightTool, createTavilySearchTool } from "@/tools/search";
+import { z } from "zod";
 
 export default class ResearcherAgent extends Agent {
   async execute(instructions: string) {
@@ -17,25 +17,25 @@ export default class ResearcherAgent extends Agent {
       Be discriminating in the sources you decide to pursue further. Not all sources will be relevant.
 
       Make sure your research is up to date. The current date is ${new Date().toLocaleDateString(
-        'en-US',
+        "en-US",
         {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
+          year: "numeric",
+          month: "long",
+          day: "numeric",
         }
       )}.
 
       --- OBJECTIVE ---
       Perform searches and research to accomplish this: ${instructions}`,
-      model: openai('o3-mini'),
+      model: openai("o3-mini"),
       temperature: 0.2,
       onStepFinish: ({ text, toolResults }) =>
         this.addInternalMessage(text, toolResults),
       tools: {
         webSearch: createTavilySearchTool({
           onFindResults: (references) => {
-            stateManager.add('references', [
-              ...(stateManager.get('references') ?? []),
+            stateManager.add("references", [
+              ...(stateManager.get("references") ?? []),
               ...references,
             ]);
             return `I found ${references.length} results.`;
@@ -48,26 +48,18 @@ export default class ResearcherAgent extends Agent {
 
     return text;
   }
+
+  getTool(opts: any = {}) {
+    return tool({
+      description: "A tool that runs the research agent",
+      parameters: z.object({
+        prompt: z.string(),
+      }),
+      execute: async ({ prompt }) => {
+        return this.execute(prompt);
+      },
+    });
+  }
 }
 
-const researcherAgent = tool({
-  description: 'A tool that runs the researcher agent',
-  parameters: z.object({
-    prompt: z.string(),
-  }),
-  execute: async ({ prompt }) => {
-    try {
-      const text = await runResearcher(prompt);
-      return text;
-    } catch (error) {
-      console.error('Error in researcherAgent:', error);
-      return `Error: ${error}`;
-    }
-  },
-});
-
-function runResearcher(prompt: string) {
-  return researcherAgent.execute({ prompt });
-}
-
-export { researcherAgent, runResearcher };
+export { ResearcherAgent };
