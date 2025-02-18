@@ -1,11 +1,15 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} **/
 module.exports = {
-  testEnvironment: 'node',
+  moduleFileExtensions: ["js", "json", "ts"],
+  rootDir: ".", // Make sure this points to your project root
+  testRegex: ".*\\.test\\.ts$",
   transform: {
-    '^.+.tsx?$': ['ts-jest', {}],
+    "^.+\\.(t|j)s$": "ts-jest",
   },
-  setupFiles: ['<rootDir>/tests/setup/jest.setup.ts'],
+  injectGlobals: true,
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    "^@/(.*)$": "<rootDir>/src/$1", // Match your path aliases
   },
+  testEnvironment: "node",
+  roots: ["<rootDir>/src/", "<rootDir>/tests/"], // Add your tests directory here
 };

@@ -1,13 +1,15 @@
-import Agent from '@/types/agent.interface';
-import { openai } from '@ai-sdk/openai';
-import { generateText, tool } from 'ai';
-import { z } from 'zod';
-import { researcherAgent } from '../planning/researcher.agent';
-import { plannerAgent } from '../planning/planner.agent';
+import Agent from "@/types/agent.interface";
+import { openai } from "@ai-sdk/openai";
+import { generateText, tool } from "ai";
+import { z } from "zod";
+import { PlannerAgent, ResearcherAgent } from "../planning";
 
 export default class SupervisorAgent extends Agent {
   async execute(instructions: string) {
     const stateManager = this.stateManager;
+
+    const plannerAgent = new PlannerAgent(this.config, this.stateManager);
+    const researcherAgent = new ResearcherAgent(this.config, this.stateManager);
 
     const { text } = await generateText({
       prompt: `
@@ -19,29 +21,25 @@ export default class SupervisorAgent extends Agent {
       onStepFinish: ({ text, toolResults }) =>
         this.addInternalMessage(text, toolResults),
       tools: {
-        researcher: researcherAgent,
-        planner: plannerAgent,
+        researcher: researcherAgent.getTool(),
+        planner: plannerAgent.getTool(),
       },
       maxSteps: 5,
     });
 
     return text;
   }
+  getTool(opts: any = {}) {
+    return tool({
+      description: "A tool that runs the supervisor agent",
+      parameters: z.object({
+        prompt: z.string(),
+      }),
+      execute: async ({ prompt }) => {
+        return this.execute(prompt);
+      },
+    });
+  }
 }
 
-const supervisorAgent = tool({
-  description: 'A tool that runs the supervisor agent',
-  parameters: z.object({
-    prompt: z.string(),
-  }),
-  execute: async ({ prompt }) => {
-    const text = await runSupervisor(prompt);
-    return text;
-  },
-});
-
-function runSupervisor(prompt: string) {
-  return supervisorAgent.execute({ prompt });
-}
-
-export { supervisorAgent, runSupervisor };
+export { SupervisorAgent };

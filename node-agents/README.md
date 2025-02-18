@@ -70,5 +70,3 @@ Aurite
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
-
-cat node_modules/@modelcontextprotocol/sdk/dist/esm/types.d.ts
