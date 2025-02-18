@@ -7,8 +7,6 @@ import ResearcherAgent from "./researcher.agent";
 
 export default class PlannerAgent extends Agent {
   async execute(instructions: string) {
-    const stateManager = this.stateManager;
-
     const researcherAgent = new ResearcherAgent(this.config, this.stateManager);
 
     const { text } = await generateText({
@@ -21,7 +19,7 @@ export default class PlannerAgent extends Agent {
       },
     });
 
-    stateManager.handleUpdate({
+    this.stateManager.handleUpdate({
       type: "plan",
       payload: text,
     });
