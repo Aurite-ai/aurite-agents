@@ -24,6 +24,7 @@
       "@/agents/*": ["src/agents/*"],
       "@/state/*": ["src/context/*"],
       "@/tools/*": ["src/tools/*"],
+      "@/services/*": ["src/services/*"],
       "@/lib/*": ["src/lib/*"]
     }
   },

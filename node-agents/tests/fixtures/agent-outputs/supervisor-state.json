@@ -1,44 +1,213 @@
 {
-  "references": [],
+  "status": "idle",
   "messages": [],
   "internalMessages": [
+    {
+      "message": "Found 1 agents",
+      "toolResults": [],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:11.195Z"
+    },
     {
       "message": "",
       "toolResults": [
         {
           "type": "tool-result",
-          "toolCallId": "call_sgngCFDNILxcRlZz0w1kLTOB",
-          "toolName": "researcher",
+          "toolCallId": "call_9iUhbYLfVxB4tVgKg8uvAmhI",
+          "toolName": "directory",
           "args": {
-            "waitForCompletion": true,
-            "maxTokens": 1000,
-            "instructions": "Find out who won the 2025 Super Bowl and provide details on how they won."
+            "query": "email"
           },
-          "result": "Error: The model `o3-mini` does not exist or you do not have access to it."
+          "result": [
+            {
+              "id": "crew-ai-email-assistant",
+              "name": "crew-ai-email-assistant",
+              "description": "An AI assistant for email management.",
+              "platform": "crew-ai",
+              "endpoint": "https://api.crew.ai/v1/agents?query=email",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "task"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:11.196Z"
+    },
+    {
+      "message": "Creating a poem about snakes involves several steps, from research and brainstorming to drafting and revising. Here's a detailed plan to accomplish this task:\n\n### Step 1: Research\n- **Objective**: Gather information and inspiration about snakes to ensure the poem is accurate and engaging.\n- **Actions**:\n  1. **Research Snake Characteristics**: Use a research agent to gather information about different types of snakes, their habitats, behaviors, and symbolism in various cultures.\n  2. **Explore Snake Symbolism**: Investigate how snakes are represented in literature, mythology, and art to find thematic elements that could enrich the poem.\n\n### Step 2: Brainstorming\n- **Objective**: Generate ideas and themes for the poem.\n- **Actions**:\n  1. **List Key Themes**: Based on the research, list potential themes such as transformation, danger, beauty, or mystery.\n  2. **Create a Word Bank**: Compile a list of words and phrases related to snakes, including descriptive adjectives, verbs, and nouns.\n\n### Step 3: Outline the Poem\n- **Objective**: Structure the poem to ensure a coherent flow.\n- **Actions**:\n  1. **Choose a Poetic Form**: Decide on the form of the poem (e.g., sonnet, free verse, haiku) based on the desired tone and length.\n  2. **Draft an Outline**: Create a rough outline of the poem, deciding on the number of stanzas and the progression of ideas.\n\n### Step 4: Drafting\n- **Objective**: Write the initial version of the poem.\n- **Actions**:\n  1. **Write the Opening**: Start with a captivating line or stanza that introduces the theme or mood.\n  2. **Develop the Body**: Expand on the themes, using vivid imagery and metaphors to describe snakes.\n  3. **Conclude the Poem**: End with a powerful closing that leaves a lasting impression or offers a twist.\n\n### Step 5: Revising\n- **Objective**: Refine the poem to enhance clarity, rhythm, and impact.\n- **Actions**:\n  1. **Review for Clarity**: Ensure each line conveys the intended meaning and imagery.\n  2. **Check Rhythm and Flow**: Read the poem aloud to assess its musicality and make adjustments as needed.\n  3. **Edit for Conciseness**: Remove any unnecessary words or lines to tighten the poem.\n\n### Step 6: Finalizing\n- **Objective**: Prepare the poem for presentation or publication.\n- **Actions**:\n  1. **Proofread**: Check for spelling, grammar, and punctuation errors.\n  2. **Format the Poem**: Ensure the poem is formatted correctly, with consistent line breaks and indentation.\n\n### Step 7: Feedback and Iteration\n- **Objective**: Gather feedback and make final adjustments.\n- **Actions**:\n  1. **Share with Peers**: Present the poem to a group of peers or a mentor for feedback.\n  2. **Incorporate Feedback**: Make any necessary revisions based on the feedback received.\n\n### Tools and Resources\n- **Research Tools**: Use a research agent to gather information about snakes and their symbolism.\n- **Writing Tools**: Utilize writing software or apps for drafting and revising the poem.\n- **Feedback Platforms**: Consider using online writing communities for additional feedback.\n\nBy following this plan, agents can collaboratively create a well-researched and creatively crafted poem about snakes.",
+      "toolResults": [],
+      "agentId": "lJ9LGOrWChu6XQmw",
+      "agentName": "PlannerAgent",
+      "createdAt": "2025-02-18T22:37:26.754Z"
+    },
+    {
+      "message": "",
+      "toolResults": [
+        {
+          "type": "tool-result",
+          "toolCallId": "call_pmjQdM5vMACe81S9WP7HVkYy",
+          "toolName": "planner",
+          "args": {
+            "prompt": "Write a poem about snakes."
+          },
+          "result": "Creating a poem about snakes involves several steps, from research and brainstorming to drafting and revising. Here's a detailed plan to accomplish this task:\n\n### Step 1: Research\n- **Objective**: Gather information and inspiration about snakes to ensure the poem is accurate and engaging.\n- **Actions**:\n  1. **Research Snake Characteristics**: Use a research agent to gather information about different types of snakes, their habitats, behaviors, and symbolism in various cultures.\n  2. **Explore Snake Symbolism**: Investigate how snakes are represented in literature, mythology, and art to find thematic elements that could enrich the poem.\n\n### Step 2: Brainstorming\n- **Objective**: Generate ideas and themes for the poem.\n- **Actions**:\n  1. **List Key Themes**: Based on the research, list potential themes such as transformation, danger, beauty, or mystery.\n  2. **Create a Word Bank**: Compile a list of words and phrases related to snakes, including descriptive adjectives, verbs, and nouns.\n\n### Step 3: Outline the Poem\n- **Objective**: Structure the poem to ensure a coherent flow.\n- **Actions**:\n  1. **Choose a Poetic Form**: Decide on the form of the poem (e.g., sonnet, free verse, haiku) based on the desired tone and length.\n  2. **Draft an Outline**: Create a rough outline of the poem, deciding on the number of stanzas and the progression of ideas.\n\n### Step 4: Drafting\n- **Objective**: Write the initial version of the poem.\n- **Actions**:\n  1. **Write the Opening**: Start with a captivating line or stanza that introduces the theme or mood.\n  2. **Develop the Body**: Expand on the themes, using vivid imagery and metaphors to describe snakes.\n  3. **Conclude the Poem**: End with a powerful closing that leaves a lasting impression or offers a twist.\n\n### Step 5: Revising\n- **Objective**: Refine the poem to enhance clarity, rhythm, and impact.\n- **Actions**:\n  1. **Review for Clarity**: Ensure each line conveys the intended meaning and imagery.\n  2. **Check Rhythm and Flow**: Read the poem aloud to assess its musicality and make adjustments as needed.\n  3. **Edit for Conciseness**: Remove any unnecessary words or lines to tighten the poem.\n\n### Step 6: Finalizing\n- **Objective**: Prepare the poem for presentation or publication.\n- **Actions**:\n  1. **Proofread**: Check for spelling, grammar, and punctuation errors.\n  2. **Format the Poem**: Ensure the poem is formatted correctly, with consistent line breaks and indentation.\n\n### Step 7: Feedback and Iteration\n- **Objective**: Gather feedback and make final adjustments.\n- **Actions**:\n  1. **Share with Peers**: Present the poem to a group of peers or a mentor for feedback.\n  2. **Incorporate Feedback**: Make any necessary revisions based on the feedback received.\n\n### Tools and Resources\n- **Research Tools**: Use a research agent to gather information about snakes and their symbolism.\n- **Writing Tools**: Utilize writing software or apps for drafting and revising the poem.\n- **Feedback Platforms**: Consider using online writing communities for additional feedback.\n\nBy following this plan, agents can collaboratively create a well-researched and creatively crafted poem about snakes."
+        }
+      ],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:26.755Z"
+    },
+    {
+      "message": "Found 1 agents",
+      "toolResults": [],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:28.112Z"
+    },
+    {
+      "message": "Found 1 agents",
+      "toolResults": [],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:28.112Z"
+    },
+    {
+      "message": "",
+      "toolResults": [
+        {
+          "type": "tool-result",
+          "toolCallId": "call_Cd49YZl0l1mim3pstd7kWJOj",
+          "toolName": "directory",
+          "args": {
+            "query": "research agent"
+          },
+          "result": [
+            {
+              "id": "crew-ai-email-assistant",
+              "name": "crew-ai-email-assistant",
+              "description": "An AI assistant for email management.",
+              "platform": "crew-ai",
+              "endpoint": "https://api.crew.ai/v1/agents?query=research agent",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "task"
+                ]
+              }
+            }
+          ]
         },
         {
           "type": "tool-result",
-          "toolCallId": "call_dovWZu3tWbNMb0E2v9Ynh5nB",
-          "toolName": "planner",
+          "toolCallId": "call_gScMOpSgjWKNWCy4x6xfxHdg",
+          "toolName": "directory",
           "args": {
-            "waitForCompletion": true,
-            "maxTokens": 1000,
-            "instructions": "Plan a strategy to gather information about the winner of the 2025 Super Bowl and the details of the game."
+            "query": "writing assistant"
           },
-          "result": "Error: The model `o3-mini` does not exist or you do not have access to it."
+          "result": [
+            {
+              "id": "crew-ai-email-assistant",
+              "name": "crew-ai-email-assistant",
+              "description": "An AI assistant for email management.",
+              "platform": "crew-ai",
+              "endpoint": "https://api.crew.ai/v1/agents?query=writing assistant",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "task"
+                ]
+              }
+            }
+          ]
         }
       ],
-      "agentId": "iKd6MEZGYElsBHwv",
+      "agentId": "1z2RzV8rEFk55vzk",
       "agentName": "SupervisorAgent",
-      "createdAt": "2025-02-12T21:51:07.264Z"
+      "createdAt": "2025-02-18T22:37:28.112Z"
     },
     {
-      "message": "I'm currently unable to access the necessary tools to find out who won the 2025 Super Bowl. You might want to check the latest sports news or a reliable sports website for the most up-to-date information.",
+      "message": "To create a detailed plan for writing a poem about snakes using the themes of transformation, danger, beauty, and mystery, and formatting it for an email, follow these steps:\n\n### Step 1: Research and Inspiration\n1. **Research Snakes:**\n   - Gather information about different types of snakes, their habitats, behaviors, and symbolic meanings in various cultures.\n   - Focus on aspects related to transformation (e.g., shedding skin), danger (e.g., venomous species), beauty (e.g., vibrant colors), and mystery (e.g., elusive nature).\n\n2. **Explore Poetic Devices:**\n   - Study examples of poems that effectively use vivid imagery and metaphors.\n   - Identify techniques for incorporating themes of transformation, danger, beauty, and mystery into poetry.\n\n### Step 2: Brainstorming and Drafting\n1. **Brainstorm Imagery and Metaphors:**\n   - Create a list of vivid images and metaphors related to each theme.\n   - Consider how these elements can be woven together to create a cohesive poem.\n\n2. **Draft the Poem:**\n   - Begin with a rough draft, focusing on capturing the essence of each theme.\n   - Use descriptive language to evoke strong visual and emotional responses.\n\n### Step 3: Refinement and Editing\n1. **Revise for Clarity and Impact:**\n   - Refine the poem to ensure clarity and enhance the impact of imagery and metaphors.\n   - Ensure that the themes of transformation, danger, beauty, and mystery are seamlessly integrated.\n\n2. **Seek Feedback:**\n   - Share the draft with peers or mentors for constructive feedback.\n   - Make necessary revisions based on the feedback received.\n\n### Step 4: Formatting for Email\n1. **Format the Poem:**\n   - Ensure the poem is properly formatted with appropriate line breaks and spacing.\n   - Use a clear and readable font for email presentation.\n\n2. **Compose the Email:**\n   - Write a brief introduction to the poem, explaining its themes and inspiration.\n   - Attach the poem to the email or include it in the body of the email.\n\n3. **Address and Send the Email:**\n   - Address the email to patrick@test.com.\n   - Include a subject line that captures the essence of the poem (e.g., \"A Poetic Exploration of Snakes: Transformation, Danger, Beauty, and Mystery\").\n   - Send the email after a final review.\n\n### Step 5: Follow-Up\n1. **Confirm Receipt:**\n   - Follow up with Patrick to confirm receipt of the email and gather any feedback or thoughts on the poem.\n\nBy following this plan, the task of writing and formatting a poem about snakes for an email can be accomplished effectively.",
       "toolResults": [],
-      "agentId": "iKd6MEZGYElsBHwv",
+      "agentId": "lJ9LGOrWChu6XQmw",
+      "agentName": "PlannerAgent",
+      "createdAt": "2025-02-18T22:37:44.880Z"
+    },
+    {
+      "message": "",
+      "toolResults": [
+        {
+          "type": "tool-result",
+          "toolCallId": "call_Ff43LASyTyaFErWsTlQNLml7",
+          "toolName": "planner",
+          "args": {
+            "prompt": "Write a poem about snakes using the following themes: transformation, danger, beauty, and mystery. Use vivid imagery and metaphors. Format it for an email to patrick@test.com."
+          },
+          "result": "To create a detailed plan for writing a poem about snakes using the themes of transformation, danger, beauty, and mystery, and formatting it for an email, follow these steps:\n\n### Step 1: Research and Inspiration\n1. **Research Snakes:**\n   - Gather information about different types of snakes, their habitats, behaviors, and symbolic meanings in various cultures.\n   - Focus on aspects related to transformation (e.g., shedding skin), danger (e.g., venomous species), beauty (e.g., vibrant colors), and mystery (e.g., elusive nature).\n\n2. **Explore Poetic Devices:**\n   - Study examples of poems that effectively use vivid imagery and metaphors.\n   - Identify techniques for incorporating themes of transformation, danger, beauty, and mystery into poetry.\n\n### Step 2: Brainstorming and Drafting\n1. **Brainstorm Imagery and Metaphors:**\n   - Create a list of vivid images and metaphors related to each theme.\n   - Consider how these elements can be woven together to create a cohesive poem.\n\n2. **Draft the Poem:**\n   - Begin with a rough draft, focusing on capturing the essence of each theme.\n   - Use descriptive language to evoke strong visual and emotional responses.\n\n### Step 3: Refinement and Editing\n1. **Revise for Clarity and Impact:**\n   - Refine the poem to ensure clarity and enhance the impact of imagery and metaphors.\n   - Ensure that the themes of transformation, danger, beauty, and mystery are seamlessly integrated.\n\n2. **Seek Feedback:**\n   - Share the draft with peers or mentors for constructive feedback.\n   - Make necessary revisions based on the feedback received.\n\n### Step 4: Formatting for Email\n1. **Format the Poem:**\n   - Ensure the poem is properly formatted with appropriate line breaks and spacing.\n   - Use a clear and readable font for email presentation.\n\n2. **Compose the Email:**\n   - Write a brief introduction to the poem, explaining its themes and inspiration.\n   - Attach the poem to the email or include it in the body of the email.\n\n3. **Address and Send the Email:**\n   - Address the email to patrick@test.com.\n   - Include a subject line that captures the essence of the poem (e.g., \"A Poetic Exploration of Snakes: Transformation, Danger, Beauty, and Mystery\").\n   - Send the email after a final review.\n\n### Step 5: Follow-Up\n1. **Confirm Receipt:**\n   - Follow up with Patrick to confirm receipt of the email and gather any feedback or thoughts on the poem.\n\nBy following this plan, the task of writing and formatting a poem about snakes for an email can be accomplished effectively."
+        }
+      ],
+      "agentId": "1z2RzV8rEFk55vzk",
       "agentName": "SupervisorAgent",
-      "createdAt": "2025-02-12T21:51:08.683Z"
+      "createdAt": "2025-02-18T22:37:44.880Z"
+    },
+    {
+      "message": "",
+      "toolResults": [
+        {
+          "type": "tool-result",
+          "toolCallId": "call_5fris0SLo7EMgDP2CowOAkBC",
+          "toolName": "runAgent",
+          "args": {
+            "agentId": "crew-ai-email-assistant",
+            "input": {
+              "email": "patrick@test.com",
+              "task": "Send an email with a poem about snakes, focusing on themes of transformation, danger, beauty, and mystery. The poem should use vivid imagery and metaphors. Format it appropriately for email."
+            }
+          },
+          "result": {
+            "jobId": "123",
+            "jobStatus": "in-progress",
+            "message": "Called crew-ai-email-assistant with input {\"email\":\"patrick@test.com\",\"task\":\"Send an email with a poem about snakes, focusing on themes of transformation, danger, beauty, and mystery. The poem should use vivid imagery and metaphors. Format it appropriately for email.\"}",
+            "result": "success"
+          }
+        }
+      ],
+      "agentId": "1z2RzV8rEFk55vzk",
+      "agentName": "SupervisorAgent",
+      "createdAt": "2025-02-18T22:37:46.478Z"
     }
-  ],
-  "status": "idle"
+  ]
 }

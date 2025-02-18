@@ -4,7 +4,7 @@ import StateManager from "@/context/state-manager";
 
 const fs = require("fs");
 
-describe("Supervisor", () => {
+describe("Supervisor tool route test", () => {
   it("should be able to run", async () => {
     const config: AgentConfig = {
       name: "test-supervisor",
@@ -21,7 +21,7 @@ describe("Supervisor", () => {
     const supervisor = new SupervisorAgent(config, state);
 
     const text = await supervisor.execute(
-      "Send an email to patrick@test.com about snakes in the form of a poem. Do not ask to confirm."
+      "Send an email to patrick@test.com about in the form of a poem about snakes. Do not ask to confirm."
     );
 
     // write to file for debugging

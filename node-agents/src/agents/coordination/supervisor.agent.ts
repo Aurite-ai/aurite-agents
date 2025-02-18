@@ -3,13 +3,13 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { PlannerAgent, ResearcherAgent } from "../planning";
+import { createAgentDirectoryTool } from "./tools/agent-directory-tool";
+import { runAgentTool } from "./tools/run-agent-tool";
 
 export default class SupervisorAgent extends Agent {
   async execute(instructions: string) {
-    const stateManager = this.stateManager;
-
     const plannerAgent = new PlannerAgent(this.config, this.stateManager);
-    const researcherAgent = new ResearcherAgent(this.config, this.stateManager);
+    // const researcherAgent = new ResearcherAgent(this.config, this.stateManager);
 
     const { text } = await generateText({
       prompt: `
@@ -21,8 +21,12 @@ export default class SupervisorAgent extends Agent {
       onStepFinish: ({ text, toolResults }) =>
         this.addInternalMessage(text, toolResults),
       tools: {
-        researcher: researcherAgent.getTool(),
+        // researcher: researcherAgent.getTool(),
         planner: plannerAgent.getTool(),
+        directory: createAgentDirectoryTool((agents) =>
+          this.addInternalMessage(`Found ${agents.length} agents`)
+        ),
+        runAgent: runAgentTool,
       },
       maxSteps: 5,
     });

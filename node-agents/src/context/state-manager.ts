@@ -1,9 +1,9 @@
-import { CoreMessage } from 'ai';
+import { CoreMessage } from "ai";
 import {
   StateUpdate,
   InternalMessage,
   BaseState,
-} from '@/types/state.interface';
+} from "@/types/state.interface";
 
 export default class StateManager<T extends BaseState> {
   private state: T;
@@ -13,22 +13,31 @@ export default class StateManager<T extends BaseState> {
       ...initialState,
       messages: [],
       internalMessages: [],
-      status: 'idle',
+      status: "idle",
     };
   }
 
   handleUpdate(update: StateUpdate) {
     switch (update.type) {
-      case 'UPDATE_STATUS':
+      case "UPDATE_STATUS":
         this.state = { ...this.state, status: update.payload };
         break;
-      case 'ADD_MESSAGE':
+      case "ADD_MESSAGE":
         this.state = {
           ...this.state,
           messages: [...this.state.messages, update.payload],
         };
         break;
       // Handle other update types
+      case "ADD_INTERNAL_MESSAGE":
+        this.state = {
+          ...this.state,
+          internalMessages: [
+            ...this.state.internalMessages,
+            update.payload as InternalMessage,
+          ],
+        };
+        break;
     }
   }
 
@@ -56,11 +65,11 @@ export default class StateManager<T extends BaseState> {
   }
 
   addMessage(message: CoreMessage) {
-    this.handleUpdate({ type: 'ADD_MESSAGE', payload: message });
+    this.handleUpdate({ type: "ADD_MESSAGE", payload: message });
   }
 
   addInternalMessage(message: InternalMessage) {
-    this.handleUpdate({ type: 'ADD_INTERNAL_MESSAGE', payload: message });
+    this.handleUpdate({ type: "ADD_INTERNAL_MESSAGE", payload: message });
   }
 
   getInternalMessages() {

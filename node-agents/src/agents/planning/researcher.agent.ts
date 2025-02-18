@@ -6,8 +6,6 @@ import { z } from "zod";
 
 export default class ResearcherAgent extends Agent {
   async execute(instructions: string) {
-    const stateManager = this.stateManager;
-
     const { text } = await generateText({
       prompt: `You are a deep researcher.
       Use the web search tool to find relevant sources, and use the web page scraper to extract information from the sources you find.
@@ -34,14 +32,14 @@ export default class ResearcherAgent extends Agent {
       tools: {
         webSearch: createTavilySearchTool({
           onFindResults: (references) => {
-            stateManager.add("references", [
-              ...(stateManager.get("references") ?? []),
+            this.stateManager.add("references", [
+              ...(this.stateManager.get("references") ?? []),
               ...references,
             ]);
             return `I found ${references.length} results.`;
           },
         }),
-        webPageScraper: createPlaywrightTool(),
+        // webPageScraper: createPlaywrightTool(),
       },
       maxSteps: 5,
     });
