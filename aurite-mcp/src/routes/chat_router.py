@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import time
+import uuid
+
+from fastapi import APIRouter
+from pydantic import BaseModel
+from starlette.responses import StreamingResponse
+
+from src.clients.client import MCPClient
+
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/chat", tags=["chat"])
+
+model_to_server = {
+    "weather": "src/servers/server.py"
+}
+
+
+# data models
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class ChatCompletionRequest(BaseModel):
+    model: str | None = None
+    messages: list[Message]
+    max_tokens: int | None = 512
+    temperature: float | None = 0.1
+    stream: bool | None = False
+
+
+async def _resp_async_generator(text_resp: str, model):
+    tokens = text_resp.split(" ")
+
+    # Generate a unique ID for this completion
+    completion_id = f"chatcmpl-{uuid.uuid4()}"
+
+    # Initial chunk with role
+    chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "system_fingerprint": "fp_" + uuid.uuid4().hex[:12],
+        "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "logprobs": None, "finish_reason": None}],
+    }
+    yield f"data: {json.dumps(chunk)}\n\n"
+
+    # Content chunks
+    for token in tokens:
+        chunk = {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": model,
+            "system_fingerprint": "fp_" + uuid.uuid4().hex[:12],
+            "choices": [{"index": 0, "delta": {"content": token + " "}, "logprobs": None, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(chunk)}\n\n"
+        await asyncio.sleep(0.01)
+
+    # Final chunk
+    chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "system_fingerprint": "fp_" + uuid.uuid4().hex[:12],
+        "choices": [{"index": 0, "delta": {}, "logprobs": None, "finish_reason": "stop"}],
+    }
+    yield f"data: {json.dumps(chunk)}\n\n"
+
+    # Stream termination
+    yield "data: [DONE]\n\n"
+
+
+@router.post("/completions")
+async def chat_completions(request: ChatCompletionRequest):
+    logger.info(f"request recieved: {request}")
+
+    if request.model in model_to_server:
+        client = MCPClient()
+        try:
+            await client.connect_to_server(model_to_server[request.model])
+            resp_content = await client.process_query(request.messages[-1].content)
+        except Exception as e:
+            resp_content = f"Error occured: {str(e)}"
+        finally:
+            await client.cleanup()
+    else:
+        if request.messages:
+            resp_content = "Testing. Echoing your last message: " + request.messages[-1].content
+        else:
+            resp_content = "Echoing your last message, but no message was found"
+
+    if request.stream:
+        return StreamingResponse(_resp_async_generator(resp_content, request.model), media_type="text/event-stream")
+
+    return {
+        "id": "0",
+        "object": "chat.completion",
+        "created": time.time(),
+        "model": request.model,
+        "choices": [{"message": Message(role="assistant", content=resp_content)}],
+    }
