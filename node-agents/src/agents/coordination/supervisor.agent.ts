@@ -3,8 +3,8 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { PlannerAgent, ResearcherAgent } from "../planning";
-import { createAgentDirectoryTool } from "./tools/agent-directory-tool";
-import { runAgentTool } from "./tools/run-agent-tool";
+import { createAgentDirectoryTool } from "./tools/agent-directory.tool";
+import { runAgentTool } from "./tools/run-agent.tool";
 
 export default class SupervisorAgent extends Agent {
   async execute(instructions: string) {
@@ -14,7 +14,13 @@ export default class SupervisorAgent extends Agent {
     const { text } = await generateText({
       prompt: `
       You are a supervisor agent. Your job is to coordinate the work of other agents to accomplish a goal.
-      You have access to research and planning tools to help you with this.
+      You have access to planning tools and external agents to help you with this.
+
+      It's important that you dont get stuck in circles - for example, most tasks only require a few steps to complete.
+
+      Use the agent directory to search and find agents that can help you.
+      You can use the run agent tool to execute those agents.
+
       ${instructions}`,
       model: openai(this.config.defaultModel),
       temperature: 0.2,

@@ -56,11 +56,11 @@ export async function checkAgentStatus({ jobId }: { jobId: string }) {
 function getCrewAiAgents(query: string): ExternalAgent[] {
   return [
     {
-      id: "crew-ai-email-assistant",
-      name: "crew-ai-email-assistant",
+      id: "crewai-email-assistant",
+      name: "crewai-email-assistant",
       description: "An AI assistant for email management.",
-      platform: "crew-ai",
-      endpoint: `https://api.crew.ai/v1/agents?query=${query}`,
+      platform: "crewai",
+      endpoint: `https://designing-an-advanced-research-automation-a-0d524c61.crewai.com`,
       inputSchema: {
         type: "object",
         properties: {
