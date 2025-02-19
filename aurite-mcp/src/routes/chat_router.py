@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from src.clients.client import MCPClient
-from src.clients.client_handler import get_client
+from src.clients.client_handler import get_client, clear_all_clients
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -87,10 +87,9 @@ async def chat_completions(request: ChatCompletionRequest):
     if client:
         try:
             resp_content = await client.process_query(request.messages[-1].content)
+            await clear_all_clients()
         except Exception as e:
             resp_content = f"Error occured: {str(e)}"
-        finally:
-            await client.cleanup()
     else:
         resp_content = "Model not recognized"
 

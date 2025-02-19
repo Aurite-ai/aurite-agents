@@ -54,7 +54,10 @@ class MCPClient:
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
         messages = [{"role": "user", "content": query}]
+        return await self.process_messages(messages)
 
+    async def process_messages(self, messages: list) -> str:
+        """Process a list of messages using Claude and available tools"""
         response = await self.session.list_tools()
         available_tools = [
             {
@@ -68,7 +71,7 @@ class MCPClient:
         # Initial Claude API call
         response = self.anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
+            max_tokens=4096,
             messages=messages,
             tools=available_tools,
         )
@@ -121,7 +124,7 @@ class MCPClient:
                 # Get next response from Claude
                 response = self.anthropic.messages.create(
                     model="claude-3-5-sonnet-20241022",
-                    max_tokens=1000,
+                    max_tokens=4096,
                     messages=messages,
                     tools=available_tools,  # Important: Include tools in subsequent calls
                 )
