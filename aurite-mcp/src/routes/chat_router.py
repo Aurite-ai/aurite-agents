@@ -11,14 +11,10 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from src.clients.client import MCPClient
-
+from src.clients.client_handler import get_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-model_to_server = {
-    "weather": "src/servers/server.py"
-}
 
 
 # data models
@@ -82,22 +78,21 @@ async def _resp_async_generator(text_resp: str, model):
 
 @router.post("/completions")
 async def chat_completions(request: ChatCompletionRequest):
-    logger.info(f"request recieved: {request}")
+    #logger.info(f"request recieved: {request}")
+    
+    client = await get_client(request.model)
+    logger.info(client)
+    logger.info(request.messages[-1].content)
 
-    if request.model in model_to_server:
-        client = MCPClient()
+    if client:
         try:
-            await client.connect_to_server(model_to_server[request.model])
             resp_content = await client.process_query(request.messages[-1].content)
         except Exception as e:
             resp_content = f"Error occured: {str(e)}"
         finally:
             await client.cleanup()
     else:
-        if request.messages:
-            resp_content = "Testing. Echoing your last message: " + request.messages[-1].content
-        else:
-            resp_content = "Echoing your last message, but no message was found"
+        resp_content = "Model not recognized"
 
     if request.stream:
         return StreamingResponse(_resp_async_generator(resp_content, request.model), media_type="text/event-stream")
