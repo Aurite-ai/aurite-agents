@@ -14,6 +14,7 @@ dependencies = [
     "anyio>=3.8.0",
     "sqlalchemy>=2.0.0",
     "anthropic>=0.39.0",
+    "fastapi>=0.115.8",
 ]
 
 [tool.setuptools.package-data]
