@@ -1,5 +1,6 @@
 import express from "express";
 import { chatRouter } from "./routes";
+import { runClient } from "./services/smithery";
 
 const app = express();
 
@@ -19,6 +20,11 @@ app.get("/", (req, res) => {
 });
 
 app.use("/v1/chat", chatRouter);
+
+app.use("/test", async (req, res): Promise<any> => {
+  await runClient();
+  res.send("Smithery client is running!");
+});
 
 const port = 4444;
 

@@ -5,7 +5,14 @@ module.exports = {
   testRegex: ".*\\.test\\.ts$",
   setupFiles: ["<rootDir>/tests/setup/jest.setup.ts"],
   transform: {
-    "^.+\\.(t|j)s$": "ts-jest",
+    "^.+\\.[tj]s$": [
+      "ts-jest",
+      {
+        tsconfig: {
+          allowJs: true,
+        },
+      },
+    ],
   },
   injectGlobals: true,
   moduleNameMapper: {
@@ -13,4 +20,7 @@ module.exports = {
   },
   testEnvironment: "node",
   roots: ["<rootDir>/src/", "<rootDir>/tests/"], // Add your tests directory here
+  transformIgnorePatterns: ["<rootDir>/node_modules/(?!@smithery)"],
+  extensionsToTreatAsEsm: [".ts"],
+  preset: "ts-jest",
 };
