@@ -72,6 +72,9 @@ export class AISDKToolAdapter {
         },
       };
     });
+
+    console.log("Tools:", this.tools);
+
     return this.tools;
   }
 }

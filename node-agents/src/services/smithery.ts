@@ -11,23 +11,28 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 import { spawn } from "child_process";
 
-const npxProcess = spawn("npx", [], {
-  stdio: ["pipe", "pipe", "pipe"],
-  shell: process.platform === "win32", // Use shell on Windows
-});
-
-const transport = new StdioClientTransport({
-  command: "npx",
-  args: ["-y", "@mzxrai/mcp-webresearch"],
-});
-
-// const metaMcp = new StdioClientTransport({
-//   command: "npx",
-//   args: ["-y", "@metamcp/mcp-server-metamcp"],
-//   env: {
-//     METAMCP_API_KEY: "<your api key>",
-//   },
+// const npxProcess = spawn("npx", [], {
+//   stdio: ["pipe", "pipe", "pipe"],
+//   shell: process.platform === "win32", // Use shell on Windows
 // });
+
+// const transport = new StdioClientTransport({
+//   command: "npx",
+//   args: ["-y", "@mzxrai/mcp-webresearch"],
+// });
+
+const metaMcp = new StdioClientTransport({
+  command: "npx",
+  args: ["-y", "@metamcp/mcp-server-metamcp"],
+  // env: {
+  //   METAMCP_API_KEY: process.env.METAMCP_API_KEY,
+  // },
+});
+
+const taskmanager = new StdioClientTransport({
+  command: "npx",
+  args: ["-y", "@kazuph/mcp-taskmanager"],
+});
 
 // const url = createSmitheryUrl(
 //   "https://server.smithery.ai/@smithery-ai/brave-search/ws",
@@ -55,6 +60,8 @@ export const runClient = async () => {
     // stripe: clientTransport,
     // brave: transport,
     // metamcp: metaMcp,
+    taskmanager: taskmanager,
+    // webResearch: transport,
   });
 
   const openaiAdapter = new AISDKToolAdapter(client);
@@ -63,7 +70,7 @@ export const runClient = async () => {
     model: openai("gpt-4o"),
     prompt:
       // "Add add a new product to stripe with the name 'Bing treats', price of $10, and description 'This is a test product'.",
-      "Search the internet using brave for 'What is the latest with the war in ukraine?' and return the answer.",
+      "Help me create some tasks to clean my apartment. It's a two bedroom place.",
     tools: await openaiAdapter.listTools(),
     maxSteps: 2,
   });
