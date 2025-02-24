@@ -32,6 +32,9 @@ importers:
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
+      exa-mcp-server:
+        specifier: ^0.1.1
+        version: 0.1.1
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -1331,6 +1334,11 @@ packages:
   eventsource@3.0.5:
     resolution: {integrity: sha512-LT/5J605bx5SNyE+ITBDiM3FxffBiq9un7Vx0EwMDM3vg8sWKx/tO2zC+LMqZ+smAM0F2hblaDZUVZF0te2pSw==}
     engines: {node: '>=18.0.0'}
+
+  exa-mcp-server@0.1.1:
+    resolution: {integrity: sha512-MZb74wboTHodBVuvR/eW93cnLk+uHfnH8kFnjnKreKJvKmeO7LXr1MG27lUgoOwx+UBybG0KO6RpPHpOYZZtpQ==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
@@ -3756,6 +3764,14 @@ snapshots:
   eventsource@3.0.5:
     dependencies:
       eventsource-parser: 3.0.0
+
+  exa-mcp-server@0.1.1:
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.5.0
+      axios: 1.7.9
+      dotenv: 16.4.7
+    transitivePeerDependencies:
+      - debug
 
   execa@5.1.1:
     dependencies:

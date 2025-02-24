@@ -1,12 +1,11 @@
+import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import type { RequestOptions } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { OpenAI } from "openai";
 import type {
   ChatCompletionTool,
   ChatCompletionToolMessageParam,
 } from "openai/resources/index.js";
-import type { RequestOptions } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { ChatCompletion } from "@/types/router.interface";
 
 interface OpenAIAdapterOptions {
   strict?: boolean;

@@ -1,17 +1,43 @@
-import { OpenAIChatAdapter } from "@/lib/adapters/openai-tool-mcp";
+import { AISDKToolAdapter } from "@/lib/adapters/ai-sdk.mcp.adapter";
 import { stripeServer } from "@/mcp/servers";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { openai } from "@ai-sdk/openai";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory";
-// import { OpenAIChatAdapter } from "@smithery/sdk";
-// import { OpenAIChatAdapter } from "@smithery/sdk";
-import { OpenAI } from "openai";
+import { MultiClient } from "@smithery/sdk";
+import { generateText } from "ai";
+import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
+import { createSmitheryUrl } from "@smithery/sdk";
 
-// Object.assign(global, { WebSocket: require("ws") });
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+import { spawn } from "child_process";
+
+const npxProcess = spawn("npx", [], {
+  stdio: ["pipe", "pipe", "pipe"],
+  shell: process.platform === "win32", // Use shell on Windows
+});
+
+const transport = new StdioClientTransport({
+  command: "npx",
+  args: ["-y", "@mzxrai/mcp-webresearch"],
+});
+
+// const metaMcp = new StdioClientTransport({
+//   command: "npx",
+//   args: ["-y", "@metamcp/mcp-server-metamcp"],
+//   env: {
+//     METAMCP_API_KEY: "<your api key>",
+//   },
+// });
+
+// const url = createSmitheryUrl(
+//   "https://server.smithery.ai/@smithery-ai/brave-search/ws",
+//   {
+//     braveApiKey: "The API key for the BRAVE Search server.",
+//   }
+// );
+// const transport = new WebSocketClientTransport(url);
 
 const dotenv = require("dotenv");
-
-console.log("Loading environment variables from .env file");
-
 dotenv.config({ path: ".env" });
 
 export const runClient = async () => {
@@ -20,32 +46,30 @@ export const runClient = async () => {
 
   stripeServer.connect(serverTransport);
 
-  const client = new Client({
+  const client = new MultiClient({
     name: "Smithery SDK Test Client",
     version: "1.0.0",
   });
 
-  await client.connect(clientTransport);
-
-  // Using OpenAI
-  const openai = new OpenAI();
-  const openaiAdapter = new OpenAIChatAdapter(client);
-  const openaiResponse = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "user",
-        content:
-          "You have access to stripe tools. Using stripe, List all of the products, and return the product name, price, and description.",
-      },
-    ],
-    tools: await openaiAdapter.listTools(),
+  await client.connectAll({
+    // stripe: clientTransport,
+    // brave: transport,
+    // metamcp: metaMcp,
   });
 
-  const openaiToolMessages = await openaiAdapter.callTool(openaiResponse);
+  const openaiAdapter = new AISDKToolAdapter(client);
 
-  console.log("OpenAI Response:", openaiResponse.choices[0].message.content);
-  console.log("OpenAI Tool Messages:", ...openaiToolMessages);
+  const { text, toolResults } = await generateText({
+    model: openai("gpt-4o"),
+    prompt:
+      // "Add add a new product to stripe with the name 'Bing treats', price of $10, and description 'This is a test product'.",
+      "Search the internet using brave for 'What is the latest with the war in ukraine?' and return the answer.",
+    tools: await openaiAdapter.listTools(),
+    maxSteps: 2,
+  });
+
+  console.log("OpenAI Response:", text);
+  console.log("OpenAI Tool Results:", toolResults);
 };
 
 runClient();

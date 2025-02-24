@@ -24,14 +24,3 @@ const stripeServer = new StripeAgentToolkit({
 });
 
 export { stripeServer };
-
-// async function main() {
-//   const transport = new StdioServerTransport();
-//   await stripeServer.connect(transport);
-//   console.error("Stripe MCP Server running on stdio");
-// }
-
-// main().catch((error) => {
-//   console.error("Fatal error in main():", error);
-//   process.exit(1);
-// });
