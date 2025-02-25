@@ -14,6 +14,7 @@ const stripeServer = new StripeAgentToolkit({
         create: true,
       },
       products: {
+        read: true,
         create: true,
       },
       prices: {

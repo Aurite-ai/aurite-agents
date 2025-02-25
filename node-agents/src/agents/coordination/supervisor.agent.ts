@@ -5,11 +5,13 @@ import { z } from "zod";
 import { PlannerAgent, ResearcherAgent } from "../planning";
 import { createAgentDirectoryTool } from "./tools/agent-directory.tool";
 import { runAgentTool } from "./tools/run-agent.tool";
+import ExecutorAgent from "../execution/executor.agent";
 
 export default class SupervisorAgent extends Agent {
   async execute(instructions: string) {
     const plannerAgent = new PlannerAgent(this.config, this.stateManager);
     // const researcherAgent = new ResearcherAgent(this.config, this.stateManager);
+    const executorAgent = new ExecutorAgent(this.config, this.stateManager);
 
     const { text } = await generateText({
       prompt: `
@@ -18,8 +20,7 @@ export default class SupervisorAgent extends Agent {
 
       It's important that you dont get stuck in circles - for example, most tasks only require a few steps to complete.
 
-      Use the agent directory to search and find agents that can help you.
-      You can use the run agent tool to execute those agents.
+      Use the executor agent to interface with the tools and external agents to accomplish the task.
 
       ${instructions}`,
       model: openai(this.config.defaultModel),
@@ -29,10 +30,10 @@ export default class SupervisorAgent extends Agent {
       tools: {
         // researcher: researcherAgent.getTool(),
         planner: plannerAgent.getTool(),
-        directory: createAgentDirectoryTool((agents) =>
-          this.addInternalMessage(`Found ${agents.length} agents`)
-        ),
-        runAgent: runAgentTool,
+        // directory: createAgentDirectoryTool((agents) =>
+        //   this.addInternalMessage(`Found ${agents.length} agents`)
+        // ),
+        executorAgent: runAgentTool,
       },
       maxSteps: 5,
     });
