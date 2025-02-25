@@ -7,6 +7,14 @@ import { generateText } from "ai";
 
 import { getMcpTransorts } from "./directory/mcp-server.directory";
 
+import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
+import { createSmitheryUrl } from "@smithery/sdk";
+
+const url = createSmitheryUrl(
+  "wss://server.smithery.ai/@smithery-ai/server-sequential-thinking/ws"
+);
+const transport = new WebSocketClientTransport(url);
+
 const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 
@@ -23,7 +31,9 @@ export const runClient = async () => {
 
   const transportMap = getMcpTransorts();
 
-  await client.connectAll(transportMap);
+  await client.connectAll({
+    transport: transport,
+  });
 
   const openaiAdapter = new AISDKToolAdapter(client);
 
@@ -31,7 +41,7 @@ export const runClient = async () => {
     model: openai("gpt-4o"),
     prompt:
       // "Add add a new product to stripe with the name 'Bing treats', price of $10, and description 'This is a test product'.",
-      "Help me create some tasks to clean my apartment. It's a two bedroom place. Add some products to stripe that I can buy to help me clean.",
+      "Help me create some tasks to clean my apartment. Use sequential thinking first to go step by step. It's a two bedroom place. Add some products to stripe that I can buy to help me clean.",
     tools: await openaiAdapter.listTools(),
     maxSteps: 2,
   });

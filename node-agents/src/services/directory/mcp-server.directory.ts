@@ -8,6 +8,7 @@ import {
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory";
 import { stripeServer } from "@/mcp/servers";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket";
+Object.assign(global, { WebSocket: require("ws") });
 
 type MCPServer = (
   | StdioServerParameters
@@ -24,8 +25,6 @@ const API_KEYS = {
 };
 
 validateApiKeys(API_KEYS);
-
-createSmitheryUrl;
 
 const MCP_SERVERS: Array<MCPServer> = [
   {
