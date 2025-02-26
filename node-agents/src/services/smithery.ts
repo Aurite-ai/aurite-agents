@@ -11,7 +11,8 @@ import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/webso
 import { createSmitheryUrl } from "@smithery/sdk";
 
 const url = createSmitheryUrl(
-  "wss://server.smithery.ai/@smithery-ai/server-sequential-thinking/ws"
+  "https://server.smithery.ai/@smithery-ai/server-sequential-thinking/ws",
+  {}
 );
 const transport = new WebSocketClientTransport(url);
 
