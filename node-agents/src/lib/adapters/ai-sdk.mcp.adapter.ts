@@ -46,7 +46,11 @@ export class AISDKToolAdapter {
   > {
     const toolResult = await this.client.listTools();
     toolResult.tools.forEach((toolDef) => {
-      this.tools[toolDef.name] = {
+      const cleanedName = toolDef.name.replace(/[^a-zA-Z0-9]/g, "_");
+      // cut off the first chars to avoid names longer than 64 chars
+      const slicedName = cleanedName.split("").slice(0, 64).join("");
+
+      this.tools[slicedName] = {
         ...tool({
           description: toolDef.description?.slice(
             0,

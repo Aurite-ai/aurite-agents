@@ -8,9 +8,10 @@ import {
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory";
 import { stripeServer } from "@/mcp/servers";
 import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket";
+
 Object.assign(global, { WebSocket: require("ws") });
 
-type MCPServer = (
+export type MCPServerObject = (
   | StdioServerParameters
   | {
       url: string;
@@ -27,40 +28,41 @@ const API_KEYS = {
 
 validateApiKeys(API_KEYS);
 
-const MCP_SERVERS: Array<MCPServer> = [
+const MCP_SERVERS: Array<MCPServerObject> = [
   {
     name: "sequential-thinking",
     url: "wss://server.smithery.ai/@smithery-ai/server-sequential-thinking/ws",
     type: "websocket",
     config: {},
   },
+
   {
     name: "memory-server",
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-memory"],
     type: "npx",
   },
-  {
-    name: "metamcp",
-    command: "npx",
-    args: ["-y", "@metamcp/mcp-server-metamcp"],
-    env: {
-      METAMCP_API_KEY: API_KEYS.META_MCP,
-    },
-    type: "npx",
-  },
+  // {
+  //   name: "metamcp",
+  //   command: "npx",
+  //   args: ["-y", "@metamcp/mcp-server-metamcp"],
+  //   env: {
+  //     METAMCP_API_KEY: API_KEYS.META_MCP,
+  //   },
+  //   type: "npx",
+  // },
   {
     name: "taskmanager",
     command: "npx",
     args: ["-y", "@kazuph/mcp-taskmanager"],
     type: "npx",
   },
-  {
-    name: "web-research",
-    command: "npx",
-    args: ["-y", "@mzxrai/mcp-webresearch"],
-    type: "npx",
-  },
+  // {
+  //   name: "web-research",
+  //   command: "npx",
+  //   args: ["-y", "@mzxrai/mcp-webresearch"],
+  //   type: "npx",
+  // },
 ];
 
 const convertToStdioServerParameters = (
@@ -81,7 +83,7 @@ export const getMcpTransorts = (filter?: string[]) => {
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
 
-  stripeServer.connect(serverTransport);
+  // metaServer.connect(serverTransport);
 
   // convert to object with name as key and StdioServerParameters as value
   return MCP_SERVERS.filter(
@@ -101,7 +103,7 @@ export const getMcpTransorts = (filter?: string[]) => {
 };
 
 export const getTransport = (
-  server: MCPServer
+  server: MCPServerObject
 ): WebSocketClientTransport | StdioClientTransport | undefined => {
   if (server.type === "websocket" && "url" in server) {
     return new WebSocketClientTransport(

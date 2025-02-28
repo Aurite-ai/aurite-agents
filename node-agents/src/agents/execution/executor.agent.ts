@@ -24,6 +24,10 @@ export default class ExecutorAgent extends Agent {
   }
 
   async execute(instructions: string) {
+    if (!this.client) {
+      await this.setupTools();
+    }
+
     const aiSdkAdapter = new AISDKToolAdapter(this.client);
 
     const tools = await aiSdkAdapter.listTools();
@@ -50,14 +54,28 @@ export default class ExecutorAgent extends Agent {
     return text;
   }
 
-  getTool(opts: any = {}) {
+  getTool(
+    opts: any = {
+      reThrowErrors: true,
+    }
+  ) {
     return tool({
       description: "A tool that runs the executor agent",
       parameters: z.object({
         prompt: z.string(),
       }),
       execute: async ({ prompt }) => {
-        return this.execute(prompt);
+        try {
+          return this.execute(prompt);
+        } catch (error) {
+          console.error("Error executing Executor agent:", error);
+
+          if (opts.reThrowErrors) {
+            throw error;
+          }
+
+          return `Error executing tool: ${error}`;
+        }
       },
     });
   }

@@ -1,9 +1,5 @@
-import { generateId, tool, ToolResult, ToolResultPart } from "ai";
+import { generateId, ToolResultPart } from "ai";
 import StateManager from "../context/state-manager";
-import { z } from "zod";
-import Logger from "@/lib/logger";
-
-interface SubAgentConfig {}
 
 interface AgentConfig {
   name: string;
@@ -26,6 +22,8 @@ class Agent {
   }
 
   addInternalMessage(message: string, toolResults: ToolResultPart[] = []) {
+    console.log("Adding internal message:", message, toolResults);
+
     this.stateManager.addInternalMessage({
       message,
       toolResults,
@@ -40,5 +38,5 @@ class Agent {
   }
 }
 
-export { Agent, AgentOptions, AgentConfig, SubAgentConfig };
+export { Agent, AgentConfig, AgentOptions };
 export default Agent;

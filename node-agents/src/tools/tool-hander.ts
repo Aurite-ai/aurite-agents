@@ -1,17 +1,29 @@
-import { tool } from 'ai';
-import { z } from 'zod';
-import { defaultToolSchema } from '@/types/tool.interface';
-import StateManager from '@/context/state-manager';
-import pickAgent from '@/routes/agent.router';
-import { ToolOutput, ToolDetails } from '@/types/tool.interface';
-import { Agent, AgentConfig } from '@/types/agent.interface';
-const agentNames = ['researcher', 'evaluator', 'planner'] as const;
+import { tool } from "ai";
+import { z } from "zod";
+import { defaultToolSchema } from "@/types/tool.interface";
+import StateManager from "@/context/state-manager";
+
+import { ToolOutput, ToolDetails } from "@/types/tool.interface";
+import { Agent, AgentConfig } from "@/types/agent.interface";
+const agentNames = ["researcher", "evaluator", "planner"] as const;
+import * as agents from "../agents/index";
 
 interface CreateCallAgentTool {
   name: (typeof agentNames)[number];
   config: AgentConfig;
   stateManager: StateManager<any>;
 }
+
+export default function pickAgent(name: string) {
+  return (
+    (agents as any)[name] ||
+    (() => {
+      throw new Error(`Agent ${name} not found`);
+    })()
+  );
+}
+
+export { pickAgent };
 
 export async function sendOutput(toolOutput: ToolOutput, config: AgentConfig) {
   console.log(
@@ -36,9 +48,9 @@ export function handleAgentError(
 
 export function createAgentTool(options: CreateCallAgentTool) {
   return tool({
-    description: 'Call an sub-agent to perform a specific task.',
+    description: "Call an sub-agent to perform a specific task.",
     parameters: defaultToolSchema.extend({
-      instructions: z.string().describe('The instructions for the agent.'),
+      instructions: z.string().describe("The instructions for the agent."),
     }),
     execute: async (params: { instructions: string }) => {
       const { instructions } = params;
@@ -68,7 +80,7 @@ export function createAgentTool(options: CreateCallAgentTool) {
           error as Error,
           {
             name: `Create Agent Tool[${options.name}]`,
-            description: 'Call an agent to perform a specific task.',
+            description: "Call an agent to perform a specific task.",
           },
           options.config
         );

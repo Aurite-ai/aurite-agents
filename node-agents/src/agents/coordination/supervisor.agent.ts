@@ -2,10 +2,8 @@ import Agent from "@/types/agent.interface";
 import { openai } from "@ai-sdk/openai";
 import { generateText, tool } from "ai";
 import { z } from "zod";
-import { PlannerAgent, ResearcherAgent } from "../planning";
-import { createAgentDirectoryTool } from "./tools/agent-directory.tool";
-import { runAgentTool } from "./tools/run-agent.tool";
 import ExecutorAgent from "../execution/executor.agent";
+import { PlannerAgent } from "../planning";
 
 export default class SupervisorAgent extends Agent {
   async execute(instructions: string) {
@@ -33,7 +31,7 @@ export default class SupervisorAgent extends Agent {
         // directory: createAgentDirectoryTool((agents) =>
         //   this.addInternalMessage(`Found ${agents.length} agents`)
         // ),
-        executorAgent: runAgentTool,
+        executorAgent: executorAgent.getTool(),
       },
       maxSteps: 5,
     });

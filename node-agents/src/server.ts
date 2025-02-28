@@ -1,6 +1,7 @@
 import express from "express";
 import { chatRouter } from "./routes";
 import { runClient } from "./services/smithery";
+import { agentRouter } from "./routes/agent.router";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/v1/chat", chatRouter);
+app.use("/v1/agent", agentRouter);
 
 app.use("/test", async (req, res): Promise<any> => {
   await runClient();
