@@ -105,10 +105,10 @@ async def test_tools(host: MCPHost):
 async def main():
     """Run the weather service example"""
     try:
-        # Configure the weather client
+        # Configure the weather client with routing weight
         weather_config = ClientConfig(
             client_id="weather-client",
-            server_path=Path("src/servers/server.py"),
+            server_path=Path("examples/weather_server.py"),
             roots=[
                 RootConfig(
                     uri="weather://api.weather.gov",
@@ -122,16 +122,24 @@ async def main():
                 ),
             ],
             capabilities=["prompts", "resources", "tools"],
+            routing_weight=1.0,  # Default weight for this server
         )
 
-        # Create and initialize the host
-        host = MCPHost(HostConfig(clients=[weather_config]))
+        # Could add additional weather servers with different weights
+        backup_weather = ClientConfig(
+            client_id="weather-backup",
+            server_path=Path("examples/weather_server_backup.py"),
+            roots=[...],
+            capabilities=["tools"],
+            routing_weight=0.5,  # Lower priority backup server
+        )
+
+        # Create and initialize the host with multiple servers
+        host = MCPHost(HostConfig(clients=[weather_config, backup_weather]))
         await host.initialize()
 
-        # Run tests
-        await test_resources(host, weather_config.client_id)
-        await test_prompts(host, weather_config.client_id)
-        await test_tools(host)
+        # Tools will now automatically route to the best available server
+        await test_tools(host)  # No changes needed to test code
 
     except Exception as e:
         logger.error(f"Error in weather example: {e}")

@@ -34,6 +34,7 @@ class ClientConfig:
     roots: List[RootConfig]
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
+    routing_weight: float = 1.0  # New: Weight for server selection
 
 
 @dataclass
@@ -128,6 +129,13 @@ class MCPHost:
 
             # Register roots
             await self._root_manager.register_roots(config.client_id, config.roots)
+
+            # Register server capabilities with router
+            await self._message_router.register_server(
+                server_id=config.client_id,
+                capabilities=set(config.capabilities),
+                weight=config.routing_weight,
+            )
 
             # Store client and discover tools
             self._clients[config.client_id] = session
@@ -230,16 +238,19 @@ class MCPHost:
         if tool_name not in self._tools:
             raise ValueError(f"Unknown tool: {tool_name}")
 
-        # Get client for this tool
-        client_id = await self._message_router.get_client_for_tool(tool_name)
-        if not client_id:
-            raise ValueError(f"No client found for tool: {tool_name}")
+        # Get server for this tool (using enhanced routing)
+        server_id = await self._message_router.select_server_for_tool(
+            tool_name,
+            required_capabilities=set(),  # Could be derived from arguments/context
+        )
+        if not server_id:
+            raise ValueError(f"No server found for tool: {tool_name}")
 
-        client = self._clients[client_id]
+        client = self._clients[server_id]
 
         # Validate access through root manager
         await self._root_manager.validate_access(
-            client_id=client_id, tool_name=tool_name
+            client_id=server_id, tool_name=tool_name
         )
 
         # Call the tool

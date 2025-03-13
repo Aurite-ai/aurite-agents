@@ -216,7 +216,7 @@ def create_server() -> Server:
         name: str, arguments: Dict[str, Any]
     ) -> List[types.TextContent]:
         """Execute a weather tool"""
-        from src.tools.weather import get_alerts, get_forecast
+        from . import get_alerts, get_forecast
 
         try:
             if name == "get_alerts":

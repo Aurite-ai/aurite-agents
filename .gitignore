@@ -17,7 +17,6 @@ coverage
 _docpress
 .DS_Store
 
-
 dist
 tsconfig.tsbuildinfo
 test.lib/
@@ -40,7 +39,7 @@ __package_previews__
 privatePackages/store
 
 ## Verdaccio storage
-storage
+./storage
 
 yarn.lock
 
