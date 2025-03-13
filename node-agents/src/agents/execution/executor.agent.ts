@@ -1,26 +1,30 @@
-import { AISDKToolAdapter } from "@/lib/adapters/ai-sdk.mcp.adapter";
-import { getMcpTransorts } from "@/services/directory/mcp-server.directory";
-import { Agent } from "@/types";
+export {};
+
+import { AISDKToolAdapter } from "@/lib/adapters/ai-sdk.mcp.adapter.js";
+import { getMcpTransorts } from "@/services/directory/mcp-server.directory.js";
+import { Agent } from "@/types/index.js";
 import { openai } from "@ai-sdk/openai";
-import { MultiClient } from "@smithery/sdk";
 import { generateText, tool } from "ai";
 import { z } from "zod";
+import type { MultiClient } from "@smithery/sdk";
 
 export default class ExecutorAgent extends Agent {
   private client: MultiClient;
+  protected config: any;
+  protected addInternalMessage: (text: string, toolResults?: any) => void;
 
   async setupTools() {
-    const client = new MultiClient({
+    const { MultiClient } = await import("@smithery/sdk");
+    this.client = new MultiClient({
       name: "Executor Agent Client",
-      version: "1.0.0",
+      version: "0.2.0",
     });
 
     const transportMap = getMcpTransorts();
 
-    await client.connectAll(transportMap);
+    await this.client.connectAll(transportMap);
 
-    // const aiSdkAdapter = new AISDKToolAdapter(client);
-    this.client = client;
+    // const aiSdkAdapter = new AISDKToolAdapter(this.client);
   }
 
   async execute(instructions: string) {

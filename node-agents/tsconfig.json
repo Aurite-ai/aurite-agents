@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "./build",
+    "rootDir": "./src",
+    "baseUrl": "./src",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2021",
     "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
@@ -20,14 +22,15 @@
     "noFallthroughCasesInSwitch": false,
     "types": ["jest", "node"],
     "paths": {
-      "@/*": ["src/*"],
-      "@/types/*": ["src/types/*"],
-      "@/agents/*": ["src/agents/*"],
-      "@/state/*": ["src/context/*"],
-      "@/tools/*": ["src/tools/*"],
-      "@/services/*": ["src/services/*"],
-      "@/lib/*": ["src/lib/*"]
+      "@/*": ["./*"],
+      "@/types/*": ["./types/*"],
+      "@/agents/*": ["./agents/*"],
+      "@/state/*": ["./context/*"],
+      "@/tools/*": ["./tools/*"],
+      "@/services/*": ["./services/*"],
+      "@/lib/*": ["./lib/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"] // Add this line
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }

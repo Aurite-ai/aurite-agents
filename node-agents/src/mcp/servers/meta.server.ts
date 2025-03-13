@@ -1,9 +1,9 @@
 import {
   getTransport,
   MCPServerObject,
-} from "@/services/directory/mcp-server.directory";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio";
-import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket";
+} from "@/services/directory/mcp-server.directory.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { WebSocketClientTransport } from "@modelcontextprotocol/sdk/client/websocket.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import axios from "axios";
 import { JSONSchema } from "openai/lib/jsonschema";

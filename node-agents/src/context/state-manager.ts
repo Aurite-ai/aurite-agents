@@ -3,7 +3,7 @@ import {
   StateUpdate,
   InternalMessage,
   BaseState,
-} from "@/types/state.interface";
+} from "@/types/state.interface.js";
 
 export default class StateManager<T extends BaseState> {
   private state: T;
