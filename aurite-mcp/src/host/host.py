@@ -3,7 +3,7 @@ MCP Host implementation for managing multiple tool servers and clients.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 import asyncio
 import logging
 from pathlib import Path
@@ -21,6 +21,7 @@ from .roots import RootManager, RootConfig
 from .routing import MessageRouter
 from .prompts import PromptManager
 from .resources import ResourceManager
+from .security import SecurityManager
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +51,14 @@ class MCPHost:
     This is the highest layer of abstraction in the MCP architecture.
     """
 
-    def __init__(self, config: HostConfig):
+    def __init__(self, config: HostConfig, encryption_key: Optional[str] = None):
         # Core managers
         self._transport_manager = TransportManager()
         self._root_manager = RootManager()
         self._message_router = MessageRouter()
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
+        self._security_manager = SecurityManager(encryption_key=encryption_key)
 
         # State management
         self._config = config
@@ -77,10 +79,18 @@ class MCPHost:
         await self._message_router.initialize()
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
+        await self._security_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
+            
+            # Register permissions based on capabilities
+            if "storage" in client_config.capabilities:
+                await self._security_manager.register_server_permissions(
+                    client_config.client_id, 
+                    allowed_credential_types=["database_connection"]
+                )
 
         logger.info("MCP Host initialization complete")
 
@@ -294,5 +304,18 @@ class MCPHost:
         await self._message_router.shutdown()
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
+        await self._security_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
+        
+    async def secure_database_connection(self, connection_string: str) -> Tuple[str, str]:
+        """
+        Secure a database connection string and return a token to use in place of credentials
+        
+        Args:
+            connection_string: Raw database connection string with credentials
+            
+        Returns:
+            Tuple of token and masked connection string
+        """
+        return await self._security_manager.secure_database_connection(connection_string)
