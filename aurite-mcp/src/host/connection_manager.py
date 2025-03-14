@@ -9,7 +9,7 @@ import json
 import logging
 import uuid
 import time
-from typing import Dict, Optional, List, Any, Tuple, Union
+from typing import Dict, Optional, List, Any, Tuple
 from dataclasses import dataclass, field
 
 # Type hint for SQLAlchemy objects
@@ -18,8 +18,12 @@ try:
     from sqlalchemy import create_engine, text
 except ImportError:
     # Mock types for systems without SQLAlchemy
-    class Engine: pass
-    class Connection: pass
+    class Engine:
+        pass
+
+    class Connection:
+        pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +49,7 @@ DB_TYPE_TO_DIALECT = {
 @dataclass
 class ConnectionInfo:
     """Information about a database connection"""
+
     id: str
     engine: Engine
     connection: Optional[Connection] = None
@@ -64,10 +69,10 @@ class ConnectionManager:
     def __init__(self):
         # Connection pool: ID -> ConnectionInfo
         self._connections: Dict[str, ConnectionInfo] = {}
-        
+
         # Named connections from configuration
         self._named_connections: Dict[str, Dict[str, Any]] = {}
-        
+
         # Server permissions: server_id -> allowed_connection_types
         self._server_permissions: Dict[str, List[str]] = {}
 
@@ -80,40 +85,50 @@ class ConnectionManager:
     async def _load_named_connections(self):
         """Load named connection configurations"""
         config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
             "config",
             "storage",
-            "connections.json"
+            "connections.json",
         )
-        
+
         if not os.path.exists(config_path):
             logger.info("No named connections configuration found")
             return
-            
+
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 config = json.load(f)
-                
-            connections = config.get('connections', {})
+
+            connections = config.get("connections", {})
             for name, connection_config in connections.items():
                 self._named_connections[name] = connection_config
-                
-            logger.info(f"Loaded {len(self._named_connections)} named connection configurations")
+
+            logger.info(
+                f"Loaded {len(self._named_connections)} named connection configurations"
+            )
         except Exception as e:
             logger.error(f"Failed to load named connections: {e}")
 
-    async def register_server_permissions(self, server_id: str, allowed_connection_types: List[str]):
+    async def register_server_permissions(
+        self, server_id: str, allowed_connection_types: List[str]
+    ):
         """Register which connection types a server is allowed to access"""
         self._server_permissions[server_id] = allowed_connection_types
-        logger.info(f"Registered permissions for server {server_id}: {allowed_connection_types}")
+        logger.info(
+            f"Registered permissions for server {server_id}: {allowed_connection_types}"
+        )
 
-    async def create_db_connection(self, params: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    async def create_db_connection(
+        self, params: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
         """
         Create a database connection from parameters and return a connection ID.
-        
+
         Args:
             params: Connection parameters including type, host, database, username, password
-            
+
         Returns:
             Tuple of (connection_id, connection_metadata)
         """
@@ -121,13 +136,15 @@ class ConnectionManager:
             # Validate required parameters
             required_params = ["type", "host", "database", "username", "password"]
             for param in required_params:
-                if param not in params and params["type"] != "sqlite":  # sqlite doesn't need all
+                if (
+                    param not in params and params["type"] != "sqlite"
+                ):  # sqlite doesn't need all
                     raise ValueError(f"Missing required parameter: {param}")
-            
+
             # Construct connection string (only in memory)
             db_type = params["type"].lower()
             dialect = DB_TYPE_TO_DIALECT.get(db_type, db_type)
-            
+
             # Handle SQLite special case
             if db_type == "sqlite":
                 conn_string = f"{dialect}:///{params['database']}"
@@ -135,18 +152,18 @@ class ConnectionManager:
                 port = params.get("port", DEFAULT_DB_PORTS.get(db_type))
                 port_str = f":{port}" if port else ""
                 conn_string = f"{dialect}://{params['username']}:{params['password']}@{params['host']}{port_str}/{params['database']}"
-            
+
             # Create connection
             engine = create_engine(conn_string)
-            
+
             # Verify connection by attempting to connect
             with engine.connect() as conn:
                 # Just test the connection
                 pass
-                
+
             # Generate unique ID
             conn_id = str(uuid.uuid4())
-            
+
             # Store connection info (without raw password)
             metadata = {
                 "host": params.get("host", "local" if db_type == "sqlite" else None),
@@ -156,56 +173,63 @@ class ConnectionManager:
             }
             if "port" in params:
                 metadata["port"] = params["port"]
-                
+
             connection_info = ConnectionInfo(
-                id=conn_id,
-                engine=engine,
-                storage_type=db_type,
-                metadata=metadata
+                id=conn_id, engine=engine, storage_type=db_type, metadata=metadata
             )
-            
+
             self._connections[conn_id] = connection_info
-            
+
             # Create a masked connection string for logs/display
-            masked_conn_string = re.sub(r"://([^:]+):([^@]+)@", r"://\1:******@", conn_string)
+            masked_conn_string = re.sub(
+                r"://([^:]+):([^@]+)@", r"://\1:******@", conn_string
+            )
             metadata["connection_string"] = masked_conn_string
-            
-            logger.info(f"Created database connection {conn_id} to {metadata.get('host', 'local')}/{metadata['database']}")
-            
+
+            logger.info(
+                f"Created database connection {conn_id} to {metadata.get('host', 'local')}/{metadata['database']}"
+            )
+
             return conn_id, metadata
-            
+
         except Exception as e:
             logger.error(f"Failed to create database connection: {str(e)}")
             raise
 
-    async def get_named_connection(self, connection_name: str) -> Tuple[str, Dict[str, Any]]:
+    async def get_named_connection(
+        self, connection_name: str
+    ) -> Tuple[str, Dict[str, Any]]:
         """
         Get a connection for a named database configuration.
-        
+
         Args:
             connection_name: Name of the pre-configured connection
-            
+
         Returns:
             Tuple of (connection_id, connection_metadata)
         """
         if connection_name not in self._named_connections:
             raise ValueError(f"Named connection not found: {connection_name}")
-            
+
         config = self._named_connections[connection_name]
-        
+
         # Get credentials from environment
         creds_env = config.get("credentialsEnv")
         if not creds_env or creds_env not in os.environ:
-            raise ValueError(f"Credentials not found for {connection_name}. Set {creds_env} environment variable.")
-            
+            raise ValueError(
+                f"Credentials not found for {connection_name}. Set {creds_env} environment variable."
+            )
+
         creds_value = os.environ[creds_env]
-        
+
         # Parse credentials (format: username:password)
         if ":" not in creds_value:
-            raise ValueError(f"Invalid credential format in {creds_env}. Expected 'username:password'")
-            
+            raise ValueError(
+                f"Invalid credential format in {creds_env}. Expected 'username:password'"
+            )
+
         username, password = creds_value.split(":", 1)
-        
+
         # Create connection params
         params = {
             "type": config["type"],
@@ -214,130 +238,127 @@ class ConnectionManager:
             "username": username,
             "password": password,
         }
-        
+
         if "port" in config:
             params["port"] = config["port"]
-            
+
         # Create the connection
         conn_id, metadata = await self.create_db_connection(params)
-        
+
         # Add the named connection to metadata
         metadata["connection_name"] = connection_name
-        
+
         return conn_id, metadata
 
     async def get_connection(self, conn_id: str) -> Optional[ConnectionInfo]:
         """
         Get a database connection by ID.
-        
+
         Args:
             conn_id: Connection ID
-            
+
         Returns:
             ConnectionInfo if found, None otherwise
         """
         if conn_id not in self._connections:
             return None
-            
+
         connection_info = self._connections[conn_id]
-        
+
         # Update last used time
         connection_info.last_used = time.time()
-        
+
         return connection_info
 
     async def validate_server_access(self, server_id: str, conn_id: str) -> bool:
         """
         Validate if a server is allowed to access a specific connection.
-        
+
         Args:
             server_id: Server ID
             conn_id: Connection ID
-            
+
         Returns:
             True if access is allowed, False otherwise
         """
         if server_id not in self._server_permissions:
             return False
-            
+
         if conn_id not in self._connections:
             return False
-            
+
         # Check if server has permission for this connection type
         allowed_types = self._server_permissions[server_id]
         conn_type = self._connections[conn_id].storage_type
-        
+
         return conn_type in allowed_types
 
     async def close_connection(self, conn_id: str) -> bool:
         """
         Close a database connection.
-        
+
         Args:
             conn_id: Connection ID
-            
+
         Returns:
             True if connection was closed, False if it wasn't found
         """
         if conn_id not in self._connections:
             return False
-            
+
         connection_info = self._connections[conn_id]
-        
+
         try:
             # Close active connection if it exists
             if connection_info.connection is not None:
                 connection_info.connection.close()
-                
+
             # Mark as inactive
             connection_info.is_active = False
-            
+
             # Remove from connection pool
             del self._connections[conn_id]
-            
+
             logger.info(f"Closed database connection {conn_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error closing connection {conn_id}: {e}")
             return False
 
     async def execute_query(
-        self, 
-        conn_id: str, 
-        query: str, 
-        params: Optional[Dict[str, Any]] = None
+        self, conn_id: str, query: str, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Execute a query on a database connection.
-        
+
         Args:
             conn_id: Connection ID
             query: SQL query to execute
             params: Query parameters
-            
+
         Returns:
             Query result dictionary
         """
         connection_info = await self.get_connection(conn_id)
         if not connection_info:
             return {"success": False, "error": "Invalid connection ID"}
-            
+
         if not connection_info.is_active:
             return {"success": False, "error": "Connection is no longer active"}
-            
+
         try:
             engine = connection_info.engine
-            
+
             with engine.connect() as conn:
                 # Check if it's a SELECT query
                 is_select = query.strip().lower().startswith("select")
-                
+
                 if params:
                     result = conn.execute(text(query), params)
                 else:
                     result = conn.execute(text(query))
-                    
+
                 if is_select:
                     # For SELECT queries, return rows
                     # Use SQLAlchemy's result mapping functions
@@ -351,7 +372,7 @@ class ConnectionManager:
                             for i, col in enumerate(columns):
                                 row_dict[col] = row[i]
                             rows.append(row_dict)
-                            
+
                         return {
                             "success": True,
                             "is_select": True,
@@ -375,7 +396,7 @@ class ConnectionManager:
                         "is_select": False,
                         "affected_rows": result.rowcount,
                     }
-                    
+
         except Exception as e:
             logger.error(f"Query execution failed: {str(e)}")
             return {"success": False, "error": f"Query execution failed: {str(e)}"}
@@ -385,45 +406,47 @@ class ConnectionManager:
         connections = []
         for conn_id, info in self._connections.items():
             if info.is_active:
-                connections.append({
-                    "connection_id": conn_id,
-                    "storage_type": info.storage_type,
-                    "metadata": info.metadata,
-                    "created_at": info.created_at,
-                    "last_used": info.last_used,
-                })
-                
+                connections.append(
+                    {
+                        "connection_id": conn_id,
+                        "storage_type": info.storage_type,
+                        "metadata": info.metadata,
+                        "created_at": info.created_at,
+                        "last_used": info.last_used,
+                    }
+                )
+
         return connections
 
     async def cleanup_stale_connections(self, max_idle_seconds: int = 3600) -> int:
         """
         Close connections that haven't been used for a while.
-        
+
         Args:
             max_idle_seconds: Maximum idle time in seconds
-            
+
         Returns:
             Number of connections closed
         """
         now = time.time()
         closed_count = 0
-        
+
         for conn_id, info in list(self._connections.items()):
             if info.is_active and (now - info.last_used) > max_idle_seconds:
                 if await self.close_connection(conn_id):
                     closed_count += 1
-                    
+
         return closed_count
 
     async def shutdown(self):
         """Shutdown the connection manager and close all connections"""
         logger.info("Shutting down connection manager")
-        
+
         # Close all active connections
         for conn_id, info in list(self._connections.items()):
             if info.is_active:
                 await self.close_connection(conn_id)
-                
+
         # Clear all collections
         self._connections.clear()
         self._named_connections.clear()
