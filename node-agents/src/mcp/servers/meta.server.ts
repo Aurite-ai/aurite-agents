@@ -164,6 +164,8 @@ function transformToDirectory(server: SmitheryServer): MCPServerObject {
 
     const url = c.deploymentUrl.replace("https://", "wss://") + "/ws";
 
+    console.log(c.configSchema);
+
     return {
       name: server.displayName,
       url,
