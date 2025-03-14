@@ -2,12 +2,7 @@
   "mcpServers": {
     "sql": {
       "command": "uv",
-      "args": [
-        "--directory",
-        "/ABSOLUTE/PATH/TO/PARENT/FOLDER/sql",
-        "run",
-        "sql_server.py"
-      ]
+      "args": ["--directory", "/sql", "run", "sql_server.py"]
     }
   }
 }

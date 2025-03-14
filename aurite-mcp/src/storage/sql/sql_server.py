@@ -14,46 +14,58 @@ active_connections = {}
 
 
 @mcp.tool()
-def connect_database(connection_string: str, ctx: Context = None) -> Dict[str, Any]:
+def connect_database(connection_string: str, use_token: bool = False, ctx: Context = None) -> Dict[str, Any]:
     """
     Connect to a SQL database using SQLAlchemy.
     Automatically detects MySQL or PostgreSQL databases.
 
     Args:
-        connection_string: Database connection string
+        connection_string: Database connection string or token if use_token is True
             - MySQL format: "mysql+pymysql://user:password@host:port/database"
             - PostgreSQL format: "postgresql+psycopg2://user:password@host:port/database"
+        use_token: If True, treats connection_string as a security token rather than a raw connection string
 
     Returns:
         Dictionary with connection status, database type, and available tables
     """
     try:
+        actual_connection_string = connection_string
+        
+        # Handle tokens if needed
+        if use_token and connection_string.startswith("aurite-tk-"):
+            # In a real implementation, this would resolve the token using the security manager
+            ctx.info(f"Using token: {connection_string}")
+            # This is a placeholder; in your integration with the SecurityManager, you would
+            # actually resolve the token to the real connection string
+            # actual_connection_string = await security_manager.resolve_access_token(connection_string)
+            pass
+            
         # Log connection attempt (masking password for security)
-        masked_connection = mask_password(connection_string)
+        masked_connection = mask_password(actual_connection_string)
         ctx.info(f"Attempting to connect to database: {masked_connection}")
 
         # Check if connection string has the right format
         if not (
-            connection_string.startswith("mysql+")
-            or connection_string.startswith("postgresql+")
-            or connection_string.startswith("mysql://")
-            or connection_string.startswith("postgresql://")
+            actual_connection_string.startswith("mysql+")
+            or actual_connection_string.startswith("postgresql+")
+            or actual_connection_string.startswith("mysql://")
+            or actual_connection_string.startswith("postgresql://")
         ):
             # Try to auto-correct the connection string if possible
-            if "mysql" in connection_string.lower():
-                if not connection_string.startswith("mysql+pymysql://"):
-                    connection_string = connection_string.replace(
+            if "mysql" in actual_connection_string.lower():
+                if not actual_connection_string.startswith("mysql+pymysql://"):
+                    actual_connection_string = actual_connection_string.replace(
                         "mysql://", "mysql+pymysql://"
                     )
-                    if not connection_string.startswith("mysql+"):
-                        connection_string = "mysql+pymysql://" + connection_string
-            elif "postgre" in connection_string.lower():
-                if not connection_string.startswith("postgresql+psycopg2://"):
-                    connection_string = connection_string.replace(
+                    if not actual_connection_string.startswith("mysql+"):
+                        actual_connection_string = "mysql+pymysql://" + actual_connection_string
+            elif "postgre" in actual_connection_string.lower():
+                if not actual_connection_string.startswith("postgresql+psycopg2://"):
+                    actual_connection_string = actual_connection_string.replace(
                         "postgresql://", "postgresql+psycopg2://"
                     )
-                    if not connection_string.startswith("postgresql+"):
-                        connection_string = "postgresql+psycopg2://" + connection_string
+                    if not actual_connection_string.startswith("postgresql+"):
+                        actual_connection_string = "postgresql+psycopg2://" + actual_connection_string
             else:
                 return {
                     "success": False,
@@ -61,11 +73,11 @@ def connect_database(connection_string: str, ctx: Context = None) -> Dict[str, A
                 }
 
         # Create engine and connect
-        engine = create_engine(connection_string)
+        engine = create_engine(actual_connection_string)
         connection = engine.connect()
 
         # Determine database type
-        db_type = "MySQL" if "mysql" in connection_string.lower() else "PostgreSQL"
+        db_type = "MySQL" if "mysql" in actual_connection_string.lower() else "PostgreSQL"
 
         # Get database inspector
         inspector = inspect(engine)
@@ -81,7 +93,7 @@ def connect_database(connection_string: str, ctx: Context = None) -> Dict[str, A
                 {"name": col["name"], "type": str(col["type"])} for col in columns
             ]
 
-        # Store connection for future use
+        # Store connection for future use - always use masked connection as ID
         conn_id = masked_connection
         active_connections[conn_id] = {
             "engine": engine,
