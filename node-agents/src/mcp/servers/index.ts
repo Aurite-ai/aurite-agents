@@ -1,1 +1,0 @@
-export { stripeServer } from "./stripe";

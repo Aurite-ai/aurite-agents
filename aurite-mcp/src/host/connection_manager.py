@@ -340,14 +340,34 @@ class ConnectionManager:
                     
                 if is_select:
                     # For SELECT queries, return rows
-                    rows = [dict(row) for row in result]
-                    return {
-                        "success": True,
-                        "is_select": True,
-                        "rows": rows,
-                        "columns": list(rows[0].keys()) if rows else [],
-                        "row_count": len(rows),
-                    }
+                    # Use SQLAlchemy's result mapping functions
+                    results = result.fetchall()
+                    if results:
+                        columns = result.keys()
+                        rows = []
+                        for row in results:
+                            # Convert row to dict safely
+                            row_dict = {}
+                            for i, col in enumerate(columns):
+                                row_dict[col] = row[i]
+                            rows.append(row_dict)
+                            
+                        return {
+                            "success": True,
+                            "is_select": True,
+                            "rows": rows,
+                            "columns": list(columns),
+                            "row_count": len(rows),
+                        }
+                    else:
+                        # Empty result set
+                        return {
+                            "success": True,
+                            "is_select": True,
+                            "rows": [],
+                            "columns": [],
+                            "row_count": 0,
+                        }
                 else:
                     # For non-SELECT queries, return affected rows
                     return {

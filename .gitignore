@@ -69,3 +69,4 @@ __fixtures__/custom-modules-dir/patches/
 **/__pytest_cache__/**
 
 aurite-mcp/.venv/
+node-agents
