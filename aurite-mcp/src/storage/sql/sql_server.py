@@ -2,6 +2,10 @@ from mcp.server.fastmcp import FastMCP, Context
 from sqlalchemy import create_engine, text, inspect
 from typing import Dict, Optional, Any
 import re
+import uuid
+import os
+import json
+from pathlib import Path
 import pandas as pd
 
 # Create the MCP server
@@ -12,72 +16,256 @@ mcp = FastMCP(
 # Dictionary to store connections for reuse
 active_connections = {}
 
+# Named connections from configuration
+named_connections = {}
+
+# Configuration file path
+CONFIG_PATH = Path(__file__).parents[4] / "config" / "storage" / "connections.json"
+
+
+# Load named connection configurations
+def load_named_connections():
+    """Load named connection configurations from the config file"""
+    global named_connections, CONFIG_PATH
+
+    print(f"Looking for config at: {CONFIG_PATH} (exists: {CONFIG_PATH.exists()})")
+
+    if not CONFIG_PATH.exists():
+        # Try alternate paths
+        alt_paths = [
+            Path(__file__).parents[4] / "config" / "storage" / "connections.json",
+            Path(__file__).parents[3] / "config" / "storage" / "connections.json",
+            Path(__file__).parent.parent.parent.parent
+            / "config"
+            / "storage"
+            / "connections.json",
+            Path(
+                "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/storage/connections.json"
+            ),
+        ]
+
+        for path in alt_paths:
+            print(f"Trying alternate path: {path} (exists: {path.exists()})")
+            if path.exists():
+                CONFIG_PATH = path
+                break
+
+    if not CONFIG_PATH.exists():
+        print(
+            f"No connection configuration found at {CONFIG_PATH} or alternative paths"
+        )
+        return
+
+    try:
+        print(f"Loading config from: {CONFIG_PATH}")
+        with open(CONFIG_PATH, "r") as f:
+            config = json.load(f)
+
+        connections = config.get("connections", {})
+        named_connections.update(connections)
+
+        print(f"Loaded {len(named_connections)} named connection configurations")
+        print(f"Available connections: {list(named_connections.keys())}")
+    except Exception as e:
+        print(f"Failed to load named connections: {e}")
+
+
+# Load connections at startup
+load_named_connections()
+
 
 @mcp.tool()
-def connect_database(connection_string: str, use_token: bool = False, ctx: Context = None) -> Dict[str, Any]:
+def connect_database(
+    host: str = None,
+    database: str = None,
+    username: str = None,
+    password: str = None,
+    port: Optional[int] = None,
+    connection_string: str = None,
+    connection_id: str = None,
+    connection_name: str = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
     """
     Connect to a SQL database using SQLAlchemy.
-    Automatically detects MySQL or PostgreSQL databases.
+
+    Connection can be established in several ways:
+    1. Using individual parameters (host, database, username, password)
+    2. Using a full connection string
+    3. Using a pre-established connection_id from the ConnectionManager
+    4. Using a named connection from the configuration
 
     Args:
-        connection_string: Database connection string or token if use_token is True
-            - MySQL format: "mysql+pymysql://user:password@host:port/database"
-            - PostgreSQL format: "postgresql+psycopg2://user:password@host:port/database"
-        use_token: If True, treats connection_string as a security token rather than a raw connection string
+        host: Database host address
+        database: Database name
+        username: Database username
+        password: Database password
+        port: Database port
+        connection_string: Full connection string (alternative to individual params)
+        connection_id: Pre-established connection ID from ConnectionManager
+        connection_name: Name of a pre-configured connection
 
     Returns:
         Dictionary with connection status, database type, and available tables
     """
     try:
-        actual_connection_string = connection_string
-        
-        # Handle tokens if needed
-        if use_token and connection_string.startswith("aurite-tk-"):
-            # In a real implementation, this would resolve the token using the security manager
-            ctx.info(f"Using token: {connection_string}")
-            # This is a placeholder; in your integration with the SecurityManager, you would
-            # actually resolve the token to the real connection string
-            # actual_connection_string = await security_manager.resolve_access_token(connection_string)
-            pass
-            
+        # If connection_id is provided, this means the connection was already established
+        # by the ConnectionManager, and we should use the existing connection
+        if connection_id and connection_id in active_connections:
+            ctx.info(f"Using existing connection: {connection_id}")
+
+            conn_info = active_connections[connection_id]
+            return {
+                "success": True,
+                "connection_id": connection_id,
+                "database_type": conn_info["type"],
+                "tables": conn_info["tables"],
+                "message": "Using existing connection",
+            }
+
+        # Handle named connection
+        if connection_name:
+            ctx.info(f"Looking up named connection: {connection_name}")
+
+            # Check if the named connection exists in our config
+            if connection_name not in named_connections:
+                return {
+                    "success": False,
+                    "error": f"Named connection not found: {connection_name}",
+                }
+
+            # Get connection details from configuration
+            config = named_connections[connection_name]
+
+            # Get credentials from environment variable
+            creds_env = config.get("credentialsEnv")
+            if not creds_env or creds_env not in os.environ:
+                return {
+                    "success": False,
+                    "error": f"Credentials not found for {connection_name}. Set {creds_env} environment variable.",
+                }
+
+            creds = os.environ[creds_env]
+
+            # Parse credentials (username:password)
+            if ":" not in creds and config["type"] != "sqlite":
+                return {
+                    "success": False,
+                    "error": f"Invalid credential format in {creds_env}. Expected 'username:password'",
+                }
+
+            # For non-sqlite, extract username and password
+            if config["type"] != "sqlite":
+                username, password = creds.split(":", 1)
+
+            # Update connection parameters from the named connection
+            host = config.get("host")
+            database = config.get("database")
+            port = config.get("port")
+            db_type = config.get("type", "postgresql")
+
+            ctx.info(
+                f"Using named connection {connection_name} for {db_type} database at {host}"
+            )
+
+            # For SQLite, we don't need username/password
+            if db_type == "sqlite":
+                # Construct SQLite connection string
+                connection_string = f"sqlite:///{database}"
+            else:
+                # Construct connection string based on database type
+                if db_type == "postgresql":
+                    dialect = "postgresql+psycopg2"
+                elif db_type == "mysql":
+                    dialect = "mysql+pymysql"
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Unsupported database type in named connection: {db_type}",
+                    }
+
+                # Build the connection string
+                port_str = f":{port}" if port else ""
+                connection_string = (
+                    f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
+                )
+
+        # Construct connection string if individual parameters are provided (not from named connection)
+        elif not connection_string and (host and database):
+            # For SQLite, we don't need username/password
+            if database.endswith(".db") or database.endswith(".sqlite"):
+                connection_string = f"sqlite:///{database}"
+            else:
+                # Ensure we have the required parameters
+                if not (username and password):
+                    return {
+                        "success": False,
+                        "error": "Username and password are required for non-SQLite databases",
+                    }
+
+                # Determine port or use default
+                port_str = f":{port}" if port else ""
+                # Default to PostgreSQL
+                dialect = "postgresql+psycopg2"
+
+                connection_string = (
+                    f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
+                )
+
+        # Ensure we have a connection string at this point
+        if not connection_string:
+            return {
+                "success": False,
+                "error": "Either connection string, individual parameters, or a named connection must be provided",
+            }
+
         # Log connection attempt (masking password for security)
-        masked_connection = mask_password(actual_connection_string)
+        masked_connection = mask_password(connection_string)
         ctx.info(f"Attempting to connect to database: {masked_connection}")
 
-        # Check if connection string has the right format
+        # Auto-correct connection string format if needed
         if not (
-            actual_connection_string.startswith("mysql+")
-            or actual_connection_string.startswith("postgresql+")
-            or actual_connection_string.startswith("mysql://")
-            or actual_connection_string.startswith("postgresql://")
+            connection_string.startswith("mysql+")
+            or connection_string.startswith("postgresql+")
+            or connection_string.startswith("mysql://")
+            or connection_string.startswith("postgresql://")
+            or connection_string.startswith("sqlite:///")
         ):
-            # Try to auto-correct the connection string if possible
-            if "mysql" in actual_connection_string.lower():
-                if not actual_connection_string.startswith("mysql+pymysql://"):
-                    actual_connection_string = actual_connection_string.replace(
-                        "mysql://", "mysql+pymysql://"
-                    )
-                    if not actual_connection_string.startswith("mysql+"):
-                        actual_connection_string = "mysql+pymysql://" + actual_connection_string
-            elif "postgre" in actual_connection_string.lower():
-                if not actual_connection_string.startswith("postgresql+psycopg2://"):
-                    actual_connection_string = actual_connection_string.replace(
-                        "postgresql://", "postgresql+psycopg2://"
-                    )
-                    if not actual_connection_string.startswith("postgresql+"):
-                        actual_connection_string = "postgresql+psycopg2://" + actual_connection_string
+            # Try to detect database type and correct format
+            if "mysql" in connection_string.lower():
+                connection_string = connection_string.replace(
+                    "mysql://", "mysql+pymysql://"
+                )
+                if not connection_string.startswith("mysql+"):
+                    connection_string = "mysql+pymysql://" + connection_string
+            elif "postgre" in connection_string.lower():
+                connection_string = connection_string.replace(
+                    "postgresql://", "postgresql+psycopg2://"
+                )
+                if not connection_string.startswith("postgresql+"):
+                    connection_string = "postgresql+psycopg2://" + connection_string
+            elif "sqlite" in connection_string.lower():
+                if not connection_string.startswith("sqlite:///"):
+                    connection_string = "sqlite:///" + connection_string
             else:
                 return {
                     "success": False,
-                    "error": "Unsupported database type. Please use MySQL or PostgreSQL connection strings.",
+                    "error": "Unsupported database type. Please use MySQL, PostgreSQL, or SQLite.",
                 }
 
         # Create engine and connect
-        engine = create_engine(actual_connection_string)
+        engine = create_engine(connection_string)
         connection = engine.connect()
 
         # Determine database type
-        db_type = "MySQL" if "mysql" in actual_connection_string.lower() else "PostgreSQL"
+        if "mysql" in connection_string.lower():
+            db_type = "MySQL"
+        elif "postgresql" in connection_string.lower():
+            db_type = "PostgreSQL"
+        elif "sqlite" in connection_string.lower():
+            db_type = "SQLite"
+        else:
+            db_type = "Unknown"
 
         # Get database inspector
         inspector = inspect(engine)
@@ -93,8 +281,10 @@ def connect_database(connection_string: str, use_token: bool = False, ctx: Conte
                 {"name": col["name"], "type": str(col["type"])} for col in columns
             ]
 
-        # Store connection for future use - always use masked connection as ID
-        conn_id = masked_connection
+        # Generate a unique connection ID
+        conn_id = str(uuid.uuid4())
+
+        # Store connection for future use
         active_connections[conn_id] = {
             "engine": engine,
             "connection": connection,
@@ -103,13 +293,19 @@ def connect_database(connection_string: str, use_token: bool = False, ctx: Conte
             "schema": schema_info,
         }
 
-        return {
+        # Add connection name to response if used
+        result = {
             "success": True,
             "connection_id": conn_id,
             "database_type": db_type,
             "tables": tables,
             "schema": schema_info,
         }
+
+        if connection_name:
+            result["connection_name"] = connection_name
+
+        return result
     except Exception as e:
         return {"success": False, "error": f"Failed to connect: {str(e)}"}
 

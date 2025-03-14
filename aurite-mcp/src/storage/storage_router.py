@@ -7,9 +7,11 @@ from mcp.server.fastmcp import FastMCP, Context
 from typing import Dict, Optional, Any
 import os
 import json
-
+import uuid
 import logging
 import re
+import importlib.util
+import asyncio
 
 # Create the router MCP server
 mcp = FastMCP("Storage Router", dependencies=["httpx"])
@@ -48,16 +50,28 @@ async def load_configuration():
 
 @mcp.tool()
 async def connect_storage(
-    storage_type: str, connection_string: str, ctx: Context = None
+    storage_type: str, 
+    host: str = None,
+    database: str = None, 
+    username: str = None,
+    password: str = None,
+    port: Optional[int] = None,
+    connection_string: str = None,
+    ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Connect to a storage backend of the specified type.
     Automatically routes to the appropriate storage server.
-
+    
     Args:
-        storage_type: Type of storage (e.g., "sql", "vector", "redis")
-        connection_string: Connection string for the storage backend
-
+        storage_type: Type of storage (e.g., "postgresql", "mysql", "sqlite")
+        host: Database host address
+        database: Database name
+        username: Database username
+        password: Database password
+        port: Database port
+        connection_string: Optional full connection string (alternative to individual params)
+        
     Returns:
         Connection information including a connection_id for future operations
     """
@@ -66,51 +80,60 @@ async def connect_storage(
         if storage_type not in STORAGE_SERVERS:
             return {
                 "success": False,
-                "error": f"Unsupported storage type: {storage_type}. Available types: {list(STORAGE_SERVERS.keys())}",
+                "error": f"Unsupported storage type: {storage_type}. Available types: {list(STORAGE_SERVERS.keys())}"
             }
-
-        # For security, we should use the host's security manager to create a secure token
-        # This is a placeholder for direct integration with the MCPHost's security manager
-        # token, masked_connection = await host.secure_database_connection(connection_string)
-
-        # For now, we'll just mask the password ourselves
-        masked_connection = mask_password(connection_string)
-
-        # Route to appropriate backend server
-        # In a real implementation, this would use MCPHost's client session to call the backend
-        # For now, we'll simply propagate the connection string
-
-        if storage_type == "sql":
-            # In a full implementation, this would use:
-            # result = await sql_client.call_tool(
-            #    "connect_database",
-            #    {"connection_string": connection_string, "use_token": False}
-            # )
-
-            # For now we'll simulate the response
-            result = {
-                "success": True,
-                "connection_id": masked_connection,
-                "storage_type": "sql",
-                # Other details would be here
-            }
-
-            # Track this connection
-            active_connections[masked_connection] = "sql"
-
-            return result
+            
+        # In a full implementation, we would get access to the host's ConnectionManager
+        # For now, we'll simulate the connection process
+        
+        # Construct connection params
+        if connection_string:
+            # Parse the connection string
+            if storage_type == "sql" or storage_type == "postgresql":
+                # This is a simplified version - a real implementation would parse properly
+                masked_connection = mask_password(connection_string)
+                conn_id = str(uuid.uuid4())
+                
+                # Track this connection
+                active_connections[conn_id] = storage_type
+                
+                return {
+                    "success": True,
+                    "connection_id": conn_id,
+                    "storage_type": storage_type,
+                    "connection_string": masked_connection
+                }
+            else:
+                return {
+                    "success": False, 
+                    "error": f"Connection string parsing not implemented for {storage_type}"
+                }
         else:
-            # Implement routing for other storage types
+            # Use individual parameters
+            if not database:
+                return {"success": False, "error": "Database name is required"}
+                
+            if storage_type != "sqlite" and storage_type != "sql":
+                if not (host and username and password):
+                    return {"success": False, "error": "Host, username, and password are required"}
+                    
+            # Create connection ID
+            conn_id = str(uuid.uuid4())
+            
+            # Track this connection
+            active_connections[conn_id] = storage_type
+            
+            # In real implementation: conn_id, metadata = await host.create_database_connection(params)
             return {
-                "success": False,
-                "error": f"Storage type '{storage_type}' is configured but not yet implemented",
+                "success": True,
+                "connection_id": conn_id,
+                "storage_type": storage_type,
+                "database": database,
+                "host": host,
             }
-
+            
     except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to connect to {storage_type}: {str(e)}",
-        }
+        return {"success": False, "error": f"Failed to connect to {storage_type}: {str(e)}"}
 
 
 @mcp.tool()
@@ -213,6 +236,71 @@ async def disconnect(connection_id: str, ctx: Context = None) -> Dict[str, Any]:
 
     except Exception as e:
         return {"success": False, "error": f"Failed to disconnect: {str(e)}"}
+
+
+@mcp.tool()
+async def connect_named_storage(
+    connection_name: str, ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Connect to a pre-configured named storage backend.
+    
+    Args:
+        connection_name: Name of the pre-configured connection
+        
+    Returns:
+        Connection information including a connection_id for future operations
+    """
+    try:
+        # In a full implementation, this would load the configuration
+        # named connections from connections.json
+        # For now, we'll simulate with hardcoded examples
+        
+        # Mock named connections
+        named_connections = {
+            "default_postgres": {
+                "type": "postgresql",
+                "host": "localhost",
+                "database": "defaultdb",
+                "credentialsEnv": "DB_CREDENTIALS"
+            },
+            "analytics": {
+                "type": "mysql",
+                "host": "analytics.example.com",
+                "database": "analytics",
+                "credentialsEnv": "ANALYTICS_DB_CREDENTIALS"
+            }
+        }
+        
+        if connection_name not in named_connections:
+            return {
+                "success": False,
+                "error": f"Named connection not found: {connection_name}"
+            }
+            
+        # In real implementation: conn_id, metadata = await host.get_named_connection(connection_name)
+        
+        # For demo, simulate success
+        conn_id = str(uuid.uuid4())
+        config = named_connections[connection_name]
+        
+        # Track this connection
+        active_connections[conn_id] = config["type"]
+        
+        return {
+            "success": True,
+            "connection_id": conn_id,
+            "connection_name": connection_name,
+            "storage_type": config["type"],
+            "database": config["database"],
+            "host": config["host"]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to connect to named storage {connection_name}: {str(e)}"
+        }
 
 
 @mcp.resource("storage://schema/{connection_id}")

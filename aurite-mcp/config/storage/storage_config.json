@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "sql": {
-      "command": "uv",
-      "args": ["--directory", "/sql", "run", "sql_server.py"]
-    }
-  }
-}

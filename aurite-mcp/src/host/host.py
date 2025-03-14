@@ -22,6 +22,7 @@ from .routing import MessageRouter
 from .prompts import PromptManager
 from .resources import ResourceManager
 from .security import SecurityManager
+from .connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ class MCPHost:
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
         self._security_manager = SecurityManager(encryption_key=encryption_key)
+        self._connection_manager = ConnectionManager()
 
         # State management
         self._config = config
@@ -80,16 +82,23 @@ class MCPHost:
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._security_manager.initialize()
+        await self._connection_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
-            
+
             # Register permissions based on capabilities
             if "storage" in client_config.capabilities:
                 await self._security_manager.register_server_permissions(
-                    client_config.client_id, 
-                    allowed_credential_types=["database_connection"]
+                    client_config.client_id,
+                    allowed_credential_types=["database_connection"],
+                )
+
+                # Register database connection permissions
+                await self._connection_manager.register_server_permissions(
+                    client_config.client_id,
+                    allowed_connection_types=["postgresql", "mysql", "sqlite"],
                 )
 
         logger.info("MCP Host initialization complete")
@@ -305,17 +314,137 @@ class MCPHost:
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
         await self._security_manager.shutdown()
+        await self._connection_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
-        
-    async def secure_database_connection(self, connection_string: str) -> Tuple[str, str]:
+
+    async def create_database_connection(
+        self, params: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
         """
-        Secure a database connection string and return a token to use in place of credentials
-        
+        Create a database connection from parameters and return a connection ID.
+
+        Args:
+            params: Connection parameters including type, host, database, username, password
+
+        Returns:
+            Tuple of (connection_id, connection_metadata)
+        """
+        return await self._connection_manager.create_db_connection(params)
+
+    async def get_named_connection(
+        self, connection_name: str
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Get a connection for a named database configuration.
+
+        Args:
+            connection_name: Name of the pre-configured connection
+
+        Returns:
+            Tuple of (connection_id, connection_metadata)
+        """
+        return await self._connection_manager.get_named_connection(connection_name)
+
+    async def execute_query(
+        self, conn_id: str, query: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a query on a database connection.
+
+        Args:
+            conn_id: Connection ID
+            query: SQL query to execute
+            params: Query parameters
+
+        Returns:
+            Query result dictionary
+        """
+        return await self._connection_manager.execute_query(conn_id, query, params)
+
+    async def close_connection(self, conn_id: str) -> bool:
+        """
+        Close a database connection.
+
+        Args:
+            conn_id: Connection ID
+
+        Returns:
+            True if connection was closed, False if it wasn't found
+        """
+        return await self._connection_manager.close_connection(conn_id)
+
+    async def list_active_connections(self) -> List[Dict[str, Any]]:
+        """List all active connections with metadata"""
+        return await self._connection_manager.list_active_connections()
+
+    # Keep this for backward compatibility
+    async def secure_database_connection(
+        self, connection_string: str
+    ) -> Tuple[str, str]:
+        """
+        Legacy method for compatibility. Creates a database connection from a connection string.
+
         Args:
             connection_string: Raw database connection string with credentials
-            
+
         Returns:
-            Tuple of token and masked connection string
+            Tuple of (connection_id, masked_connection_string)
         """
-        return await self._security_manager.secure_database_connection(connection_string)
+        # Parse connection string to extract parameters
+        try:
+            # Determine type
+            if "postgresql" in connection_string:
+                db_type = "postgresql"
+            elif "mysql" in connection_string:
+                db_type = "mysql"
+            elif "sqlite" in connection_string:
+                db_type = "sqlite"
+            else:
+                raise ValueError(
+                    f"Unsupported database type in connection string: {connection_string}"
+                )
+
+            # Parse standard format: dialect://username:password@host:port/database
+            if db_type != "sqlite":
+                # Extract username and password
+                auth_part = connection_string.split("//")[1].split("@")[0]
+                username, password = auth_part.split(":")
+
+                # Extract host, port, and database
+                host_db_part = connection_string.split("@")[1]
+                host_port, database = host_db_part.split("/", 1)
+
+                # Handle port
+                if ":" in host_port:
+                    host, port = host_port.split(":")
+                    port = int(port)
+                    params = {
+                        "type": db_type,
+                        "host": host,
+                        "port": port,
+                        "database": database,
+                        "username": username,
+                        "password": password,
+                    }
+                else:
+                    params = {
+                        "type": db_type,
+                        "host": host_port,
+                        "database": database,
+                        "username": username,
+                        "password": password,
+                    }
+            else:
+                # SQLite connection string: sqlite:///path/to/database.db
+                database = connection_string.split("///")[1]
+                params = {"type": "sqlite", "database": database}
+
+            # Create connection
+            conn_id, metadata = await self.create_database_connection(params)
+
+            # Return connection ID and masked connection string
+            return conn_id, metadata.get("connection_string", "")
+        except Exception as e:
+            logger.error(f"Error creating database connection: {e}")
+            raise

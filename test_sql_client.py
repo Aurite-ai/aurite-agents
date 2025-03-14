@@ -30,9 +30,17 @@ class TestSQLClient:
         if not (is_python or is_js):
             raise ValueError("Server script must be a .py or .js file")
 
+        # Pass environment variables to the server
+        import os
+        env = {
+            "POSTGRES_CREDENTIALS": "postgres:password",
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": os.environ.get("PYTHONPATH", "")
+        }
+        
         command = "python" if is_python else "node"
         server_params = StdioServerParameters(
-            command=command, args=[server_script_path], env=None
+            command=command, args=[server_script_path], env=env
         )
 
         stdio_transport = await self.exit_stack.enter_async_context(
@@ -52,39 +60,80 @@ class TestSQLClient:
 
     async def run_sql_test(self):
         """Run a predefined SQL test query"""
-        # First connect to the database
-        query = "Connect to the PostgreSQL database on localhost with the following connection string: postgresql+psycopg2://postgres:password@localhost:5432/testdb"
-
+        # First connect to the database using direct parameters
+        query = """Connect to the PostgreSQL database with the following parameters:
+        - host: localhost
+        - database: testdb
+        - username: postgres
+        - password: password
+        - port: 5432"""
+        
         result = await self.process_query(query)
         print("\nConnection Result:")
         print(result)
-
+        
         # Extract connection_id from the first response
         import re
-
+        
         # Search for connection_id in the result
         match = re.search(r'"connection_id": "([^"]+)"', result)
         if match:
             connection_id = match.group(1)
             print(f"\nExtracted connection_id: {connection_id}")
-
+            
             # Query the users table
             query = f"Using connection_id {connection_id}, execute a SELECT query to show all records in the users table"
-
+            
             result = await self.process_query(query)
             print("\nQuery Result:")
             print(result)
-
+            
             # Disconnect
             query = f"Disconnect from the database with connection_id {connection_id}"
-
+            
             result = await self.process_query(query)
             print("\nDisconnect Result:")
             print(result)
         else:
-            print(
-                "\nFailed to extract connection_id from response, cannot continue with queries."
-            )
+            print("\nFailed to extract connection_id from response, cannot continue with queries.")
+            
+    async def run_named_connection_test(self):
+        """Test using a named connection"""
+        # First set environment variable for connection
+        import os
+        os.environ["POSTGRES_CREDENTIALS"] = "postgres:password"
+        
+        # Connect using named connection
+        query = "Connect to the database using the named connection 'default_postgres'"
+        
+        result = await self.process_query(query)
+        print("\nNamed Connection Result:")
+        print(result)
+        
+        # Extract connection_id from the response
+        import re
+        
+        # Search for connection_id in the result
+        match = re.search(r'"connection_id": "([^"]+)"', result)
+        if match:
+            connection_id = match.group(1)
+            print(f"\nExtracted connection_id: {connection_id}")
+            
+            # Query the users table
+            query = f"Using connection_id {connection_id}, execute a SELECT query to show all records in the users table"
+            
+            result = await self.process_query(query)
+            print("\nQuery Result:")
+            print(result)
+            
+            # Disconnect
+            query = f"Disconnect from the database with connection_id {connection_id}"
+            
+            result = await self.process_query(query)
+            print("\nDisconnect Result:")
+            print(result)
+        else:
+            print("\nFailed to extract connection_id from response, cannot continue with queries.")
 
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
@@ -176,10 +225,22 @@ async def main():
         print("Usage: python test_sql_client.py <path_to_server_script>")
         sys.exit(1)
 
+    # Set environment variable for database connection
+    import os
+    os.environ["POSTGRES_CREDENTIALS"] = "postgres:password"
+    print(f"Set environment variable POSTGRES_CREDENTIALS={os.environ.get('POSTGRES_CREDENTIALS')}")
+
     client = TestSQLClient()
     try:
         await client.connect_to_server(sys.argv[1])
+        
+        # Run the standard parameter-based test
+        print("\n===== TESTING DIRECT PARAMETERS CONNECTION =====")
         await client.run_sql_test()
+        
+        # Run the named connection test
+        print("\n\n===== TESTING NAMED CONNECTION =====")
+        await client.run_named_connection_test()
     finally:
         await client.cleanup()
 
