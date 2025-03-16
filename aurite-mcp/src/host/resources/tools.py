@@ -103,8 +103,23 @@ class ToolManager:
             # Get tools from the client
             tools_response = await client_session.list_tools()
 
+            # Handle different response formats (compatibility with different MCP implementations)
+            if hasattr(tools_response, 'tools'):
+                # Format from some MCP implementations
+                tools = tools_response.tools
+            else:
+                # Format from FastMCP and newer MCP implementations
+                tools = tools_response
+                
+            # Create a response object that works with both host.py code patterns
+            class ToolsResponse:
+                def __init__(self, tools_list):
+                    self.tools = tools_list
+                    
+            normalized_response = ToolsResponse(tools)
+
             # Register each tool
-            for tool in tools_response.tools:
+            for tool in tools:
                 await self.register_tool(
                     tool_name=tool.name,
                     tool=tool,
@@ -112,7 +127,7 @@ class ToolManager:
                     capabilities=[],  # Will be updated by the host
                 )
 
-            return tools_response.tools
+            return normalized_response
         except Exception as e:
             logger.error(f"Failed to discover tools for client {client_id}: {e}")
             raise

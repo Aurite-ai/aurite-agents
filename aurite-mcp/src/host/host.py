@@ -192,7 +192,7 @@ class MCPHost:
                 )
 
                 # Update tool capabilities based on client capabilities
-                for tool in tools_response:
+                for tool in tools_response.tools:
                     await self._tool_manager.register_tool(
                         tool_name=tool.name,
                         tool=tool,
@@ -252,14 +252,22 @@ class MCPHost:
         # Get the system prompt content
         client = self._clients[client_id]
         prompt_result = await client.get_prompt(prompt_name, prompt_arguments)
-        system_prompt = prompt_result.text
+        
+        # Handle different response formats
+        if hasattr(prompt_result, 'text'):
+            system_prompt = prompt_result.text
+        elif hasattr(prompt_result, 'result') and hasattr(prompt_result.result, 'text'):
+            system_prompt = prompt_result.result.text
+        else:
+            # Try to inspect the object to find text content
+            system_prompt = str(prompt_result)
 
         # Prepare tools
         tools_data = []
-        tool_list = tool_names or [t["name"] for t in self.list_tools()]
+        tool_list = tool_names or [t["name"] for t in self.tools.list_tools()]
 
         for tool_name in tool_list:
-            tool = self.get_tool(tool_name)
+            tool = self.tools.get_tool(tool_name)
             if tool:
                 tools_data.append(
                     {
@@ -386,7 +394,7 @@ class MCPHost:
                     # Execute the tool
                     logger.info(f"Executing tool: {tool_use.name}")
                     try:
-                        tool_result = await self.call_tool(
+                        tool_result = await self.tools.execute_tool(
                             tool_name=tool_use.name, arguments=tool_use.input
                         )
 
