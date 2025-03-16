@@ -157,7 +157,7 @@ class StorageManager:
             engine = create_engine(conn_string)
 
             # Verify connection by attempting to connect
-            with engine.connect() as conn:
+            with engine.connect():
                 # Just test the connection
                 pass
 

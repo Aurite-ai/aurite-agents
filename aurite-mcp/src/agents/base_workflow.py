@@ -1,46 +1,40 @@
 """
-BaseWorkflow class for implementing sequential workflow agents.
+BaseWorkflow module for implementing sequential workflow agents.
+
+This module provides:
+1. WorkflowContext - Shared context model used by all agent types
+2. WorkflowStep - Building block for workflow-based agents
+3. BaseWorkflow - Implementation for linear/sequential workflows
+
+The WorkflowContext and WorkflowStep classes are designed to be reusable
+across different agent implementations (workflow, hybrid, and dynamic).
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Callable, Set, Union
+from typing import Dict, List, Any, Optional, Callable, Set
 import asyncio
 import logging
 import time
 
 from ..host.host import MCPHost
+from .base_models import StepStatus, StepResult, WorkflowContext
 
 logger = logging.getLogger(__name__)
-
-
-class StepStatus(Enum):
-    """Status of a workflow step"""
-
-    PENDING = auto()
-    RUNNING = auto()
-    COMPLETED = auto()
-    FAILED = auto()
-    SKIPPED = auto()
-
-
-@dataclass
-class StepResult:
-    """Result of a workflow step execution"""
-
-    status: StepStatus
-    outputs: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[Exception] = None
-    execution_time: float = 0.0
-    metrics: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class WorkflowStep(ABC):
     """
     Abstract base class for workflow steps.
-    Each step defines its inputs, outputs, and tools it requires.
+
+    A WorkflowStep is a reusable component that:
+    1. Defines clear inputs and outputs (contract)
+    2. Performs a specific piece of work
+    3. Can be composed into different workflow patterns
+    4. Can include optional execution conditions
+
+    Used by both sequential workflows and hybrid agents.
     """
 
     name: str
@@ -52,8 +46,17 @@ class WorkflowStep(ABC):
     retry_delay: float = 1.0  # seconds
     timeout: float = 60.0  # seconds
 
+    # Tags for categorization and filtering
+    tags: Set[str] = field(default_factory=set)
+
+    # Optional metadata
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    # Optional condition for execution
+    condition: Optional[Callable[[Dict[str, Any]], bool]] = None
+
     @abstractmethod
-    async def execute(self, context: Dict[str, Any], host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: WorkflowContext, host: MCPHost) -> Dict[str, Any]:
         """
         Execute the step with the given context.
 
@@ -66,12 +69,32 @@ class WorkflowStep(ABC):
         """
         pass
 
+    async def should_execute(self, context: Dict[str, Any]) -> bool:
+        """
+        Determine if the step should be executed based on its condition.
+
+        Args:
+            context: The current workflow context data
+
+        Returns:
+            True if the step should be executed, False otherwise
+        """
+        # No condition means always execute
+        if self.condition is None:
+            return True
+
+        try:
+            return self.condition(context)
+        except Exception as e:
+            logger.error(f"Error evaluating condition for step '{self.name}': {e}")
+            return False
+
     def validate_inputs(self, context: Dict[str, Any]) -> bool:
         """
         Validate that all required inputs are present in the context.
 
         Args:
-            context: The current workflow context
+            context: The current workflow context data dictionary
 
         Returns:
             True if all required inputs are present, False otherwise
@@ -100,76 +123,45 @@ class WorkflowStep(ABC):
                 return False
         return True
 
-
-@dataclass
-class ConditionalStep:
-    """
-    A wrapper for a workflow step with a condition to determine if it should be executed.
-    """
-
-    step: WorkflowStep
-    condition: Callable[[Dict[str, Any]], bool]
-
-    async def should_execute(self, context: Dict[str, Any]) -> bool:
+    def get_description(self) -> Dict[str, Any]:
         """
-        Determine if the step should be executed based on the condition.
-
-        Args:
-            context: The current workflow context
+        Get a complete description of this step.
+        Useful for documentation or dynamic agent planning.
 
         Returns:
-            True if the step should be executed, False otherwise
+            Dictionary describing the step
         """
-        try:
-            return self.condition(context)
-        except Exception as e:
-            logger.error(f"Error evaluating condition for step '{self.step.name}': {e}")
-            return False
-
-
-@dataclass
-class WorkflowContext:
-    """
-    Context for a workflow execution.
-    Maintains state between steps and tracks execution.
-    """
-
-    data: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    step_results: Dict[str, StepResult] = field(default_factory=dict)
-
-    start_time: float = field(default_factory=time.time)
-    end_time: Optional[float] = None
-
-    def add_step_result(self, step_name: str, result: StepResult):
-        """Add a step result to the context"""
-        self.step_results[step_name] = result
-
-    def get_step_result(self, step_name: str) -> Optional[StepResult]:
-        """Get a step result from the context"""
-        return self.step_results.get(step_name)
-
-    def get_execution_time(self) -> float:
-        """Get the total execution time of the workflow"""
-        if self.end_time:
-            return self.end_time - self.start_time
-        return time.time() - self.start_time
-
-    def complete(self):
-        """Mark the workflow as complete"""
-        self.end_time = time.time()
+        return {
+            "name": self.name,
+            "description": self.description,
+            "required_inputs": list(self.required_inputs),
+            "provided_outputs": list(self.provided_outputs),
+            "required_tools": list(self.required_tools),
+            "tags": list(self.tags),
+            "has_condition": self.condition is not None,
+            "metadata": self.metadata,
+        }
 
 
 class BaseWorkflow(ABC):
     """
-    Base class for implementing sequential workflow agents.
-    Workflows consist of a series of steps that are executed in order.
+    Base class for implementing strictly sequential workflow agents.
+
+    This class focuses specifically on linear workflows where:
+    1. Steps are executed in a predefined sequence
+    2. Each step has access to specific tools
+    3. Data flows from one step to the next via the context
+    4. Steps can be conditionally executed but not reordered dynamically
+
+    For more complex workflows with branching or dynamic behavior,
+    consider combining this with elements from BaseAgent or creating
+    a hybrid implementation.
     """
 
     def __init__(self, host: MCPHost, name: str = "unnamed_workflow"):
         self.host = host
         self.name = name
-        self.steps: List[Union[WorkflowStep, ConditionalStep]] = []
+        self.steps: List[WorkflowStep] = []
         self.error_handlers: Dict[
             str, Callable[[WorkflowStep, Exception, Dict[str, Any]], None]
         ] = {}
@@ -191,8 +183,7 @@ class BaseWorkflow(ABC):
         all_required_tools = set()
 
         # Collect all required tools from steps
-        for step_item in self.steps:
-            step = step_item if isinstance(step_item, WorkflowStep) else step_item.step
+        for step in self.steps:
             all_required_tools.update(step.required_tools)
 
         # Check if tools are available through host
@@ -219,9 +210,10 @@ class BaseWorkflow(ABC):
             condition: Optional condition to determine if the step should be executed
         """
         if condition:
-            self.steps.append(ConditionalStep(step, condition))
-        else:
-            self.steps.append(step)
+            # Set the condition directly on the step
+            step.condition = condition
+
+        self.steps.append(step)
 
     def add_error_handler(
         self,
@@ -303,20 +295,20 @@ class BaseWorkflow(ABC):
         logger.error(f"Unhandled error in step '{step.name}': {error}")
 
     async def execute_step(
-        self, step: WorkflowStep, context: Dict[str, Any]
+        self, step: WorkflowStep, context_data: Dict[str, Any]
     ) -> StepResult:
         """
         Execute a single workflow step with retries.
 
         Args:
             step: The step to execute
-            context: The current workflow context
+            context_data: The current workflow context data dictionary
 
         Returns:
             The result of the step execution
         """
         # First validate inputs
-        if not step.validate_inputs(context):
+        if not step.validate_inputs(context_data):
             return StepResult(
                 status=StepStatus.FAILED,
                 error=ValueError(f"Step '{step.name}' missing required inputs"),
@@ -331,8 +323,11 @@ class BaseWorkflow(ABC):
             start_time = time.time()
 
             try:
+                # Create a workflow context for the step
+                step_context = WorkflowContext(data=context_data.copy())
+
                 # Execute step with timeout
-                step_task = asyncio.create_task(step.execute(context, self.host))
+                step_task = asyncio.create_task(step.execute(step_context, self.host))
                 outputs = await asyncio.wait_for(step_task, timeout=step.timeout)
 
                 # Calculate execution time
@@ -365,7 +360,7 @@ class BaseWorkflow(ABC):
             except Exception as e:
                 logger.warning(f"Step '{step.name}' failed on attempt {attempts}: {e}")
                 # Handle the error
-                await self.handle_step_error(step, e, context)
+                await self.handle_step_error(step, e, context_data)
 
                 # If this was the last attempt, return failure
                 if attempts > step.max_retries:
@@ -421,20 +416,14 @@ class BaseWorkflow(ABC):
             return workflow_context
 
         # Execute each step in sequence
-        for step_item in self.steps:
-            # Handle conditional steps
-            if isinstance(step_item, ConditionalStep):
-                if not await step_item.should_execute(workflow_context.data):
-                    logger.info(
-                        f"Skipping step '{step_item.step.name}' due to condition"
-                    )
-                    workflow_context.add_step_result(
-                        step_item.step.name, StepResult(status=StepStatus.SKIPPED)
-                    )
-                    continue
-                step = step_item.step
-            else:
-                step = step_item
+        for step in self.steps:
+            # Check if step should be executed based on its condition
+            if not await step.should_execute(workflow_context.data):
+                logger.info(f"Skipping step '{step.name}' due to condition")
+                workflow_context.add_step_result(
+                    step.name, StepResult(status=StepStatus.SKIPPED)
+                )
+                continue
 
             # Log step execution
             logger.info(f"Executing step: {step.name}")

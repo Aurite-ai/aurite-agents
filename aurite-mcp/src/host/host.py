@@ -16,13 +16,14 @@ from mcp import (
 )
 import mcp.types as types
 
-from .transport import TransportManager
-from .roots import RootManager, RootConfig
-from .routing import MessageRouter
-from .prompts import PromptManager
-from .resources import ResourceManager
-from .security import SecurityManager
-from .storage import StorageManager
+# Foundation layer
+from .foundation import SecurityManager, RootManager, RootConfig
+
+# Communication layer
+from .communication import TransportManager, MessageRouter
+
+# Resource management layer
+from .resources import PromptManager, ResourceManager, StorageManager
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +54,17 @@ class MCPHost:
     """
 
     def __init__(self, config: HostConfig, encryption_key: Optional[str] = None):
-        # Core managers
-        self._transport_manager = TransportManager()
+        # Layer 1: Foundation layer
+        self._security_manager = SecurityManager(encryption_key=encryption_key)
         self._root_manager = RootManager()
+
+        # Layer 2: Communication layer
+        self._transport_manager = TransportManager()
         self._message_router = MessageRouter()
+
+        # Layer 3: Resource management layer
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
-        self._security_manager = SecurityManager(encryption_key=encryption_key)
         self._storage_manager = StorageManager()
 
         # State management
@@ -75,13 +80,22 @@ class MCPHost:
         """Initialize the host and all configured clients"""
         logger.info("Initializing MCP Host...")
 
-        # Initialize subsystems
-        await self._transport_manager.initialize()
+        # Initialize subsystems in layer order
+
+        # Layer 1: Foundation layer
+        logger.info("Initializing foundation layer...")
+        await self._security_manager.initialize()
         await self._root_manager.initialize()
+
+        # Layer 2: Communication layer
+        logger.info("Initializing communication layer...")
+        await self._transport_manager.initialize()
         await self._message_router.initialize()
+
+        # Layer 3: Resource management layer
+        logger.info("Initializing resource management layer...")
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
-        await self._security_manager.initialize()
         await self._storage_manager.initialize()
 
         # Initialize each configured client
@@ -307,14 +321,23 @@ class MCPHost:
         # Close all resources using the exit stack
         await self._exit_stack.aclose()
 
-        # Shutdown managers
-        await self._transport_manager.shutdown()
-        await self._root_manager.shutdown()
-        await self._message_router.shutdown()
+        # Shutdown managers in reverse layer order
+
+        # Layer 3: Resource management layer
+        logger.info("Shutting down resource management layer...")
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
-        await self._security_manager.shutdown()
         await self._storage_manager.shutdown()
+
+        # Layer 2: Communication layer
+        logger.info("Shutting down communication layer...")
+        await self._transport_manager.shutdown()
+        await self._message_router.shutdown()
+
+        # Layer 1: Foundation layer
+        logger.info("Shutting down foundation layer...")
+        await self._security_manager.shutdown()
+        await self._root_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
 
