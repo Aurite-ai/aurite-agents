@@ -23,7 +23,7 @@ from .foundation import SecurityManager, RootManager, RootConfig
 from .communication import TransportManager, MessageRouter
 
 # Resource management layer
-from .resources import PromptManager, ResourceManager, StorageManager
+from .resources import PromptManager, ResourceManager, StorageManager, ToolManager
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +66,13 @@ class MCPHost:
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
         self._storage_manager = StorageManager()
+        self._tool_manager = ToolManager(
+            root_manager=self._root_manager, message_router=self._message_router
+        )
 
         # State management
         self._config = config
         self._clients: Dict[str, ClientSession] = {}
-        self._tools: Dict[str, types.Tool] = {}
 
         # Track active requests
         self._active_requests: Dict[str, asyncio.Task] = {}
@@ -97,6 +99,7 @@ class MCPHost:
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._storage_manager.initialize()
+        await self._tool_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
@@ -161,7 +164,8 @@ class MCPHost:
             await session.send_notification(init_notification)
 
             # Register roots
-            await self._root_manager.register_roots(config.client_id, config.roots)
+            if "roots" in config.capabilities:
+                await self._root_manager.register_roots(config.client_id, config.roots)
 
             # Register server capabilities with router
             await self._message_router.register_server(
@@ -170,18 +174,25 @@ class MCPHost:
                 weight=config.routing_weight,
             )
 
-            # Store client and discover tools
+            # Store client and register with tool manager
             self._clients[config.client_id] = session
-            tools_response = await session.list_tools()
 
-            # Register tools with router
-            for tool in tools_response.tools:
-                self._tools[tool.name] = tool
-                await self._message_router.register_tool(
-                    tool_name=tool.name,
-                    client_id=config.client_id,
-                    capabilities=config.capabilities,
+            if "tools" in config.capabilities:
+                self._tool_manager.register_client(config.client_id, session)
+
+                # Discover tools and register with the tool manager
+                tools_response = await self._tool_manager.discover_client_tools(
+                    client_id=config.client_id, client_session=session
                 )
+
+                # Update tool capabilities based on client capabilities
+                for tool in tools_response:
+                    await self._tool_manager.register_tool(
+                        tool_name=tool.name,
+                        tool=tool,
+                        client_id=config.client_id,
+                        capabilities=config.capabilities,
+                    )
 
             # Initialize prompts if supported
             if "prompts" in config.capabilities:
@@ -265,50 +276,10 @@ class MCPHost:
     ) -> List[types.TextContent]:
         """
         Call a tool by name with the given arguments.
-        Routes the request through the appropriate client.
+        Delegates to the tool manager for execution.
         """
-        # Validate tool exists
-        if tool_name not in self._tools:
-            raise ValueError(f"Unknown tool: {tool_name}")
-
-        # Get server for this tool (using enhanced routing)
-        server_id = await self._message_router.select_server_for_tool(
-            tool_name,
-            required_capabilities=set(),  # Could be derived from arguments/context
-        )
-        if not server_id:
-            raise ValueError(f"No server found for tool: {tool_name}")
-
-        client = self._clients[server_id]
-
-        # Validate access through root manager
-        await self._root_manager.validate_access(
-            client_id=server_id, tool_name=tool_name
-        )
-
-        # Call the tool
-        try:
-            result = await client.call_tool(tool_name, arguments)
-            # Convert result to proper types if it's been serialized to tuples
-            if isinstance(result, tuple):
-                result_dict = dict(result)
-                return [
-                    types.TextContent(type="text", text=c.text)
-                    if hasattr(c, "text")
-                    else types.TextContent(type="text", text=str(c))
-                    for c in result_dict.get("content", [])
-                ]
-            # Handle the result directly as a CallToolResult
-            if hasattr(result, "isError") and result.isError:
-                raise ValueError(
-                    result.content[0].text if result.content else "Unknown error"
-                )
-            if hasattr(result, "content"):
-                return result.content
-            return result
-        except Exception as e:
-            logger.error(f"Tool call failed - {tool_name}: {e}")
-            raise
+        # Delegate to the tool manager
+        return await self._tool_manager.execute_tool(tool_name, arguments)
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
@@ -328,6 +299,7 @@ class MCPHost:
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
         await self._storage_manager.shutdown()
+        await self._tool_manager.shutdown()
 
         # Layer 2: Communication layer
         logger.info("Shutting down communication layer...")
@@ -400,6 +372,53 @@ class MCPHost:
     async def list_active_connections(self) -> List[Dict[str, Any]]:
         """List all active connections with metadata"""
         return await self._storage_manager.list_active_connections()
+
+    # Tool-related methods
+
+    def list_tools(self) -> List[Dict[str, Any]]:
+        """
+        List all available tools with metadata.
+
+        Returns:
+            List of tools with metadata
+        """
+        return self._tool_manager.list_tools()
+
+    def get_tool(self, tool_name: str) -> Optional[types.Tool]:
+        """
+        Get a tool by name.
+
+        Args:
+            tool_name: The name of the tool
+
+        Returns:
+            The tool if found, None otherwise
+        """
+        return self._tool_manager.get_tool(tool_name)
+
+    def has_tool(self, tool_name: str) -> bool:
+        """
+        Check if a tool exists.
+
+        Args:
+            tool_name: The name of the tool
+
+        Returns:
+            True if the tool exists, False otherwise
+        """
+        return self._tool_manager.has_tool(tool_name)
+
+    async def find_tools_by_capability(self, capability: str) -> List[str]:
+        """
+        Find tools that provide a specific capability.
+
+        Args:
+            capability: The capability to search for
+
+        Returns:
+            List of tool names that provide the capability
+        """
+        return await self._tool_manager.find_tools_by_capability(capability)
 
     # Keep this for backward compatibility
     async def secure_database_connection(
