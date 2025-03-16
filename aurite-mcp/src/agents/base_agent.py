@@ -346,7 +346,7 @@ class AgentPlanner:
         # Call the planning tool/prompt through the host
         try:
             # Try using the new execute_prompt_with_tools method if "plan_generation" tool exists
-            if self.host.has_tool("plan_generation"):
+            if self.host.tools.has_tool("plan_generation"):
                 response = await self.host.execute_prompt_with_tools(
                     prompt_name=self.planning_prompt,
                     prompt_arguments={"task": task, "context": json.dumps(context)},
@@ -494,7 +494,7 @@ class AgentPlanner:
                 )
 
             # Try using the execute_prompt_with_tools if "plan_update" tool exists
-            if self.host.has_tool("plan_update"):
+            if self.host.tools.has_tool("plan_update"):
                 response = await self.host.execute_prompt_with_tools(
                     prompt_name="update_plan",
                     prompt_arguments={
@@ -588,11 +588,16 @@ class ToolRegistry:
         Returns:
             List of discovered tools
         """
-        # Get tools from host
-        host_tools = list(self.host._tools.values())
+        # Get tools from host using the tools property
+        host_tools_info = self.host.tools.list_tools()
 
         discovered = []
-        for tool in host_tools:
+        for tool_info in host_tools_info:
+            # Get the full tool definition
+            tool = self.host.tools.get_tool(tool_info["name"])
+            if not tool:
+                continue
+                
             # Convert MCP tool to AgentTool
             agent_tool = AgentTool(
                 name=tool.name,
@@ -802,7 +807,7 @@ class BaseAgent(ABC):
             # Execute step
             try:
                 logger.info(f"Executing step: {current_step.tool_name}")
-                step_result = await self.host.call_tool(
+                step_result = await self.host.tools.execute_tool(
                     current_step.tool_name, current_step.parameters
                 )
 
@@ -851,7 +856,7 @@ class BaseAgent(ABC):
                 for fallback in current_step.fallback_steps:
                     try:
                         logger.info(f"Executing fallback step: {fallback.tool_name}")
-                        fallback_result = await self.host.call_tool(
+                        fallback_result = await self.host.tools.execute_tool(
                             fallback.tool_name, fallback.parameters
                         )
 

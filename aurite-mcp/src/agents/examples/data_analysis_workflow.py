@@ -110,7 +110,7 @@ class DataQualityStep(WorkflowStep):
         dataset_info = context.get("dataset_info")
 
         # Use tool_manager from context
-        result = await context.tool_manager.execute_tool(
+        result = await context.tool_manager.execute_tool(  # noqa: F841
             "analyze_data_quality",
             {"dataset_id": dataset_id, "columns": dataset_info.get("columns", [])},
         )
@@ -157,7 +157,7 @@ class StatisticalAnalysisStep(WorkflowStep):
             metrics_to_calculate.extend(["quartiles", "skewness", "kurtosis"])
 
         # Use tool_manager to execute the statistics calculation
-        result = await context.tool_manager.execute_tool(
+        result = await context.tool_manager.execute_tool(  # noqa: F841
             "calculate_statistics",
             {
                 "dataset_id": dataset_id,
@@ -218,7 +218,7 @@ class VisualizationStep(WorkflowStep):
         # Use tool_manager to create visualizations
         visualization_urls = []
         for viz_type in viz_types:
-            result = await context.tool_manager.execute_tool(
+            result = await context.tool_manager.execute_tool(  # noqa: F841
                 "create_visualization",
                 {"dataset_id": dataset_id, "type": viz_type, "format": "png"},
             )
@@ -272,7 +272,7 @@ class InsightGenerationStep(WorkflowStep):
         analysis_type = context.get("analysis_type", "basic")
 
         # Call the insight generation tool
-        result = await context.tool_manager.execute_tool(
+        result = await context.tool_manager.execute_tool(  # noqa: F841
             "generate_insights",
             {
                 "dataset_metadata": dataset_info,
@@ -342,7 +342,7 @@ class ReportGenerationStep(WorkflowStep):
             report_input["visualizations"] = visualization_urls
 
         # Generate report
-        result = await context.tool_manager.execute_tool(
+        result = await context.tool_manager.execute_tool(  # noqa: F841
             "generate_report", report_input
         )
 
