@@ -262,33 +262,8 @@ class MCPHost:
             # Try to inspect the object to find text content
             system_prompt = str(prompt_result)
 
-        # Prepare tools
-        tools_data = []
-        tool_list = tool_names or [t["name"] for t in self.tools.list_tools()]
-
-        for tool_name in tool_list:
-            tool = self.tools.get_tool(tool_name)
-            if tool:
-                # Get correct input schema format
-                input_schema = {}
-                if hasattr(tool, "inputSchema"):
-                    input_schema = tool.inputSchema
-                elif hasattr(tool, "parameters"):
-                    input_schema = tool.parameters
-                
-                # Ensure schema has a 'type' field for Anthropic API
-                if isinstance(input_schema, dict) and "type" not in input_schema:
-                    input_schema["type"] = "object"
-                
-                tools_data.append(
-                    {
-                        "name": tool.name,
-                        "description": tool.description
-                        if hasattr(tool, "description")
-                        else "",
-                        "input_schema": input_schema,
-                    }
-                )
+        # Prepare tools using ToolManager's formatting method
+        tools_data = self.tools.format_tools_for_llm(tool_names)
 
         # Prepare the full request data
         return {
@@ -353,22 +328,8 @@ class MCPHost:
         request_data["max_tokens"] = max_tokens
         request_data["temperature"] = temperature
 
-        # Convert tools to Anthropic format
-        tools = []
-        for tool_data in request_data["tools"]:
-            # Ensure input_schema has a 'type' field for Anthropic API
-            input_schema = tool_data["input_schema"]
-            if isinstance(input_schema, dict) and "type" not in input_schema:
-                # Default to object type if not specified
-                input_schema["type"] = "object"
-                
-            tools.append(
-                {
-                    "name": tool_data["name"],
-                    "description": tool_data["description"],
-                    "input_schema": input_schema,
-                }
-            )
+        # Use the tools directly - they are already properly formatted by format_tools_for_llm
+        tools = request_data["tools"]
 
         # Initialize message history
         messages: List[MessageParam] = [{"role": "user", "content": user_message}]
@@ -413,31 +374,17 @@ class MCPHost:
                             tool_name=tool_use.name, arguments=tool_use.input
                         )
 
-                        # Format tool result as text
-                        if isinstance(tool_result, list):
-                            result_text = "\n".join(
-                                [
-                                    getattr(item, "text", str(item))
-                                    for item in tool_result
-                                ]
-                            )
-                        else:
-                            result_text = str(tool_result)
-
-                        # Collect tool results
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_use.id,
-                            "content": result_text,
-                        })
+                        # Use ToolManager to format the tool result
+                        tool_results.append(
+                            self.tools.create_tool_result_blocks(tool_use.id, tool_result)
+                        )
 
                     except Exception as e:
                         logger.error(f"Error executing tool {tool_use.name}: {e}")
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_use.id,
-                            "content": f"Error: {str(e)}",
-                        })
+                        # Create an error result using the same format
+                        tool_results.append(
+                            self.tools.create_tool_result_blocks(tool_use.id, f"Error: {str(e)}")
+                        )
 
             # If no tool calls, we're done
             if not has_tool_calls:

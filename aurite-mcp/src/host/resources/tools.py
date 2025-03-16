@@ -252,6 +252,78 @@ class ToolManager:
             if capability in metadata.get("capabilities", [])
         ]
 
+    def format_tools_for_llm(self, tool_names: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Format tools for use with LLM APIs like Anthropic's Claude.
+        
+        Args:
+            tool_names: Optional list of specific tool names to include (if None, includes all available tools)
+            
+        Returns:
+            List of formatted tool definitions ready for API calls
+        """
+        tool_list = tool_names or [t["name"] for t in self.list_tools()]
+        tools_data = []
+        
+        for tool_name in tool_list:
+            tool = self.get_tool(tool_name)
+            if tool:
+                # Get correct input schema format
+                input_schema = {}
+                if hasattr(tool, "inputSchema"):
+                    input_schema = tool.inputSchema
+                elif hasattr(tool, "parameters"):
+                    input_schema = tool.parameters
+                
+                # Ensure schema has a 'type' field for LLM APIs
+                if isinstance(input_schema, dict) and "type" not in input_schema:
+                    input_schema["type"] = "object"
+                
+                tools_data.append({
+                    "name": tool.name,
+                    "description": tool.description if hasattr(tool, "description") else "",
+                    "input_schema": input_schema,
+                })
+                
+        return tools_data
+    
+    def format_tool_result(self, tool_result) -> str:
+        """
+        Format a tool result as text.
+        
+        Args:
+            tool_result: The result from executing a tool
+            
+        Returns:
+            Formatted text representation of the tool result
+        """
+        if isinstance(tool_result, list):
+            return "\n".join([
+                getattr(item, "text", str(item))
+                for item in tool_result
+            ])
+        else:
+            return str(tool_result)
+    
+    def create_tool_result_blocks(self, tool_use_id: str, tool_result) -> Dict[str, Any]:
+        """
+        Create a properly formatted tool result block for LLM APIs.
+        
+        Args:
+            tool_use_id: ID of the tool use to associate with the result
+            tool_result: The result from executing the tool
+            
+        Returns:
+            Formatted tool result block
+        """
+        result_text = self.format_tool_result(tool_result)
+        
+        return {
+            "type": "tool_result",
+            "tool_use_id": tool_use_id,
+            "content": result_text,
+        }
+
     async def shutdown(self):
         """Shutdown the tool manager"""
         logger.info("Shutting down tool manager")
