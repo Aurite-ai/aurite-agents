@@ -71,7 +71,11 @@ class DataLoadStep(WorkflowStep):
 
         # Process the result
         if result and isinstance(result, list):
-            # Extract dataset information
+            # Extract text content from the result
+            result_text = context.tool_manager.format_tool_result(result)
+            
+            # In a real implementation, this would parse the JSON response
+            # For test purposes, we'll continue with the placeholder data
             dataset_info = {
                 "id": dataset_id,
                 "num_rows": max_rows,  # This would come from the actual result
@@ -110,12 +114,15 @@ class DataQualityStep(WorkflowStep):
         dataset_info = context.get("dataset_info")
 
         # Use tool_manager from context
-        result = await context.tool_manager.execute_tool(  # noqa: F841
+        result = await context.tool_manager.execute_tool(
             "analyze_data_quality",
             {"dataset_id": dataset_id, "columns": dataset_info.get("columns", [])},
         )
 
-        # Process results - in a real implementation this would parse the actual tool response
+        # Extract text content from the result
+        result_text = context.tool_manager.format_tool_result(result)
+        
+        # Process results - in a real implementation this would parse the actual JSON from result_text
         quality_report = {
             "missing_values": {
                 "column1": 0.05,  # 5% missing
@@ -157,7 +164,7 @@ class StatisticalAnalysisStep(WorkflowStep):
             metrics_to_calculate.extend(["quartiles", "skewness", "kurtosis"])
 
         # Use tool_manager to execute the statistics calculation
-        result = await context.tool_manager.execute_tool(  # noqa: F841
+        result = await context.tool_manager.execute_tool(
             "calculate_statistics",
             {
                 "dataset_id": dataset_id,
@@ -170,7 +177,10 @@ class StatisticalAnalysisStep(WorkflowStep):
             },
         )
 
-        # Process results (in a real implementation, this would parse the actual tool response)
+        # Extract text content from the result
+        result_text = context.tool_manager.format_tool_result(result)
+        
+        # Process results (in a real implementation, this would parse the JSON from result_text)
         statistical_metrics = {
             "descriptive_stats": {
                 "column1": {"mean": 42.5, "median": 41.2, "std_dev": 5.3}
@@ -218,12 +228,15 @@ class VisualizationStep(WorkflowStep):
         # Use tool_manager to create visualizations
         visualization_urls = []
         for viz_type in viz_types:
-            result = await context.tool_manager.execute_tool(  # noqa: F841
+            result = await context.tool_manager.execute_tool(
                 "create_visualization",
                 {"dataset_id": dataset_id, "type": viz_type, "format": "png"},
             )
-
-            # In a real implementation, this would extract the URL from the result
+            
+            # Extract text content from the result
+            result_text = context.tool_manager.format_tool_result(result)
+            
+            # In a real implementation, this would extract the URL from result_text
             visualization_urls.append(
                 f"https://example.com/visualizations/{dataset_id}/{viz_type}.png"
             )
@@ -272,7 +285,7 @@ class InsightGenerationStep(WorkflowStep):
         analysis_type = context.get("analysis_type", "basic")
 
         # Call the insight generation tool
-        result = await context.tool_manager.execute_tool(  # noqa: F841
+        result = await context.tool_manager.execute_tool(
             "generate_insights",
             {
                 "dataset_metadata": dataset_info,
@@ -283,8 +296,11 @@ class InsightGenerationStep(WorkflowStep):
                 else "basic",
             },
         )
+        
+        # Extract text content from the result
+        result_text = context.tool_manager.format_tool_result(result)
 
-        # Process results
+        # Process results - in a real implementation this would parse the JSON from result_text
         insights = {
             "key_findings": [
                 "The data shows a strong correlation between X and Y",
@@ -342,9 +358,12 @@ class ReportGenerationStep(WorkflowStep):
             report_input["visualizations"] = visualization_urls
 
         # Generate report
-        result = await context.tool_manager.execute_tool(  # noqa: F841
+        result = await context.tool_manager.execute_tool(
             "generate_report", report_input
         )
+        
+        # Extract text content from the result
+        result_text = context.tool_manager.format_tool_result(result)
 
         # Extract report text
         report_text = "# Data Analysis Report\n\n"
