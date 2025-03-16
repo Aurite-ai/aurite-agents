@@ -68,7 +68,7 @@ The workflow implementation itself follows a compositional design pattern:
 │                    BaseWorkflow                         │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │               Execution Pipeline                 │    │
+│  │               Execution Pipeline                │    │
 │  │                                                 │    │
 │  │  ┌─────────┐  ┌─────────┐  ┌───────────────┐    │    │
 │  │  │ Step 1  │→ │ Step 2  │→ │ CompositeStep │    │    │
@@ -377,7 +377,7 @@ class MCPHost:
     async def initialize(self):
         """Initialize the host and all configured clients"""
         # Initialize subsystems in layer order
-        
+
         # Layer 1: Foundation layer
         await self._security_manager.initialize()
         await self._root_manager.initialize()
@@ -391,7 +391,7 @@ class MCPHost:
         await self._resource_manager.initialize()
         await self._storage_manager.initialize()
         await self._tool_manager.initialize()
-        
+
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
