@@ -269,15 +269,24 @@ class MCPHost:
         for tool_name in tool_list:
             tool = self.tools.get_tool(tool_name)
             if tool:
+                # Get correct input schema format
+                input_schema = {}
+                if hasattr(tool, "inputSchema"):
+                    input_schema = tool.inputSchema
+                elif hasattr(tool, "parameters"):
+                    input_schema = tool.parameters
+                
+                # Ensure schema has a 'type' field for Anthropic API
+                if isinstance(input_schema, dict) and "type" not in input_schema:
+                    input_schema["type"] = "object"
+                
                 tools_data.append(
                     {
                         "name": tool.name,
                         "description": tool.description
                         if hasattr(tool, "description")
                         else "",
-                        "input_schema": tool.parameters
-                        if hasattr(tool, "parameters")
-                        else {},
+                        "input_schema": input_schema,
                     }
                 )
 
@@ -347,11 +356,17 @@ class MCPHost:
         # Convert tools to Anthropic format
         tools = []
         for tool_data in request_data["tools"]:
+            # Ensure input_schema has a 'type' field for Anthropic API
+            input_schema = tool_data["input_schema"]
+            if isinstance(input_schema, dict) and "type" not in input_schema:
+                # Default to object type if not specified
+                input_schema["type"] = "object"
+                
             tools.append(
                 {
                     "name": tool_data["name"],
                     "description": tool_data["description"],
-                    "input_schema": tool_data["input_schema"],
+                    "input_schema": input_schema,
                 }
             )
 
@@ -367,8 +382,8 @@ class MCPHost:
         while current_iteration < max_iterations:
             current_iteration += 1
 
-            # Make API call
-            response = await client.messages.create(
+            # Make API call - Anthropic client is not async
+            response = client.messages.create(
                 model=request_data["model"],
                 max_tokens=request_data["max_tokens"],
                 temperature=request_data["temperature"],
@@ -383,7 +398,7 @@ class MCPHost:
             )
 
             # Check for tool use
-            tool_uses = []
+            tool_results = []
             has_tool_calls = False
 
             for block in response.content:
@@ -409,34 +424,39 @@ class MCPHost:
                         else:
                             result_text = str(tool_result)
 
-                        tool_uses.append(
-                            {
-                                "role": "tool",
-                                "tool_use_id": tool_use.id,
-                                "content": result_text,
-                            }
-                        )
+                        # Collect tool results
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use.id,
+                            "content": result_text,
+                        })
 
                     except Exception as e:
                         logger.error(f"Error executing tool {tool_use.name}: {e}")
-                        tool_uses.append(
-                            {
-                                "role": "tool",
-                                "tool_use_id": tool_use.id,
-                                "content": f"Error: {str(e)}",
-                            }
-                        )
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use.id,
+                            "content": f"Error: {str(e)}",
+                        })
 
             # If no tool calls, we're done
             if not has_tool_calls:
                 final_response = response
                 break
 
-            # Add tool results to messages and continue conversation
+            # Add assistant message with tool calls
             messages.append({"role": "assistant", "content": response.content})
-
-            for tool_use in tool_uses:
-                messages.append(tool_use)
+            
+            # Add user message with combined tool results
+            if tool_results:
+                # Anthropic expects all tool results in a single user message
+                messages.append({
+                    "role": "user",
+                    "content": tool_results
+                })
+                
+                # Track for return data
+                tool_uses = tool_results
 
         # Return the complete conversation history and final response
         return {
