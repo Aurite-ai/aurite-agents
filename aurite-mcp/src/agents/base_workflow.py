@@ -19,7 +19,6 @@ import logging
 import time
 
 from ..host.host import MCPHost
-from ..host.resources.tools import ToolManager
 from .base_models import StepStatus, StepResult, AgentContext, AgentData
 from .base_utils import (
     validate_required_fields,
@@ -296,7 +295,7 @@ class CompositeStep(WorkflowStep):
             if not await step.should_execute(context_data):
                 logger.info(f"Skipping step '{step.name}' due to condition")
                 continue
-                
+
             # Execute the step
             outputs = await step.execute(context, host)
 
@@ -304,8 +303,6 @@ class CompositeStep(WorkflowStep):
             all_outputs.update(outputs)
 
         return all_outputs
-
-
 
 
 class BaseWorkflow(ABC):
@@ -605,7 +602,7 @@ class BaseWorkflow(ABC):
         agent_context = AgentContext(
             data=AgentData(**input_data), metadata=metadata.copy() if metadata else {}
         )
-        
+
         # Set the tool_manager reference
         agent_context.tool_manager = self.tool_manager
 
@@ -655,7 +652,11 @@ class BaseWorkflow(ABC):
 
             # Run after step hooks
             await run_hooks_with_error_handling(
-                self.after_step_hooks, f"after step {step.name}", step, agent_context, result
+                self.after_step_hooks,
+                f"after step {step.name}",
+                step,
+                agent_context,
+                result,
             )
 
             # If step failed, stop workflow execution
@@ -678,7 +679,9 @@ class BaseWorkflow(ABC):
         # Call completion callback if set
         if self.on_workflow_complete:
             await run_hooks_with_error_handling(
-                [self.on_workflow_complete], "workflow completion callback", agent_context
+                [self.on_workflow_complete],
+                "workflow completion callback",
+                agent_context,
             )
 
         # Run after workflow hooks

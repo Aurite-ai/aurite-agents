@@ -176,7 +176,7 @@ class ResearchAssistantAgent(BaseAgent):
         # Set up context
         context = {"topic": topic, "depth": depth, "research_type": "informational"}
 
-        # Execute the task
+        # Execute the task using the traditional plan-based approach
         result = await self.execute(task, context)
 
         # Create a research report
@@ -202,6 +202,79 @@ class ResearchAssistantAgent(BaseAgent):
 
             report["content"] = content
             report["sources"] = sources
+            report["evaluation"] = await self.evaluate_result(result.output)
+        else:
+            report["error"] = str(result.error)
+
+        return report
+
+    async def research_topic_with_llm(
+        self,
+        topic: str,
+        depth: str = "medium",
+        client_id: str = "research_server",
+        prompt_name: str = "research_assistant",
+    ) -> Dict[str, Any]:
+        """
+        Research a topic using direct LLM integration with tools.
+
+        This method uses the new execute_prompt_with_tools approach for more
+        dynamic tool selection during execution.
+
+        Args:
+            topic: The topic to research
+            depth: The depth of research (shallow, medium, deep)
+            client_id: The client ID to use for the prompt
+            prompt_name: The name of the prompt to use
+
+        Returns:
+            Research results including sources and summary
+        """
+        # Create a research task
+        task = f"Research the topic '{topic}' with {depth} depth and create a comprehensive report"
+
+        # Set up prompt arguments
+        prompt_arguments = {
+            "topic": topic,
+            "depth": depth,
+            "research_type": "informational",
+            "output_format": "structured_report",
+        }
+
+        # Set up context
+        context = {"topic": topic, "depth": depth, "research_type": "informational"}
+
+        # Execute the task using LLM with tools
+        result = await self.execute_with_llm(
+            task=task,
+            prompt_name=prompt_name,
+            prompt_arguments=prompt_arguments,
+            client_id=client_id,
+            context=context,
+        )
+
+        # Create a research report
+        report = {
+            "topic": topic,
+            "success": result.success,
+            "execution_time": result.execution_time,
+            "tool_calls": result.tool_calls,
+        }
+
+        if result.success:
+            # Extract report content directly from LLM output
+            report["content"] = result.output
+
+            # Extract sources (simplified implementation)
+            source_matches = re.findall(r"\[(.*?)\]", result.output)
+            report["sources"] = source_matches
+
+            # Get conversation history and tool uses from metadata
+            if result.metadata:
+                report["conversation"] = result.metadata.get("conversation", [])
+                report["tool_uses"] = result.metadata.get("tool_uses", [])
+
+            # Evaluate the result
             report["evaluation"] = await self.evaluate_result(result.output)
         else:
             report["error"] = str(result.error)

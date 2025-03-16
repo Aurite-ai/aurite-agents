@@ -83,7 +83,7 @@ class AgentContext(Generic[T]):
         # For performance tracking
         self.start_time: float = time.time()
         self.end_time: Optional[float] = None
-        
+
         # Reference to the tool manager - set by the workflow
         self.tool_manager = None
 
@@ -114,7 +114,7 @@ class AgentContext(Generic[T]):
     def get_data_dict(self) -> Dict[str, Any]:
         """
         Get the context data as a dictionary.
-        
+
         Returns:
             Dictionary representation of the context data
         """

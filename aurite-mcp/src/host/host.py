@@ -3,7 +3,7 @@ MCP Host implementation for managing multiple tool servers and clients.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 import asyncio
 import logging
 from pathlib import Path
@@ -77,6 +77,12 @@ class MCPHost:
         # Track active requests
         self._active_requests: Dict[str, asyncio.Task] = {}
         self._exit_stack = AsyncExitStack()
+
+        # Create property accessors for resource layer managers
+        self.prompts = self._prompt_manager
+        self.resources = self._resource_manager
+        self.storage = self._storage_manager
+        self.tools = self._tool_manager
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
@@ -216,70 +222,220 @@ class MCPHost:
             logger.error(f"Failed to initialize client {config.client_id}: {e}")
             raise
 
-    # Prompt-related methods
-    async def list_prompts(self, client_id: Optional[str] = None) -> List[types.Prompt]:
-        """List all available prompts, optionally filtered by client"""
-        return await self._prompt_manager.list_prompts(client_id)
+    async def prepare_prompt_with_tools(
+        self,
+        prompt_name: str,
+        prompt_arguments: Dict[str, Any],
+        client_id: str,
+        tool_names: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Prepare a prompt with associated tools, returning everything needed for an Anthropic API call.
 
-    async def execute_prompt(
-        self, name: str, arguments: Dict[str, Any], client_id: str
-    ) -> types.GetPromptResult:
-        """Execute a prompt with given arguments"""
-        prompt = await self._prompt_manager.get_prompt(name, client_id)
+        Args:
+            prompt_name: Name of the prompt to use
+            prompt_arguments: Arguments for the prompt
+            client_id: Client ID to use for the prompt
+            tool_names: Optional list of specific tool names to include (if None, includes all available tools)
+
+        Returns:
+            Dictionary containing the system prompt, tools, and other parameters needed for the API call
+        """
+        # Get the prompt
+        prompt = await self._prompt_manager.get_prompt(prompt_name, client_id)
         if not prompt:
-            raise ValueError(f"Prompt not found: {name}")
+            raise ValueError(f"Prompt not found: {prompt_name}")
 
-        # Validate arguments
-        await self._prompt_manager.validate_prompt_arguments(prompt, arguments)
+        # Validate prompt arguments
+        await self._prompt_manager.validate_prompt_arguments(prompt, prompt_arguments)
 
-        # Execute prompt through client
+        # Get the system prompt content
         client = self._clients[client_id]
-        return await client.get_prompt(name, arguments)
+        prompt_result = await client.get_prompt(prompt_name, prompt_arguments)
+        system_prompt = prompt_result.text
 
-    # Resource-related methods
-    async def list_resources(
-        self, client_id: Optional[str] = None
-    ) -> List[types.Resource]:
-        """List all available resources, optionally filtered by client"""
-        return await self._resource_manager.list_resources(client_id)
+        # Prepare tools
+        tools_data = []
+        tool_list = tool_names or [t["name"] for t in self.list_tools()]
 
-    async def read_resource(self, uri: str, client_id: str) -> types.ResourceContents:
-        """Read a resource's content"""
-        # Validate access
-        await self._resource_manager.validate_resource_access(
-            uri, client_id, self._root_manager
+        for tool_name in tool_list:
+            tool = self.get_tool(tool_name)
+            if tool:
+                tools_data.append(
+                    {
+                        "name": tool.name,
+                        "description": tool.description
+                        if hasattr(tool, "description")
+                        else "",
+                        "input_schema": tool.parameters
+                        if hasattr(tool, "parameters")
+                        else {},
+                    }
+                )
+
+        # Prepare the full request data
+        return {
+            "system": system_prompt,
+            "tools": tools_data,
+            "model": "claude-3-opus-20240229",  # Default model, could be made configurable
+            "max_tokens": 4096,  # Default max tokens, could be made configurable
+            "temperature": 0.7,  # Default temperature, could be made configurable
+        }
+
+    async def execute_prompt_with_tools(
+        self,
+        prompt_name: str,
+        prompt_arguments: Dict[str, Any],
+        client_id: str,
+        user_message: str,
+        tool_names: Optional[List[str]] = None,
+        model: str = "claude-3-opus-20240229",
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        anthropic_api_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a prompt with associated tools using the Anthropic API, handling tool execution.
+
+        Args:
+            prompt_name: Name of the prompt to use
+            prompt_arguments: Arguments for the prompt
+            client_id: Client ID to use for the prompt
+            user_message: The user message to send
+            tool_names: Optional list of specific tool names to include
+            model: Anthropic model to use
+            max_tokens: Maximum tokens to generate
+            temperature: Temperature for generation
+            anthropic_api_key: Optional API key (if not provided, uses environment variable)
+
+        Returns:
+            Dictionary containing the complete conversation and final result
+        """
+        import os
+        import anthropic
+        from anthropic.types import MessageParam, ToolUseBlock
+
+        # Get API key
+        api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("No Anthropic API key provided or found in environment")
+
+        # Create client
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Prepare the prompt and tools
+        request_data = await self.prepare_prompt_with_tools(
+            prompt_name=prompt_name,
+            prompt_arguments=prompt_arguments,
+            client_id=client_id,
+            tool_names=tool_names,
         )
 
-        # Get resource through client
-        client = self._clients[client_id]
-        return await client.read_resource(uri)
+        # Override model and parameters if provided
+        request_data["model"] = model
+        request_data["max_tokens"] = max_tokens
+        request_data["temperature"] = temperature
 
-    async def subscribe_to_resource(self, uri: str, client_id: str):
-        """Subscribe to resource updates"""
-        await self._resource_manager.subscribe(uri, client_id)
-
-    async def unsubscribe_from_resource(self, uri: str, client_id: str):
-        """Unsubscribe from resource updates"""
-        await self._resource_manager.unsubscribe(uri, client_id)
-
-    async def handle_resource_update(self, uri: str):
-        """Handle resource content changes"""
-        subscribers = await self._resource_manager.get_subscribers(uri)
-        for client_id in subscribers:
-            client = self._clients[client_id]
-            await client.send_notification(
-                "notifications/resources/updated", {"uri": uri}
+        # Convert tools to Anthropic format
+        tools = []
+        for tool_data in request_data["tools"]:
+            tools.append(
+                {
+                    "name": tool_data["name"],
+                    "description": tool_data["description"],
+                    "input_schema": tool_data["input_schema"],
+                }
             )
 
-    async def call_tool(
-        self, tool_name: str, arguments: Dict[str, Any]
-    ) -> List[types.TextContent]:
-        """
-        Call a tool by name with the given arguments.
-        Delegates to the tool manager for execution.
-        """
-        # Delegate to the tool manager
-        return await self._tool_manager.execute_tool(tool_name, arguments)
+        # Initialize message history
+        messages: List[MessageParam] = [{"role": "user", "content": user_message}]
+
+        # Execute the conversation
+        conversation_history = []
+        final_response = None
+        max_iterations = 10  # Prevent infinite loops
+        current_iteration = 0
+
+        while current_iteration < max_iterations:
+            current_iteration += 1
+
+            # Make API call
+            response = client.messages.create(
+                model=request_data["model"],
+                max_tokens=request_data["max_tokens"],
+                temperature=request_data["temperature"],
+                system=request_data["system"],
+                messages=messages,
+                tools=tools,
+            )
+
+            # Store in history
+            conversation_history.append(
+                {"role": "assistant", "content": response.content}
+            )
+
+            # Check for tool use
+            tool_uses = []
+            has_tool_calls = False
+
+            for block in response.content:
+                if block.type == "tool_use":
+                    has_tool_calls = True
+                    tool_use: ToolUseBlock = block
+
+                    # Execute the tool
+                    logger.info(f"Executing tool: {tool_use.name}")
+                    try:
+                        tool_result = await self.call_tool(
+                            tool_name=tool_use.name, arguments=tool_use.input
+                        )
+
+                        # Format tool result as text
+                        if isinstance(tool_result, list):
+                            result_text = "\n".join(
+                                [
+                                    getattr(item, "text", str(item))
+                                    for item in tool_result
+                                ]
+                            )
+                        else:
+                            result_text = str(tool_result)
+
+                        tool_uses.append(
+                            {
+                                "role": "tool",
+                                "tool_use_id": tool_use.id,
+                                "content": result_text,
+                            }
+                        )
+
+                    except Exception as e:
+                        logger.error(f"Error executing tool {tool_use.name}: {e}")
+                        tool_uses.append(
+                            {
+                                "role": "tool",
+                                "tool_use_id": tool_use.id,
+                                "content": f"Error: {str(e)}",
+                            }
+                        )
+
+            # If no tool calls, we're done
+            if not has_tool_calls:
+                final_response = response
+                break
+
+            # Add tool results to messages and continue conversation
+            messages.append({"role": "assistant", "content": response.content})
+
+            for tool_use in tool_uses:
+                messages.append(tool_use)
+
+        # Return the complete conversation history and final response
+        return {
+            "conversation": conversation_history,
+            "final_response": final_response,
+            "tool_uses": tool_uses if has_tool_calls else [],
+        }
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
@@ -312,181 +468,3 @@ class MCPHost:
         await self._root_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
-
-    async def create_database_connection(
-        self, params: Dict[str, Any]
-    ) -> Tuple[str, Dict[str, Any]]:
-        """
-        Create a database connection from parameters and return a connection ID.
-
-        Args:
-            params: Connection parameters including type, host, database, username, password
-
-        Returns:
-            Tuple of (connection_id, connection_metadata)
-        """
-        return await self._storage_manager.create_db_connection(params)
-
-    async def get_named_connection(
-        self, connection_name: str
-    ) -> Tuple[str, Dict[str, Any]]:
-        """
-        Get a connection for a named database configuration.
-
-        Args:
-            connection_name: Name of the pre-configured connection
-
-        Returns:
-            Tuple of (connection_id, connection_metadata)
-        """
-        return await self._storage_manager.get_named_connection(connection_name)
-
-    async def execute_query(
-        self, conn_id: str, query: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Execute a query on a database connection.
-
-        Args:
-            conn_id: Connection ID
-            query: SQL query to execute
-            params: Query parameters
-
-        Returns:
-            Query result dictionary
-        """
-        return await self._storage_manager.execute_query(conn_id, query, params)
-
-    async def close_connection(self, conn_id: str) -> bool:
-        """
-        Close a database connection.
-
-        Args:
-            conn_id: Connection ID
-
-        Returns:
-            True if connection was closed, False if it wasn't found
-        """
-        return await self._storage_manager.close_connection(conn_id)
-
-    async def list_active_connections(self) -> List[Dict[str, Any]]:
-        """List all active connections with metadata"""
-        return await self._storage_manager.list_active_connections()
-
-    # Tool-related methods
-
-    def list_tools(self) -> List[Dict[str, Any]]:
-        """
-        List all available tools with metadata.
-
-        Returns:
-            List of tools with metadata
-        """
-        return self._tool_manager.list_tools()
-
-    def get_tool(self, tool_name: str) -> Optional[types.Tool]:
-        """
-        Get a tool by name.
-
-        Args:
-            tool_name: The name of the tool
-
-        Returns:
-            The tool if found, None otherwise
-        """
-        return self._tool_manager.get_tool(tool_name)
-
-    def has_tool(self, tool_name: str) -> bool:
-        """
-        Check if a tool exists.
-
-        Args:
-            tool_name: The name of the tool
-
-        Returns:
-            True if the tool exists, False otherwise
-        """
-        return self._tool_manager.has_tool(tool_name)
-
-    async def find_tools_by_capability(self, capability: str) -> List[str]:
-        """
-        Find tools that provide a specific capability.
-
-        Args:
-            capability: The capability to search for
-
-        Returns:
-            List of tool names that provide the capability
-        """
-        return await self._tool_manager.find_tools_by_capability(capability)
-
-    # Keep this for backward compatibility
-    async def secure_database_connection(
-        self, connection_string: str
-    ) -> Tuple[str, str]:
-        """
-        Legacy method for compatibility. Creates a database connection from a connection string.
-
-        Args:
-            connection_string: Raw database connection string with credentials
-
-        Returns:
-            Tuple of (connection_id, masked_connection_string)
-        """
-        # Parse connection string to extract parameters
-        try:
-            # Determine type
-            if "postgresql" in connection_string:
-                db_type = "postgresql"
-            elif "mysql" in connection_string:
-                db_type = "mysql"
-            elif "sqlite" in connection_string:
-                db_type = "sqlite"
-            else:
-                raise ValueError(
-                    f"Unsupported database type in connection string: {connection_string}"
-                )
-
-            # Parse standard format: dialect://username:password@host:port/database
-            if db_type != "sqlite":
-                # Extract username and password
-                auth_part = connection_string.split("//")[1].split("@")[0]
-                username, password = auth_part.split(":")
-
-                # Extract host, port, and database
-                host_db_part = connection_string.split("@")[1]
-                host_port, database = host_db_part.split("/", 1)
-
-                # Handle port
-                if ":" in host_port:
-                    host, port = host_port.split(":")
-                    port = int(port)
-                    params = {
-                        "type": db_type,
-                        "host": host,
-                        "port": port,
-                        "database": database,
-                        "username": username,
-                        "password": password,
-                    }
-                else:
-                    params = {
-                        "type": db_type,
-                        "host": host_port,
-                        "database": database,
-                        "username": username,
-                        "password": password,
-                    }
-            else:
-                # SQLite connection string: sqlite:///path/to/database.db
-                database = connection_string.split("///")[1]
-                params = {"type": "sqlite", "database": database}
-
-            # Create connection
-            conn_id, metadata = await self.create_database_connection(params)
-
-            # Return connection ID and masked connection string
-            return conn_id, metadata.get("connection_string", "")
-        except Exception as e:
-            logger.error(f"Error creating database connection: {e}")
-            raise

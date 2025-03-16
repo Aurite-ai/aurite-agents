@@ -70,3 +70,5 @@ __fixtures__/custom-modules-dir/patches/
 
 aurite-mcp/.venv/
 node-agents/
+.venv
+aurite-libre/

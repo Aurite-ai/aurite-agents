@@ -11,7 +11,7 @@ This example demonstrates:
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 import logging
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from ...host.host import MCPHost
 from ..base_workflow import BaseWorkflow, WorkflowStep, CompositeStep
@@ -23,13 +23,17 @@ logger = logging.getLogger(__name__)
 # Define a Pydantic model for our workflow data
 class DataAnalysisContext(AgentData):
     """Data model for data analysis workflow context"""
-    
+
     dataset_id: str = Field(..., description="ID of the dataset to analyze")
     analysis_type: str = Field(..., description="Type of analysis to perform")
-    include_visualization: bool = Field(True, description="Whether to include visualizations")
+    include_visualization: bool = Field(
+        True, description="Whether to include visualizations"
+    )
     max_rows: int = Field(1000, description="Maximum number of rows to analyze")
-    column_filters: Optional[Dict[str, Any]] = Field(None, description="Filters to apply to the dataset")
-    
+    column_filters: Optional[Dict[str, Any]] = Field(
+        None, description="Filters to apply to the dataset"
+    )
+
     # Fields that will be populated during workflow execution
     dataset_info: Optional[Dict[str, Any]] = None
     data_quality_report: Optional[Dict[str, Any]] = None
@@ -50,7 +54,7 @@ class DataLoadStep(WorkflowStep):
             required_inputs={"dataset_id", "max_rows"},
             provided_outputs={"dataset_info"},
             required_tools={"load_dataset"},
-            tags={"data", "preprocessing"}
+            tags={"data", "preprocessing"},
         )
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
@@ -58,17 +62,13 @@ class DataLoadStep(WorkflowStep):
         # Extract inputs from context
         dataset_id = context.get("dataset_id")
         max_rows = context.get("max_rows")
-        
+
         # Use tool_manager from context to execute tool
         result = await context.tool_manager.execute_tool(
-            "load_dataset", 
-            {
-                "dataset_id": dataset_id,
-                "max_rows": max_rows,
-                "include_metadata": True
-            }
+            "load_dataset",
+            {"dataset_id": dataset_id, "max_rows": max_rows, "include_metadata": True},
         )
-        
+
         # Process the result
         if result and isinstance(result, list):
             # Extract dataset information
@@ -76,12 +76,16 @@ class DataLoadStep(WorkflowStep):
                 "id": dataset_id,
                 "num_rows": max_rows,  # This would come from the actual result
                 "columns": ["column1", "column2", "column3"],  # Placeholder
-                "data_types": {"column1": "numeric", "column2": "categorical", "column3": "date"},  # Placeholder
-                "last_updated": "2025-03-15"  # Placeholder
+                "data_types": {
+                    "column1": "numeric",
+                    "column2": "categorical",
+                    "column3": "date",
+                },  # Placeholder
+                "last_updated": "2025-03-15",  # Placeholder
             }
-            
+
             return {"dataset_info": dataset_info}
-        
+
         # Return error information if tool call failed
         return {"dataset_info": {"error": "Failed to load dataset", "id": dataset_id}}
 
@@ -97,36 +101,33 @@ class DataQualityStep(WorkflowStep):
             required_inputs={"dataset_id", "dataset_info"},
             provided_outputs={"data_quality_report"},
             required_tools={"analyze_data_quality"},
-            max_retries=2
+            max_retries=2,
         )
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
         """Execute the data quality assessment step"""
         dataset_id = context.get("dataset_id")
         dataset_info = context.get("dataset_info")
-        
+
         # Use tool_manager from context
         result = await context.tool_manager.execute_tool(
-            "analyze_data_quality", 
-            {
-                "dataset_id": dataset_id,
-                "columns": dataset_info.get("columns", [])
-            }
+            "analyze_data_quality",
+            {"dataset_id": dataset_id, "columns": dataset_info.get("columns", [])},
         )
-        
+
         # Process results - in a real implementation this would parse the actual tool response
         quality_report = {
             "missing_values": {
                 "column1": 0.05,  # 5% missing
                 "column2": 0.02,  # 2% missing
-                "column3": 0.00   # 0% missing
+                "column3": 0.00,  # 0% missing
             },
             "outliers": {
                 "column1": 0.03,  # 3% outliers
             },
-            "overall_quality_score": 0.95  # 95% quality score
+            "overall_quality_score": 0.95,  # 95% quality score
         }
-        
+
         return {"data_quality_report": quality_report}
 
 
@@ -141,7 +142,7 @@ class StatisticalAnalysisStep(WorkflowStep):
             required_inputs={"dataset_id", "dataset_info", "analysis_type"},
             provided_outputs={"statistical_metrics"},
             required_tools={"calculate_statistics"},
-            timeout=120.0  # Longer timeout for complex calculations
+            timeout=120.0,  # Longer timeout for complex calculations
         )
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
@@ -149,42 +150,39 @@ class StatisticalAnalysisStep(WorkflowStep):
         dataset_id = context.get("dataset_id")
         analysis_type = context.get("analysis_type")
         dataset_info = context.get("dataset_info")
-        
+
         # Determine which metrics to calculate based on analysis type
         metrics_to_calculate = ["mean", "median", "std_dev"]
         if analysis_type.lower() == "comprehensive":
             metrics_to_calculate.extend(["quartiles", "skewness", "kurtosis"])
-        
+
         # Use tool_manager to execute the statistics calculation
         result = await context.tool_manager.execute_tool(
-            "calculate_statistics", 
+            "calculate_statistics",
             {
                 "dataset_id": dataset_id,
                 "metrics": metrics_to_calculate,
-                "numeric_columns": [col for col, type in dataset_info.get("data_types", {}).items() 
-                                   if type == "numeric"]
-            }
+                "numeric_columns": [
+                    col
+                    for col, type in dataset_info.get("data_types", {}).items()
+                    if type == "numeric"
+                ],
+            },
         )
-        
+
         # Process results (in a real implementation, this would parse the actual tool response)
         statistical_metrics = {
             "descriptive_stats": {
-                "column1": {
-                    "mean": 42.5,
-                    "median": 41.2,
-                    "std_dev": 5.3
-                }
+                "column1": {"mean": 42.5, "median": 41.2, "std_dev": 5.3}
             },
-            "analysis_type": analysis_type
+            "analysis_type": analysis_type,
         }
-        
+
         if analysis_type.lower() == "comprehensive":
-            statistical_metrics["descriptive_stats"]["column1"].update({
-                "quartiles": [36.2, 41.2, 47.8],
-                "skewness": 0.12,
-                "kurtosis": -0.34
-            })
-        
+            statistical_metrics["descriptive_stats"]["column1"].update(
+                {"quartiles": [36.2, 41.2, 47.8], "skewness": 0.12, "kurtosis": -0.34}
+            )
+
         return {"statistical_metrics": statistical_metrics}
 
 
@@ -200,7 +198,7 @@ class VisualizationStep(WorkflowStep):
             provided_outputs={"visualization_urls"},
             required_tools={"create_visualization"},
             # Only execute this step if visualizations are requested
-            condition=lambda context: context.get("include_visualization", False)
+            condition=lambda context: context.get("include_visualization", False),
         )
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
@@ -208,30 +206,28 @@ class VisualizationStep(WorkflowStep):
         # Skip execution if visualizations are not requested
         if not context.get("include_visualization"):
             return {"visualization_urls": []}
-        
+
         dataset_id = context.get("dataset_id")
         analysis_type = context.get("analysis_type")
-        
+
         # Determine which visualizations to create based on analysis type
         viz_types = ["histogram", "scatter_plot"]
         if analysis_type.lower() == "comprehensive":
             viz_types.extend(["box_plot", "correlation_matrix"])
-        
+
         # Use tool_manager to create visualizations
         visualization_urls = []
         for viz_type in viz_types:
             result = await context.tool_manager.execute_tool(
-                "create_visualization", 
-                {
-                    "dataset_id": dataset_id,
-                    "type": viz_type,
-                    "format": "png"
-                }
+                "create_visualization",
+                {"dataset_id": dataset_id, "type": viz_type, "format": "png"},
             )
-            
+
             # In a real implementation, this would extract the URL from the result
-            visualization_urls.append(f"https://example.com/visualizations/{dataset_id}/{viz_type}.png")
-        
+            visualization_urls.append(
+                f"https://example.com/visualizations/{dataset_id}/{viz_type}.png"
+            )
+
         return {"visualization_urls": visualization_urls}
 
 
@@ -244,21 +240,27 @@ class InsightGenerationStep(WorkflowStep):
             name="generate_insights",
             description="Generate insights based on the analysis results",
             required_inputs={
-                "dataset_info", 
-                "data_quality_report", 
+                "dataset_info",
+                "data_quality_report",
                 "statistical_metrics",
-                "analysis_type"
+                "analysis_type",
             },
             provided_outputs={"analysis_results"},
-            required_tools={"generate_insights"}
+            required_tools={"generate_insights"},
         )
-        
+
         # Set condition to check that all required data is available
         # Note: Using a regular function instead of lambda for better error handling
         def check_required_data(context_data):
-            return all(key in context_data for key in 
-                ["dataset_info", "data_quality_report", "statistical_metrics"])
-        
+            return all(
+                key in context_data
+                for key in [
+                    "dataset_info",
+                    "data_quality_report",
+                    "statistical_metrics",
+                ]
+            )
+
         self.condition = check_required_data
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
@@ -268,31 +270,33 @@ class InsightGenerationStep(WorkflowStep):
         data_quality = context.get("data_quality_report") or {}
         statistics = context.get("statistical_metrics") or {}
         analysis_type = context.get("analysis_type", "basic")
-        
+
         # Call the insight generation tool
         result = await context.tool_manager.execute_tool(
-            "generate_insights", 
+            "generate_insights",
             {
                 "dataset_metadata": dataset_info,
                 "quality_metrics": data_quality,
                 "statistical_metrics": statistics,
-                "depth": "detailed" if analysis_type.lower() == "comprehensive" else "basic"
-            }
+                "depth": "detailed"
+                if analysis_type.lower() == "comprehensive"
+                else "basic",
+            },
         )
-        
+
         # Process results
         insights = {
             "key_findings": [
                 "The data shows a strong correlation between X and Y",
                 "There is a significant outlier group in column Z",
-                "Time series analysis indicates a seasonal pattern"
+                "Time series analysis indicates a seasonal pattern",
             ],
             "recommendations": [
                 "Further investigate the outlier group",
-                "Consider normalizing the data before modeling"
-            ]
+                "Consider normalizing the data before modeling",
+            ],
         }
-        
+
         return {"analysis_results": insights}
 
 
@@ -305,13 +309,13 @@ class ReportGenerationStep(WorkflowStep):
             name="generate_report",
             description="Generate a comprehensive final report",
             required_inputs={
-                "dataset_info", 
-                "data_quality_report", 
-                "statistical_metrics", 
-                "analysis_results"
+                "dataset_info",
+                "data_quality_report",
+                "statistical_metrics",
+                "analysis_results",
             },
             provided_outputs={"final_report"},
-            required_tools={"generate_report"}
+            required_tools={"generate_report"},
         )
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
@@ -322,7 +326,7 @@ class ReportGenerationStep(WorkflowStep):
         statistics = context.get("statistical_metrics") or {}
         analysis_results = context.get("analysis_results") or {}
         visualization_urls = context.get("visualization_urls") or []
-        
+
         # Create input for report generation
         report_input = {
             "title": f"Analysis Report for Dataset {dataset_info.get('id', 'Unknown')}",
@@ -330,18 +334,18 @@ class ReportGenerationStep(WorkflowStep):
                 {"name": "Dataset Overview", "content": dataset_info},
                 {"name": "Data Quality Assessment", "content": data_quality},
                 {"name": "Statistical Analysis", "content": statistics},
-                {"name": "Key Insights", "content": analysis_results}
-            ]
+                {"name": "Key Insights", "content": analysis_results},
+            ],
         }
-        
+
         if visualization_urls:
             report_input["visualizations"] = visualization_urls
-        
+
         # Generate report
         result = await context.tool_manager.execute_tool(
             "generate_report", report_input
         )
-        
+
         # Extract report text
         report_text = "# Data Analysis Report\n\n"
         report_text += f"## Dataset: {dataset_info.get('id', 'Unknown')}\n\n"
@@ -354,25 +358,25 @@ class ReportGenerationStep(WorkflowStep):
             report_text += f"- {finding}\n"
         if not analysis_results.get("key_findings"):
             report_text += "- No key findings available\n"
-            
+
         report_text += "\n### Recommendations\n"
         for recommendation in analysis_results.get("recommendations", []):
             report_text += f"- {recommendation}\n"
         if not analysis_results.get("recommendations"):
             report_text += "- No recommendations available\n"
-        
+
         if visualization_urls:
             report_text += "\n### Visualizations\n"
             for url in visualization_urls:
                 report_text += f"- [View visualization]({url})\n"
-        
+
         return {"final_report": report_text}
 
 
 class DataAnalysisWorkflow(BaseWorkflow):
     """
     Workflow for analyzing datasets.
-    
+
     This workflow demonstrates the complete life cycle of a data analysis task:
     1. Load and validate the dataset
     2. Assess data quality
@@ -380,51 +384,45 @@ class DataAnalysisWorkflow(BaseWorkflow):
     4. Generate visualizations (optional)
     5. Generate insights
     6. Create final report
-    
-    It uses the AgentContext with a Pydantic model for type safety and 
+
+    It uses the AgentContext with a Pydantic model for type safety and
     leverages the ToolManager for tool execution.
     """
 
     def __init__(self, host: MCPHost):
         """Initialize the data analysis workflow"""
         super().__init__(host, name="data_analysis_workflow")
-        
+
         # Add individual steps
         self.add_step(DataLoadStep())
-        
+
         # Create a composite step for data preparation and analysis
         preparation_analysis = CompositeStep(
             name="preparation_and_analysis",
             description="Prepare and analyze the dataset",
-            steps=[
-                DataQualityStep(),
-                StatisticalAnalysisStep()
-            ]
+            steps=[DataQualityStep(), StatisticalAnalysisStep()],
         )
-        
+
         # Add the composite step
         self.add_step(preparation_analysis)
-        
+
         # Add visualization step with condition
         self.add_step(VisualizationStep())
-        
+
         # Create a composite step for results generation
         results_generation = CompositeStep(
             name="results_generation",
             description="Generate insights and final report",
-            steps=[
-                InsightGenerationStep(),
-                ReportGenerationStep()
-            ]
+            steps=[InsightGenerationStep(), ReportGenerationStep()],
         )
-        
+
         # Add the results generation composite step
         self.add_step(results_generation)
-        
+
         # Add error handlers
         self.add_error_handler("load_dataset", self._handle_data_load_error)
         self.set_global_error_handler(self._global_error_handler)
-        
+
         # Add before/after hooks
         self.add_before_workflow_hook(self._before_workflow)
         self.add_after_workflow_hook(self._after_workflow)
@@ -433,36 +431,51 @@ class DataAnalysisWorkflow(BaseWorkflow):
 
     async def _before_workflow(self, context: AgentContext):
         """Hook that runs before workflow execution"""
-        logger.info(f"Starting data analysis workflow for dataset {context.get('dataset_id')}")
-        
+        logger.info(
+            f"Starting data analysis workflow for dataset {context.get('dataset_id')}"
+        )
+
         # Additional setup could be done here
-        context.metadata["workflow_start_message"] = f"Analysis of {context.get('dataset_id')} starting"
+        context.metadata["workflow_start_message"] = (
+            f"Analysis of {context.get('dataset_id')} starting"
+        )
 
     async def _after_workflow(self, context: AgentContext):
         """Hook that runs after workflow execution"""
         execution_time = context.get_execution_time()
         logger.info(f"Data analysis workflow completed in {execution_time:.2f} seconds")
-        
+
         # Could add metrics collection or notifications here
         context.metadata["execution_summary"] = {
             "total_execution_time": execution_time,
-            "steps_completed": len([s for s in context.step_results.values() 
-                                   if s.status == StepStatus.COMPLETED]),
-            "report_generated": "final_report" in context.get_data_dict()
+            "steps_completed": len(
+                [
+                    s
+                    for s in context.step_results.values()
+                    if s.status == StepStatus.COMPLETED
+                ]
+            ),
+            "report_generated": "final_report" in context.get_data_dict(),
         }
 
     async def _before_step(self, step: WorkflowStep, context: AgentContext):
         """Hook that runs before each step execution"""
         logger.info(f"Executing step: {step.name}")
-        
+
         # Could add detailed logging or tracing here
-        step_inputs = {k: context.get(k) for k in step.required_inputs if hasattr(context.data, k)}
+        step_inputs = {
+            k: context.get(k) for k in step.required_inputs if hasattr(context.data, k)
+        }
         logger.debug(f"Step {step.name} inputs: {step_inputs.keys()}")
 
-    async def _after_step(self, step: WorkflowStep, context: AgentContext, result: StepResult):
+    async def _after_step(
+        self, step: WorkflowStep, context: AgentContext, result: StepResult
+    ):
         """Hook that runs after each step execution"""
         if result.status == StepStatus.COMPLETED:
-            logger.info(f"Step {step.name} completed in {result.execution_time:.2f} seconds")
+            logger.info(
+                f"Step {step.name} completed in {result.execution_time:.2f} seconds"
+            )
             # Record provided outputs for debugging/tracing
             output_keys = result.outputs.keys() if result.outputs else []
             logger.debug(f"Step {step.name} provided outputs: {output_keys}")
@@ -471,47 +484,55 @@ class DataAnalysisWorkflow(BaseWorkflow):
         elif result.status == StepStatus.SKIPPED:
             logger.info(f"Step {step.name} was skipped")
 
-    def _handle_data_load_error(self, step: WorkflowStep, error: Exception, context: Dict[str, Any]):
+    def _handle_data_load_error(
+        self, step: WorkflowStep, error: Exception, context: Dict[str, Any]
+    ):
         """Special handler for data loading errors"""
         logger.error(f"Data loading error: {error}")
-        
+
         # Add error information to context for reporting
         context["dataset_info"] = {
             "error": f"Failed to load dataset: {error}",
             "id": context.get("dataset_id", "unknown"),
-            "status": "error"
+            "status": "error",
         }
-        
+
         # Could trigger fallback mechanisms or notifications
 
-    def _global_error_handler(self, step: WorkflowStep, error: Exception, context: Dict[str, Any]):
+    def _global_error_handler(
+        self, step: WorkflowStep, error: Exception, context: Dict[str, Any]
+    ):
         """Global error handler for all steps"""
         logger.error(f"Error in step {step.name}: {error}")
-        
+
         # Record error in context metadata for reporting
         if "errors" not in context:
             context["errors"] = []
-            
-        context["errors"].append({
-            "step": step.name,
-            "error": str(error),
-            "type": type(error).__name__
-        })
-        
+
+        context["errors"].append(
+            {"step": step.name, "error": str(error), "type": type(error).__name__}
+        )
+
         # Could implement recovery logic based on step and error type
 
-    async def analyze_dataset(self, dataset_id: str, analysis_type: str, include_visualization: bool = True,
-                      max_rows: int = 1000, column_filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def analyze_dataset(
+        self,
+        dataset_id: str,
+        analysis_type: str,
+        include_visualization: bool = True,
+        max_rows: int = 1000,
+        column_filters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Convenience method to execute the workflow with specific parameters.
-        
+
         Args:
             dataset_id: ID of the dataset to analyze
             analysis_type: Type of analysis ("basic" or "comprehensive")
             include_visualization: Whether to include visualizations
             max_rows: Maximum number of rows to process
             column_filters: Optional filters to apply
-            
+
         Returns:
             Dictionary with analysis results
         """
@@ -520,15 +541,15 @@ class DataAnalysisWorkflow(BaseWorkflow):
             "dataset_id": dataset_id,
             "analysis_type": analysis_type,
             "include_visualization": include_visualization,
-            "max_rows": max_rows
+            "max_rows": max_rows,
         }
-        
+
         if column_filters:
             input_data["column_filters"] = column_filters
-            
+
         # Execute the workflow
         result_context = await self.execute(input_data)
-        
+
         # Return the summarized results
         return result_context.summarize_results()
 
@@ -537,14 +558,14 @@ class DataAnalysisWorkflow(BaseWorkflow):
 # async def main():
 #     host = MCPHost(...)
 #     await host.initialize()
-#     
+#
 #     workflow = DataAnalysisWorkflow(host)
 #     await workflow.initialize()
-#     
+#
 #     results = await workflow.analyze_dataset(
 #         dataset_id="sales_data_2025",
 #         analysis_type="comprehensive",
 #         include_visualization=True
 #     )
-#     
+#
 #     print(f"Analysis complete. Report generated: {results['data'].get('final_report') is not None}")

@@ -306,6 +306,8 @@ class AgentPlanner:
 
     def __init__(self, host: MCPHost):
         self.host = host
+        self.client_id = "planning_server"  # Default client ID for planning
+        self.planning_prompt = "create_plan"  # Default prompt name
 
     async def create_plan(
         self, task: str, available_tools: List[AgentTool], context: Dict[str, Any]
@@ -321,9 +323,6 @@ class AgentPlanner:
         Returns:
             A plan for completing the task
         """
-        # This is where we would use an LLM to generate a plan
-        # For now, we'll create a simple example plan
-
         # Serialize tools information for the LLM
         tools_info = []
         for tool in available_tools:
@@ -346,15 +345,36 @@ class AgentPlanner:
 
         # Call the planning tool/prompt through the host
         try:
-            # This assumes we have a 'create_plan' prompt registered in the host
-            plan_result = await self.host.execute_prompt(
-                name="create_plan",
-                arguments={"input": json.dumps(planning_input)},
-                client_id="planning_server",  # This should be an actual client_id
-            )
+            # Try using the new execute_prompt_with_tools method if "plan_generation" tool exists
+            if self.host.has_tool("plan_generation"):
+                response = await self.host.execute_prompt_with_tools(
+                    prompt_name=self.planning_prompt,
+                    prompt_arguments={"task": task, "context": json.dumps(context)},
+                    client_id=self.client_id,
+                    user_message=f"Create a plan for the task: {task}. Available tools: {json.dumps(tools_info)}",
+                    tool_names=["plan_generation"],
+                )
 
-            # Parse the plan result
-            plan_data = json.loads(plan_result.text)
+                # Extract the plan data from the response
+                final_response = response.get("final_response")
+                plan_text = ""
+                if final_response and hasattr(final_response, "content"):
+                    for block in final_response.content:
+                        if hasattr(block, "text"):
+                            plan_text += block.text
+
+                # Parse the JSON plan from the text
+                # The plan should be in JSON format within the response
+                plan_data = self._extract_json_from_text(plan_text)
+
+            else:
+                # Fallback to traditional prompt execution
+                plan_result = await self.host.execute_prompt(
+                    name=self.planning_prompt,
+                    arguments={"input": json.dumps(planning_input)},
+                    client_id=self.client_id,
+                )
+                plan_data = json.loads(plan_result.text)
 
             # Create Plan and PlanStep objects
             steps = []
@@ -394,6 +414,42 @@ class AgentPlanner:
             # Return a minimal plan
             return Plan(steps=[], goal=task, context=context)
 
+    def _extract_json_from_text(self, text: str) -> Dict[str, Any]:
+        """
+        Extract a JSON object from text that may have additional content.
+
+        Args:
+            text: Text that contains a JSON object
+
+        Returns:
+            Parsed JSON object
+        """
+        try:
+            # Try to parse the entire text as JSON
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # If that fails, try to find a JSON object in the text
+            import re
+
+            json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+
+            # Try finding an object between braces
+            json_match = re.search(r"(\{[\s\S]*\})", text)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+
+            # If all else fails, return a default structure
+            logger.warning(f"Could not extract JSON from text: {text[:100]}...")
+            return {"steps": [], "goal": "Failed to parse plan"}
+
     async def update_plan(
         self, plan: Plan, observation: Any, available_tools: List[AgentTool]
     ) -> Plan:
@@ -408,9 +464,104 @@ class AgentPlanner:
         Returns:
             The updated plan
         """
-        # This is where we would use an LLM to update the plan
-        # For now, we'll return the original plan
-        return plan
+        try:
+            # Serialize the current plan and observation
+            current_plan = {
+                "goal": plan.goal,
+                "sub_goals": plan.sub_goals,
+                "steps": [
+                    {
+                        "tool_name": step.tool_name,
+                        "parameters": step.parameters,
+                        "description": step.description,
+                        "is_optional": step.is_optional,
+                    }
+                    for step in plan.steps
+                ],
+                "current_step_index": plan.current_step_index,
+            }
+
+            # Serialize tools information
+            tools_info = []
+            for tool in available_tools:
+                tools_info.append(
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "type": tool.tool_type.name,
+                        "parameters": tool.parameters,
+                    }
+                )
+
+            # Try using the execute_prompt_with_tools if "plan_update" tool exists
+            if self.host.has_tool("plan_update"):
+                response = await self.host.execute_prompt_with_tools(
+                    prompt_name="update_plan",
+                    prompt_arguments={
+                        "current_plan": json.dumps(current_plan),
+                        "observation": json.dumps(observation),
+                    },
+                    client_id=self.client_id,
+                    user_message=f"Update the plan based on the new observation: {json.dumps(observation)}",
+                    tool_names=["plan_update"],
+                )
+
+                # Extract updated plan from response
+                final_response = response.get("final_response")
+                plan_text = ""
+                if final_response and hasattr(final_response, "content"):
+                    for block in final_response.content:
+                        if hasattr(block, "text"):
+                            plan_text += block.text
+
+                # Parse the JSON plan from the text
+                updated_plan_data = self._extract_json_from_text(plan_text)
+
+                # Create a new Plan object
+                steps = []
+                for step_data in updated_plan_data.get("steps", []):
+                    fallback_steps = []
+                    for fallback_data in step_data.get("fallback_steps", []):
+                        fallback_steps.append(
+                            PlanStep(
+                                tool_name=fallback_data["tool_name"],
+                                parameters=fallback_data["parameters"],
+                                expected_result=fallback_data.get("expected_result"),
+                                description=fallback_data.get("description", ""),
+                                is_optional=fallback_data.get("is_optional", False),
+                            )
+                        )
+
+                    steps.append(
+                        PlanStep(
+                            tool_name=step_data["tool_name"],
+                            parameters=step_data["parameters"],
+                            expected_result=step_data.get("expected_result"),
+                            description=step_data.get("description", ""),
+                            is_optional=step_data.get("is_optional", False),
+                            fallback_steps=fallback_steps,
+                        )
+                    )
+
+                return Plan(
+                    steps=steps,
+                    goal=updated_plan_data.get("goal", plan.goal),
+                    sub_goals=updated_plan_data.get("sub_goals", []),
+                    context=plan.context,
+                    current_step_index=updated_plan_data.get(
+                        "current_step_index", plan.current_step_index
+                    ),
+                )
+
+            else:
+                # If no plan_update tool, just return the original plan
+                logger.warning("No plan_update tool available, returning original plan")
+                return plan
+
+        except Exception as e:
+            logger.error(f"Error updating plan: {e}")
+            # Return the original plan on error
+            return plan
 
 
 class ToolRegistry:
@@ -770,6 +921,93 @@ class BaseAgent(ABC):
 
         # Return final results
         return results
+
+    async def execute_with_llm(
+        self,
+        task: str,
+        prompt_name: str,
+        prompt_arguments: Dict[str, Any],
+        client_id: str,
+        context: Dict[str, Any] = None,
+    ) -> AgentResult:
+        """
+        Execute a task using direct LLM interaction through prompt+tools.
+
+        This is a more direct approach compared to the plan-based execution,
+        allowing the LLM to dynamically select and use tools in response to the task.
+
+        Args:
+            task: The task to execute
+            prompt_name: The system prompt to use
+            prompt_arguments: Arguments for the system prompt
+            client_id: Client ID to use for the prompt
+            context: Optional initial context
+
+        Returns:
+            The result of the execution
+        """
+        start_time = time.time()
+
+        if context is None:
+            context = {}
+
+        try:
+            # Execute the prompt with tools
+            response = await self.host.execute_prompt_with_tools(
+                prompt_name=prompt_name,
+                prompt_arguments=prompt_arguments,
+                client_id=client_id,
+                user_message=task,
+                tool_names=[tool.name for tool in self.tool_registry.list_tools()],
+            )
+
+            # Track tool usage in memory
+            tool_uses = response.get("tool_uses", [])
+            for i, tool_use in enumerate(tool_uses):
+                self.memory.store(
+                    key=f"tool_use_{int(time.time())}_{i}",
+                    value=tool_use,
+                    tags={"tool_uses", tool_use.get("tool_name", "unknown")},
+                )
+
+            # Get final output
+            final_response = response.get("final_response")
+            output = ""
+            if final_response and hasattr(final_response, "content"):
+                # Extract text from content blocks
+                for block in final_response.content:
+                    if hasattr(block, "text"):
+                        output += block.text
+
+            # Calculate execution time
+            execution_time = time.time() - start_time
+
+            # Create and return result
+            return AgentResult(
+                success=True,
+                output=output,
+                execution_time=execution_time,
+                tool_calls=len(tool_uses),
+                metadata={
+                    "conversation": response.get("conversation", []),
+                    "tool_uses": tool_uses,
+                },
+            )
+
+        except Exception as e:
+            # Calculate execution time
+            execution_time = time.time() - start_time
+
+            logger.error(f"Error executing task with LLM: {e}")
+
+            # Create and return error result
+            return AgentResult(
+                success=False,
+                output=str(e),
+                execution_time=execution_time,
+                tool_calls=0,
+                error=e,
+            )
 
     @abstractmethod
     async def select_tools(self, task: str, context: Dict[str, Any]) -> List[AgentTool]:
