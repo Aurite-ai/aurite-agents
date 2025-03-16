@@ -67,30 +67,59 @@ graph TD
 
 The agent framework provides the building blocks for AI agents:
 
+- **Workflow Manager**: Manages workflow registration, execution, and lifecycle
+  - Workflow registration and configuration
+  - Workflow execution orchestration
+  - Resource allocation and lifecycle management
+  - Centralized workflow control from the host
+
 - **BaseWorkflow**: Sequential workflow execution with fixed tools
   - Type-safe context management
   - Composable workflow steps
   - Error handling and retries
   - Middleware hooks for extensibility
+  
 - **BaseAgent**: Dynamic agent execution with autonomous tool selection
+
 - **Hybrid Implementations**: Combined workflow and dynamic behaviors
 
 The BaseWorkflow implementation follows a pipeline pattern:
 
 ```mermaid
 graph LR
+    WM[Workflow Manager] --> |"Register"| WF[Workflow]
+    WM --> |"Execute"| WF
+    
     Input[Input Data] --> Context[Agent Context]
     Context --> Steps[Workflow Steps]
     Steps --> Composite[Composite Steps]
     Steps --> Simple[Simple Steps]
-    Composite --> Tools[Tool Execution]
-    Simple --> Tools
+    Composite --> ToolMgr[Tool Manager]
+    Simple --> ToolMgr
+    ToolMgr --> Tools[Tool Execution]
     Tools --> Results[Step Results]
     Results --> Output[Output Data]
 
+    subgraph Host System
+        WM
+        ToolMgr
+    end
+    
+    subgraph Agent Framework
+        WF
+        Context
+        Steps
+        Composite
+        Simple
+        Results
+    end
+
+    style WM fill:#d4f0c4,stroke:#333,stroke-width:2px
+    style ToolMgr fill:#d4f0c4,stroke:#333,stroke-width:2px
     style Context fill:#e6f3ff,stroke:#333,stroke-width:2px
     style Steps fill:#fff2e6,stroke:#333,stroke-width:2px
     style Tools fill:#e6ffe6,stroke:#333,stroke-width:2px
+    style WF fill:#e6f3ff,stroke:#333,stroke-width:2px
 ```
 
 ## The Agency Spectrum
@@ -136,8 +165,9 @@ The Aurite system is organized around two main components:
 The orchestration layer that:
 - Manages connections to tool servers
 - Initializes and coordinates all managers
-- Provides APIs for tool execution and resource access
+- Provides APIs for tool execution, workflow management, and resource access
 - Enforces security policies and access control
+- Provides centralized workflow registration and execution
 
 ### 2. Agent Framework
 
@@ -145,7 +175,8 @@ The agent implementation layer that:
 - Provides base classes for different agent types
 - Implements workflow and planning capabilities
 - Manages memory and context
-- Interfaces with the host system for tool access
+- Defines workflow steps and composition patterns
+- Interfaces with the host through the Tool Manager
 
 ## Implementation Status
 
@@ -159,11 +190,16 @@ Current implementation status:
   - ✅ Resource Manager
   - ✅ Storage Manager
 - **Layer 4**: 🔄 In Progress
+  - ✅ Workflow Manager
+    - ✅ Workflow registration and discovery
+    - ✅ Execution orchestration
+    - ✅ Lifecycle management
   - ✅ BaseWorkflow implementation
     - ✅ Context management
     - ✅ Step composition
     - ✅ Error handling
     - ✅ Hook system
+    - ✅ Tool Manager integration
   - ⏳ BaseAgent implementation (planned)
   - ⏳ Hybrid Agent implementation (planned)
 
@@ -172,15 +208,21 @@ Current implementation status:
 Future development plans:
 
 ### Short-term
-1. **Complete agent examples and demos**
+1. **Enhance workflow management capabilities**
+   - Workflow composition and chaining
+   - Adding metadata and filtering features
+   - Performance monitoring and metrics
+   - Parallel workflow execution support
+
+2. **Complete agent examples and demos**
    - Document processor example
    - Research assistant example
    - Financial analysis example
 
-2. **Improve testing and documentation**
-   - Unit tests for all agent components
-   - Integration tests across layers
-   - Detailed documentation and tutorials
+3. **Create example applications using the host**
+   - CLI application for running workflows
+   - Web API for workflow registration and execution
+   - Dashboard for workflow monitoring
 
 ### Medium-term
 1. **Implement hybrid agent capabilities**
@@ -213,6 +255,9 @@ When developing within the Aurite architecture:
 3. **Validate security**: All operations should be validated against security policies
 4. **Maintain asyncio consistency**: All APIs should be async/await compatible
 5. **Design for extensibility**: Components should be designed for extension and customization
+6. **Use dependency injection**: Components should receive their dependencies rather than creating them
+7. **Limit coupling**: Each component should only depend on the interfaces it actually uses
+8. **Centralize management**: Higher-level components should be managed by the host through dedicated managers
 
 ## Conclusion
 

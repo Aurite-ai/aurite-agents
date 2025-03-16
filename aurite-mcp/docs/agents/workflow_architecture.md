@@ -162,7 +162,7 @@ class WorkflowStep(ABC):
     _child_steps: List["WorkflowStep"] = field(default_factory=list)
 
     @abstractmethod
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the step with the given context"""
         pass
 ```
@@ -172,15 +172,16 @@ The `CompositeStep` extends this to provide step composition:
 ```python
 class CompositeStep(WorkflowStep):
     """A workflow step that executes a sequence of child steps"""
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute all child steps in sequence"""
         all_outputs = {}
         for step in self._child_steps:
             # Check condition
+            context_data = context.get_data_dict()
             if not await step.should_execute(context_data):
                 continue
             # Execute step
-            outputs = await step.execute(context, host)
+            outputs = await step.execute(context)
             # Add outputs to accumulated outputs
             all_outputs.update(outputs)
         return all_outputs
@@ -200,13 +201,13 @@ Key implementation:
 ```python
 class BaseWorkflow(ABC):
     """Base class for implementing strictly sequential workflow agents"""
-    def __init__(self, host: MCPHost, name: str = "unnamed_workflow"):
-        self.host = host
+    def __init__(self, tool_manager: ToolManager, name: str = "unnamed_workflow"):
         self.name = name
+        self.description = ""  # Can be overridden by subclasses
         self.steps: List[WorkflowStep] = []
         self.error_handlers: Dict[str, Callable] = {}
         self.global_error_handler: Optional[Callable] = None
-        self.tool_manager = host._tool_manager
+        self.tool_manager = tool_manager
         # Middleware hooks
         self.before_workflow_hooks: List[Callable] = []
         self.after_workflow_hooks: List[Callable] = []
@@ -534,55 +535,62 @@ context = AnalysisContext(
 
 ## Integration with Host System
 
-The workflow architecture is fully integrated with the MCP Host system's layered architecture, residing in Layer 4 (Agent Framework). This integration provides several key benefits:
+The workflow architecture integrates with the MCP Host system's layered architecture through the Workflow Manager in Layer 4 (Agent Framework). This integration provides several key benefits while maintaining proper separation of concerns.
+
+### Decoupled Architecture
+
+The latest version of the architecture follows a decoupled design:
+
+1. **WorkflowManager**: Centralized component in the host for workflow management
+2. **BaseWorkflow**: No longer directly depends on the host
+3. **WorkflowStep**: Steps depend only on the AgentContext and ToolManager
+
+This decoupling provides better separation of concerns, enhancing testability and maintenance.
 
 ### Layer Dependencies
 
-The BaseWorkflow class depends on components from lower layers:
+The BaseWorkflow class now depends only on components it directly uses:
 
 1. **Layer 3 (Resource Management)**:
-   - Uses `ToolManager` for tool execution
-   - Indirectly uses `PromptManager` for system prompts
-   - Can leverage `ResourceManager` for accessing resources
+   - Uses `ToolManager` for tool execution (explicit dependency)
+   - Can access other managers when needed (through WorkflowManager)
 
-2. **Layer 2 (Communication)**:
-   - Indirectly uses `MessageRouter` through ToolManager
-   - Benefits from the communication infrastructure
-
-3. **Layer 1 (Foundation)**:
-   - Security validation through `RootManager`
-   - Access control through `SecurityManager`
+2. **Layer 2 & 1**:
+   - No direct dependencies
+   - Indirectly uses these layers through the ToolManager
 
 ### Integration Points
 
 The key integration points between the workflow framework and the host system are:
 
-1. **ToolManager Reference**:
+1. **WorkflowManager for Registration**:
    ```python
-   # In BaseWorkflow.__init__
-   self.tool_manager = host._tool_manager
+   # In host.register_workflow
+   workflow_name = await self._workflow_manager.register_workflow(
+       workflow_class, name, **kwargs
+   )
    ```
 
-2. **Context Initialization**:
+2. **ToolManager Injection**:
    ```python
-   # In BaseWorkflow.execute
-   agent_context.tool_manager = self.tool_manager
+   # In WorkflowManager.register_workflow
+   workflow = workflow_class(tool_manager=self._tool_manager, **kwargs)
    ```
 
-3. **Step Execution**:
+3. **Context Tool Reference**:
    ```python
    # In BaseWorkflow.execute_step
    step_context.tool_manager = self.tool_manager
-   outputs = await step.execute(step_context, self.host)
+   outputs = await step.execute(step_context)
    ```
 
-4. **Host Parameter**:
+4. **Simplified Step Signature**:
    ```python
-   # In WorkflowStep.execute signature
-   async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+   # In WorkflowStep.execute signature - no host parameter
+   async def execute(self, context: AgentContext) -> Dict[str, Any]:
    ```
 
-This tight integration with the host system ensures that workflows can leverage all capabilities of the underlying MCP infrastructure while maintaining a clean separation of concerns.
+This decoupled integration ensures workflows can leverage the capabilities they need while maintaining clean separation of concerns and reducing dependencies.
 
 ### Example Integration
 
@@ -594,16 +602,24 @@ host_config = HostConfig(clients=[...])
 host = MCPHost(host_config)
 await host.initialize()
 
-# Create a workflow that uses the host
-workflow = DataAnalysisWorkflow(host)
-await workflow.initialize()
+# Register a workflow with the host
+workflow_name = await host.register_workflow(DataAnalysisWorkflow)
 
-# Execute the workflow
-results = await workflow.analyze_dataset(
-    dataset_id="sales_data_2025",
-    analysis_type="comprehensive"
+# Execute the workflow through the host
+results_context = await host.execute_workflow(
+    workflow_name,
+    {
+        "dataset_id": "sales_data_2025",
+        "analysis_type": "comprehensive"
+    }
 )
+
+# Process results
+summary = results_context.summarize_results()
+print(f"Workflow execution successful: {summary['success']}")
 ```
+
+For more detailed information on the Workflow Manager, see the [Workflow Manager documentation](workflow_manager.md).
 
 ## DRY Utility Components
 
