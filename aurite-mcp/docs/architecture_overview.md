@@ -13,7 +13,7 @@ graph TD
     L3 --> L2["Layer 2: Communication and Routing"]
     L2 --> L1["Layer 1: Security and Foundation"]
     L1 --> Servers["Tool Servers & External Systems"]
-    
+
     classDef layer fill:#f9f9f9,stroke:#333,stroke-width:2px;
     class L1,L2,L3,L4 layer;
 ```
@@ -36,17 +36,62 @@ The communication layer handles message flow:
 
 The resource management layer provides access to data and services:
 
+- **Tool Manager**: Manages tool registration, discovery, and execution across servers
 - **Prompt Manager**: Manages system prompts and their execution
 - **Resource Manager**: Manages access to files and external resources
 - **Storage Manager**: Manages database connections and queries
+
+The Tool Manager provides a unified interface for:
+- Tool registration and discovery
+- Tool execution with routing
+- Capability-based tool selection
+- Access control validation through the Root Manager
+
+```mermaid
+graph TD
+    TM[Tool Manager] --> MR[Message Router]
+    TM --> RM[Root Manager]
+    TM --> TC[Tool Clients]
+
+    MR --> SR[Server Registry]
+    MR --> TR[Tool Registry]
+
+    TC --> T1[Tool Server 1]
+    TC --> T2[Tool Server 2]
+
+    classDef manager fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    class TM,MR,RM manager;
+```
 
 ### Layer 4: Agent Framework
 
 The agent framework provides the building blocks for AI agents:
 
 - **BaseWorkflow**: Sequential workflow execution with fixed tools
+  - Type-safe context management
+  - Composable workflow steps
+  - Error handling and retries
+  - Middleware hooks for extensibility
 - **BaseAgent**: Dynamic agent execution with autonomous tool selection
 - **Hybrid Implementations**: Combined workflow and dynamic behaviors
+
+The BaseWorkflow implementation follows a pipeline pattern:
+
+```mermaid
+graph LR
+    Input[Input Data] --> Context[Agent Context]
+    Context --> Steps[Workflow Steps]
+    Steps --> Composite[Composite Steps]
+    Steps --> Simple[Simple Steps]
+    Composite --> Tools[Tool Execution]
+    Simple --> Tools
+    Tools --> Results[Step Results]
+    Results --> Output[Output Data]
+
+    style Context fill:#e6f3ff,stroke:#333,stroke-width:2px
+    style Steps fill:#fff2e6,stroke:#333,stroke-width:2px
+    style Tools fill:#e6ffe6,stroke:#333,stroke-width:2px
+```
 
 ## The Agency Spectrum
 
@@ -57,20 +102,20 @@ graph LR
     A["Sequential/Workflow
     • Fixed steps & tools
     • Predictable execution
-    • High reliability"] 
-    
+    • High reliability"]
+
     B["Hybrid
     • Decision points
     • Conditional branching
     • Controlled autonomy"]
-    
+
     C["Dynamic/Parallel
     • Autonomous tool selection
     • Goal-oriented behavior
     • Self-directed planning"]
-    
+
     A --> B --> C
-    
+
     style A fill:#e6f3ff,stroke:#333,stroke-width:2px
     style B fill:#fff2e6,stroke:#333,stroke-width:2px
     style C fill:#e6ffe6,stroke:#333,stroke-width:2px
@@ -108,10 +153,18 @@ Current implementation status:
 
 - **Layer 1**: ✅ Implemented (Security Manager, Root Manager)
 - **Layer 2**: ✅ Implemented (Transport Manager, Message Router)
-- **Layer 3**: ✅ Implemented (Prompt Manager, Resource Manager, Storage Manager)
+- **Layer 3**: ✅ Implemented
+  - ✅ Tool Manager
+  - ✅ Prompt Manager
+  - ✅ Resource Manager
+  - ✅ Storage Manager
 - **Layer 4**: 🔄 In Progress
   - ✅ BaseWorkflow implementation
-  - ✅ BaseAgent implementation
+    - ✅ Context management
+    - ✅ Step composition
+    - ✅ Error handling
+    - ✅ Hook system
+  - ⏳ BaseAgent implementation (planned)
   - ⏳ Hybrid Agent implementation (planned)
 
 ## Roadmap

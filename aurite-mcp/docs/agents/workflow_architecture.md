@@ -12,6 +12,7 @@ This document provides an architectural overview of the Aurite agent workflow fr
 6. [Extension Points](#extension-points)
 7. [Implementation Patterns](#implementation-patterns)
 8. [Integration with Host System](#integration-with-host-system)
+9. [DRY Utility Components](#dry-utility-components)
 
 ## Architecture Overview
 
@@ -604,6 +605,87 @@ results = await workflow.analyze_dataset(
 )
 ```
 
+## DRY Utility Components
+
+The framework includes several utility components that promote DRY (Don't Repeat Yourself) principles:
+
+### Context Data Access Utilities
+
+The `AgentContext` class provides standardized methods for accessing data regardless of the underlying data structure:
+
+```python
+class AgentContext(Generic[T]):
+    def get_data_dict(self) -> Dict[str, Any]:
+        """Get the context data as a dictionary"""
+        if isinstance(self.data, BaseModel):
+            return self.data.model_dump()
+        return self.data
+        
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a value from the context data with default fallback"""
+        if isinstance(self.data, BaseModel):
+            try:
+                return getattr(self.data, key)
+            except AttributeError:
+                return default
+        else:
+            # Fallback for dict-like access
+            return getattr(self.data, "get", lambda k, d: d)(key, default)
+            
+    def set(self, key: str, value: Any) -> None:
+        """Set a value in the context data"""
+        if isinstance(self.data, BaseModel):
+            setattr(self.data, key, value)
+        else:
+            # Fallback for dict-like access
+            if hasattr(self.data, "__setitem__"):
+                self.data[key] = value
+            else:
+                setattr(self.data, key, value)
+```
+
+### Hook Execution Utilities
+
+Standardized error handling for hooks is provided through:
+
+```python
+async def run_hooks_with_error_handling(
+    hooks: List[Callable],
+    hook_type: str,
+    *args,
+    **kwargs
+) -> None:
+    """Run a list of hooks with error handling"""
+    for hook in hooks:
+        try:
+            # Check if the hook is awaitable
+            if asyncio.iscoroutinefunction(hook):
+                await hook(*args, **kwargs)
+            else:
+                hook(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in {hook_type} hook: {e}")
+```
+
+This utility is used throughout the `BaseWorkflow` class to standardize hook execution:
+
+```python
+# Run before workflow hooks
+await run_hooks_with_error_handling(
+    self.before_workflow_hooks, "before workflow", agent_context
+)
+
+# Run before step hooks
+await run_hooks_with_error_handling(
+    self.before_step_hooks, f"before step {step.name}", step, agent_context
+)
+
+# Run after step hooks
+await run_hooks_with_error_handling(
+    self.after_step_hooks, f"after step {step.name}", step, agent_context, result
+)
+```
+
 ## Conclusion
 
 The Aurite workflow architecture provides a flexible, modular framework for building AI agents across the Agency Spectrum. By integrating with the MCP Host system's layered architecture, it enables clear interfaces and extensibility without sacrificing type safety or simplicity.
@@ -613,6 +695,8 @@ The architecture follows DRY principles through:
 2. Reusable utility functions in base_utils.py
 3. Common workflow patterns in base_workflow.py
 4. Centralized tool management in tools.py
+5. Standardized hook execution with uniform error handling
+6. Consistent context data access patterns
 
 Key strengths of the architecture include:
 1. **Clear layer responsibilities**: Each component has a well-defined role
@@ -620,5 +704,7 @@ Key strengths of the architecture include:
 3. **Extensibility**: Multiple hook points for customization
 4. **Type safety**: Pydantic models provide structured data handling
 5. **Tool abstraction**: Clean separation between workflow logic and tool execution
+6. **Error resilience**: Consistent error handling across the framework
+7. **Simplified data access**: Uniform methods to access context data regardless of underlying storage
 
 This design allows for easy creation of workflow-based agents while maintaining the flexibility to extend to more dynamic agent patterns through the same underlying infrastructure, positioning the Aurite framework as a comprehensive solution for the entire Agency Spectrum.
