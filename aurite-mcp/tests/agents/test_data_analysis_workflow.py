@@ -15,7 +15,6 @@ from unittest.mock import MagicMock, AsyncMock
 import mcp.types as types
 
 # Use absolute imports instead of relative imports
-from src.host.host import MCPHost
 from src.host.resources.tools import ToolManager
 from src.agents.examples.data_analysis_workflow import (
     DataAnalysisWorkflow,
@@ -126,45 +125,32 @@ def mock_tool_manager():
     return tool_manager
 
 
-@pytest.fixture
-def mock_host(mock_tool_manager):
-    """Create a mock host for testing"""
-    host = MagicMock(spec=MCPHost)
-    host._tool_manager = mock_tool_manager
-
-    # Mock required host methods
-    host.call_tool = AsyncMock(
-        side_effect=lambda tool_name, args: mock_tool_manager.execute_tool(
-            tool_name, args
-        )
-    )
-
-    return host
+# We don't need a mock host anymore, we use tool_manager directly
 
 
 # Tests
 
 
 @pytest.mark.asyncio
-async def test_workflow_initialization(mock_host):
+async def test_workflow_initialization(mock_tool_manager):
     """Test that the workflow initializes correctly"""
-    # Create workflow
-    workflow = DataAnalysisWorkflow(mock_host)
+    # Create workflow directly with tool_manager
+    workflow = DataAnalysisWorkflow(tool_manager=mock_tool_manager)
 
     # Check that workflow is set up correctly
     assert workflow.name == "data_analysis_workflow"
     assert len(workflow.steps) == 4  # 2 individual steps + 2 composite steps
-    assert workflow.tool_manager == mock_host._tool_manager
+    assert workflow.tool_manager == mock_tool_manager
 
     # Initialize workflow
     await workflow.initialize()
 
     # Verify tool validation was called
-    mock_host._tool_manager.has_tool.assert_called()
+    mock_tool_manager.has_tool.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_data_load_step(mock_host, mock_tool_manager):
+async def test_data_load_step(mock_tool_manager):
     """Test the data load step"""
     # Create step
     step = DataLoadStep()
@@ -182,8 +168,8 @@ async def test_data_load_step(mock_host, mock_tool_manager):
     )
     context.tool_manager = mock_tool_manager
 
-    # Execute step
-    result = await step.execute(context, mock_host)
+    # Execute step (no need to pass host anymore)
+    result = await step.execute(context)
 
     # Verify tool was called correctly
     mock_tool_manager.execute_tool.assert_called_with(
@@ -197,7 +183,7 @@ async def test_data_load_step(mock_host, mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_statistical_analysis_step(mock_host, mock_tool_manager):
+async def test_statistical_analysis_step(mock_tool_manager):
     """Test the statistical analysis step"""
     # Create step
     step = StatisticalAnalysisStep()
@@ -228,7 +214,7 @@ async def test_statistical_analysis_step(mock_host, mock_tool_manager):
     context.tool_manager = mock_tool_manager
 
     # Execute step
-    result = await step.execute(context, mock_host)
+    result = await step.execute(context)
 
     # Verify tool was called correctly
     mock_tool_manager.execute_tool.assert_called()
@@ -239,10 +225,10 @@ async def test_statistical_analysis_step(mock_host, mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_full_workflow_execution(mock_host):
+async def test_full_workflow_execution(mock_tool_manager):
     """Test the full workflow execution"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_host)
+    workflow = DataAnalysisWorkflow(mock_tool_manager)
     await workflow.initialize()
 
     # Create input data
@@ -280,10 +266,10 @@ async def test_full_workflow_execution(mock_host):
 
 
 @pytest.mark.asyncio
-async def test_convenience_method(mock_host):
+async def test_convenience_method(mock_tool_manager):
     """Test the convenience method for workflow execution"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_host)
+    workflow = DataAnalysisWorkflow(mock_tool_manager)
     await workflow.initialize()
 
     # Call convenience method
@@ -302,10 +288,10 @@ async def test_convenience_method(mock_host):
 
 
 @pytest.mark.asyncio
-async def test_error_handling(mock_host, mock_tool_manager):
+async def test_error_handling(mock_tool_manager):
     """Test error handling in the workflow"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_host)
+    workflow = DataAnalysisWorkflow(mock_tool_manager)
 
     # Mock error in tool execution
     async def mock_error_execute(*args, **kwargs):
@@ -340,10 +326,10 @@ async def test_error_handling(mock_host, mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_hooks(mock_host):
+async def test_hooks(mock_tool_manager):
     """Test that hooks are called correctly"""
     # Create workflow with mock hooks
-    workflow = DataAnalysisWorkflow(mock_host)
+    workflow = DataAnalysisWorkflow(mock_tool_manager)
 
     # Replace hooks with mocks by replacing the hooks in before_workflow_hooks, etc.
     workflow.before_workflow_hooks = [AsyncMock()]
@@ -372,10 +358,10 @@ async def test_hooks(mock_host):
 
 
 @pytest.mark.asyncio
-async def test_conditional_step_execution(mock_host):
+async def test_conditional_step_execution(mock_tool_manager):
     """Test that steps with conditions are executed conditionally"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_host)
+    workflow = DataAnalysisWorkflow(mock_tool_manager)
     await workflow.initialize()
 
     # Test with visualizations disabled

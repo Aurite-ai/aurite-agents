@@ -18,7 +18,7 @@ import asyncio
 import logging
 import time
 
-from ..host.host import MCPHost
+from ..host.resources.tools import ToolManager
 from .base_models import StepStatus, StepResult, AgentContext, AgentData
 from .base_utils import (
     validate_required_fields,
@@ -67,13 +67,12 @@ class WorkflowStep(ABC):
     _child_steps: List["WorkflowStep"] = field(default_factory=list)
 
     @abstractmethod
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """
         Execute the step with the given context.
 
         Args:
             context: The current workflow context (contains tools via context.tool_manager)
-            host: The MCP host for access to other services
 
         Returns:
             Dictionary of outputs produced by this step
@@ -271,13 +270,12 @@ class CompositeStep(WorkflowStep):
         # Required tools are all tools from all child steps
         self.required_tools = all_tools
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """
         Execute all child steps in sequence.
 
         Args:
             context: The context for execution
-            host: The MCP host for tool access
 
         Returns:
             Combined outputs from all child steps
@@ -297,7 +295,7 @@ class CompositeStep(WorkflowStep):
                 continue
 
             # Execute the step
-            outputs = await step.execute(context, host)
+            outputs = await step.execute(context)
 
             # Add outputs to accumulated outputs
             all_outputs.update(outputs)
@@ -320,9 +318,16 @@ class BaseWorkflow(ABC):
     a hybrid implementation.
     """
 
-    def __init__(self, host: MCPHost, name: str = "unnamed_workflow"):
-        self.host = host
+    def __init__(self, tool_manager: ToolManager, name: str = "unnamed_workflow"):
+        """
+        Initialize the workflow with a tool manager.
+        
+        Args:
+            tool_manager: The tool manager for tool access
+            name: Name of the workflow
+        """
         self.name = name
+        self.description = ""  # Can be overridden by subclasses
         self.steps: List[WorkflowStep] = []
         self.error_handlers: Dict[
             str, Callable[[WorkflowStep, Exception, Dict[str, Any]], None]
@@ -333,8 +338,8 @@ class BaseWorkflow(ABC):
         self.on_workflow_complete: Optional[Callable[[AgentContext], None]] = None
         self.context_validators: List[Callable[[Dict[str, Any]], bool]] = []
 
-        # Access to tools directly from the host's tool manager
-        self.tool_manager = host._tool_manager
+        # Store the tool manager
+        self.tool_manager = tool_manager
 
         # Middleware hooks
         self.before_workflow_hooks: List[Callable[[AgentContext], Awaitable[None]]] = []
@@ -536,7 +541,7 @@ class BaseWorkflow(ABC):
             step_context.tool_manager = self.tool_manager
 
             # Execute step
-            outputs = await step.execute(step_context, self.host)
+            outputs = await step.execute(step_context)
 
             # Validate outputs
             if not step.validate_outputs(outputs):

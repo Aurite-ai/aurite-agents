@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List
 import logging
 from pydantic import Field
 
-from ...host.host import MCPHost
+from ...host.resources.tools import ToolManager
 from ..base_workflow import BaseWorkflow, WorkflowStep, CompositeStep
 from ..base_models import AgentContext, AgentData, StepStatus, StepResult
 
@@ -57,7 +57,7 @@ class DataLoadStep(WorkflowStep):
             tags={"data", "preprocessing"},
         )
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the data loading step using ToolManager"""
         # Extract inputs from context
         dataset_id = context.get("dataset_id")
@@ -108,7 +108,7 @@ class DataQualityStep(WorkflowStep):
             max_retries=2,
         )
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the data quality assessment step"""
         dataset_id = context.get("dataset_id")
         dataset_info = context.get("dataset_info")
@@ -152,7 +152,7 @@ class StatisticalAnalysisStep(WorkflowStep):
             timeout=120.0,  # Longer timeout for complex calculations
         )
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the statistical analysis step"""
         dataset_id = context.get("dataset_id")
         analysis_type = context.get("analysis_type")
@@ -211,7 +211,7 @@ class VisualizationStep(WorkflowStep):
             condition=lambda context: context.get("include_visualization", False),
         )
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the visualization step"""
         # Skip execution if visualizations are not requested
         if not context.get("include_visualization"):
@@ -276,7 +276,7 @@ class InsightGenerationStep(WorkflowStep):
 
         self.condition = check_required_data
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the insight generation step"""
         # Use a default empty dict if the value is None to prevent NoneType errors
         dataset_info = context.get("dataset_info") or {}
@@ -334,7 +334,7 @@ class ReportGenerationStep(WorkflowStep):
             required_tools={"generate_report"},
         )
 
-    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the report generation step"""
         # Collect all inputs with fallbacks to prevent NoneType errors
         dataset_info = context.get("dataset_info") or {}
@@ -408,9 +408,12 @@ class DataAnalysisWorkflow(BaseWorkflow):
     leverages the ToolManager for tool execution.
     """
 
-    def __init__(self, host: MCPHost):
+    def __init__(self, tool_manager: ToolManager, name: str = "data_analysis_workflow"):
         """Initialize the data analysis workflow"""
-        super().__init__(host, name="data_analysis_workflow")
+        super().__init__(tool_manager, name=name)
+        
+        # Set description for documentation
+        self.description = "Comprehensive data analysis workflow for exploring datasets"
 
         # Add individual steps
         self.add_step(DataLoadStep())
