@@ -252,11 +252,11 @@ class MCPHost:
         # Get the system prompt content
         client = self._clients[client_id]
         prompt_result = await client.get_prompt(prompt_name, prompt_arguments)
-        
+
         # Handle different response formats
-        if hasattr(prompt_result, 'text'):
+        if hasattr(prompt_result, "text"):
             system_prompt = prompt_result.text
-        elif hasattr(prompt_result, 'result') and hasattr(prompt_result.result, 'text'):
+        elif hasattr(prompt_result, "result") and hasattr(prompt_result.result, "text"):
             system_prompt = prompt_result.result.text
         else:
             # Try to inspect the object to find text content
@@ -368,7 +368,7 @@ class MCPHost:
             current_iteration += 1
 
             # Make API call
-            response = client.messages.create(
+            response = await client.messages.create(
                 model=request_data["model"],
                 max_tokens=request_data["max_tokens"],
                 temperature=request_data["temperature"],

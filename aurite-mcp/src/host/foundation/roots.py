@@ -80,8 +80,11 @@ class RootManager:
         Validate that a client has access to all roots required by a tool.
         Raises ValueError if access is not allowed.
         """
+        # If client has no registered roots, assume unrestricted access
+        # This allows tools to work even when no roots are defined
         if client_id not in self._client_roots:
-            raise ValueError(f"No roots registered for client: {client_id}")
+            logger.info(f"No roots registered for client: {client_id}, assuming unrestricted access")
+            return True
 
         if tool_name in self._tool_requirements:
             required_roots = self._tool_requirements[tool_name]

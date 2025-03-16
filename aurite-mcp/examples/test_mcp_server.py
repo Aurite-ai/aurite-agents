@@ -2,124 +2,157 @@
 Test MCP server for host integration testing
 """
 
+import anyio
+import sys
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 import pytz
 
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.lowlevel import Server
+from mcp.server.stdio import stdio_server
+import mcp.types as types
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
-# Define a system prompt that will be returned by our server
-SYSTEM_PROMPT = """You are a helpful AI assistant with specialized tools.
-Use these tools to answer questions about weather and time data.
 
-Guidelines:
-1. Use the weather_lookup tool to get weather information for a location
-2. Use the current_time tool to get the current time in different timezones
-3. Analyze the data and provide helpful insights
-4. Explain your reasoning clearly
-"""
+def create_server() -> Server:
+    """Create and configure the MCP server with all available tools."""
+    app = Server("test-weather-server")
 
-# Create the MCP server
-mcp = FastMCP(name="Test Weather Server")
+    @app.call_tool()
+    async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+        """Handle tool calls by routing to appropriate implementation."""
+        try:
+            if name == "weather_lookup":
+                result = await weather_lookup(arguments)
+            elif name == "current_time":
+                result = await current_time(arguments)
+            else:
+                raise ValueError(f"Unknown tool: {name}")
+            return result
+        except Exception as e:
+            logger.error(f"Error: Tool call failed - {e}")
+            raise
 
-# Tool definitions
-@mcp.tool()
-def weather_lookup(location: str, units: str = "metric", ctx: Context = None) -> Dict[str, Any]:
-    """
-    Look up weather information for a location
-    
-    Args:
-        location: City name or location
-        units: Temperature units (metric or imperial)
-        
-    Returns:
-        Dictionary with weather information
-    """
-    ctx.info(f"Looking up weather for {location} in {units} units")
-    
-    # Mock weather data for testing
+    @app.list_tools()
+    async def list_tools() -> list[types.Tool]:
+        """List all available tools."""
+        return [
+            types.Tool(
+                name="weather_lookup",
+                description="Look up weather information for a location",
+                inputSchema={
+                    "type": "object",
+                    "required": ["location"],
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City name or location",
+                        },
+                        "units": {
+                            "type": "string",
+                            "description": "Temperature units (metric or imperial)",
+                            "default": "metric",
+                            "enum": ["metric", "imperial"],
+                        },
+                    },
+                },
+            ),
+            types.Tool(
+                name="current_time",
+                description="Get the current time in a specific timezone",
+                inputSchema={
+                    "type": "object",
+                    "required": ["timezone"],
+                    "properties": {
+                        "timezone": {
+                            "type": "string",
+                            "description": "Timezone name (e.g., 'America/New_York', 'Europe/London')",
+                        },
+                    },
+                },
+            ),
+        ]
+
+    return app
+
+
+async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
+    """Look up weather information for a location."""
+    location = args["location"]
+    units = args.get("units", "metric")
+
+    # Mock weather data
     weather_data = {
         "San Francisco": {"temp": 18, "condition": "Foggy", "humidity": 85},
         "New York": {"temp": 22, "condition": "Partly Cloudy", "humidity": 60},
         "London": {"temp": 15, "condition": "Rainy", "humidity": 90},
         "Tokyo": {"temp": 25, "condition": "Sunny", "humidity": 50},
     }
-    
-    # Get data for the requested location or provide a default response
+
     data = weather_data.get(
-        location, 
-        {"temp": 20, "condition": "Clear", "humidity": 65}
+        location, {"temp": 20, "condition": "Clear", "humidity": 65}
     )
-    
+
     # Convert temperature if needed
     temp = data["temp"]
     if units == "imperial":
-        temp = round(temp * 9/5 + 32)
+        temp = round(temp * 9 / 5 + 32)
         unit_label = "°F"
     else:
         unit_label = "°C"
-        
+
     response_text = (
         f"Weather for {location}:\n"
         f"Temperature: {temp}{unit_label}\n"
         f"Condition: {data['condition']}\n"
         f"Humidity: {data['humidity']}%"
     )
-    
-    return {"text": response_text}
 
-@mcp.tool()
-def current_time(timezone: str = "UTC", ctx: Context = None) -> Dict[str, Any]:
-    """
-    Get the current time in a specific timezone
-    
-    Args:
-        timezone: Timezone name (e.g., 'America/New_York', 'Europe/London')
-        
-    Returns:
-        Dictionary with current time information
-    """
-    ctx.info(f"Getting current time for timezone: {timezone}")
-    
+    return [types.TextContent(type="text", text=response_text)]
+
+
+async def current_time(args: Dict[str, Any]) -> list[types.TextContent]:
+    """Get the current time in a specific timezone."""
+    timezone = args["timezone"]
+
     try:
-        # Try to get the current time in the requested timezone
         tz = pytz.timezone(timezone)
         current_time = datetime.now(tz)
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
-        
-        return {"text": f"Current time in {timezone}: {formatted_time}"}
+
+        return [
+            types.TextContent(
+                type="text", text=f"Current time in {timezone}: {formatted_time}"
+            )
+        ]
     except pytz.exceptions.UnknownTimeZoneError:
-        return {"text": f"Error: Unknown timezone: {timezone}. Please provide a valid timezone name."}
+        return [
+            types.TextContent(
+                type="text",
+                text=f"Error: Unknown timezone: {timezone}. Please provide a valid timezone name.",
+            )
+        ]
 
-# Prompt definitions
-@mcp.prompt()
-def assistant(user_name: Optional[str] = None, temperature_units: Optional[str] = None) -> str:
-    """
-    System prompt for weather assistant
-    
-    Args:
-        user_name: Name of the user for personalization
-        temperature_units: Default units for temperature
-    
-    Returns:
-        Formatted system prompt
-    """
-    formatted_prompt = SYSTEM_PROMPT
-    
-    # Add personalization if user_name is provided
-    if user_name:
-        formatted_prompt = f"Hello {user_name}! " + formatted_prompt
-        
-    # Add default units preference if specified
-    if temperature_units:
-        formatted_prompt += f"\n\nDefault temperature units: {temperature_units.upper()}"
-        
-    return formatted_prompt
 
-# Allow direct execution of the server
+def main() -> int:
+    """Entry point for the MCP server."""
+    logger.info("Starting Test Weather MCP Server...")
+
+    app = create_server()
+
+    async def arun():
+        async with stdio_server() as streams:
+            await app.run(streams[0], streams[1], app.create_initialization_options())
+
+    anyio.run(arun)
+    return 0
+
+
 if __name__ == "__main__":
-    mcp.run()
+    sys.exit(main())
