@@ -376,14 +376,18 @@ class MCPHost:
 
                         # Use ToolManager to format the tool result
                         tool_results.append(
-                            self.tools.create_tool_result_blocks(tool_use.id, tool_result)
+                            self.tools.create_tool_result_blocks(
+                                tool_use.id, tool_result
+                            )
                         )
 
                     except Exception as e:
                         logger.error(f"Error executing tool {tool_use.name}: {e}")
                         # Create an error result using the same format
                         tool_results.append(
-                            self.tools.create_tool_result_blocks(tool_use.id, f"Error: {str(e)}")
+                            self.tools.create_tool_result_blocks(
+                                tool_use.id, f"Error: {str(e)}"
+                            )
                         )
 
             # If no tool calls, we're done
@@ -393,15 +397,12 @@ class MCPHost:
 
             # Add assistant message with tool calls
             messages.append({"role": "assistant", "content": response.content})
-            
+
             # Add user message with combined tool results
             if tool_results:
                 # Anthropic expects all tool results in a single user message
-                messages.append({
-                    "role": "user",
-                    "content": tool_results
-                })
-                
+                messages.append({"role": "user", "content": tool_results})
+
                 # Track for return data
                 tool_uses = tool_results
 

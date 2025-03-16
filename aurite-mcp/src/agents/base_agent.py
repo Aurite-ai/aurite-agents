@@ -597,7 +597,7 @@ class ToolRegistry:
             tool = self.host.tools.get_tool(tool_info["name"])
             if not tool:
                 continue
-                
+
             # Convert MCP tool to AgentTool
             agent_tool = AgentTool(
                 name=tool.name,

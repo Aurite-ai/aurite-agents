@@ -83,7 +83,9 @@ class RootManager:
         # If client has no registered roots, assume unrestricted access
         # This allows tools to work even when no roots are defined
         if client_id not in self._client_roots:
-            logger.info(f"No roots registered for client: {client_id}, assuming unrestricted access")
+            logger.info(
+                f"No roots registered for client: {client_id}, assuming unrestricted access"
+            )
             return True
 
         if tool_name in self._tool_requirements:
