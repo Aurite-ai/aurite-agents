@@ -22,7 +22,7 @@ from .routing import MessageRouter
 from .prompts import PromptManager
 from .resources import ResourceManager
 from .security import SecurityManager
-from .connection_manager import ConnectionManager
+from .storage import StorageManager
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class MCPHost:
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
         self._security_manager = SecurityManager(encryption_key=encryption_key)
-        self._connection_manager = ConnectionManager()
+        self._storage_manager = StorageManager()
 
         # State management
         self._config = config
@@ -82,7 +82,7 @@ class MCPHost:
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._security_manager.initialize()
-        await self._connection_manager.initialize()
+        await self._storage_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
@@ -96,7 +96,7 @@ class MCPHost:
                 )
 
                 # Register database connection permissions
-                await self._connection_manager.register_server_permissions(
+                await self._storage_manager.register_server_permissions(
                     client_config.client_id,
                     allowed_connection_types=["postgresql", "mysql", "sqlite"],
                 )
@@ -314,7 +314,7 @@ class MCPHost:
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
         await self._security_manager.shutdown()
-        await self._connection_manager.shutdown()
+        await self._storage_manager.shutdown()
 
         logger.info("MCP Host shutdown complete")
 
@@ -330,7 +330,7 @@ class MCPHost:
         Returns:
             Tuple of (connection_id, connection_metadata)
         """
-        return await self._connection_manager.create_db_connection(params)
+        return await self._storage_manager.create_db_connection(params)
 
     async def get_named_connection(
         self, connection_name: str
@@ -344,7 +344,7 @@ class MCPHost:
         Returns:
             Tuple of (connection_id, connection_metadata)
         """
-        return await self._connection_manager.get_named_connection(connection_name)
+        return await self._storage_manager.get_named_connection(connection_name)
 
     async def execute_query(
         self, conn_id: str, query: str, params: Optional[Dict[str, Any]] = None
@@ -360,7 +360,7 @@ class MCPHost:
         Returns:
             Query result dictionary
         """
-        return await self._connection_manager.execute_query(conn_id, query, params)
+        return await self._storage_manager.execute_query(conn_id, query, params)
 
     async def close_connection(self, conn_id: str) -> bool:
         """
@@ -372,11 +372,11 @@ class MCPHost:
         Returns:
             True if connection was closed, False if it wasn't found
         """
-        return await self._connection_manager.close_connection(conn_id)
+        return await self._storage_manager.close_connection(conn_id)
 
     async def list_active_connections(self) -> List[Dict[str, Any]]:
         """List all active connections with metadata"""
-        return await self._connection_manager.list_active_connections()
+        return await self._storage_manager.list_active_connections()
 
     # Keep this for backward compatibility
     async def secure_database_connection(

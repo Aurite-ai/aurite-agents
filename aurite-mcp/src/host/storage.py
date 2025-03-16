@@ -60,7 +60,7 @@ class ConnectionInfo:
     is_active: bool = True
 
 
-class ConnectionManager:
+class StorageManager:
     """
     Manages database connections for the MCP host.
     Handles secure creation and retrieval of database connections.
