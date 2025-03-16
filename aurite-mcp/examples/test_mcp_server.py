@@ -19,6 +19,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Define system prompts
+WEATHER_ASSISTANT_PROMPT = """You are a helpful weather assistant with access to weather and time tools.
+Use these tools to provide accurate weather and time information.
+
+Guidelines:
+1. Use weather_lookup to get current weather conditions
+2. Use current_time to get timezone-specific times
+3. Provide clear, concise responses
+4. Always specify temperature units clearly
+"""
+
 
 def create_server() -> Server:
     """Create and configure the MCP server with all available tools."""
@@ -78,6 +89,57 @@ def create_server() -> Server:
                 },
             ),
         ]
+
+    @app.list_prompts()
+    async def list_prompts() -> list[types.Prompt]:
+        """List all available prompts."""
+        return [
+            types.Prompt(
+                name="weather_assistant",
+                description="A helpful assistant for weather and time information",
+                arguments=[
+                    types.PromptArgument(
+                        name="user_name",
+                        description="Name of the user for personalization",
+                        required=False,
+                        schema={"type": "string"},
+                    ),
+                    types.PromptArgument(
+                        name="preferred_units",
+                        description="Preferred temperature units (metric/imperial)",
+                        required=False,
+                        schema={
+                            "type": "string",
+                            "enum": ["metric", "imperial"],
+                        },
+                    ),
+                ],
+            )
+        ]
+
+    @app.get_prompt()
+    async def get_prompt(name: str, arguments: dict) -> types.GetPromptResult:
+        """Get a prompt with the specified arguments."""
+        if name != "weather_assistant":
+            raise ValueError(f"Unknown prompt: {name}")
+
+        prompt = WEATHER_ASSISTANT_PROMPT
+
+        # Add personalization if user_name provided
+        if "user_name" in arguments:
+            prompt = f"Hello {arguments['user_name']}! " + prompt
+
+        # Add unit preference if specified
+        if "preferred_units" in arguments:
+            prompt += f"\nPreferred units: {arguments['preferred_units'].upper()}"
+
+        return types.GetPromptResult(
+            messages=[
+                types.PromptMessage(
+                    role="user", content=types.TextContent(type="text", text=prompt)
+                )
+            ]
+        )
 
     return app
 
