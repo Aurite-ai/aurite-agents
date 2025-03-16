@@ -29,6 +29,31 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
 
+async def run_hooks_with_error_handling(
+    hooks: List[Callable],
+    hook_type: str,
+    *args,
+    **kwargs
+) -> None:
+    """
+    Run a list of hooks with error handling.
+    
+    Args:
+        hooks: List of hook functions to run
+        hook_type: Type of hook for error messaging
+        *args: Arguments to pass to each hook
+        **kwargs: Keyword arguments to pass to each hook
+    """
+    for hook in hooks:
+        try:
+            # Check if the hook is awaitable
+            if asyncio.iscoroutinefunction(hook):
+                await hook(*args, **kwargs)
+            else:
+                hook(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in {hook_type} hook: {e}")
+
 
 def validate_required_fields(
     data: Dict[str, Any], required_fields: Set[str], context_name: str = "Context"

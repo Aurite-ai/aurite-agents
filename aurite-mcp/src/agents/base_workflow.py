@@ -26,6 +26,7 @@ from .base_utils import (
     validate_provided_outputs,
     generate_object_description,
     with_retries,
+    run_hooks_with_error_handling,
 )
 
 logger = logging.getLogger(__name__)
@@ -257,12 +258,10 @@ class CompositeStep(WorkflowStep):
             all_outputs.update(step.provided_outputs)
             all_tools.update(step.required_tools)
 
-        # Remove outputs that are provided by earlier steps
+        # Track outputs that are provided by steps
         provided_so_far = set()
         for step in self._child_steps:
-            # Remove from required inputs if already provided
-            step_inputs = step.required_inputs - provided_so_far
-            # Add this step's outputs to provided
+            # Add this step's outputs to provided outputs so far
             provided_so_far.update(step.provided_outputs)
 
         # Update the composite step's contracts
@@ -293,18 +292,10 @@ class CompositeStep(WorkflowStep):
         # Execute each child step in sequence
         for step in self._child_steps:
             # Check if step should be executed based on its condition
-            context_data = (
-                context.data.model_dump()
-                if hasattr(context.data, "model_dump")
-                else context.data
-            )
+            context_data = context.get_data_dict()
             if not await step.should_execute(context_data):
                 logger.info(f"Skipping step '{step.name}' due to condition")
                 continue
-
-            # Make sure the context has a tool_manager reference
-            if not hasattr(context, "tool_manager") or context.tool_manager is None:
-                context.tool_manager = host._tool_manager
                 
             # Execute the step
             outputs = await step.execute(context, host)
@@ -543,12 +534,11 @@ class BaseWorkflow(ABC):
 
         # Define the actual execution function
         async def execute_with_validation():
-            # Create a context for the step
+            # Create a context for the step with tool_manager already set
             step_context = AgentContext(data=AgentData(**context_data.copy()))
+            step_context.tool_manager = self.tool_manager
 
-            # Execute step, passing both the host and the tool_manager
-            # This gives the step direct access to the tool_manager if needed
-            step_context.tool_manager = self.tool_manager  # Make tool_manager available in context
+            # Execute step
             outputs = await step.execute(step_context, self.host)
 
             # Validate outputs
@@ -622,18 +612,12 @@ class BaseWorkflow(ABC):
         logger.info(f"Starting execution of workflow: {self.name}")
 
         # Run before workflow hooks
-        for hook in self.before_workflow_hooks:
-            try:
-                await hook(agent_context)
-            except Exception as e:
-                logger.error(f"Error in before workflow hook: {e}")
-
-        # Validate initial context with proper handling for Pydantic models
-        context_data = (
-            agent_context.data.model_dump()
-            if hasattr(agent_context.data, "model_dump")
-            else agent_context.data
+        await run_hooks_with_error_handling(
+            self.before_workflow_hooks, "before workflow", agent_context
         )
+
+        # Validate initial context
+        context_data = agent_context.get_data_dict()
         if not self.validate_context(context_data):
             logger.error("Initial context failed validation")
             agent_context.add_step_result(
@@ -649,11 +633,7 @@ class BaseWorkflow(ABC):
         # Execute each step in sequence
         for step in self.steps:
             # Check if step should be executed based on its condition
-            context_data = (
-                agent_context.data.model_dump()
-                if hasattr(agent_context.data, "model_dump")
-                else agent_context.data
-            )
+            context_data = agent_context.get_data_dict()
             if not await step.should_execute(context_data):
                 logger.info(f"Skipping step '{step.name}' due to condition")
                 agent_context.add_step_result(
@@ -665,19 +645,8 @@ class BaseWorkflow(ABC):
             logger.info(f"Executing step: {step.name}")
 
             # Run before step hooks
-            for hook in self.before_step_hooks:
-                try:
-                    await hook(step, agent_context)
-                except Exception as e:
-                    logger.error(
-                        f"Error in before step hook for step '{step.name}': {e}"
-                    )
-
-            # Execute the step
-            context_data = (
-                agent_context.data.model_dump()
-                if hasattr(agent_context.data, "model_dump")
-                else agent_context.data
+            await run_hooks_with_error_handling(
+                self.before_step_hooks, f"before step {step.name}", step, agent_context
             )
             result = await self.execute_step(step, context_data)
 
@@ -685,13 +654,9 @@ class BaseWorkflow(ABC):
             agent_context.add_step_result(step.name, result)
 
             # Run after step hooks
-            for hook in self.after_step_hooks:
-                try:
-                    await hook(step, agent_context, result)
-                except Exception as e:
-                    logger.error(
-                        f"Error in after step hook for step '{step.name}': {e}"
-                    )
+            await run_hooks_with_error_handling(
+                self.after_step_hooks, f"after step {step.name}", step, agent_context, result
+            )
 
             # If step failed, stop workflow execution
             if result.status == StepStatus.FAILED:
@@ -712,17 +677,14 @@ class BaseWorkflow(ABC):
 
         # Call completion callback if set
         if self.on_workflow_complete:
-            try:
-                self.on_workflow_complete(agent_context)
-            except Exception as e:
-                logger.error(f"Error in workflow completion callback: {e}")
+            await run_hooks_with_error_handling(
+                [self.on_workflow_complete], "workflow completion callback", agent_context
+            )
 
         # Run after workflow hooks
-        for hook in self.after_workflow_hooks:
-            try:
-                await hook(agent_context)
-            except Exception as e:
-                logger.error(f"Error in after workflow hook: {e}")
+        await run_hooks_with_error_handling(
+            self.after_workflow_hooks, "after workflow", agent_context
+        )
 
         logger.info(
             f"Workflow '{self.name}' completed in {agent_context.get_execution_time():.2f} seconds"

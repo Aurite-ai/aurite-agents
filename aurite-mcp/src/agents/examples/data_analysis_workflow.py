@@ -254,10 +254,12 @@ class InsightGenerationStep(WorkflowStep):
         )
         
         # Set condition to check that all required data is available
-        self.condition = lambda context: (
-            all(key in context for key in 
+        # Note: Using a regular function instead of lambda for better error handling
+        def check_required_data(context_data):
+            return all(key in context_data for key in 
                 ["dataset_info", "data_quality_report", "statistical_metrics"])
-        )
+        
+        self.condition = check_required_data
 
     async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
         """Execute the insight generation step"""
@@ -446,7 +448,7 @@ class DataAnalysisWorkflow(BaseWorkflow):
             "total_execution_time": execution_time,
             "steps_completed": len([s for s in context.step_results.values() 
                                    if s.status == StepStatus.COMPLETED]),
-            "report_generated": "final_report" in context.data.model_dump()
+            "report_generated": "final_report" in context.get_data_dict()
         }
 
     async def _before_step(self, step: WorkflowStep, context: AgentContext):

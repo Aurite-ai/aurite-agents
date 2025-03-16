@@ -230,7 +230,7 @@ async def test_full_workflow_execution(mock_host):
     )
     
     # Verify final outputs are present
-    data_dict = result_context.data.model_dump()
+    data_dict = result_context.get_data_dict()
     assert "dataset_info" in data_dict
     assert "data_quality_report" in data_dict
     assert "statistical_metrics" in data_dict

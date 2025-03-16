@@ -111,6 +111,17 @@ class AgentContext(Generic[T]):
                 context_name="Context",
             )
 
+    def get_data_dict(self) -> Dict[str, Any]:
+        """
+        Get the context data as a dictionary.
+        
+        Returns:
+            Dictionary representation of the context data
+        """
+        if isinstance(self.data, BaseModel):
+            return self.data.model_dump()
+        return self.data
+
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get a value from the context data.
