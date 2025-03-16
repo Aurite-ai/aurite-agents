@@ -66,18 +66,20 @@ async def test_host_direct_connection():
                 for k, v in connection_params.items()
             },
         )
-        conn_id, metadata = await host.create_database_connection(connection_params)
+        conn_id, metadata = await host.storage.create_database_connection(
+            connection_params
+        )
         print(f"Connection established with ID: {conn_id}")
         print(f"Connection metadata: {metadata}")
 
         # Execute a test query
         print("\nExecuting query...")
-        result = await host.execute_query(conn_id, "SELECT * FROM users")
+        result = await host.storage.execute_query(conn_id, "SELECT * FROM users")
         print(f"Query result: {result}")
 
         # Close the connection
         print("\nClosing connection...")
-        closed = await host.close_connection(conn_id)
+        closed = await host.storage.close_connection(conn_id)
         print(f"Connection closed: {closed}")
 
     finally:
@@ -123,18 +125,18 @@ async def test_host_named_connection():
         print(f"\nUsing named connection: {connection_name}")
 
         # Get connection from named configuration
-        conn_id, metadata = await host.get_named_connection(connection_name)
+        conn_id, metadata = await host.storage.get_named_connection(connection_name)
         print(f"Connection established with ID: {conn_id}")
         print(f"Connection metadata: {metadata}")
 
         # Execute a test query
         print("\nExecuting query...")
-        result = await host.execute_query(conn_id, "SELECT * FROM users")
+        result = await host.storage.execute_query(conn_id, "SELECT * FROM users")
         print(f"Query result: {result}")
 
         # Close the connection
         print("\nClosing connection...")
-        closed = await host.close_connection(conn_id)
+        closed = await host.storage.close_connection(conn_id)
         print(f"Connection closed: {closed}")
 
     finally:
@@ -176,7 +178,7 @@ async def test_client_call_through_host():
         connection_string = f"postgresql+psycopg2://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
 
         # Host processes this through security manager
-        conn_id, masked_connection = await host.secure_database_connection(
+        conn_id, masked_connection = await host.storage.secure_database_connection(
             connection_string
         )
         print(f"Connection established with ID: {conn_id}")
@@ -185,12 +187,12 @@ async def test_client_call_through_host():
         # Using the connection ID for operations
         # In this model, future client requests would only use the connection ID
         print("\nExecuting query...")
-        result = await host.execute_query(conn_id, "SELECT * FROM users")
+        result = await host.storage.execute_query(conn_id, "SELECT * FROM users")
         print(f"Query result: {result}")
 
         # Client requests connection closure
         print("\nClosing connection...")
-        closed = await host.close_connection(conn_id)
+        closed = await host.storage.close_connection(conn_id)
         print(f"Connection closed: {closed}")
 
     finally:
