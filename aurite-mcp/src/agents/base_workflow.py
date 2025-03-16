@@ -2,23 +2,32 @@
 BaseWorkflow module for implementing sequential workflow agents.
 
 This module provides:
-1. WorkflowContext - Shared context model used by all agent types
-2. WorkflowStep - Building block for workflow-based agents
-3. BaseWorkflow - Implementation for linear/sequential workflows
+1. WorkflowStep - Building block for workflow-based agents
+2. BaseWorkflow - Implementation for linear/sequential workflows
 
-The WorkflowContext and WorkflowStep classes are designed to be reusable
-across different agent implementations (workflow, hybrid, and dynamic).
+These classes work with AgentContext (from base_models.py) to provide a
+complete framework for building sequential workflows. Both are designed 
+to be reusable across different agent implementations (workflow, hybrid, 
+and dynamic).
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable, Set
+from typing import Dict, List, Any, Optional, Callable, Set, Awaitable
 import asyncio
 import logging
 import time
 
 from ..host.host import MCPHost
-from .base_models import StepStatus, StepResult, WorkflowContext
+from .base_models import StepStatus, StepResult, AgentContext, AgentData
+from .base_utils import (
+    validate_required_fields,
+    validate_provided_outputs,
+    generate_object_description,
+    with_retries,
+    Tool,
+    ToolProvider
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +63,12 @@ class WorkflowStep(ABC):
 
     # Optional condition for execution
     condition: Optional[Callable[[Dict[str, Any]], bool]] = None
+    
+    # Child steps for composition support
+    _child_steps: List["WorkflowStep"] = field(default_factory=list)
 
     @abstractmethod
-    async def execute(self, context: WorkflowContext, host: MCPHost) -> Dict[str, Any]:
+    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
         """
         Execute the step with the given context.
 
@@ -99,11 +111,11 @@ class WorkflowStep(ABC):
         Returns:
             True if all required inputs are present, False otherwise
         """
-        for input_key in self.required_inputs:
-            if input_key not in context:
-                logger.error(f"Step '{self.name}' missing required input: {input_key}")
-                return False
-        return True
+        return validate_required_fields(
+            data=context,
+            required_fields=self.required_inputs,
+            context_name=f"Step '{self.name}'",
+        )
 
     def validate_outputs(self, outputs: Dict[str, Any]) -> bool:
         """
@@ -115,13 +127,11 @@ class WorkflowStep(ABC):
         Returns:
             True if all promised outputs are present, False otherwise
         """
-        for output_key in self.provided_outputs:
-            if output_key not in outputs:
-                logger.error(
-                    f"Step '{self.name}' missing promised output: {output_key}"
-                )
-                return False
-        return True
+        return validate_provided_outputs(
+            outputs=outputs,
+            provided_outputs=self.provided_outputs,
+            context_name=f"Step '{self.name}'",
+        )
 
     def get_description(self) -> Dict[str, Any]:
         """
@@ -131,16 +141,217 @@ class WorkflowStep(ABC):
         Returns:
             Dictionary describing the step
         """
-        return {
-            "name": self.name,
-            "description": self.description,
-            "required_inputs": list(self.required_inputs),
-            "provided_outputs": list(self.provided_outputs),
-            "required_tools": list(self.required_tools),
-            "tags": list(self.tags),
-            "has_condition": self.condition is not None,
-            "metadata": self.metadata,
-        }
+        description = generate_object_description(
+            name=self.name,
+            description=self.description,
+            required_inputs=self.required_inputs,
+            provided_outputs=self.provided_outputs,
+            required_tools=self.required_tools,
+            tags=self.tags,
+            has_condition=self.condition is not None,
+            metadata=self.metadata,
+        )
+        
+        # Add information about child steps if this is a composite step
+        if self._child_steps:
+            description["composite"] = True
+            description["child_steps"] = [step.get_description() for step in self._child_steps]
+        else:
+            description["composite"] = False
+            
+        return description
+    
+    def add_child_step(self, step: "WorkflowStep") -> "WorkflowStep":
+        """
+        Add a child step to this step for composition.
+        
+        Args:
+            step: The child step to add
+            
+        Returns:
+            Self, for method chaining
+        """
+        self._child_steps.append(step)
+        return self
+        
+    def add_child_steps(self, steps: List["WorkflowStep"]) -> "WorkflowStep":
+        """
+        Add multiple child steps to this step for composition.
+        
+        Args:
+            steps: The child steps to add
+            
+        Returns:
+            Self, for method chaining
+        """
+        self._child_steps.extend(steps)
+        return self
+        
+    @property
+    def child_steps(self) -> List["WorkflowStep"]:
+        """
+        Get the child steps of this step.
+        
+        Returns:
+            List of child steps
+        """
+        return self._child_steps
+        
+    @property
+    def is_composite(self) -> bool:
+        """
+        Check if this step is a composite step.
+        
+        Returns:
+            True if this step has child steps, False otherwise
+        """
+        return len(self._child_steps) > 0
+
+
+class CompositeStep(WorkflowStep):
+    """
+    A workflow step that executes a sequence of child steps.
+    
+    This provides composition capability, allowing complex workflows
+    to be built from simpler steps.
+    """
+    
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        steps: Optional[List[WorkflowStep]] = None,
+        **kwargs
+    ):
+        """
+        Initialize a composite step.
+        
+        Args:
+            name: The name of the step
+            description: A description of the step
+            steps: Optional list of child steps
+            **kwargs: Additional arguments to pass to the parent constructor
+        """
+        super().__init__(name=name, description=description, **kwargs)
+        
+        if steps:
+            self.add_child_steps(steps)
+            
+        # Update inputs/outputs/tools based on child steps
+        self._update_contracts()
+    
+    def _update_contracts(self):
+        """Update the contracts (inputs/outputs/tools) based on child steps"""
+        if not self._child_steps:
+            return
+            
+        # Start with empty sets
+        all_inputs = set()
+        all_outputs = set()
+        all_tools = set()
+        
+        # Collect from all child steps
+        for step in self._child_steps:
+            all_inputs.update(step.required_inputs)
+            all_outputs.update(step.provided_outputs)
+            all_tools.update(step.required_tools)
+            
+        # Remove outputs that are provided by earlier steps
+        provided_so_far = set()
+        for step in self._child_steps:
+            # Remove from required inputs if already provided
+            step_inputs = step.required_inputs - provided_so_far
+            # Add this step's outputs to provided
+            provided_so_far.update(step.provided_outputs)
+            
+        # Update the composite step's contracts
+        # Required inputs are any inputs needed by child steps that aren't provided by earlier steps
+        self.required_inputs = all_inputs - provided_so_far
+        # Provided outputs are all outputs from all child steps
+        self.provided_outputs = all_outputs
+        # Required tools are all tools from all child steps
+        self.required_tools = all_tools
+    
+    async def execute(self, context: AgentContext, host: MCPHost) -> Dict[str, Any]:
+        """
+        Execute all child steps in sequence.
+        
+        Args:
+            context: The context for execution
+            host: The MCP host for tool access
+            
+        Returns:
+            Combined outputs from all child steps
+        """
+        if not self._child_steps:
+            logger.warning(f"CompositeStep '{self.name}' has no child steps")
+            return {}
+            
+        all_outputs = {}
+        
+        # Execute each child step in sequence
+        for step in self._child_steps:
+            # Check if step should be executed based on its condition
+            context_data = context.data.model_dump() if hasattr(context.data, 'model_dump') else context.data
+            if not await step.should_execute(context_data):
+                logger.info(f"Skipping step '{step.name}' due to condition")
+                continue
+                
+            # Execute the step
+            outputs = await step.execute(context, host)
+            
+            # Add outputs to accumulated outputs
+            all_outputs.update(outputs)
+            
+        return all_outputs
+
+
+class MCPToolAdapter(Tool):
+    """
+    Adapter that makes an MCPHost tool conform to the Tool protocol.
+    """
+    
+    def __init__(self, name: str, description: str, mcp_host: MCPHost):
+        self._name = name
+        self._description = description
+        self.mcp_host = mcp_host
+        
+    @property
+    def name(self) -> str:
+        return self._name
+        
+    @property
+    def description(self) -> str:
+        return self._description
+        
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
+        # Call the MCP host tool
+        return await self.mcp_host.execute_tool(self.name, *args, **kwargs)
+
+
+class MCPToolProvider(ToolProvider):
+    """
+    Tool provider that wraps an MCPHost to provide tools.
+    """
+    
+    def __init__(self, mcp_host: MCPHost):
+        self.mcp_host = mcp_host
+        
+    async def get_tool(self, tool_name: str) -> Optional[Tool]:
+        if tool_name in self.mcp_host._tools:
+            tool_info = self.mcp_host._tools[tool_name]
+            return MCPToolAdapter(
+                name=tool_name,
+                description=tool_info.get("description", ""),
+                mcp_host=self.mcp_host
+            )
+        return None
+        
+    async def list_tools(self) -> List[str]:
+        return list(self.mcp_host._tools.keys())
+        
+    async def has_tool(self, tool_name: str) -> bool:
+        return tool_name in self.mcp_host._tools
 
 
 class BaseWorkflow(ABC):
@@ -168,8 +379,17 @@ class BaseWorkflow(ABC):
         self.global_error_handler: Optional[
             Callable[[WorkflowStep, Exception, Dict[str, Any]], None]
         ] = None
-        self.on_workflow_complete: Optional[Callable[[WorkflowContext], None]] = None
+        self.on_workflow_complete: Optional[Callable[[AgentContext], None]] = None
         self.context_validators: List[Callable[[Dict[str, Any]], bool]] = []
+        
+        # Tool provider wrapper for MCPHost
+        self.tool_provider = MCPToolProvider(host)
+        
+        # Middleware hooks
+        self.before_workflow_hooks: List[Callable[[AgentContext], Awaitable[None]]] = []
+        self.after_workflow_hooks: List[Callable[[AgentContext], Awaitable[None]]] = []
+        self.before_step_hooks: List[Callable[[WorkflowStep, AgentContext], Awaitable[None]]] = []
+        self.after_step_hooks: List[Callable[[WorkflowStep, AgentContext, StepResult], Awaitable[None]]] = []
 
     async def initialize(self):
         """Initialize the workflow"""
@@ -186,10 +406,10 @@ class BaseWorkflow(ABC):
         for step in self.steps:
             all_required_tools.update(step.required_tools)
 
-        # Check if tools are available through host
+        # Check if tools are available through tool provider
         unavailable_tools = []
         for tool in all_required_tools:
-            if tool not in self.host._tools:
+            if not await self.tool_provider.has_tool(tool):
                 unavailable_tools.append(tool)
 
         if unavailable_tools:
@@ -248,6 +468,42 @@ class BaseWorkflow(ABC):
             validator: The validator function
         """
         self.context_validators.append(validator)
+        
+    def add_before_workflow_hook(self, hook: Callable[[AgentContext], Awaitable[None]]):
+        """
+        Add a hook to run before workflow execution.
+        
+        Args:
+            hook: The hook function to run before workflow execution
+        """
+        self.before_workflow_hooks.append(hook)
+        
+    def add_after_workflow_hook(self, hook: Callable[[AgentContext], Awaitable[None]]):
+        """
+        Add a hook to run after workflow execution.
+        
+        Args:
+            hook: The hook function to run after workflow execution
+        """
+        self.after_workflow_hooks.append(hook)
+        
+    def add_before_step_hook(self, hook: Callable[[WorkflowStep, AgentContext], Awaitable[None]]):
+        """
+        Add a hook to run before each step execution.
+        
+        Args:
+            hook: The hook function to run before step execution
+        """
+        self.before_step_hooks.append(hook)
+        
+    def add_after_step_hook(self, hook: Callable[[WorkflowStep, AgentContext, StepResult], Awaitable[None]]):
+        """
+        Add a hook to run after each step execution.
+        
+        Args:
+            hook: The hook function to run after step execution
+        """
+        self.after_step_hooks.append(hook)
 
     def validate_context(self, context: Dict[str, Any]) -> bool:
         """
@@ -313,78 +569,65 @@ class BaseWorkflow(ABC):
                 status=StepStatus.FAILED,
                 error=ValueError(f"Step '{step.name}' missing required inputs"),
             )
-
-        # Try to execute the step with retries
-        attempts = 0
-        while attempts <= step.max_retries:
-            attempts += 1
-
-            # Record start time
+            
+        # Define the actual execution function
+        async def execute_with_validation():
+            # Create a context for the step
+            step_context = AgentContext(data=AgentData(**context_data.copy()))
+            
+            # Execute step
+            outputs = await step.execute(step_context, self.host)
+            
+            # Validate outputs
+            if not step.validate_outputs(outputs):
+                raise ValueError(f"Step '{step.name}' missing promised outputs")
+                
+            return outputs
+        
+        # Handle error callback
+        async def handle_error(error: Exception, attempt: int):
+            await self.handle_step_error(step, error, context_data)
+        
+        # Use the retry decorator
+        try:
             start_time = time.time()
-
-            try:
-                # Create a workflow context for the step
-                step_context = WorkflowContext(data=context_data.copy())
-
-                # Execute step with timeout
-                step_task = asyncio.create_task(step.execute(step_context, self.host))
-                outputs = await asyncio.wait_for(step_task, timeout=step.timeout)
-
-                # Calculate execution time
-                execution_time = time.time() - start_time
-
-                # Validate outputs
-                if not step.validate_outputs(outputs):
-                    raise ValueError(f"Step '{step.name}' missing promised outputs")
-
-                # Return successful result
-                return StepResult(
-                    status=StepStatus.COMPLETED,
-                    outputs=outputs,
-                    execution_time=execution_time,
-                )
-
-            except asyncio.TimeoutError:
-                logger.warning(
+            
+            # Apply the decorator dynamically
+            decorated_execute = with_retries(
+                max_retries=step.max_retries,
+                retry_delay=step.retry_delay,
+                exponential_backoff=True,
+                timeout=step.timeout,
+                on_retry=lambda e, a: asyncio.create_task(handle_error(e, a))
+            )(execute_with_validation)
+            
+            # Execute with retries
+            outputs = await decorated_execute()
+            
+            # Calculate execution time
+            execution_time = time.time() - start_time
+            
+            # Return successful result
+            return StepResult(
+                status=StepStatus.COMPLETED,
+                outputs=outputs,
+                execution_time=execution_time,
+            )
+            
+        except asyncio.TimeoutError as e:
+            return StepResult(
+                status=StepStatus.FAILED,
+                error=asyncio.TimeoutError(
                     f"Step '{step.name}' timed out after {step.timeout} seconds"
-                )
-                # If this was the last attempt, return failure
-                if attempts > step.max_retries:
-                    return StepResult(
-                        status=StepStatus.FAILED,
-                        error=asyncio.TimeoutError(
-                            f"Step '{step.name}' timed out after {step.timeout} seconds"
-                        ),
-                    )
-
-            except Exception as e:
-                logger.warning(f"Step '{step.name}' failed on attempt {attempts}: {e}")
-                # Handle the error
-                await self.handle_step_error(step, e, context_data)
-
-                # If this was the last attempt, return failure
-                if attempts > step.max_retries:
-                    return StepResult(status=StepStatus.FAILED, error=e)
-
-            # Wait before retrying
-            if attempts <= step.max_retries:
-                retry_delay = step.retry_delay * (
-                    2 ** (attempts - 1)
-                )  # Exponential backoff
-                logger.info(f"Retrying step '{step.name}' in {retry_delay} seconds")
-                await asyncio.sleep(retry_delay)
-
-        # Should never reach here, but just in case
-        return StepResult(
-            status=StepStatus.FAILED,
-            error=RuntimeError(
-                f"Step '{step.name}' failed after {step.max_retries} retries"
-            ),
-        )
+                ),
+            )
+            
+        except Exception as e:
+            return StepResult(status=StepStatus.FAILED, error=e)
 
     async def execute(
         self, input_data: Dict[str, Any], metadata: Dict[str, Any] = None
-    ) -> WorkflowContext:
+    ) -> AgentContext:
         """
         Execute the workflow with the given input data.
 
@@ -395,71 +638,102 @@ class BaseWorkflow(ABC):
         Returns:
             The final workflow context
         """
-        # Initialize context
-        workflow_context = WorkflowContext(
-            data=input_data.copy(), metadata=metadata.copy() if metadata else {}
+        # Initialize context with dictionary data for backward compatibility
+        agent_context = AgentContext(
+            data=AgentData(**input_data), metadata=metadata.copy() if metadata else {}
         )
-
+        
         logger.info(f"Starting execution of workflow: {self.name}")
+        
+        # Run before workflow hooks
+        for hook in self.before_workflow_hooks:
+            try:
+                await hook(agent_context)
+            except Exception as e:
+                logger.error(f"Error in before workflow hook: {e}")
 
-        # Validate initial context
-        if not self.validate_context(workflow_context.data):
-            logger.error("Initial workflow context failed validation")
-            workflow_context.add_step_result(
+        # Validate initial context with proper handling for Pydantic models
+        context_data = agent_context.data.model_dump() if hasattr(agent_context.data, 'model_dump') else agent_context.data
+        if not self.validate_context(context_data):
+            logger.error("Initial context failed validation")
+            agent_context.add_step_result(
                 "context_validation",
                 StepResult(
                     status=StepStatus.FAILED,
-                    error=ValueError("Initial workflow context failed validation"),
+                    error=ValueError("Initial context failed validation"),
                 ),
             )
-            workflow_context.complete()
-            return workflow_context
+            agent_context.complete()
+            return agent_context
 
         # Execute each step in sequence
         for step in self.steps:
             # Check if step should be executed based on its condition
-            if not await step.should_execute(workflow_context.data):
+            context_data = agent_context.data.model_dump() if hasattr(agent_context.data, 'model_dump') else agent_context.data
+            if not await step.should_execute(context_data):
                 logger.info(f"Skipping step '{step.name}' due to condition")
-                workflow_context.add_step_result(
+                agent_context.add_step_result(
                     step.name, StepResult(status=StepStatus.SKIPPED)
                 )
                 continue
 
             # Log step execution
             logger.info(f"Executing step: {step.name}")
+            
+            # Run before step hooks
+            for hook in self.before_step_hooks:
+                try:
+                    await hook(step, agent_context)
+                except Exception as e:
+                    logger.error(f"Error in before step hook for step '{step.name}': {e}")
 
             # Execute the step
-            result = await self.execute_step(step, workflow_context.data)
+            context_data = agent_context.data.model_dump() if hasattr(agent_context.data, 'model_dump') else agent_context.data
+            result = await self.execute_step(step, context_data)
 
             # Store result in context
-            workflow_context.add_step_result(step.name, result)
+            agent_context.add_step_result(step.name, result)
+            
+            # Run after step hooks
+            for hook in self.after_step_hooks:
+                try:
+                    await hook(step, agent_context, result)
+                except Exception as e:
+                    logger.error(f"Error in after step hook for step '{step.name}': {e}")
 
             # If step failed, stop workflow execution
             if result.status == StepStatus.FAILED:
                 logger.error(
                     f"Workflow '{self.name}' stopped due to failed step: {step.name}"
                 )
-                workflow_context.complete()
-                return workflow_context
+                agent_context.complete()
+                return agent_context
 
             # If step completed successfully, update context with outputs
             if result.status == StepStatus.COMPLETED:
-                workflow_context.data.update(result.outputs)
+                agent_context.data.update(result.outputs)
 
         # Mark workflow as complete
-        workflow_context.complete()
+        agent_context.complete()
 
         # Call completion callback if set
         if self.on_workflow_complete:
             try:
-                self.on_workflow_complete(workflow_context)
+                self.on_workflow_complete(agent_context)
             except Exception as e:
                 logger.error(f"Error in workflow completion callback: {e}")
+                
+        # Run after workflow hooks
+        for hook in self.after_workflow_hooks:
+            try:
+                await hook(agent_context)
+            except Exception as e:
+                logger.error(f"Error in after workflow hook: {e}")
 
         logger.info(
-            f"Workflow '{self.name}' completed in {workflow_context.get_execution_time():.2f} seconds"
+            f"Workflow '{self.name}' completed in {agent_context.get_execution_time():.2f} seconds"
         )
-        return workflow_context
+        return agent_context
 
     async def shutdown(self):
         """Clean up resources used by the workflow"""

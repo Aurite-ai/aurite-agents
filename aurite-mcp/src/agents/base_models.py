@@ -1,8 +1,13 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional, Set, TypeVar, Generic, ClassVar
 import time
-from loguru import logger
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing import get_type_hints
+
+from .base_utils import validate_required_fields, summarize_execution_results
+
+T = TypeVar('T', bound=BaseModel)
 
 
 class StepStatus(Enum):
@@ -26,8 +31,16 @@ class StepResult:
     metrics: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class WorkflowContext:
+class AgentData(BaseModel):
+    """
+    Base model for agent context data.
+    
+    This can be extended to create specific data models for different agent types.
+    """
+    model_config = ConfigDict(extra="allow")  # Allow extra fields
+
+
+class AgentContext(Generic[T]):
     """
     Context for agent execution.
 
@@ -38,23 +51,38 @@ class WorkflowContext:
 
     The context maintains all state during execution and serves as both
     the input carrier and output container.
+    
+    Can be used with a specific data model:
+    context = AgentContext[CustomDataModel](data=CustomDataModel(...))
+    
+    Or with the default AgentData model:
+    context = AgentContext(data=AgentData(field1="value"))
     """
 
-    # Core data that flows through the execution
-    data: Dict[str, Any] = field(default_factory=dict)
-
-    # Metadata about the execution (not used directly in processing)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    # Fields that must be present in data for execution to start
-    required_fields: Set[str] = field(default_factory=set)
-
-    # For workflow tracking
-    step_results: Dict[str, StepResult] = field(default_factory=dict)
-
-    # For performance tracking
-    start_time: float = field(default_factory=time.time)
-    end_time: Optional[float] = None
+    def __init__(
+        self, 
+        data: Optional[T] = None, 
+        metadata: Optional[Dict[str, Any]] = None,
+        required_fields: Optional[Set[str]] = None
+    ):
+        # Set up the data model
+        if data is None:
+            self.data = AgentData()
+        else:
+            self.data = data
+            
+        # Metadata about the execution (not used directly in processing)
+        self.metadata: Dict[str, Any] = metadata or {}
+        
+        # Fields that must be present in data for execution to start
+        self.required_fields: Set[str] = required_fields or set()
+        
+        # For workflow tracking
+        self.step_results: Dict[str, StepResult] = {}
+        
+        # For performance tracking
+        self.start_time: float = time.time()
+        self.end_time: Optional[float] = None
 
     def validate(self) -> bool:
         """
@@ -64,11 +92,21 @@ class WorkflowContext:
         Returns:
             True if all required fields are present, False otherwise
         """
-        for field_name in self.required_fields:
-            if field_name not in self.data:
-                logger.error(f"Context missing required field: {field_name}")
-                return False
-        return True
+        if isinstance(self.data, BaseModel):
+            # Use Pydantic's built-in validation if data is a BaseModel
+            data_dict = self.data.model_dump()
+            return validate_required_fields(
+                data=data_dict, 
+                required_fields=self.required_fields, 
+                context_name="Context"
+            )
+        else:
+            # Fallback for non-Pydantic data (should not happen with proper typing)
+            return validate_required_fields(
+                data=self.data, 
+                required_fields=self.required_fields, 
+                context_name="Context"
+            )
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -82,7 +120,14 @@ class WorkflowContext:
         Returns:
             The value associated with the key, or the default
         """
-        return self.data.get(key, default)
+        if isinstance(self.data, BaseModel):
+            try:
+                return getattr(self.data, key)
+            except AttributeError:
+                return default
+        else:
+            # Fallback for dict-like access
+            return getattr(self.data, "get", lambda k, d: d)(key, default)
 
     def set(self, key: str, value: Any) -> None:
         """
@@ -92,7 +137,14 @@ class WorkflowContext:
             key: The key to set
             value: The value to store
         """
-        self.data[key] = value
+        if isinstance(self.data, BaseModel):
+            setattr(self.data, key, value)
+        else:
+            # Fallback for dict-like access
+            if hasattr(self.data, "__setitem__"):
+                self.data[key] = value
+            else:
+                setattr(self.data, key, value)
 
     def add_step_result(self, step_name: str, result: StepResult):
         """
@@ -140,27 +192,34 @@ class WorkflowContext:
         Returns:
             Dictionary summarizing the execution results
         """
-        return {
-            "success": all(
-                r.status == StepStatus.COMPLETED for r in self.step_results.values()
-            ),
-            "execution_time": self.get_execution_time(),
-            "steps_completed": len(
-                [
-                    r
-                    for r in self.step_results.values()
-                    if r.status == StepStatus.COMPLETED
-                ]
-            ),
-            "steps_failed": len(
-                [r for r in self.step_results.values() if r.status == StepStatus.FAILED]
-            ),
-            "steps_skipped": len(
-                [
-                    r
-                    for r in self.step_results.values()
-                    if r.status == StepStatus.SKIPPED
-                ]
-            ),
-            "data": self.data,
-        }
+        # Convert Pydantic model to dict if needed
+        data_dict = self.data.model_dump() if isinstance(self.data, BaseModel) else self.data
+        
+        return summarize_execution_results(
+            step_results=self.step_results,
+            data=data_dict,
+            execution_time=self.get_execution_time(),
+            status_enum=StepStatus,
+        )
+        
+    @classmethod
+    def create_model(cls, **field_definitions):
+        """
+        Create a custom AgentData model with the given field definitions.
+        
+        Usage:
+            CustomContext = AgentContext.create_model(
+                name=str,
+                age=int,
+                email=(str, ...),  # Required field
+            )
+            context = CustomContext(data={"name": "Alice", "age": 30, "email": "alice@example.com"})
+            
+        Returns:
+            An AgentContext class with a custom data model
+        """
+        # Create a Pydantic model with the given fields
+        DataModel = create_model("CustomAgentData", **field_definitions, __base__=AgentData)
+        
+        # Return a new context instance with the custom model
+        return lambda **kwargs: cls(data=DataModel(**kwargs))
