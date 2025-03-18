@@ -153,8 +153,10 @@ class CreatePlanStep(WorkflowStep):
         }
 
     def _extract_content(self, result: Dict[str, Any]) -> str:
-        """Extract the plan content from the LLM response"""
+        """Extract the plan content from the LLM response and remove any thinking tags"""
         # Try to find the actual text content in the result
+        content = ""
+        
         if "final_response" in result:
             final_response = result.get("final_response")
             
@@ -166,14 +168,14 @@ class CreatePlanStep(WorkflowStep):
                         text_content += block.text
                 
                 if text_content:
-                    return text_content
+                    content = text_content
         
         # If we couldn't extract content from the structured response, try other methods
-        if "raw_response" in result and result["raw_response"]:
-            return result["raw_response"]
+        if not content and "raw_response" in result and result["raw_response"]:
+            content = result["raw_response"]
             
         # Fallback to conversation history
-        if "conversation" in result and result["conversation"]:
+        if not content and "conversation" in result and result["conversation"]:
             for message in reversed(result["conversation"]):
                 if message.get("role") == "assistant":
                     if isinstance(message.get("content"), list):
@@ -183,13 +185,28 @@ class CreatePlanStep(WorkflowStep):
                             if isinstance(block, dict) and "text" in block:
                                 text_content += block["text"]
                         if text_content:
-                            return text_content
+                            content = text_content
+                            break
                     elif isinstance(message.get("content"), str):
-                        return message["content"]
+                        content = message["content"]
+                        break
         
-        # Last resort fallback - empty content
-        logger.warning("Could not extract plan content from LLM response")
-        return "No plan content could be extracted from the LLM response."
+        # If we still don't have content, use fallback message
+        if not content:
+            logger.warning("Could not extract plan content from LLM response")
+            return "No plan content could be extracted from the LLM response."
+            
+        # Remove any thinking tags and their content
+        import re
+        cleaned_content = re.sub(r'<thinking>.*?</thinking>', '', content, flags=re.DOTALL)
+        
+        # If we removed everything, return the original content
+        if not cleaned_content.strip():
+            logger.warning("Cleaning removed all content, returning original")
+            return content
+            
+        logger.info(f"Cleaned content of {len(content) - len(cleaned_content)} characters of thinking tags")
+        return cleaned_content
 
 
 class PlanningWorkflow(BaseWorkflow):
