@@ -4,18 +4,13 @@ MCP Server for planning functionality.
 This server provides:
 1. A planning prompt that guides an LLM to create structured plans
 2. Tools for plan management:
-   - create_plan: Generate a structured plan based on a task
    - save_plan: Save a plan to disk with metadata
    - list_plans: List available plans with optional filtering
 3. Resources for plan retrieval and analysis
-4. Prompts for plan creation and analysis
-
-Plans are stored both on disk (for persistence) and in memory (for fast access).
 """
 
 import json
 import logging
-import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -125,7 +120,6 @@ async def save_plan(
 
     # Save plan content to file
     try:
-        # Skip notifications which might cause timeouts
         logger.info(f"Saving plan: {plan_name}")
 
         with open(plan_path, "w") as f:
@@ -169,7 +163,6 @@ async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str
         Dictionary with list of available plans
     """
     try:
-        # Skip notifications which might cause timeouts
         logger.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
 
         # Filter plans by tag if specified
@@ -205,142 +198,32 @@ async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str
         }
 
 
-@mcp.tool()
-async def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
-    """
-    Delete a saved plan by name.
-
-    Args:
-        plan_name: Name of the plan to delete
-
-    Returns:
-        Dictionary with deletion status and information about the deleted plan
-    """
-    try:
-        # Skip notifications which might cause timeouts
-        logger.info(f"Deleting plan: {plan_name}")
-
-        # Sanitize plan name
-        plan_name = plan_name.replace("/", "_").replace("\\", "_")
-
-        # Check if plan exists in cache
-        plan_existed_in_cache = plan_name in plans_cache
-
-        # Store plan data for the response if it exists
-        deleted_plan_info = None
-        if plan_existed_in_cache:
-            deleted_plan_info = {
-                "name": plan_name,
-                "path": plans_cache[plan_name]["path"],
-                "tags": plans_cache[plan_name]["metadata"].get("tags", []),
-                "created_at": plans_cache[plan_name]["metadata"].get(
-                    "created_at", "Unknown"
-                ),
-            }
-
-        # Create file paths
-        plan_path = PLANS_DIR / f"{plan_name}.txt"
-        metadata_path = PLANS_DIR / f"{plan_name}.meta.json"
-
-        # Check if files exist before trying to delete
-        plan_file_existed = plan_path.exists()
-        metadata_file_existed = metadata_path.exists()
-
-        if not plan_file_existed and not plan_existed_in_cache:
-            return {
-                "success": False,
-                "message": f"Plan '{plan_name}' not found",
-            }
-
-        # Delete the files and cache entry
-        files_deleted = []
-
-        if plan_file_existed:
-            plan_path.unlink()
-            files_deleted.append(str(plan_path))
-
-        if metadata_file_existed:
-            metadata_path.unlink()
-            files_deleted.append(str(metadata_path))
-
-        if plan_existed_in_cache:
-            del plans_cache[plan_name]
-
-        # Create response with detailed information
-        return {
-            "success": True,
-            "message": f"Plan '{plan_name}' deleted successfully",
-            "files_deleted": files_deleted,
-            "plan_info": deleted_plan_info,
-        }
-
-    except Exception as e:
-        logger.error(f"Error deleting plan: {e}")
-        return {
-            "success": False,
-            "message": f"Failed to delete plan: {str(e)}",
-        }
-
-
 @mcp.prompt("create_plan_prompt")
-def planning_prompt(task: str, timeframe: str = None, resources: str = None) -> str:
+def planning_prompt() -> str:
     """
     Generate a structured planning prompt.
-
-    Args:
-        task: The task to create a plan for
-        timeframe: Optional timeframe for the plan (e.g., '1 day', '1 week', '1 month')
-        resources: Optional comma-separated list of available resources
 
     Returns:
         Structured planning prompt
     """
     # Build the structured prompt
-    prompt = f"""
+    prompt = """
 # Planning Task
 
-You are an AI planning assistant. Your job is to create a detailed, structured plan for the following task:
+You are an AI planning assistant. Your job is to create a detailed, structured plan.
 
-## Task Description
-{task}
+## Important Instructions
 
-"""
-    # Add timeframe if provided
-    if timeframe:
-        prompt += f"""
-## Timeframe
-{timeframe}
-"""
+- ONLY include the plan content in your response
+- DO NOT include meta-commentary about the plan
+- DO NOT include phrases like "here's the plan" or "I've created a plan"
+- Start directly with the plan content
+- NEVER include any text about saving the plan or what you've created
+- DO NOT explain what you just did or will do
+- Focus on creating specific, actionable steps
 
-    # Add resources if provided
-    if resources:
-        # Convert comma-separated string to list of bullet points
-        resources_list = [r.strip() for r in resources.split(",")]
-        resources_text = "\n".join(
-            [f"- {resource}" for resource in resources_list if resource]
-        )
-
-        if resources_text:
-            prompt += f"""
-## Available Resources
-{resources_text}
-"""
-
-    # Add standard planning structure
-    prompt += """
-## Planning Guidelines
-
-Create a structured plan that includes:
-
-1. **Objective**: Clear statement of the goal and success criteria
-2. **Key Steps**: Ordered list of major steps to accomplish the task
-3. **Timeline**: Estimated time for each step
-4. **Dependencies**: Any dependencies between steps
-5. **Resources Required**: What's needed for each step
-6. **Potential Challenges**: Risks and mitigation strategies
-7. **Success Metrics**: How to measure if the plan succeeded
-
-Your plan should be realistic, well-structured, and actionable.
+Your plan should be realistic, well-structured, and actionable. Include clear steps, timeframes,
+resources needed, and success metrics.
 """
 
     return prompt
@@ -373,33 +256,6 @@ def plan_resource(plan_name: str) -> str:
     result += plan["content"]
 
     return result
-
-
-@mcp.prompt("plan_analysis_prompt")
-def plan_analysis_prompt(plan_name: str = "") -> str:
-    """
-    Create a prompt for analyzing an existing plan.
-
-    Args:
-        plan_name: Name of the plan to analyze
-    """
-    if plan_name and plan_name in plans_cache:
-        return f"""I'd like to analyze the existing plan named "{plan_name}".
-
-Please help me:
-1. Review the plan structure and content
-2. Identify any gaps or inconsistencies
-3. Suggest improvements to the plan
-4. Evaluate if the plan is realistic and achievable
-5. Consider potential risks that might not be addressed
-
-You can access the full plan using the planning://plan/{plan_name} resource.
-"""
-    else:
-        return """I'd like to analyze an existing plan.
-
-Please first list the available plans using the list_plans tool, then I'll select one for analysis.
-"""
 
 
 # Allow direct execution of the server
