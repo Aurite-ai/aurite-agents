@@ -125,12 +125,8 @@ async def save_plan(
 
     # Save plan content to file
     try:
-        if ctx:
-            # Check if info is a coroutine function that needs to be awaited
-            if asyncio.iscoroutinefunction(ctx.info):
-                await ctx.info(f"Saving plan: {plan_name}")
-            else:
-                ctx.info(f"Saving plan: {plan_name}")
+        # Skip notifications which might cause timeouts
+        logger.info(f"Saving plan: {plan_name}")
 
         with open(plan_path, "w") as f:
             f.write(plan_content)
@@ -173,12 +169,8 @@ async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str
         Dictionary with list of available plans
     """
     try:
-        if ctx:
-            # Check if info is a coroutine function that needs to be awaited
-            if asyncio.iscoroutinefunction(ctx.info):
-                await ctx.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
-            else:
-                ctx.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
+        # Skip notifications which might cause timeouts
+        logger.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
 
         # Filter plans by tag if specified
         if tag:
@@ -225,12 +217,8 @@ async def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
         Dictionary with deletion status and information about the deleted plan
     """
     try:
-        if ctx:
-            # Check if info is a coroutine function that needs to be awaited
-            if asyncio.iscoroutinefunction(ctx.info):
-                await ctx.info(f"Deleting plan: {plan_name}")
-            else:
-                ctx.info(f"Deleting plan: {plan_name}")
+        # Skip notifications which might cause timeouts
+        logger.info(f"Deleting plan: {plan_name}")
 
         # Sanitize plan name
         plan_name = plan_name.replace("/", "_").replace("\\", "_")

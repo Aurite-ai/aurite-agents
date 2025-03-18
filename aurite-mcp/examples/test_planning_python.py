@@ -118,10 +118,15 @@ async def run_planning_workflow():
         if hasattr(workflow, "steps") and len(workflow.steps) > 0:
             # Add higher timeouts to prevent retry issues
             for step in workflow.steps:
-                # Increase timeout for all steps
-                step.timeout = 90.0  # 90 seconds timeout
-                # Reduce max retries to minimize duplicates
-                step.max_retries = 1  # Only retry once
+                # Increase timeout for save step, which seems to have issues
+                if step.name == "save_plan":
+                    step.timeout = 5.0  # Short timeout for save plan to fail fast
+                    step.max_retries = 0  # No retries for save plan - if it fails, just continue
+                else:
+                    # Normal settings for other steps
+                    step.timeout = 120.0  # 2 minutes timeout
+                    step.max_retries = 1  # Only retry once
+                
                 # Log config
                 logger.info(f"Configured step {step.name} with timeout={step.timeout}s, max_retries={step.max_retries}")
         
