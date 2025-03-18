@@ -9,7 +9,6 @@ using the MCP server's tools.
 import logging
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
-from pathlib import Path
 
 from ..base_workflow import BaseWorkflow, WorkflowStep
 from ..base_models import AgentContext
@@ -81,23 +80,29 @@ class CreatePlanStep(WorkflowStep):
             # Check if the LLM used the save_plan tool
             tool_used = False
             save_result = None
-            
+
             if "tool_uses" in result and result["tool_uses"]:
                 for tool_use in result["tool_uses"]:
                     if "id" in tool_use and "save_plan" in str(tool_use):
                         tool_used = True
                         logger.info("LLM used save_plan tool")
-                        
+
                         # Try to extract the save_result
                         if "content" in tool_use:
                             for content in tool_use["content"]:
                                 if "text" in content and "success" in content["text"]:
                                     try:
                                         import json
+
                                         save_result = json.loads(content["text"])
-                                        logger.info(f"Extracted save result: {save_result}")
+                                        logger.info(
+                                            f"Extracted save result: {save_result}"
+                                        )
                                     except:
-                                        save_result = {"success": True, "message": "Plan saved"}
+                                        save_result = {
+                                            "success": True,
+                                            "message": "Plan saved",
+                                        }
 
             # Extract plan content from the LLM response
             plan_content = self._extract_content(result)
@@ -105,24 +110,26 @@ class CreatePlanStep(WorkflowStep):
 
             # If the LLM didn't use the save_plan tool, we need to save it manually
             if not tool_used and context.tool_manager:
-                logger.info(f"LLM didn't use save_plan tool, saving plan manually")
-                
+                logger.info("LLM didn't use save_plan tool, saving plan manually")
+
                 # Process resources to get tags
                 tags = []
                 if resources:
                     if isinstance(resources, list):
                         tags = [r.strip() for r in resources if r]
                     else:
-                        tags = [r.strip() for r in str(resources).split(",") if r.strip()]
-                
+                        tags = [
+                            r.strip() for r in str(resources).split(",") if r.strip()
+                        ]
+
                 # Save the plan using the tool manager
                 save_result = await context.tool_manager.execute_tool(
                     "save_plan",
                     {
                         "plan_name": plan_name,
                         "plan_content": plan_content,
-                        "tags": tags
-                    }
+                        "tags": tags,
+                    },
                 )
                 logger.info(f"Manual save result: {save_result}")
 
@@ -141,39 +148,48 @@ class CreatePlanStep(WorkflowStep):
 
         # Store results in context
         context.set("plan_content", plan_content)
-        context.set("save_result", save_result if save_result else {"success": True, "message": "Plan processed"})
+        context.set(
+            "save_result",
+            save_result
+            if save_result
+            else {"success": True, "message": "Plan processed"},
+        )
         context.set("plan_path", plan_path)
 
         # Return the outputs
         return {
             "plan_content": plan_content,
-            "save_result": save_result if save_result else {"success": True, "message": "Plan processed"},
+            "save_result": save_result
+            if save_result
+            else {"success": True, "message": "Plan processed"},
             "plan_path": plan_path,
-            "execution_details": result
+            "execution_details": result,
         }
 
     def _extract_content(self, result: Dict[str, Any]) -> str:
         """Extract the plan content from the LLM response and remove any thinking tags"""
         # Try to find the actual text content in the result
         content = ""
-        
+
         if "final_response" in result:
             final_response = result.get("final_response")
-            
+
             # If the response has content blocks (Claude API format)
-            if hasattr(final_response, "content") and isinstance(final_response.content, list):
+            if hasattr(final_response, "content") and isinstance(
+                final_response.content, list
+            ):
                 text_content = ""
                 for block in final_response.content:
                     if hasattr(block, "text") and block.type == "text":
                         text_content += block.text
-                
+
                 if text_content:
                     content = text_content
-        
+
         # If we couldn't extract content from the structured response, try other methods
         if not content and "raw_response" in result and result["raw_response"]:
             content = result["raw_response"]
-            
+
         # Fallback to conversation history
         if not content and "conversation" in result and result["conversation"]:
             for message in reversed(result["conversation"]):
@@ -190,43 +206,50 @@ class CreatePlanStep(WorkflowStep):
                     elif isinstance(message.get("content"), str):
                         content = message["content"]
                         break
-        
+
         # If we still don't have content, use fallback message
         if not content:
             logger.warning("Could not extract plan content from LLM response")
             return "No plan content could be extracted from the LLM response."
-            
+
         # Remove any thinking tags and their content
         import re
-        cleaned_content = re.sub(r'<thinking>.*?</thinking>', '', content, flags=re.DOTALL)
-        
+
+        cleaned_content = re.sub(
+            r"<thinking>.*?</thinking>", "", content, flags=re.DOTALL
+        )
+
         # If we removed everything, return the original content
         if not cleaned_content.strip():
             logger.warning("Cleaning removed all content, returning original")
             return content
-            
-        logger.info(f"Cleaned content of {len(content) - len(cleaned_content)} characters of thinking tags")
+
+        logger.info(
+            f"Cleaned content of {len(content) - len(cleaned_content)} characters of thinking tags"
+        )
         return cleaned_content
 
 
 class PlanningWorkflow(BaseWorkflow):
     """
     Simplified workflow for creating and saving plans.
-    
+
     This workflow uses a single step that combines plan creation and saving,
     leveraging the host's execute_prompt_with_tools method for both operations.
     """
-    
-    def __init__(self, tool_manager: ToolManager, name: str = "planning_workflow", host=None):
+
+    def __init__(
+        self, tool_manager: ToolManager, name: str = "planning_workflow", host=None
+    ):
         """Initialize the planning workflow"""
         super().__init__(tool_manager, name=name, host=host)
-        
+
         # Set description for documentation
         self.description = "Workflow for creating and saving plans"
-        
+
         # Add the single step
         self.add_step(CreatePlanStep())
-    
+
     async def create_plan(
         self,
         task: str,
@@ -237,14 +260,14 @@ class PlanningWorkflow(BaseWorkflow):
     ) -> Dict[str, Any]:
         """
         Convenience method to execute the workflow with specific parameters.
-        
+
         Args:
             task: The task to create a plan for
             plan_name: Name to save the plan as
             timeframe: Optional timeframe for the plan
             resources: Optional list of available resources
             custom_prompt_template: Optional custom prompt template
-        
+
         Returns:
             Dictionary with workflow results
         """
@@ -253,7 +276,7 @@ class PlanningWorkflow(BaseWorkflow):
             "task": task,
             "plan_name": plan_name,
         }
-        
+
         # Add optional parameters if provided
         if timeframe:
             input_data["timeframe"] = timeframe
@@ -261,9 +284,9 @@ class PlanningWorkflow(BaseWorkflow):
             input_data["resources"] = resources
         if custom_prompt_template:
             input_data["custom_prompt_template"] = custom_prompt_template
-        
+
         # Execute the workflow
         result_context = await self.execute(input_data)
-        
+
         # Return the summarized results
         return result_context.summarize_results()

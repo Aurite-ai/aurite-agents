@@ -11,13 +11,6 @@ This module provides:
 from .planning_server import mcp
 
 # Import the workflow and related classes
-from .planning_workflow import (
-    PlanningWorkflow,
-    CreatePlanStep
-)
+from .planning_workflow import PlanningWorkflow, CreatePlanStep
 
-__all__ = [
-    "mcp",
-    "PlanningWorkflow",
-    "CreatePlanStep"
-]
+__all__ = ["mcp", "PlanningWorkflow", "CreatePlanStep"]

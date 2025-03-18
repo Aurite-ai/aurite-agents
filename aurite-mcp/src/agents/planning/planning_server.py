@@ -17,7 +17,6 @@ from typing import Dict, Any, List, Optional
 
 # MCP imports
 from mcp.server.fastmcp import FastMCP, Context
-from mcp.types import Root
 
 # Set up logging
 logging.basicConfig(

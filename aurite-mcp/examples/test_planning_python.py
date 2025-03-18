@@ -57,7 +57,7 @@ async def run_planning_workflow():
                     # Register file:// root URI for plan storage
                     RootConfig(
                         uri="file://plans/",
-                        name="Plan Storage", 
+                        name="Plan Storage",
                         capabilities=["read", "write"],
                     ),
                 ],
@@ -96,41 +96,45 @@ async def run_planning_workflow():
         # Create a unique plan name based on timestamp
         timestamp = int(time.time())
         plan_name = f"python_learning_plan_{timestamp}"
-        
+
         # Input data for the workflow
         input_data = {
             "task": "Create a comprehensive Python learning plan for a beginner with some programming knowledge",
             "plan_name": plan_name,
             "timeframe": "3 months",
-            "resources": ["Books", "Online courses", "Practice exercises", "Coding projects"],
-            "custom_prompt_template": python_prompt_template
+            "resources": [
+                "Books",
+                "Online courses",
+                "Practice exercises",
+                "Coding projects",
+            ],
+            "custom_prompt_template": python_prompt_template,
         }
 
         # Execute the workflow
         logger.info(f"Creating Python learning plan: {plan_name}")
         result_context = await host.execute_workflow(
-            workflow_name=workflow_name, 
-            input_data=input_data
+            workflow_name=workflow_name, input_data=input_data
         )
-        
+
         # Use get_data_dict() instead of summarize_results() to avoid serialization issues
         result_data = result_context.get_data_dict()
-        
+
         # Check the result
         if "plan_content" in result_data:
-            logger.info(f"Python learning plan created successfully")
-            
+            logger.info("Python learning plan created successfully")
+
             # Get plan path from the result
             plan_path = result_data.get("plan_path", "Unknown")
             logger.info(f"Plan path: {plan_path}")
-            
+
             # Get the content
             content = result_data.get("plan_content", "")
-            
+
             # Print the first 200 characters as a preview
             preview = content[:200] + "..." if len(content) > 200 else content
             logger.info(f"Plan preview: {preview}")
-            
+
             # Try to read the file to verify it was saved
             try:
                 with open(plan_path, "r") as f:
@@ -138,12 +142,12 @@ async def run_planning_workflow():
                     logger.info(f"File size: {len(file_content)} characters")
             except Exception as e:
                 logger.warning(f"Could not read plan file: {e}")
-            
+
             return {
                 "success": True,
                 "plan_name": plan_name,
                 "plan_path": plan_path,
-                "content_length": len(content)
+                "content_length": len(content),
             }
         else:
             logger.error("Failed to create Python learning plan")

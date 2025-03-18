@@ -82,8 +82,11 @@ class AgentContext(Generic[T]):
             except TypeError as e:
                 # If we can't properly initialize with the data, use a simpler approach
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to initialize AgentData properly: {e}. Using fallback.")
+                logger.warning(
+                    f"Failed to initialize AgentData properly: {e}. Using fallback."
+                )
                 self.data = data  # Just use as-is and handle later
 
         # Metadata about the execution (not used directly in processing)
@@ -135,9 +138,9 @@ class AgentContext(Generic[T]):
             Dictionary representation of the context data
         """
         # First check if we have a fallback dictionary
-        if hasattr(self, '_fallback_dict'):
+        if hasattr(self, "_fallback_dict"):
             return self._fallback_dict.copy()  # Return a copy to avoid mutations
-            
+
         # Try the normal path
         try:
             if isinstance(self.data, BaseModel):
@@ -146,17 +149,19 @@ class AgentContext(Generic[T]):
                 return self.data
             elif hasattr(self.data, "__dict__"):
                 # For non-Pydantic objects with __dict__
-                return {k: v for k, v in self.data.__dict__.items() if not k.startswith("_")}
+                return {
+                    k: v for k, v in self.data.__dict__.items() if not k.startswith("_")
+                }
             else:
                 # Last resort, convert to string
                 return {"data": str(self.data)}
         except TypeError as e:
             # Handle serialization errors with MockValSer objects
             logger.warning(f"Serialization error in get_data_dict: {e}")
-            
+
             # Create a result dictionary
             result = {}
-            
+
             # Try to extract information from the data object
             if hasattr(self.data, "__dict__"):
                 for key, value in self.data.__dict__.items():
@@ -167,11 +172,11 @@ class AgentContext(Generic[T]):
                         result[key] = str(value)
                     else:
                         result[key] = value
-            
+
             # If we couldn't extract anything, return empty dict
             if not result:
                 return {"error": "Failed to convert data to dictionary"}
-                
+
             return result
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -188,15 +193,17 @@ class AgentContext(Generic[T]):
         """
         # First check our fallback dictionary if it exists
         # This is the most reliable source for data when working with mock objects
-        if hasattr(self, '_fallback_dict'):
+        if hasattr(self, "_fallback_dict"):
             if key in self._fallback_dict:
                 # Log when we successfully retrieve from fallback dict
                 logger.debug(f"Retrieved '{key}' from _fallback_dict")
                 return self._fallback_dict[key]
             else:
                 # Make this extra visible in logs
-                logger.warning(f"KEY NOT FOUND: '{key}' not in _fallback_dict. Available keys: {list(self._fallback_dict.keys())}")
-            
+                logger.warning(
+                    f"KEY NOT FOUND: '{key}' not in _fallback_dict. Available keys: {list(self._fallback_dict.keys())}"
+                )
+
         # Try the normal path
         try:
             if isinstance(self.data, BaseModel):
@@ -205,7 +212,9 @@ class AgentContext(Generic[T]):
                     logger.debug(f"Retrieved '{key}' from BaseModel data")
                     return value
                 except AttributeError:
-                    logger.warning(f"KEY NOT FOUND: '{key}' not in BaseModel attributes")
+                    logger.warning(
+                        f"KEY NOT FOUND: '{key}' not in BaseModel attributes"
+                    )
                     return default
             else:
                 # Fallback for dict-like access
@@ -225,7 +234,9 @@ class AgentContext(Generic[T]):
                         logger.warning(f"KEY NOT FOUND: '{key}' using __getitem__")
                         return default
                 else:
-                    logger.warning(f"No way to access '{key}' in data of type {type(self.data)}")
+                    logger.warning(
+                        f"No way to access '{key}' in data of type {type(self.data)}"
+                    )
                     return default
         except Exception as e:
             # Log the specific exception
@@ -253,21 +264,24 @@ class AgentContext(Generic[T]):
         except (TypeError, AttributeError) as e:
             # Handle serialization errors with MockValSer objects
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to set attribute {key} directly: {e}. Using fallback dictionary.")
-            
+            logger.warning(
+                f"Failed to set attribute {key} directly: {e}. Using fallback dictionary."
+            )
+
             # Create a backup dictionary if we don't have one yet
-            if not hasattr(self, '_fallback_dict'):
+            if not hasattr(self, "_fallback_dict"):
                 self._fallback_dict = {}
                 # Try to populate from existing data
                 try:
-                    if hasattr(self.data, '__dict__'):
+                    if hasattr(self.data, "__dict__"):
                         for k, v in self.data.__dict__.items():
-                            if not k.startswith('_'):
+                            if not k.startswith("_"):
                                 self._fallback_dict[k] = v
                 except Exception:
                     pass
-            
+
             # Update the fallback dictionary
             self._fallback_dict[key] = value
 
