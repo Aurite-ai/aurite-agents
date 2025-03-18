@@ -51,8 +51,11 @@ class PlanCreationStep(WorkflowStep):
             prompt_name="planning_prompt",
             client_id="planning",
             user_message_template=(
-                "I need to create a detailed plan for the following task: {task}. "
-                "Please name the plan '{plan_name}'{timeframe_text}{resources_text}."
+                "I need to create a detailed, specific plan for the following task: {task}. "
+                "Please provide a structured learning path with specific resources, concepts to master, "
+                "and practical projects to work on. The plan should be named '{plan_name}'"
+                "{timeframe_text}{resources_text}. "
+                "Be detailed, specific, and focus on actionable steps rather than generic advice."
             ),
             tool_names=["create_plan"],
             model="claude-3-opus-20240229",
