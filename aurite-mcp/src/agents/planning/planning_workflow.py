@@ -81,10 +81,12 @@ class PlanCreationStep(WorkflowStep):
         context.set("resources_text", resources_text)
             
         # Set the prompt arguments
+        # The prompt system expects resources as a string, while the tool expects a list
+        resources_str = ", ".join(resources) if isinstance(resources, list) else str(resources) if resources else ""
         self.prompt_arguments = {
             "task": task,
             "timeframe": timeframe,
-            "resources": ", ".join(resources) if resources else None,
+            "resources": resources_str,  # Pass resources as a string for the prompt
         }
         
         # Use the utility method that handles prompt-based execution
@@ -216,12 +218,19 @@ class PlanSaveStep(WorkflowStep):
         logger.info(f"PlanSaveStep using plan_name: {plan_name}")
 
         # Use the save_plan tool to save the plan
+        # Ensure resources is a list for the tags parameter
+        tags = resources if isinstance(resources, list) else None
+        
+        # If resources is a string, try to split it into a list
+        if isinstance(resources, str) and resources:
+            tags = [r.strip() for r in resources.split(',')]
+            
         result = await context.tool_manager.execute_tool(
             "save_plan",
             {
                 "plan_name": plan_name,
                 "plan_content": plan_content,
-                "tags": resources if resources else None,
+                "tags": tags,
             },
         )
 
