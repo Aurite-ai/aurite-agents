@@ -84,8 +84,9 @@ class AgentContext(Generic[T]):
         self.start_time: float = time.time()
         self.end_time: Optional[float] = None
 
-        # Reference to the tool manager - set by the workflow
+        # References to the tool manager and host - set by the workflow
         self.tool_manager = None
+        self.host = None
 
     def validate(self) -> bool:
         """
