@@ -21,6 +21,7 @@ from src.agents.examples.data_analysis_workflow import (
     DataLoadStep,
     StatisticalAnalysisStep,
     DataAnalysisContext,
+    PromptBasedReportStep,
 )
 from src.agents.base_models import StepStatus
 
@@ -125,22 +126,70 @@ def mock_tool_manager():
     return tool_manager
 
 
-# We don't need a mock host anymore, we use tool_manager directly
+@pytest.fixture
+def mock_host():
+    """Create a mock host for testing prompt-based execution"""
+    mock_host = MagicMock()
+
+    # Mock the execute_prompt_with_tools method
+    async def mock_execute_prompt_with_tools(
+        prompt_name, prompt_arguments, client_id, user_message, **kwargs
+    ):
+        """Mock prompt execution with predefined responses"""
+
+        # For testing, we return a structured response mimicking the real response format
+        # Create an object with a content attribute simulating the Anthropic response
+        class MockResponse:
+            def __init__(self, content):
+                self.content = content
+
+        final_response = MockResponse(
+            [
+                {"type": "text", "text": "# AI-Generated Data Analysis Report\n\n"},
+                {"type": "text", "text": "## Dataset Overview\n\n"},
+                {
+                    "type": "text",
+                    "text": "Dataset analysis complete with key metrics and insights.",
+                },
+            ]
+        )
+
+        return {
+            "conversation": [
+                {"role": "user", "content": user_message},
+                {
+                    "role": "assistant",
+                    "content": "Generated report based on data analysis",
+                },
+            ],
+            "final_response": final_response,
+            "tool_uses": [],
+        }
+
+    # Set up the mocked method
+    mock_host.execute_prompt_with_tools = AsyncMock(
+        side_effect=mock_execute_prompt_with_tools
+    )
+
+    return mock_host
 
 
 # Tests
 
 
 @pytest.mark.asyncio
-async def test_workflow_initialization(mock_tool_manager):
+async def test_workflow_initialization(mock_tool_manager, mock_host):
     """Test that the workflow initializes correctly"""
-    # Create workflow directly with tool_manager
-    workflow = DataAnalysisWorkflow(tool_manager=mock_tool_manager)
+    # Create workflow with tool_manager and host
+    workflow = DataAnalysisWorkflow(tool_manager=mock_tool_manager, host=mock_host)
 
     # Check that workflow is set up correctly
     assert workflow.name == "data_analysis_workflow"
-    assert len(workflow.steps) == 4  # 2 individual steps + 2 composite steps
+    assert (
+        len(workflow.steps) == 4
+    )  # 2 individual steps + 2 composite steps (commented out PromptBasedReportStep)
     assert workflow.tool_manager == mock_tool_manager
+    assert workflow.host == mock_host
 
     # Initialize workflow
     await workflow.initialize()
@@ -148,9 +197,15 @@ async def test_workflow_initialization(mock_tool_manager):
     # Verify tool validation was called
     mock_tool_manager.has_tool.assert_called()
 
+    # Uncomment the PromptBasedReportStep to use in tests
+    workflow.add_step(PromptBasedReportStep())
+    assert (
+        len(workflow.steps) == 5
+    )  # Now we have 5 steps including PromptBasedReportStep
+
 
 @pytest.mark.asyncio
-async def test_data_load_step(mock_tool_manager):
+async def test_data_load_step(mock_tool_manager, mock_host):
     """Test the data load step"""
     # Create step
     step = DataLoadStep()
@@ -167,8 +222,9 @@ async def test_data_load_step(mock_tool_manager):
         )
     )
     context.tool_manager = mock_tool_manager
+    context.host = mock_host  # Add host to context
 
-    # Execute step (no need to pass host anymore)
+    # Execute step
     result = await step.execute(context)
 
     # Verify tool was called correctly
@@ -183,7 +239,7 @@ async def test_data_load_step(mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_statistical_analysis_step(mock_tool_manager):
+async def test_statistical_analysis_step(mock_tool_manager, mock_host):
     """Test the statistical analysis step"""
     # Create step
     step = StatisticalAnalysisStep()
@@ -212,6 +268,7 @@ async def test_statistical_analysis_step(mock_tool_manager):
     # Create the context with get method
     context = AgentContext(data=data_model)
     context.tool_manager = mock_tool_manager
+    context.host = mock_host  # Add host to context
 
     # Execute step
     result = await step.execute(context)
@@ -225,11 +282,14 @@ async def test_statistical_analysis_step(mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_full_workflow_execution(mock_tool_manager):
+async def test_full_workflow_execution(mock_tool_manager, mock_host):
     """Test the full workflow execution"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_tool_manager)
+    workflow = DataAnalysisWorkflow(mock_tool_manager, host=mock_host)
     await workflow.initialize()
+
+    # Add the prompt-based step for testing
+    workflow.add_step(PromptBasedReportStep())
 
     # Create input data
     input_data = {
@@ -243,7 +303,7 @@ async def test_full_workflow_execution(mock_tool_manager):
     result_context = await workflow.execute(input_data)
 
     # Verify all steps were executed
-    assert len(result_context.step_results) >= 4
+    assert len(result_context.step_results) >= 5  # Including PromptBasedReportStep
 
     # Check that no steps failed
     assert all(
@@ -257,20 +317,36 @@ async def test_full_workflow_execution(mock_tool_manager):
     assert "data_quality_report" in data_dict
     assert "statistical_metrics" in data_dict
     assert "final_report" in data_dict
+    assert (
+        "prompt_execution_details" in data_dict
+    )  # New field from PromptBasedReportStep
+
+    # Verify the prompt-based step was executed
+    assert "prompt_based_report" in result_context.step_results
+    assert (
+        result_context.step_results["prompt_based_report"].status
+        == StepStatus.COMPLETED
+    )
+
+    # Verify host method was called
+    mock_host.execute_prompt_with_tools.assert_called()
 
     # Summarize results
     summary = result_context.summarize_results()
     assert summary["success"] is True
     assert "execution_time" in summary
-    assert summary["steps_completed"] >= 4
+    assert summary["steps_completed"] >= 5
 
 
 @pytest.mark.asyncio
-async def test_convenience_method(mock_tool_manager):
+async def test_convenience_method(mock_tool_manager, mock_host):
     """Test the convenience method for workflow execution"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_tool_manager)
+    workflow = DataAnalysisWorkflow(mock_tool_manager, host=mock_host)
     await workflow.initialize()
+
+    # Add the prompt-based step
+    workflow.add_step(PromptBasedReportStep())
 
     # Call convenience method
     results = await workflow.analyze_dataset(
@@ -285,13 +361,17 @@ async def test_convenience_method(mock_tool_manager):
     assert "execution_time" in results
     assert "data" in results
     assert "final_report" in results["data"]
+    assert "prompt_execution_details" in results["data"]
+
+    # Verify host method was called
+    mock_host.execute_prompt_with_tools.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_error_handling(mock_tool_manager):
+async def test_error_handling(mock_tool_manager, mock_host):
     """Test error handling in the workflow"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_tool_manager)
+    workflow = DataAnalysisWorkflow(mock_tool_manager, host=mock_host)
 
     # Mock error in tool execution
     async def mock_error_execute(*args, **kwargs):
@@ -326,10 +406,10 @@ async def test_error_handling(mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_hooks(mock_tool_manager):
+async def test_hooks(mock_tool_manager, mock_host):
     """Test that hooks are called correctly"""
     # Create workflow with mock hooks
-    workflow = DataAnalysisWorkflow(mock_tool_manager)
+    workflow = DataAnalysisWorkflow(mock_tool_manager, host=mock_host)
 
     # Replace hooks with mocks by replacing the hooks in before_workflow_hooks, etc.
     workflow.before_workflow_hooks = [AsyncMock()]
@@ -358,10 +438,10 @@ async def test_hooks(mock_tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_conditional_step_execution(mock_tool_manager):
+async def test_conditional_step_execution(mock_tool_manager, mock_host):
     """Test that steps with conditions are executed conditionally"""
     # Create workflow
-    workflow = DataAnalysisWorkflow(mock_tool_manager)
+    workflow = DataAnalysisWorkflow(mock_tool_manager, host=mock_host)
     await workflow.initialize()
 
     # Test with visualizations disabled
@@ -395,3 +475,49 @@ async def test_conditional_step_execution(mock_tool_manager):
         result_with_viz.get_step_result("generate_visualizations").status
         == StepStatus.COMPLETED
     )
+
+
+@pytest.mark.asyncio
+async def test_prompt_based_step(mock_tool_manager, mock_host):
+    """Test the prompt-based step execution"""
+    # Create the step
+    step = PromptBasedReportStep()
+
+    # Create context with required data
+    from src.agents.base_models import AgentContext
+
+    # Create the data model
+    data_model = DataAnalysisContext(
+        dataset_id="test_dataset",
+        analysis_type="comprehensive",
+        include_visualization=True,
+        max_rows=1000,
+    )
+    # Set required data fields
+    data_model.dataset_info = {
+        "id": "test_dataset",
+        "columns": ["column1", "column2", "column3"],
+    }
+    data_model.data_quality_report = {"overall_quality_score": 0.95}
+    data_model.statistical_metrics = {"descriptive_stats": {"column1": {"mean": 42.5}}}
+    data_model.analysis_results = {
+        "key_findings": ["Finding 1", "Finding 2"],
+        "recommendations": ["Recommendation 1"],
+    }
+
+    # Create context
+    context = AgentContext(data=data_model)
+    context.tool_manager = mock_tool_manager
+    context.host = mock_host
+
+    # Execute the step
+    result = await step.execute(context)
+
+    # Verify host.execute_prompt_with_tools was called
+    mock_host.execute_prompt_with_tools.assert_called_once()
+
+    # Verify results
+    assert "final_report" in result
+    assert "prompt_execution_details" in result
+    assert isinstance(result["final_report"], str)
+    assert "AI-Generated Data Analysis Report" in result["final_report"]

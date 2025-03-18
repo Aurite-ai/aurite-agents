@@ -43,6 +43,9 @@ class WorkflowStep(ABC):
     4. Can include optional execution conditions
 
     Used by both sequential workflows and hybrid agents.
+
+    Supports both direct tool execution and prompt-based execution
+    using the host's execute_prompt_with_tools method.
     """
 
     name: str
@@ -66,18 +69,96 @@ class WorkflowStep(ABC):
     # Child steps for composition support
     _child_steps: List["WorkflowStep"] = field(default_factory=list)
 
+    # Optional prompt-based execution fields
+    prompt_name: Optional[str] = None
+    prompt_arguments: Dict[str, Any] = field(default_factory=dict)
+    client_id: str = "default"
+    user_message_template: Optional[str] = None
+    tool_names: Optional[List[str]] = None
+    model: str = "claude-3-opus-20240229"
+    max_tokens: int = 4096
+    temperature: float = 0.7
+
     @abstractmethod
     async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """
         Execute the step with the given context.
 
         Args:
-            context: The current workflow context (contains tools via context.tool_manager)
+            context: The current workflow context (contains tools via context.tool_manager
+                     and prompt execution via context.host)
 
         Returns:
             Dictionary of outputs produced by this step
         """
         pass
+
+    async def execute_with_prompt(self, context: AgentContext) -> Dict[str, Any]:
+        """
+        Execute the step using the host's execute_prompt_with_tools method.
+
+        This is a utility method that can be called from subclass execute methods
+        to use prompt-based execution instead of direct tool execution.
+
+        Args:
+            context: The workflow context with access to the host
+
+        Returns:
+            Dictionary of outputs from prompt execution
+        """
+        # Verify that host is available
+        if not context.host:
+            raise ValueError(
+                f"Step '{self.name}' requires a host for prompt execution, "
+                "but none was provided to the workflow"
+            )
+
+        # Verify required prompt configuration is present
+        if not self.prompt_name or not self.user_message_template:
+            raise ValueError(
+                f"Step '{self.name}' is missing required prompt configuration "
+                "(prompt_name and user_message_template must be set)"
+            )
+
+        # Create prompt arguments by combining default with context data
+        prompt_args = self.prompt_arguments.copy()
+
+        # Format the user message template with context data
+        user_message = self.user_message_template
+        try:
+            # Get context data as a dict
+            context_data = context.get_data_dict()
+            # Format the message using the context data
+            user_message = user_message.format(**context_data)
+        except KeyError as e:
+            logger.warning(
+                f"Missing key {e} in context for user_message_template in step '{self.name}'"
+            )
+        except Exception as e:
+            logger.error(f"Error formatting user message in step '{self.name}': {e}")
+
+        # Execute the prompt with tools
+        result = await context.host.execute_prompt_with_tools(
+            prompt_name=self.prompt_name,
+            prompt_arguments=prompt_args,
+            client_id=self.client_id,
+            user_message=user_message,
+            tool_names=self.tool_names,
+            model=self.model,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+        )
+
+        # Extract the final assistant response
+        final_response = result.get("final_response", {})
+
+        # Return the results
+        return {
+            "prompt_result": result,
+            "conversation": result.get("conversation", []),
+            "final_response": final_response,
+            "tool_uses": result.get("tool_uses", []),
+        }
 
     async def should_execute(self, context: Dict[str, Any]) -> bool:
         """
@@ -318,13 +399,16 @@ class BaseWorkflow(ABC):
     a hybrid implementation.
     """
 
-    def __init__(self, tool_manager: ToolManager, name: str = "unnamed_workflow"):
+    def __init__(
+        self, tool_manager: ToolManager, name: str = "unnamed_workflow", host=None
+    ):
         """
-        Initialize the workflow with a tool manager.
-        
+        Initialize the workflow with a tool manager and optional host.
+
         Args:
             tool_manager: The tool manager for tool access
             name: Name of the workflow
+            host: Optional host for prompt-based tool execution
         """
         self.name = name
         self.description = ""  # Can be overridden by subclasses
@@ -338,8 +422,9 @@ class BaseWorkflow(ABC):
         self.on_workflow_complete: Optional[Callable[[AgentContext], None]] = None
         self.context_validators: List[Callable[[Dict[str, Any]], bool]] = []
 
-        # Store the tool manager
+        # Store the tool manager and host
         self.tool_manager = tool_manager
+        self.host = host
 
         # Middleware hooks
         self.before_workflow_hooks: List[Callable[[AgentContext], Awaitable[None]]] = []
@@ -515,7 +600,7 @@ class BaseWorkflow(ABC):
         logger.error(f"Unhandled error in step '{step.name}': {error}")
 
     async def execute_step(
-        self, step: WorkflowStep, context_data: Dict[str, Any]
+        self, step: WorkflowStep, context_data: Dict[str, Any], original_context: Optional[AgentContext] = None
     ) -> StepResult:
         """
         Execute a single workflow step with retries.
@@ -523,6 +608,7 @@ class BaseWorkflow(ABC):
         Args:
             step: The step to execute
             context_data: The current workflow context data dictionary
+            original_context: The original AgentContext instance (optional)
 
         Returns:
             The result of the step execution
@@ -536,9 +622,25 @@ class BaseWorkflow(ABC):
 
         # Define the actual execution function
         async def execute_with_validation():
-            # Create a context for the step with tool_manager already set
+            # Create a context for the step with tool_manager and host already set
             step_context = AgentContext(data=AgentData(**context_data.copy()))
             step_context.tool_manager = self.tool_manager
+            step_context.host = self.host
+            
+            # IMPORTANT: Copy any data from the _fallback_dict if it exists in the original context
+            # This ensures critical data like plan_content is properly transferred between steps
+            if original_context and hasattr(original_context, '_fallback_dict'):
+                logger.debug(f"Copying fallback dictionary data for step '{step.name}'")
+                if not hasattr(step_context, '_fallback_dict'):
+                    step_context._fallback_dict = {}
+                # Copy all entries from the original context's fallback dict
+                for key, value in original_context._fallback_dict.items():
+                    step_context._fallback_dict[key] = value
+                    # Also try to set in the main data for redundancy
+                    try:
+                        step_context.set(key, value)
+                    except Exception:
+                        pass  # Ignore any errors, we'll use the fallback dict anyway
 
             # Execute step
             outputs = await step.execute(step_context)
@@ -608,8 +710,9 @@ class BaseWorkflow(ABC):
             data=AgentData(**input_data), metadata=metadata.copy() if metadata else {}
         )
 
-        # Set the tool_manager reference
+        # Set the tool_manager and host references
         agent_context.tool_manager = self.tool_manager
+        agent_context.host = self.host
 
         logger.info(f"Starting execution of workflow: {self.name}")
 
@@ -650,7 +753,9 @@ class BaseWorkflow(ABC):
             await run_hooks_with_error_handling(
                 self.before_step_hooks, f"before step {step.name}", step, agent_context
             )
-            result = await self.execute_step(step, context_data)
+            
+            # Pass the original agent_context to execute_step to ensure data in _fallback_dict is preserved
+            result = await self.execute_step(step, context_data, original_context=agent_context)
 
             # Store result in context
             agent_context.add_step_result(step.name, result)
@@ -674,9 +779,16 @@ class BaseWorkflow(ABC):
 
             # If step completed successfully, update context with outputs
             if result.status == StepStatus.COMPLETED:
-                # For Pydantic models, update each attribute individually
+                # For all models, update each attribute individually and ensure it's in the fallback dict
                 for key, value in result.outputs.items():
+                    # Log the key being set for debugging
+                    logger.debug(f"Setting '{key}' in context from step '{step.name}' outputs")
                     agent_context.set(key, value)
+                    
+                    # Ensure critical data is in the fallback dictionary
+                    if not hasattr(agent_context, '_fallback_dict'):
+                        agent_context._fallback_dict = {}
+                    agent_context._fallback_dict[key] = value
 
         # Mark workflow as complete
         agent_context.complete()

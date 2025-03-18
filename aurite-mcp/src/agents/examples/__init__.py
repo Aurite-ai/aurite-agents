@@ -13,3 +13,9 @@ try:
 except ImportError:
     # Skip if file doesn't exist
     pass
+
+try:
+    from .simple_planning_workflow_example import SimplePlanningWorkflowExample  # noqa: F401
+except ImportError:
+    # Skip if file doesn't exist
+    pass

@@ -72,12 +72,13 @@ class MCPHost:
         self._tool_manager = ToolManager(
             root_manager=self._root_manager, message_router=self._message_router
         )
-        
+
         # Layer 4: Agent layer
         self._workflow_manager = WorkflowManager(
             tool_manager=self._tool_manager,
             prompt_manager=self._prompt_manager,
-            resource_manager=self._resource_manager
+            resource_manager=self._resource_manager,
+            host=self,
         )
 
         # State management
@@ -117,7 +118,7 @@ class MCPHost:
         await self._resource_manager.initialize()
         await self._storage_manager.initialize()
         await self._tool_manager.initialize()
-        
+
         # Layer 4: Agent layer
         logger.info("Initializing agent layer...")
         await self._workflow_manager.initialize()
@@ -427,55 +428,55 @@ class MCPHost:
             "final_response": final_response,
             "tool_uses": tool_uses if has_tool_calls else [],
         }
-        
+
     async def register_workflow(self, workflow_class, name=None, **kwargs):
         """
         Register a workflow with the host.
-        
+
         Args:
             workflow_class: The workflow class to register
             name: Optional name for the workflow
             **kwargs: Additional arguments to pass to the workflow constructor
-            
+
         Returns:
             The registered workflow name
         """
         return await self._workflow_manager.register_workflow(
             workflow_class, name, **kwargs
         )
-    
+
     async def execute_workflow(self, workflow_name, input_data, metadata=None):
         """
         Execute a registered workflow.
-        
+
         Args:
             workflow_name: The name of the workflow to execute
             input_data: Input data for the workflow
             metadata: Optional metadata for the execution
-            
+
         Returns:
             The final workflow context with results
         """
         return await self._workflow_manager.execute_workflow(
             workflow_name, input_data, metadata
         )
-    
+
     def list_workflows(self):
         """
         List all registered workflows.
-        
+
         Returns:
             List of workflows with metadata
         """
         return self._workflow_manager.list_workflows()
-    
+
     def get_workflow(self, workflow_name):
         """
         Get a workflow by name.
-        
+
         Args:
             workflow_name: The name of the workflow
-            
+
         Returns:
             The workflow if found, None otherwise
         """
@@ -497,7 +498,7 @@ class MCPHost:
         # Layer 4: Agent layer
         logger.info("Shutting down agent layer...")
         await self._workflow_manager.shutdown()
-        
+
         # Layer 3: Resource management layer
         logger.info("Shutting down resource management layer...")
         await self._prompt_manager.shutdown()
