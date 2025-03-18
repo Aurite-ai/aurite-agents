@@ -327,8 +327,18 @@ class PlanSaveStep(WorkflowStep):
         # Log what we're using
         logger.info(f"PlanSaveStep using plan_name: {plan_name}")
 
-        # Prepare parameters for save_plan tool
-        tags = self._prepare_resource_tags(resources)
+        # Prepare parameters for save_plan tool - ensure it's always a list
+        if isinstance(resources, str):
+            # Force a list for string resources
+            tags = [r.strip() for r in resources.split(",") if r.strip()]
+        elif isinstance(resources, list):
+            # Ensure all items are strings
+            tags = [str(r).strip() for r in resources if r]
+        else:
+            # Default empty list
+            tags = []
+            
+        logger.info(f"Prepared tags for save_plan: {tags}")
 
         # Check if the plan with this name already exists
         try:
