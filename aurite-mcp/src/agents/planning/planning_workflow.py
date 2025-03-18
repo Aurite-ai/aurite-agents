@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 import logging
 from pydantic import Field
-
+from datetime import datetime
 from ...host.resources.tools import ToolManager
 from ..base_workflow import BaseWorkflow, WorkflowStep
 from ..base_models import AgentContext, AgentData
@@ -36,73 +36,70 @@ class PlanningContext(AgentData):
 
 @dataclass
 class PlanCreationStep(WorkflowStep):
-    """Step to create a plan using prompt-based execution"""
+    """Step to create a plan using the create_plan tool"""
 
     def __init__(self):
         super().__init__(
             name="create_plan",
-            description="Create a plan using AI prompt",
+            description="Create a plan using the create_plan tool",
             required_inputs={"task", "plan_name"},
             provided_outputs={"plan_content"},
-            # Configure prompt-based execution
-            prompt_name="planning_prompt",
-            client_id="planning",  # This should match the client_id in your host config
-            user_message_template=(
-                "Please create a detailed plan for the following task: {task}. "
-                "I need a comprehensive, well-structured plan that I can execute."
-            ),
-            # The planning server's tools will be available here
-            tool_names=["save_plan", "list_plans"],
-            model="claude-3-opus-20240229",
+            required_tools={"create_plan"},
         )
 
     async def execute(self, context: AgentContext) -> Dict[str, Any]:
-        """Execute using prompt-based execution"""
+        """Execute the plan creation step using the create_plan tool"""
         # Extract inputs from context
         task = context.get("task")
         plan_name = context.get("plan_name")
         timeframe = context.get("timeframe")
         resources = context.get("resources")
 
-        # Prepare custom prompt arguments if needed
-        prompt_args = {
+        # Prepare tool arguments
+        tool_args = {
             "task": task,
+            "plan_name": plan_name,
         }
 
         # Add optional arguments if provided
         if timeframe:
-            prompt_args["timeframe"] = timeframe
+            tool_args["timeframe"] = timeframe
         if resources:
-            # Convert resources list to comma-separated string for the prompt
-            prompt_args["resources"] = ", ".join(resources) if resources else None
+            tool_args["resources"] = resources
 
-        # Override the default prompt arguments
-        self.prompt_arguments = prompt_args
+        # Execute the create_plan tool
+        result = await context.tool_manager.execute_tool("create_plan", tool_args)
 
-        # Call the utility method that handles prompt-based execution
-        prompt_result = await self.execute_with_prompt(context)
+        # Extract the text content from the result
+        result_text = context.tool_manager.format_tool_result(result)
+        logger.debug(f"Create plan result: {result_text}")
 
-        # Extract the plan content from the response
-        final_response = prompt_result.get("final_response", {})
-
-        # Extract the plan text from the final response
-        if final_response and hasattr(final_response, "content"):
-            # Extract text content from content blocks
-            plan_text = ""
-            for block in final_response.content:
-                if hasattr(block, "text"):
-                    plan_text += block.text
-                elif isinstance(block, dict) and "text" in block:
-                    plan_text += block["text"]
-
-            # If we couldn't extract text from content blocks, use string representation
-            if not plan_text:
-                plan_text = str(final_response)
+        # Get the plan content from the tool result
+        if hasattr(result, "plan_content"):
+            plan_content = result.plan_content
+        elif isinstance(result, dict) and "plan_content" in result:
+            plan_content = result["plan_content"]
         else:
-            # Fallback if we can't extract from final_response
-            plan_text = "Error: Could not generate plan using prompt-based execution"
+            # Fallback to a default plan if result doesn't contain plan_content
+            # Use datetime.now().strftime instead of time.strftime
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            plan_content = f"""
+            # Plan: {plan_name}
 
-        return {"plan_content": plan_text, "prompt_execution_details": prompt_result}
+            ## Task
+            {task}
+
+            ## Created
+            {current_time}
+
+            ## Content
+            This is a fallback plan created when the create_plan tool didn't return expected content.
+            """
+            logger.warning(
+                f"create_plan tool did not return expected plan_content: {result}"
+            )
+
+        return {"plan_content": plan_content, "create_plan_result": result}
 
 
 @dataclass

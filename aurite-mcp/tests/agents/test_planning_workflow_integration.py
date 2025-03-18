@@ -5,6 +5,7 @@ This test verifies that:
 1. The planning workflow can be registered with the host system
 2. The workflow's individual steps execute correctly
 3. The integration with the host system works for step-level operations
+4. The complete workflow can be executed through the host's workflow manager
 """
 
 import asyncio
@@ -147,6 +148,74 @@ async def _run_integration_test():
             assert "path" in example_plan
             logger.info(f"Example plan in listing: {example_plan['name']}")
 
+        # PART 3: Full Workflow Execution via Host's Workflow Manager
+        logger.info("===== Testing Full Workflow Execution =====")
+        
+        # Create a new unique plan name for the workflow execution test
+        timestamp = int(time.time())
+        workflow_plan_name = f"workflow_execution_test_plan_{timestamp}"
+
+        # Create the input data for workflow execution
+        # Now that we have a create_plan tool, we can test the full workflow
+        workflow_input = {
+            "task": "Test workflow execution via workflow manager",
+            "plan_name": workflow_plan_name,
+            "resources": ["Workflow", "Test", "Integration"],
+            "timeframe": "1 day"
+        }
+
+        # Execute the workflow through the host's workflow manager
+        logger.info(f"Executing workflow '{workflow_name}' through workflow manager")
+        try:
+            result_context = await host.workflows.execute_workflow(
+                workflow_name=workflow_name,
+                input_data=workflow_input,
+                metadata={"test_execution": True}
+            )
+
+            # Verify workflow execution completed successfully
+            assert result_context is not None 
+            logger.info(f"Workflow execution completed in {result_context.get_execution_time():.2f} seconds")
+            
+            # Verify each step has a result
+            assert "create_plan" in result_context.step_results
+            assert "save_plan" in result_context.step_results
+            
+            # Verify both steps succeeded
+            create_step_result = result_context.step_results["create_plan"]
+            save_step_result = result_context.step_results["save_plan"]
+            
+            # The StepStatus enum .value is an integer (3), not a string
+            assert create_step_result.status.name == "COMPLETED"
+            assert save_step_result.status.name == "COMPLETED"
+            
+            # Verify plan content was created
+            assert "plan_content" in result_context.get_data_dict()
+            assert result_context.get("plan_content") is not None
+            
+            # Verify the save step succeeded
+            assert "save_result" in result_context.get_data_dict()
+            assert "plan_path" in result_context.get_data_dict()
+            assert result_context.get("save_result")["success"] is True
+            
+            logger.info(f"Workflow execution saved plan: {workflow_plan_name}")
+            logger.info(f"Plan path: {result_context.get('plan_path')}")
+            
+            # Check contents of create_plan_result
+            assert "create_plan_result" in result_context.get_data_dict()
+            create_result = result_context.get("create_plan_result")
+            logger.info(f"Plan creation result: {create_result}")
+            
+        except Exception as e:
+            logger.error(f"Error executing workflow: {e}")
+            raise
+        
+        # List registered workflows using the workflow manager
+        workflows_list = host.workflows.list_workflows()
+        assert len(workflows_list) >= 1
+        assert any(wf["name"] == workflow_name for wf in workflows_list)
+        logger.info(f"Found {len(workflows_list)} registered workflows: {[wf['name'] for wf in workflows_list]}")
+        
         logger.info("Planning workflow integration test completed successfully!")
 
     finally:
