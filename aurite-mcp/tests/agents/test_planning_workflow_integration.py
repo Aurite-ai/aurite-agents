@@ -57,13 +57,29 @@ async def _run_integration_test():
     )
 
     # Create host configuration with planning client
+    from src.host.foundation import RootConfig
+    
+    # Create host configuration with planning client and proper roots
     host_config = HostConfig(
         clients=[
             ClientConfig(
                 client_id="planning",  # Must match the client_id in the workflow
                 server_path=str(server_path),
-                roots=[],
-                capabilities=["tools", "prompts", "resources"],
+                roots=[
+                    # Register planning:// root URI for the planning server
+                    RootConfig(
+                        uri="planning://",
+                        name="Planning Root",
+                        capabilities=["read", "write"]
+                    ),
+                    # Register file:// root URI for plan storage
+                    RootConfig(
+                        uri="file://plans/",
+                        name="Plan Storage",
+                        capabilities=["read", "write"]
+                    )
+                ],
+                capabilities=["tools", "prompts", "resources", "roots"],
             )
         ]
     )

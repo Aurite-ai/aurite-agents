@@ -21,6 +21,7 @@ from typing import Dict, Any, List, Optional
 
 # MCP imports
 from mcp.server.fastmcp import FastMCP, Context
+from mcp.types import Root
 
 # Set up logging
 logging.basicConfig(
@@ -155,125 +156,6 @@ def save_plan(
 
 
 @mcp.tool()
-def create_plan(
-    task: str,
-    plan_name: str,
-    timeframe: Optional[str] = None,
-    resources: Optional[List[str]] = None,
-    ctx: Context = None,
-) -> Dict[str, Any]:
-    """
-    Create a structured plan for a task.
-    
-    This tool creates a plan based on the provided task and parameters.
-    It generates a structured plan with objectives, steps, timeline, 
-    and other key components.
-    
-    Args:
-        task: The task to create a plan for
-        plan_name: Name for the plan (will be used as filename)
-        timeframe: Optional timeframe for the plan (e.g., '1 day', '1 week')
-        resources: Optional list of available resources
-        
-    Returns:
-        Dictionary with the created plan and success status
-    """
-    ctx.info(f"Creating plan for task: {task}")
-    
-    try:
-        # Generate the plan content
-        plan_content = _generate_plan_template(task, plan_name, timeframe, resources)
-        
-        # Return successful result
-        return {
-            "success": True,
-            "plan_name": plan_name,
-            "plan_content": plan_content,
-            "message": f"Plan '{plan_name}' created successfully"
-        }
-    
-    except Exception as e:
-        logger.error(f"Error creating plan: {e}")
-        return {
-            "success": False,
-            "message": f"Failed to create plan: {str(e)}"
-        }
-
-
-def _generate_plan_template(
-    task: str, 
-    plan_name: str, 
-    timeframe: Optional[str], 
-    resources: Optional[List[str]]
-) -> str:
-    """
-    Generate a plan template with standardized sections.
-    
-    Helper function for create_plan tool that generates a structured
-    plan document with proper sections and formatting.
-    
-    Args:
-        task: Task description
-        plan_name: Name of the plan
-        timeframe: Optional timeframe
-        resources: Optional list of resources
-        
-    Returns:
-        Formatted plan content as string
-    """
-    # Create a timestamp for the plan
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Build the core plan structure
-    plan_content = f"""# Plan: {plan_name}
-        
-## Task
-{task}
-
-## Created
-{timestamp}
-
-## Objective
-Successfully complete the given task with a structured approach.
-
-## Key Steps
-1. Analyze the task requirements
-2. Break down the task into manageable components
-3. Allocate resources appropriately
-4. Execute each component systematically
-5. Review and validate results
-
-## Timeline
-"""
-    # Add timeframe if provided
-    if timeframe:
-        plan_content += f"Complete within {timeframe}\n\n"
-    else:
-        plan_content += "Timeline to be determined based on task complexity\n\n"
-    
-    # Add resources section if provided
-    if resources and len(resources) > 0:
-        plan_content += "## Resources\n"
-        for resource in resources:
-            plan_content += f"- {resource}\n"
-        plan_content += "\n"
-    
-    # Add standard sections to complete the plan
-    plan_content += """## Potential Challenges
-- Unforeseen complications
-- Resource limitations
-- Time constraints
-
-## Success Metrics
-- Task completed to specification
-- Completed within allocated timeframe
-- Efficient use of available resources
-"""
-    
-    return plan_content
-
-
-@mcp.tool()
 def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]:
     """
     List all available plans, optionally filtered by tag.
@@ -317,6 +199,64 @@ def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]
         return {
             "success": False,
             "message": f"Failed to list plans: {str(e)}",
+        }
+
+
+@mcp.tool()
+def get_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
+    """
+    Get a saved plan by name.
+
+    Args:
+        plan_name: Name of the plan to retrieve
+    """
+    load_plans()
+    plan_name = plan_name.replace("/", "_").replace("\\", "_")
+    if plan_name not in plans_cache:
+        return {
+            "success": False,
+            "message": f"Plan '{plan_name}' not found",
+        }
+    return {
+        "success": True,
+        "message": f"Plan '{plan_name}' retrieved successfully",
+        "plan": plans_cache[plan_name],
+    }
+
+
+@mcp.tool()
+def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
+    """
+    Delete a saved plan by name.
+    """
+    load_plans()
+    plan_name = plan_name.replace("/", "_").replace("\\", "_")
+    if plan_name not in plans_cache:
+        return {
+            "success": False,
+            "message": f"Plan '{plan_name}' not found",
+        }
+    try:
+        ctx.info(f"Deleting plan: {plan_name}")
+        plan_path = PLANS_DIR / f"{plan_name}.txt"
+        metadata_path = PLANS_DIR / f"{plan_name}.meta.json"
+
+        if plan_path.exists():
+            plan_path.unlink()
+        if metadata_path.exists():
+            metadata_path.unlink()
+
+        del plans_cache[plan_name]
+
+        return {
+            "success": True,
+            "message": f"Plan '{plan_name}' deleted successfully",
+        }
+    except Exception as e:
+        logger.error(f"Error deleting plan: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to delete plan: {str(e)}",
         }
 
 
