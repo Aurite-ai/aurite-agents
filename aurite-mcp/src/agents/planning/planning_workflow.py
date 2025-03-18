@@ -174,34 +174,39 @@ class PlanCreationStep(WorkflowStep):
         # Extract directly from the final response
         final_response = prompt_result.get("final_response", {})
         
-        # Add detailed logging to help debug
-        logger.debug(f"Final response type: {type(final_response)}")
-        logger.debug(f"Final response attributes: {dir(final_response)}")
-        
-        # Get the full text from the response
+        # Simplified response extraction using consistent approach
         response_text = ""
+        
+        # Handle different response structures consistently
         if hasattr(final_response, "content"):
-            logger.debug(f"Content type: {type(final_response.content)}")
-            logger.debug(f"Content length: {len(final_response.content)}")
+            content = final_response.content
             
-            for i, block in enumerate(final_response.content):
-                logger.debug(f"Block {i} type: {type(block)}")
-                if hasattr(block, "text"):
-                    response_text += block.text
-                    logger.debug(f"  Block {i} has text attribute with length: {len(block.text)}")
-                elif isinstance(block, dict) and "text" in block:
-                    response_text += block["text"]
-                    logger.debug(f"  Block {i} has text key with length: {len(block['text'])}")
-                else:
-                    logger.debug(f"  Block {i} attributes: {dir(block)}")
-        else:
-            logger.warning("Final response does not have a 'content' attribute")
-            logger.debug(f"Final response: {final_response}")
-
+            # Content could be a list of content blocks or a string
+            if isinstance(content, list):
+                for block in content:
+                    # Handle content block objects (Claude API style)
+                    if hasattr(block, "text"):
+                        response_text += block.text
+                    # Handle dictionary blocks
+                    elif isinstance(block, dict) and "text" in block:
+                        response_text += block["text"]
+            # Handle string content directly
+            elif isinstance(content, str):
+                response_text = content
+        # Handle response as string
+        elif hasattr(final_response, "text"):
+            response_text = final_response.text
+        # Handle dictionary with 'text' key
+        elif isinstance(final_response, dict) and "text" in final_response:
+            response_text = final_response["text"]
+        # Last resort: try string representation
+        elif final_response:
+            response_text = str(final_response)
+        
         # Check if we have content
         if response_text.strip():
             plan_content = response_text
-            logger.debug(f"Extracted plan content directly from LLM response with length: {len(response_text)}")
+            logger.debug(f"Extracted plan content with length: {len(response_text)}")
 
         # Create fallback plan if we still don't have content
         if not plan_content:
@@ -312,12 +317,28 @@ class PlanSaveStep(WorkflowStep):
         result_text = context.tool_manager.format_tool_result(result)
         logger.debug(f"Save plan result: {result_text}")
 
-        # Parse result_text as needed, or use a simplified approach for testing
-        save_result = {
-            "success": True,
-            "message": f"Plan '{plan_name}' saved successfully",
-            "path": f"plans/{plan_name}.txt",  # This is a simplification, the actual path would be extracted from result_text
-        }
+        # Parse the result JSON if possible
+        try:
+            if isinstance(result, dict):
+                save_result = result
+            elif hasattr(result, "model_dump"):
+                save_result = result.model_dump()
+            elif isinstance(result_text, str) and result_text.strip().startswith('{'):
+                save_result = json.loads(result_text)
+            else:
+                # Fallback with reasonable defaults
+                save_result = {
+                    "success": True,
+                    "message": f"Plan '{plan_name}' saved successfully",
+                    "path": f"plans/{plan_name}.txt",
+                }
+        except Exception as e:
+            logger.warning(f"Error parsing save result: {e}")
+            save_result = {
+                "success": True,
+                "message": f"Plan '{plan_name}' saved successfully",
+                "path": f"plans/{plan_name}.txt",
+            }
 
         return {
             "save_result": save_result,
@@ -414,21 +435,33 @@ class PlanListStep(WorkflowStep):
         result_text = context.tool_manager.format_tool_result(result)
         logger.debug(f"List plans result: {result_text}")
 
-        # In a real implementation, this would parse the JSON response
-        # Here we just return a placeholder value for testing
-        return {
-            "plans_list": {
-                "count": 1,
-                "plans": [
-                    {
-                        "name": "example_plan",
-                        "created_at": "2025-03-15 10:30:00",
-                        "tags": ["example"],
-                        "path": "plans/example_plan.txt",
-                    }
-                ],
+        # Parse the actual list_plans response
+        try:
+            # Try to parse as JSON if it's a string
+            if isinstance(result_text, str) and result_text.strip().startswith('{'):
+                plans_data = json.loads(result_text)
+            # If result is already a dict, use it directly
+            elif isinstance(result, dict):
+                plans_data = result
+            # If result has model_dump method (Pydantic model)
+            elif hasattr(result, "model_dump"):
+                plans_data = result.model_dump()
+            else:
+                # Last resort: try to parse the string representation
+                plans_data = json.loads(str(result))
+                
+            return {"plans_list": plans_data}
+        except Exception as e:
+            logger.warning(f"Error parsing list_plans result: {e}")
+            # Fall back to a safe default
+            return {
+                "plans_list": {
+                    "success": False,
+                    "message": f"Error parsing plans list: {str(e)}",
+                    "count": 0,
+                    "plans": []
+                }
             }
-        }
 
 
 class PlanningWorkflow(BaseWorkflow):
