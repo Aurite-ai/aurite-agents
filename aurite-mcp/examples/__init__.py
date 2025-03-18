@@ -1,6 +1,4 @@
-"""Weather server MCP tools for retrieving weather information."""
+"""Examples for Aurite MCP functionality."""
 
-from .weather_tools import get_alerts, get_forecast
-from .weather_server import create_server
-
-__all__ = ["get_alerts", "get_forecast", "create_server"]
+# This is intentionally left mostly empty to avoid import errors
+# Each example should be imported directly

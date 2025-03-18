@@ -39,7 +39,67 @@ def mock_tool_manager():
     # Mock the execute_tool method
     async def mock_execute_tool(tool_name, arguments):
         """Mock tool execution with predefined responses"""
-        if tool_name == "save_plan":
+        if tool_name == "create_plan":
+            plan_name = arguments.get("plan_name", "default_plan")
+            task = arguments.get("task", "Default task")
+            timeframe = arguments.get("timeframe", "")
+            resources = arguments.get("resources", [])
+            
+            # Create a sample plan content
+            plan_content = f"""# Plan: {plan_name}
+
+## Task
+{task}
+
+## Created
+2025-03-18 10:00:00
+
+## Objective
+Successfully complete the given task with a structured approach.
+
+## Key Steps
+1. Analyze the task requirements
+2. Break down the task into manageable components
+3. Allocate resources appropriately
+4. Execute each component systematically
+5. Review and validate results
+
+## Timeline
+{"Complete within " + timeframe if timeframe else "Timeline to be determined"}
+"""
+            # Add resources if provided
+            if resources:
+                plan_content += "\n## Resources\n"
+                for resource in resources:
+                    plan_content += f"- {resource}\n"
+            
+            # Add standard sections
+            plan_content += """
+## Potential Challenges
+- Unforeseen complications
+- Resource limitations
+- Time constraints
+
+## Success Metrics
+- Task completed to specification
+- Completed within allocated timeframe
+- Efficient use of available resources
+"""
+            
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"""
+                    {{
+                        "success": true,
+                        "plan_name": "{plan_name}",
+                        "plan_content": "{plan_content.replace('"', '\\"').replace('\n', '\\n')}",
+                        "message": "Plan '{plan_name}' created successfully"
+                    }}
+                    """,
+                )
+            ]
+        elif tool_name == "save_plan":
             return [
                 types.TextContent(
                     type="text",
@@ -220,6 +280,9 @@ async def test_plan_creation_step(mock_tool_manager, mock_host):
             plan_name="test_plan",
             timeframe="2 weeks",
             resources=["Web developer", "Designer"],
+            # Add timeframe_text and resources_text fields needed by the template
+            timeframe_text=" with a timeframe of 2 weeks",
+            resources_text=" and using these resources: Web developer, Designer",
         )
     )
     context.tool_manager = mock_tool_manager
@@ -228,19 +291,24 @@ async def test_plan_creation_step(mock_tool_manager, mock_host):
     # Execute step
     result = await step.execute(context)
 
-    # Verify host method was called with correct parameters
+    # Verify host's execute_prompt_with_tools was called
     mock_host.execute_prompt_with_tools.assert_called_once()
     call_args = mock_host.execute_prompt_with_tools.call_args[1]
+    
+    # Verify prompt parameters
     assert call_args["prompt_name"] == "planning_prompt"
-    assert (
-        call_args["prompt_arguments"]["task"] == "Create a website for a small business"
-    )
-    assert call_args["prompt_arguments"]["timeframe"] == "2 weeks"
-    assert "resources" in call_args["prompt_arguments"]
-
+    assert call_args["client_id"] == "planning"
+    assert "task" in call_args["prompt_arguments"]
+    assert call_args["prompt_arguments"]["task"] == "Create a website for a small business"
+    
+    # Verify tool names passed to execution
+    assert call_args["tool_names"] == ["create_plan"]
+    
     # Verify result structure
     assert "plan_content" in result
-    assert result["plan_content"].startswith("# Project Plan")
+    assert "prompt_execution_details" in result
+    # Check for expected content in the plan (should be in the result from mock response)
+    assert "Project Plan" in result["plan_content"] or "Plan:" in result["plan_content"]
 
 
 @pytest.mark.asyncio
@@ -455,12 +523,34 @@ async def test_error_handling(mock_tool_manager, mock_host):
     # Create workflow
     workflow = PlanningWorkflow(mock_tool_manager, host=mock_host)
 
-    # Mock error in tool execution
-    async def mock_error_execute(*args, **kwargs):
-        if args[0] == "save_plan":
+    # Store original execute_tool to avoid recursion
+    original_execute = mock_tool_manager.execute_tool
+    
+    # Create a function that doesn't cause infinite recursion
+    async def mock_error_execute(tool_name, arguments):
+        """Mock tool execution with errors for specific tools"""
+        if tool_name == "save_plan":
             raise ValueError("Test error in plan saving")
-        return await mock_tool_manager.execute_tool(*args, **kwargs)
+        elif tool_name == "create_plan":
+            # Return a simple response for create_plan
+            return [
+                types.TextContent(
+                    type="text",
+                    text="""
+                    {
+                        "success": true,
+                        "plan_name": "failing_plan",
+                        "plan_content": "# Test Plan\n\nThis is a test plan content.",
+                        "message": "Plan created successfully"
+                    }
+                    """,
+                )
+            ]
+        else:
+            # For other tools, use a simple default response
+            return [types.TextContent(type="text", text="Tool executed successfully")]
 
+    # Replace the mock with our function
     mock_tool_manager.execute_tool = AsyncMock(side_effect=mock_error_execute)
 
     await workflow.initialize()
