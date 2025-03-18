@@ -72,3 +72,4 @@ aurite-mcp/.venv/
 node-agents/
 .venv
 aurite-libre/
+aurite-mcp/src/agents/planning/plans/
