@@ -3,8 +3,14 @@ MCP Server for planning functionality.
 
 This server provides:
 1. A planning prompt that guides an LLM to create structured plans
-2. A tool to save plans to disk for later reference
-3. A resource to retrieve saved plans
+2. Tools for plan management:
+   - create_plan: Generate a structured plan based on a task
+   - save_plan: Save a plan to disk with metadata
+   - list_plans: List available plans with optional filtering
+3. Resources for plan retrieval and analysis
+4. Prompts for plan creation and analysis
+
+Plans are stored both on disk (for persistence) and in memory (for fast access).
 """
 
 import json
@@ -23,14 +29,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Path to store plans
+# Constants
 PLANS_DIR = Path(__file__).parent / "plans"
 PLANS_DIR.mkdir(exist_ok=True)
 
 # Create the MCP server
 mcp = FastMCP("Planning Assistant")
 
-# Dictionary to store plans in memory (for faster access)
+# In-memory cache for plans
 plans_cache = {}
 
 
@@ -175,11 +181,51 @@ def create_plan(
     ctx.info(f"Creating plan for task: {task}")
     
     try:
-        # Create a timestamp for uniqueness
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Generate the plan content
+        plan_content = _generate_plan_template(task, plan_name, timeframe, resources)
         
-        # Create a simple structured plan
-        plan_content = f"""# Plan: {plan_name}
+        # Return successful result
+        return {
+            "success": True,
+            "plan_name": plan_name,
+            "plan_content": plan_content,
+            "message": f"Plan '{plan_name}' created successfully"
+        }
+    
+    except Exception as e:
+        logger.error(f"Error creating plan: {e}")
+        return {
+            "success": False,
+            "message": f"Failed to create plan: {str(e)}"
+        }
+
+
+def _generate_plan_template(
+    task: str, 
+    plan_name: str, 
+    timeframe: Optional[str], 
+    resources: Optional[List[str]]
+) -> str:
+    """
+    Generate a plan template with standardized sections.
+    
+    Helper function for create_plan tool that generates a structured
+    plan document with proper sections and formatting.
+    
+    Args:
+        task: Task description
+        plan_name: Name of the plan
+        timeframe: Optional timeframe
+        resources: Optional list of resources
+        
+    Returns:
+        Formatted plan content as string
+    """
+    # Create a timestamp for the plan
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Build the core plan structure
+    plan_content = f"""# Plan: {plan_name}
         
 ## Task
 {task}
@@ -199,21 +245,21 @@ Successfully complete the given task with a structured approach.
 
 ## Timeline
 """
-        # Add timeframe if provided
-        if timeframe:
-            plan_content += f"Complete within {timeframe}\n\n"
-        else:
-            plan_content += "Timeline to be determined based on task complexity\n\n"
-        
-        # Add resources section if provided
-        if resources and len(resources) > 0:
-            plan_content += "## Resources\n"
-            for resource in resources:
-                plan_content += f"- {resource}\n"
-            plan_content += "\n"
-        
-        # Add standard sections to complete the plan
-        plan_content += """## Potential Challenges
+    # Add timeframe if provided
+    if timeframe:
+        plan_content += f"Complete within {timeframe}\n\n"
+    else:
+        plan_content += "Timeline to be determined based on task complexity\n\n"
+    
+    # Add resources section if provided
+    if resources and len(resources) > 0:
+        plan_content += "## Resources\n"
+        for resource in resources:
+            plan_content += f"- {resource}\n"
+        plan_content += "\n"
+    
+    # Add standard sections to complete the plan
+    plan_content += """## Potential Challenges
 - Unforeseen complications
 - Resource limitations
 - Time constraints
@@ -223,20 +269,8 @@ Successfully complete the given task with a structured approach.
 - Completed within allocated timeframe
 - Efficient use of available resources
 """
-        
-        return {
-            "success": True,
-            "plan_name": plan_name,
-            "plan_content": plan_content,
-            "message": f"Plan '{plan_name}' created successfully"
-        }
     
-    except Exception as e:
-        logger.error(f"Error creating plan: {e}")
-        return {
-            "success": False,
-            "message": f"Failed to create plan: {str(e)}"
-        }
+    return plan_content
 
 
 @mcp.tool()

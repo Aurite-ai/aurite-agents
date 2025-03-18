@@ -1,11 +1,22 @@
 """
 Planning workflow for creating and saving plans.
 
-This module demonstrates:
-1. Using the host's execute_prompt_with_tools method for plan creation
-2. Saving plans with the planning server's tools
-3. Multiple approaches to workflow steps (direct tool execution vs prompt-based execution)
-4. Extracting and parsing information from tool responses
+This module implements a workflow-based approach to plan creation and management.
+It demonstrates two key approaches to workflow steps:
+- Prompt-based execution: Using LLMs with tool-calling capabilities for flexible plan creation
+- Direct tool execution: Using MCP tools directly for deterministic operations like saving
+
+The workflow architecture separates concerns into distinct steps:
+- PlanCreationStep: Generates a structured plan using prompt-based execution
+- PlanSaveStep: Persists plans to disk with metadata
+- PlanAnalysisStep: Analyzes existing plans for gaps and improvements 
+- PlanListStep: Lists available plans with filtering capabilities
+
+Key Features:
+1. Robust LLM response handling with multi-stage fallbacks
+2. Flexible type handling between prompt system and tool execution
+3. Clear step interfaces with defined inputs and outputs
+4. Context management for reliable data passing between steps
 """
 
 from dataclasses import dataclass
@@ -93,12 +104,48 @@ class PlanCreationStep(WorkflowStep):
         # This will call the host's execute_prompt_with_tools method
         prompt_result = await self.execute_with_prompt(context)
         
-        # Extract information from the tool uses in the response
-        tool_uses = prompt_result.get("tool_uses", [])
+        # Process the prompt result to extract plan content
+        plan_content, create_plan_result = self._extract_plan_content(
+            prompt_result, plan_name, task
+        )
+
+        # IMPORTANT: Make sure we set all required fields in the context directly
+        # This is critical for subsequent steps like PlanSaveStep
+        context.set("plan_content", plan_content)
+        # Make sure plan_name is in the context (required by PlanSaveStep)
+        context.set("plan_name", plan_name)
+        
+        # We still return the values for the step result
+        # IMPORTANT: Include plan_name in outputs to ensure it's available for subsequent steps
+        return {
+            "plan_content": plan_content, 
+            "plan_name": plan_name,  # Include plan_name explicitly
+            "create_plan_result": create_plan_result,
+            "prompt_execution_details": prompt_result
+        }
+        
+    def _extract_plan_content(
+        self, prompt_result: Dict[str, Any], plan_name: str, task: str
+    ) -> tuple[str, Any]:
+        """
+        Extract plan content from the prompt execution result.
+        
+        Processes the response from execute_prompt_with_tools to extract the
+        plan content and result, handling different response formats.
+        
+        Args:
+            prompt_result: The result from execute_prompt_with_tools
+            plan_name: The name of the plan (for fallback generation)
+            task: The task description (for fallback generation)
+            
+        Returns:
+            Tuple of (plan_content, create_plan_result)
+        """
         create_plan_result = None
         plan_content = None
         
-        # Look for create_plan tool use
+        # 1. Try to extract from tool uses
+        tool_uses = prompt_result.get("tool_uses", [])
         for tool_use in tool_uses:
             if isinstance(tool_use, list) and len(tool_use) > 0:
                 for block in tool_use:
@@ -109,21 +156,21 @@ class PlanCreationStep(WorkflowStep):
                             if "plan_content" in result_json:
                                 plan_content = result_json["plan_content"]
                                 create_plan_result = result_json
-                                break
+                                return plan_content, create_plan_result
                         except json.JSONDecodeError:
-                            logger.warning(f"Failed to parse tool result JSON: {block.text}")
                             # Try to extract text content directly
                             if "# Plan:" in block.text:
                                 plan_content = block.text
-                                break
+                                return plan_content, {"plan_content": plan_content}
         
-        # If no plan content was found in tool uses, extract from final response
+        # 2. If no plan content found in tool uses, try the final response
         if not plan_content:
             final_response = prompt_result.get("final_response", {})
             
-            # First try to extract tool uses from the content
+            # Try to extract from content blocks
             if hasattr(final_response, "content"):
                 for block in final_response.content:
+                    # Handle different block types
                     if hasattr(block, "text") and "# Plan:" in block.text:
                         plan_content = block.text
                         break
@@ -131,9 +178,8 @@ class PlanCreationStep(WorkflowStep):
                         plan_content = block["text"]
                         break
             
-            # If still no plan content, just use the entire final response as text
+            # 3. If still no plan content with heading, use entire response text
             if not plan_content:
-                # Extract text content from content blocks
                 plan_text = ""
                 if hasattr(final_response, "content"):
                     for block in final_response.content:
@@ -142,11 +188,11 @@ class PlanCreationStep(WorkflowStep):
                         elif isinstance(block, dict) and "text" in block:
                             plan_text += block["text"]
                 
-                plan_content = plan_text
+                if plan_text.strip():
+                    plan_content = plan_text
         
-        # If we still don't have plan content, create a fallback plan
+        # 4. Create fallback plan if we still don't have content
         if not plan_content:
-            # Use datetime.now().strftime instead of time.strftime
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             plan_content = f"""
             # Plan: {plan_name}
@@ -163,21 +209,8 @@ class PlanCreationStep(WorkflowStep):
             logger.warning(
                 "Prompt-based execution for create_plan did not return expected plan_content"
             )
-
-        # IMPORTANT: Make sure we set all required fields in the context directly
-        # This is critical for subsequent steps like PlanSaveStep
-        context.set("plan_content", plan_content)
-        # Make sure plan_name is in the context (required by PlanSaveStep)
-        context.set("plan_name", plan_name)
         
-        # We still return the values for the step result
-        # IMPORTANT: Include plan_name in outputs to ensure it's available for subsequent steps
-        return {
-            "plan_content": plan_content, 
-            "plan_name": plan_name,  # Include plan_name explicitly
-            "create_plan_result": create_plan_result,
-            "prompt_execution_details": prompt_result
-        }
+        return plan_content, create_plan_result or {"plan_content": plan_content}
 
 
 @dataclass
@@ -217,14 +250,68 @@ class PlanSaveStep(WorkflowStep):
         # Log what we're using
         logger.info(f"PlanSaveStep using plan_name: {plan_name}")
 
-        # Use the save_plan tool to save the plan
-        # Ensure resources is a list for the tags parameter
-        tags = resources if isinstance(resources, list) else None
+        # Prepare parameters for save_plan tool
+        tags = self._prepare_resource_tags(resources)
         
-        # If resources is a string, try to split it into a list
-        if isinstance(resources, str) and resources:
-            tags = [r.strip() for r in resources.split(',')]
+        # Execute the save_plan tool
+        result = await context.tool_manager.execute_tool(
+            "save_plan",
+            {
+                "plan_name": plan_name,
+                "plan_content": plan_content,
+                "tags": tags,
+            },
+        )
+    
+    def _prepare_resource_tags(self, resources: Any) -> Optional[List[str]]:
+        """
+        Convert resources to a list format suitable for the tags parameter.
+        
+        Args:
+            resources: Resources in any format (list, string, etc.)
             
+        Returns:
+            List of resource tags or None if no valid resources
+        """
+        # Already a list
+        if isinstance(resources, list):
+            return resources
+            
+        # String that needs splitting
+        if isinstance(resources, str) and resources:
+            return [r.strip() for r in resources.split(',')]
+            
+        # No valid resources
+        return None
+        
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
+        """Execute the plan saving step"""
+        # Extract inputs with hardcoded defaults to avoid missing field errors
+        plan_name = context.get("plan_name", context.get("task", "unnamed_plan"))
+        plan_content = context.get("plan_content", "No plan content available")
+        resources = context.get("resources", [])
+        
+        # Log available data for debugging
+        logger.debug(f"PlanSaveStep - available keys: {list(context.get_data_dict().keys())}")
+        
+        # Always ensure plan_name is available for this step
+        if not plan_name or plan_name == "unnamed_plan":
+            # Try to get from previous step
+            create_step_result = context.get_step_result("create_plan")
+            if create_step_result and hasattr(create_step_result, "outputs"):
+                # Check outputs for plan_name
+                outputs_dict = getattr(create_step_result, "outputs", {})
+                if "plan_name" in outputs_dict:
+                    plan_name = outputs_dict["plan_name"]
+                    logger.info(f"Retrieved plan_name from create_plan step outputs: {plan_name}")
+        
+        # Log what we're using
+        logger.info(f"PlanSaveStep using plan_name: {plan_name}")
+
+        # Prepare parameters for save_plan tool
+        tags = self._prepare_resource_tags(resources)
+        
+        # Execute the save_plan tool
         result = await context.tool_manager.execute_tool(
             "save_plan",
             {
