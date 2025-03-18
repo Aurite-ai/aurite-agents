@@ -97,8 +97,12 @@ async def run_planning_workflow():
             "4. Recommended resources for each topic (books, courses, tutorials)\n"
             "5. How to measure progress and validate skills\n\n"
             "The plan should be named '{plan_name}' and should be completed in {timeframe}. "
-            "Resources available: {resources_text}.\n"
-            "Format the response as a structured markdown document with clear headings and bullet points."
+            "Resources available: {resources_text}.\n\n"
+            "VERY IMPORTANT: Your response MUST ONLY contain the plan itself as a structured markdown document. "
+            "DO NOT include any introduction, explanation, summary, or conclusion about the plan. "
+            "DO NOT talk about what you're going to do or what you've done. "
+            "Start directly with the plan title/heading and end with the last content section. "
+            "Format with clear headings, bullet points, and a logical progression."
         )
 
         # Create a unique plan name based on timestamp

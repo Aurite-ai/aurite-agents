@@ -173,20 +173,35 @@ class PlanCreationStep(WorkflowStep):
 
         # Extract directly from the final response
         final_response = prompt_result.get("final_response", {})
-
+        
+        # Add detailed logging to help debug
+        logger.debug(f"Final response type: {type(final_response)}")
+        logger.debug(f"Final response attributes: {dir(final_response)}")
+        
         # Get the full text from the response
         response_text = ""
         if hasattr(final_response, "content"):
-            for block in final_response.content:
+            logger.debug(f"Content type: {type(final_response.content)}")
+            logger.debug(f"Content length: {len(final_response.content)}")
+            
+            for i, block in enumerate(final_response.content):
+                logger.debug(f"Block {i} type: {type(block)}")
                 if hasattr(block, "text"):
                     response_text += block.text
+                    logger.debug(f"  Block {i} has text attribute with length: {len(block.text)}")
                 elif isinstance(block, dict) and "text" in block:
                     response_text += block["text"]
+                    logger.debug(f"  Block {i} has text key with length: {len(block['text'])}")
+                else:
+                    logger.debug(f"  Block {i} attributes: {dir(block)}")
+        else:
+            logger.warning("Final response does not have a 'content' attribute")
+            logger.debug(f"Final response: {final_response}")
 
         # Check if we have content
         if response_text.strip():
             plan_content = response_text
-            logger.debug(f"Extracted plan content directly from LLM response")
+            logger.debug(f"Extracted plan content directly from LLM response with length: {len(response_text)}")
 
         # Create fallback plan if we still don't have content
         if not plan_content:
