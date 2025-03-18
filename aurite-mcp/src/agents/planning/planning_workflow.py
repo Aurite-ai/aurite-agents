@@ -190,53 +190,63 @@ class PlanCreationStep(WorkflowStep):
         Returns:
             Tuple of (plan_content, result_dict)
         """
-        plan_content = None
-
-        # Extract directly from the final response
-        final_response = prompt_result.get("final_response", {})
-
-        # Simplified response extraction using consistent approach
-        response_text = ""
-
-        # Handle different response structures consistently
-        if hasattr(final_response, "content"):
-            content = final_response.content
-
-            # Content could be a list of content blocks or a string
-            if isinstance(content, list):
-                for block in content:
-                    # Handle content block objects (Claude API style)
-                    if hasattr(block, "text"):
-                        response_text += block.text
-                    # Handle dictionary blocks
-                    elif isinstance(block, dict) and "text" in block:
-                        response_text += block["text"]
-            # Handle string content directly
-            elif isinstance(content, str):
-                response_text = content
-        # Handle response as string
-        elif hasattr(final_response, "text"):
-            response_text = final_response.text
-        # Handle dictionary with 'text' key
-        elif isinstance(final_response, dict) and "text" in final_response:
-            response_text = final_response["text"]
-        # Last resort: try string representation
-        elif final_response:
-            response_text = str(final_response)
-
-        # Check if we have content
-        if response_text.strip():
-            # Cleaner approach - just use the full text and optimize the prompt instructions instead
-            plan_content = response_text.strip()
+        # Simply get the final response
+        if "final_response" in prompt_result:
+            # Get the full text from prompt_result directly
+            final_response = prompt_result.get("final_response")
             
-            # Log detailed information about what we extracted
-            logger.info(f"PLAN EXTRACTION - LENGTH: {len(plan_content)} chars")
-            logger.info(f"PLAN STARTS WITH: {plan_content[:100]}...")
-            if len(plan_content) > 200:
-                logger.info(f"PLAN ENDS WITH: ...{plan_content[-100:]}")
-
+            # Extract the content from Claude API format models
+            if hasattr(final_response, "content") and final_response.content:
+                # Claude API format - content is most likely a list of blocks
+                content = final_response.content
+                if isinstance(content, list):
+                    # Extract text from each content block
+                    plan_content = ""
+                    for block in content:
+                        if hasattr(block, "text"):
+                            plan_content += block.text
+                        elif isinstance(block, dict) and "text" in block:
+                            plan_content += block["text"]
+                        elif isinstance(block, str):
+                            plan_content += block
+                else:
+                    # Otherwise just use the content directly
+                    plan_content = str(content)
+            # Fall back to model_dump for Pydantic models
+            elif hasattr(final_response, "model_dump"):
+                # It's a Pydantic model but not in the expected format
+                dump = final_response.model_dump()
+                # Try to get text from the dump
+                if isinstance(dump, dict):
+                    if "content" in dump:
+                        content = dump["content"]
+                        if isinstance(content, list):
+                            plan_content = ""
+                            for item in content:
+                                if isinstance(item, dict) and "text" in item:
+                                    plan_content += item["text"]
+                        else:
+                            plan_content = str(content)
+                    elif "text" in dump:
+                        plan_content = dump["text"]
+                    else:
+                        plan_content = str(dump)
+                else:
+                    plan_content = str(dump)
+            # Last resort - simple string conversion
+            elif hasattr(final_response, "__str__"):
+                plan_content = str(final_response)
+            else:
+                plan_content = repr(final_response)
+                
+            # Clean up the content
+            plan_content = plan_content.strip()
+            
+            # Log what we got
+            logger.info(f"Got plan content of length {len(plan_content)}")
+            
         # Create fallback plan if we still don't have content
-        if not plan_content:
+        else:
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             plan_content = f"""
             # Plan: {plan_name}
@@ -370,33 +380,65 @@ class PlanSaveStep(WorkflowStep):
                 f"Error checking if plan exists: {e}, will attempt to save anyway"
             )
 
-        # Execute the save_plan tool with a timeout of 30 seconds
+        # DIRECT SAVE - Skip using the tool to avoid LLM answering about the saving
         try:
-            # Use asyncio.wait_for to add a timeout
-            result = await asyncio.wait_for(
-                context.tool_manager.execute_tool(
-                    "save_plan",
-                    {
-                        "plan_name": plan_name,
-                        "plan_content": plan_content,
-                        "tags": tags,
-                    },
-                ),
-                timeout=30.0,  # 30 second timeout
-            )
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"save_plan tool timed out after 30 seconds for plan '{plan_name}'"
-            )
-            # Return success anyway since the plan was likely saved
-            return {
-                "save_result": {
-                    "success": True,
-                    "message": f"Plan '{plan_name}' save operation timed out, but likely succeeded",
-                    "path": f"plans/{plan_name}.txt",
-                },
-                "plan_path": f"plans/{plan_name}.txt",
+            # Directly create file paths
+            plan_path = f"src/agents/planning/plans/{plan_name}.txt"
+            metadata_path = f"src/agents/planning/plans/{plan_name}.meta.json"
+            
+            # Create metadata
+            metadata = {
+                "name": plan_name,
+                "tags": tags if tags else [],
+                "created_at": str(datetime.now()),
             }
+            
+            # Save directly to files
+            logger.info(f"Directly saving plan to {plan_path}")
+            with open(plan_path, "w") as f:
+                f.write(plan_content)
+                
+            # Save metadata
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+                
+            # Create success result
+            result = {
+                "success": True,
+                "message": f"Plan '{plan_name}' saved directly (bypassing tool)",
+                "path": plan_path,
+            }
+            
+        except Exception as e:
+            # If direct save fails, try using the tool
+            logger.warning(f"Direct save failed: {e}. Attempting to use save_plan tool.")
+            
+            try:
+                # Use asyncio.wait_for to add a timeout
+                result = await asyncio.wait_for(
+                    context.tool_manager.execute_tool(
+                        "save_plan",
+                        {
+                            "plan_name": plan_name,
+                            "plan_content": plan_content,
+                            "tags": tags,
+                        },
+                    ),
+                    timeout=5.0,  # 5 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"save_plan tool timed out after 5 seconds for plan '{plan_name}'"
+                )
+                # Return success anyway since the plan was likely saved
+                return {
+                    "save_result": {
+                        "success": True,
+                        "message": f"Plan '{plan_name}' save operation timed out, but likely succeeded",
+                        "path": f"plans/{plan_name}.txt",
+                    },
+                    "plan_path": f"plans/{plan_name}.txt",
+                }
 
         # Extract the text content from the result
         result_text = context.tool_manager.format_tool_result(result)

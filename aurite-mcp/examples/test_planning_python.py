@@ -87,17 +87,21 @@ async def run_planning_workflow():
         # Get the workflow instance to modify its configuration
         workflow = host.workflows.get_workflow("python_learning_workflow")
 
-        # Custom user message template for Python learning - making it extremely minimal
+        # Custom prompt with explicit formatting requirements
         python_message_template = (
-            "Create a Python learning plan with these elements:\n"
+            "You are creating a Python learning plan. EXTREMELY IMPORTANT:\n\n"
+            "1. Output ONLY the plain markdown learning plan\n"
+            "2. Do NOT include ANY text about 'I've created a plan' or 'Plan saved successfully'\n"
+            "3. Do NOT explain what you did or will do\n"
+            "4. Start your response with '# Python Learning Plan'\n\n"
+            "Create a 3-month Python learning plan named '{plan_name}' with these elements:\n"
             "1. Week-by-week curriculum breakdown\n"
-            "2. Python libraries/frameworks to learn in order\n"
-            "3. Coding projects with increasing complexity\n"
-            "4. Recommended resources for each topic\n"
+            "2. Python libraries to learn (in order)\n"
+            "3. Coding projects\n"
+            "4. Resources for each topic\n"
             "5. Progress metrics\n\n"
-            "Plan name: '{plan_name}', Duration: {timeframe}, Resources: {resources_text}\n\n"
-            "RESPONSE FORMAT: Output ONLY the plan as a markdown document. No introduction, meta-commentary, or explanation."
-            "Begin with '# Python Learning Plan' and end with the last content section."
+            "Format as markdown with headings. Start with '# Python Learning Plan' and end with metrics. "
+            "DO NOT include any comments about saving the plan or what you've created."
         )
 
         # Create a unique plan name based on timestamp
