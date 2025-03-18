@@ -87,22 +87,17 @@ async def run_planning_workflow():
         # Get the workflow instance to modify its configuration
         workflow = host.workflows.get_workflow("python_learning_workflow")
 
-        # Custom user message template for Python learning
+        # Custom user message template for Python learning - making it extremely minimal
         python_message_template = (
-            "I need a detailed plan for learning Python programming. "
-            "For this specific Python learning plan, please include:\n"
+            "Create a Python learning plan with these elements:\n"
             "1. Week-by-week curriculum breakdown\n"
-            "2. Specific Python libraries/frameworks to learn and in what order\n"
-            "3. Concrete coding projects with increasing complexity\n"
-            "4. Recommended resources for each topic (books, courses, tutorials)\n"
-            "5. How to measure progress and validate skills\n\n"
-            "The plan should be named '{plan_name}' and should be completed in {timeframe}. "
-            "Resources available: {resources_text}.\n\n"
-            "VERY IMPORTANT: Your response MUST ONLY contain the plan itself as a structured markdown document. "
-            "DO NOT include any introduction, explanation, summary, or conclusion about the plan. "
-            "DO NOT talk about what you're going to do or what you've done. "
-            "Start directly with the plan title/heading and end with the last content section. "
-            "Format with clear headings, bullet points, and a logical progression."
+            "2. Python libraries/frameworks to learn in order\n"
+            "3. Coding projects with increasing complexity\n"
+            "4. Recommended resources for each topic\n"
+            "5. Progress metrics\n\n"
+            "Plan name: '{plan_name}', Duration: {timeframe}, Resources: {resources_text}\n\n"
+            "RESPONSE FORMAT: Output ONLY the plan as a markdown document. No introduction, meta-commentary, or explanation."
+            "Begin with '# Python Learning Plan' and end with the last content section."
         )
 
         # Create a unique plan name based on timestamp
@@ -112,18 +107,39 @@ async def run_planning_workflow():
         # We no longer need to modify the workflow directly
         # Instead, we'll pass the custom prompt template in the input data
         
-        # Prepare input data as a dictionary - including the required plan_name
+        # There are two approaches we can take:
+        # 1. Use the server's named prompt with basic parameters
+        # 2. Continue using our custom prompt template for more control
+        
+        # Let's support both methods via a flag
+        use_server_prompt = False  # Set to True to use the server's prompt, False to use custom
+        
+        # Configure step timeout to prevent hanging
+        if hasattr(workflow, "steps") and len(workflow.steps) > 0:
+            # Add higher timeouts to prevent retry issues
+            for step in workflow.steps:
+                # Increase timeout for all steps
+                step.timeout = 90.0  # 90 seconds timeout
+                # Reduce max retries to minimize duplicates
+                step.max_retries = 1  # Only retry once
+                # Log config
+                logger.info(f"Configured step {step.name} with timeout={step.timeout}s, max_retries={step.max_retries}")
+        
+        # Prepare input data as a dictionary
         input_data = {
             "task": "Create a comprehensive learning plan for mastering Python programming, "
                    "suitable for a beginner with some basic programming knowledge.",
-            "plan_name": plan_name,  # This is the REQUIRED field that was missing
+            "plan_name": plan_name, 
             "timeframe": "3 months",
             "resources": ["Online courses", "Books", "Practice exercises", "Coding projects", "Community forums"],
-            # Pass the custom prompt template directly in the input data
-            "custom_prompt_template": python_message_template,
         }
         
-        logger.info("Using custom Python learning plan prompt via input data")
+        # Add the custom template only if we're not using the server prompt
+        if not use_server_prompt:
+            input_data["custom_prompt_template"] = python_message_template
+            logger.info("Using custom Python learning plan prompt via input data")
+        else:
+            logger.info("Using server's create_plan_prompt")
 
         # Execute the workflow
         logger.info(f"Executing planning workflow for Python learning")
@@ -134,13 +150,34 @@ async def run_planning_workflow():
         # Check result
         if result:
             logger.info(f"Plan created successfully: {plan_name}")
-            logger.info(f"Plan path: {result.get('plan_path')}")
-
+            
+            # First try to get the plan path
+            plan_path = result.get('plan_path')
+            if not plan_path:
+                # Try a direct path
+                plan_path = f"src/agents/planning/plans/{plan_name}.txt"
+            logger.info(f"Plan path: {plan_path}")
+            
+            # Try to get plan content first from the result
+            plan_content = result.get('plan_content')
+            
+            # If we don't have content but have a path, try to read the file
+            if not plan_content and plan_path:
+                try:
+                    with open(plan_path, 'r') as f:
+                        plan_content = f.read()
+                        logger.info(f"Read plan from file: {len(plan_content)} characters")
+                except Exception as e:
+                    logger.error(f"Error reading plan file: {e}")
+            
             # Print the plan content
-            logger.info("Python learning plan content:")
-            logger.info(result.get("plan_content"))
-
-            return result.get("plan_content")
+            if plan_content:
+                logger.info("Python learning plan content:")
+                logger.info(plan_content)
+                return plan_content
+            else:
+                logger.warning("Plan was created but content couldn't be retrieved")
+                return None
         else:
             logger.error("Failed to create Python learning plan")
             return None

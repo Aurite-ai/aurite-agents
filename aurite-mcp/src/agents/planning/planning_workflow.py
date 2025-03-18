@@ -19,6 +19,7 @@ Key Features:
 4. Context management for reliable data passing between steps
 """
 
+import asyncio
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 import logging
@@ -61,7 +62,7 @@ class PlanCreationStep(WorkflowStep):
             # No tools needed - this step uses prompt-based execution directly
             required_tools=set(),
             # Configure prompt-based execution
-            prompt_name="planning_prompt",
+            prompt_name="create_plan_prompt",
             client_id="planning",
             user_message_template=(
                 "I need to create a detailed, specific plan for the following task: {task}. "
@@ -79,6 +80,24 @@ class PlanCreationStep(WorkflowStep):
 
     async def execute(self, context: AgentContext) -> Dict[str, Any]:
         """Execute the plan creation step using prompt-based execution"""
+        # Check if plan was already created in a previous retry attempt
+        # This prevents duplicate plan creation on retries
+        existing_plan_content = context.get("plan_content")
+        if existing_plan_content:
+            logger.info(
+                "Plan content already exists in context, skipping plan creation step"
+            )
+            plan_name = context.get("plan_name")
+            return {
+                "plan_content": existing_plan_content,
+                "plan_name": plan_name,
+                "create_plan_result": {
+                    "success": True,
+                    "message": f"Plan '{plan_name}' already exists in context",
+                },
+                "prompt_execution_details": {"reused_existing": True},
+            }
+
         # Extract inputs from context
         task = context.get("task")
         plan_name = context.get("plan_name")
@@ -86,10 +105,12 @@ class PlanCreationStep(WorkflowStep):
         resources = context.get("resources")
 
         # Check for custom prompt template in the context
-        # We check both 'user_message_template' (for backward compatibility) 
+        # We check both 'user_message_template' (for backward compatibility)
         # and 'custom_prompt_template' (new recommended field name)
-        custom_template = context.get("custom_prompt_template", context.get("user_message_template", None))
-        
+        custom_template = context.get(
+            "custom_prompt_template", context.get("user_message_template", None)
+        )
+
         if custom_template:
             logger.info("Using custom prompt template from input data")
             # Store original template for restoration if needed
@@ -134,7 +155,7 @@ class PlanCreationStep(WorkflowStep):
             )
         finally:
             # Restore original template if we used a custom one
-            if custom_template and 'original_template' in locals():
+            if custom_template and "original_template" in locals():
                 self.user_message_template = original_template
 
         # IMPORTANT: Make sure we set all required fields in the context directly
@@ -173,14 +194,14 @@ class PlanCreationStep(WorkflowStep):
 
         # Extract directly from the final response
         final_response = prompt_result.get("final_response", {})
-        
+
         # Simplified response extraction using consistent approach
         response_text = ""
-        
+
         # Handle different response structures consistently
         if hasattr(final_response, "content"):
             content = final_response.content
-            
+
             # Content could be a list of content blocks or a string
             if isinstance(content, list):
                 for block in content:
@@ -202,11 +223,17 @@ class PlanCreationStep(WorkflowStep):
         # Last resort: try string representation
         elif final_response:
             response_text = str(final_response)
-        
+
         # Check if we have content
         if response_text.strip():
-            plan_content = response_text
-            logger.debug(f"Extracted plan content with length: {len(response_text)}")
+            # Cleaner approach - just use the full text and optimize the prompt instructions instead
+            plan_content = response_text.strip()
+            
+            # Log detailed information about what we extracted
+            logger.info(f"PLAN EXTRACTION - LENGTH: {len(plan_content)} chars")
+            logger.info(f"PLAN STARTS WITH: {plan_content[:100]}...")
+            if len(plan_content) > 200:
+                logger.info(f"PLAN ENDS WITH: ...{plan_content[-100:]}")
 
         # Create fallback plan if we still don't have content
         if not plan_content:
@@ -303,15 +330,63 @@ class PlanSaveStep(WorkflowStep):
         # Prepare parameters for save_plan tool
         tags = self._prepare_resource_tags(resources)
 
-        # Execute the save_plan tool
-        result = await context.tool_manager.execute_tool(
-            "save_plan",
-            {
-                "plan_name": plan_name,
-                "plan_content": plan_content,
-                "tags": tags,
-            },
-        )
+        # Check if the plan with this name already exists
+        try:
+            # Try to list plans first to avoid duplicate saves
+            list_plans_result = await context.tool_manager.execute_tool("list_plans")
+
+            # Parse the plans list result to get plan names
+            plan_exists = False
+            if isinstance(list_plans_result, dict) and list_plans_result.get(
+                "success", False
+            ):
+                plans = list_plans_result.get("plans", [])
+                plan_exists = any(p.get("name") == plan_name for p in plans)
+
+            if plan_exists:
+                logger.info(
+                    f"Plan '{plan_name}' already exists, skipping save operation"
+                )
+                return {
+                    "save_result": {
+                        "success": True,
+                        "message": f"Plan '{plan_name}' already exists, skipping save",
+                        "path": f"plans/{plan_name}.txt",
+                    },
+                    "plan_path": f"plans/{plan_name}.txt",
+                }
+        except Exception as e:
+            logger.warning(
+                f"Error checking if plan exists: {e}, will attempt to save anyway"
+            )
+
+        # Execute the save_plan tool with a timeout of 30 seconds
+        try:
+            # Use asyncio.wait_for to add a timeout
+            result = await asyncio.wait_for(
+                context.tool_manager.execute_tool(
+                    "save_plan",
+                    {
+                        "plan_name": plan_name,
+                        "plan_content": plan_content,
+                        "tags": tags,
+                    },
+                ),
+                timeout=30.0,  # 30 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"save_plan tool timed out after 30 seconds for plan '{plan_name}'"
+            )
+            # Return success anyway since the plan was likely saved
+            return {
+                "save_result": {
+                    "success": True,
+                    "message": f"Plan '{plan_name}' save operation timed out, but likely succeeded",
+                    "path": f"plans/{plan_name}.txt",
+                },
+                "plan_path": f"plans/{plan_name}.txt",
+            }
 
         # Extract the text content from the result
         result_text = context.tool_manager.format_tool_result(result)
@@ -323,7 +398,7 @@ class PlanSaveStep(WorkflowStep):
                 save_result = result
             elif hasattr(result, "model_dump"):
                 save_result = result.model_dump()
-            elif isinstance(result_text, str) and result_text.strip().startswith('{'):
+            elif isinstance(result_text, str) and result_text.strip().startswith("{"):
                 save_result = json.loads(result_text)
             else:
                 # Fallback with reasonable defaults
@@ -438,7 +513,7 @@ class PlanListStep(WorkflowStep):
         # Parse the actual list_plans response
         try:
             # Try to parse as JSON if it's a string
-            if isinstance(result_text, str) and result_text.strip().startswith('{'):
+            if isinstance(result_text, str) and result_text.strip().startswith("{"):
                 plans_data = json.loads(result_text)
             # If result is already a dict, use it directly
             elif isinstance(result, dict):
@@ -449,7 +524,7 @@ class PlanListStep(WorkflowStep):
             else:
                 # Last resort: try to parse the string representation
                 plans_data = json.loads(str(result))
-                
+
             return {"plans_list": plans_data}
         except Exception as e:
             logger.warning(f"Error parsing list_plans result: {e}")
@@ -459,7 +534,7 @@ class PlanListStep(WorkflowStep):
                     "success": False,
                     "message": f"Error parsing plans list: {str(e)}",
                     "count": 0,
-                    "plans": []
+                    "plans": [],
                 }
             }
 

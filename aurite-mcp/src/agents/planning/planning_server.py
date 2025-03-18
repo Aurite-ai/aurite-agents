@@ -15,6 +15,7 @@ Plans are stored both on disk (for persistence) and in memory (for fast access).
 
 import json
 import logging
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -92,7 +93,7 @@ load_plans()
 
 
 @mcp.tool()
-def save_plan(
+async def save_plan(
     plan_name: str,
     plan_content: str,
     tags: Optional[List[str]] = None,
@@ -124,7 +125,12 @@ def save_plan(
 
     # Save plan content to file
     try:
-        ctx.info(f"Saving plan: {plan_name}")
+        if ctx:
+            # Check if info is a coroutine function that needs to be awaited
+            if asyncio.iscoroutinefunction(ctx.info):
+                await ctx.info(f"Saving plan: {plan_name}")
+            else:
+                ctx.info(f"Saving plan: {plan_name}")
 
         with open(plan_path, "w") as f:
             f.write(plan_content)
@@ -156,7 +162,7 @@ def save_plan(
 
 
 @mcp.tool()
-def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]:
+async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]:
     """
     List all available plans, optionally filtered by tag.
 
@@ -167,7 +173,12 @@ def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]
         Dictionary with list of available plans
     """
     try:
-        ctx.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
+        if ctx:
+            # Check if info is a coroutine function that needs to be awaited
+            if asyncio.iscoroutinefunction(ctx.info):
+                await ctx.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
+            else:
+                ctx.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
 
         # Filter plans by tag if specified
         if tag:
@@ -203,7 +214,7 @@ def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]
 
 
 @mcp.tool()
-def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
+async def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
     """
     Delete a saved plan by name.
 
@@ -214,7 +225,12 @@ def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
         Dictionary with deletion status and information about the deleted plan
     """
     try:
-        ctx.info(f"Deleting plan: {plan_name}")
+        if ctx:
+            # Check if info is a coroutine function that needs to be awaited
+            if asyncio.iscoroutinefunction(ctx.info):
+                await ctx.info(f"Deleting plan: {plan_name}")
+            else:
+                ctx.info(f"Deleting plan: {plan_name}")
 
         # Sanitize plan name
         plan_name = plan_name.replace("/", "_").replace("\\", "_")
@@ -278,7 +294,7 @@ def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
         }
 
 
-@mcp.prompt()
+@mcp.prompt("create_plan_prompt")
 def planning_prompt(task: str, timeframe: str = None, resources: str = None) -> str:
     """
     Generate a structured planning prompt.
@@ -371,7 +387,7 @@ def plan_resource(plan_name: str) -> str:
     return result
 
 
-@mcp.prompt()
+@mcp.prompt("plan_analysis_prompt")
 def plan_analysis_prompt(plan_name: str = "") -> str:
     """
     Create a prompt for analyzing an existing plan.
