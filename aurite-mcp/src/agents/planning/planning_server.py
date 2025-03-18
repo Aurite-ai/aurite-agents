@@ -203,55 +203,73 @@ def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]
 
 
 @mcp.tool()
-def get_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
-    """
-    Get a saved plan by name.
-
-    Args:
-        plan_name: Name of the plan to retrieve
-    """
-    load_plans()
-    plan_name = plan_name.replace("/", "_").replace("\\", "_")
-    if plan_name not in plans_cache:
-        return {
-            "success": False,
-            "message": f"Plan '{plan_name}' not found",
-        }
-    return {
-        "success": True,
-        "message": f"Plan '{plan_name}' retrieved successfully",
-        "plan": plans_cache[plan_name],
-    }
-
-
-@mcp.tool()
 def delete_plan(plan_name: str, ctx: Context = None) -> Dict[str, Any]:
     """
     Delete a saved plan by name.
+
+    Args:
+        plan_name: Name of the plan to delete
+
+    Returns:
+        Dictionary with deletion status and information about the deleted plan
     """
-    load_plans()
-    plan_name = plan_name.replace("/", "_").replace("\\", "_")
-    if plan_name not in plans_cache:
-        return {
-            "success": False,
-            "message": f"Plan '{plan_name}' not found",
-        }
     try:
         ctx.info(f"Deleting plan: {plan_name}")
+
+        # Sanitize plan name
+        plan_name = plan_name.replace("/", "_").replace("\\", "_")
+
+        # Check if plan exists in cache
+        plan_existed_in_cache = plan_name in plans_cache
+
+        # Store plan data for the response if it exists
+        deleted_plan_info = None
+        if plan_existed_in_cache:
+            deleted_plan_info = {
+                "name": plan_name,
+                "path": plans_cache[plan_name]["path"],
+                "tags": plans_cache[plan_name]["metadata"].get("tags", []),
+                "created_at": plans_cache[plan_name]["metadata"].get(
+                    "created_at", "Unknown"
+                ),
+            }
+
+        # Create file paths
         plan_path = PLANS_DIR / f"{plan_name}.txt"
         metadata_path = PLANS_DIR / f"{plan_name}.meta.json"
 
-        if plan_path.exists():
+        # Check if files exist before trying to delete
+        plan_file_existed = plan_path.exists()
+        metadata_file_existed = metadata_path.exists()
+
+        if not plan_file_existed and not plan_existed_in_cache:
+            return {
+                "success": False,
+                "message": f"Plan '{plan_name}' not found",
+            }
+
+        # Delete the files and cache entry
+        files_deleted = []
+
+        if plan_file_existed:
             plan_path.unlink()
-        if metadata_path.exists():
+            files_deleted.append(str(plan_path))
+
+        if metadata_file_existed:
             metadata_path.unlink()
+            files_deleted.append(str(metadata_path))
 
-        del plans_cache[plan_name]
+        if plan_existed_in_cache:
+            del plans_cache[plan_name]
 
+        # Create response with detailed information
         return {
             "success": True,
             "message": f"Plan '{plan_name}' deleted successfully",
+            "files_deleted": files_deleted,
+            "plan_info": deleted_plan_info,
         }
+
     except Exception as e:
         logger.error(f"Error deleting plan: {e}")
         return {
