@@ -10,4 +10,22 @@ This module provides:
 # Import the mcp object instead of PlanningServer
 from .planning_server import mcp
 
-__all__ = ["mcp"]
+# Import the workflow and related classes
+from .planning_workflow import (
+    PlanningWorkflow,
+    PlanningContext,
+    PlanCreationStep,
+    PlanSaveStep,
+    PlanAnalysisStep,
+    PlanListStep,
+)
+
+__all__ = [
+    "mcp",
+    "PlanningWorkflow",
+    "PlanningContext",
+    "PlanCreationStep",
+    "PlanSaveStep",
+    "PlanAnalysisStep",
+    "PlanListStep",
+]
