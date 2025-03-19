@@ -12,10 +12,10 @@ config = {
     "vector_store": {
         "provider": "pgvector",
         "config": {
-            "user": os.getenv("MEM0_PGVECTOR_USER"),
-            "password": os.getenv("MEM0_PGVECTOR_PASSWORD"),
-            "host": os.getenv("MEM0_PGVECTOR_HOST"),
-            "port": os.getenv("MEM0_PGVECTOR_PORT"),
+            "user": os.getenv("MEM0_USER"),
+            "password": os.getenv("MEM0_PASSWORD"),
+            "host": os.getenv("MEM0_HOST"),
+            "port": os.getenv("MEM0_PORT"),
         }
     }
 }
