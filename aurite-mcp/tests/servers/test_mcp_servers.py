@@ -46,11 +46,16 @@ def get_mcp_servers():
 
 @pytest.mark.parametrize("server_path", get_mcp_servers())
 @pytest.mark.asyncio
-async def test_all_mcp_servers(server_path):
-    """Run functional tests on each MCP server."""
+async def test_all_mcp_servers(server_path, test_mcp_host):
+    """Run functional tests on each MCP server.
+    
+    Args:
+        server_path: Path to the MCP server to test
+        test_mcp_host: The pre-initialized host from fixture
+    """
     logger.info(f"Testing MCP server: {server_path}")
-    # Direct call to the test function, not the pytest wrapper
-    results = await run_mcp_server_test(server_path)
+    # Direct call to the test function, with shared host
+    results = await run_mcp_server_test(server_path, shared_host=test_mcp_host)
     
     # Make assertions for pytest
     # Assert that we have at least one tool or prompt

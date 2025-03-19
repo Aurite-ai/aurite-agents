@@ -16,7 +16,7 @@ import time
 
 from ...agents.base_workflow import BaseWorkflow
 from ...agents.base_models import AgentContext
-from ..config import ClientConfig, HostConfig
+from ..config import ClientConfig, HostConfigModel
 
 logger = logging.getLogger(__name__)
 

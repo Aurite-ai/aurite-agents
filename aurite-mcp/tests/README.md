@@ -1,6 +1,6 @@
 # Aurite Agent Testing Guide
 
-This document explains how to use the testing infrastructure to evaluate Aurite agents and workflows.
+This document explains how to use the testing infrastructure to evaluate Aurite agents, workflows, and MCP servers.
 
 ## Introduction
 
@@ -10,8 +10,106 @@ The Aurite testing framework allows you to:
 2. Run multiple evaluations to get statistically significant results
 3. Generate detailed feedback for improving agent performance
 4. Test workflows end-to-end with mock dependencies
+5. Test MCP servers for tool, prompt, and resource functionality
+6. Verify server configurations and component accessibility
 
-## Testing an Agent
+## MCP Server Testing
+
+### Testing MCP Server Components
+
+The framework includes a standardized way to test MCP servers for accessibility and functionality of their components:
+
+```python
+import pytest
+from tests.servers.test_mcp_functional import MCPServerTester
+
+# Path to the server
+SERVER_PATH = Path("src/your_module/your_server.py")
+
+@pytest.mark.asyncio
+async def test_server_tools(test_mcp_host):
+    """Test that the server's tools are accessible."""
+    # Create a tester with the JSON-configured host
+    tester = MCPServerTester(SERVER_PATH, host=test_mcp_host)
+    
+    # Discover components
+    components = await tester.discover_components()
+    tools = components["tools"]
+    
+    # Verify expected tools exist
+    expected_tools = ["your_tool_name", "another_tool"]
+    for tool_name in expected_tools:
+        tool_exists = any(t["name"] == tool_name for t in tools)
+        assert tool_exists, f"Expected tool '{tool_name}' not found"
+```
+
+### Testing Prompts and Resources
+
+Similar tests for prompts and resources:
+
+```python
+@pytest.mark.asyncio
+async def test_server_prompts(test_mcp_host):
+    """Test that the server's prompts are accessible."""
+    tester = MCPServerTester(SERVER_PATH, host=test_mcp_host)
+    
+    # Discover components
+    components = await tester.discover_components()
+    prompts = components["prompts"]
+    
+    # Verify expected prompts exist
+    expected_prompts = ["your_prompt_name"]
+    for prompt_name in expected_prompts:
+        prompt_exists = any(p.name == prompt_name for p in prompts)
+        assert prompt_exists, f"Expected prompt '{prompt_name}' not found"
+
+@pytest.mark.asyncio
+async def test_server_resources(test_mcp_host):
+    """Test that the server's resources are accessible."""
+    tester = MCPServerTester(SERVER_PATH, host=test_mcp_host)
+    
+    # Discover and verify resource capabilities
+    components = await tester.discover_components()
+    
+    # Instead of direct client config access, verify through tool functionality
+    client_tools = [t for t in tester.tools if t["name"] in ["your_expected_tools"]]
+    assert len(client_tools) > 0, "No tools found for resource verification"
+```
+
+### Automatic Server Discovery
+
+The framework includes automatic discovery of all MCP servers listed in configuration:
+
+```python
+@pytest.mark.parametrize("server_path", get_all_server_paths())
+@pytest.mark.asyncio
+async def test_all_mcp_servers(server_path, test_mcp_host):
+    """Run functional tests on each MCP server."""
+    results = await run_mcp_server_test(server_path, shared_host=test_mcp_host)
+    
+    # Make assertions
+    assert results["tools"] or results["prompts"] or results["resources"]["found"]
+```
+
+### Host Configuration for Testing
+
+The testing framework uses the new configuration system to initialize a shared host for all tests:
+
+```python
+@pytest.fixture(scope="function")
+async def test_mcp_host():
+    """Create a real MCPHost for testing using the JSON configuration."""
+    # Load host configuration from JSON
+    host = MCPHost(config_name="aurite_host")
+    
+    try:
+        await host.initialize()
+        yield host
+    finally:
+        await host.shutdown()
+```
+
+## Agent Testing
 
 ### Basic Agent Testing
 
@@ -213,8 +311,11 @@ python -m pytest
 # Run specific test file
 python -m pytest tests/agents/test_planning_workflow.py
 
-# Run tests with specific marker
-python -m pytest -m evaluation
+# Run tests for a specific server
+python -m pytest tests/servers/test_planning_server.py
+
+# Run all server tests
+python -m pytest tests/servers/
 
 # Run with verbose output
 python -m pytest -v
@@ -238,10 +339,31 @@ For multi-run evaluations, additional statistics include:
 
 ## Best Practices
 
+### For Agent Testing
+
 1. **Use Domain-Specific Rubrics**: Choose rubrics that match your agent's purpose
 2. **Run Multiple Evaluations**: Use `evaluate_multi_run` for statistical reliability
 3. **Test Edge Cases**: Include challenging inputs in your test suite
 4. **Evolve Rubrics**: Refine rubrics as your agents improve
 5. **Combine with Unit Tests**: Use traditional unit tests for specific functionalities
-6. **Use Realistic Test Data**: Test with representative inputs
-7. **Test Complete Workflows**: Evaluate entire agent workflows, not just individual components
+
+### For MCP Server Testing
+
+1. **Test Component Accessibility**: Verify tools, prompts, and resources are properly registered
+2. **Use JSON Configurations**: Leverage the configuration system for host setup
+3. **Separate Discovery from Execution**: First verify components exist, then test their functionality
+4. **Test with Realistic Arguments**: Use representative arguments when testing tools
+5. **Test Resources through Tools**: Verify resource access by using tools that access them
+6. **Test with Shared Host**: Use the `test_mcp_host` fixture for consistent testing
+
+## Testing Architecture
+
+The testing framework uses a layered approach:
+
+1. **Shared Host Setup**: A common host is initialized using the configuration system
+2. **Component Discovery**: Server components are discovered and validated
+3. **Functional Testing**: Tool and prompt functionality is tested with representative inputs
+4. **Integration Testing**: Resources are tested through tool execution
+5. **Automatic Testing**: All registered servers are automatically discovered and tested
+
+The tests leverage the same JSON configuration files used in production, ensuring that the tests reflect the actual behavior of the system.

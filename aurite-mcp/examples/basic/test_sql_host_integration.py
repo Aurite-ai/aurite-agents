@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Path to the SQL server script
 SQL_SERVER_PATH = (
-    Path(__file__).parent.parent / "src" / "storage" / "sql" / "sql_server.py"
+    Path(__file__).parent.parent.parent / "src" / "storage" / "sql" / "sql_server.py"
 )
 
 # Database connection parameters - update these for your environment

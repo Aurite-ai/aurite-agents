@@ -11,5 +11,6 @@ to provide a complete agent management framework.
 """
 
 from .workflows import WorkflowManager
+from .agents import AgentManager
 
-__all__ = ["WorkflowManager"]
+__all__ = ["WorkflowManager", "AgentManager"]

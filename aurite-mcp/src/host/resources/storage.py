@@ -12,6 +12,8 @@ import time
 from typing import Dict, Optional, List, Any, Tuple
 from dataclasses import dataclass, field
 
+from ..config import ConfigurableManager, ConnectionConfig, ConfigurationManager
+
 # Type hint for SQLAlchemy objects
 try:
     from sqlalchemy.engine import Engine, Connection
@@ -60,58 +62,26 @@ class ConnectionInfo:
     is_active: bool = True
 
 
-class StorageManager:
+class StorageManager(ConfigurableManager[ConnectionConfig]):
     """
     Manages database connections for the MCP host.
     Handles secure creation and retrieval of database connections.
     """
 
     def __init__(self):
+        super().__init__("storage")
         # Connection pool: ID -> ConnectionInfo
         self._connections: Dict[str, ConnectionInfo] = {}
-
-        # Named connections from configuration
-        self._named_connections: Dict[str, Dict[str, Any]] = {}
-
         # Server permissions: server_id -> allowed_connection_types
         self._server_permissions: Dict[str, List[str]] = {}
 
-    async def initialize(self):
-        """Initialize the connection manager"""
-        logger.info("Initializing connection manager")
-        # Load named connections from configuration if available
-        await self._load_named_connections()
+    def _config_model_class(self):
+        return ConnectionConfig
 
-    async def _load_named_connections(self):
-        """Load named connection configurations"""
-        config_path = os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-            ),
-            "config",
-            "storage",
-            "connections.json",
+    def _validate_config_structure(self, config: Dict[str, Any]) -> bool:
+        return ConfigurationManager.validate_config_structure(
+            config, ["connections"], "storage"
         )
-
-        if not os.path.exists(config_path):
-            logger.info("No named connections configuration found")
-            return
-
-        try:
-            with open(config_path, "r") as f:
-                config = json.load(f)
-
-            connections = config.get("connections", {})
-            for name, connection_config in connections.items():
-                self._named_connections[name] = connection_config
-
-            logger.info(
-                f"Loaded {len(self._named_connections)} named connection configurations"
-            )
-        except Exception as e:
-            logger.error(f"Failed to load named connections: {e}")
 
     async def register_server_permissions(
         self, server_id: str, allowed_connection_types: List[str]
@@ -137,11 +107,16 @@ class StorageManager:
         try:
             # Validate required parameters
             required_params = ["type", "host", "database", "username", "password"]
-            for param in required_params:
-                if (
-                    param not in params and params["type"] != "sqlite"
-                ):  # sqlite doesn't need all
-                    raise ValueError(f"Missing required parameter: {param}")
+            if not ConfigurationManager.validate_config_structure(
+                params,
+                [
+                    p
+                    for p in required_params
+                    if params.get("type") != "sqlite" or p in ["type", "database"]
+                ],
+                "connection parameters",
+            ):
+                raise ValueError("Invalid connection parameters")
 
             # Construct connection string (only in memory)
             db_type = params["type"].lower()
@@ -210,10 +185,10 @@ class StorageManager:
         Returns:
             Tuple of (connection_id, connection_metadata)
         """
-        if connection_name not in self._named_connections:
+        if not self._config or connection_name not in self._config.connections:
             raise ValueError(f"Named connection not found: {connection_name}")
 
-        config = self._named_connections[connection_name]
+        config = self._config.connections[connection_name]
 
         # Get credentials from environment
         creds_env = config.get("credentialsEnv")
@@ -451,5 +426,4 @@ class StorageManager:
 
         # Clear all collections
         self._connections.clear()
-        self._named_connections.clear()
         self._server_permissions.clear()

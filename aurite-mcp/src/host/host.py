@@ -18,7 +18,7 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager
-from .config import HostConfig, ClientConfig, RootConfig
+from .config import ConfigurationManager, HostConfigModel, ClientConfig, RootConfig
 
 # Communication layer
 from .communication import TransportManager, MessageRouter
@@ -27,7 +27,7 @@ from .communication import TransportManager, MessageRouter
 from .resources import PromptManager, ResourceManager, StorageManager, ToolManager
 
 # Agent layer
-from .agent import WorkflowManager
+from .agent import WorkflowManager, AgentManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,29 @@ class MCPHost:
     This is the highest layer of abstraction in the MCP architecture.
     """
 
-    def __init__(self, config: HostConfig, encryption_key: Optional[str] = None):
+    def __init__(
+        self,
+        config_name: Optional[str] = None,
+        config: Optional[HostConfigModel] = None,
+        encryption_key: Optional[str] = None,
+    ):
+        """
+        Initialize the MCP Host.
+
+        Args:
+            config_name: Optional name of the host config file (without .json)
+            config: Optional pre-loaded host configuration
+            encryption_key: Optional encryption key for secure operations
+        """
+        # Load configuration
+        if config:
+            self._config = config
+        else:
+            self._config = ConfigurationManager.load_host_config(config_name)
+
+        # Use encryption key from config if not provided
+        encryption_key = encryption_key or self._config.encryption_key
+
         # Layer 1: Foundation layer
         self._security_manager = SecurityManager(encryption_key=encryption_key)
         self._root_manager = RootManager()
@@ -57,9 +79,9 @@ class MCPHost:
 
         # Layer 4: Agent layer
         self._workflow_manager = WorkflowManager(host=self)
+        self._agent_manager = AgentManager(host=self)
 
         # State management
-        self._config = config
         self._clients: Dict[str, ClientSession] = {}
 
         # Track active requests
@@ -72,6 +94,7 @@ class MCPHost:
         self.storage = self._storage_manager
         self.tools = self._tool_manager
         self.workflows = self._workflow_manager
+        self.agents = self._agent_manager
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
@@ -99,25 +122,24 @@ class MCPHost:
         # Layer 4: Agent layer
         logger.info("Initializing agent layer...")
         await self._workflow_manager.initialize()
+        await self._agent_manager.initialize()
 
-        # Initialize each configured client
+        # Load and initialize configured clients
+        await self._initialize_configured_clients()
+
+        logger.info("MCP Host initialization complete")
+
+    async def _initialize_configured_clients(self):
+        """Initialize all clients from configuration"""
+        # First initialize clients directly from host config
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
 
-            # Register permissions based on capabilities
-            if "storage" in client_config.capabilities:
-                await self._security_manager.register_server_permissions(
-                    client_config.client_id,
-                    allowed_credential_types=["database_connection"],
-                )
-
-                # Register database connection permissions
-                await self._storage_manager.register_server_permissions(
-                    client_config.client_id,
-                    allowed_connection_types=["postgresql", "mysql", "sqlite"],
-                )
-
-        logger.info("MCP Host initialization complete")
+        # Then load and initialize agent configs
+        agent_configs = ConfigurationManager.load_agent_configs()
+        for agent_config in agent_configs:
+            if agent_config.client_id not in self._clients:
+                await self._initialize_client(agent_config)
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
@@ -207,6 +229,19 @@ class MCPHost:
                     config.client_id, resources_response.resources
                 )
 
+            # Register storage permissions if needed
+            if "storage" in config.capabilities:
+                await self._security_manager.register_server_permissions(
+                    config.client_id,
+                    allowed_credential_types=["database_connection"],
+                )
+
+                # Register database connection permissions
+                await self._storage_manager.register_server_permissions(
+                    config.client_id,
+                    allowed_connection_types=["postgresql", "mysql", "sqlite"],
+                )
+
             logger.info(
                 f"Client {config.client_id} initialized with tools: {[t.name for t in tools_response.tools]}"
             )
@@ -215,57 +250,36 @@ class MCPHost:
             logger.error(f"Failed to initialize client {config.client_id}: {e}")
             raise
 
+    @property
+    def config(self) -> HostConfigModel:
+        """Get the current host configuration"""
+        return self._config
+
     async def prepare_prompt_with_tools(
         self,
         prompt_name: str,
         prompt_arguments: Dict[str, Any],
         client_id: str,
+        user_message: str,
         tool_names: Optional[List[str]] = None,
+        model: str = "claude-3-opus-20240229",
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
     ) -> Dict[str, Any]:
         """
         Prepare a prompt with associated tools, returning everything needed for an Anthropic API call.
-
-        Args:
-            prompt_name: Name of the prompt to use
-            prompt_arguments: Arguments for the prompt
-            client_id: Client ID to use for the prompt
-            tool_names: Optional list of specific tool names to include (if None, includes all available tools)
-
-        Returns:
-            Dictionary containing the system prompt, tools, and other parameters needed for the API call
+        Delegates to AgentManager for implementation.
         """
-        # Get the prompt
-        prompt = await self._prompt_manager.get_prompt(prompt_name, client_id)
-        if not prompt:
-            raise ValueError(f"Prompt not found: {prompt_name}")
-
-        # Validate prompt arguments
-        await self._prompt_manager.validate_prompt_arguments(prompt, prompt_arguments)
-
-        # Get the system prompt content
-        client = self._clients[client_id]
-        prompt_result = await client.get_prompt(prompt_name, prompt_arguments)
-
-        # Handle different response formats
-        if hasattr(prompt_result, "text"):
-            system_prompt = prompt_result.text
-        elif hasattr(prompt_result, "result") and hasattr(prompt_result.result, "text"):
-            system_prompt = prompt_result.result.text
-        else:
-            # Try to inspect the object to find text content
-            system_prompt = str(prompt_result)
-
-        # Prepare tools using ToolManager's formatting method
-        tools_data = self.tools.format_tools_for_llm(tool_names)
-
-        # Prepare the full request data
-        return {
-            "system": system_prompt,
-            "tools": tools_data,
-            "model": "claude-3-opus-20240229",  # Default model, could be made configurable
-            "max_tokens": 4096,  # Default max tokens, could be made configurable
-            "temperature": 0.7,  # Default temperature, could be made configurable
-        }
+        return await self._agent_manager.prepare_prompt_with_tools(
+            prompt_name=prompt_name,
+            prompt_arguments=prompt_arguments,
+            client_id=client_id,
+            user_message=user_message,
+            tool_names=tool_names,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
     async def execute_prompt_with_tools(
         self,
@@ -280,131 +294,20 @@ class MCPHost:
         anthropic_api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Execute a prompt with associated tools using the Anthropic API, handling tool execution.
-
-        Args:
-            prompt_name: Name of the prompt to use
-            prompt_arguments: Arguments for the prompt
-            client_id: Client ID to use for the prompt
-            user_message: The user message to send
-            tool_names: Optional list of specific tool names to include
-            model: Anthropic model to use
-            max_tokens: Maximum tokens to generate
-            temperature: Temperature for generation
-            anthropic_api_key: Optional API key (if not provided, uses environment variable)
-
-        Returns:
-            Dictionary containing the complete conversation and final result
+        Execute a prompt with associated tools using the Anthropic API.
+        Delegates to AgentManager for implementation.
         """
-        import os
-        import anthropic
-        from anthropic.types import MessageParam, ToolUseBlock
-
-        # Get API key
-        api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("No Anthropic API key provided or found in environment")
-
-        # Create client
-        client = anthropic.Anthropic(api_key=api_key)
-
-        # Prepare the prompt and tools
-        request_data = await self.prepare_prompt_with_tools(
+        return await self._agent_manager.execute_prompt_with_tools(
             prompt_name=prompt_name,
             prompt_arguments=prompt_arguments,
             client_id=client_id,
+            user_message=user_message,
             tool_names=tool_names,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            anthropic_api_key=anthropic_api_key,
         )
-
-        # Override model and parameters if provided
-        request_data["model"] = model
-        request_data["max_tokens"] = max_tokens
-        request_data["temperature"] = temperature
-
-        # Use the tools directly - they are already properly formatted by format_tools_for_llm
-        tools = request_data["tools"]
-
-        # Initialize message history
-        messages: List[MessageParam] = [{"role": "user", "content": user_message}]
-
-        # Execute the conversation
-        conversation_history = []
-        final_response = None
-        max_iterations = 10  # Prevent infinite loops
-        current_iteration = 0
-
-        while current_iteration < max_iterations:
-            current_iteration += 1
-
-            # Make API call - Anthropic client is not async
-            response = client.messages.create(
-                model=request_data["model"],
-                max_tokens=request_data["max_tokens"],
-                temperature=request_data["temperature"],
-                system=request_data["system"],
-                messages=messages,
-                tools=tools,
-            )
-
-            # Store in history
-            conversation_history.append(
-                {"role": "assistant", "content": response.content}
-            )
-
-            # Check for tool use
-            tool_results = []
-            has_tool_calls = False
-
-            for block in response.content:
-                if block.type == "tool_use":
-                    has_tool_calls = True
-                    tool_use: ToolUseBlock = block
-
-                    # Execute the tool
-                    logger.info(f"Executing tool: {tool_use.name}")
-                    try:
-                        tool_result = await self.tools.execute_tool(
-                            tool_name=tool_use.name, arguments=tool_use.input
-                        )
-
-                        # Use ToolManager to format the tool result
-                        tool_results.append(
-                            self.tools.create_tool_result_blocks(
-                                tool_use.id, tool_result
-                            )
-                        )
-
-                    except Exception as e:
-                        logger.error(f"Error executing tool {tool_use.name}: {e}")
-                        # Create an error result using the same format
-                        tool_results.append(
-                            self.tools.create_tool_result_blocks(
-                                tool_use.id, f"Error: {str(e)}"
-                            )
-                        )
-
-            # If no tool calls, we're done
-            if not has_tool_calls:
-                final_response = response
-                break
-
-            # Add assistant message with tool calls
-            messages.append({"role": "assistant", "content": response.content})
-
-            # Add user message with combined tool results
-            if tool_results:
-                # Anthropic expects all tool results in a single user message
-                messages.append({"role": "user", "content": tool_results})
-
-                # Track for return data
-                tool_uses = tool_results
-
-        # Return the complete conversation history and final response
-        return {
-            "conversation": conversation_history,
-            "final_response": final_response,
-            "tool_uses": tool_uses if has_tool_calls else [],
-        }
 
     async def register_workflow(self, workflow_class, name=None, **kwargs):
         """
@@ -475,6 +378,7 @@ class MCPHost:
         # Layer 4: Agent layer
         logger.info("Shutting down agent layer...")
         await self._workflow_manager.shutdown()
+        await self._agent_manager.shutdown()
 
         # Layer 3: Resource management layer
         logger.info("Shutting down resource management layer...")

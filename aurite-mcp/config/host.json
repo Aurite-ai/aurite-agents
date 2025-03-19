@@ -1,0 +1,14 @@
+{
+  "clients": [],
+  "config_paths": {
+    "workflows": "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/workflows/aurite_workflows.json",
+    "storage": "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/storage/connections.json",
+    "agents": "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/agents/aurite_agents.json",
+    "prompts": "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/prompts",
+    "resources": "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/resources"
+  },
+  "metadata": {
+    "version": "1.0",
+    "description": "Default MCP Host configuration"
+  }
+}

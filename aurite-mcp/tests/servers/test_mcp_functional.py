@@ -25,25 +25,28 @@ logger = logging.getLogger(__name__)
 # Add parent directory to path if needed for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.host.host import MCPHost, HostConfig, ClientConfig, RootConfig
+from src.host.host import MCPHost
+from src.host.config import ClientConfig, RootConfig, HostConfigModel
 from tests.servers.test_config import get_agent_config_by_id
 
 
 class MCPServerTester:
     """Tester class for MCP servers."""
     
-    def __init__(self, server_path: str):
+    def __init__(self, server_path: str, host: Optional[MCPHost] = None):
         """Initialize the tester with the path to the MCP server.
         
         Args:
             server_path: Path to the MCP server python file
+            host: Optional pre-initialized host (from test_mcp_host fixture)
         """
         self.server_path = Path(server_path).resolve()
         self.server_name = self.server_path.stem
-        self.host = None
+        self.host = host
         self.tools = []
         self.prompts = []
         self.resources = []
+        self.using_existing_host = host is not None
         
         # Derive client_id from server_path if possible
         # For example, extract "planning" from "planning_server.py"
@@ -53,14 +56,14 @@ class MCPServerTester:
         if self.client_id == self.server_name:
             self.client_id = "test-client"
         
-    def prepare_host_config(self) -> HostConfig:
+    def prepare_host_config(self) -> HostConfigModel:
         """Prepare host configuration for initialization.
         
         This method loads the configuration from the JSON files if available.
         Otherwise, it falls back to a default configuration.
         
         Returns:
-            HostConfig object ready for host initialization
+            HostConfigModel object ready for host initialization
         """
         # Try to get the agent config from JSON files
         agent_config = get_agent_config_by_id(self.client_id)
@@ -70,7 +73,7 @@ class MCPServerTester:
             logger.info(f"Using configuration from JSON for client: {self.client_id}")
             
             # But ensure we're using our test server path
-            agent_config["server_path"] = self.server_path
+            agent_config["server_path"] = str(self.server_path)
             
             # Convert roots from dict to RootConfig objects
             roots = []
@@ -105,21 +108,26 @@ class MCPServerTester:
                 timeout=30.0,
             )
             
-        # Create the HostConfig with the client configuration
-        config = HostConfig(clients=[client_config])
+        # Create the host config model with the client configuration
+        config = HostConfigModel(clients=[client_config])
         return config
     
-    async def initialize_host(self, config: Optional[HostConfig] = None) -> None:
+    async def initialize_host(self, config: Optional[HostConfigModel] = None) -> None:
         """Initialize the MCP host with the server.
         
         Args:
             config: Optional host configuration. If not provided, a default one will be created.
         """
+        # If we're using the shared host from the fixture, we don't need to initialize
+        if self.using_existing_host:
+            logger.info(f"Using existing host with {len(self.host.tools.list_tools())} tools")
+            return
+            
         if config is None:
             config = self.prepare_host_config()
         
         # Create and initialize host
-        self.host = MCPHost(config)
+        self.host = MCPHost(config=config)
         await self.host.initialize()
     
     async def discover_components(self) -> Dict[str, List]:
@@ -231,24 +239,30 @@ class MCPServerTester:
         
     async def cleanup(self) -> None:
         """Clean up resources."""
-        if self.host:
-            await self.host.shutdown()
+        # Only shut down if we're not using a shared host (which will be cleaned up by the fixture)
+        if self.host and not self.using_existing_host:
+            try:
+                await self.host.shutdown()
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
+                # Don't re-raise, we're in cleanup
             
             
-async def run_mcp_server_test(server_path: str) -> Dict[str, Dict[str, bool]]:
+async def run_mcp_server_test(server_path: str, shared_host: Optional[MCPHost] = None) -> Dict[str, Dict[str, bool]]:
     """Test an MCP server for basic functionality.
     
     This is a helper function, not a pytest test function.
     
     Args:
         server_path: Path to the MCP server python file
+        shared_host: Optional shared host from test_mcp_host fixture
         
     Returns:
         Dictionary of test results
     """
     logger.info(f"Testing MCP server at: {server_path}")
     
-    tester = MCPServerTester(server_path)
+    tester = MCPServerTester(server_path, host=shared_host)
     try:
         results = await tester.test_server_components()
         
@@ -279,13 +293,21 @@ async def run_mcp_server_test(server_path: str) -> Dict[str, Dict[str, bool]]:
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_functional(server_path: str) -> None:
+@pytest.mark.parametrize("server_path", 
+    [
+        # Hardcode paths for now to avoid dependency on external test functions
+        "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/src/agents/planning/planning_server.py",
+        "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/src/agents/evaluation/evaluation_server.py"
+    ]
+)
+async def test_mcp_server_functional(server_path: str, test_mcp_host) -> None:
     """Pytest wrapper for testing an MCP server.
     
     Args:
         server_path: Path to the MCP server python file
+        test_mcp_host: Host fixture with JSON-configured host
     """
-    results = await run_mcp_server_test(server_path)
+    results = await run_mcp_server_test(server_path, shared_host=test_mcp_host)
     
     # Make assertions for pytest
     

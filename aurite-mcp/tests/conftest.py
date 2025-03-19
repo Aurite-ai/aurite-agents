@@ -18,7 +18,8 @@ import mcp.types as types
 from mcp import ClientSession
 
 # Import Aurite components
-from src.host.host import MCPHost, HostConfig, ClientConfig
+from src.host.host import MCPHost
+from src.host.config import ConfigurationManager, HostConfigModel, ClientConfig, RootConfig
 from src.host.resources.tools import ToolManager
 from src.host.foundation import RootManager, SecurityManager
 from src.host.communication import MessageRouter
@@ -44,6 +45,40 @@ def pytest_unconfigure(config):
 
 # --- Host Testing Infrastructure ---
 
+@pytest.fixture(scope="function")
+async def test_mcp_host():
+    """
+    Create a real MCPHost for testing using the JSON configuration.
+    
+    Returns an initialized host for testing.
+    """
+    # Use the aurite_host.json config or create a testing host config
+    host_config_name = "aurite_host"
+    config_path = Path("config/host") / f"{host_config_name}.json"
+    
+    logger.info(f"Initializing test host with config: {config_path}")
+    
+    # Load host configuration from JSON
+    host = MCPHost(config_name=host_config_name)
+    
+    try:
+        # Initialize the host (this will load all the JSON configs and register components)
+        await host.initialize()
+        logger.info(f"Test host initialized with {len(host.tools.list_tools())} tools")
+        
+        # Return the initialized host
+        yield host
+        
+    finally:
+        # Cleanup
+        logger.info("Shutting down test host")
+        try:
+            await host.shutdown()
+        except Exception as e:
+            logger.error(f"Error shutting down test host: {e}")
+            # Don't re-raise, we're in cleanup
+
+
 @pytest.fixture
 async def mock_mcp_host():
     """
@@ -63,10 +98,10 @@ async def mock_mcp_host():
     ]
     
     # Create host config
-    config = HostConfig(clients=mock_clients)
+    config = HostConfigModel(clients=mock_clients)
     
     # Create host with mocked managers
-    host = MCPHost(config)
+    host = MCPHost(config=config)
     
     # Replace internal managers with mocks
     host._tool_manager = MagicMock(spec=ToolManager)
@@ -120,7 +155,10 @@ async def mock_mcp_host():
     host.shutdown = AsyncMock()
     
     # Return the mocked host
-    return host
+    yield host
+    
+    # Clean up
+    await host.shutdown()
 
 
 @pytest.fixture
