@@ -76,7 +76,13 @@ async def main():
         return
 
     # Path to the server script
-    server_path = Path(__file__).parent / "planning_server.py"
+    server_path = (
+        Path(__file__).parent.parent.parent.parent
+        / "src"
+        / "agents"
+        / "planning"
+        / "planning_server.py"
+    )
 
     # Create host configuration with planning client
     host_config = HostConfig(
