@@ -41,19 +41,17 @@ async def execute_agent():
 
     tools = host.tools.list_tools()
 
-    prompts =  host.prompts.list_prompts()
+    prompts = await host.prompts.list_prompts()
 
     logger.info(f"Tools: {tools}")
     logger.info(f"Prompts: {prompts}")
-
-
 
     response = await host.execute_prompt_with_tools(
         prompt_name="evaluation_prompt",
         prompt_arguments={},
         client_id="evaluation_client",
         user_message="Can you say hello world",
-        tool_names=["hello_world"],
+        tool_names=["evaluate_agent"],
         model="claude-3-sonnet-20240229",  # Using a smaller model for testing
         max_tokens=1000,
         temperature=0.7,
@@ -72,5 +70,3 @@ if __name__ == "__main__":
         import traceback
 
         traceback.print_exc()
-
-    
