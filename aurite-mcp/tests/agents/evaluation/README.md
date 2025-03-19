@@ -4,23 +4,27 @@ This directory contains tests for the Evaluation Workflow component of the Aurit
 
 ## Current Status
 
-The tests are currently structured and ready, but are **skipped** due to initialization compatibility issues between the `EvaluationWorkflow` class and the testing framework.
+✅ The tests are now working and passing! The initialization compatibility issues have been resolved.
 
-## Known Issues
+## Implementation Changes
 
-1. **Initialization Parameter Conflict**: The `EvaluationWorkflow.__init__` method and its parent `BaseWorkflow.__init__` method have conflicting parameter usage, which causes a "multiple values for argument 'host'" error when trying to run tests.
+The `EvaluationWorkflow` class has been updated with the following changes:
 
-2. **Parameter Naming Inconsistency**: In `EvaluationWorkflow`, the `tool_manager` is being passed as the first positional argument to `BaseWorkflow.__init__`, which expects a `host` parameter first. This leads to parameter confusion.
+1. **Fixed `EvaluationWorkflow.__init__` Method**: The initialization method now properly matches the BaseWorkflow parameter signature:
 
-## Implementation TODO
+```python
+def __init__(
+    self, 
+    host,
+    name: str = "evaluation_workflow", 
+    client_config: Optional[ClientConfig] = None,
+    workflow_config: Optional[Dict[str, Any]] = None
+):
+    """Initialize the evaluation workflow."""
+    super().__init__(host=host, name=name, client_config=client_config, workflow_config=workflow_config)
+```
 
-To make these tests work, one of the following solutions needs to be implemented:
-
-1. **Fix `EvaluationWorkflow.__init__`** - The initialization method should be updated to properly handle the parameters and pass them correctly to the parent class.
-
-2. **Create a Test Adapter** - A test-specific adapter for the workflow could be created to handle the initialization properly.
-
-3. **Update Test Framework** - The testing approach could be modified to accommodate the current workflow initialization pattern.
+2. **Updated Tool Execution**: The workflow steps now use `context.host.tools` instead of `context.tool_manager` to execute tools, which is compatible with the host-based testing framework.
 
 ## Testing Strategy
 

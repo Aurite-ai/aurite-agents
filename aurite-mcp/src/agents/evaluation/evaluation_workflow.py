@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Set, Union
 from pathlib import Path
 
+# Import needed for ClientConfig
+from ...host.config import ClientConfig
+
 # Import required framework components
 from ..base_workflow import BaseWorkflow, WorkflowStep
 from ..base_models import AgentContext, StepStatus
@@ -68,7 +71,7 @@ class EvaluateAgentStep(WorkflowStep):
         }
         
         # Execute the evaluation tool
-        result = await context.tool_manager.execute_tool("evaluate_agent", tool_args)
+        result = await context.host.tools.execute_tool("evaluate_agent", tool_args)
         
         # Parse the result - assuming it's returned as JSON text
         try:
@@ -133,7 +136,7 @@ class AggregateEvaluationsStep(WorkflowStep):
             }
             
             # Execute the aggregation tool
-            result = await context.tool_manager.execute_tool("aggregate_evaluations", tool_args)
+            result = await context.host.tools.execute_tool("aggregate_evaluations", tool_args)
             
         # Otherwise, perform aggregation in-memory using the provided results
         else:
@@ -291,10 +294,14 @@ class EvaluationWorkflow(BaseWorkflow):
     """
     
     def __init__(
-        self, tool_manager: ToolManager, name: str = "evaluation_workflow", host=None
+        self, 
+        host,
+        name: str = "evaluation_workflow", 
+        client_config: Optional[ClientConfig] = None,
+        workflow_config: Optional[Dict[str, Any]] = None
     ):
         """Initialize the evaluation workflow."""
-        super().__init__(tool_manager, name=name, host=host)
+        super().__init__(host=host, name=name, client_config=client_config, workflow_config=workflow_config)
         
         # Set description
         self.description = "Workflow for evaluating agent outputs using rubrics"
