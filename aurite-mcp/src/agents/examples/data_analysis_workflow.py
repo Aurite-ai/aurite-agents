@@ -73,7 +73,7 @@ class DataLoadStep(WorkflowStep):
         if result and isinstance(result, list):
             # Extract text content from the result
             result_text = context.tool_manager.format_tool_result(result)
-            
+
             # In a real implementation, this would parse the JSON response
             # For test purposes, we'll continue with the placeholder data
             dataset_info = {
@@ -121,7 +121,7 @@ class DataQualityStep(WorkflowStep):
 
         # Extract text content from the result
         result_text = context.tool_manager.format_tool_result(result)
-        
+
         # Process results - in a real implementation this would parse the actual JSON from result_text
         quality_report = {
             "missing_values": {
@@ -179,7 +179,7 @@ class StatisticalAnalysisStep(WorkflowStep):
 
         # Extract text content from the result
         result_text = context.tool_manager.format_tool_result(result)
-        
+
         # Process results (in a real implementation, this would parse the JSON from result_text)
         statistical_metrics = {
             "descriptive_stats": {
@@ -232,10 +232,10 @@ class VisualizationStep(WorkflowStep):
                 "create_visualization",
                 {"dataset_id": dataset_id, "type": viz_type, "format": "png"},
             )
-            
+
             # Extract text content from the result
             result_text = context.tool_manager.format_tool_result(result)
-            
+
             # In a real implementation, this would extract the URL from result_text
             visualization_urls.append(
                 f"https://example.com/visualizations/{dataset_id}/{viz_type}.png"
@@ -296,7 +296,7 @@ class InsightGenerationStep(WorkflowStep):
                 else "basic",
             },
         )
-        
+
         # Extract text content from the result
         result_text = context.tool_manager.format_tool_result(result)
 
@@ -361,7 +361,7 @@ class ReportGenerationStep(WorkflowStep):
         result = await context.tool_manager.execute_tool(
             "generate_report", report_input
         )
-        
+
         # Extract text content from the result
         result_text = context.tool_manager.format_tool_result(result)
 
@@ -392,6 +392,70 @@ class ReportGenerationStep(WorkflowStep):
         return {"final_report": report_text}
 
 
+@dataclass
+class PromptBasedReportStep(WorkflowStep):
+    """Step to generate a report using prompts and tools"""
+
+    def __init__(self):
+        super().__init__(
+            name="prompt_based_report",
+            description="Generate a comprehensive final report using Claude with tools",
+            required_inputs={
+                "dataset_info",
+                "data_quality_report",
+                "statistical_metrics",
+                "analysis_results",
+            },
+            provided_outputs={"final_report"},
+            # We're still requiring tools, but they will be used via the prompt
+            required_tools={"generate_report"},
+            # Prompt-specific configuration
+            prompt_name="data_analysis_report",
+            client_id="default",
+            user_message_template=(
+                "Please generate a comprehensive data analysis report for dataset {dataset_id}. "
+                "Include sections on data quality, statistical findings, and recommendations. "
+                "Use the tools available to you to format the report properly."
+            ),
+            # Optionally limit which tools are available
+            tool_names=["generate_report", "format_markdown"],
+            # Model configuration
+            model="claude-3-opus-20240229",
+            max_tokens=4096,
+            temperature=0.7,
+        )
+
+    async def execute(self, context: AgentContext) -> Dict[str, Any]:
+        """Execute using prompt-based execution"""
+        # Call the utility method that handles prompt-based execution
+        prompt_result = await self.execute_with_prompt(context)
+
+        # Extract the final report from the prompt result
+        # In a real implementation, you might parse JSON or specific format from the response
+        final_response = prompt_result.get("final_response", {})
+
+        # Extract the report text from the final response (assuming text content)
+        if final_response and hasattr(final_response, "content"):
+            # Extract text content from content blocks
+            report_text = ""
+            for block in final_response.content:
+                if hasattr(block, "text"):
+                    report_text += block.text
+                elif isinstance(block, dict) and "text" in block:
+                    report_text += block["text"]
+
+            # If we couldn't extract text from content blocks, use string representation
+            if not report_text:
+                report_text = str(final_response)
+        else:
+            # Fallback if we can't extract from final_response
+            report_text = (
+                "Error: Could not generate report using prompt-based execution"
+            )
+
+        return {"final_report": report_text, "prompt_execution_details": prompt_result}
+
+
 class DataAnalysisWorkflow(BaseWorkflow):
     """
     Workflow for analyzing datasets.
@@ -408,10 +472,12 @@ class DataAnalysisWorkflow(BaseWorkflow):
     leverages the ToolManager for tool execution.
     """
 
-    def __init__(self, tool_manager: ToolManager, name: str = "data_analysis_workflow"):
+    def __init__(
+        self, tool_manager: ToolManager, name: str = "data_analysis_workflow", host=None
+    ):
         """Initialize the data analysis workflow"""
-        super().__init__(tool_manager, name=name)
-        
+        super().__init__(tool_manager, name=name, host=host)
+
         # Set description for documentation
         self.description = "Comprehensive data analysis workflow for exploring datasets"
 
@@ -440,6 +506,10 @@ class DataAnalysisWorkflow(BaseWorkflow):
 
         # Add the results generation composite step
         self.add_step(results_generation)
+
+        # Optionally add the prompt-based report step
+        # This is commented out by default since it requires a configured prompt
+        # self.add_step(PromptBasedReportStep())
 
         # Add error handlers
         self.add_error_handler("load_dataset", self._handle_data_load_error)

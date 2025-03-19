@@ -34,7 +34,7 @@ async def test_tools_and_prompts():
                 client_id="test-client",
                 server_path=server_path,
                 roots=[],
-                capabilities=["tools", "prompts"],  # Added prompts capability
+                capabilities=["tools", "prompts"],
                 timeout=30.0,
             )
         ]
