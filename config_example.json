@@ -1,0 +1,132 @@
+{
+  "name": "Example Workflow",
+  "description": "Example configuration",
+  "version": "1.0.0",
+  "userId": "user123",
+  "permissions": [],
+
+  "task": {
+    "prompt": "Complete these example tasks"
+  },
+
+  "hosting": [
+    {
+      "origin": "https://example.com",
+      "port": 8080,
+      "protocol": "https",
+      "path": "/api",
+      "container": {
+        "type": "docker",
+        "docker": {
+          "image": "example/image:latest",
+          "containerName": "example-container",
+          "portMapping": {
+            "8080": 8080
+          },
+          "environmentVariables": {
+            "ENV_VAR1": "value1",
+            "ENV_VAR2": "value2"
+          }
+        }
+      }
+    }
+  ],
+
+  "resources": {
+    "runtime": {
+      "language": "python",
+      "version": "3.8",
+      "dependencies": ["numpy", "pandas"],
+      "config": {
+        "memory": "512MB",
+        "timeout": 300
+      }
+    },
+
+    "datasources": [
+      {
+        "name": "db2",
+        "type": "postgresql",
+        "config": {
+          "host": "localhost",
+          "port": 5432,
+          "username": "user",
+          "password": "pass",
+          "database": "db2"
+        }
+      },
+      {
+        "name": "redis",
+        "type": "redis",
+        "config": {
+          "host": "localhost",
+          "port": 6379,
+          "password": "pass"
+        }
+      }
+    ]
+  },
+
+  "planning": {
+    "active": true,
+    "planningMethod": "agile",
+    "defaultSteps": ["step1", "step2", "step3"],
+    "agents": {
+      "shouldFind": true,
+      "canCreate": true,
+      "minReviewScore": 0.5,
+      "defaults": [
+        {
+          "name": "agent1",
+          "type": "type1",
+          "source": "https://example.com/agent1",
+          "config": {
+            "param1": "value1",
+            "param2": "value2"
+          }
+        },
+        {
+          "name": "agent2",
+          "type": "type2",
+          "source": "~./agents/agent2",
+          "config": {
+            "param1": "value1",
+            "param2": "value2"
+          }
+        }
+      ]
+    }
+  },
+
+  "runtime": {
+    "useWebsockets": true,
+    "useWebhooks": true,
+    "webhookUrl": "https://example.com/webhook",
+    "webSocketUrl": "wss://example.com/socket",
+    "timeout": 36000,
+    "maxRetries": 3,
+    "retryDelay": 5000,
+
+    "allowHumanInput": true,
+    "humanInputTimeout": 50000,
+    "notificationEndpoint": "https://example.com/notify",
+    "notificationMethod": "webhook"
+  },
+
+  "evaluation": {
+    "active": true,
+    "generateReport": true,
+    "createAgentReviews": true,
+    "reportDestinations": [
+      {
+        "type": "email",
+        "email": "example@example.com",
+        "maxTokens": 2000,
+        "format": "pdf",
+        "responseLanguage": "en",
+        "responseComplexity": "high"
+      }
+    ],
+    "onCompletion": "end"
+  }
+}
