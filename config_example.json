@@ -3,10 +3,28 @@
   "description": "Example configuration",
   "version": "1.0.0",
   "userId": "user123",
-  "permissions": [],
+  "permissions": [
+    {
+      "role": "user",
+      "actions": ["read", "write", "execute"],
+      "scope": "example_resource"
+    }
+  ],
 
-  "task": {
-    "prompt": "Complete these example tasks"
+  "workflow": {
+    "taskOrder": "sequential",
+    "tasks": [
+      {
+        "name": "task1",
+        "prompt": "Complete the general example task.",
+        "evaluate": "after-task"
+      },
+      {
+        "name": "task1",
+        "prompt": "Complete the second example task.",
+        "evaluate": "after-workflow"
+      }
+    ]
   },
 
   "hosting": [
