@@ -18,26 +18,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Define paths to search for MCP servers
-SERVER_PATHS = [
-    "src/agents/planning/planning_server.py",
-    "src/agents/evaluation/evaluation_server.py", 
-    "src/storage/sql/sql_server.py",
-]
+from tests.servers.test_config import get_all_server_paths
 
 def get_mcp_servers():
-    """Find all MCP server files in the codebase."""
+    """Find all MCP server files from configuration and filesystem."""
+    # Get servers from configuration
+    server_files = get_all_server_paths()
+    for server_path in server_files:
+        logger.info(f"Found configured server: {server_path}")
+
+    # Add additional servers from the filesystem that might not be in config yet
     base_dir = Path(__file__).parent.parent.parent  # root of project
-    server_files = []
     
-    # First check our known server paths
-    for rel_path in SERVER_PATHS:
-        server_path = base_dir / rel_path
-        if server_path.exists():
-            server_files.append(str(server_path))
-            logger.info(f"Found known server: {server_path}")
-    
-    # Then look for any additional server files we might have missed
     # This glob pattern looks for any Python file with "server" in the name
     # but we exclude files that start with "test_" to avoid test files
     for pattern in ["**/[!test_]*server.py"]:

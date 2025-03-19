@@ -198,7 +198,7 @@ async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str
 
 
 @mcp.prompt("create_plan_prompt")
-def planning_prompt() -> str:
+def create_plan_prompt() -> str:
     """
     Generate a structured planning prompt.
 

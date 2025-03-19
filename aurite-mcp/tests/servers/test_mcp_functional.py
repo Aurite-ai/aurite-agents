@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.host.host import MCPHost, HostConfig, ClientConfig, RootConfig
+from tests.servers.test_config import get_agent_config_by_id
 
 
 class MCPServerTester:
