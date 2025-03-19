@@ -73,6 +73,10 @@ markers = [
     "extended: mark test as extended functionality test",
     "agent: mark test as agent test",
     "infrastructure: mark test as infrastructure/setup verification",
+    "evaluation: mark test as agent evaluation test",
+    "rubric: mark test that uses an evaluation rubric",
+    "multirun: mark test that runs multiple evaluation iterations",
+    "benchmark: mark test that compares against benchmarks",
 ]
 pythonpath = [".", "src"]
 filterwarnings = [
@@ -84,5 +88,11 @@ filterwarnings = [
     "ignore::pytest.PytestConfigWarning",
     "ignore::pytest.PytestUnhandledCoroutineWarning",
 ]
+# Add HTML and JSON report options
+addopts = "--verbose --no-header --disable-warnings"
+# Configure test result captures
+junit_family = "xunit2"
+# Set the asyncio mode to auto to handle async tests properly
+asyncio_mode = "auto"
 [project.scripts]
 mcp-server = "src.servers.server:main"

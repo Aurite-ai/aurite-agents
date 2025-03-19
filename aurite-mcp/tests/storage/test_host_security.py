@@ -66,9 +66,7 @@ async def test_host_direct_connection():
                 for k, v in connection_params.items()
             },
         )
-        conn_id, metadata = await host.storage.create_database_connection(
-            connection_params
-        )
+        conn_id, metadata = await host.storage.create_db_connection(connection_params)
         print(f"Connection established with ID: {conn_id}")
         print(f"Connection metadata: {metadata}")
 
@@ -174,15 +172,20 @@ async def test_client_call_through_host():
         await host.initialize()
         print("Host initialized with clients:", host._clients.keys())
 
-        # Client sends connection string (simulating an agent/client request)
-        connection_string = f"postgresql+psycopg2://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
+        # Client sends connection parameters (simulating an agent/client request)
+        connection_params = {
+            "type": "postgresql",
+            "host": DATABASE_HOST,
+            "port": DATABASE_PORT,
+            "database": DATABASE_NAME,
+            "username": DATABASE_USER,
+            "password": DATABASE_PASSWORD,
+        }
 
         # Host processes this through security manager
-        conn_id, masked_connection = await host.storage.secure_database_connection(
-            connection_string
-        )
+        conn_id, metadata = await host.storage.create_db_connection(connection_params)
         print(f"Connection established with ID: {conn_id}")
-        print(f"Masked connection string: {masked_connection}")
+        print(f"Connection metadata: {metadata}")
 
         # Using the connection ID for operations
         # In this model, future client requests would only use the connection ID
