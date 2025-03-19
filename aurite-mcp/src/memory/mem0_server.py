@@ -1,3 +1,5 @@
+import os
+
 from mem0 import Memory
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
@@ -6,7 +8,18 @@ load_dotenv()
 
 mcp = FastMCP("memory")
 
-m = Memory()
+config = {
+    "vector_store": {
+        "provider": "pgvector",
+        "config": {
+            "user": os.getenv("MEM0_PGVECTOR_USER"),
+            "password": os.getenv("MEM0_PGVECTOR_PASSWORD"),
+            "host": os.getenv("MEM0_PGVECTOR_HOST"),
+            "port": os.getenv("MEM0_PGVECTOR_PORT"),
+        }
+    }
+}
+m = Memory.from_config(config)
 
 @mcp.tool()
 def add_memories(memory_str: str, user_id: str) -> str:
@@ -42,4 +55,7 @@ def search_memories(query: str, user_id: str, limit: int = 5) -> list[str]:
     return memories
 
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    # mcp.run(transport='stdio')
+    #add_memories("my favorite color is red", user_id="bob")
+    results = search_memories("what is my favorite color?", user_id="bob")
+    print(results)
