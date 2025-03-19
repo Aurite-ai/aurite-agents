@@ -87,8 +87,8 @@ class WorkflowManager:
         # Update the host's client configuration to include this workflow's client
         if client_config:
             logger.info(f"Registering client for workflow: {workflow_name}")
-            # Create a new HostConfig that includes the workflow's client
-            new_config = HostConfig(
+            # Create a new HostConfigModel that includes the workflow's client
+            new_config = HostConfigModel(
                 clients=[*self._host._config.clients, client_config]
             )
             # Update the host's config
