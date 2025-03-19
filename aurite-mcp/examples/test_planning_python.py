@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """
-This script tests the PlanningWorkflow with a real use case:
-Creating a comprehensive learning plan for Python programming.
+This script tests the simplified PlanningWorkflow with a Python learning plan.
 
 This demonstrates:
-1. Using the host's execute_prompt_with_tools method for plan creation
-2. Saving plans with the planning server's tools
-3. Working with real-world task descriptions
+1. Using the host's execute_prompt_with_tools method for both plan creation and saving
+2. Working with a real-world task (Python learning plan)
 """
 
 import asyncio
@@ -17,6 +15,7 @@ from pathlib import Path
 
 from src.host.host import MCPHost, HostConfig, ClientConfig
 from src.agents.planning.planning_workflow import PlanningWorkflow
+from src.host.foundation import RootConfig
 
 # Configure logging
 logging.basicConfig(
@@ -27,13 +26,13 @@ logger = logging.getLogger(__name__)
 
 
 async def run_planning_workflow():
-    """Create a plan for learning Python using the PlanningWorkflow"""
+    """Create a plan for learning Python using the simplified PlanningWorkflow"""
     # Check for API key
     if not os.environ.get("ANTHROPIC_API_KEY"):
         logger.error("ANTHROPIC_API_KEY environment variable not set!")
         return
 
-    # Create and initialize a host with the planning server
+    # Path to the planning server
     server_path = (
         Path(__file__).parent.parent
         / "src"
@@ -42,17 +41,14 @@ async def run_planning_workflow():
         / "planning_server.py"
     )
 
-    # Create host configuration with planning client
-    from src.host.foundation import RootConfig
-
-    # Create host configuration with planning client and proper roots
+    # Create host configuration
     host_config = HostConfig(
         clients=[
             ClientConfig(
                 client_id="planning",
                 server_path=str(server_path),
                 roots=[
-                    # Register planning:// root URI for the planning server
+                    # Register planning:// root URI
                     RootConfig(
                         uri="planning://",
                         name="Planning Root",
@@ -71,12 +67,9 @@ async def run_planning_workflow():
     )
 
     # Create and initialize the host
-    logger.info("Initializing MCPHost for planning workflow")
+    logger.info("Initializing host for planning workflow")
     host = MCPHost(config=host_config)
     await host.initialize()
-
-    # For this example, explicitly tell the logging system to show debug messages
-    logging.getLogger("src.agents.planning.planning_workflow").setLevel(logging.DEBUG)
 
     try:
         # Register the workflow
@@ -84,66 +77,82 @@ async def run_planning_workflow():
             PlanningWorkflow, name="python_learning_workflow"
         )
 
-        # Get the workflow instance to modify its configuration
-        workflow = host.workflows.get_workflow("python_learning_workflow")
-
-        # Custom user message template for Python learning
-        python_message_template = (
-            "I need a detailed plan for learning Python programming. "
-            "For this specific Python learning plan, please include:\n"
-            "1. Week-by-week curriculum breakdown\n"
-            "2. Specific Python libraries/frameworks to learn and in what order\n"
-            "3. Concrete coding projects with increasing complexity\n"
-            "4. Recommended resources for each topic (books, courses, tutorials)\n"
-            "5. How to measure progress and validate skills\n\n"
-            "The plan should be named '{plan_name}' and should be completed in {timeframe}. "
-            "Resources available: {resources_text}.\n\n"
-            "VERY IMPORTANT: Your response MUST ONLY contain the plan itself as a structured markdown document. "
-            "DO NOT include any introduction, explanation, summary, or conclusion about the plan. "
-            "DO NOT talk about what you're going to do or what you've done. "
-            "Start directly with the plan title/heading and end with the last content section. "
-            "Format with clear headings, bullet points, and a logical progression."
+        # Create a custom prompt template focused on Python learning
+        python_prompt_template = (
+            "You are creating a Python learning plan. IMPORTANT INSTRUCTIONS:\n\n"
+            "1. Output ONLY the plain markdown learning plan\n"
+            "2. DO NOT include any meta-commentary\n"
+            "3. Start directly with '# Python Learning Plan'\n\n"
+            "Create a 3-month Python learning plan with these sections:\n"
+            "1. Week-by-week curriculum\n"
+            "2. Python libraries to learn\n"
+            "3. Coding projects\n"
+            "4. Learning resources\n"
+            "5. Progress metrics\n\n"
+            "The task is: {task}"
+            "{timeframe_text}{resources_text}"
         )
 
         # Create a unique plan name based on timestamp
         timestamp = int(time.time())
         plan_name = f"python_learning_plan_{timestamp}"
-        
-        # We no longer need to modify the workflow directly
-        # Instead, we'll pass the custom prompt template in the input data
-        
-        # Prepare input data as a dictionary - including the required plan_name
+
+        # Input data for the workflow
         input_data = {
-            "task": "Create a comprehensive learning plan for mastering Python programming, "
-                   "suitable for a beginner with some basic programming knowledge.",
-            "plan_name": plan_name,  # This is the REQUIRED field that was missing
+            "task": "Create a comprehensive Python learning plan for a beginner with some programming knowledge",
+            "plan_name": plan_name,
             "timeframe": "3 months",
-            "resources": ["Online courses", "Books", "Practice exercises", "Coding projects", "Community forums"],
-            # Pass the custom prompt template directly in the input data
-            "custom_prompt_template": python_message_template,
+            "resources": [
+                "Books",
+                "Online courses",
+                "Practice exercises",
+                "Coding projects",
+            ],
+            "custom_prompt_template": python_prompt_template,
         }
-        
-        logger.info("Using custom Python learning plan prompt via input data")
 
         # Execute the workflow
-        logger.info(f"Executing planning workflow for Python learning")
-        result = await host.workflows.execute_workflow(
+        logger.info(f"Creating Python learning plan: {plan_name}")
+        result_context = await host.execute_workflow(
             workflow_name=workflow_name, input_data=input_data
         )
 
-        # Check result
-        if result:
-            logger.info(f"Plan created successfully: {plan_name}")
-            logger.info(f"Plan path: {result.get('plan_path')}")
+        # Use get_data_dict() instead of summarize_results() to avoid serialization issues
+        result_data = result_context.get_data_dict()
 
-            # Print the plan content
-            logger.info("Python learning plan content:")
-            logger.info(result.get("plan_content"))
+        # Check the result
+        if "plan_content" in result_data:
+            logger.info("Python learning plan created successfully")
 
-            return result.get("plan_content")
+            # Get plan path from the result
+            plan_path = result_data.get("plan_path", "Unknown")
+            logger.info(f"Plan path: {plan_path}")
+
+            # Get the content
+            content = result_data.get("plan_content", "")
+
+            # Print the first 200 characters as a preview
+            preview = content[:200] + "..." if len(content) > 200 else content
+            logger.info(f"Plan preview: {preview}")
+
+            # Try to read the file to verify it was saved
+            try:
+                with open(plan_path, "r") as f:
+                    file_content = f.read()
+                    logger.info(f"File size: {len(file_content)} characters")
+            except Exception as e:
+                logger.warning(f"Could not read plan file: {e}")
+
+            return {
+                "success": True,
+                "plan_name": plan_name,
+                "plan_path": plan_path,
+                "content_length": len(content),
+            }
         else:
             logger.error("Failed to create Python learning plan")
-            return None
+            logger.error(f"Available keys in result: {list(result_data.keys())}")
+            return {"success": False}
 
     finally:
         # Clean up
@@ -152,5 +161,5 @@ async def run_planning_workflow():
 
 
 if __name__ == "__main__":
-    # Run the async planning workflow
+    # Run the workflow
     asyncio.run(run_planning_workflow())

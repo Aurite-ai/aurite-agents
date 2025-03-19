@@ -58,7 +58,7 @@ async def _run_integration_test():
 
     # Create host configuration with planning client
     from src.host.foundation import RootConfig
-    
+
     # Create host configuration with planning client and proper roots
     host_config = HostConfig(
         clients=[
@@ -70,14 +70,14 @@ async def _run_integration_test():
                     RootConfig(
                         uri="planning://",
                         name="Planning Root",
-                        capabilities=["read", "write"]
+                        capabilities=["read", "write"],
                     ),
                     # Register file:// root URI for plan storage
                     RootConfig(
                         uri="file://plans/",
                         name="Plan Storage",
-                        capabilities=["read", "write"]
-                    )
+                        capabilities=["read", "write"],
+                    ),
                 ],
                 capabilities=["tools", "prompts", "resources", "roots"],
             )
@@ -180,7 +180,13 @@ async def _run_integration_test():
         workflow_input = {
             "task": "Create a comprehensive learning plan for mastering Python programming, suitable for a beginner with some basic programming knowledge",
             "plan_name": workflow_plan_name,
-            "resources": ["Online courses", "Books", "Practice exercises", "Coding projects", "Community forums"],
+            "resources": [
+                "Online courses",
+                "Books",
+                "Practice exercises",
+                "Coding projects",
+                "Community forums",
+            ],
             "timeframe": "3 months",
         }
 
@@ -191,9 +197,6 @@ async def _run_integration_test():
         )
 
         # Replace the PlanCreationStep with a version that uses direct tool execution
-        from src.agents.planning.planning_workflow import (
-            PlanCreationStep as PromptPlanCreationStep,
-        )
 
         # Define a direct tool execution step to avoid serialization issues
         @dataclass
@@ -276,9 +279,9 @@ async def _run_integration_test():
                 context.set("plan_content", plan_content)
                 context.set("plan_name", plan_name)
                 return {
-                    "plan_content": plan_content, 
+                    "plan_content": plan_content,
                     "plan_name": plan_name,  # Include plan_name in the output
-                    "create_plan_result": result
+                    "create_plan_result": result,
                 }
 
         # Register the modified workflow with direct tool execution
@@ -289,7 +292,7 @@ async def _run_integration_test():
 
         # Execute the workflow through the host's workflow manager
         logger.info(
-            f"Executing direct test workflow 'direct_test_workflow' through workflow manager"
+            "Executing direct test workflow 'direct_test_workflow' through workflow manager"
         )
         try:
             result_context = await host.workflows.execute_workflow(

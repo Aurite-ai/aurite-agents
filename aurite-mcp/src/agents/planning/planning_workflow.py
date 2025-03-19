@@ -1,446 +1,241 @@
 """
-Planning workflow for creating and saving plans.
+Simplified planning workflow for creating and saving plans.
 
-This module implements a workflow-based approach to plan creation and management.
-It demonstrates two key approaches to workflow steps:
-- Prompt-based execution: Using LLMs with tool-calling capabilities for flexible plan creation
-- Direct tool execution: Using MCP tools directly for deterministic operations like saving
-
-The workflow architecture separates concerns into distinct steps:
-- PlanCreationStep: Generates a structured plan using prompt-based execution
-- PlanSaveStep: Persists plans to disk with metadata
-- PlanAnalysisStep: Analyzes existing plans for gaps and improvements
-- PlanListStep: Lists available plans with filtering capabilities
-
-Key Features:
-1. Robust LLM response handling with multi-stage fallbacks
-2. Flexible type handling between prompt system and tool execution
-3. Clear step interfaces with defined inputs and outputs
-4. Context management for reliable data passing between steps
+This module implements a streamlined approach to plan creation with a single-step workflow
+that uses the host's execute_prompt_with_tools method to create plans and save them
+using the MCP server's tools.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
-import logging
-import json
-from pydantic import Field
-from datetime import datetime
-from ...host.resources.tools import ToolManager
+
 from ..base_workflow import BaseWorkflow, WorkflowStep
-from ..base_models import AgentContext, AgentData
+from ..base_models import AgentContext
+from ...host.resources.tools import ToolManager
+
+# Import the constant from planning_server
+from .planning_server import PLANS_DIR
 
 logger = logging.getLogger(__name__)
 
 
-# Define a Pydantic model for our workflow data
-class PlanningContext(AgentData):
-    """Data model for planning workflow context"""
-
-    task: str = Field(..., description="Task to create a plan for")
-    timeframe: Optional[str] = Field(None, description="Timeframe for the plan")
-    resources: Optional[List[str]] = Field(None, description="Available resources")
-    plan_name: str = Field(..., description="Name for the plan (used for saving)")
-
-    # Fields that will be populated during workflow execution
-    plan_content: Optional[str] = None
-    plan_path: Optional[str] = None
-    save_result: Optional[Dict[str, Any]] = None
-    user_message_template: Optional[str] = None
-
-
 @dataclass
-class PlanCreationStep(WorkflowStep):
-    """Step to create a plan using the host's execute_prompt_with_tools method"""
+class CreatePlanStep(WorkflowStep):
+    """Single step that creates a plan and saves it using the MCP server's tools."""
 
     def __init__(self):
         super().__init__(
-            name="create_plan",
-            description="Create a plan using prompt-based execution",
+            name="create_and_save_plan",
+            description="Create a plan using LLM and save it using MCP tools",
             required_inputs={"task", "plan_name"},
-            provided_outputs={"plan_content"},
-            # No tools needed - this step uses prompt-based execution directly
-            required_tools=set(),
+            provided_outputs={"plan_content", "save_result", "plan_path"},
+            required_tools={"save_plan"},
             # Configure prompt-based execution
-            prompt_name="planning_prompt",
+            prompt_name="create_plan_prompt",
             client_id="planning",
             user_message_template=(
-                "I need to create a detailed, specific plan for the following task: {task}. "
-                "Please provide a structured learning path with specific resources, concepts to master, "
-                "and practical projects to work on. The plan should be named '{plan_name}'"
-                "{timeframe_text}{resources_text}. "
-                "Be detailed, specific, and focus on actionable steps rather than generic advice.\n\n"
-                "Format the response as a structured markdown document with clear sections, bullet points, "
-                "and a logical progression. Include specific steps, resources, timelines, and success metrics."
+                "Create a detailed plan for the following task: {task}. "
+                "The plan should be well-structured, specific, and actionable. "
+                "{timeframe_text}{resources_text}"
             ),
-            # Don't use any tools - generate the plan content directly
-            tool_names=[],
+            # Allow the save_plan tool to be used by the LLM
+            tool_names=["save_plan"],
             model="claude-3-opus-20240229",
         )
 
     async def execute(self, context: AgentContext) -> Dict[str, Any]:
-        """Execute the plan creation step using prompt-based execution"""
+        """Execute the plan creation and saving step"""
         # Extract inputs from context
         task = context.get("task")
         plan_name = context.get("plan_name")
         timeframe = context.get("timeframe")
         resources = context.get("resources")
 
-        # Check for custom prompt template in the context
-        # We check both 'user_message_template' (for backward compatibility) 
-        # and 'custom_prompt_template' (new recommended field name)
-        custom_template = context.get("custom_prompt_template", context.get("user_message_template", None))
-        
-        if custom_template:
-            logger.info("Using custom prompt template from input data")
-            # Store original template for restoration if needed
-            original_template = self.user_message_template
-            # Override with the custom template just for this execution
-            self.user_message_template = custom_template
-
-        # Format the user message template parts and store them in context
-        # so the message template can access these
-        timeframe_text = f" with a timeframe of {timeframe}" if timeframe else ""
-        context.set("timeframe_text", timeframe_text)
-
+        # Format the message parts
+        timeframe_text = f" The timeframe is {timeframe}." if timeframe else ""
         resources_text = ""
         if resources:
-            resources_list = ", ".join(resources)
-            resources_text = f" and using these resources: {resources_list}"
+            if isinstance(resources, list):
+                resources_text = f" Available resources: {', '.join(resources)}."
+            else:
+                resources_text = f" Available resources: {resources}."
+
+        # Add to context for template
+        context.set("timeframe_text", timeframe_text)
         context.set("resources_text", resources_text)
 
-        # Set the prompt arguments
-        # The prompt system expects resources as a string, while the tool expects a list
-        resources_str = (
-            ", ".join(resources)
-            if isinstance(resources, list)
-            else str(resources)
-            if resources
-            else ""
-        )
-        self.prompt_arguments = {
-            "task": task,
-            "timeframe": timeframe,
-            "resources": resources_str,  # Pass resources as a string for the prompt
-        }
-
-        # Use the utility method that handles prompt-based execution
-        # This will call the host's execute_prompt_with_tools method
-        prompt_result = await self.execute_with_prompt(context)
+        # Check for custom prompt template
+        custom_template = context.get("custom_prompt_template")
+        if custom_template:
+            logger.info("Using custom prompt template")
+            original_template = self.user_message_template
+            self.user_message_template = custom_template
 
         try:
-            # Process the prompt result to extract plan content
-            plan_content, create_plan_result = self._extract_plan_content(
-                prompt_result, plan_name, task
-            )
+            # Execute the prompt with tools
+            logger.info(f"Creating plan for task: {task}")
+            result = await self.execute_with_prompt(context)
+
+            # Check if the LLM used the save_plan tool
+            tool_used = False
+            save_result = None
+
+            if "tool_uses" in result and result["tool_uses"]:
+                for tool_use in result["tool_uses"]:
+                    if "id" in tool_use and "save_plan" in str(tool_use):
+                        tool_used = True
+                        logger.info("LLM used save_plan tool")
+
+                        # Try to extract the save_result
+                        if "content" in tool_use:
+                            for content in tool_use["content"]:
+                                if "text" in content and "success" in content["text"]:
+                                    try:
+                                        import json
+
+                                        save_result = json.loads(content["text"])
+                                        logger.info(
+                                            f"Extracted save result: {save_result}"
+                                        )
+                                    except:
+                                        save_result = {
+                                            "success": True,
+                                            "message": "Plan saved",
+                                        }
+
+            # Extract plan content from the LLM response
+            plan_content = self._extract_content(result)
+            logger.info(f"Extracted plan content: {len(plan_content)} characters")
+
+            # If the LLM didn't use the save_plan tool, we need to save it manually
+            if not tool_used and context.tool_manager:
+                logger.info("LLM didn't use save_plan tool, saving plan manually")
+
+                # Process resources to get tags
+                tags = []
+                if resources:
+                    if isinstance(resources, list):
+                        tags = [r.strip() for r in resources if r]
+                    else:
+                        tags = [
+                            r.strip() for r in str(resources).split(",") if r.strip()
+                        ]
+
+                # Save the plan using the tool manager
+                save_result = await context.tool_manager.execute_tool(
+                    "save_plan",
+                    {
+                        "plan_name": plan_name,
+                        "plan_content": plan_content,
+                        "tags": tags,
+                    },
+                )
+                logger.info(f"Manual save result: {save_result}")
+
+            # Determine the plan path
+            plan_path = None
+            if save_result and isinstance(save_result, dict) and "path" in save_result:
+                plan_path = save_result["path"]
+            else:
+                # Fallback path
+                plan_path = str(PLANS_DIR / f"{plan_name}.txt")
+
         finally:
             # Restore original template if we used a custom one
-            if custom_template and 'original_template' in locals():
+            if custom_template and "original_template" in locals():
                 self.user_message_template = original_template
 
-        # IMPORTANT: Make sure we set all required fields in the context directly
-        # This is critical for subsequent steps like PlanSaveStep
+        # Store results in context
         context.set("plan_content", plan_content)
-        # Make sure plan_name is in the context (required by PlanSaveStep)
-        context.set("plan_name", plan_name)
+        context.set(
+            "save_result",
+            save_result
+            if save_result
+            else {"success": True, "message": "Plan processed"},
+        )
+        context.set("plan_path", plan_path)
 
-        # We still return the values for the step result
-        # IMPORTANT: Include plan_name in outputs to ensure it's available for subsequent steps
+        # Return the outputs
         return {
             "plan_content": plan_content,
-            "plan_name": plan_name,  # Include plan_name explicitly
-            "create_plan_result": create_plan_result,
-            "prompt_execution_details": prompt_result,
+            "save_result": save_result
+            if save_result
+            else {"success": True, "message": "Plan processed"},
+            "plan_path": plan_path,
+            "execution_details": result,
         }
 
-    def _extract_plan_content(
-        self, prompt_result: Dict[str, Any], plan_name: str, task: str
-    ) -> tuple[str, Any]:
-        """
-        Extract plan content from the prompt execution result.
+    def _extract_content(self, result: Dict[str, Any]) -> str:
+        """Extract the plan content from the LLM response and remove any thinking tags"""
+        # Try to find the actual text content in the result
+        content = ""
 
-        Processes the response from execute_prompt_with_tools to extract the
-        plan content directly from the LLM's response.
+        if "final_response" in result:
+            final_response = result.get("final_response")
 
-        Args:
-            prompt_result: The result from execute_prompt_with_tools
-            plan_name: The name of the plan (for fallback generation)
-            task: The task description (for fallback generation)
+            # If the response has content blocks (Claude API format)
+            if hasattr(final_response, "content") and isinstance(
+                final_response.content, list
+            ):
+                text_content = ""
+                for block in final_response.content:
+                    if hasattr(block, "text") and block.type == "text":
+                        text_content += block.text
 
-        Returns:
-            Tuple of (plan_content, result_dict)
-        """
-        plan_content = None
+                if text_content:
+                    content = text_content
 
-        # Extract directly from the final response
-        final_response = prompt_result.get("final_response", {})
-        
-        # Add detailed logging to help debug
-        logger.debug(f"Final response type: {type(final_response)}")
-        logger.debug(f"Final response attributes: {dir(final_response)}")
-        
-        # Get the full text from the response
-        response_text = ""
-        if hasattr(final_response, "content"):
-            logger.debug(f"Content type: {type(final_response.content)}")
-            logger.debug(f"Content length: {len(final_response.content)}")
-            
-            for i, block in enumerate(final_response.content):
-                logger.debug(f"Block {i} type: {type(block)}")
-                if hasattr(block, "text"):
-                    response_text += block.text
-                    logger.debug(f"  Block {i} has text attribute with length: {len(block.text)}")
-                elif isinstance(block, dict) and "text" in block:
-                    response_text += block["text"]
-                    logger.debug(f"  Block {i} has text key with length: {len(block['text'])}")
-                else:
-                    logger.debug(f"  Block {i} attributes: {dir(block)}")
-        else:
-            logger.warning("Final response does not have a 'content' attribute")
-            logger.debug(f"Final response: {final_response}")
+        # If we couldn't extract content from the structured response, try other methods
+        if not content and "raw_response" in result and result["raw_response"]:
+            content = result["raw_response"]
 
-        # Check if we have content
-        if response_text.strip():
-            plan_content = response_text
-            logger.debug(f"Extracted plan content directly from LLM response with length: {len(response_text)}")
+        # Fallback to conversation history
+        if not content and "conversation" in result and result["conversation"]:
+            for message in reversed(result["conversation"]):
+                if message.get("role") == "assistant":
+                    if isinstance(message.get("content"), list):
+                        # Extract text from content blocks
+                        text_content = ""
+                        for block in message.get("content", []):
+                            if isinstance(block, dict) and "text" in block:
+                                text_content += block["text"]
+                        if text_content:
+                            content = text_content
+                            break
+                    elif isinstance(message.get("content"), str):
+                        content = message["content"]
+                        break
 
-        # Create fallback plan if we still don't have content
-        if not plan_content:
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            plan_content = f"""
-            # Plan: {plan_name}
+        # If we still don't have content, use fallback message
+        if not content:
+            logger.warning("Could not extract plan content from LLM response")
+            return "No plan content could be extracted from the LLM response."
 
-            ## Task
-            {task}
+        # Remove any thinking tags and their content
+        import re
 
-            ## Created
-            {current_time}
-
-            ## Content
-            This is a fallback plan created when prompt-based execution didn't return expected content.
-            """
-            logger.warning(
-                "Prompt-based execution for create_plan did not return expected plan_content"
-            )
-
-        # Create a simple result dictionary
-        result_dict = {
-            "plan_name": plan_name,
-            "plan_content": plan_content,
-            "success": True,
-            "message": f"Plan '{plan_name}' created successfully",
-        }
-
-        return plan_content, result_dict
-
-
-@dataclass
-class PlanSaveStep(WorkflowStep):
-    """Step to save a plan to disk"""
-
-    def __init__(self):
-        super().__init__(
-            name="save_plan",
-            description="Save the generated plan to disk",
-            required_inputs={"plan_name", "plan_content"},
-            provided_outputs={"save_result", "plan_path"},
-            required_tools={"save_plan"},
+        cleaned_content = re.sub(
+            r"<thinking>.*?</thinking>", "", content, flags=re.DOTALL
         )
 
-    def _prepare_resource_tags(self, resources: Any) -> Optional[List[str]]:
-        """
-        Convert resources to a list format suitable for the tags parameter.
+        # If we removed everything, return the original content
+        if not cleaned_content.strip():
+            logger.warning("Cleaning removed all content, returning original")
+            return content
 
-        Args:
-            resources: Resources in any format (list, string, etc.)
-
-        Returns:
-            List of resource tags or None if no valid resources
-        """
-        # Already a list
-        if isinstance(resources, list):
-            return resources
-
-        # String that needs splitting
-        if isinstance(resources, str) and resources:
-            return [r.strip() for r in resources.split(",")]
-
-        # No valid resources
-        return None
-
-    async def execute(self, context: AgentContext) -> Dict[str, Any]:
-        """Execute the plan saving step"""
-        # Extract inputs with hardcoded defaults to avoid missing field errors
-        plan_name = context.get("plan_name", context.get("task", "unnamed_plan"))
-        plan_content = context.get("plan_content", "No plan content available")
-        resources = context.get("resources", [])
-
-        # Log available data for debugging
-        logger.debug(
-            f"PlanSaveStep - available keys: {list(context.get_data_dict().keys())}"
+        logger.info(
+            f"Cleaned content of {len(content) - len(cleaned_content)} characters of thinking tags"
         )
-
-        # Always ensure plan_name is available for this step
-        if not plan_name or plan_name == "unnamed_plan":
-            # Try to get from previous step
-            create_step_result = context.get_step_result("create_plan")
-            if create_step_result and hasattr(create_step_result, "outputs"):
-                # Check outputs for plan_name
-                outputs_dict = getattr(create_step_result, "outputs", {})
-                if "plan_name" in outputs_dict:
-                    plan_name = outputs_dict["plan_name"]
-                    logger.info(
-                        f"Retrieved plan_name from create_plan step outputs: {plan_name}"
-                    )
-
-        # Log what we're using
-        logger.info(f"PlanSaveStep using plan_name: {plan_name}")
-
-        # Prepare parameters for save_plan tool
-        tags = self._prepare_resource_tags(resources)
-
-        # Execute the save_plan tool
-        result = await context.tool_manager.execute_tool(
-            "save_plan",
-            {
-                "plan_name": plan_name,
-                "plan_content": plan_content,
-                "tags": tags,
-            },
-        )
-
-        # Extract the text content from the result
-        result_text = context.tool_manager.format_tool_result(result)
-        logger.debug(f"Save plan result: {result_text}")
-
-        # Parse result_text as needed, or use a simplified approach for testing
-        save_result = {
-            "success": True,
-            "message": f"Plan '{plan_name}' saved successfully",
-            "path": f"plans/{plan_name}.txt",  # This is a simplification, the actual path would be extracted from result_text
-        }
-
-        return {
-            "save_result": save_result,
-            "plan_path": save_result.get("path")
-            if save_result.get("success")
-            else None,
-        }
-
-
-@dataclass
-class PlanAnalysisStep(WorkflowStep):
-    """Step to analyze an existing plan"""
-
-    def __init__(self):
-        super().__init__(
-            name="analyze_plan",
-            description="Analyze an existing plan for gaps and improvements",
-            required_inputs={"plan_name"},
-            provided_outputs={"analysis_report"},
-            # Configure prompt-based execution
-            prompt_name="plan_analysis_prompt",
-            client_id="planning",
-            user_message_template=(
-                "Please analyze the existing plan named '{plan_name}'. "
-                "Identify any gaps, inconsistencies, and suggest improvements."
-            ),
-            tool_names=["list_plans"],
-            model="claude-3-opus-20240229",
-        )
-
-    async def execute(self, context: AgentContext) -> Dict[str, Any]:
-        """Execute the plan analysis step using prompt-based execution"""
-        # Extract inputs
-        plan_name = context.get("plan_name")
-
-        # Set the prompt argument for the plan name
-        self.prompt_arguments = {"plan_name": plan_name}
-
-        # Call the utility method that handles prompt-based execution
-        prompt_result = await self.execute_with_prompt(context)
-
-        # Extract the analysis from the response
-        final_response = prompt_result.get("final_response", {})
-
-        # Extract the analysis text from the final response
-        if final_response and hasattr(final_response, "content"):
-            # Extract text content from content blocks
-            analysis_text = ""
-            for block in final_response.content:
-                if hasattr(block, "text"):
-                    analysis_text += block.text
-                elif isinstance(block, dict) and "text" in block:
-                    analysis_text += block["text"]
-
-            # If we couldn't extract text from content blocks, use string representation
-            if not analysis_text:
-                analysis_text = str(final_response)
-        else:
-            # Fallback if we can't extract from final_response
-            analysis_text = (
-                "Error: Could not generate analysis using prompt-based execution"
-            )
-
-        return {
-            "analysis_report": analysis_text,
-            "prompt_execution_details": prompt_result,
-        }
-
-
-@dataclass
-class PlanListStep(WorkflowStep):
-    """Step to list available plans, optionally filtered by tag"""
-
-    def __init__(self):
-        super().__init__(
-            name="list_plans",
-            description="List available plans, optionally filtered by tag",
-            required_inputs=set(),  # No required inputs
-            provided_outputs={"plans_list"},
-            required_tools={"list_plans"},
-        )
-
-    async def execute(self, context: AgentContext) -> Dict[str, Any]:
-        """Execute the plan listing step"""
-        # Extract optional filter tag if present
-        tag = context.get("filter_tag", None)
-
-        # Use the list_plans tool
-        result = await context.tool_manager.execute_tool(
-            "list_plans", {"tag": tag} if tag else {}
-        )
-
-        # Extract the text content from the result
-        result_text = context.tool_manager.format_tool_result(result)
-        logger.debug(f"List plans result: {result_text}")
-
-        # In a real implementation, this would parse the JSON response
-        # Here we just return a placeholder value for testing
-        return {
-            "plans_list": {
-                "count": 1,
-                "plans": [
-                    {
-                        "name": "example_plan",
-                        "created_at": "2025-03-15 10:30:00",
-                        "tags": ["example"],
-                        "path": "plans/example_plan.txt",
-                    }
-                ],
-            }
-        }
+        return cleaned_content
 
 
 class PlanningWorkflow(BaseWorkflow):
     """
-    Workflow for creating, saving, and analyzing plans.
+    Simplified workflow for creating and saving plans.
 
-    This workflow demonstrates:
-    1. Using prompt-based execution with LLM-directed tool use for plan creation
-    2. Saving plans using direct tool execution
-    3. Analyzing existing plans using prompt-based execution
-    4. Listing available plans using direct tool execution
-    5. Different approaches to workflow step implementation
+    This workflow uses a single step that combines plan creation and saving,
+    leveraging the host's execute_prompt_with_tools method for both operations.
     """
 
     def __init__(
@@ -450,14 +245,10 @@ class PlanningWorkflow(BaseWorkflow):
         super().__init__(tool_manager, name=name, host=host)
 
         # Set description for documentation
-        self.description = "Workflow for creating, saving, and analyzing detailed plans"
+        self.description = "Workflow for creating and saving plans"
 
-        # Add steps
-        self.add_step(PlanCreationStep())
-        self.add_step(PlanSaveStep())
-
-        # PlanAnalysisStep is added conditionally when needed
-        # PlanListStep is added conditionally when needed
+        # Add the single step
+        self.add_step(CreatePlanStep())
 
     async def create_plan(
         self,
@@ -465,6 +256,7 @@ class PlanningWorkflow(BaseWorkflow):
         plan_name: str,
         timeframe: Optional[str] = None,
         resources: Optional[List[str]] = None,
+        custom_prompt_template: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Convenience method to execute the workflow with specific parameters.
@@ -474,6 +266,7 @@ class PlanningWorkflow(BaseWorkflow):
             plan_name: Name to save the plan as
             timeframe: Optional timeframe for the plan
             resources: Optional list of available resources
+            custom_prompt_template: Optional custom prompt template
 
         Returns:
             Dictionary with workflow results
@@ -489,64 +282,11 @@ class PlanningWorkflow(BaseWorkflow):
             input_data["timeframe"] = timeframe
         if resources:
             input_data["resources"] = resources
+        if custom_prompt_template:
+            input_data["custom_prompt_template"] = custom_prompt_template
 
         # Execute the workflow
         result_context = await self.execute(input_data)
-
-        # Return the summarized results
-        return result_context.summarize_results()
-
-    async def analyze_plan(
-        self,
-        plan_name: str,
-    ) -> Dict[str, Any]:
-        """
-        Convenience method to analyze an existing plan.
-
-        Args:
-            plan_name: Name of the plan to analyze
-
-        Returns:
-            Dictionary with analysis results
-        """
-        # Create a new workflow instance for analysis only
-        analysis_workflow = PlanningWorkflow(self.tool_manager, host=self.host)
-
-        # Replace steps with just the analysis step
-        analysis_workflow.steps = [PlanAnalysisStep()]
-
-        # Execute the workflow
-        result_context = await analysis_workflow.execute({"plan_name": plan_name})
-
-        # Return the summarized results
-        return result_context.summarize_results()
-
-    async def list_plans(
-        self,
-        filter_tag: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Convenience method to list available plans.
-
-        Args:
-            filter_tag: Optional tag to filter plans by
-
-        Returns:
-            Dictionary with list of plans
-        """
-        # Create a new workflow instance for listing only
-        list_workflow = PlanningWorkflow(self.tool_manager, host=self.host)
-
-        # Replace steps with just the list step
-        list_workflow.steps = [PlanListStep()]
-
-        # Create input data
-        input_data = {}
-        if filter_tag:
-            input_data["filter_tag"] = filter_tag
-
-        # Execute the workflow
-        result_context = await list_workflow.execute(input_data)
 
         # Return the summarized results
         return result_context.summarize_results()

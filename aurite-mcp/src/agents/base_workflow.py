@@ -600,7 +600,10 @@ class BaseWorkflow(ABC):
         logger.error(f"Unhandled error in step '{step.name}': {error}")
 
     async def execute_step(
-        self, step: WorkflowStep, context_data: Dict[str, Any], original_context: Optional[AgentContext] = None
+        self,
+        step: WorkflowStep,
+        context_data: Dict[str, Any],
+        original_context: Optional[AgentContext] = None,
     ) -> StepResult:
         """
         Execute a single workflow step with retries.
@@ -626,12 +629,12 @@ class BaseWorkflow(ABC):
             step_context = AgentContext(data=AgentData(**context_data.copy()))
             step_context.tool_manager = self.tool_manager
             step_context.host = self.host
-            
+
             # IMPORTANT: Copy any data from the _fallback_dict if it exists in the original context
             # This ensures critical data like plan_content is properly transferred between steps
-            if original_context and hasattr(original_context, '_fallback_dict'):
+            if original_context and hasattr(original_context, "_fallback_dict"):
                 logger.debug(f"Copying fallback dictionary data for step '{step.name}'")
-                if not hasattr(step_context, '_fallback_dict'):
+                if not hasattr(step_context, "_fallback_dict"):
                     step_context._fallback_dict = {}
                 # Copy all entries from the original context's fallback dict
                 for key, value in original_context._fallback_dict.items():
@@ -753,9 +756,11 @@ class BaseWorkflow(ABC):
             await run_hooks_with_error_handling(
                 self.before_step_hooks, f"before step {step.name}", step, agent_context
             )
-            
+
             # Pass the original agent_context to execute_step to ensure data in _fallback_dict is preserved
-            result = await self.execute_step(step, context_data, original_context=agent_context)
+            result = await self.execute_step(
+                step, context_data, original_context=agent_context
+            )
 
             # Store result in context
             agent_context.add_step_result(step.name, result)
@@ -782,11 +787,13 @@ class BaseWorkflow(ABC):
                 # For all models, update each attribute individually and ensure it's in the fallback dict
                 for key, value in result.outputs.items():
                     # Log the key being set for debugging
-                    logger.debug(f"Setting '{key}' in context from step '{step.name}' outputs")
+                    logger.debug(
+                        f"Setting '{key}' in context from step '{step.name}' outputs"
+                    )
                     agent_context.set(key, value)
-                    
+
                     # Ensure critical data is in the fallback dictionary
-                    if not hasattr(agent_context, '_fallback_dict'):
+                    if not hasattr(agent_context, "_fallback_dict"):
                         agent_context._fallback_dict = {}
                     agent_context._fallback_dict[key] = value
 

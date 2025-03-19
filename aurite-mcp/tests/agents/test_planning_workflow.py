@@ -44,7 +44,7 @@ def mock_tool_manager():
             task = arguments.get("task", "Default task")
             timeframe = arguments.get("timeframe", "")
             resources = arguments.get("resources", [])
-            
+
             # Create a sample plan content
             plan_content = f"""# Plan: {plan_name}
 
@@ -72,7 +72,7 @@ Successfully complete the given task with a structured approach.
                 plan_content += "\n## Resources\n"
                 for resource in resources:
                     plan_content += f"- {resource}\n"
-            
+
             # Add standard sections
             plan_content += """
 ## Potential Challenges
@@ -85,7 +85,7 @@ Successfully complete the given task with a structured approach.
 - Completed within allocated timeframe
 - Efficient use of available resources
 """
-            
+
             return [
                 types.TextContent(
                     type="text",
@@ -294,16 +294,18 @@ async def test_plan_creation_step(mock_tool_manager, mock_host):
     # Verify host's execute_prompt_with_tools was called
     mock_host.execute_prompt_with_tools.assert_called_once()
     call_args = mock_host.execute_prompt_with_tools.call_args[1]
-    
+
     # Verify prompt parameters
     assert call_args["prompt_name"] == "planning_prompt"
     assert call_args["client_id"] == "planning"
     assert "task" in call_args["prompt_arguments"]
-    assert call_args["prompt_arguments"]["task"] == "Create a website for a small business"
-    
+    assert (
+        call_args["prompt_arguments"]["task"] == "Create a website for a small business"
+    )
+
     # Verify tool names passed to execution
     assert call_args["tool_names"] == ["create_plan"]
-    
+
     # Verify result structure
     assert "plan_content" in result
     assert "prompt_execution_details" in result
@@ -525,7 +527,7 @@ async def test_error_handling(mock_tool_manager, mock_host):
 
     # Store original execute_tool to avoid recursion
     original_execute = mock_tool_manager.execute_tool
-    
+
     # Create a function that doesn't cause infinite recursion
     async def mock_error_execute(tool_name, arguments):
         """Mock tool execution with errors for specific tools"""
