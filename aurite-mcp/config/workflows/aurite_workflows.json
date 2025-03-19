@@ -4,6 +4,27 @@
       "name": "planning",
       "path": "src/agents/planning/planning_workflow.py",
       "description": "Creates and saves structured plans using LLM",
+      "class": "PlanningWorkflow",
+      "config": {
+        "prompts": {
+          "create_plan_prompt": {
+            "template": "You are creating a plan. IMPORTANT INSTRUCTIONS:\n\n1. Output ONLY the plain markdown plan\n2. DO NOT include any meta-commentary\n3. Start directly with '# Plan Title'\n\nCreate a plan with these sections:\n1. Objectives\n2. Key Steps\n3. Timeline\n4. Resources\n5. Success Metrics\n\nThe task is: {task}{timeframe_text}{resources_text}",
+            "model": "claude-3-opus-20240229",
+            "max_tokens": 4096,
+            "temperature": 0.7
+          },
+          "python_learning": {
+            "template": "You are creating a Python learning plan. IMPORTANT INSTRUCTIONS:\n\n1. Output ONLY the plain markdown learning plan\n2. DO NOT include any meta-commentary\n3. Start directly with '# Python Learning Plan'\n\nCreate a 3-month Python learning plan with these sections:\n1. Week-by-week curriculum\n2. Python libraries to learn\n3. Coding projects\n4. Learning resources\n5. Progress metrics\n\nThe task is: {task}{timeframe_text}{resources_text}",
+            "model": "claude-3-opus-20240229",
+            "max_tokens": 4096,
+            "temperature": 0.7
+          }
+        },
+        "default_inputs": {
+          "timeframe": "2 weeks",
+          "resources": ["Documentation", "Examples", "Tools"]
+        }
+      },
       "args": {
         "host": null
       }
@@ -12,8 +33,18 @@
       "name": "evaluation",
       "path": "src/agents/evaluation/evaluation_workflow.py",
       "description": "Evaluates the performance of the planning workflow",
+      "class": "EvaluationWorkflow",
+      "config": {
+        "prompts": {
+          "evaluate_plan": {
+            "template": "You are evaluating a plan. Review the following plan and provide detailed feedback...",
+            "model": "claude-3-opus-20240229",
+            "max_tokens": 4096,
+            "temperature": 0.7
+          }
+        }
+      },
       "args": {
-        "tool_manager": null,
         "host": null
       }
     }

@@ -121,6 +121,20 @@ class WorkflowStep(ABC):
                 "(prompt_name and user_message_template must be set)"
             )
 
+        # Get workflow instance from context
+        workflow = getattr(context, "workflow", None)
+        if workflow:
+            # Check for prompt configuration in workflow config
+            prompt_config = workflow.get_prompt_config(self.prompt_name)
+            if prompt_config:
+                # Override step configuration with workflow configuration
+                self.user_message_template = prompt_config.get(
+                    "template", self.user_message_template
+                )
+                self.model = prompt_config.get("model", self.model)
+                self.max_tokens = prompt_config.get("max_tokens", self.max_tokens)
+                self.temperature = prompt_config.get("temperature", self.temperature)
+
         # Create prompt arguments by combining default with context data
         prompt_args = self.prompt_arguments.copy()
 
@@ -401,14 +415,16 @@ class BaseWorkflow(ABC):
         host,
         name: str = "unnamed_workflow",
         client_config: Optional[ClientConfig] = None,
+        workflow_config: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initialize the workflow with a host and optional client configuration.
+        Initialize the workflow with a host and optional configurations.
 
         Args:
             host: The MCP host instance
             name: Name of the workflow
             client_config: Optional client configuration to override defaults
+            workflow_config: Optional workflow configuration from aurite_workflows.json
         """
         self.name = name
         self.description = ""  # Can be overridden by subclasses
@@ -417,6 +433,11 @@ class BaseWorkflow(ABC):
 
         # Store the client config (either provided or create default)
         self.client_config = client_config or self._get_default_client_config()
+
+        # Store workflow configuration
+        self.workflow_config = workflow_config or {}
+        self.prompts = self.workflow_config.get("prompts", {})
+        self.default_inputs = self.workflow_config.get("default_inputs", {})
 
         # Error handling setup
         self.error_handlers: Dict[
@@ -449,6 +470,27 @@ class BaseWorkflow(ABC):
             roots=[],
             capabilities=["tools", "prompts", "resources", "roots"],
         )
+
+    def get_prompt_config(self, prompt_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the configuration for a specific prompt.
+
+        Args:
+            prompt_name: Name of the prompt to get configuration for
+
+        Returns:
+            Prompt configuration if found, None otherwise
+        """
+        return self.prompts.get(prompt_name)
+
+    def get_default_inputs(self) -> Dict[str, Any]:
+        """
+        Get the default input values for this workflow.
+
+        Returns:
+            Dictionary of default input values
+        """
+        return self.default_inputs.copy()
 
     async def initialize(self):
         """Initialize the workflow"""
@@ -721,9 +763,14 @@ class BaseWorkflow(ABC):
         Returns:
             The final workflow context
         """
-        # Initialize context with dictionary data for backward compatibility
+        # Merge default inputs with provided inputs
+        merged_inputs = self.get_default_inputs()
+        merged_inputs.update(input_data)
+
+        # Initialize context with merged data
         agent_context = AgentContext(
-            data=AgentData(**input_data), metadata=metadata.copy() if metadata else {}
+            data=AgentData(**merged_inputs),
+            metadata=metadata.copy() if metadata else {},
         )
 
         # Set the host reference

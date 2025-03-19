@@ -5,12 +5,14 @@ This script tests the simplified PlanningWorkflow with a Python learning plan.
 This demonstrates:
 1. Using the host's execute_prompt_with_tools method for both plan creation and saving
 2. Working with a real-world task (Python learning plan)
+3. Using workflow configuration from aurite_workflows.json
 """
 
 import asyncio
 import logging
 import os
 import time
+import json
 from pathlib import Path
 
 from src.host.host import MCPHost
@@ -32,32 +34,39 @@ async def run_planning_workflow():
         logger.error("ANTHROPIC_API_KEY environment variable not set!")
         return
 
+    # Load workflow configuration
+    config_path = Path(__file__).parents[1] / "config/workflows/aurite_workflows.json"
+    try:
+        with open(config_path) as f:
+            workflow_configs = json.load(f)
+
+        # Get planning workflow config
+        planning_config = next(
+            (
+                w["config"]
+                for w in workflow_configs["workflows"]
+                if w["name"] == "planning"
+            ),
+            None,
+        )
+        if not planning_config:
+            logger.error("Planning workflow configuration not found")
+            return
+    except Exception as e:
+        logger.error(f"Error loading workflow configuration: {e}")
+        return
+
     # Create and initialize the host with minimal config
-    # The workflow will provide its own client config
     logger.info("Initializing host for planning workflow")
     host = MCPHost(config=HostConfig(clients=[]))
     await host.initialize()
 
     try:
-        # Register the workflow - it will use its default client config
+        # Register the workflow with its configuration
         workflow_name = await host.register_workflow(
-            PlanningWorkflow, name="python_learning_workflow"
-        )
-
-        # Create a custom prompt template focused on Python learning
-        python_prompt_template = (
-            "You are creating a Python learning plan. IMPORTANT INSTRUCTIONS:\n\n"
-            "1. Output ONLY the plain markdown learning plan\n"
-            "2. DO NOT include any meta-commentary\n"
-            "3. Start directly with '# Python Learning Plan'\n\n"
-            "Create a 3-month Python learning plan with these sections:\n"
-            "1. Week-by-week curriculum\n"
-            "2. Python libraries to learn\n"
-            "3. Coding projects\n"
-            "4. Learning resources\n"
-            "5. Progress metrics\n\n"
-            "The task is: {task}"
-            "{timeframe_text}{resources_text}"
+            PlanningWorkflow,
+            name="python_learning_workflow",
+            workflow_config=planning_config,
         )
 
         # Create a unique plan name based on timestamp
@@ -75,7 +84,6 @@ async def run_planning_workflow():
                 "Practice exercises",
                 "Coding projects",
             ],
-            "custom_prompt_template": python_prompt_template,
         }
 
         # Execute the workflow

@@ -244,15 +244,33 @@ class PlanningWorkflow(BaseWorkflow):
         host,
         name: str = "planning_workflow",
         client_config: Optional[ClientConfig] = None,
+        workflow_config: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the planning workflow"""
-        super().__init__(host=host, name=name, client_config=client_config)
+        super().__init__(
+            host=host,
+            name=name,
+            client_config=client_config,
+            workflow_config=workflow_config,
+        )
 
         # Set description for documentation
         self.description = "Workflow for creating and saving plans"
 
         # Add the single step with our client_id
-        self.add_step(CreatePlanStep(client_id=self.name))
+        step = CreatePlanStep(client_id=self.name)
+
+        # If we have a custom prompt template in the workflow config, use it
+        if self.workflow_config and "prompts" in self.workflow_config:
+            # Check for python_learning prompt if it exists
+            python_learning = self.get_prompt_config("python_learning")
+            if python_learning:
+                step.user_message_template = python_learning["template"]
+                step.model = python_learning.get("model", step.model)
+                step.max_tokens = python_learning.get("max_tokens", step.max_tokens)
+                step.temperature = python_learning.get("temperature", step.temperature)
+
+        self.add_step(step)
 
     def _get_default_client_config(self) -> ClientConfig:
         """Get the default client configuration for planning workflow"""
