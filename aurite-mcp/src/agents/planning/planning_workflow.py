@@ -66,86 +66,69 @@ class CreatePlanStep(WorkflowStep):
         context.set("timeframe_text", timeframe_text)
         context.set("resources_text", resources_text)
 
-        # Check for custom prompt template
-        custom_template = context.get("custom_prompt_template")
-        if custom_template:
-            logger.info("Using custom prompt template")
-            original_template = self.user_message_template
-            self.user_message_template = custom_template
+        # Execute the prompt with tools
+        logger.info(f"Creating plan for task: {task}")
+        result = await self.execute_with_prompt(context)
 
-        try:
-            # Execute the prompt with tools
-            logger.info(f"Creating plan for task: {task}")
-            result = await self.execute_with_prompt(context)
+        # Check if the LLM used the save_plan tool
+        tool_used = False
+        save_result = None
 
-            # Check if the LLM used the save_plan tool
-            tool_used = False
-            save_result = None
+        if "tool_uses" in result and result["tool_uses"]:
+            for tool_use in result["tool_uses"]:
+                if "id" in tool_use and "save_plan" in str(tool_use):
+                    tool_used = True
+                    logger.info("LLM used save_plan tool")
 
-            if "tool_uses" in result and result["tool_uses"]:
-                for tool_use in result["tool_uses"]:
-                    if "id" in tool_use and "save_plan" in str(tool_use):
-                        tool_used = True
-                        logger.info("LLM used save_plan tool")
+                    # Try to extract the save_result
+                    if "content" in tool_use:
+                        for content in tool_use["content"]:
+                            if "text" in content and "success" in content["text"]:
+                                try:
+                                    import json
 
-                        # Try to extract the save_result
-                        if "content" in tool_use:
-                            for content in tool_use["content"]:
-                                if "text" in content and "success" in content["text"]:
-                                    try:
-                                        import json
+                                    save_result = json.loads(content["text"])
+                                    logger.info(f"Extracted save result: {save_result}")
+                                except:
+                                    save_result = {
+                                        "success": True,
+                                        "message": "Plan saved",
+                                    }
 
-                                        save_result = json.loads(content["text"])
-                                        logger.info(
-                                            f"Extracted save result: {save_result}"
-                                        )
-                                    except:
-                                        save_result = {
-                                            "success": True,
-                                            "message": "Plan saved",
-                                        }
+        # Extract plan content from the LLM response
+        plan_content = self._extract_content(result)
+        logger.info(f"Extracted plan content: {len(plan_content)} characters")
 
-            # Extract plan content from the LLM response
-            plan_content = self._extract_content(result)
-            logger.info(f"Extracted plan content: {len(plan_content)} characters")
+        # If the LLM didn't use the save_plan tool, we need to save it manually
+        if not tool_used and context.host:
+            logger.info("LLM didn't use save_plan tool, saving plan manually")
 
-            # If the LLM didn't use the save_plan tool, we need to save it manually
-            if not tool_used and context.host:
-                logger.info("LLM didn't use save_plan tool, saving plan manually")
+            # Process resources to get tags
+            tags = []
+            if resources:
+                if isinstance(resources, list):
+                    tags = [r.strip() for r in resources if r]
+                else:
+                    tags = [r.strip() for r in str(resources).split(",") if r.strip()]
 
-                # Process resources to get tags
-                tags = []
-                if resources:
-                    if isinstance(resources, list):
-                        tags = [r.strip() for r in resources if r]
-                    else:
-                        tags = [
-                            r.strip() for r in str(resources).split(",") if r.strip()
-                        ]
+            # Save the plan using the host's tool manager
+            save_result = await context.host.tools.execute_tool(
+                "save_plan",
+                {
+                    "plan_name": plan_name,
+                    "plan_content": plan_content,
+                    "tags": tags,
+                },
+            )
+            logger.info(f"Manual save result: {save_result}")
 
-                # Save the plan using the host's tool manager
-                save_result = await context.host.tools.execute_tool(
-                    "save_plan",
-                    {
-                        "plan_name": plan_name,
-                        "plan_content": plan_content,
-                        "tags": tags,
-                    },
-                )
-                logger.info(f"Manual save result: {save_result}")
-
-            # Determine the plan path
-            plan_path = None
-            if save_result and isinstance(save_result, dict) and "path" in save_result:
-                plan_path = save_result["path"]
-            else:
-                # Fallback path
-                plan_path = str(PLANS_DIR / f"{plan_name}.txt")
-
-        finally:
-            # Restore original template if we used a custom one
-            if custom_template and "original_template" in locals():
-                self.user_message_template = original_template
+        # Determine the plan path
+        plan_path = None
+        if save_result and isinstance(save_result, dict) and "path" in save_result:
+            plan_path = save_result["path"]
+        else:
+            # Fallback path
+            plan_path = str(PLANS_DIR / f"{plan_name}.txt")
 
         # Store results in context
         context.set("plan_content", plan_content)
@@ -262,13 +245,13 @@ class PlanningWorkflow(BaseWorkflow):
 
         # If we have a custom prompt template in the workflow config, use it
         if self.workflow_config and "prompts" in self.workflow_config:
-            # Check for python_learning prompt if it exists
-            python_learning = self.get_prompt_config("python_learning")
-            if python_learning:
-                step.user_message_template = python_learning["template"]
-                step.model = python_learning.get("model", step.model)
-                step.max_tokens = python_learning.get("max_tokens", step.max_tokens)
-                step.temperature = python_learning.get("temperature", step.temperature)
+            # Get the create_plan_prompt configuration
+            prompt_config = self.get_prompt_config("create_plan_prompt")
+            if prompt_config:
+                step.user_message_template = prompt_config["template"]
+                step.model = prompt_config.get("model", step.model)
+                step.max_tokens = prompt_config.get("max_tokens", step.max_tokens)
+                step.temperature = prompt_config.get("temperature", step.temperature)
 
         self.add_step(step)
 
