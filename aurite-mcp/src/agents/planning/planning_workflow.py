@@ -9,10 +9,11 @@ using the MCP server's tools.
 import logging
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
+from pathlib import Path
 
 from ..base_workflow import BaseWorkflow, WorkflowStep
 from ..base_models import AgentContext
-from ...host.resources.tools import ToolManager
+from ...host.config import ClientConfig, RootConfig
 
 # Import the constant from planning_server
 from .planning_server import PLANS_DIR
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class CreatePlanStep(WorkflowStep):
     """Single step that creates a plan and saves it using the MCP server's tools."""
 
-    def __init__(self):
+    def __init__(self, client_id: str):
         super().__init__(
             name="create_and_save_plan",
             description="Create a plan using LLM and save it using MCP tools",
@@ -33,7 +34,7 @@ class CreatePlanStep(WorkflowStep):
             required_tools={"save_plan"},
             # Configure prompt-based execution
             prompt_name="create_plan_prompt",
-            client_id="planning",
+            client_id=client_id,  # Use the provided client_id
             user_message_template=(
                 "Create a detailed plan for the following task: {task}. "
                 "The plan should be well-structured, specific, and actionable. "
@@ -109,7 +110,7 @@ class CreatePlanStep(WorkflowStep):
             logger.info(f"Extracted plan content: {len(plan_content)} characters")
 
             # If the LLM didn't use the save_plan tool, we need to save it manually
-            if not tool_used and context.tool_manager:
+            if not tool_used and context.host:
                 logger.info("LLM didn't use save_plan tool, saving plan manually")
 
                 # Process resources to get tags
@@ -122,8 +123,8 @@ class CreatePlanStep(WorkflowStep):
                             r.strip() for r in str(resources).split(",") if r.strip()
                         ]
 
-                # Save the plan using the tool manager
-                save_result = await context.tool_manager.execute_tool(
+                # Save the plan using the host's tool manager
+                save_result = await context.host.tools.execute_tool(
                     "save_plan",
                     {
                         "plan_name": plan_name,
@@ -239,16 +240,41 @@ class PlanningWorkflow(BaseWorkflow):
     """
 
     def __init__(
-        self, tool_manager: ToolManager, name: str = "planning_workflow", host=None
+        self,
+        host,
+        name: str = "planning_workflow",
+        client_config: Optional[ClientConfig] = None,
     ):
         """Initialize the planning workflow"""
-        super().__init__(tool_manager, name=name, host=host)
+        super().__init__(host=host, name=name, client_config=client_config)
 
         # Set description for documentation
         self.description = "Workflow for creating and saving plans"
 
-        # Add the single step
-        self.add_step(CreatePlanStep())
+        # Add the single step with our client_id
+        self.add_step(CreatePlanStep(client_id=self.name))
+
+    def _get_default_client_config(self) -> ClientConfig:
+        """Get the default client configuration for planning workflow"""
+        server_path = Path(__file__).parent / "planning_server.py"
+
+        return ClientConfig(
+            client_id=self.name,
+            server_path=server_path,
+            roots=[
+                RootConfig(
+                    uri="planning://",
+                    name="Planning Root",
+                    capabilities=["read", "write"],
+                ),
+                RootConfig(
+                    uri="file://plans/",
+                    name="Plan Storage",
+                    capabilities=["read", "write"],
+                ),
+            ],
+            capabilities=["tools", "prompts", "resources", "roots"],
+        )
 
     async def create_plan(
         self,

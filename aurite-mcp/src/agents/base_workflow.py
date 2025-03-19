@@ -17,8 +17,9 @@ from typing import Dict, List, Any, Optional, Callable, Set, Awaitable
 import asyncio
 import logging
 import time
+from pathlib import Path
 
-from ..host.resources.tools import ToolManager
+from ..host.config import ClientConfig, RootConfig
 from .base_models import StepStatus, StepResult, AgentContext, AgentData
 from .base_utils import (
     validate_required_fields,
@@ -390,29 +391,34 @@ class BaseWorkflow(ABC):
 
     This class focuses specifically on linear workflows where:
     1. Steps are executed in a predefined sequence
-    2. Each step has access to specific tools
+    2. Each step has access to specific tools via the host
     3. Data flows from one step to the next via the context
     4. Steps can be conditionally executed but not reordered dynamically
-
-    For more complex workflows with branching or dynamic behavior,
-    consider combining this with elements from BaseAgent or creating
-    a hybrid implementation.
     """
 
     def __init__(
-        self, tool_manager: ToolManager, name: str = "unnamed_workflow", host=None
+        self,
+        host,
+        name: str = "unnamed_workflow",
+        client_config: Optional[ClientConfig] = None,
     ):
         """
-        Initialize the workflow with a tool manager and optional host.
+        Initialize the workflow with a host and optional client configuration.
 
         Args:
-            tool_manager: The tool manager for tool access
+            host: The MCP host instance
             name: Name of the workflow
-            host: Optional host for prompt-based tool execution
+            client_config: Optional client configuration to override defaults
         """
         self.name = name
         self.description = ""  # Can be overridden by subclasses
         self.steps: List[WorkflowStep] = []
+        self.host = host
+
+        # Store the client config (either provided or create default)
+        self.client_config = client_config or self._get_default_client_config()
+
+        # Error handling setup
         self.error_handlers: Dict[
             str, Callable[[WorkflowStep, Exception, Dict[str, Any]], None]
         ] = {}
@@ -421,10 +427,6 @@ class BaseWorkflow(ABC):
         ] = None
         self.on_workflow_complete: Optional[Callable[[AgentContext], None]] = None
         self.context_validators: List[Callable[[Dict[str, Any]], bool]] = []
-
-        # Store the tool manager and host
-        self.tool_manager = tool_manager
-        self.host = host
 
         # Middleware hooks
         self.before_workflow_hooks: List[Callable[[AgentContext], Awaitable[None]]] = []
@@ -436,11 +438,23 @@ class BaseWorkflow(ABC):
             Callable[[WorkflowStep, AgentContext, StepResult], Awaitable[None]]
         ] = []
 
+    def _get_default_client_config(self) -> ClientConfig:
+        """
+        Get the default client configuration for this workflow.
+        Should be overridden by subclasses to provide workflow-specific configuration.
+        """
+        return ClientConfig(
+            client_id=self.name,
+            server_path=Path("default_server.py"),
+            roots=[],
+            capabilities=["tools", "prompts", "resources", "roots"],
+        )
+
     async def initialize(self):
         """Initialize the workflow"""
         logger.info(f"Initializing workflow: {self.name}")
 
-        # Validate that all required tools are available
+        # Validate that all required tools are available through the host
         await self._validate_tools()
 
     async def _validate_tools(self):
@@ -451,10 +465,10 @@ class BaseWorkflow(ABC):
         for step in self.steps:
             all_required_tools.update(step.required_tools)
 
-        # Check if tools are available through tool manager
+        # Check if tools are available through host
         unavailable_tools = []
         for tool in all_required_tools:
-            if not self.tool_manager.has_tool(tool):
+            if not self.host.tools.has_tool(tool):
                 unavailable_tools.append(tool)
 
         if unavailable_tools:
@@ -627,7 +641,6 @@ class BaseWorkflow(ABC):
         async def execute_with_validation():
             # Create a context for the step with tool_manager and host already set
             step_context = AgentContext(data=AgentData(**context_data.copy()))
-            step_context.tool_manager = self.tool_manager
             step_context.host = self.host
 
             # IMPORTANT: Copy any data from the _fallback_dict if it exists in the original context
@@ -713,8 +726,7 @@ class BaseWorkflow(ABC):
             data=AgentData(**input_data), metadata=metadata.copy() if metadata else {}
         )
 
-        # Set the tool_manager and host references
-        agent_context.tool_manager = self.tool_manager
+        # Set the host reference
         agent_context.host = self.host
 
         logger.info(f"Starting execution of workflow: {self.name}")

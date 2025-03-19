@@ -1,0 +1,21 @@
+{
+  "name": "Aurite Host",
+  "description": "Aurite Host configuration",
+
+  "agents": "config/agents/aurite_agents.json",
+  "workflows": "config/workflows/aurite_workflows.json",
+
+  "storage": {
+    "type": "sqlite",
+    "path": "config/storage/connections.json"
+  },
+
+  "planning": {
+    "active": true
+  },
+
+  "evaluation": {
+    "active": true,
+    "generateReport": true
+  }
+}

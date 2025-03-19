@@ -17,7 +17,8 @@ from mcp import (
 import mcp.types as types
 
 # Foundation layer
-from .foundation import SecurityManager, RootManager, RootConfig
+from .foundation import SecurityManager, RootManager
+from .config import HostConfig, ClientConfig, RootConfig
 
 # Communication layer
 from .communication import TransportManager, MessageRouter
@@ -29,25 +30,6 @@ from .resources import PromptManager, ResourceManager, StorageManager, ToolManag
 from .agent import WorkflowManager
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ClientConfig:
-    """Configuration for an MCP client"""
-
-    client_id: str
-    server_path: Path
-    roots: List[RootConfig]
-    capabilities: List[str]
-    timeout: float = 10.0  # Default timeout in seconds
-    routing_weight: float = 1.0  # New: Weight for server selection
-
-
-@dataclass
-class HostConfig:
-    """Configuration for the MCP host"""
-
-    clients: List[ClientConfig]
 
 
 class MCPHost:
@@ -74,12 +56,7 @@ class MCPHost:
         )
 
         # Layer 4: Agent layer
-        self._workflow_manager = WorkflowManager(
-            tool_manager=self._tool_manager,
-            prompt_manager=self._prompt_manager,
-            resource_manager=self._resource_manager,
-            host=self,
-        )
+        self._workflow_manager = WorkflowManager(host=self)
 
         # State management
         self._config = config

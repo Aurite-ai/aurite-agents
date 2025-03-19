@@ -16,9 +16,7 @@ import time
 
 from ...agents.base_workflow import BaseWorkflow
 from ...agents.base_models import AgentContext
-from ..resources.tools import ToolManager
-from ..resources.prompts import PromptManager
-from ..resources.resources import ResourceManager
+from ..config import ClientConfig, HostConfig
 
 logger = logging.getLogger(__name__)
 
@@ -32,25 +30,13 @@ class WorkflowManager:
     without requiring direct dependencies between workflows and the host system.
     """
 
-    def __init__(
-        self,
-        tool_manager: ToolManager,
-        prompt_manager: Optional[PromptManager] = None,
-        resource_manager: Optional[ResourceManager] = None,
-        host=None,
-    ):
+    def __init__(self, host):
         """
         Initialize the workflow manager.
 
         Args:
-            tool_manager: The tool manager for workflow access to tools
-            prompt_manager: Optional prompt manager for workflow access to prompts
-            resource_manager: Optional resource manager for workflow access to resources
-            host: Optional host instance for prompt-based tool execution
+            host: The host instance for workflow access to all services
         """
-        self._tool_manager = tool_manager
-        self._prompt_manager = prompt_manager
-        self._resource_manager = resource_manager
         self._host = host
 
         # Workflow registry
@@ -66,26 +52,49 @@ class WorkflowManager:
         # No initialization needed beyond the constructor at this point
 
     async def register_workflow(
-        self, workflow_class: Type[BaseWorkflow], name: Optional[str] = None, **kwargs
+        self,
+        workflow_class: Type[BaseWorkflow],
+        name: Optional[str] = None,
+        client_config: Optional[ClientConfig] = None,
+        **kwargs,
     ) -> str:
         """
         Register a workflow with the manager.
 
         Args:
             workflow_class: The workflow class to register
-            name: Optional name for the workflow (defaults to class's name attribute)
+            name: Optional name for the workflow
+            client_config: Optional client configuration
             **kwargs: Additional arguments to pass to the workflow constructor
 
         Returns:
             The registered workflow name
         """
-        # Create workflow instance with tool manager and host
+        # Create workflow instance with host and optional client config
         workflow = workflow_class(
-            tool_manager=self._tool_manager, host=self._host, **kwargs
+            host=self._host,
+            name=name or workflow_class.__name__,
+            client_config=client_config,
+            **kwargs,
         )
 
         # Use provided name or the workflow's own name
-        workflow_name = name or workflow.name
+        workflow_name = workflow.name
+
+        # Get the client config (either provided or from workflow)
+        client_config = client_config or workflow.client_config
+
+        # Update the host's client configuration to include this workflow's client
+        if client_config:
+            logger.info(f"Registering client for workflow: {workflow_name}")
+            # Create a new HostConfig that includes the workflow's client
+            new_config = HostConfig(
+                clients=[*self._host._config.clients, client_config]
+            )
+            # Update the host's config
+            self._host._config = new_config
+            # Initialize the new client
+            await self._host._initialize_client(client_config)
 
         # Store in registry
         self._workflows[workflow_name] = workflow
@@ -95,6 +104,7 @@ class WorkflowManager:
             "class": workflow_class.__name__,
             "registration_time": time.time(),
             "description": getattr(workflow, "description", ""),
+            "client_config": client_config,
             "custom_args": kwargs,
         }
 

@@ -13,9 +13,9 @@ import os
 import time
 from pathlib import Path
 
-from src.host.host import MCPHost, HostConfig, ClientConfig
+from src.host.host import MCPHost
+from src.host.config import HostConfig, ClientConfig, RootConfig
 from src.agents.planning.planning_workflow import PlanningWorkflow
-from src.host.foundation import RootConfig
 
 # Configure logging
 logging.basicConfig(
@@ -32,47 +32,14 @@ async def run_planning_workflow():
         logger.error("ANTHROPIC_API_KEY environment variable not set!")
         return
 
-    # Path to the planning server
-    server_path = (
-        Path(__file__).parent.parent
-        / "src"
-        / "agents"
-        / "planning"
-        / "planning_server.py"
-    )
-
-    # Create host configuration
-    host_config = HostConfig(
-        clients=[
-            ClientConfig(
-                client_id="planning",
-                server_path=str(server_path),
-                roots=[
-                    # Register planning:// root URI
-                    RootConfig(
-                        uri="planning://",
-                        name="Planning Root",
-                        capabilities=["read", "write"],
-                    ),
-                    # Register file:// root URI for plan storage
-                    RootConfig(
-                        uri="file://plans/",
-                        name="Plan Storage",
-                        capabilities=["read", "write"],
-                    ),
-                ],
-                capabilities=["tools", "prompts", "resources", "roots"],
-            )
-        ]
-    )
-
-    # Create and initialize the host
+    # Create and initialize the host with minimal config
+    # The workflow will provide its own client config
     logger.info("Initializing host for planning workflow")
-    host = MCPHost(config=host_config)
+    host = MCPHost(config=HostConfig(clients=[]))
     await host.initialize()
 
     try:
-        # Register the workflow
+        # Register the workflow - it will use its default client config
         workflow_name = await host.register_workflow(
             PlanningWorkflow, name="python_learning_workflow"
         )

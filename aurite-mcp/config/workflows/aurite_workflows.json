@@ -1,0 +1,25 @@
+{
+  "workflows": [
+    {
+      "name": "planning",
+      "path": "src/agents/planning/planning_workflow.py",
+      "description": "Creates and saves structured plans using LLM",
+      "args": {
+        "host": null
+      }
+    },
+    {
+      "name": "evaluation",
+      "path": "src/agents/evaluation/evaluation_workflow.py",
+      "description": "Evaluates the performance of the planning workflow",
+      "args": {
+        "tool_manager": null,
+        "host": null
+      }
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "description": "Configuration for Aurite workflow registration"
+  }
+}
