@@ -1,5 +1,6 @@
 import os
 
+from urllib.parse import unquote_plus
 from mem0 import Memory
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
@@ -33,18 +34,20 @@ def add_memories(memory_str: str, user_id: str) -> str:
     
     return "Memories added successfully"
     
-@mcp.tool()
+@mcp.resource("mem0://search/{user_id}/{query}/{limit}")
 def search_memories(query: str, user_id: str, limit: int = 5) -> list[str]:
     """Search for memories relevant to a query
     
     Args:
-        query: The query to search with
+        query: The query to search with (URL-encoded)
         user_id: The id of the user whose associated memories we will search
         limit: Max memories to return. Default 5
         
     Returns:
         List of memory strings
     """
+    query = unquote_plus(query)
+    
     results = m.search(query, user_id).get("results", [])
     
     memories = []
@@ -55,7 +58,7 @@ def search_memories(query: str, user_id: str, limit: int = 5) -> list[str]:
     return memories
 
 if __name__ == "__main__":
-    # mcp.run(transport='stdio')
+    mcp.run(transport='stdio')
     #add_memories("my favorite color is red", user_id="bob")
-    results = search_memories("what is my favorite color?", user_id="bob")
-    print(results)
+    #results = search_memories("what is my favorite color?", user_id="bob")
+    #print(results)
