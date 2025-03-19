@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Any
 import logging
 import os
 import anthropic
-from anthropic.types import MessageParam, ToolUseBlock
 
 from ..config import (
     ConfigurableManager,

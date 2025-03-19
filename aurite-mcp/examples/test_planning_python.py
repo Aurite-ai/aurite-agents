@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 
 from src.host.host import MCPHost
-from src.host.config import HostConfig, ClientConfig, RootConfig
+from src.host.config import HostConfig
 from src.agents.planning.planning_workflow import PlanningWorkflow
 
 # Configure logging

@@ -5,13 +5,10 @@ This module provides shared fixtures and configurations for testing the Aurite M
 framework, with special attention to agent and workflow testing fixtures.
 """
 
-import asyncio
 import json
 import logging
-import os
 import pytest
 from pathlib import Path
-from typing import Dict, Any, List, Optional
 from unittest.mock import MagicMock, AsyncMock
 
 import mcp.types as types
@@ -19,7 +16,7 @@ from mcp import ClientSession
 
 # Import Aurite components
 from src.host.host import MCPHost
-from src.host.config import ConfigurationManager, HostConfigModel, ClientConfig, RootConfig
+from src.host.config import HostConfigModel, ClientConfig
 from src.host.resources.tools import ToolManager
 from src.host.foundation import RootManager, SecurityManager
 from src.host.communication import MessageRouter
@@ -30,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # --- Global Setup and Teardown ---
+
 
 def pytest_configure(config):
     """Configure pytest environment."""
@@ -45,30 +43,31 @@ def pytest_unconfigure(config):
 
 # --- Host Testing Infrastructure ---
 
+
 @pytest.fixture(scope="function")
 async def test_mcp_host():
     """
     Create a real MCPHost for testing using the JSON configuration.
-    
+
     Returns an initialized host for testing.
     """
     # Use the aurite_host.json config or create a testing host config
     host_config_name = "aurite_host"
     config_path = Path("config/host") / f"{host_config_name}.json"
-    
+
     logger.info(f"Initializing test host with config: {config_path}")
-    
+
     # Load host configuration from JSON
     host = MCPHost(config_name=host_config_name)
-    
+
     try:
         # Initialize the host (this will load all the JSON configs and register components)
         await host.initialize()
         logger.info(f"Test host initialized with {len(host.tools.list_tools())} tools")
-        
+
         # Return the initialized host
         yield host
-        
+
     finally:
         # Cleanup
         logger.info("Shutting down test host")
@@ -83,7 +82,7 @@ async def test_mcp_host():
 async def mock_mcp_host():
     """
     Create a mock MCPHost for testing agent functionality.
-    
+
     Returns a configured but not initialized host for testing.
     """
     # Mock the clients for tool and prompt servers
@@ -96,13 +95,13 @@ async def mock_mcp_host():
             timeout=5.0,
         )
     ]
-    
+
     # Create host config
     config = HostConfigModel(clients=mock_clients)
-    
+
     # Create host with mocked managers
     host = MCPHost(config=config)
-    
+
     # Replace internal managers with mocks
     host._tool_manager = MagicMock(spec=ToolManager)
     host._prompt_manager = MagicMock()
@@ -110,15 +109,19 @@ async def mock_mcp_host():
     host._security_manager = MagicMock(spec=SecurityManager)
     host._root_manager = MagicMock(spec=RootManager)
     host._message_router = MagicMock(spec=MessageRouter)
-    
+
     # Mock the tool manager's execute_tool method
     async def mock_execute_tool(tool_name, arguments):
         """Mock tool execution with predefined responses."""
-        return [types.TextContent(type="text", text=f"Executed {tool_name} with {arguments}")]
-    
+        return [
+            types.TextContent(
+                type="text", text=f"Executed {tool_name} with {arguments}"
+            )
+        ]
+
     host._tool_manager.execute_tool = AsyncMock(side_effect=mock_execute_tool)
     host.tools.execute_tool = AsyncMock(side_effect=mock_execute_tool)
-    
+
     # Mock prepare_prompt_with_tools
     async def mock_prepare_prompt(*args, **kwargs):
         return {
@@ -128,9 +131,9 @@ async def mock_mcp_host():
             "max_tokens": 1000,
             "temperature": 0.7,
         }
-    
+
     host.prepare_prompt_with_tools = AsyncMock(side_effect=mock_prepare_prompt)
-    
+
     # Mock execute_prompt_with_tools
     async def mock_execute_prompt_with_tools(*args, **kwargs):
         """Mock execute_prompt_with_tools to return test responses."""
@@ -138,25 +141,25 @@ async def mock_mcp_host():
         return {
             "conversation": [
                 {"role": "user", "content": kwargs.get("user_message", "Test message")},
-                {"role": "assistant", "content": "This is a test response."}
+                {"role": "assistant", "content": "This is a test response."},
             ],
             "final_response": {
-                "content": [
-                    {"type": "text", "text": "This is a test response."}
-                ]
+                "content": [{"type": "text", "text": "This is a test response."}]
             },
-            "tool_uses": []
+            "tool_uses": [],
         }
-    
-    host.execute_prompt_with_tools = AsyncMock(side_effect=mock_execute_prompt_with_tools)
-    
+
+    host.execute_prompt_with_tools = AsyncMock(
+        side_effect=mock_execute_prompt_with_tools
+    )
+
     # Skip actual initialization, mocking it instead
     host.initialize = AsyncMock()
     host.shutdown = AsyncMock()
-    
+
     # Return the mocked host
     yield host
-    
+
     # Clean up
     await host.shutdown()
 
@@ -165,7 +168,7 @@ async def mock_mcp_host():
 def mock_tool_manager():
     """Create a mock tool manager for testing."""
     tool_manager = MagicMock(spec=ToolManager)
-    
+
     # Mock the execute_tool method
     async def mock_execute_tool(tool_name, arguments):
         """Mock tool execution with predefined responses."""
@@ -173,34 +176,40 @@ def mock_tool_manager():
             criteria = arguments.get("criteria", {})
             agent_output = arguments.get("agent_output", "")
             expected_output = arguments.get("expected_output", "")
-            
+
             # Generate a mock evaluation response
             score = 0.85  # Default score
             feedback = "This agent output meets most of the criteria."
-            
+
             # Return structured response
             return [
                 types.TextContent(
                     type="text",
-                    text=json.dumps({
-                        "score": score,
-                        "feedback": feedback,
-                        "criteria_scores": {
-                            "accuracy": 0.9,
-                            "coherence": 0.8,
-                            "relevance": 0.85,
+                    text=json.dumps(
+                        {
+                            "score": score,
+                            "feedback": feedback,
+                            "criteria_scores": {
+                                "accuracy": 0.9,
+                                "coherence": 0.8,
+                                "relevance": 0.85,
+                            },
                         }
-                    })
+                    ),
                 )
             ]
-        
+
         # Default response for unknown tools
-        return [types.TextContent(type="text", text=f"Executed {tool_name} with {arguments}")]
-    
+        return [
+            types.TextContent(
+                type="text", text=f"Executed {tool_name} with {arguments}"
+            )
+        ]
+
     # Set up the mocked methods
     tool_manager.execute_tool = AsyncMock(side_effect=mock_execute_tool)
     tool_manager.has_tool = MagicMock(return_value=True)
-    
+
     return tool_manager
 
 
@@ -208,12 +217,12 @@ def mock_tool_manager():
 def mock_client_session():
     """Create a mock ClientSession for testing."""
     session = MagicMock(spec=ClientSession)
-    
+
     # Mock the send_request method
     async def mock_send_request(request, response_type):
         """Mock send_request to return predefined responses."""
         method = getattr(request, "method", "")
-        
+
         if method == "tools/list":
             # Mock tools response
             return types.ListToolsResponse(
@@ -260,25 +269,30 @@ def mock_client_session():
                     ),
                 ]
             )
-        
+
         # Default response for unknown requests
         return MagicMock()
-    
+
     session.send_request = AsyncMock(side_effect=mock_send_request)
-    
+
     # Mock other commonly used methods
-    session.list_tools = AsyncMock(side_effect=lambda: mock_send_request(
-        types.ListToolsRequest(method="tools/list"), types.ListToolsResponse
-    ))
-    
-    session.list_prompts = AsyncMock(side_effect=lambda: mock_send_request(
-        types.ListPromptsRequest(method="prompts/list"), types.ListPromptsResponse
-    ))
-    
+    session.list_tools = AsyncMock(
+        side_effect=lambda: mock_send_request(
+            types.ListToolsRequest(method="tools/list"), types.ListToolsResponse
+        )
+    )
+
+    session.list_prompts = AsyncMock(
+        side_effect=lambda: mock_send_request(
+            types.ListPromptsRequest(method="prompts/list"), types.ListPromptsResponse
+        )
+    )
+
     return session
 
 
 # --- Test Data Fixtures ---
+
 
 @pytest.fixture
 def standard_evaluation_rubric():
@@ -293,8 +307,8 @@ def standard_evaluation_rubric():
                     "2": "Contains minor factual errors",
                     "3": "Mostly accurate with some imprecisions",
                     "4": "Highly accurate with minimal issues",
-                    "5": "Perfectly accurate information"
-                }
+                    "5": "Perfectly accurate information",
+                },
             },
             "relevance": {
                 "description": "How well the response addresses the query",
@@ -304,8 +318,8 @@ def standard_evaluation_rubric():
                     "2": "Partially addresses the query with major gaps",
                     "3": "Addresses the main points of the query",
                     "4": "Thoroughly addresses the query",
-                    "5": "Comprehensively addresses all aspects of the query"
-                }
+                    "5": "Comprehensively addresses all aspects of the query",
+                },
             },
             "coherence": {
                 "description": "Logical structure and flow of the response",
@@ -315,8 +329,8 @@ def standard_evaluation_rubric():
                     "2": "Poorly structured with logical gaps",
                     "3": "Adequately structured with minor issues",
                     "4": "Well structured and easy to follow",
-                    "5": "Exceptionally well structured and engaging"
-                }
+                    "5": "Exceptionally well structured and engaging",
+                },
             },
             "completeness": {
                 "description": "Thoroughness of the response",
@@ -326,16 +340,12 @@ def standard_evaluation_rubric():
                     "2": "Missing important elements",
                     "3": "Covers basic requirements",
                     "4": "Comprehensive coverage",
-                    "5": "Exceptionally thorough coverage"
-                }
-            }
+                    "5": "Exceptionally thorough coverage",
+                },
+            },
         },
-        "scale": {
-            "min": 1,
-            "max": 5,
-            "increment": 1
-        },
-        "passing_threshold": 3.0
+        "scale": {"min": 1, "max": 5, "increment": 1},
+        "passing_threshold": 3.0,
     }
 
 
@@ -403,6 +413,7 @@ def csv_test_data():
 
 # --- Agent Testing Fixtures ---
 
+
 @pytest.fixture
 def evaluation_test_config():
     """Configuration for evaluation tests."""
@@ -412,15 +423,17 @@ def evaluation_test_config():
         "model": "claude-3-sonnet-20240229",
         "max_tokens": 1000,
         "detailed_feedback": True,
-        "save_results": False
+        "save_results": False,
     }
 
 
 # --- Utility Functions ---
 
+
 @pytest.fixture
 def parse_json_result():
     """Utility function to parse JSON results from tool executions."""
+
     def _parse(result):
         """Parse JSON from tool result text content."""
         if isinstance(result, list) and len(result) > 0:
@@ -431,5 +444,5 @@ def parse_json_result():
                 except json.JSONDecodeError:
                     return {"error": "Failed to parse JSON", "raw": text_content.text}
         return {"error": "Invalid result format", "raw": str(result)}
-    
+
     return _parse

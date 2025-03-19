@@ -2,11 +2,9 @@
 MCP Host implementation for managing multiple tool servers and clients.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
-from pathlib import Path
 from contextlib import AsyncExitStack
 
 from mcp import (
@@ -18,7 +16,7 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager
-from .config import ConfigurationManager, HostConfigModel, ClientConfig, RootConfig
+from .config import ConfigurationManager, HostConfigModel, ClientConfig
 
 # Communication layer
 from .communication import TransportManager, MessageRouter

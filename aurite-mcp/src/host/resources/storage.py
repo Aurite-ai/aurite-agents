@@ -5,7 +5,6 @@ Handles secure database connection pooling.
 
 import os
 import re
-import json
 import logging
 import uuid
 import time

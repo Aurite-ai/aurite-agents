@@ -10,7 +10,7 @@ import json
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 from mcp.server.fastmcp import FastMCP
 
@@ -30,13 +30,13 @@ os.makedirs(EVALUATIONS_DIR, exist_ok=True)
 def evaluate_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Evaluate agent output against specified criteria or a rubric.
-    
+
     Args:
         agent_output: The output from the agent to evaluate
         criteria: Evaluation criteria as a structured object or rubric name
         expected_output: Optional expected output for comparison
         detailed_feedback: Whether to provide detailed feedback (default: True)
-        
+
     Returns:
         Evaluation results with scores and feedback
     """
@@ -45,51 +45,51 @@ def evaluate_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     criteria = arguments.get("criteria", {})
     expected_output = arguments.get("expected_output", "")
     detailed_feedback = arguments.get("detailed_feedback", True)
-    
+
     # Log evaluation request
     logger.info(f"Evaluating agent output against {len(criteria)} criteria")
-    
+
     # Perform evaluation
     # In a real implementation, this would analyze the content against criteria
     # Here we'll return a simplified mock response
-    
+
     result = {
         "score": 4.2,
         "passed": True,
         "criterion_scores": {
             "accuracy": {
                 "score": 4.0,
-                "justification": "The agent provided mostly accurate information with only minor imprecisions."
+                "justification": "The agent provided mostly accurate information with only minor imprecisions.",
             },
             "relevance": {
                 "score": 4.5,
-                "justification": "The output thoroughly addressed the query with comprehensive coverage."
+                "justification": "The output thoroughly addressed the query with comprehensive coverage.",
             },
             "coherence": {
                 "score": 4.0,
-                "justification": "The response was well-structured and easy to follow."
+                "justification": "The response was well-structured and easy to follow.",
             },
             "completeness": {
                 "score": 4.3,
-                "justification": "The output provided comprehensive coverage of the topic."
-            }
+                "justification": "The output provided comprehensive coverage of the topic.",
+            },
         },
         "summary_feedback": "Overall, the agent performed well, providing a comprehensive and accurate response that was well-structured.",
         "strengths": [
             "Thorough coverage of the topic",
             "Well-organized presentation",
-            "Accurate information"
+            "Accurate information",
         ],
         "areas_for_improvement": [
             "Could provide more specific examples",
-            "Minor inaccuracies in some details"
+            "Minor inaccuracies in some details",
         ],
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     # Save evaluation result
     save_evaluation_result(result, agent_output, expected_output)
-    
+
     return [{"type": "text", "text": json.dumps(result)}]
 
 
@@ -97,37 +97,37 @@ def evaluate_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
 def score_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Score agent output using a specified rubric, returning a numeric score.
-    
+
     Args:
         agent_output: The output from the agent to score
         rubric: The rubric to use for scoring (name or full rubric object)
-        
+
     Returns:
         Numeric scores with minimal feedback
     """
     # Extract arguments
     agent_output = arguments.get("agent_output", "")
     rubric_spec = arguments.get("rubric", {})
-    
+
     # Log scoring request
-    logger.info(f"Scoring agent output with rubric")
-    
+    logger.info("Scoring agent output with rubric")
+
     # Perform scoring
     # In a real implementation, this would score based on the rubric
     # Here we'll return a simplified mock response
-    
+
     result = {
         "overall_score": 4.2,
         "criterion_scores": {
             "accuracy": 4.0,
             "relevance": 4.5,
             "coherence": 4.0,
-            "completeness": 4.3
+            "completeness": 4.3,
         },
         "passed": True,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     return [{"type": "text", "text": json.dumps(result)}]
 
 
@@ -135,13 +135,13 @@ def score_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
 def analyze_agent_performance(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Analyze agent performance in detail, providing comprehensive feedback.
-    
+
     Args:
         agent_output: The output from the agent to analyze
         expected_output: Expected output for comparison
         analysis_type: Type of analysis to perform (standard, detailed, focused)
         focus_areas: Specific areas to focus on (if analysis_type is focused)
-        
+
     Returns:
         Detailed analysis with qualitative feedback
     """
@@ -150,40 +150,40 @@ def analyze_agent_performance(arguments: Dict[str, Any]) -> List[Dict[str, Any]]
     expected_output = arguments.get("expected_output", "")
     analysis_type = arguments.get("analysis_type", "standard")
     focus_areas = arguments.get("focus_areas", [])
-    
+
     # Log analysis request
     logger.info(f"Analyzing agent performance with {analysis_type} analysis")
-    
+
     # Perform analysis
     # In a real implementation, this would perform a detailed analysis
     # Here we'll return a simplified mock response
-    
+
     result = {
         "analysis_type": analysis_type,
         "strengths": [
             {"area": "Content", "description": "Comprehensive coverage of the topic"},
             {"area": "Structure", "description": "Well-organized with logical flow"},
-            {"area": "Accuracy", "description": "Mostly accurate information"}
+            {"area": "Accuracy", "description": "Mostly accurate information"},
         ],
         "areas_for_improvement": [
             {"area": "Detail", "description": "Could provide more specific examples"},
-            {"area": "Precision", "description": "Some minor inaccuracies in details"}
+            {"area": "Precision", "description": "Some minor inaccuracies in details"},
         ],
         "comparison_with_expected": {
             "similarity_score": 0.85,
             "key_differences": [
                 "Expected output included more specific data points",
-                "Agent provided better organization than expected output"
-            ]
+                "Agent provided better organization than expected output",
+            ],
         },
         "recommendations": [
             "Improve fact-checking for higher accuracy",
             "Include more specific examples to support points",
-            "Consider adding quantitative data where appropriate"
+            "Consider adding quantitative data where appropriate",
         ],
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     return [{"type": "text", "text": json.dumps(result)}]
 
 
@@ -191,12 +191,12 @@ def analyze_agent_performance(arguments: Dict[str, Any]) -> List[Dict[str, Any]]
 def aggregate_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Aggregate multiple evaluation results to produce statistics.
-    
+
     Args:
         evaluation_ids: List of evaluation IDs to aggregate
         agent_id: Optional agent ID to filter evaluations
         rubric_id: Optional rubric ID to filter evaluations
-        
+
     Returns:
         Aggregated statistics and meta-analysis
     """
@@ -204,14 +204,14 @@ def aggregate_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     evaluation_ids = arguments.get("evaluation_ids", [])
     agent_id = arguments.get("agent_id", None)
     rubric_id = arguments.get("rubric_id", None)
-    
+
     # Log aggregation request
     eval_count = len(evaluation_ids)
     logger.info(f"Aggregating {eval_count} evaluation results")
-    
+
     # In a real implementation, this would load and aggregate evaluations
     # Here we'll return a simplified mock response
-    
+
     result = {
         "mean_score": 4.15,
         "median_score": 4.2,
@@ -223,27 +223,27 @@ def aggregate_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
             "accuracy": 4.1,
             "relevance": 4.3,
             "coherence": 4.0,
-            "completeness": 4.2
+            "completeness": 4.2,
         },
         "criterion_std_deviations": {
             "accuracy": 0.3,
             "relevance": 0.2,
             "coherence": 0.3,
-            "completeness": 0.25
+            "completeness": 0.25,
         },
         "common_strengths": [
             "Strong organization and structure",
-            "Comprehensive topic coverage"
+            "Comprehensive topic coverage",
         ],
         "common_areas_for_improvement": [
             "Increase specificity with examples",
-            "Improve factual accuracy in details"
+            "Improve factual accuracy in details",
         ],
         "summary": "Across all evaluations, the agent demonstrates consistently strong performance with particular strengths in organization and comprehensive coverage. The main areas for improvement are increasing specificity and fact-checking for greater accuracy.",
         "num_runs": eval_count,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     return [{"type": "text", "text": json.dumps(result)}]
 
 
@@ -251,13 +251,13 @@ def aggregate_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
 def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     List available evaluation results with optional filtering.
-    
+
     Args:
         agent_id: Optional agent ID to filter evaluations
         rubric_id: Optional rubric ID to filter evaluations
         min_score: Optional minimum score threshold
         max_results: Maximum number of results to return (default: 10)
-        
+
     Returns:
         List of matching evaluation results
     """
@@ -266,10 +266,10 @@ def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     rubric_id = arguments.get("rubric_id", None)
     min_score = arguments.get("min_score", None)
     max_results = arguments.get("max_results", 10)
-    
+
     # In a real implementation, this would search stored evaluations
     # Here we'll return a simplified mock response
-    
+
     # Get evaluations from the directory
     evaluations = []
     try:
@@ -277,7 +277,7 @@ def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
             try:
                 with open(eval_file, "r") as f:
                     evaluation = json.load(f)
-                    
+
                     # Apply filters if provided
                     if agent_id and evaluation.get("agent_id") != agent_id:
                         continue
@@ -285,22 +285,24 @@ def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
                         continue
                     if min_score and evaluation.get("overall_score", 0) < min_score:
                         continue
-                    
-                    evaluations.append({
-                        "id": eval_file.stem,
-                        "timestamp": evaluation.get("timestamp", ""),
-                        "overall_score": evaluation.get("overall_score", 0),
-                        "agent_id": evaluation.get("agent_id", "unknown"),
-                        "rubric_id": evaluation.get("rubric_id", "unknown")
-                    })
-                    
+
+                    evaluations.append(
+                        {
+                            "id": eval_file.stem,
+                            "timestamp": evaluation.get("timestamp", ""),
+                            "overall_score": evaluation.get("overall_score", 0),
+                            "agent_id": evaluation.get("agent_id", "unknown"),
+                            "rubric_id": evaluation.get("rubric_id", "unknown"),
+                        }
+                    )
+
                     if len(evaluations) >= max_results:
                         break
             except Exception as e:
                 logger.error(f"Error loading evaluation {eval_file}: {e}")
     except Exception as e:
         logger.error(f"Error listing evaluations: {e}")
-    
+
     # If no real evaluations were found or there was an error, return mock data
     if not evaluations:
         evaluations = [
@@ -309,27 +311,27 @@ def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "timestamp": "2025-03-18 15:30:45",
                 "overall_score": 4.2,
                 "agent_id": "planning_agent",
-                "rubric_id": "standard_rubric"
+                "rubric_id": "standard_rubric",
             },
             {
                 "id": "eval_002",
                 "timestamp": "2025-03-18 16:15:22",
                 "overall_score": 3.8,
                 "agent_id": "qa_agent",
-                "rubric_id": "qa_rubric"
-            }
+                "rubric_id": "qa_rubric",
+            },
         ]
-    
+
     result = {
         "evaluations": evaluations,
         "count": len(evaluations),
         "filters_applied": {
             "agent_id": agent_id,
             "rubric_id": rubric_id,
-            "min_score": min_score
-        }
+            "min_score": min_score,
+        },
     }
-    
+
     return [{"type": "text", "text": json.dumps(result)}]
 
 
@@ -337,7 +339,7 @@ def list_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
 def evaluation_prompt() -> str:
     """
     System prompt for agent evaluation.
-    
+
     This prompt guides the model in evaluating agent outputs using
     rubric-based assessment, ensuring thorough and consistent evaluation.
     """
@@ -405,7 +407,7 @@ Focus on providing fair, thorough, and constructive evaluations that can help im
 def rubric_prompt() -> str:
     """
     System prompt for using evaluation rubrics.
-    
+
     This prompt guides the model in applying rubrics consistently
     for evaluating agent outputs.
     """
@@ -464,22 +466,25 @@ Justification: While most of the information is accurate, there are specific fac
 
 # Helper functions
 
-def save_evaluation_result(result: Dict[str, Any], agent_output: str, expected_output: str) -> None:
+
+def save_evaluation_result(
+    result: Dict[str, Any], agent_output: str, expected_output: str
+) -> None:
     """Save evaluation result to a file."""
     try:
         timestamp = time.strftime("%Y%m%d%H%M%S")
         evaluation_id = f"eval_{timestamp}"
-        
+
         # Add agent output and expected output to result
         full_result = result.copy()
         full_result["agent_output"] = agent_output
         full_result["expected_output"] = expected_output
-        
+
         # Save to file
         eval_path = EVALUATIONS_DIR / f"{evaluation_id}.json"
         with open(eval_path, "w") as f:
             json.dump(full_result, f, indent=2)
-            
+
         logger.info(f"Saved evaluation to {eval_path}")
     except Exception as e:
         logger.error(f"Error saving evaluation: {e}")

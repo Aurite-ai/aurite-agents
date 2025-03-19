@@ -19,7 +19,7 @@ import logging
 import time
 from pathlib import Path
 
-from ..host.config import ClientConfig, RootConfig
+from ..host.config import ClientConfig
 from .base_models import StepStatus, StepResult, AgentContext, AgentData
 from .base_utils import (
     validate_required_fields,
