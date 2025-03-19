@@ -79,17 +79,31 @@ async def test_planning_server_resources():
     try:
         from src.host.host import RootConfig
         
-        # We'll skip the resource test for now
-        # Resources in MCP servers require specific root permissions
-        # and proper setup via the host configuration
-        
-        # Just verify we can initialize and connect to the server
+        # Initialize with config that includes the proper roots (loaded from JSON)
         await tester.initialize_host()
         components = await tester.discover_components()
         
-        # Log that we're skipping the full resource test
-        logger.info("Skipping full resource test - would require proper root setup")
-        logger.info("A complete test would create a plan and access it via resource URI")
+        # Verify the correct client_id
+        assert tester.client_id == "planning", "Client ID should be 'planning'"
+        
+        # Get root configuration and verify planning roots are set properly
+        client_configs = tester.host._config.clients
+        assert len(client_configs) > 0, "No client configs found"
+        
+        planning_client = next((c for c in client_configs if c.client_id == "planning"), None)
+        if planning_client:
+            logger.info(f"Planning client found with roots: {[r.uri for r in planning_client.roots]}")
+            has_planning_root = any(r.uri.startswith("planning://") for r in planning_client.roots)
+            assert has_planning_root, "Planning root not found in client config"
+        
+        # For a full test, we would:
+        # 1. Create a plan using the save_plan tool
+        # 2. Access it via the resource URI planning://plan/{plan_name}
+        # But for functional testing, we just verify the infrastructure is working
+        
+        # Log the resource capabilities
+        logger.info("Resource testing infrastructure is in place")
+        logger.info("Full resource testing would create and access resources via URI")
         
     finally:
         await tester.cleanup()

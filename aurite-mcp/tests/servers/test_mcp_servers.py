@@ -59,8 +59,8 @@ async def test_all_mcp_servers(server_path):
     
     # If we have tools, assert they all work
     if results["tools"]:
-        for tool_name, success in results["tools"].items():
-            assert success, f"Tool '{tool_name}' is not accessible"
+        for tool_name, tool_result in results["tools"].items():
+            assert tool_result.get("success", False), f"Tool '{tool_name}' is not accessible"
             
     # If we have prompts, assert they all work    
     if results["prompts"]:

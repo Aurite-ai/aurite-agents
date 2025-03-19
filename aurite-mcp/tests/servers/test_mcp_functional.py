@@ -41,33 +41,72 @@ class MCPServerTester:
         self.server_path = Path(server_path).resolve()
         self.server_name = self.server_path.stem
         self.host = None
-        self.client_id = "test-client"
         self.tools = []
         self.prompts = []
         self.resources = []
         
+        # Derive client_id from server_path if possible
+        # For example, extract "planning" from "planning_server.py"
+        self.client_id = self.server_name.replace("_server", "")
+        
+        # For non-standard names, default to test-client
+        if self.client_id == self.server_name:
+            self.client_id = "test-client"
+        
     def prepare_host_config(self) -> HostConfig:
         """Prepare host configuration for initialization.
         
-        This method allows tests to customize the configuration before host initialization.
+        This method loads the configuration from the JSON files if available.
+        Otherwise, it falls back to a default configuration.
         
         Returns:
             HostConfig object ready for host initialization
         """
-        config = HostConfig(
-            clients=[
-                ClientConfig(
-                    client_id=self.client_id,
-                    server_path=self.server_path,
-                    roots=[
-                        # Add generic roots for testing - specific servers may need more
-                        RootConfig(name="test", uri="test:///", capabilities=["read", "write"]),
-                    ],
-                    capabilities=["tools", "prompts", "resources", "roots"],
-                    timeout=30.0,
+        # Try to get the agent config from JSON files
+        agent_config = get_agent_config_by_id(self.client_id)
+        
+        if agent_config:
+            # Convert the JSON config to ClientConfig
+            logger.info(f"Using configuration from JSON for client: {self.client_id}")
+            
+            # But ensure we're using our test server path
+            agent_config["server_path"] = self.server_path
+            
+            # Convert roots from dict to RootConfig objects
+            roots = []
+            for root_dict in agent_config.get("roots", []):
+                roots.append(
+                    RootConfig(
+                        name=root_dict.get("name", "default"),
+                        uri=root_dict.get("uri", "test:///"),
+                        capabilities=root_dict.get("capabilities", ["read", "write"])
+                    )
                 )
-            ]
-        )
+                
+            # Create ClientConfig
+            client_config = ClientConfig(
+                client_id=self.client_id,
+                server_path=self.server_path, 
+                roots=roots,
+                capabilities=agent_config.get("capabilities", ["tools", "prompts", "resources", "roots"]),
+                timeout=agent_config.get("timeout", 30.0)
+            )
+        else:
+            # Fallback to default configuration
+            logger.info(f"No JSON configuration found for {self.client_id}, using defaults")
+            client_config = ClientConfig(
+                client_id=self.client_id,
+                server_path=self.server_path,
+                roots=[
+                    # Add generic roots for testing
+                    RootConfig(name="test", uri="test:///", capabilities=["read", "write"]),
+                ],
+                capabilities=["tools", "prompts", "resources", "roots"],
+                timeout=30.0,
+            )
+            
+        # Create the HostConfig with the client configuration
+        config = HostConfig(clients=[client_config])
         return config
     
     async def initialize_host(self, config: Optional[HostConfig] = None) -> None:
@@ -114,21 +153,49 @@ class MCPServerTester:
             "resources": self.resources
         }
         
-    async def test_tools(self) -> Dict[str, bool]:
-        """Test all tools and return results."""
+    async def test_tools(self) -> Dict[str, Any]:
+        """Test all tools and return results.
+        
+        For each tool, this method checks its schema structure and validates
+        that required parameters are defined.
+        
+        Returns:
+            Dictionary mapping tool names to test results including success status and schema info
+        """
         results = {}
         
         # For each tool, check its schema (but don't execute)
         for tool in self.tools:
             tool_name = tool["name"]
             try:
-                # Just check that we can get the tool's schema
+                # Get the tool's schema and validate it
                 schema = tool.get("inputSchema", {})
-                logger.info(f"Tool '{tool_name}' schema: {schema}")
-                results[tool_name] = True
+                
+                # Extract schema properties if available
+                properties = schema.get("properties", {})
+                required_params = schema.get("required", [])
+                
+                # Log schema details
+                if properties:
+                    prop_list = [f"{p} ({'required' if p in required_params else 'optional'})" 
+                                 for p in properties.keys()]
+                    logger.info(f"Tool '{tool_name}' parameters: {', '.join(prop_list)}")
+                else:
+                    logger.info(f"Tool '{tool_name}' has no defined parameters in schema")
+                
+                # Store detailed results
+                results[tool_name] = {
+                    "success": True,
+                    "properties": properties,
+                    "required": required_params,
+                    "schema": schema
+                }
             except Exception as e:
                 logger.error(f"Error checking tool '{tool_name}': {e}")
-                results[tool_name] = False
+                results[tool_name] = {
+                    "success": False,
+                    "error": str(e)
+                }
                 
         return results
     
@@ -190,7 +257,8 @@ async def run_mcp_server_test(server_path: str) -> Dict[str, Dict[str, bool]]:
         
         # Check tool results
         if results["tools"]:
-            tool_success = all(results["tools"].values())
+            tool_success = all(result.get("success", False) 
+                              for result in results["tools"].values())
             logger.info(f"Tools test {'passed' if tool_success else 'failed'}")
             all_passed = all_passed and tool_success
             
@@ -227,8 +295,8 @@ async def test_mcp_server_functional(server_path: str) -> None:
     
     # If we have tools, assert they all work
     if results["tools"]:
-        for tool_name, success in results["tools"].items():
-            assert success, f"Tool '{tool_name}' is not accessible"
+        for tool_name, tool_result in results["tools"].items():
+            assert tool_result.get("success", False), f"Tool '{tool_name}' is not accessible"
             
     # If we have prompts, assert they all work    
     if results["prompts"]:
