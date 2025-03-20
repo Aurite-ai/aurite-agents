@@ -34,7 +34,9 @@ def add_memories(memory_str: str, user_id: str) -> str:
     
     return "Memories added successfully"
     
-@mcp.resource("mem0://search/{user_id}/{query}/{limit}")
+#@mcp.resource("mem0://search/{user_id}/{query}/{limit}")
+#keeping as tool for now because it is easier to access in host.py
+@mcp.tool()
 def search_memories(query: str, user_id: str, limit: int = 5) -> list[str]:
     """Search for memories relevant to a query
     
