@@ -1,0 +1,226 @@
+[
+  {
+    "region": "South",
+    "seed1": 1,
+    "team1": "Auburn",
+    "seed2": 16,
+    "team2": "Alabama State"
+  },
+  {
+    "region": "South",
+    "seed1": 8,
+    "team1": "Louisville",
+    "seed2": 9,
+    "team2": "Creighton"
+  },
+  {
+    "region": "South",
+    "seed1": 5,
+    "team1": "Michigan",
+    "seed2": 12,
+    "team2": "UC San Diego"
+  },
+  {
+    "region": "South",
+    "seed1": 4,
+    "team1": "Texas A&M",
+    "seed2": 13,
+    "team2": "Yale"
+  },
+  {
+    "region": "West",
+    "seed1": 6,
+    "team1": "Missouri",
+    "seed2": 11,
+    "team2": "Drake"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 3,
+    "team1": "Kentucky",
+    "seed2": 14,
+    "team2": "Troy"
+  },
+  {
+    "region": "South",
+    "seed1": 7,
+    "team1": "Marquette",
+    "seed2": 10,
+    "team2": "New Mexico"
+  },
+  {
+    "region": "South",
+    "seed1": 2,
+    "team1": "Michigan State",
+    "seed2": 15,
+    "team2": "Bryant"
+  },
+  {
+    "region": "East",
+    "seed1": 1,
+    "team1": "Duke",
+    "seed2": 16,
+    "team2": "Mount St. Mary's"
+  },
+  {
+    "region": "East",
+    "seed1": 8,
+    "team1": "Mississippi State",
+    "seed2": 9,
+    "team2": "Baylor"
+  },
+  {
+    "region": "East",
+    "seed1": 5,
+    "team1": "Oregon",
+    "seed2": 12,
+    "team2": "Liberty"
+  },
+  {
+    "region": "East",
+    "seed1": 4,
+    "team1": "Arizona",
+    "seed2": 13,
+    "team2": "Akron"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 6,
+    "team1": "Illinois",
+    "seed2": 11,
+    "team2": "Xavier"
+  },
+  {
+    "region": "West",
+    "seed1": 3,
+    "team1": "Texas Tech",
+    "seed2": 14,
+    "team2": "UNC Wilmington"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 7,
+    "team1": "UCLA",
+    "seed2": 10,
+    "team2": "Utah State"
+  },
+  {
+    "region": "West",
+    "seed1": 2,
+    "team1": "St. John's",
+    "seed2": 15,
+    "team2": "Omaha"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 1,
+    "team1": "Houston",
+    "seed2": 16,
+    "team2": "SIU Edwardsville"
+  },
+  {
+    "region": "West",
+    "seed1": 8,
+    "team1": "Connecticut",
+    "seed2": 9,
+    "team2": "Oklahoma"
+  },
+  {
+    "region": "West",
+    "seed1": 5,
+    "team1": "Memphis",
+    "seed2": 12,
+    "team2": "Colorado State"
+  },
+  {
+    "region": "West",
+    "seed1": 4,
+    "team1": "Maryland",
+    "seed2": 13,
+    "team2": "Grand Canyon"
+  },
+  {
+    "region": "South",
+    "seed1": 6,
+    "team1": "Ole Miss",
+    "seed2": 11,
+    "team2": "North Carolina"
+  },
+  {
+    "region": "South",
+    "seed1": 3,
+    "team1": "Iowa State",
+    "seed2": 14,
+    "team2": "Lipscomb"
+  },
+  {
+    "region": "East",
+    "seed1": 7,
+    "team1": "Saint Mary's",
+    "seed2": 10,
+    "team2": "Vanderbilt"
+  },
+  {
+    "region": "East",
+    "seed1": 2,
+    "team1": "Alabama",
+    "seed2": 15,
+    "team2": "Robert Morris"
+  },
+  {
+    "region": "West",
+    "seed1": 1,
+    "team1": "Florida",
+    "seed2": 16,
+    "team2": "Norfolk State"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 8,
+    "team1": "Gonzaga",
+    "seed2": 9,
+    "team2": "Georgia"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 5,
+    "team1": "Clemson",
+    "seed2": 12,
+    "team2": "McNeese"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 4,
+    "team1": "Purdue",
+    "seed2": 13,
+    "team2": "High Point"
+  },
+  {
+    "region": "East",
+    "seed1": 6,
+    "team1": "BYU",
+    "seed2": 11,
+    "team2": "VCU"
+  },
+  {
+    "region": "East",
+    "seed1": 3,
+    "team1": "Wisconsin",
+    "seed2": 14,
+    "team2": "Montana"
+  },
+  {
+    "region": "West",
+    "seed1": 7,
+    "team1": "Kansas",
+    "seed2": 10,
+    "team2": "Arkansas"
+  },
+  {
+    "region": "Midwest",
+    "seed1": 2,
+    "team1": "Tennessee",
+    "seed2": 15,
+    "team2": "Wofford"
+  }
+]

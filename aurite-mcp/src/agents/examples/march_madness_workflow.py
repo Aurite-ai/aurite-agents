@@ -5,7 +5,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from src.host.host import MCPHost, HostConfig, ClientConfig
 
-load_dotenv()
+
+load_dotenv()  # load environment variables from .env
+
+
 
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -20,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 
 async def execute_agent():
-    """Call the Evaluation Agent with the Evaluation Server"""
+    """Call the March Madness Agent with the MM Server"""
     # Get the absolute path to the server script
     current_dir = Path(__file__).parent.resolve()
-    server_path = current_dir / "evaluation_server.py"
+    server_path = current_dir / "march_madness_server.py"
 
     logger.info(f"Testing with server at: {server_path}")
 
@@ -33,7 +36,7 @@ async def execute_agent():
     config = HostConfig(
         clients=[
             ClientConfig(
-                client_id="evaluation_client",
+                client_id="mm_client",
                 server_path=server_path,
                 roots=[],
                 capabilities=["tools", "prompts"],  # Added prompts capability
@@ -53,16 +56,15 @@ async def execute_agent():
     logger.info(f"Prompts: {prompts}")
 
     response = await host.execute_prompt_with_tools(
-        prompt_name="evaluation_prompt",
-        prompt_arguments={
-            "state": self.state
-        },
-        client_id="evaluation_client",
-        user_message="Evaluate the agent. {agentOutput: 'hello., i am a bot'}",
-        tool_names=["evaluate_agent"],
-        model="claude-3-sonnet-20240229",  # Using a smaller model for testing
-        max_tokens=1000,
+        prompt_name="march_madness_prompt",
+        prompt_arguments={},
+        client_id="mm_client",
+        user_message="You are a bracket filler agent. Go through all rounds of the bracket by comparing matchups and fill it out. Return all results.",
+        tool_names=["get_first_round", "compare_matchup", "store_round_results"],
+        model="claude-3-7-sonnet-latest",  # Using a smaller model for testing
+        max_tokens=2000,
         temperature=0.7,
+        max_iterations=100,
     )
 
     logger.info(f"Response: {response}")
@@ -70,6 +72,11 @@ async def execute_agent():
     # Extract the final response text from the AI model
     final_response_text = response['final_response'].content[0].text
     logger.info(f"{GREEN}Final output: {final_response_text}{RESET}")
+
+
+    # Outpt the final response text to a file
+    with open("march_madness_output.txt", "w") as f:
+        f.write(final_response_text)
 
     await host.shutdown()
 

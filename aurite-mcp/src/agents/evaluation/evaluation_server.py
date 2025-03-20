@@ -10,8 +10,10 @@ def hello_world(arguments):
 
 
 @mcp.prompt()
-def evaluation_prompt() -> str:
-    return "Evaluate the agent using the evaluate_agent tool."
+def evaluation_prompt(
+    state : str
+) -> str:
+    return f"Evaluate the agent using the evaluate_agent tool. From the agent state: {state}"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,18 @@
+[
+  { "region": "South", "winner": "Auburn", "loser": "Creighton" },
+  { "region": "South", "winner": "Texas A&M", "loser": "Michigan" },
+  { "region": "South", "winner": "Kentucky", "loser": "Missouri" },
+  { "region": "South", "winner": "Michigan State", "loser": "Marquette" },
+  { "region": "West", "winner": "Duke", "loser": "Mississippi State" },
+  { "region": "West", "winner": "Arizona", "loser": "Liberty" },
+  { "region": "West", "winner": "Texas Tech", "loser": "Illinois" },
+  { "region": "West", "winner": "St. John's", "loser": "UCLA" },
+  { "region": "East", "winner": "Houston", "loser": "Connecticut" },
+  { "region": "East", "winner": "Maryland", "loser": "Memphis" },
+  { "region": "East", "winner": "Iowa State", "loser": "North Carolina" },
+  { "region": "East", "winner": "Alabama", "loser": "Saint Mary's" },
+  { "region": "Midwest", "winner": "Florida", "loser": "Gonzaga" },
+  { "region": "Midwest", "winner": "Purdue", "loser": "Clemson" },
+  { "region": "Midwest", "winner": "BYU", "loser": "Wisconsin" },
+  { "region": "Midwest", "winner": "Tennessee", "loser": "Kansas" }
+]

@@ -1,0 +1,6 @@
+[
+  { "region": "South", "winner": "Auburn", "loser": "Michigan State" },
+  { "region": "West", "winner": "Duke", "loser": "St. John's" },
+  { "region": "East", "winner": "Alabama", "loser": "Houston" },
+  { "region": "Midwest", "winner": "Florida", "loser": "Tennessee" }
+]

@@ -300,6 +300,7 @@ class MCPHost:
         model: str = "claude-3-opus-20240229",
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        max_iterations: int = 10,
         anthropic_api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -353,7 +354,7 @@ class MCPHost:
         # Execute the conversation
         conversation_history = []
         final_response = None
-        max_iterations = 10  # Prevent infinite loops
+       
         current_iteration = 0
 
         while current_iteration < max_iterations:

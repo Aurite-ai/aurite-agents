@@ -1,0 +1,18 @@
+[
+  { "winner": "Auburn", "loser": "Creighton" },
+  { "winner": "Texas A&M", "loser": "Michigan" },
+  { "winner": "Kentucky", "loser": "Missouri" },
+  { "winner": "Michigan State", "loser": "New Mexico" },
+  { "winner": "Duke", "loser": "Mississippi State" },
+  { "winner": "Arizona", "loser": "Oregon" },
+  { "winner": "Texas Tech", "loser": "Xavier" },
+  { "winner": "St. John's", "loser": "UCLA" },
+  { "winner": "Connecticut", "loser": "Houston" },
+  { "winner": "Maryland", "loser": "Memphis" },
+  { "winner": "Iowa State", "loser": "North Carolina" },
+  { "winner": "Alabama", "loser": "Saint Mary's" },
+  { "winner": "Florida", "loser": "Gonzaga" },
+  { "winner": "Purdue", "loser": "Clemson" },
+  { "winner": "Wisconsin", "loser": "VCU" },
+  { "winner": "Tennessee", "loser": "Kansas" }
+]
