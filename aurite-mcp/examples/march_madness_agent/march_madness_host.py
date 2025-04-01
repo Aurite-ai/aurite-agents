@@ -22,7 +22,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def execute_agent():
+async def execute_agent(
+        input: str
+):
     """Call the March Madness Agent with the MM Server"""
     # Get the absolute path to the server script
     current_dir = Path(__file__).parent.resolve()
@@ -59,7 +61,7 @@ async def execute_agent():
         prompt_name="march_madness_prompt",
         prompt_arguments={},
         client_id="mm_client",
-        user_message="You are a bracket filler agent. Go through all rounds of the bracket by comparing matchups and fill it out. Return all results.",
+        user_message=input,
         tool_names=["get_first_round", "compare_matchup", "store_round_results"],
         model="claude-3-7-sonnet-latest",  # Using a smaller model for testing
         max_tokens=2000,
@@ -75,15 +77,25 @@ async def execute_agent():
 
 
     # Outpt the final response text to a file
-    with open("march_madness_output.txt", "w") as f:
+    # Create output directory if it doesn't exist
+    output_dir = current_dir / "outputs"
+    output_dir.mkdir(exist_ok=True)
+    
+    # Write output to file
+    output_file = output_dir / "march_madness_output.txt"
+    with open(output_file, "w") as f:
         f.write(final_response_text)
+    
+    logger.info(f"Output written to: {output_file}")
 
     await host.shutdown()
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(execute_agent())
+        asyncio.run(execute_agent(
+            input="Return all results. We are starting with the ro. 16 matchups."
+        ))
     except Exception as e:
         logger.error(f"Test failed: {e}")
         import traceback

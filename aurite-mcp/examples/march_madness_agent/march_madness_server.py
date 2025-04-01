@@ -4,6 +4,7 @@ from openai import OpenAI
 from typing import Dict, Any, List, Optional
 import json
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -15,6 +16,8 @@ GREEN = '\033[92m'
 YELLOW = '\033[93m'
 BLUE = '\033[94m'
 RESET = '\033[0m'  # Reset to default color
+
+current_dir = Path(__file__).parent.resolve()
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
@@ -31,16 +34,19 @@ mcp = FastMCP("march-madness-server")
 
 @mcp.tool("get_first_round")
 def get_matchups():
-    logger.info(f"{YELLOW}Getting first round matchups{RESET}")
+    logger.info(f"{YELLOW}Getting round of 4 matchups{RESET}")
     try:
-        with open('first_round.json', 'r') as file:
+        # Fetch from the inputs directory
+        with open(os.path.join(current_dir, 'inputs/ro_8.json'), 'r') as file:
             data = json.load(file)
-            logger.debug(f"{GREEN}{data}{RESET}")
+            # Log successful data loading
+            logger.debug(f"{GREEN}Successfully loaded data from {os.path.join(current_dir, 'inputs/ro_8.json')}{RESET}")
+            logger.debug(f"{GREEN}Found {len(data)} matchups{RESET}")
             if not data:
                 logger.debug(f"{RED}No data found{RESET}")
-                return [{"type": "text", "text": "No data found"}]
-            trimmed = data[:LIMIT]
-            return [{"type": "text", "text": json.dumps(trimmed)}]
+                return [{"type": "text", "text": "No data found. Do not proceed."}]
+            # trimmed = data[:LIMIT]
+            return [{"type": "text", "text": json.dumps(data)}]
     except Exception as e:
         logger.debug(f"{RED}Error: {e}{RESET}")
         return [{"type": "text", "text": f"Error: {e}"}]
@@ -60,7 +66,7 @@ def compare_matchup(
         messages=[
             {
                 "role": "user",
-                "content": f"Compare the hypothetical Match Madess matchup between {team1} and {team2}. Analyze strengths and weaknesses of each team and predict the winner. Use statistics and historical data to enhance your prediction.",
+                "content": f"Compare the hypothetical Match Madess matchup between {team1} and {team2}. Analyze strengths and weaknesses of each team and predict the winner. Use statistics and historical data to enhance your prediction. remember that upsets are common in March Madness.",
             }
         ],
         max_completion_tokens=400
@@ -69,7 +75,18 @@ def compare_matchup(
         result = completion.choices[0].message.content
         logger.debug(f"{BLUE}{result}{RESET}")
 
-        return [{"type": "text", "text": result}]
+        simple_result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": f"Take the following information and output the winner of the matchup {result}.",
+            }
+        ],
+        max_completion_tokens=100
+        )
+
+        return [{"type": "text", "text": simple_result.choices[0].message.content}]
     except Exception as e:
         logger.debug(f"{RED}Error: {e}{RESET}")
         return [{"type": "text", "text": f"Error: {e}"}]
@@ -82,9 +99,20 @@ def store_round_results(
     logger.info(f"{YELLOW}Storing results for round {round_number}{RESET}")
 
     try:
-        with open(f"agent_round_{round_number}.json", "w") as file:
+        # Save to current directory
+        # Create outputs directory in current script directory
+        outputs_dir = os.path.join(current_dir, "outputs")
+        os.makedirs(outputs_dir, exist_ok=True)
+        
+        # Save to current script directory
+        with open(os.path.join(current_dir, f"agent_round_{round_number}.json"), "w") as file:
             json.dump(round_results, file)
-            return {"success": True}
+        
+        # Also save to /outputs directory
+        with open(os.path.join(outputs_dir, f"agent_round_{round_number}.json"), "w") as file:
+            json.dump(round_results, file)
+            
+        return {"success": True}
     except Exception as e:
         logger.debug(f"{RED}Error: {e}{RESET}")
         return {"success": False, "error": str(e)}
@@ -98,6 +126,7 @@ def march_madness_prompt() -> str:
     Your process should be as follows:
     1. Get the first round matchups
     2. Compare each matchup and predict the winner
+    2.1 Remember that upsets are common in March Madness
     3. Compare to the winners of the next round and predict the winner
     4. Continue until you have a complete bracket
     5. Return the bracket as a JSON object with the team names and predicted winners
@@ -107,6 +136,8 @@ def march_madness_prompt() -> str:
     !Important: You MUST search every matchup you encounter, along every round, about 64 + 32 + 16 + 8 + 4 + 2 + 1 in total. Do this all in one response.
 
     !Important: This is a single shot response, you must return the entire bracket in one response. There will be no follow up questions.
+
+    !Important: If you are unable to fetch the first round matchups, return an error message and do not proceed.
     
     Example:
     Returns

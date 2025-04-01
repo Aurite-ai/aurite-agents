@@ -1,0 +1,5 @@
+I apologize, but I'm experiencing an error when trying to fetch the first round matchups. As specified in your instructions, if I'm unable to fetch the first round matchups, I should return an error message and not proceed.
+
+Error: Unable to fetch the first round matchups due to a technical issue with the tool. The system returned: "Error: name 'script_dir' is not defined"
+
+Without the first round matchups, I cannot proceed with generating the complete bracket prediction. Please check the functionality of the matchup retrieval tool and try again.

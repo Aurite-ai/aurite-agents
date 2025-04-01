@@ -1,0 +1,74 @@
+[
+  {
+    "id": "match1",
+    "region": "East",
+    "seed1": 6,
+    "team1": "BYU",
+    "seed2": 2,
+    "team2": "Alabama",
+    "playsWinnerOf": "match3"
+  },
+  {
+    "id": "match2",
+    "region": "East",
+    "seed1": 4,
+    "team1": "Arizona",
+    "seed2": 1,
+    "team2": "Duke",
+    "playsWinnerOf": "match1"
+  },
+  {
+    "id": "match3",
+    "region": "West",
+    "seed1": 4,
+    "team1": "Maryland",
+    "seed2": 1,
+    "team2": "Florida",
+    "playsWinnerOf": "match4"
+  },
+  {
+    "id": "match4",
+    "region": "West",
+    "seed1": 10,
+    "team1": "Arkansas",
+    "seed2": 3,
+    "team2": "Texas Tech",
+    "playsWinnerOf": "match3"
+  },
+  {
+    "id": "match5",
+    "region": "South",
+    "seed1": 6,
+    "team1": "Ole Miss",
+    "seed2": 2,
+    "team2": "Michigan State",
+    "playsWinnerOf": "match7"
+  },
+  {
+    "id": "match6",
+    "region": "South",
+    "seed1": 5,
+    "team1": "Michigan",
+    "seed2": 1,
+    "team2": "Auburn",
+    "playsWinnerOf": "match5"
+  },
+  {
+    "id": "match7",
+    "region": "Midwest",
+    "seed1": 6,
+    "team1": "Kentucky",
+    "seed2": 2,
+    "team2": "Tennessee",
+    "playsWinnerOf": "match8"
+  },
+  {
+    "id": "match8",
+    "region": "Midwest",
+    "seed1": 4,
+    "team1": "Purdue",
+    "seed2": 1,
+    "team2": "Houston",
+    "playsWinnerOf": "match7"
+  }
+]

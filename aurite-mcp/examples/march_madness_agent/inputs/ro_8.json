@@ -1,0 +1,38 @@
+[
+  {
+    "id": "match9",
+    "region": "East",
+    "seed1": 2,
+    "team1": "Alabama",
+    "seed2": 1,
+    "team2": "Duke",
+    "playsWinnerOf": "match13"
+  },
+  {
+    "id": "match10",
+    "region": "West",
+    "seed1": 1,
+    "team1": "Florida",
+    "seed2": 3,
+    "team2": "Texas Tech",
+    "playsWinnerOf": "match13"
+  },
+  {
+    "id": "match11",
+    "region": "South",
+    "seed1": 2,
+    "team1": "Michigan State",
+    "seed2": 1,
+    "team2": "Auburn",
+    "playsWinnerOf": "match14"
+  },
+  {
+    "id": "match12",
+    "region": "Midwest",
+    "seed1": 2,
+    "team1": "Tennessee",
+    "seed2": 1,
+    "team2": "Houston",
+    "playsWinnerOf": "match14"
+  }
+]
