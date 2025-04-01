@@ -5,6 +5,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from typing import Callable
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +13,7 @@ import uvicorn
 import json
 
 from src.host.host import MCPHost
-from src.host.config import HostConfig, ClientConfig
+from src.host.config import HostConfig, ClientConfig, RootConfig
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 
@@ -131,11 +132,18 @@ async def initialize_host(request: InitializeRequest):
         client_configs = [
             ClientConfig(
                 client_id=agent["client_id"],
-                server_path=agent["server_path"],
-                roots=agent["roots"],
+                server_path=Path(agent["server_path"]),
+                roots=[
+                    RootConfig(
+                        uri=root["uri"],
+                        name=root["name"],
+                        capabilities=root["capabilities"],
+                    )
+                    for root in agent["roots"]
+                ],
                 capabilities=agent["capabilities"],
-                timeout=agent["timeout"],
-                routing_weight=agent["routing_weight"],
+                timeout=agent.get("timeout", 10.0),
+                routing_weight=agent.get("routing_weight", 1.0),
             )
             for agent in config_data["agents"]
         ]
@@ -148,7 +156,7 @@ async def initialize_host(request: InitializeRequest):
             try:
                 module_path, class_name = workflow["path"].replace("/", ".").rsplit(".", 1)
                 workflow_module = __import__(module_path, fromlist=[class_name])
-                workflow_class = getattr(workflow_module, workflow["class"])
+                workflow_class = getattr(workflow_module, class_name)
                 await mcp_host.register_workflow(
                     workflow_class=workflow_class,
                     name=workflow.get("name"),
