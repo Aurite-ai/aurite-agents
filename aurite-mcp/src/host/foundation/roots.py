@@ -2,21 +2,14 @@
 Root management for MCP host.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Set
 import logging
 from urllib.parse import urlparse
 
+# Import the Pydantic model
+from ..models import RootConfig  # Renamed config.py to models.py
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class RootConfig:
-    """Configuration for a root URI"""
-
-    uri: str
-    name: str
-    capabilities: List[str]
 
 
 class RootManager:
@@ -26,7 +19,7 @@ class RootManager:
     """
 
     def __init__(self):
-        # client_id -> List[RootConfig]
+        # client_id -> List[RootConfig] (Using Pydantic model now)
         self._client_roots: Dict[str, List[RootConfig]] = {}
 
         # client_id -> Set[str] (normalized URIs)
@@ -39,9 +32,11 @@ class RootManager:
         """Initialize the root manager"""
         logger.info("Initializing root manager")
 
-    async def register_roots(self, client_id: str, roots: List[RootConfig]):
+    async def register_roots(
+        self, client_id: str, roots: List[RootConfig]
+    ):  # Type hint uses imported RootConfig
         """
-        Register roots for a client.
+        Register roots for a client using Pydantic RootConfig models.
         This defines the operational boundaries for the client.
         """
         if client_id in self._client_roots:
@@ -54,14 +49,17 @@ class RootManager:
         for root in roots:
             # Validate URI format
             try:
-                parsed = urlparse(root.uri)
+                # Pydantic model validation handles URI format implicitly if using AnyUrl,
+                # but explicit check for scheme is still good practice.
+                parsed = urlparse(str(root.uri))  # Ensure URI is string for urlparse
                 if not parsed.scheme:
-                    raise ValueError("URI must have a scheme")
+                    raise ValueError(f"Root URI {root.uri} must have a scheme")
             except Exception as e:
-                raise ValueError(f"Invalid root URI {root.uri}: {e}")
+                # Catch potential validation errors or other issues
+                raise ValueError(f"Invalid root URI configuration for {root.uri}: {e}")
 
-            normalized_roots.append(root)
-            normalized_uris.add(root.uri)
+            normalized_roots.append(root)  # Store the validated Pydantic model
+            normalized_uris.add(str(root.uri))  # Store URI as string
 
         # Store the roots
         self._client_roots[client_id] = normalized_roots
@@ -100,7 +98,9 @@ class RootManager:
 
         return True
 
-    async def get_client_roots(self, client_id: str) -> List[RootConfig]:
+    async def get_client_roots(
+        self, client_id: str
+    ) -> List[RootConfig]:  # Type hint uses imported RootConfig
         """Get all roots registered for a client"""
         return self._client_roots.get(client_id, [])
 

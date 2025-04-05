@@ -17,7 +17,11 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager
-from .config import HostConfig, ClientConfig, RootConfig
+from .models import (
+    HostConfig,
+    ClientConfig,
+    RootConfig,
+)  # Renamed config.py to models.py
 
 # Communication layer
 from .communication import TransportManager, MessageRouter

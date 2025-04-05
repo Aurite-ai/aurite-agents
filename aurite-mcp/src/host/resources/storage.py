@@ -11,6 +11,7 @@ import uuid
 import time
 from typing import Dict, Optional, List, Any, Tuple
 from dataclasses import dataclass, field
+from pathlib import Path  # Import Path
 
 # Type hint for SQLAlchemy objects
 try:
@@ -83,20 +84,15 @@ class StorageManager:
         await self._load_named_connections()
 
     async def _load_named_connections(self):
-        """Load named connection configurations"""
-        config_path = os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-            ),
-            "config",
-            "storage",
-            "connections.json",
+        """Load named connection configurations directly, without ConfigurationManager."""
+        # Calculate path relative to this file (src/host/resources/storage.py)
+        # Go up 3 levels to aurite-mcp/, then down to config/storage/connections.json
+        config_path = (
+            Path(__file__).parents[3] / "config" / "storage" / "connections.json"
         )
 
-        if not os.path.exists(config_path):
-            logger.info("No named connections configuration found")
+        if not config_path.exists():
+            logger.info(f"No named connections configuration found at {config_path}")
             return
 
         try:

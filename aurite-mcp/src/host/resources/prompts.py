@@ -11,13 +11,7 @@ import mcp.types as types
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class PromptConfig:
-    """Configuration for a prompt"""
-
-    name: str
-    description: Optional[str] = None
-    arguments: Optional[List[Dict[str, Any]]] = None
+# Removed internal PromptConfig dataclass as it was unused
 
 
 class PromptManager:

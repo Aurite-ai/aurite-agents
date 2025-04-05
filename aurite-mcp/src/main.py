@@ -17,11 +17,11 @@ import uvicorn
 import json
 
 from src.host.host import MCPHost
-from src.host.config import (
+from src.host.models import (  # Renamed config.py to models.py
     HostConfig,
     ClientConfig,
     RootConfig,
-)  # Keep HostConfig for now, might be needed for host init
+)
 from src.config import ServerConfig  # Import the new ServerConfig
 
 # Configure logging

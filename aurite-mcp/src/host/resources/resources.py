@@ -12,14 +12,7 @@ import mcp.types as types
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ResourceConfig:
-    """Configuration for a resource"""
-
-    uri: str
-    name: str
-    description: Optional[str] = None
-    mime_type: Optional[str] = None
+# Removed internal ResourceConfig dataclass as it was unused
 
 
 class ResourceManager:
