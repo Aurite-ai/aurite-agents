@@ -71,3 +71,4 @@ node-agents/
 .venv
 aurite-libre/
 aurite-mcp/src/agents/planning/plans/*
+**/**environment.json

@@ -21,56 +21,62 @@ Refactor `src/main.py` to improve stability, security, testability, and maintain
 
 ## 3. Proposed Changes & Implementation Steps
 
-**Note:** Steps should be performed sequentially.
+**Note:** Implementation steps 1-14 are complete.
 
-### 3.1. Configuration and Initialization Refactoring
+### 3.1. Configuration and Initialization Refactoring (Completed)
 
-1.  **Modify `HostConfig` (and related models in `src/host/config.py`):** Ensure `HostConfig`, `ClientConfig`, `RootConfig` are robust Pydantic models capable of validating the structure loaded from JSON configuration files. Add fields for necessary server settings if not present (e.g., potentially workflow paths if loading from config).
-2.  **Create `ServerConfig` Model:** Define a new Pydantic model (e.g., in `src/config.py` or `src/main.py`) to manage server-specific settings like `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL`, `API_KEY`, `ENCRYPTION_KEY`, `HOST_CONFIG_PATH`. Use `pydantic-settings` or similar to load these from environment variables.
-3.  **Implement Dependency for `ServerConfig`:** Create a FastAPI dependency function to load and provide the `ServerConfig`.
-4.  **Implement Dependency for `MCPHost`:**
-    *   Create a function (e.g., `get_mcp_host`) that initializes the `MCPHost` instance *once* using the loaded `ServerConfig` (getting `HOST_CONFIG_PATH`, `ENCRYPTION_KEY`).
-    *   This function should load the host configuration JSON from the path specified in `ServerConfig`.
-    *   Use FastAPI's application state (`app.state`) or a simple cache within the dependency function to store and reuse the initialized `MCPHost` instance across requests.
-5.  **Refactor `lifespan` Context Manager:**
-    *   Remove global `mcp_host` usage.
-    *   Modify the startup logic within `lifespan` to use the `get_mcp_host` dependency logic to initialize the host *during application startup*. This ensures the host is ready before requests are served.
-    *   Ensure the host's `shutdown()` method is called correctly during application shutdown within `lifespan`.
-6.  **Remove `/initialize` Endpoint:** Delete the `POST /initialize` endpoint and its associated `InitializeRequest` model, as initialization now happens at startup.
+1.  **Modify `HostConfig`:** Updated `HostConfig`, `ClientConfig`, `RootConfig` in `src/host/config.py` to use Pydantic `BaseModel`. Added `enable_memory: bool` flag to `HostConfig`.
+2.  **Create `ServerConfig` Model:** Created `src/config.py` with `ServerConfig` using `pydantic-settings` to load server settings (host, port, keys, paths) from environment variables.
+3.  **Implement Dependency for `ServerConfig`:** Added `get_server_config()` dependency function with caching in `src/main.py`.
+4.  **Implement Dependency for `MCPHost`:** Added `get_mcp_host()` dependency function in `src/main.py` to retrieve the host instance from `app.state`.
+5.  **Refactor `lifespan` Context Manager:** Updated `lifespan` in `src/main.py` to:
+    *   Load `ServerConfig` and `HostConfig` JSON at startup.
+    *   Correctly resolve relative `server_path` for clients based on the `aurite-mcp` directory.
+    *   Read `enable_memory` flag from JSON and pass to `HostConfig`.
+    *   Initialize `MCPHost` and store it in `app.state`.
+    *   Handle `MCPHost` shutdown.
+    *   Removed global `mcp_host` variable.
+6.  **Remove `/initialize` Endpoint:** Deleted the `POST /initialize` endpoint and `InitializeRequest` model from `src/main.py`.
 
-### 3.2. Security and Endpoint Refinement
+### 3.2. Security and Endpoint Refinement (Completed)
 
-7.  **Implement API Key Security:**
-    *   Use FastAPI's `APIKeyHeader` security dependency.
-    *   Create a dependency function (e.g., `get_api_key`) that checks the incoming request header against the `API_KEY` loaded in `ServerConfig`. Raise `HTTPException` (401/403) if invalid.
-    *   Apply this security dependency to all relevant endpoints.
-8.  **Remove `/register_workflow` Endpoint:** Delete the `POST /register_workflow` endpoint and its `RegisterWorkflowRequest` model. Workflow registration will rely solely on the configuration loaded during `MCPHost` initialization at startup. (Confirm `MCPHost.initialize` handles this correctly based on config).
-9.  **Refactor Endpoints to Use Dependencies:**
-    *   Modify all remaining endpoints (`/status`, `/prepare_prompt`, `/execute_prompt`, `/execute_workflow`) to use the `get_mcp_host` dependency to access the host instance instead of the global variable.
-    *   Ensure endpoints use the `get_api_key` security dependency.
-    *   Remove `anthropic_api_key` from the `ExecutePromptRequest` model and the `execute_prompt` endpoint signature; the host should retrieve this from its secure configuration (env vars).
-10. **Refine `/prepare_prompt` and `/execute_prompt`:** Review the logic. Since `execute_prompt` internally calls `prepare_prompt`, consider if the separate `/prepare_prompt` endpoint is still necessary or if its functionality can be implicitly handled by `/execute_prompt`. (Decision: Keep both for now, allows preparing context separately if needed).
-11. **Configure CORS:** Update `CORSMiddleware` to use specific allowed origins from `ServerConfig` instead of `*`.
-12. **Configure Uvicorn:** Modify `start()` function and `uvicorn.run` call to use `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` from the loaded `ServerConfig`.
+7.  **Implement API Key Security:** Added `get_api_key()` dependency using `APIKeyHeader` and `secrets.compare_digest` in `src/main.py`. Applied dependency to relevant endpoints.
+8.  **Remove `/register_workflow` Endpoint:** Deleted the `POST /register_workflow` endpoint and `RegisterWorkflowRequest` model from `src/main.py`.
+9.  **Refactor Endpoints to Use Dependencies:** Updated `/status`, `/prepare_prompt`, `/execute_prompt`, `/execute_workflow` to use `Depends(get_mcp_host)` and `Depends(get_api_key)`. Removed `anthropic_api_key` from `ExecutePromptRequest` model and `execute_prompt` call.
+10. **Refine `/prepare_prompt` and `/execute_prompt`:** Kept both endpoints as per plan decision. No code changes needed.
+11. **Configure CORS:** Updated `CORSMiddleware` in `src/main.py` to use `allow_origins=get_server_config().ALLOWED_ORIGINS`.
+12. **Configure Uvicorn:** Updated `start()` function in `src/main.py` to use settings from `ServerConfig` for `uvicorn.run`.
 
-### 3.3. Error Handling and Logging
+### 3.3. Error Handling and Logging (Completed)
 
-13. **Improve Error Handling:** Review `try...except` blocks in endpoints. Catch more specific exceptions where possible (e.g., `ValueError` from host methods) and return appropriate `HTTPException` status codes and details.
-14. **Review Logging:** Ensure logging provides sufficient context, especially around configuration loading and endpoint execution.
+13. **Improve Error Handling:** Refined `try...except` blocks in endpoints (`/prepare_prompt`, `/execute_prompt`, `/execute_workflow`) to catch `ValueError` and return appropriate 4xx HTTP status codes, while retaining general 500 errors for other exceptions.
+14. **Review Logging:** Confirmed logging provides adequate context for startup, configuration, security, and errors. No changes needed.
 
-## 4. Testing Strategy
+### 3.4. Additional Implementation (Completed)
 
-1.  **Create Postman Collection:** Develop a Postman collection (`aurite-mcp/docs/testing/main_server.postman_collection.json`) with requests for each endpoint:
-    *   `/status`
-    *   `/prepare_prompt` (requires valid `client_id`, `prompt_name`)
-    *   `/execute_prompt` (requires valid `client_id`, `prompt_name`, `user_message`)
-    *   `/execute_workflow` (requires valid `workflow_name`, `input_data`)
-    *   Include tests for valid requests (2xx status).
-    *   Include tests for invalid requests (e.g., missing API key, bad input, host not ready - expect 4xx/5xx status).
-    *   Use environment variables in Postman for `API_KEY`, `base_url`, etc.
-2.  **Document Newman Execution:** Add instructions to `aurite-mcp/docs/testing_infrastructure.md` (or a new file) on how to run the Postman collection using Newman CLI for automated testing, including environment setup (setting API key, host config path env vars).
+*   **Add `/health` Endpoint:** Added a simple `GET /health` endpoint to `src/main.py` for basic server responsiveness checks.
+*   **Install Dependencies:** Added `mem0ai` to `pyproject.toml` and installed dependencies using `pip install -e .`.
+*   **Troubleshoot Startup:** Diagnosed and fixed issues related to `mem0ai` configuration and client `server_path` resolution.
+*   **Implement Memory Feature Flag:** Added `enable_memory` flag to `HostConfig` and conditional logic in `host.py` and `main.py` to control memory client initialization based on JSON config.
 
-## 5. Memory Bank Updates
+## 4. Testing Strategy (Revised)
+
+**Goal:** Verify the refactored server starts correctly and the basic `/health` endpoint works using Newman. Iteratively add tests for other endpoints.
+
+1.  **Install Newman:** (Completed) Installed Newman globally via `npm install -g newman`.
+2.  **Create Initial Postman Collection:** (Completed) Created `aurite-mcp/docs/testing/main_server.postman_collection.json` with a single request for `GET /health` and tests for 200 status and `{"status": "ok"}` body.
+3.  **Run Server:** (Completed) Successfully started the server using `python aurite-mcp/src/main.py` after resolving dependency and path issues, and implementing the memory feature flag (currently disabled via config).
+4.  **Run Newman Test (Health Check):** Execute the Postman collection using Newman to verify the `/health` endpoint.
+    *   Command: `newman run aurite-mcp/docs/testing/main_server.postman_collection.json`
+5.  **Iteratively Add Endpoint Tests:**
+    *   Add the `GET /status` request (requires API Key) to the collection.
+    *   Create a Postman Environment file (`aurite-mcp/docs/testing/main_server.postman_environment.json`) to store `API_KEY` and `base_url`.
+    *   Update Newman command to use the environment file (`-e`).
+    *   Run Newman tests for `/health` and `/status`.
+    *   Incrementally add requests and tests for `/prepare_prompt`, `/execute_prompt`, and `/execute_workflow`, ensuring appropriate request bodies and API key headers are used.
+6.  **Document Newman Execution:** Add final instructions to `aurite-mcp/docs/testing_infrastructure.md` on how to run the complete Postman collection using Newman CLI with the environment file.
+
+## 5. Memory Bank Updates (To Do)
 
 *   Log decision to remove dynamic workflow registration.
 *   Log decision to use startup configuration loading via environment variables.
