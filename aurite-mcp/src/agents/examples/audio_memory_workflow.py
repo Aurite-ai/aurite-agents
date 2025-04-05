@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import logging
 from pydantic import Field
 
-from ...host.resources.tools import ToolManager
-from ..base_workflow import BaseWorkflow, WorkflowStep, CompositeStep
-from ..base_models import AgentContext, AgentData, StepStatus, StepResult
+from ..base_workflow import WorkflowStep
+from ..base_models import AgentContext, AgentData
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,8 @@ class AudioMemoryContext(AgentData):
 
     # Fields that will be populated during workflow execution
     transcript_str: Optional[str] = None
-    
+
+
 @dataclass
 class AudioTranscribeStep(WorkflowStep):
     """Step to load and transcribe audio file"""
@@ -48,8 +48,11 @@ class AudioTranscribeStep(WorkflowStep):
             return {"transcript_str": result}
 
         # Return error information if tool call failed
-        return {"transcript_str": {"error": "Failed to load file", "filepath": filepath}}
-    
+        return {
+            "transcript_str": {"error": "Failed to load file", "filepath": filepath}
+        }
+
+
 @dataclass
 class MemoryStorageStep(WorkflowStep):
     """Step to store facts from the transcript in memory"""
@@ -80,4 +83,9 @@ class MemoryStorageStep(WorkflowStep):
             return {"status": result}
 
         # Return error information if tool call failed
-        return {"status": {"error": "Error occured in storing transcript", "transcript": transcript_str}}
+        return {
+            "status": {
+                "error": "Error occured in storing transcript",
+                "transcript": transcript_str,
+            }
+        }

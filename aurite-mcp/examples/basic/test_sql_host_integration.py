@@ -238,7 +238,7 @@ async def test_sql_roots_and_resources():
                 logger.info(f"Number of tool calls: {len(response['tool_uses'])}")
                 for i, tool_use in enumerate(response["tool_uses"]):
                     logger.info(
-                        f"Tool call {i+1}: {tool_use.get('content', '')[:200]}..."
+                        f"Tool call {i + 1}: {tool_use.get('content', '')[:200]}..."
                     )
 
             if "final_response" in response and response["final_response"]:

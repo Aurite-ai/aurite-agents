@@ -9,7 +9,7 @@ This module provides:
 
 import json
 import logging
-from typing import List, Optional, Dict, Any, TypeVar, Type
+from typing import List, Optional, Dict, Any, TypeVar
 from pathlib import Path
 from pydantic import BaseModel
 

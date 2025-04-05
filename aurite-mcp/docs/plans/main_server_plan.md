@@ -61,28 +61,30 @@ Refactor `src/main.py` to improve stability, security, testability, and maintain
 
 ## 4. Testing Strategy (Revised)
 
-**Goal:** Verify the refactored server starts correctly and the basic `/health` endpoint works using Newman. Iteratively add tests for other endpoints.
+**Goal:** Verify the refactored server starts correctly and the implemented endpoints work using Newman.
 
 1.  **Install Newman:** (Completed) Installed Newman globally via `npm install -g newman`.
-2.  **Create Initial Postman Collection:** (Completed) Created `aurite-mcp/docs/testing/main_server.postman_collection.json` with a single request for `GET /health` and tests for 200 status and `{"status": "ok"}` body.
+2.  **Create Initial Postman Collection:** (Completed) Created `aurite-mcp/docs/testing/main_server.postman_collection.json` with requests for `GET /health`.
 3.  **Run Server:** (Completed) Successfully started the server using `python aurite-mcp/src/main.py` after resolving dependency and path issues, and implementing the memory feature flag (currently disabled via config).
-4.  **Run Newman Test (Health Check):** Execute the Postman collection using Newman to verify the `/health` endpoint.
-    *   Command: `newman run aurite-mcp/docs/testing/main_server.postman_collection.json`
-5.  **Iteratively Add Endpoint Tests:**
-    *   Add the `GET /status` request (requires API Key) to the collection.
-    *   Create a Postman Environment file (`aurite-mcp/docs/testing/main_server.postman_environment.json`) to store `API_KEY` and `base_url`.
-    *   Update Newman command to use the environment file (`-e`).
-    *   Run Newman tests for `/health` and `/status`.
-    *   Incrementally add requests and tests for `/prepare_prompt`, `/execute_prompt`, and `/execute_workflow`, ensuring appropriate request bodies and API key headers are used.
-6.  **Document Newman Execution:** Add final instructions to `aurite-mcp/docs/testing_infrastructure.md` on how to run the complete Postman collection using Newman CLI with the environment file.
+4.  **Run Newman Test (Health Check):** (Completed) Executed Newman test for `/health`, which passed.
+5.  **Iteratively Add Endpoint Tests:** (Completed for `/status`, `/prepare_prompt`, `/execute_prompt`)
+    *   Added `GET /status` request to collection.
+    *   Created Postman Environment file (`aurite-mcp/docs/testing/main_server.postman_environment.json`) with `API_KEY` and `base_url`.
+    *   Ran Newman tests for `/health` and `/status` using the environment file; both passed.
+    *   Added `POST /prepare_prompt` and `POST /execute_prompt` requests to collection, using a valid prompt name (`create_plan_prompt`) and resolving Anthropic API key issues.
+    *   Ran Newman tests for all four endpoints; all passed.
+    *   Skipped adding `/execute_workflow` as per decision.
+6.  **Document Newman Execution:** (Completed) Added instructions to `aurite-mcp/docs/testing_infrastructure.md` on how to run the Newman tests with the environment file.
 
-## 5. Memory Bank Updates (To Do)
+## 5. Memory Bank Updates (Completed)
 
 *   Log decision to remove dynamic workflow registration.
 *   Log decision to use startup configuration loading via environment variables.
-*   Log decision to use API Key authentication.
+*   Logged decision to remove dynamic workflow registration.
+*   Logged decision to use startup configuration loading via environment variables.
+*   Logged decision to use API Key authentication.
+*   Logged decision to add `enable_memory` feature flag.
 
 ## 6. Next Steps
 
-*   Review and confirm this plan with Ryan.
-*   Proceed to Implementation Phase upon approval.
+*   This plan is complete. Proceed to Phase 2 (Host System Review).

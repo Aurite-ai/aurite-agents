@@ -5,8 +5,7 @@ This module defines data models for agent evaluation, including rubrics,
 evaluation criteria, and result structures.
 """
 
-from enum import Enum
-from typing import Dict, List, Optional, Any, Union, Set
+from typing import Dict, List, Optional, Any, Set
 from pydantic import BaseModel, Field, model_validator
 
 

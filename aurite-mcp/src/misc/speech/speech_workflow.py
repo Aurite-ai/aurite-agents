@@ -8,18 +8,22 @@ PARENT_PATH = pathlib.Path(__file__).parent.absolute()
 
 if __name__ == "__main__":
     filepath = f"{PARENT_PATH}/test_audio/speech_commercial_mono.wav"
-    
+
     transcript = speech_to_text(filepath)
-    
+
     print(f"TRANSCRIPT:\n{transcript}")
-    
+
     test_id = uuid.uuid4()
     user_id = f"test_user_{test_id}"
-    
-    add_memories(memory_str=transcript, user_id=user_id, prompt="The following is the transcript of a conversation. Store information about the customer")
-    
+
+    add_memories(
+        memory_str=transcript,
+        user_id=user_id,
+        prompt="The following is the transcript of a conversation. Store information about the customer",
+    )
+
     memories = get_all_memories(user_id=user_id)
-    
+
     print(f"MEMORIES:\n{'\n'.join(memories)}")
-    
+
     delete_all_memories(user_id=user_id)

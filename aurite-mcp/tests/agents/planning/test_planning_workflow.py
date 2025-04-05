@@ -93,7 +93,7 @@ Successfully complete the given task with a structured approach.
                     {{
                         "success": true,
                         "plan_name": "{plan_name}",
-                        "plan_content": "{plan_content.replace('"', '\\"').replace('\n', '\\n')}",
+                        "plan_content": "{plan_content.replace('"', '\\"').replace("\n", "\\n")}",
                         "message": "Plan '{plan_name}' created successfully"
                     }}
                     """,

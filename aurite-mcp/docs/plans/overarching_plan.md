@@ -2,14 +2,16 @@
 
 This document outlines the high-level plan for reviewing and improving the `aurite-mcp` codebase. Detailed plans for each phase will be created separately.
 
-## Phase 1: FastAPI Server (`src/main.py`) Review and Testing
+## Phase 1: FastAPI Server (`src/main.py`) Review and Testing (Completed)
 
 *   **Goal:** Ensure the main FastAPI server is functional, robust, and testable.
-*   **Steps:**
-    1.  Review `src/main.py` and related dependencies to understand current functionality and identify potential issues.
-    2.  Develop a detailed plan (`docs/plans/main_server_plan.md`) for fixes, improvements (simplification, readability, flexibility), and testing.
-    3.  Implement the plan, including creating a Postman/Newman collection for endpoint testing.
-    4.  Verify functionality through testing.
+*   **Status:** Completed.
+*   **Summary:**
+    1.  Reviewed `src/main.py` and identified areas for improvement (config loading, security, dependencies, error handling). (Completed)
+    2.  Developed a detailed plan in `docs/plans/main_server_plan.md`. (Completed)
+    3.  Implemented the refactoring plan for `src/main.py`, including adding `ServerConfig`, dependencies, API key auth, feature flag for memory, and fixing startup issues. (Completed)
+    4.  Verified core functionality (`/health`, `/status`, `/prepare_prompt`, `/execute_prompt`) using Newman tests defined in `docs/testing/main_server.postman_collection.json`. (Completed)
+    5.  Documented Newman execution in `docs/testing_infrastructure.md`. (Completed)
 
 ## Phase 2: Host System (`src/host/`) Review
 

@@ -19,7 +19,7 @@ The agent testing infrastructure will consist of several key components:
 We'll update the existing `pyproject.toml` configuration to better support agent testing:
 
 - Add test markers for agent evaluation
-- Configure test output formatting 
+- Configure test output formatting
 - Set up test data fixtures
 
 ### 1.2 Create conftest.py
@@ -138,6 +138,36 @@ Plan for CI/CD integration to:
 - Run agent evaluations on PRs
 - Track evaluation metrics over time
 - Prevent quality regression
+
+## FastAPI Server Testing (Newman)
+
+This section describes how to run integration tests against the main FastAPI server (`src/main.py`) using Newman and the Postman collection.
+
+### Prerequisites
+
+1.  **Node.js and npm:** Ensure Node.js and npm are installed.
+2.  **Newman:** Install Newman globally: `npm install -g newman`
+3.  **Running Server:** The FastAPI server must be running locally. Start it from the project root (`aurite-agents` directory):
+    ```bash
+    # Ensure required environment variables are set (e.g., in .env file)
+    # API_KEY=your_api_key
+    # HOST_CONFIG_PATH=path/to/your/host_config.json
+    # ANTHROPIC_API_KEY=your_anthropic_key (if needed by host)
+    # ... other env vars ...
+
+    python aurite-mcp/src/main.py
+    ```
+
+### Running Tests
+
+1.  **Navigate to Project Root:** Ensure your terminal is in the `aurite-agents` directory.
+2.  **Create/Update Environment File:** Ensure the Postman environment file (`aurite-mcp/docs/testing/main_server.postman_environment.json`) exists and contains the correct `base_url` (usually `http://localhost:8000`) and the valid `api_key` matching the `API_KEY` environment variable used by the server.
+3.  **Execute Newman:** Run the following command:
+    ```bash
+    newman run aurite-mcp/docs/testing/main_server.postman_collection.json -e aurite-mcp/docs/testing/main_server.postman_environment.json
+    ```
+
+Newman will execute the requests defined in the collection against the running server and report any test failures.
 
 ## Implementation Phases
 

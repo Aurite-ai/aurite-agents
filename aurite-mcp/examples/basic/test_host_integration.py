@@ -91,7 +91,7 @@ async def test_tools_and_prompts():
         logger.info(f"System prompt: {prompt_data['system']}")
         logger.info(f"Number of tools: {len(prompt_data['tools'])}")
         for i, tool in enumerate(prompt_data["tools"]):
-            logger.info(f"Tool {i+1}: {tool['name']} - {tool['description']}")
+            logger.info(f"Tool {i + 1}: {tool['name']} - {tool['description']}")
 
         # If ANTHROPIC_API_KEY is available, test execute_prompt_with_tools
         api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -122,7 +122,7 @@ async def test_tools_and_prompts():
                 if "tool_uses" in response and response["tool_uses"]:
                     logger.info(f"Number of tool calls: {len(response['tool_uses'])}")
                     for i, tool_use in enumerate(response["tool_uses"]):
-                        logger.info(f"Tool call {i+1}: {tool_use.get('content', '')}")
+                        logger.info(f"Tool call {i + 1}: {tool_use.get('content', '')}")
 
                 if "final_response" in response and response["final_response"]:
                     logger.info("\nFinal response content:")
@@ -204,14 +204,14 @@ async def test_execute_prompt_only():
         # Pretty print conversation history
         logger.info("\nConversation history:")
         for i, msg in enumerate(response["conversation"]):
-            logger.info(f"Message {i+1} ({msg['role']}):")
+            logger.info(f"Message {i + 1} ({msg['role']}):")
             logger.info(f"  {str(msg['content'])[:200]}...")  # Truncate for readability
 
         # Print tool uses if any
         if "tool_uses" in response and response["tool_uses"]:
             logger.info(f"\nNumber of tool calls: {len(response['tool_uses'])}")
             for i, tool_use in enumerate(response["tool_uses"]):
-                logger.info(f"Tool call {i+1}:")
+                logger.info(f"Tool call {i + 1}:")
                 logger.info(f"  {str(tool_use)[:200]}...")  # Truncate for readability
 
         logger.info("\nTest successful!")

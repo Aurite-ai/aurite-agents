@@ -41,12 +41,10 @@ async def execute_agent():
 
     tools = host.tools.list_tools()
 
-    prompts =  host.prompts.list_prompts()
+    prompts = host.prompts.list_prompts()
 
     logger.info(f"Tools: {tools}")
     logger.info(f"Prompts: {prompts}")
-
-
 
     response = await host.execute_prompt_with_tools(
         prompt_name="hello_world_prompt",
@@ -72,5 +70,3 @@ if __name__ == "__main__":
         import traceback
 
         traceback.print_exc()
-
-    

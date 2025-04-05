@@ -3,7 +3,6 @@ Server-level configuration settings loaded from environment variables.
 """
 
 import logging
-from pathlib import Path
 from typing import Optional, List
 
 from pydantic import Field, FilePath

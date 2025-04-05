@@ -2,13 +2,11 @@
 MCP Host implementation for managing multiple tool servers and clients.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
 from pathlib import Path
 from contextlib import AsyncExitStack
-from urllib.parse import quote_plus
 
 from mcp import (
     ClientSession,
