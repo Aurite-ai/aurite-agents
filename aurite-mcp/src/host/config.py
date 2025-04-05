@@ -9,9 +9,9 @@ This module provides:
 
 import json
 import logging
-from dataclasses import dataclass
 from typing import List, Optional, Dict, Any, TypeVar, Type
 from pathlib import Path
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 CONFIG_DIR = Path(__file__).parents[2] / "config"
 
 
-@dataclass
-class RootConfig:
+class RootConfig(BaseModel):
     """Configuration for an MCP root"""
 
     uri: str
@@ -28,8 +27,7 @@ class RootConfig:
     capabilities: List[str]
 
 
-@dataclass
-class ClientConfig:
+class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
     client_id: str
@@ -40,11 +38,11 @@ class ClientConfig:
     routing_weight: float = 1.0  # Weight for server selection
 
 
-@dataclass
-class HostConfig:
+class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
     clients: List[ClientConfig]
+    enable_memory: bool = False  # Feature flag for memory client
 
 
 # Type variable for generic config loading

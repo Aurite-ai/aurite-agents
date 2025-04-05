@@ -26,6 +26,7 @@ dependencies = [
     "idna>=3.10",
     "iniconfig>=2.0.0",
     "jiter>=0.9.0",
+    "mem0ai>=0.0.9",
     "numpy>=2.2.3",
     "packaging>=24.2",
     "pandas>=2.2.3",
@@ -49,7 +50,7 @@ dependencies = [
     "typing_extensions>=4.12.2",
     "tzdata>=2025.1",
     "uvicorn>=0.34.0",
-    "fastapi"
+    "fastapi",
 ]
 [tool.setuptools.package-data]
 "*" = ["py.typed"]

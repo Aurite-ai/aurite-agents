@@ -55,18 +55,19 @@ class MCPHost:
         self._tool_manager = ToolManager(
             root_manager=self._root_manager, message_router=self._message_router
         )
+        # Define memory config, but don't initialize client yet
         self._memory_config = ClientConfig(
             client_id="memory",
             server_path=(
-                Path(__file__).parent.parent.parent
+                Path(
+                    __file__
+                ).parent.parent.parent  # Note: Consider making this path configurable
                 / "src"
                 / "memory"
                 / "mem0_server.py"
             ),
             roots=[
-                RootConfig(
-                    name="mem0", uri="mem0://", capabilities=["read", "write"]
-                )
+                RootConfig(name="mem0", uri="mem0://", capabilities=["read", "write"])
             ],
             capabilities=["tools", "resources"],
         )
@@ -111,7 +112,15 @@ class MCPHost:
         await self._resource_manager.initialize()
         await self._storage_manager.initialize()
         await self._tool_manager.initialize()
-        await self._initialize_client(self._memory_config)
+
+        # Conditionally initialize memory client based on config flag
+        if self._config.enable_memory:
+            logger.info("Memory feature flag enabled. Initializing memory client...")
+            await self._initialize_client(self._memory_config)
+        else:
+            logger.info(
+                "Memory feature flag disabled. Skipping memory client initialization."
+            )
 
         # Layer 4: Agent layer
         logger.info("Initializing agent layer...")
@@ -475,7 +484,7 @@ class MCPHost:
             The workflow if found, None otherwise
         """
         return self._workflow_manager.get_workflow(workflow_name)
-    
+
     async def add_memories(self, memory_str: str, user_id: str):
         """Extract facts from a string and store them as memories
 
@@ -483,31 +492,43 @@ class MCPHost:
             memory_str: The string containing one or more memories to store
             user_id: The id of the user to associate the memories with
         """
-        return await self._tool_manager.execute_tool("add_memories", {
-            "memory_str": memory_str,
-            "user_id": user_id,
-        })
-    
-    async def search_memories(self, query: str, user_id: str, limit: int = 5) -> list[str]:
+        if not self._config.enable_memory:
+            raise ValueError("Memory client is disabled by configuration.")
+        return await self._tool_manager.execute_tool(
+            "add_memories",
+            {
+                "memory_str": memory_str,
+                "user_id": user_id,
+            },
+        )
+
+    async def search_memories(
+        self, query: str, user_id: str, limit: int = 5
+    ) -> list[str]:
         """Search for memories relevant to a query
-        
+
         Args:
             query: The query to search with (URL-encoded)
             user_id: The id of the user whose associated memories we will search
             limit: Max memories to return. Default 5
-            
+
         Returns:
             List of memory strings
         """
-        
-        #unsure how to call resources
-        #return await self._resource_manager.get_resource(f"mem0://search/{user_id}/{quote_plus(query)}/{limit}", "memory")
-        
-        return await self._tool_manager.execute_tool("search_memories", {
-            "query": query,
-            "user_id": user_id,
-            "limit": limit,
-        })
+
+        # unsure how to call resources
+        # return await self._resource_manager.get_resource(f"mem0://search/{user_id}/{quote_plus(query)}/{limit}", "memory")
+
+        if not self._config.enable_memory:
+            raise ValueError("Memory client is disabled by configuration.")
+        return await self._tool_manager.execute_tool(
+            "search_memories",
+            {
+                "query": query,
+                "user_id": user_id,
+                "limit": limit,
+            },
+        )
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""

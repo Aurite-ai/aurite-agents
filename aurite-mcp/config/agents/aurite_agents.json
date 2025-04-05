@@ -1,4 +1,7 @@
 {
+  "host": {
+    "enable_memory": false
+  },
   "agents": [
     {
       "client_id": "planning",

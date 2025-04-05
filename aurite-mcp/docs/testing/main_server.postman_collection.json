@@ -1,0 +1,51 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-1234-abcdef123456",
+    "name": "Aurite MCP Server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection for testing the Aurite MCP FastAPI server endpoints."
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Checks if the server is running and responsive."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response body is correct\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.eql({status: 'ok'});",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the running FastAPI server"
+    }
+  ]
+}
