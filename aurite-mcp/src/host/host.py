@@ -24,7 +24,8 @@ from .models import (
 )  # Renamed config.py to models.py
 
 # Communication layer
-from .communication import TransportManager, MessageRouter
+# Removed TransportManager import as it's unused and will be deleted
+from .communication import MessageRouter
 
 # Resource management layer
 from .resources import PromptManager, ResourceManager, StorageManager, ToolManager
@@ -47,7 +48,7 @@ class MCPHost:
         self._root_manager = RootManager()
 
         # Layer 2: Communication layer
-        self._transport_manager = TransportManager()
+        # self._transport_manager = TransportManager() # Removed unused manager
         self._message_router = MessageRouter()
 
         # Layer 3: Resource management layer
@@ -105,7 +106,7 @@ class MCPHost:
 
         # Layer 2: Communication layer
         logger.info("Initializing communication layer...")
-        await self._transport_manager.initialize()
+        # await self._transport_manager.initialize() # Removed unused manager call
         await self._message_router.initialize()
 
         # Layer 3: Resource management layer
@@ -558,7 +559,7 @@ class MCPHost:
 
         # Layer 2: Communication layer
         logger.info("Shutting down communication layer...")
-        await self._transport_manager.shutdown()
+        # await self._transport_manager.shutdown() # Removed unused manager call
         await self._message_router.shutdown()
 
         # Layer 1: Foundation layer

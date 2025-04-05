@@ -1,9 +1,9 @@
 """
 Communication layer for the Aurite MCP Host.
-Manages transport channels and message routing.
+Manages message routing.
 """
 
-from .transport import TransportManager
+# Removed TransportManager import
 from .routing import MessageRouter
 
-__all__ = ["TransportManager", "MessageRouter"]
+__all__ = ["MessageRouter"]
