@@ -21,9 +21,6 @@ dist
 tsconfig.tsbuildinfo
 test.lib/
 
-# Visual Studio Code configs
-.vscode/
-
 # JetBrains IDEs
 .idea/
 
