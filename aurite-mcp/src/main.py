@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Callable, Optional, List, Dict, Any
+from typing import Callable, Optional
 from pathlib import Path
 from functools import lru_cache
 import secrets  # For safe comparison
@@ -12,7 +12,7 @@ import secrets  # For safe comparison
 from fastapi import FastAPI, HTTPException, Request, Depends, Security
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 import uvicorn
 import json
 

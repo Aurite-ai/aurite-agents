@@ -43,8 +43,23 @@ class ClientConfig(BaseModel):
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
+    name: Optional[str]
     clients: List[ClientConfig]
-    # enable_memory: bool = False # Removed feature flag
+
+
+class AgentConfig(BaseModel):
+    """Configuration for an Agent"""
+
+    ## Host Properties (defines roots and available prompts, resources, tools)
+    name: Optional[str]
+    host: Optional[HostConfig]
+    ## LLM Properties (defines LLM properties)
+    system_prompt: Optional[str]
+    model: Optional[str]
+    temperature: Optional[float]
+    include_history: Optional[
+        bool
+    ]  # Whether to include the conversation history, or just the latest message
 
 
 # Type variable for generic config loading

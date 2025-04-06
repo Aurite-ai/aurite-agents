@@ -7,7 +7,7 @@ from unittest.mock import patch, AsyncMock, MagicMock
 
 import mcp.types as types
 from src.host.host import MCPHost
-from src.host.models import HostConfig, ClientConfig, RootConfig
+from src.host.models import HostConfig, ClientConfig
 from pathlib import Path
 from mcp import ClientSession
 

@@ -5,7 +5,6 @@ MCP Host implementation for managing multiple tool servers and clients.
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
-from pathlib import Path
 from contextlib import AsyncExitStack
 
 from mcp import (
@@ -20,7 +19,6 @@ from .foundation import SecurityManager, RootManager
 from .models import (
     HostConfig,
     ClientConfig,
-    RootConfig,
 )  # Renamed config.py to models.py
 
 # Communication layer
