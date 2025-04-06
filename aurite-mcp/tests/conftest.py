@@ -8,17 +8,9 @@ framework, with special attention to agent and workflow testing fixtures.
 import json
 import logging
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
 
-import mcp.types as types
-from mcp import ClientSession
 
 # Import Aurite components
-from src.host.host import MCPHost, HostConfig, ClientConfig
-from src.host.resources.tools import ToolManager
-from src.host.foundation import RootManager, SecurityManager
-from src.host.communication import MessageRouter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")
