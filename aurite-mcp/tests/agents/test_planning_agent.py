@@ -201,23 +201,27 @@ class TestPlanningAgentUnit:
         generated_plan_content = "Step 1: Write test. Step 2: Run test."
         save_tool_result = {"success": True, "message": "Plan saved successfully."}
 
-        # Mock the internal _make_llm_call
+        # Mock the internal _make_llm_call on the agent instance
         mock_llm_response = MagicMock(spec=anthropic.types.Message)
         mock_llm_response.content = [
-            anthropic.types.TextBlock(
+            anthropic.types.TextBlock(  # Use anthropic.types
                 type="text", text=generated_plan_content
             )  # Use anthropic.types
         ]
+        # Patch the method on the *instance* for this test
         planning_agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
 
         # Mock the save_new_plan method (which internally calls the tool)
+        # Note: We still mock save_new_plan here because execute_workflow calls it.
+        # This isolates the test to the workflow logic itself, not the tool interaction details.
         planning_agent.save_new_plan = AsyncMock(return_value=save_tool_result)
 
         result = await planning_agent.execute_workflow(
             user_message=user_message,
-            host_instance=mock_mcp_host,  # Mock host is sufficient for unit test
+            host_instance=mock_mcp_host,
             plan_name=plan_name,
             tags=tags,
+            # anthropic_api_key no longer needed
         )
 
         # Assertions
@@ -227,9 +231,10 @@ class TestPlanningAgentUnit:
             len(result["workflow_steps"]) == 4
         )  # Setup(implicit ok) + LLM Call + LLM Success + Tool Call + Tool Success
 
-        # Check LLM call mock
+        # Check LLM call mock (now directly on the agent instance)
         planning_agent._make_llm_call.assert_awaited_once()
-        call_args, call_kwargs = planning_agent._make_llm_call.call_args
+        # call_args is now empty tuple, call_kwargs contains the arguments
+        _, call_kwargs = planning_agent._make_llm_call.call_args
         assert call_kwargs["system_prompt"].startswith(
             "You are an AI planning assistant"
         )
@@ -262,10 +267,10 @@ class TestPlanningAgentUnit:
         user_message = "Create a plan for failure."
         plan_name = "fail_llm_plan"
 
-        # Mock _make_llm_call to raise an exception
+        # Mock _make_llm_call on the agent instance to raise an exception
         llm_error = anthropic.APIConnectionError(
             message="Network error",
-            request=None,  # Add required 'request' argument
+            request=MagicMock(),  # Provide a mock request object
         )
         planning_agent._make_llm_call = AsyncMock(side_effect=llm_error)
         planning_agent.save_new_plan = (
@@ -273,7 +278,10 @@ class TestPlanningAgentUnit:
         )  # Mock save to ensure it's NOT called
 
         result = await planning_agent.execute_workflow(
-            user_message=user_message, host_instance=mock_mcp_host, plan_name=plan_name
+            user_message=user_message,
+            host_instance=mock_mcp_host,
+            plan_name=plan_name,
+            # anthropic_api_key no longer needed
         )
 
         # Assertions
@@ -303,7 +311,7 @@ class TestPlanningAgentUnit:
         plan_name = "fail_tool_plan"
         generated_plan_content = "Step 1: Generate. Step 2: Fail save."
 
-        # Mock LLM call success
+        # Mock LLM call success on the agent instance
         mock_llm_response = MagicMock(spec=anthropic.types.Message)
         mock_llm_response.content = [
             anthropic.types.TextBlock(
@@ -312,12 +320,15 @@ class TestPlanningAgentUnit:
         ]
         planning_agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
 
-        # Mock save_new_plan to raise an exception
+        # Mock save_new_plan on the agent instance to raise an exception
         tool_error = ValueError("Disk full")
         planning_agent.save_new_plan = AsyncMock(side_effect=tool_error)
 
         result = await planning_agent.execute_workflow(
-            user_message=user_message, host_instance=mock_mcp_host, plan_name=plan_name
+            user_message=user_message,
+            host_instance=mock_mcp_host,
+            plan_name=plan_name,
+            # anthropic_api_key no longer needed
         )
 
         # Assertions

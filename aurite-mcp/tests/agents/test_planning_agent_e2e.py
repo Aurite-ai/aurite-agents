@@ -155,7 +155,7 @@ class TestPlanningAgentE2E:
             host_instance=host,
             plan_name=plan_name,
             tags=tags,
-            # anthropic_api_key is not needed here as _make_llm_call is mocked
+            # anthropic_api_key parameter removed from execute_workflow
         )
         logger.info(f"Execute workflow result: {result}")
 

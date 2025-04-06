@@ -140,7 +140,7 @@ class PlanningAgent(Agent):
         self,
         user_message: str,
         host_instance: MCPHost,
-        anthropic_api_key: Optional[str] = None,
+        # anthropic_api_key parameter removed
         plan_name: Optional[str] = "default_plan_name",
         tags: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
@@ -152,59 +152,16 @@ class PlanningAgent(Agent):
         logger.debug(f"PlanningAgent '{self.config.name}' starting workflow execution.")
         workflow_steps = []
 
-        # --- Workflow Setup ---
-        if not host_instance:
-            logger.error("Workflow failed: Host instance is required.")
-            # Return structure includes steps for traceability even on early failure
-            return {
-                "error": "Host instance required",
-                "workflow_steps": workflow_steps,
-                "final_output": None,
-            }
-        if not isinstance(host_instance, MCPHost):
-            logger.error("Workflow failed: Invalid host instance type.")
-            return {
-                "error": "Invalid host instance type",
-                "workflow_steps": workflow_steps,
-                "final_output": None,
-            }
-
-        api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            logger.error("Workflow failed: Anthropic API key not found.")
-            return {
-                "error": "API key not found",
-                "workflow_steps": workflow_steps,
-                "final_output": None,
-            }
-
-        try:
-            client = anthropic.Anthropic(api_key=api_key)
-            # Use agent's config for defaults, allow overrides if needed
-            model = self.config.model or "claude-3-opus-20240229"
-            temperature = (
-                self.config.temperature or 0.5
-            )  # Planning might benefit from lower temp
-            max_tokens = self.config.max_tokens or 4096
-            logger.debug(
-                f"Workflow using LLM params: model={model}, temp={temperature}, max_tokens={max_tokens}"
-            )
-        except Exception as e:
-            logger.error(f"Workflow failed during client initialization: {e}")
-            # Add step info even for setup failure
-            workflow_steps.append(
-                {
-                    "step": 0,
-                    "action": "Setup",
-                    "status": "Failed",
-                    "error": f"Client initialization failed: {e}",
-                }
-            )
-            return {
-                "error": f"Client initialization failed: {e}",
-                "workflow_steps": workflow_steps,
-                "final_output": None,
-            }
+        # API Key and client initialization are now handled by the base Agent class __init__
+        # Use agent's config for defaults, allow overrides if needed
+        model = self.config.model or "claude-3-opus-20240229"
+        temperature = (
+            self.config.temperature or 0.5
+        )  # Planning might benefit from lower temp
+        max_tokens = self.config.max_tokens or 4096
+        logger.debug(
+            f"Workflow using LLM params: model={model}, temp={temperature}, max_tokens={max_tokens}"
+        )
 
         # --- Step 1: Generate Plan (LLM Call, No Tools) ---
         plan_content = None
@@ -225,8 +182,8 @@ class PlanningAgent(Agent):
             )
 
             # *** Use the internal helper method from the base Agent class ***
+            # The client is implicitly self.anthropic_client within _make_llm_call
             llm_response = await self._make_llm_call(
-                client=client,
                 messages=messages,
                 system_prompt=planning_system_prompt,
                 tools=[],  # Explicitly no tools for generation step

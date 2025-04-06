@@ -33,11 +33,27 @@ class Agent:
             raise TypeError("config must be an instance of AgentConfig")
 
         self.config = config
+
+        # Initialize Anthropic client during agent setup
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            # Log error and raise, as agent cannot function without the key
+            logger.error("ANTHROPIC_API_KEY environment variable not found.")
+            raise ValueError("ANTHROPIC_API_KEY environment variable not found.")
+
+        try:
+            self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+            logger.info("Anthropic client initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Anthropic client: {e}")
+            # Re-raise critical initialization error
+            raise ValueError(f"Failed to initialize Anthropic client: {e}")
+
         logger.info(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
 
     async def _make_llm_call(
         self,
-        client: anthropic.Anthropic,
+        # client: anthropic.Anthropic, # Removed client parameter
         messages: List[MessageParam],
         system_prompt: Optional[str],
         tools: Optional[List[Dict]],  # Anthropic tool format
@@ -77,7 +93,8 @@ class Agent:
             if tools:
                 api_args["tools"] = tools
 
-            response = client.messages.create(**api_args)
+            # Use the client initialized in __init__
+            response = self.anthropic_client.messages.create(**api_args)
             logger.debug(
                 f"Anthropic API response received (stop_reason: {response.stop_reason})"
             )
@@ -91,7 +108,7 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
-        anthropic_api_key: Optional[str] = None,
+        # anthropic_api_key: Optional[str] = None, # Removed parameter
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
@@ -105,8 +122,7 @@ class Agent:
             user_message: The input message or task description from the user.
             host_instance: The instantiated MCPHost to use for accessing prompts,
                            resources, and tools.
-            anthropic_api_key: Optional Anthropic API key. If None, it will try
-                               to use the environment variable ANTHROPIC_API_KEY.
+            # anthropic_api_key: Removed parameter
 
         Returns:
             A dictionary containing the conversation history and final response.
@@ -114,7 +130,7 @@ class Agent:
         Raises:
             ValueError: If host_instance is not provided.
             TypeError: If host_instance is not an instance of MCPHost.
-            ValueError: If Anthropic API key is not found.
+            # ValueError: If Anthropic API key is not found. # Removed as key checked in __init__
         """
         # --- Start of standard agent execution logic ---
         logger.debug(
@@ -127,16 +143,9 @@ class Agent:
         if not isinstance(host_instance, MCPHost):
             raise TypeError("host_instance must be an instance of MCPHost")
 
-        # 2. Get API Key
-        api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("No Anthropic API key provided or found in environment")
+        # API Key retrieval and client initialization moved to __init__
 
-        # 3. Create Anthropic Client
-        # Note: Anthropic client is synchronous
-        client = anthropic.Anthropic(api_key=api_key)
-
-        # 4. Determine LLM Parameters (AgentConfig -> Defaults)
+        # Determine LLM Parameters (AgentConfig -> Defaults) - Renumbered step
         model = self.config.model or "claude-3-opus-20240229"
         temperature = self.config.temperature or 0.7
         max_tokens = self.config.max_tokens or 4096
@@ -152,18 +161,18 @@ class Agent:
             f"Using system prompt: '{system_prompt[:100]}...'"
         )  # Log truncated prompt
 
-        # 5. Prepare Tools (Using Host's ToolManager)
+        # Prepare Tools (Using Host's ToolManager) - Renumbered step
         # For now, include all tools available via the host.
         # TODO: Add option to specify tool_names if needed later.
         tools_data = host_instance.tools.format_tools_for_llm()
         logger.debug(f"Formatted tools for LLM: {[t['name'] for t in tools_data]}")
 
-        # 6. Initialize Message History
+        # Initialize Message History - Renumbered step
         # TODO: Implement history loading/management if include_history is True
         messages: List[MessageParam] = [{"role": "user", "content": user_message}]
         conversation_history = []  # Store full request/response cycles
 
-        # 7. Execute Conversation Loop
+        # Execute Conversation Loop - Renumbered step
         final_response = None
         tool_uses_in_last_turn = []  # Track tool uses specifically for the return value
         max_iterations = 10  # Prevent infinite loops
@@ -176,7 +185,7 @@ class Agent:
             # Make API call using the helper method
             try:
                 response = await self._make_llm_call(
-                    client=client,
+                    # client=client, # Removed, uses self.anthropic_client now
                     messages=messages,
                     system_prompt=system_prompt,
                     tools=tools_data,
@@ -283,7 +292,7 @@ class Agent:
             # Potentially return an error or the last response? Return last response for now.
             final_response = response
 
-        # 8. Return Results
+        # Return Results - Renumbered step
         logger.info(f"Agent '{self.config.name or 'Unnamed'}' execution finished.")
         return {
             "conversation": conversation_history,
