@@ -432,7 +432,6 @@ async def test_directly():
     try:
         # Import functions directly (they're now decorators on the mcp object)
         from planning_server import (
-            mcp,
             save_plan,
             list_plans,
             planning_prompt,
