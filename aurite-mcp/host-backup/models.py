@@ -41,7 +41,7 @@ class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
     clients: List[ClientConfig]
-    # enable_memory: bool = False # Removed feature flag
+    enable_memory: bool = False  # Feature flag for memory client
 
 
 # Type variable for generic config loading

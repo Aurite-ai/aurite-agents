@@ -28,10 +28,10 @@ from .models import (
 from .communication import MessageRouter
 
 # Resource management layer
-from .resources import PromptManager, ResourceManager, ToolManager
+from .resources import PromptManager, ResourceManager, StorageManager, ToolManager
 
-# Agent layer - Removed WorkflowManager import
-# from .agent import WorkflowManager
+# Agent layer
+from .agent import WorkflowManager
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +54,29 @@ class MCPHost:
         # Layer 3: Resource management layer
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
-        # self._storage_manager = StorageManager() # Removed
+        self._storage_manager = StorageManager()
         self._tool_manager = ToolManager(
             root_manager=self._root_manager, message_router=self._message_router
         )
-        # Removed memory_config definition
+        # Define memory config, but don't initialize client yet
+        self._memory_config = ClientConfig(
+            client_id="memory",
+            server_path=(
+                Path(
+                    __file__
+                ).parent.parent.parent  # Note: Consider making this path configurable
+                / "src"
+                / "memory"
+                / "mem0_server.py"
+            ),
+            roots=[
+                RootConfig(name="mem0", uri="mem0://", capabilities=["read", "write"])
+            ],
+            capabilities=["tools", "resources"],
+        )
 
-        # Layer 4: Agent layer - Removed WorkflowManager instantiation
-        # self._workflow_manager = WorkflowManager(host=self)
+        # Layer 4: Agent layer
+        self._workflow_manager = WorkflowManager(host=self)
 
         # State management
         self._config = config
@@ -74,9 +89,9 @@ class MCPHost:
         # Create property accessors for resource layer managers
         self.prompts = self._prompt_manager
         self.resources = self._resource_manager
-        # self.storage = self._storage_manager # Removed
+        self.storage = self._storage_manager
         self.tools = self._tool_manager
-        # self.workflows = self._workflow_manager # Removed
+        self.workflows = self._workflow_manager
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
@@ -98,24 +113,38 @@ class MCPHost:
         logger.info("Initializing resource management layer...")
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
-        # await self._storage_manager.initialize() # Removed
+        await self._storage_manager.initialize()
         await self._tool_manager.initialize()
 
-        # Removed conditional memory client initialization
+        # Conditionally initialize memory client based on config flag
+        if self._config.enable_memory:
+            logger.info("Memory feature flag enabled. Initializing memory client...")
+            await self._initialize_client(self._memory_config)
+        else:
+            logger.info(
+                "Memory feature flag disabled. Skipping memory client initialization."
+            )
 
-        # Layer 4: Agent layer - Removed WorkflowManager initialization
-        # logger.info("Initializing agent layer...")
-        # await self._workflow_manager.initialize()
+        # Layer 4: Agent layer
+        logger.info("Initializing agent layer...")
+        await self._workflow_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
 
             # Register permissions based on capabilities
-            # Removed storage-specific permission registration block
-            # if "storage" in client_config.capabilities:
-            #     await self._security_manager.register_server_permissions(...)
-            #     await self._storage_manager.register_server_permissions(...)
+            if "storage" in client_config.capabilities:
+                await self._security_manager.register_server_permissions(
+                    client_config.client_id,
+                    allowed_credential_types=["database_connection"],
+                )
+
+                # Register database connection permissions
+                await self._storage_manager.register_server_permissions(
+                    client_config.client_id,
+                    allowed_connection_types=["postgresql", "mysql", "sqlite"],
+                )
 
         logger.info("MCP Host initialization complete")
 
@@ -406,10 +435,103 @@ class MCPHost:
             "tool_uses": tool_uses if has_tool_calls else [],
         }
 
-    # Removed prepare_prompt_with_tools method
-    # Removed execute_prompt_with_tools method
-    # Removed register_workflow, execute_workflow, list_workflows, get_workflow methods
-    # Removed add_memories and search_memories methods
+    async def register_workflow(self, workflow_class, name=None, **kwargs):
+        """
+        Register a workflow with the host.
+
+        Args:
+            workflow_class: The workflow class to register
+            name: Optional name for the workflow
+            **kwargs: Additional arguments to pass to the workflow constructor
+
+        Returns:
+            The registered workflow name
+        """
+        return await self._workflow_manager.register_workflow(
+            workflow_class, name, **kwargs
+        )
+
+    async def execute_workflow(self, workflow_name, input_data, metadata=None):
+        """
+        Execute a registered workflow.
+
+        Args:
+            workflow_name: The name of the workflow to execute
+            input_data: Input data for the workflow
+            metadata: Optional metadata for the execution
+
+        Returns:
+            The final workflow context with results
+        """
+        return await self._workflow_manager.execute_workflow(
+            workflow_name, input_data, metadata
+        )
+
+    def list_workflows(self):
+        """
+        List all registered workflows.
+
+        Returns:
+            List of workflows with metadata
+        """
+        return self._workflow_manager.list_workflows()
+
+    def get_workflow(self, workflow_name):
+        """
+        Get a workflow by name.
+
+        Args:
+            workflow_name: The name of the workflow
+
+        Returns:
+            The workflow if found, None otherwise
+        """
+        return self._workflow_manager.get_workflow(workflow_name)
+
+    async def add_memories(self, memory_str: str, user_id: str):
+        """Extract facts from a string and store them as memories
+
+        Args:
+            memory_str: The string containing one or more memories to store
+            user_id: The id of the user to associate the memories with
+        """
+        if not self._config.enable_memory:
+            raise ValueError("Memory client is disabled by configuration.")
+        return await self._tool_manager.execute_tool(
+            "add_memories",
+            {
+                "memory_str": memory_str,
+                "user_id": user_id,
+            },
+        )
+
+    async def search_memories(
+        self, query: str, user_id: str, limit: int = 5
+    ) -> list[str]:
+        """Search for memories relevant to a query
+
+        Args:
+            query: The query to search with (URL-encoded)
+            user_id: The id of the user whose associated memories we will search
+            limit: Max memories to return. Default 5
+
+        Returns:
+            List of memory strings
+        """
+
+        # unsure how to call resources
+        # return await self._resource_manager.get_resource(f"mem0://search/{user_id}/{quote_plus(query)}/{limit}", "memory")
+
+        if not self._config.enable_memory:
+            raise ValueError("Memory client is disabled by configuration.")
+        return await self._tool_manager.execute_tool(
+            "search_memories",
+            {
+                "query": query,
+                "user_id": user_id,
+                "limit": limit,
+            },
+        )
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
@@ -424,15 +546,15 @@ class MCPHost:
 
         # Shutdown managers in reverse layer order
 
-        # Layer 4: Agent layer - Removed WorkflowManager shutdown
-        # logger.info("Shutting down agent layer...")
-        # await self._workflow_manager.shutdown()
+        # Layer 4: Agent layer
+        logger.info("Shutting down agent layer...")
+        await self._workflow_manager.shutdown()
 
         # Layer 3: Resource management layer
         logger.info("Shutting down resource management layer...")
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
-        # await self._storage_manager.shutdown() # Removed
+        await self._storage_manager.shutdown()
         await self._tool_manager.shutdown()
 
         # Layer 2: Communication layer

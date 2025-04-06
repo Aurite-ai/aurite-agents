@@ -151,18 +151,10 @@ async def lifespan(app: FastAPI):
                 )
                 for agent in host_config_data.get("agents", [])  # Use .get for safety
             ]
-            # Read host-specific settings from the JSON config
-            host_settings_from_json = host_config_data.get(
-                "host", {}
-            )  # Default to empty dict if 'host' key is missing
-            enable_memory_flag = host_settings_from_json.get(
-                "enable_memory", False
-            )  # Default to False if key is missing in 'host' dict
+            # Removed reading host-specific settings (like enable_memory) from JSON
 
-            # Create the HostConfig Pydantic model, passing the flag
-            host_pydantic_config = HostConfig(
-                clients=client_configs, enable_memory=enable_memory_flag
-            )
+            # Create the HostConfig Pydantic model
+            host_pydantic_config = HostConfig(clients=client_configs)
         except ValidationError as e:
             logger.error(f"Host configuration validation failed: {e}")
             raise RuntimeError(f"Host configuration validation failed: {e}")
@@ -249,30 +241,7 @@ app.add_middleware(
 )
 
 
-# Define request models
-class PreparePromptRequest(BaseModel):
-    prompt_name: str
-    prompt_arguments: Dict[str, Any]
-    client_id: str
-    tool_names: Optional[List[str]] = None
-
-
-class ExecutePromptRequest(BaseModel):
-    prompt_name: str
-    prompt_arguments: Dict[str, Any]
-    client_id: str
-    user_message: str
-    tool_names: Optional[List[str]] = None
-    model: str = "claude-3-opus-20240229"
-    max_tokens: int = 4096
-    temperature: float = 0.7
-    # anthropic_api_key is removed; host retrieves it from secure config
-
-
-class ExecuteWorkflowRequest(BaseModel):
-    workflow_name: str
-    input_data: Dict[str, Any]
-    metadata: Optional[Dict[str, Any]] = None
+# Define request models - Removed PreparePromptRequest, ExecutePromptRequest, ExecuteWorkflowRequest
 
 
 # --- Health Check Endpoint ---
@@ -292,82 +261,9 @@ async def get_status(
     return {"status": "initialized"}
 
 
-@app.post("/prepare_prompt")
-async def prepare_prompt(
-    request: PreparePromptRequest,
-    api_key: str = Depends(get_api_key),
-    host: MCPHost = Depends(get_mcp_host),
-):
-    """Endpoint to prepare a prompt with associated tools."""
-    try:
-        result = await host.prepare_prompt_with_tools(
-            prompt_name=request.prompt_name,
-            prompt_arguments=request.prompt_arguments,
-            client_id=request.client_id,
-            tool_names=request.tool_names,
-        )
-        return result
-    except ValueError as ve:
-        logger.warning(f"Value error during prompt preparation: {ve}")
-        # Assuming ValueError implies client-side error (e.g., prompt not found)
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Unexpected error preparing prompt: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.post("/execute_prompt")
-async def execute_prompt(
-    request: ExecutePromptRequest,
-    api_key: str = Depends(get_api_key),
-    host: MCPHost = Depends(get_mcp_host),
-):
-    """Endpoint to execute a prompt with associated tools."""
-    try:
-        # Note: anthropic_api_key is intentionally removed from the call below
-        # The host should handle retrieving it securely (e.g., from env vars)
-        result = await host.execute_prompt_with_tools(
-            prompt_name=request.prompt_name,
-            prompt_arguments=request.prompt_arguments,
-            client_id=request.client_id,
-            user_message=request.user_message,
-            tool_names=request.tool_names,
-            model=request.model,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            # anthropic_api_key=request.anthropic_api_key, # Removed
-        )
-        return result
-    except ValueError as ve:
-        logger.warning(f"Value error during prompt execution: {ve}")
-        # Assuming ValueError implies client-side error (e.g., prompt not found, bad args)
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Unexpected error executing prompt: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.post("/execute_workflow")
-async def execute_workflow(
-    request: ExecuteWorkflowRequest,
-    api_key: str = Depends(get_api_key),
-    host: MCPHost = Depends(get_mcp_host),
-):
-    """Endpoint to execute a registered workflow."""
-    try:
-        result = await host.execute_workflow(
-            workflow_name=request.workflow_name,
-            input_data=request.input_data,
-            metadata=request.metadata,
-        )
-        return result
-    except ValueError as ve:
-        logger.warning(f"Value error during workflow execution: {ve}")
-        # Assuming ValueError implies client-side error (e.g., workflow not found)
-        raise HTTPException(status_code=404, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Unexpected error executing workflow: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+# Removed /prepare_prompt endpoint
+# Removed /execute_prompt endpoint
+# Removed /execute_workflow endpoint
 
 
 def start():
