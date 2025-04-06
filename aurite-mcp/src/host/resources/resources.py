@@ -76,6 +76,15 @@ class ResourceManager:
             all_resources.extend(client_resources.values())
         return all_resources
 
+    def get_clients_for_resource(self, uri: str) -> List[str]:
+        """Find all client IDs that provide a resource with the given URI."""
+        uri_str = str(uri)  # Ensure URI is string for dict key lookup
+        client_ids = []
+        for client_id, resources in self._resources.items():
+            if uri_str in resources:
+                client_ids.append(client_id)
+        return client_ids
+
     async def subscribe(self, uri: str, client_id: str):
         """Subscribe a client to resource updates"""
         if uri not in self._subscriptions:

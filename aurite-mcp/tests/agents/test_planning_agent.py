@@ -45,13 +45,11 @@ class TestPlanningAgentUnit:
             "path": "/path/to/plan.txt",
         }
         mock_response_text = json.dumps(mock_response_dict)  # Use json.dumps
-        mock_mcp_host.tools.execute_tool = AsyncMock(
+        # Mock the new host-level method
+        mock_mcp_host.execute_tool = AsyncMock(
             return_value=[types.TextContent(type="text", text=mock_response_text)]
         )
-        # Mock the helper method to return a dummy client ID
-        mock_mcp_host.tools.get_clients_for_tool = MagicMock(
-            return_value=["planning_client_1"]
-        )
+        # No longer need to mock get_clients_for_tool for this test path
 
         result = await planning_agent.save_new_plan(
             host_instance=mock_mcp_host,
@@ -60,9 +58,9 @@ class TestPlanningAgentUnit:
             tags=tags,
         )
 
-        # Assert execute_tool was called correctly
-        mock_mcp_host.tools.execute_tool.assert_called_once_with(
-            client_name="planning_client_1",
+        # Assert the host-level execute_tool was called correctly
+        mock_mcp_host.execute_tool.assert_called_once_with(
+            # client_name="planning_client_1", # client_name is now optional
             tool_name="save_plan",
             arguments={
                 "plan_name": plan_name,
@@ -88,12 +86,11 @@ class TestPlanningAgentUnit:
             "path": "/path/to/plan2.txt",
         }
         mock_response_text = json.dumps(mock_response_dict)  # Use json.dumps
-        mock_mcp_host.tools.execute_tool = AsyncMock(
+        # Mock the new host-level method
+        mock_mcp_host.execute_tool = AsyncMock(
             return_value=[types.TextContent(type="text", text=mock_response_text)]
         )
-        mock_mcp_host.tools.get_clients_for_tool = MagicMock(
-            return_value=["planning_client_1"]
-        )
+        # No longer need to mock get_clients_for_tool
 
         result = await planning_agent.save_new_plan(
             host_instance=mock_mcp_host,
@@ -102,8 +99,9 @@ class TestPlanningAgentUnit:
             # tags=None (default)
         )
 
-        mock_mcp_host.tools.execute_tool.assert_called_once_with(
-            client_name="planning_client_1",
+        # Assert the host-level execute_tool was called correctly
+        mock_mcp_host.execute_tool.assert_called_once_with(
+            # client_name="planning_client_1", # client_name is now optional
             tool_name="save_plan",
             arguments={
                 "plan_name": plan_name,
@@ -124,19 +122,19 @@ class TestPlanningAgentUnit:
         # Use json.dumps for the whole structure
         mock_response_dict = {"success": True, "plans": mock_plan_list, "count": 2}
         mock_response_text = json.dumps(mock_response_dict)
-        mock_mcp_host.tools.execute_tool = AsyncMock(
+        # Mock the new host-level method
+        mock_mcp_host.execute_tool = AsyncMock(
             return_value=[types.TextContent(type="text", text=mock_response_text)]
         )
-        mock_mcp_host.tools.get_clients_for_tool = MagicMock(
-            return_value=["planning_client_1"]
-        )
+        # No longer need to mock get_clients_for_tool
 
         result = await planning_agent.list_existing_plans(
             host_instance=mock_mcp_host, tag=tag_filter
         )
 
-        mock_mcp_host.tools.execute_tool.assert_called_once_with(
-            client_name="planning_client_1",
+        # Assert the host-level execute_tool was called correctly
+        mock_mcp_host.execute_tool.assert_called_once_with(
+            # client_name="planning_client_1", # client_name is now optional
             tool_name="list_plans",
             arguments={"tag": tag_filter},
         )
@@ -151,19 +149,19 @@ class TestPlanningAgentUnit:
         # Use json.dumps for the whole structure
         mock_response_dict = {"success": True, "plans": mock_plan_list, "count": 2}
         mock_response_text = json.dumps(mock_response_dict)
-        mock_mcp_host.tools.execute_tool = AsyncMock(
+        # Mock the new host-level method
+        mock_mcp_host.execute_tool = AsyncMock(
             return_value=[types.TextContent(type="text", text=mock_response_text)]
         )
-        mock_mcp_host.tools.get_clients_for_tool = MagicMock(
-            return_value=["planning_client_1"]
-        )
+        # No longer need to mock get_clients_for_tool
 
         result = await planning_agent.list_existing_plans(
             host_instance=mock_mcp_host  # tag=None (default)
         )
 
-        mock_mcp_host.tools.execute_tool.assert_called_once_with(
-            client_name="planning_client_1",
+        # Assert the host-level execute_tool was called correctly
+        mock_mcp_host.execute_tool.assert_called_once_with(
+            # client_name="planning_client_1", # client_name is now optional
             tool_name="list_plans",
             arguments={},  # No tag argument
         )
@@ -174,13 +172,21 @@ class TestPlanningAgentUnit:
         self, planning_agent: PlanningAgent, mock_mcp_host: MagicMock
     ):
         """Verify _find_planning_client_id raises error if tool not found."""
-        # Configure mock to return empty list
-        mock_mcp_host.tools.get_clients_for_tool = MagicMock(return_value=[])
+        # Configure the host-level method to raise the expected error
+        mock_mcp_host.execute_tool = AsyncMock(
+            side_effect=ValueError(
+                "Tool 'save_plan' not found on any registered client."
+            )
+        )
 
         with pytest.raises(
-            ValueError, match="Could not find a client providing the 'save_plan' tool"
+            ValueError, match="Tool 'save_plan' not found on any registered client."
         ):
-            # Call the helper method directly to test its exception raising
-            planning_agent._find_planning_client_id(mock_mcp_host)
+            # Call the agent method which should now fail internally when calling host.execute_tool
+            await planning_agent.save_new_plan(
+                host_instance=mock_mcp_host,
+                plan_name="fail_plan",
+                plan_content="wont work",
+            )
 
     # TODO: Add tests for generate_plan if/when implemented

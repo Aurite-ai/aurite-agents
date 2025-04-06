@@ -2,7 +2,7 @@
 MCP Host implementation for managing multiple tool servers and clients.
 """
 
-from typing import Dict, Optional, Any  # Add Any
+from typing import Dict, Optional, Any, Union  # Add Union
 import asyncio
 import logging
 from contextlib import AsyncExitStack
@@ -220,6 +220,73 @@ class MCPHost:
     # execute_prompt_with_tools method removed.
     # Logic moved to Agent.execute in src/agents/agent.py
 
+    async def get_prompt(
+        self,
+        prompt_name: str,
+        arguments: Dict[str, Any],
+        client_name: Optional[str] = None,
+    ) -> Optional[Union[types.Prompt, types.GetPromptResult]]:
+        """
+        Gets a specific prompt template, discovering the client if necessary.
+
+        Note: This currently only retrieves the prompt *template*.
+              Executing a prompt (which involves an LLM call) is handled
+              within the Agent.execute method. This method primarily helps
+              find the correct prompt definition from potentially multiple clients.
+              It *could* be extended to also handle converting response data
+              if needed, similar to the underlying manager method.
+
+        Args:
+            prompt_name: The name of the prompt to retrieve.
+            arguments: Arguments for the prompt (currently unused by manager's get_prompt
+                       when retrieving template, but kept for potential future use
+                       and consistency).
+            client_name: Optional specific client ID to get the prompt from.
+                         If None, the host will attempt to find a unique client
+                         providing the prompt.
+
+        Returns:
+            The Prompt template object, or None if not found.
+
+        Raises:
+            ValueError: If client_name is None and the prompt is not found or
+                        is found on multiple clients (ambiguous).
+        """
+        if client_name:
+            logger.info(
+                f"Getting prompt template '{prompt_name}' from specified client '{client_name}'"
+            )
+            # Note: Passing arguments here, though manager currently ignores them for template retrieval
+            return await self.prompts.get_prompt(
+                name=prompt_name, client_id=client_name
+            )
+        else:
+            logger.info(
+                f"Discovering client for prompt '{prompt_name}' before retrieval..."
+            )
+            providing_clients = self.prompts.get_clients_for_prompt(prompt_name)
+
+            if not providing_clients:
+                # Return None if not found, consistent with manager's get_prompt
+                logger.warning(
+                    f"Prompt '{prompt_name}' not found on any registered client."
+                )
+                return None
+                # Or raise ValueError("Prompt '{prompt_name}' not found...") if preferred
+            elif len(providing_clients) > 1:
+                raise ValueError(
+                    f"Prompt '{prompt_name}' is ambiguous; found on multiple clients: "
+                    f"{providing_clients}. Specify a client_name."
+                )
+            else:
+                unique_client_id = providing_clients[0]
+                logger.info(
+                    f"Getting prompt template '{prompt_name}' from uniquely found client '{unique_client_id}'"
+                )
+                return await self.prompts.get_prompt(
+                    name=prompt_name, client_id=unique_client_id
+                )
+
     async def execute_tool(
         self,
         tool_name: str,
@@ -277,6 +344,62 @@ class MCPHost:
                     client_name=unique_client_id,
                     tool_name=tool_name,
                     arguments=arguments,
+                )
+
+    async def read_resource(
+        self, uri: str, client_name: Optional[str] = None
+    ) -> Optional[types.Resource]:
+        """
+        Reads a specific resource, discovering the client if necessary.
+
+        Args:
+            uri: The URI of the resource to read.
+            client_name: Optional specific client ID to read the resource from.
+                         If None, the host will attempt to find a unique client
+                         providing the resource.
+
+        Returns:
+            The Resource object, or None if not found.
+
+        Raises:
+            ValueError: If client_name is None and the resource URI is not found or
+                        is found on multiple clients (ambiguous).
+            Exception: Any exception raised during the underlying resource reading.
+                       (Note: The manager's get_resource currently doesn't read,
+                        it just returns the registered Resource object. Reading
+                        happens via session.read_resource, which isn't wrapped here yet).
+        """
+        uri_str = str(uri)  # Ensure string comparison
+        if client_name:
+            logger.info(
+                f"Getting resource definition '{uri_str}' from specified client '{client_name}'"
+            )
+            # Note: This currently returns the *registered* resource definition,
+            # not the *content* read from the server.
+            return await self.resources.get_resource(uri=uri_str, client_id=client_name)
+        else:
+            logger.info(
+                f"Discovering client for resource '{uri_str}' before retrieval..."
+            )
+            providing_clients = self.resources.get_clients_for_resource(uri_str)
+
+            if not providing_clients:
+                logger.warning(
+                    f"Resource '{uri_str}' not found on any registered client."
+                )
+                return None
+            elif len(providing_clients) > 1:
+                raise ValueError(
+                    f"Resource URI '{uri_str}' is ambiguous; found on multiple clients: "
+                    f"{providing_clients}. Specify a client_name."
+                )
+            else:
+                unique_client_id = providing_clients[0]
+                logger.info(
+                    f"Getting resource definition '{uri_str}' from uniquely found client '{unique_client_id}'"
+                )
+                return await self.resources.get_resource(
+                    uri=uri_str, client_id=unique_client_id
                 )
 
     # Removed register_workflow, execute_workflow, list_workflows, get_workflow methods

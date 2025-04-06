@@ -188,6 +188,14 @@ class PromptManager:
             all_prompts.extend(client_prompts.values())
         return all_prompts
 
+    def get_clients_for_prompt(self, prompt_name: str) -> List[str]:
+        """Find all client IDs that provide a prompt with the given name."""
+        client_ids = []
+        for client_id, prompts in self._prompts.items():
+            if prompt_name in prompts:
+                client_ids.append(client_id)
+        return client_ids
+
     async def validate_prompt_arguments(
         self, prompt: types.Prompt, arguments: Dict[str, Any]
     ) -> bool:
