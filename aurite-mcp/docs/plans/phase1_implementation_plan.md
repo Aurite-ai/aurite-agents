@@ -10,7 +10,7 @@ This document details the technical implementation steps for Phase 1 (Steps 1-3)
 
 ## 2. Technical Implementation Steps
 
-### Step 1: Remove Specific Server Logic from Host (`src/host/host.py`, `src/host/models.py`)
+### Step 1: [COMPLETED] Remove Specific Server Logic from Host (`src/host/host.py`, `src/host/models.py`)
 
 *   **Objective:** Remove direct dependencies and logic related to `StorageManager` and the `mem0` memory server from `MCPHost`.
 *   **File:** `aurite-mcp/src/host/host.py`
@@ -39,7 +39,7 @@ This document details the technical implementation steps for Phase 1 (Steps 1-3)
 *   **File:** `aurite-mcp/src/host/models.py`
     *   **`HostConfig` Model:** Remove the `enable_memory: bool = False` field.
 
-### Step 2: Remove Workflow Manager & Prompt Execution Logic from Host (`src/host/host.py`)
+### Step 2: [COMPLETED] Remove Workflow Manager & Prompt Execution Logic from Host (`src/host/host.py`)
 
 *   **Objective:** Decouple `WorkflowManager` and related agent-level logic (`execute_prompt_with_tools`) from `MCPHost`.
 *   **File:** `aurite-mcp/src/host/host.py`
@@ -59,7 +59,7 @@ This document details the technical implementation steps for Phase 1 (Steps 1-3)
     *   **`shutdown`:**
         *   Remove the call `await self._workflow_manager.shutdown()`.
 
-### Step 3: Refactor `main.py` and Test Core Host
+### Step 3: [COMPLETED] Refactor `main.py` and Test Core Host
 
 *   **Objective:** Update the FastAPI application (`main.py`) to reflect the simplified `MCPHost` and verify basic server operation using the Postman collection.
 *   **File:** `aurite-mcp/src/main.py`
@@ -82,5 +82,5 @@ This document details the technical implementation steps for Phase 1 (Steps 1-3)
 
 ## 3. Next Steps
 
-*   Review and confirm this technical plan.
-*   Toggle to **Act Mode** to begin implementing Step 1.1 (Modify `src/host/host.py` to remove StorageManager integration).
+*   Phase 1 (Steps 1-3) is complete.
+*   Proceed to Phase 2, starting with Step 4 (Implement Static MCP Component Exclusion) from the `overarching_host_refactor_plan.md`.

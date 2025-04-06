@@ -9,23 +9,32 @@ This document outlines the high-level plan for refactoring the `aurite-mcp` Host
 
 This plan is based on the brainstorming session on 2025-04-06.
 
-## 2. Implementation Steps
+## 2. Implementation Phases and Steps
 
-The refactoring will proceed in the following sequential steps:
+The refactoring will proceed in the following phases and sequential steps:
 
-1.  **Remove Specific Server Logic from Host:**
-    *   Remove direct integration of storage (`src/host/resources/storage.py`) from `MCPHost`.
-    *   Remove direct integration of memory (`src/memory/mem0_server.py` references and `enable_memory` flag logic) from `MCPHost`.
-    *   Update `MCPHost` initialization and methods accordingly.
+### Phase 1: Host Cleanup & Simplification [COMPLETED]
 
-2.  **Remove Workflow Manager from Host:**
-    *   Remove `WorkflowManager` (`src/host/agent/workflows.py`) integration from `MCPHost`.
-    *   Decide on the final location for `execute_prompt_with_tools`: Does it belong in the simplified `MCPHost`, a new `BaseAgent`, or elsewhere? (Initial thought: Move to `BaseAgent`).
-    *   Update `MCPHost` initialization and methods accordingly.
+*   **Goal:** Simplify `MCPHost` to a generic MCP client orchestrator and verify core functionality.
+*   **Detailed Plan:** `aurite-mcp/docs/plans/host_cleanup_plan.md`
 
-3.  **Refactor `main.py` and Test Core Host:**
-    *   Update `src/main.py` FastAPI application to reflect the removal of storage, memory, and workflow endpoints/logic tied directly to the host.
-    *   Adapt existing Postman tests (`docs/testing/main_server.postman_collection.json`) or create new ones to verify the core, simplified `MCPHost` functionality (generic client initialization, basic MCP communication if possible without higher-level components). Ensure the server starts and basic health/status checks pass.
+1.  **[COMPLETED] Remove Specific Server Logic from Host:**
+    *   Removed direct integration of storage (`src/host/resources/storage.py`) from `MCPHost`.
+    *   Removed direct integration of memory (`src/memory/mem0_server.py` references and `enable_memory` flag logic) from `MCPHost`.
+    *   Updated `MCPHost` initialization and methods accordingly.
+
+2.  **[COMPLETED] Remove Workflow Manager from Host:**
+    *   Removed `WorkflowManager` (`src/host/agent/workflows.py`) integration from `MCPHost`.
+    *   Decided to move `execute_prompt_with_tools` logic to `BaseAgent` (Step 6).
+    *   Updated `MCPHost` initialization and methods accordingly.
+
+3.  **[COMPLETED] Refactor `main.py` and Test Core Host:**
+    *   Updated `src/main.py` FastAPI application to reflect the removal of storage, memory, and workflow endpoints/logic tied directly to the host.
+    *   Adapted existing Postman tests (`docs/testing/main_server.postman_collection.json`) and verified the core, simplified `MCPHost` functionality (`/health`, `/status`).
+
+### Phase 2: MCP Server Management Enhancements
+
+*   **Goal:** Add features for more granular control over MCP server components and introduce routing capabilities.
 
 4.  **Implement Static MCP Component Exclusion:**
     *   Add an optional `exclude: Optional[List[str]] = None` field to the `ClientConfig` model (`src/host/models.py`).
@@ -37,9 +46,13 @@ The refactoring will proceed in the following sequential steps:
     *   Implement a concrete `StorageRouter` as a first example, encapsulating logic for interacting with different storage MCP servers (e.g., SQL, vector DB). It will manage the `ClientConfig` for these servers.
     *   Write tests for `StorageRouter` to ensure it correctly initializes the host and routes requests to the appropriate storage server.
 
+### Phase 3: Agent and Workflow Implementation
+
+*   **Goal:** Build the new agent and workflow abstractions on top of the refactored host and routers.
+
 6.  **Create Base Agent Class:**
     *   Define a new `BaseAgent` class (`src/agents/base_agent.py`).
-    *   This class will handle the core LLM interaction loop, likely incorporating the `execute_prompt_with_tools` logic (if moved from `MCPHost`).
+    *   This class will handle the core LLM interaction loop, incorporating the `execute_prompt_with_tools` logic (moved from `MCPHost`).
     *   It should be able to use `MCPHost` directly or via `Routers` to access tools/prompts/resources.
     *   Test the `BaseAgent` with a simple planning MCP server (like the existing `planning_server.py` or a simplified version) to verify tool use and prompt execution.
 
@@ -54,7 +67,3 @@ The refactoring will proceed in the following sequential steps:
     *   Define new API endpoints as needed (e.g., `/routers/storage/execute`, `/agents/planning/execute`, `/workflows/plan_and_execute/start`).
     *   Update Postman collection or create new tests for these endpoints.
     *   *(Deferred: Implement dynamic routing based on `routing_weight` after core components are stable).*
-
-## 3. Next Steps
-
-Proceed with Step 1: Remove Specific Server Logic from Host.
