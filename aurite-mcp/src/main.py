@@ -5,7 +5,6 @@ import os
 import time
 from contextlib import asynccontextmanager
 from typing import Callable, Optional
-from pathlib import Path
 from functools import lru_cache
 import secrets  # For safe comparison
 
@@ -14,14 +13,8 @@ from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 import uvicorn
-import json
 
 from src.host.host import MCPHost
-from src.host.models import (  # Renamed config.py to models.py
-    HostConfig,
-    HostConfig,  # Keep HostConfig for type hints if needed elsewhere
-    # ClientConfig, RootConfig no longer directly needed here
-)
 
 # Import the new ServerConfig and the loading utility
 from src.config import ServerConfig, load_host_config_from_json

@@ -3,24 +3,15 @@ Tests for the Agent class implementation.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock  # Use AsyncMock for async methods
+from unittest.mock import Mock, patch  # Use AsyncMock for async methods
 
 # Use relative imports from the project root (aurite-mcp)
-from src.host.models import AgentConfig, HostConfig
 from src.agents.agent import Agent
-from src.host.host import MCPHost
-from src.host.resources import ToolManager, PromptManager
 
 # Import the new mock utility
 from tests.mocks.mock_anthropic import get_mock_anthropic_client
 
 # Import fixtures explicitly (pytest doesn't auto-discover from non-conftest files)
-from tests.fixtures.agent_fixtures import (
-    minimal_agent_config,
-    agent_config_with_llm_params,
-    agent_config_with_mock_host,
-)
-from tests.fixtures.host_fixtures import mock_host_config, mock_mcp_host
 
 
 # --- Test Class ---

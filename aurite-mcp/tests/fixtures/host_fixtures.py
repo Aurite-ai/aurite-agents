@@ -45,14 +45,14 @@ def mock_mcp_host() -> Mock:
     return host
 
 
-@pytest.fixture(scope="module")
+# Change scope from "module" to "function" to potentially resolve async teardown issues
+@pytest.fixture(scope="function")
 async def real_mcp_host() -> MCPHost:
     """
     Sets up and tears down a real MCPHost instance connected to the example echo server.
     (Moved from test_agent_e2e.py)
     """
     # Import necessary modules
-    from pathlib import Path
     from src.config import load_host_config_from_json, PROJECT_ROOT_DIR
 
     # Define path to the test config file relative to project root

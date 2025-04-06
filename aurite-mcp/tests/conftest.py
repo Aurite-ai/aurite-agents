@@ -44,9 +44,10 @@ def pytest_unconfigure(config):
 # --- Event Loop Fixture ---
 
 
-@pytest.fixture(scope="session")
+# Change scope to "function" for potentially safer async context management per test
+@pytest.fixture(scope="function")
 def event_loop(request):
-    """Create an instance of the default event loop for each test session."""
+    """Create an instance of the default event loop for each test function."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()

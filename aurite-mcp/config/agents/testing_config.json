@@ -1,11 +1,11 @@
 {
-  "name": "TestHostFromConfig",
+  "name": "TestHostWithWeatherServer",
   "agents": [
     {
-      "client_id": "echo_server_test",
-      "server_path": "tests/fixtures/servers/echo_server_fixture.py",
-      "capabilities": ["tools"],
-      "timeout": 10.0,
+      "client_id": "weather_server_test",
+      "server_path": "tests/fixtures/servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
       "routing_weight": 1.0
     }
   ]

@@ -233,6 +233,7 @@ class MCPHost:
 
         # Close all resources using the exit stack
         await self._exit_stack.aclose()
+        # logger.warning("Skipping AsyncExitStack.aclose() for debugging.") # Re-enabled after debugging
 
         # Shutdown managers in reverse layer order
 
