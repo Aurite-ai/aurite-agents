@@ -48,18 +48,25 @@ class HostConfig(BaseModel):
 
 
 class AgentConfig(BaseModel):
-    """Configuration for an Agent"""
+    """
+    Configuration for an Agent instance.
 
-    ## Host Properties (defines roots and available prompts, resources, tools)
-    name: Optional[str]
-    host: Optional[HostConfig]
-    ## LLM Properties (defines LLM properties)
-    system_prompt: Optional[str]
-    model: Optional[str]
-    temperature: Optional[float]
-    include_history: Optional[
-        bool
-    ]  # Whether to include the conversation history, or just the latest message
+    Defines agent-specific settings and links to the host configuration
+    that provides the necessary MCP clients and capabilities.
+    """
+
+    # Optional name for the agent instance
+    name: Optional[str] = None
+    # Link to the Host configuration defining available clients/capabilities
+    host: Optional[HostConfig] = None
+    # Agent-specific LLM parameters (override host/defaults if provided)
+    system_prompt: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    include_history: Optional[bool] = (
+        None  # Whether to include the conversation history, or just the latest message
+    )
 
 
 # Type variable for generic config loading

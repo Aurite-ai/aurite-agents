@@ -1,4 +1,4 @@
-Hello Gemini,
+Hello Assistant,
 
 We are ready to begin the next phase of the MCP Host Overhaul.
 This overarching plan remains documented in @/aurite-mcp/docs/plans/overarching_host_refactor_plan.md (Please ignore similarly named plans in the `/completed` subdirectories).
@@ -18,23 +18,22 @@ The primary goal of this phase is to design and implement a class for Agents. Th
 
 The agent class will contain 2 components:
 
-1. The agent class will take in an AgentConfig (a model that we will build in @/aurite-mcp/src/host/models.py ) in order to prepare the agent. The variables defined in this AgentConfig model will all be optional. If no variables are provided, the agent will simply act as an LLM chatbot responding to user messages with default settings. Here are the optional variables:
-    - `hosts`: A list of `HostConfig` instances defining the hosts the agent can use.
-    - `clients`: A list of `ClientConfig` instances defining direct client connections the agent can use (alternative or supplement to hosts).
-    - LLM properties: `temperature`, `model`, and `system_prompt` used in the LLM API call.
+1.  The agent class will take in an `AgentConfig` (a model that we will build in @/aurite-mcp/src/host/models.py ) in order to prepare the agent. The variables defined in this `AgentConfig` model will all be optional. If no variables are provided, the agent will simply act as an LLM chatbot responding to user messages with default settings. Here are the optional variables:
+    *   `host: Optional[HostConfig]`: **Defines the single host instance the agent will use.** This host configuration inherently includes the list of clients (`ClientConfig`) that the host manages. *(Updated: Singular 'host', removed direct 'clients' list)*
+    *   LLM properties: `temperature`, `model`, and `system_prompt` used in the LLM API call (these are specific to the agent's behavior).
 
-We need to think carefully on how we should set up these models (there is a hierarchy with `RootConfig` --> `ClientConfig` --> `HostConfig` --> `AgentConfig`) as this will determine how we will implement the agent. When the agent class is initialized, this `AgentConfig` is used to prepare the agent with the prompts, resources, and tools from the specified hosts/clients, along with the LLM API call properties like temp, model, and system prompt.
+We need to carefully define the structure in `models.py`. The hierarchy remains (`RootConfig` --> `ClientConfig` --> `HostConfig` --> `AgentConfig`), but `AgentConfig` now primarily holds agent-specific settings and **a reference to its designated `HostConfig`**. When the agent class is initialized, this `AgentConfig` is used to prepare the agent using the **prompts, resources, and tools available via the configured host**, along with the agent-specific LLM API properties. *(Updated description of how AgentConfig is used)*
 
-2. After initializing the agent with `AgentConfig`, this Agent class has a single method (for now) that runs a loop (adapting the `execute_prompt_with_tools()` method logic from `host.py`) using the `AgentConfig` variables. We'll rename this method to simply `execute()` in the agent class.
+2.  After initializing the agent with `AgentConfig`, this Agent class has a single method (for now) that runs a loop (adapting the `execute_prompt_with_tools()` method logic from `host.py`) using the `AgentConfig` variables. We'll rename this method to simply `execute()` in the agent class.
 
 **Initial Focus for Planning:**
 For the implementation plan, let's define the steps for:
-1.  Determine the optimal structure and definitions for the models in `@/aurite-mcp/src/host/models.py`, paying close attention to the `AgentConfig` and its relationship with `HostConfig` and `ClientConfig`.
-2.  Define the `Agent` class structure (`__init__`, properties) in a new file `@/aurite-mcp/src/agents/agent.py`.
-3.  Outline the implementation steps for the `Agent.execute()` method, detailing how it will adapt the logic previously in `host.py`'s `execute_prompt_with_tools` and interact with configured hosts/clients.
+1.  Define the updated `AgentConfig` model structure in `@/aurite-mcp/src/host/models.py` reflecting the **decision to use a single optional `HostConfig` and remove the direct `clients` list**. Review the relationships with other models (`HostConfig`, `ClientConfig`).
+2.  Define the `Agent` class structure (`__init__`, properties) in a new file `@/aurite-mcp/src/agents/agent.py`, ensuring it correctly utilizes the `AgentConfig` and the linked `HostConfig`.
+3.  Outline the implementation steps for the `Agent.execute()` method, detailing how it will adapt the logic previously in `host.py`'s `execute_prompt_with_tools` and interact with the **configured host's clients and capabilities**.
 4.  Define the testing strategy: Plan initial test cases and required setup (e.g., mock hosts/clients, simple agent instances) in `@/aurite-mcp/tests/agents/test_agent.py`.
-5.  Outline necessary documentation updates (e.g., README sections, code comments) related to the new Agent class, `AgentConfig`, and any model changes.
+5.  Outline necessary documentation updates (e.g., README sections, code comments) related to the new Agent class, updated `AgentConfig`, and any model changes.
 
 **Reminder:** As per our workflow, focus on creating a plan that is simple, readable, meaningful, and achieves the goal with the minimal necessary changes.
 
-**Next Step:** Please confirm you've reviewed the context documents and share your initial thoughts on reviewing `host.py` and `models.py` to plan for phase 3. Let's outline the steps for the new implementation plan.
+**Next Step:** Please confirm you've reviewed the context documents and share your initial thoughts on reviewing `host.py` and `models.py` (especially the models relevant to `AgentConfig` and `HostConfig`) to plan for phase 3 based on this updated configuration approach. Let's outline the steps for the new implementation plan.

@@ -56,14 +56,14 @@ The refactoring will proceed in the following phases and sequential steps:
 
 6.  **Refine Configuration Models for Agent Support:** *(High-level action)*
     *   Analyze and refactor the Pydantic models (`RootConfig`, `ClientConfig`, `HostConfig`) located in `src/host/models.py`.
-    *   Design and implement `AgentConfig` to allow flexible configuration of agents, including their connection to MCP Hosts/Clients and LLM parameters.
+    *   Design and implement `AgentConfig` to allow flexible configuration of agent-specific settings (like LLM parameters) and **link it to a single `HostConfig` instance** which defines the available MCP clients. *(Updated description)*
     *   Ensure the model hierarchy provides a clear and logical structure for configuration management across the system.
 
 7.  **Establish Basic Agent Functionality and Testing:** *(High-level outcome)*
-    *   Implement the initial end-to-end flow for configuring an `Agent` and executing a simple task using `MCPHost` capabilities.
+    *   Implement the initial end-to-end flow for configuring an `Agent` and executing a simple task using the **linked `MCPHost`'s capabilities**. *(Updated phrasing)*
     *   Develop foundational tests to verify the core `Agent` functionality, including configuration loading and interaction with host components.
 
-*(Add subsequent high-level steps for Phase 3 as needed, e.g., "Integrate Agent with Memory/Storage", "Develop Advanced Agent Capabilities")*
+*(Add subsequent high-level steps for Phase 3 as needed)*
 
 ### Phase 4: Workflow Implementation and FastAPI Integration
 *   **Goals:**
