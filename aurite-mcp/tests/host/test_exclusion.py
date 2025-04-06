@@ -86,7 +86,8 @@ async def initialized_host(mock_exclusion_client_session):
         capabilities=["tools", "prompts", "resources"],
         exclude=exclude_list,
     )
-    host_config = HostConfig(clients=[client_config])
+    # Add a name to satisfy HostConfig validation
+    host_config = HostConfig(name="TestExclusionHost", clients=[client_config])
 
     # Patch the context managers used for client creation in MCPHost._initialize_client
     # Patch stdio_client to return mock transport handles
@@ -124,66 +125,67 @@ async def initialized_host(mock_exclusion_client_session):
 # --- Exclusion Tests ---
 
 
-@pytest.mark.asyncio
-async def test_list_tools_exclusion(initialized_host: MCPHost):
-    """Verify that excluded tools are not listed."""
-    listed_tools = initialized_host.tools.list_tools()
-    listed_tool_names = {tool["name"] for tool in listed_tools}
+# Since these tests involve initializing a host (even with mocks),
+# they lean towards integration testing.
+@pytest.mark.integration
+class TestComponentExclusion:
+    @pytest.mark.asyncio
+    async def test_list_tools_exclusion(self, initialized_host: MCPHost):
+        """Verify that excluded tools are not listed."""
+        listed_tools = initialized_host.tools.list_tools()
+        listed_tool_names = {tool["name"] for tool in listed_tools}
 
-    assert "tool_allowed" in listed_tool_names
-    assert "another_tool" in listed_tool_names
-    assert "tool_to_exclude" not in listed_tool_names
-    assert len(listed_tools) == 2
+        assert "tool_allowed" in listed_tool_names
+        assert "another_tool" in listed_tool_names
+        assert "tool_to_exclude" not in listed_tool_names
+        assert len(listed_tools) == 2
 
+    @pytest.mark.asyncio
+    async def test_list_prompts_exclusion(self, initialized_host: MCPHost):
+        """Verify that excluded prompts are not listed."""
+        listed_prompts = await initialized_host.prompts.list_prompts()
+        listed_prompt_names = {prompt.name for prompt in listed_prompts}
 
-@pytest.mark.asyncio
-async def test_list_prompts_exclusion(initialized_host: MCPHost):
-    """Verify that excluded prompts are not listed."""
-    listed_prompts = await initialized_host.prompts.list_prompts()
-    listed_prompt_names = {prompt.name for prompt in listed_prompts}
+        assert "prompt_allowed" in listed_prompt_names
+        assert "prompt_to_exclude" not in listed_prompt_names
+        assert len(listed_prompts) == 1
 
-    assert "prompt_allowed" in listed_prompt_names
-    assert "prompt_to_exclude" not in listed_prompt_names
-    assert len(listed_prompts) == 1
+    @pytest.mark.asyncio
+    async def test_list_resources_exclusion(self, initialized_host: MCPHost):
+        """Verify that excluded resources are not listed."""
+        listed_resources = await initialized_host.resources.list_resources()
+        # Note: We exclude by name, so we check names here
+        listed_resource_names = {
+            resource.name for resource in listed_resources if resource.name
+        }
 
+        assert "resource_allowed" in listed_resource_names
+        assert "resource_to_exclude" not in listed_resource_names
+        assert len(listed_resources) == 1
 
-@pytest.mark.asyncio
-async def test_list_resources_exclusion(initialized_host: MCPHost):
-    """Verify that excluded resources are not listed."""
-    listed_resources = await initialized_host.resources.list_resources()
-    # Note: We exclude by name, so we check names here
-    listed_resource_names = {
-        resource.name for resource in listed_resources if resource.name
-    }
+    @pytest.mark.asyncio
+    async def test_access_excluded_tool(self, initialized_host: MCPHost):
+        """Verify attempting to get an excluded tool fails."""
+        assert initialized_host.tools.get_tool("tool_to_exclude") is None
+        # Also test execution attempt (should fail because tool is not registered)
+        with pytest.raises(ValueError, match="Unknown tool: tool_to_exclude"):
+            await initialized_host.tools.execute_tool("tool_to_exclude", {})
 
-    assert "resource_allowed" in listed_resource_names
-    assert "resource_to_exclude" not in listed_resource_names
-    assert len(listed_resources) == 1
+    @pytest.mark.asyncio
+    async def test_access_excluded_prompt(self, initialized_host: MCPHost):
+        """Verify attempting to get an excluded prompt fails."""
+        client_id = "test-exclusion-client"  # From initialized_host fixture
+        prompt = await initialized_host.prompts.get_prompt(
+            "prompt_to_exclude", client_id
+        )
+        assert prompt is None
 
-
-@pytest.mark.asyncio
-async def test_access_excluded_tool(initialized_host: MCPHost):
-    """Verify attempting to get an excluded tool fails."""
-    assert initialized_host.tools.get_tool("tool_to_exclude") is None
-    # Also test execution attempt (should fail because tool is not registered)
-    with pytest.raises(ValueError, match="Unknown tool: tool_to_exclude"):
-        await initialized_host.tools.execute_tool("tool_to_exclude", {})
-
-
-@pytest.mark.asyncio
-async def test_access_excluded_prompt(initialized_host: MCPHost):
-    """Verify attempting to get an excluded prompt fails."""
-    client_id = "test-exclusion-client"  # From initialized_host fixture
-    prompt = await initialized_host.prompts.get_prompt("prompt_to_exclude", client_id)
-    assert prompt is None
-
-
-@pytest.mark.asyncio
-async def test_access_excluded_resource(initialized_host: MCPHost):
-    """Verify attempting to get an excluded resource fails."""
-    client_id = "test-exclusion-client"  # From initialized_host fixture
-    # We excluded by name 'resource_to_exclude', the URI was 'resource://to_exclude'
-    resource = await initialized_host.resources.get_resource(
-        "resource://to_exclude", client_id
-    )
-    assert resource is None
+    @pytest.mark.asyncio
+    async def test_access_excluded_resource(self, initialized_host: MCPHost):
+        """Verify attempting to get an excluded resource fails."""
+        client_id = "test-exclusion-client"  # From initialized_host fixture
+        # We excluded by name 'resource_to_exclude', the URI was 'resource://to_exclude'
+        resource = await initialized_host.resources.get_resource(
+            "resource://to_exclude", client_id
+        )
+        assert resource is None

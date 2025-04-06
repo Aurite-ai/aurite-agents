@@ -12,6 +12,9 @@ from src.host.models import AgentConfig, HostConfig, ClientConfig
 from src.agents.agent import Agent
 from src.host.host import MCPHost
 
+# Import fixtures explicitly for discovery
+from tests.fixtures.host_fixtures import real_mcp_host
+
 # Assume the basic echo server is available for testing
 # Adjust path relative to aurite-mcp directory
 EXAMPLE_SERVER_PATH = Path("examples/basic/test_mcp_server.py")
@@ -27,32 +30,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="module")
-async def real_mcp_host() -> MCPHost:
-    """
-    Sets up and tears down a real MCPHost instance connected to the example echo server.
-    """
-    if not EXAMPLE_SERVER_PATH.exists():
-        pytest.skip(f"Example server not found at {EXAMPLE_SERVER_PATH}")
-
-    # Define configuration for the host and the echo client
-    client_config = ClientConfig(
-        client_id="echo_server_e2e",
-        server_path=EXAMPLE_SERVER_PATH.resolve(),  # Use absolute path
-        roots=[],  # No roots needed for basic echo server
-        capabilities=["tools"],  # Echo server provides tools
-        timeout=15.0,  # Increase timeout for real server startup
-    )
-    host_config = HostConfig(name="E2E_Test_Host", clients=[client_config])
-
-    # Initialize the host
-    host = MCPHost(config=host_config)
-    await host.initialize()  # This starts the client process
-
-    yield host  # Provide the initialized host to the test
-
-    # Teardown: Shutdown the host and its clients
-    await host.shutdown()
+# real_mcp_host fixture moved to tests/fixtures/host_fixtures.py
 
 
 @pytest.fixture

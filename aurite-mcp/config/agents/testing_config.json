@@ -1,0 +1,12 @@
+{
+  "name": "TestHostFromConfig",
+  "agents": [
+    {
+      "client_id": "echo_server_test",
+      "server_path": "tests/fixtures/servers/echo_server_fixture.py",
+      "capabilities": ["tools"],
+      "timeout": 10.0,
+      "routing_weight": 1.0
+    }
+  ]
+}

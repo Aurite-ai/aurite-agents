@@ -19,10 +19,12 @@ import json
 from src.host.host import MCPHost
 from src.host.models import (  # Renamed config.py to models.py
     HostConfig,
-    ClientConfig,
-    RootConfig,
+    HostConfig,  # Keep HostConfig for type hints if needed elsewhere
+    # ClientConfig, RootConfig no longer directly needed here
 )
-from src.config import ServerConfig  # Import the new ServerConfig
+
+# Import the new ServerConfig and the loading utility
+from src.config import ServerConfig, load_host_config_from_json
 
 # Configure logging
 logging.basicConfig(
@@ -108,62 +110,16 @@ async def lifespan(app: FastAPI):
         # Load server config
         server_config = get_server_config()
 
-        # Load host config from file specified in server config
-        try:
-            with open(server_config.HOST_CONFIG_PATH, "r") as f:
-                host_config_data = json.load(f)
-        except FileNotFoundError:
-            logger.error(
-                f"Host configuration file not found: {server_config.HOST_CONFIG_PATH}"
-            )
-            raise RuntimeError(
-                f"Host configuration file not found: {server_config.HOST_CONFIG_PATH}"
-            )
-        except json.JSONDecodeError as e:
-            logger.error(
-                f"Error parsing host configuration file {server_config.HOST_CONFIG_PATH}: {e}"
-            )
-            raise RuntimeError(f"Error parsing host configuration file: {e}")
-
-        # Validate and create HostConfig using Pydantic models
-        try:
-            # Manually construct ClientConfig and RootConfig lists (similar to old /initialize logic)
-            # This assumes the JSON structure matches the Pydantic models
-            # Determine the base directory for resolving relative server paths (aurite-mcp directory)
-            # Since this file (main.py) is in aurite-mcp/src/, go up two levels.
-            aurite_mcp_base_dir = Path(__file__).parent.parent.resolve()
-            client_configs = [
-                ClientConfig(
-                    client_id=agent["client_id"],
-                    # Resolve server_path relative to the aurite-mcp base directory
-                    server_path=(aurite_mcp_base_dir / agent["server_path"]).resolve(),
-                    roots=[
-                        RootConfig(
-                            uri=root["uri"],
-                            name=root["name"],
-                            capabilities=root["capabilities"],
-                        )
-                        for root in agent.get("roots", [])  # Use .get for safety
-                    ],
-                    capabilities=agent.get("capabilities", []),  # Use .get for safety
-                    timeout=agent.get("timeout", 10.0),
-                    routing_weight=agent.get("routing_weight", 1.0),
-                )
-                for agent in host_config_data.get("agents", [])  # Use .get for safety
-            ]
-
-            # Create the HostConfig Pydantic model
-            host_pydantic_config = HostConfig(clients=client_configs)
-        except ValidationError as e:
-            logger.error(f"Host configuration validation failed: {e}")
-            raise RuntimeError(f"Host configuration validation failed: {e}")
-        except KeyError as e:
-            logger.error(f"Missing key in host configuration data: {e}")
-            raise RuntimeError(f"Missing key in host configuration data: {e}")
+        # Load host config using the utility function from src.config
+        # The utility handles path resolution and validation
+        host_pydantic_config = load_host_config_from_json(
+            server_config.HOST_CONFIG_PATH
+        )
 
         # Initialize MCPHost
         host_instance = MCPHost(
-            config=host_pydantic_config, encryption_key=server_config.ENCRYPTION_KEY
+            config=host_pydantic_config,
+            encryption_key=server_config.ENCRYPTION_KEY,
         )
         await (
             host_instance.initialize()

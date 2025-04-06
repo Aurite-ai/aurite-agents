@@ -66,12 +66,13 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 log_cli = true
 log_cli_level = "INFO"
+# Ensure unit, integration, e2e markers are defined
 markers = [
-    "unit: mark test as unit test",
-    "integration: mark test as integration test",
-    "e2e: mark test as end-to-end test",
-    "asyncio: mark test as async test",
-    "core: mark test as core functionality test",
+    "unit: marks tests as unit tests (fast, isolated)",
+    "integration: marks tests as integration tests (component interaction)",
+    "e2e: marks tests as end-to-end tests (may require external resources)",
+    "asyncio: mark test as async test",                                      # Keep existing
+    "core: mark test as core functionality test",                            # Keep existing
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
     "agent: mark test as agent test",
@@ -79,9 +80,11 @@ markers = [
     "evaluation: mark test as agent evaluation test",
     "rubric: mark test that uses an evaluation rubric",
     "multirun: mark test that runs multiple evaluation iterations",
-    "benchmark: mark test that compares against benchmarks",
+    "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
 pythonpath = [".", "src"]
+# Ensure asyncio_mode is set
+asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
@@ -95,7 +98,6 @@ filterwarnings = [
 addopts = "--verbose --no-header --disable-warnings"
 # Configure test result captures
 junit_family = "xunit2"
-# Set the asyncio mode to auto to handle async tests properly
-asyncio_mode = "auto"
+# asyncio_mode moved up
 [project.scripts]
 mcp-server = "src.servers.server:main"

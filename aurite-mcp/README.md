@@ -118,7 +118,7 @@ The host is built with a modular architecture consisting of several key componen
 
 ### Core Managers
 
-- **TransportManager**: Handles communication channels
+- **CommunicationManager**: Handles communication channels
 - **RootManager**: Manages resource boundaries
 - **MessageRouter**: Routes requests between clients
 - **PromptManager**: Handles prompt templates
