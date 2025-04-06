@@ -14,9 +14,13 @@ from datetime import datetime
 # Use relative imports assuming tests run from aurite-mcp root
 # Adjust path as necessary if test structure changes
 from tests.fixtures.servers.weather_mcp_server import (
-    create_server,
+    # create_server, # No longer needed for these unit tests
     weather_lookup,
     current_time,
+    _call_tool_handler,  # Import the handler directly
+    _list_tools_handler,  # Import the handler directly
+    _list_prompts_handler,  # Import the handler directly
+    _get_prompt_handler,  # Import the handler directly
     WEATHER_ASSISTANT_PROMPT,
 )
 import mcp.types as types
@@ -26,10 +30,10 @@ import mcp.types as types
 class TestWeatherMCPServerUnit:
     """Unit tests for the weather MCP server fixture."""
 
-    @pytest.fixture
-    def weather_server_app(self):
-        """Provides an instance of the weather server app."""
-        return create_server()
+    # @pytest.fixture # Fixture no longer needed as we call handlers directly
+    # def weather_server_app(self):
+    #     """Provides an instance of the weather server app."""
+    #     return create_server()
 
     # --- Test Tool Logic Directly ---
 
@@ -116,7 +120,7 @@ class TestWeatherMCPServerUnit:
     # --- Test Server Handler Routing ---
 
     @pytest.mark.asyncio
-    async def test_call_tool_routing(self, weather_server_app):
+    async def test_call_tool_routing(self):  # Removed weather_server_app fixture
         """Verify the server's call_tool handler routes correctly."""
         # Patch the underlying implementation functions to check if they are called
         with (
@@ -129,8 +133,11 @@ class TestWeatherMCPServerUnit:
                 new_callable=AsyncMock,
             ) as mock_time,
         ):
+            # Call the imported handler directly
+            # registered_call_tool_handler = weather_server_app._call_tool_handler # Removed
+
             # Test routing to weather_lookup
-            await weather_server_app.call_tool(
+            await _call_tool_handler(  # Use imported handler
                 name="weather_lookup", arguments={"location": "London"}
             )
             mock_lookup.assert_called_once_with({"location": "London"})
@@ -139,7 +146,7 @@ class TestWeatherMCPServerUnit:
             mock_lookup.reset_mock()
 
             # Test routing to current_time
-            await weather_server_app.call_tool(
+            await _call_tool_handler(  # Use imported handler
                 name="current_time", arguments={"timezone": "Europe/Paris"}
             )
             mock_time.assert_called_once_with({"timezone": "Europe/Paris"})
@@ -147,14 +154,16 @@ class TestWeatherMCPServerUnit:
 
             # Test unknown tool
             with pytest.raises(ValueError, match="Unknown tool: unknown_tool"):
-                await weather_server_app.call_tool(name="unknown_tool", arguments={})
+                await _call_tool_handler(
+                    name="unknown_tool", arguments={}
+                )  # Use imported handler
 
     # --- Test List Handlers ---
 
     @pytest.mark.asyncio
-    async def test_list_tools_handler(self, weather_server_app):
+    async def test_list_tools_handler(self):  # Removed weather_server_app fixture
         """Verify the list_tools handler returns the expected tools."""
-        result = await weather_server_app.list_tools()
+        result = await _list_tools_handler()  # Use imported handler
         assert isinstance(result, list)
         assert len(result) == 2
         tool_names = {tool.name for tool in result}
@@ -163,9 +172,9 @@ class TestWeatherMCPServerUnit:
             assert isinstance(tool, types.Tool)
 
     @pytest.mark.asyncio
-    async def test_list_prompts_handler(self, weather_server_app):
+    async def test_list_prompts_handler(self):  # Removed weather_server_app fixture
         """Verify the list_prompts handler returns the expected prompts."""
-        result = await weather_server_app.list_prompts()
+        result = await _list_prompts_handler()  # Use imported handler
         assert isinstance(result, list)
         assert len(result) == 1
         prompt = result[0]
@@ -194,10 +203,12 @@ class TestWeatherMCPServerUnit:
         ],
     )
     async def test_get_prompt_handler(
-        self, weather_server_app, args, expected_substrings
+        self,
+        args,
+        expected_substrings,  # Removed weather_server_app fixture
     ):
         """Verify the get_prompt handler returns personalized prompts."""
-        result = await weather_server_app.get_prompt(
+        result = await _get_prompt_handler(  # Use imported handler
             name="weather_assistant", arguments=args
         )
 
@@ -213,7 +224,11 @@ class TestWeatherMCPServerUnit:
             assert substring in prompt_text
 
     @pytest.mark.asyncio
-    async def test_get_prompt_handler_unknown(self, weather_server_app):
+    async def test_get_prompt_handler_unknown(
+        self,
+    ):  # Removed weather_server_app fixture
         """Verify get_prompt handler raises error for unknown prompt."""
         with pytest.raises(ValueError, match="Unknown prompt: unknown_prompt"):
-            await weather_server_app.get_prompt(name="unknown_prompt", arguments={})
+            await _get_prompt_handler(
+                name="unknown_prompt", arguments={}
+            )  # Use imported handler

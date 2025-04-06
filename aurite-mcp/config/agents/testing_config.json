@@ -1,12 +1,21 @@
 {
-  "name": "TestHostWithWeatherServer",
-  "agents": [
+  "name": "TestHostWithMultipleServers",
+  "clients": [
     {
       "client_id": "weather_server_test",
       "server_path": "tests/fixtures/servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
-      "routing_weight": 1.0
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "client_id": "planning_server_test",
+      "server_path": "src/servers/management/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
     }
   ]
 }

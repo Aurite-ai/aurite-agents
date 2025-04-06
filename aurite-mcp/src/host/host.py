@@ -2,7 +2,7 @@
 MCP Host implementation for managing multiple tool servers and clients.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any  # Add Any
 import asyncio
 import logging
 from contextlib import AsyncExitStack
@@ -219,6 +219,65 @@ class MCPHost:
 
     # execute_prompt_with_tools method removed.
     # Logic moved to Agent.execute in src/agents/agent.py
+
+    async def execute_tool(
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        client_name: Optional[str] = None,
+    ) -> Any:
+        """
+        Executes a tool, either on a specific client or by discovering a unique client.
+
+        Args:
+            tool_name: The name of the tool to execute.
+            arguments: The arguments to pass to the tool.
+            client_name: Optional specific client ID to execute the tool on.
+                         If None, the host will attempt to find a unique client
+                         providing the tool.
+
+        Returns:
+            The result from the tool execution (typically List[TextContent]).
+
+        Raises:
+            ValueError: If client_name is None and the tool is not found or
+                        is found on multiple clients (ambiguous).
+            Exception: Any exception raised during the underlying tool execution.
+        """
+        if client_name:
+            # Direct execution on specified client
+            logger.info(
+                f"Executing tool '{tool_name}' on specified client '{client_name}'"
+            )
+            return await self.tools.execute_tool(
+                client_name=client_name, tool_name=tool_name, arguments=arguments
+            )
+        else:
+            # Discover client providing the tool
+            logger.info(
+                f"Discovering client for tool '{tool_name}' before execution..."
+            )
+            providing_clients = self.tools.get_clients_for_tool(tool_name)
+
+            if not providing_clients:
+                raise ValueError(
+                    f"Tool '{tool_name}' not found on any registered client."
+                )
+            elif len(providing_clients) > 1:
+                raise ValueError(
+                    f"Tool '{tool_name}' is ambiguous; found on multiple clients: "
+                    f"{providing_clients}. Specify a client_name."
+                )
+            else:
+                unique_client_id = providing_clients[0]
+                logger.info(
+                    f"Executing tool '{tool_name}' on uniquely found client '{unique_client_id}'"
+                )
+                return await self.tools.execute_tool(
+                    client_name=unique_client_id,
+                    tool_name=tool_name,
+                    arguments=arguments,
+                )
 
     # Removed register_workflow, execute_workflow, list_workflows, get_workflow methods
     # Removed add_memories and search_memories methods

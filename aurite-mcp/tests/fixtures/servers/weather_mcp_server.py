@@ -31,117 +31,132 @@ Guidelines:
 """
 
 
+# --- Handler Implementations (defined top-level for testability) ---
+
+
+async def _call_tool_handler(name: str, arguments: dict) -> list[types.TextContent]:
+    """Handle tool calls by routing to appropriate implementation."""
+    try:
+        if name == "weather_lookup":
+            result = await weather_lookup(arguments)
+        elif name == "current_time":
+            result = await current_time(arguments)
+        else:
+            raise ValueError(f"Unknown tool: {name}")
+        return result
+    except Exception as e:
+        logger.error(f"Error: Tool call failed - {e}")
+        raise
+
+
+async def _list_tools_handler() -> list[types.Tool]:
+    """List all available tools."""
+    return [
+        types.Tool(
+            name="weather_lookup",
+            description="Look up weather information for a location",
+            inputSchema={
+                "type": "object",
+                "required": ["location"],
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "City name or location",
+                    },
+                    "units": {
+                        "type": "string",
+                        "description": "Temperature units (metric or imperial)",
+                        "default": "metric",
+                        "enum": ["metric", "imperial"],
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="current_time",
+            description="Get the current time in a specific timezone",
+            inputSchema={
+                "type": "object",
+                "required": ["timezone"],
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone name (e.g., 'America/New_York', 'Europe/London')",
+                    },
+                },
+            },
+        ),
+    ]
+
+
+async def _list_prompts_handler() -> list[types.Prompt]:
+    """List all available prompts."""
+    return [
+        types.Prompt(
+            name="weather_assistant",
+            description="A helpful assistant for weather and time information",
+            arguments=[
+                types.PromptArgument(
+                    name="user_name",
+                    description="Name of the user for personalization",
+                    required=False,
+                    schema={"type": "string"},
+                ),
+                types.PromptArgument(
+                    name="preferred_units",
+                    description="Preferred temperature units (metric/imperial)",
+                    required=False,
+                    schema={
+                        "type": "string",
+                        "enum": ["metric", "imperial"],
+                    },
+                ),
+            ],
+        )
+    ]
+
+
+async def _get_prompt_handler(name: str, arguments: dict) -> types.GetPromptResult:
+    """Get a prompt with the specified arguments."""
+    if name != "weather_assistant":
+        raise ValueError(f"Unknown prompt: {name}")
+
+    prompt = WEATHER_ASSISTANT_PROMPT
+
+    # Add personalization if user_name provided
+    if "user_name" in arguments:
+        prompt = f"Hello {arguments['user_name']}! " + prompt
+
+    # Add unit preference if specified
+    if "preferred_units" in arguments:
+        prompt += f"\nPreferred units: {arguments['preferred_units'].upper()}"
+
+    return types.GetPromptResult(
+        messages=[
+            types.PromptMessage(
+                role="user", content=types.TextContent(type="text", text=prompt)
+            )
+        ]
+    )
+
+
+# --- Server Creation ---
+
+
 def create_server() -> Server:
     """Create and configure the MCP server with all available tools."""
     app = Server("test-weather-server")
 
-    @app.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-        """Handle tool calls by routing to appropriate implementation."""
-        try:
-            if name == "weather_lookup":
-                result = await weather_lookup(arguments)
-            elif name == "current_time":
-                result = await current_time(arguments)
-            else:
-                raise ValueError(f"Unknown tool: {name}")
-            return result
-        except Exception as e:
-            logger.error(f"Error: Tool call failed - {e}")
-            raise
-
-    @app.list_tools()
-    async def list_tools() -> list[types.Tool]:
-        """List all available tools."""
-        return [
-            types.Tool(
-                name="weather_lookup",
-                description="Look up weather information for a location",
-                inputSchema={
-                    "type": "object",
-                    "required": ["location"],
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "City name or location",
-                        },
-                        "units": {
-                            "type": "string",
-                            "description": "Temperature units (metric or imperial)",
-                            "default": "metric",
-                            "enum": ["metric", "imperial"],
-                        },
-                    },
-                },
-            ),
-            types.Tool(
-                name="current_time",
-                description="Get the current time in a specific timezone",
-                inputSchema={
-                    "type": "object",
-                    "required": ["timezone"],
-                    "properties": {
-                        "timezone": {
-                            "type": "string",
-                            "description": "Timezone name (e.g., 'America/New_York', 'Europe/London')",
-                        },
-                    },
-                },
-            ),
-        ]
-
-    @app.list_prompts()
-    async def list_prompts() -> list[types.Prompt]:
-        """List all available prompts."""
-        return [
-            types.Prompt(
-                name="weather_assistant",
-                description="A helpful assistant for weather and time information",
-                arguments=[
-                    types.PromptArgument(
-                        name="user_name",
-                        description="Name of the user for personalization",
-                        required=False,
-                        schema={"type": "string"},
-                    ),
-                    types.PromptArgument(
-                        name="preferred_units",
-                        description="Preferred temperature units (metric/imperial)",
-                        required=False,
-                        schema={
-                            "type": "string",
-                            "enum": ["metric", "imperial"],
-                        },
-                    ),
-                ],
-            )
-        ]
-
-    @app.get_prompt()
-    async def get_prompt(name: str, arguments: dict) -> types.GetPromptResult:
-        """Get a prompt with the specified arguments."""
-        if name != "weather_assistant":
-            raise ValueError(f"Unknown prompt: {name}")
-
-        prompt = WEATHER_ASSISTANT_PROMPT
-
-        # Add personalization if user_name provided
-        if "user_name" in arguments:
-            prompt = f"Hello {arguments['user_name']}! " + prompt
-
-        # Add unit preference if specified
-        if "preferred_units" in arguments:
-            prompt += f"\nPreferred units: {arguments['preferred_units'].upper()}"
-
-        return types.GetPromptResult(
-            messages=[
-                types.PromptMessage(
-                    role="user", content=types.TextContent(type="text", text=prompt)
-                )
-            ]
-        )
+    # Register the top-level handlers
+    app.call_tool()(_call_tool_handler)
+    app.list_tools()(_list_tools_handler)
+    app.list_prompts()(_list_prompts_handler)
+    app.get_prompt()(_get_prompt_handler)
 
     return app
+
+
+# --- Tool Logic ---
 
 
 async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
