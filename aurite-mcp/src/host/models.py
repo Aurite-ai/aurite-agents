@@ -43,8 +43,8 @@ class ClientConfig(BaseModel):
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
-    name: Optional[str]
     clients: List[ClientConfig]
+    name: Optional[str]
 
 
 class AgentConfig(BaseModel):

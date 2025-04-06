@@ -9,7 +9,7 @@ from anthropic.types import MessageParam, ToolUseBlock
 from typing import Dict, Any, Optional, List
 
 # Assuming models are accessible, adjust import path if needed
-from ..host.models import AgentConfig, HostConfig
+from ..host.models import AgentConfig
 from ..host.host import MCPHost  # Import MCPHost for type hinting
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock  # Use AsyncMock for async methods
 
 # Use relative imports from the project root (aurite-mcp)
-from src.host.models import AgentConfig, HostConfig, ClientConfig, RootConfig
+from src.host.models import AgentConfig, HostConfig
 from src.agents.agent import Agent
 from src.host.host import MCPHost
 from src.host.resources import ToolManager, PromptManager

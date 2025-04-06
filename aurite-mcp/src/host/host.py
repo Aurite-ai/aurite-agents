@@ -2,7 +2,7 @@
 MCP Host implementation for managing multiple tool servers and clients.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, Optional
 import asyncio
 import logging
 from contextlib import AsyncExitStack

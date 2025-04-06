@@ -21,7 +21,7 @@ dist
 tsconfig.tsbuildinfo
 test.lib/
 temp.txt
-memory/
+copilot_memory/
 # JetBrains IDEs
 .idea/
 CLAUDE.md
@@ -46,7 +46,7 @@ RELEASE.md
 .jest-cache
 .verdaccio-cache
 .turbo
-
+**/.old-coding-copilot-prompts
 ## custom modules-dir fixture
 __fixtures__/custom-modules-dir/**/fake_modules/
 __fixtures__/custom-modules-dir/cache/
