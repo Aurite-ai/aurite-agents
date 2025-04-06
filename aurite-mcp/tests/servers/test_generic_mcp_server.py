@@ -7,7 +7,7 @@ based on mcp.types, using mocks.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import mcp.types as types
 

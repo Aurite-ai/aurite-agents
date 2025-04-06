@@ -11,7 +11,6 @@ import logging
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.host import MCPHost
-import mcp.types as types
 
 # Configure logging for debugging E2E tests if needed
 logger = logging.getLogger(__name__)

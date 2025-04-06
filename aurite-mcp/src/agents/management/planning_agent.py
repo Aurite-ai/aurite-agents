@@ -2,8 +2,11 @@
 Agent implementation for interacting with the Planning MCP Server.
 """
 
+import os
 import logging
+import anthropic
 from typing import Optional, List, Dict, Any
+from anthropic.types import MessageParam, TextBlock
 
 # Use relative imports for intra-package modules
 from ..agent import Agent
@@ -133,23 +136,197 @@ class PlanningAgent(Agent):
             logger.error(f"Error listing plans: {e}")
             return {"success": False, "message": str(e)}
 
-    # def _find_planning_client_id(self, host_instance: MCPHost) -> str: # Removed helper method
-    #     """
-    #     Helper method to find the client ID associated with the planning server.
-    #
-    #     Currently assumes the planning server offers the 'save_plan' tool.
-    #     Raises ValueError if no suitable client is found.
-    #
-    #     TODO: Make this more robust, perhaps by checking server metadata or config.
-    #     """
-    #     planning_clients = host_instance.tools.get_clients_for_tool("save_plan")
-    #     if not planning_clients:
-    #         raise ValueError(
-    #             "Could not find a client providing the 'save_plan' tool. "
-    #             "Ensure the planning server is configured correctly in the host."
-    #         )
-    #     # Return the first client found that offers the tool
-    #     return planning_clients[0]
+    async def execute_workflow(
+        self,
+        user_message: str,
+        host_instance: MCPHost,
+        anthropic_api_key: Optional[str] = None,
+        plan_name: Optional[str] = "default_plan_name",
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes the specific planning workflow:
+        1. Generate plan content via LLM (no tools).
+        2. Save the generated plan using the 'save_plan' tool.
+        """
+        logger.debug(f"PlanningAgent '{self.config.name}' starting workflow execution.")
+        workflow_steps = []
+
+        # --- Workflow Setup ---
+        if not host_instance:
+            logger.error("Workflow failed: Host instance is required.")
+            # Return structure includes steps for traceability even on early failure
+            return {
+                "error": "Host instance required",
+                "workflow_steps": workflow_steps,
+                "final_output": None,
+            }
+        if not isinstance(host_instance, MCPHost):
+            logger.error("Workflow failed: Invalid host instance type.")
+            return {
+                "error": "Invalid host instance type",
+                "workflow_steps": workflow_steps,
+                "final_output": None,
+            }
+
+        api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.error("Workflow failed: Anthropic API key not found.")
+            return {
+                "error": "API key not found",
+                "workflow_steps": workflow_steps,
+                "final_output": None,
+            }
+
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            # Use agent's config for defaults, allow overrides if needed
+            model = self.config.model or "claude-3-opus-20240229"
+            temperature = (
+                self.config.temperature or 0.5
+            )  # Planning might benefit from lower temp
+            max_tokens = self.config.max_tokens or 4096
+            logger.debug(
+                f"Workflow using LLM params: model={model}, temp={temperature}, max_tokens={max_tokens}"
+            )
+        except Exception as e:
+            logger.error(f"Workflow failed during client initialization: {e}")
+            # Add step info even for setup failure
+            workflow_steps.append(
+                {
+                    "step": 0,
+                    "action": "Setup",
+                    "status": "Failed",
+                    "error": f"Client initialization failed: {e}",
+                }
+            )
+            return {
+                "error": f"Client initialization failed: {e}",
+                "workflow_steps": workflow_steps,
+                "final_output": None,
+            }
+
+        # --- Step 1: Generate Plan (LLM Call, No Tools) ---
+        plan_content = None
+        try:
+            logger.info("Workflow Step 1: Generating plan content via LLM.")
+            # Define the specific prompt for this step
+            planning_system_prompt = "You are an AI planning assistant. Create a detailed, step-by-step plan based on the user's request. Output only the plan text."
+            # Prepare messages for the LLM call
+            messages: List[MessageParam] = [{"role": "user", "content": user_message}]
+            # Log the step initiation
+            workflow_steps.append(
+                {
+                    "step": 1,
+                    "action": "LLM Call (Generate Plan)",
+                    "input": user_message,
+                    "prompt": planning_system_prompt,
+                }
+            )
+
+            # *** Use the internal helper method from the base Agent class ***
+            llm_response = await self._make_llm_call(
+                client=client,
+                messages=messages,
+                system_prompt=planning_system_prompt,
+                tools=[],  # Explicitly no tools for generation step
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+            # Extract text content from the response
+            if llm_response.content and isinstance(llm_response.content[0], TextBlock):
+                plan_content = llm_response.content[0].text
+                logger.info("Plan content generated successfully.")
+                workflow_steps.append(
+                    {"step": 1, "status": "Success", "output_length": len(plan_content)}
+                )
+            else:
+                # Handle cases where the response format isn't as expected
+                logger.error("LLM response did not contain expected text block.")
+                raise ValueError("LLM response did not contain expected text block.")
+
+        except Exception as e:
+            logger.error(f"Workflow Step 1 failed (LLM Call): {e}")
+            workflow_steps.append({"step": 1, "status": "Failed", "error": str(e)})
+            # Stop the workflow if plan generation fails
+            return {
+                "workflow_steps": workflow_steps,
+                "final_output": None,
+                "error": f"Plan generation failed: {e}",
+            }
+
+        # --- Step 2: Save Plan (Tool Call) ---
+        save_result = None
+        if plan_content:  # Only proceed if step 1 succeeded and produced content
+            try:
+                logger.info(f"Workflow Step 2: Saving plan '{plan_name}' via tool.")
+                # Log the step initiation
+                workflow_steps.append(
+                    {
+                        "step": 2,
+                        "action": "Tool Call (save_plan)",
+                        "plan_name": plan_name,
+                        "tags": tags,
+                    }
+                )
+
+                # Use the existing method which calls host_instance.execute_tool
+                save_result = await self.save_new_plan(
+                    host_instance=host_instance,
+                    plan_name=plan_name,
+                    plan_content=plan_content,
+                    tags=tags,
+                )
+                # Assuming save_new_plan returns a dict with success/message or raw_output
+                if (
+                    isinstance(save_result, dict)
+                    and save_result.get("success") is False
+                ):
+                    # Handle specific failure reported by save_new_plan
+                    raise Exception(
+                        save_result.get("message", "save_plan tool reported failure")
+                    )
+                else:
+                    logger.info(f"Plan '{plan_name}' saved successfully via tool.")
+                    workflow_steps.append(
+                        {"step": 2, "status": "Success", "result": save_result}
+                    )
+
+            except Exception as e:
+                logger.error(f"Workflow Step 2 failed (Tool Call): {e}")
+                workflow_steps.append({"step": 2, "status": "Failed", "error": str(e)})
+                # Decide if failure here halts everything or just logs - let's halt
+                return {
+                    "workflow_steps": workflow_steps,
+                    "final_output": None,
+                    "error": f"Plan saving failed: {e}",
+                }
+        else:
+            # This case should technically be caught by the return in Step 1's except block,
+            # but adding a log here for completeness if plan_content is None for other reasons.
+            logger.warning(
+                "Workflow Step 2 skipped: Plan content was not generated in Step 1."
+            )
+            workflow_steps.append(
+                {
+                    "step": 2,
+                    "action": "Tool Call (save_plan)",
+                    "status": "Skipped",
+                    "reason": "No plan content from Step 1",
+                }
+            )
+
+        # --- Workflow Completion ---
+        logger.info(
+            f"PlanningAgent workflow execution finished for plan '{plan_name}'."
+        )
+        return {
+            "workflow_steps": workflow_steps,
+            "final_output": save_result,  # Return the result from the save_plan tool call (or None if skipped/failed)
+            "error": None,  # Indicate successful completion of the workflow itself
+        }
 
     # Optional: Implement generate_plan method later if needed
     # async def generate_plan(self, host_instance: MCPHost, user_request: str):

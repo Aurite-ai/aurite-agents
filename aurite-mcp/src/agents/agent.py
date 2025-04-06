@@ -35,17 +35,70 @@ class Agent:
         self.config = config
         logger.info(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
 
-    async def execute(
+    async def _make_llm_call(
+        self,
+        client: anthropic.Anthropic,
+        messages: List[MessageParam],
+        system_prompt: Optional[str],
+        tools: Optional[List[Dict]],  # Anthropic tool format
+        model: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> anthropic.types.Message:
+        """
+        Internal helper to make a single call to the Anthropic Messages API.
+
+        Args:
+            client: The initialized Anthropic client.
+            messages: The list of messages for the conversation history.
+            system_prompt: The system prompt to use.
+            tools: The list of tools in Anthropic format, if any.
+            model: The model name.
+            temperature: The sampling temperature.
+            max_tokens: The maximum number of tokens to generate.
+
+        Returns:
+            The Message object from the Anthropic API response.
+
+        Raises:
+            Exception: Propagates exceptions from the Anthropic API call.
+        """
+        logger.debug(f"Making LLM call to model '{model}'")
+        try:
+            # Construct arguments, omitting None values for system and tools
+            api_args = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": messages,
+            }
+            if system_prompt:
+                api_args["system"] = system_prompt
+            if tools:
+                api_args["tools"] = tools
+
+            response = client.messages.create(**api_args)
+            logger.debug(
+                f"Anthropic API response received (stop_reason: {response.stop_reason})"
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Anthropic API call failed: {e}")
+            # Re-raise the exception for the caller (e.g., execute_agent) to handle
+            raise
+
+    async def execute_agent(
         self,
         user_message: str,
         host_instance: MCPHost,
         anthropic_api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Executes a task based on the user message, using the provided MCP Host.
+        Executes a standard agent task based on the user message, using the
+        provided MCP Host and all its available tools in a multi-turn conversation.
 
         This method orchestrates the interaction with the LLM, including prompt
-        preparation, tool definition, and handling tool calls based on the
+        preparation, tool definition using all host tools, and handling tool calls based on the
         agent's configuration and the host's capabilities.
 
         Args:
@@ -63,8 +116,10 @@ class Agent:
             TypeError: If host_instance is not an instance of MCPHost.
             ValueError: If Anthropic API key is not found.
         """
-        # --- Start of Step 3 Implementation ---
-        logger.debug(f"Agent '{self.config.name or 'Unnamed'}' starting execution.")
+        # --- Start of standard agent execution logic ---
+        logger.debug(
+            f"Agent '{self.config.name or 'Unnamed'}' starting standard execution."
+        )
 
         # 1. Validate Host Instance
         if not host_instance:
@@ -118,21 +173,20 @@ class Agent:
             current_iteration += 1
             logger.debug(f"Conversation loop iteration {current_iteration}")
 
-            # Make API call
+            # Make API call using the helper method
             try:
-                response = client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=system_prompt,
+                response = await self._make_llm_call(
+                    client=client,
                     messages=messages,
+                    system_prompt=system_prompt,
                     tools=tools_data,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
                 )
-                logger.debug(
-                    f"Anthropic API response received (stop_reason: {response.stop_reason})"
-                )
+                # Logger message for success is now inside _make_llm_call
             except Exception as e:
-                logger.error(f"Anthropic API call failed: {e}")
+                # Logger message for failure is now inside _make_llm_call
                 # Decide how to handle API errors - re-raise, return error message?
                 # For now, let's return an error structure.
                 return {

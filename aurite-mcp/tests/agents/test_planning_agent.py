@@ -3,13 +3,13 @@ Unit tests for the PlanningAgent.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import json  # Add json import
+import anthropic  # Add anthropic import
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.agents.management.planning_agent import PlanningAgent
-from src.host.models import AgentConfig, HostConfig
-from src.host.host import MCPHost  # Needed for type hinting
+from src.host.models import AgentConfig
 import mcp.types as types
 
 
@@ -179,14 +179,168 @@ class TestPlanningAgentUnit:
             )
         )
 
-        with pytest.raises(
-            ValueError, match="Tool 'save_plan' not found on any registered client."
-        ):
-            # Call the agent method which should now fail internally when calling host.execute_tool
-            await planning_agent.save_new_plan(
-                host_instance=mock_mcp_host,
-                plan_name="fail_plan",
-                plan_content="wont work",
-            )
+        # The save_new_plan method now catches the exception and returns a dict
+        result = await planning_agent.save_new_plan(
+            host_instance=mock_mcp_host,
+            plan_name="fail_plan",
+            plan_content="wont work",
+        )
+        assert result.get("success") is False
+        assert "Tool 'save_plan' not found" in result.get("message", "")
+
+    # --- Tests for execute_workflow ---
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_success(
+        self, planning_agent: PlanningAgent, mock_mcp_host: MagicMock
+    ):
+        """Verify successful execution of the planning workflow."""
+        user_message = "Create a plan for testing."
+        plan_name = "workflow_test_plan"
+        tags = ["workflow", "unit_test"]
+        generated_plan_content = "Step 1: Write test. Step 2: Run test."
+        save_tool_result = {"success": True, "message": "Plan saved successfully."}
+
+        # Mock the internal _make_llm_call
+        mock_llm_response = MagicMock(spec=anthropic.types.Message)
+        mock_llm_response.content = [
+            anthropic.types.TextBlock(
+                type="text", text=generated_plan_content
+            )  # Use anthropic.types
+        ]
+        planning_agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
+
+        # Mock the save_new_plan method (which internally calls the tool)
+        planning_agent.save_new_plan = AsyncMock(return_value=save_tool_result)
+
+        result = await planning_agent.execute_workflow(
+            user_message=user_message,
+            host_instance=mock_mcp_host,  # Mock host is sufficient for unit test
+            plan_name=plan_name,
+            tags=tags,
+        )
+
+        # Assertions
+        assert result["error"] is None
+        assert result["final_output"] == save_tool_result
+        assert (
+            len(result["workflow_steps"]) == 4
+        )  # Setup(implicit ok) + LLM Call + LLM Success + Tool Call + Tool Success
+
+        # Check LLM call mock
+        planning_agent._make_llm_call.assert_awaited_once()
+        call_args, call_kwargs = planning_agent._make_llm_call.call_args
+        assert call_kwargs["system_prompt"].startswith(
+            "You are an AI planning assistant"
+        )
+        assert call_kwargs["tools"] == []  # Ensure no tools were passed for generation
+        assert call_kwargs["messages"] == [{"role": "user", "content": user_message}]
+
+        # Check save_new_plan mock
+        planning_agent.save_new_plan.assert_awaited_once_with(
+            host_instance=mock_mcp_host,
+            plan_name=plan_name,
+            plan_content=generated_plan_content,
+            tags=tags,
+        )
+
+        # Check workflow steps structure (basic check)
+        assert result["workflow_steps"][0]["step"] == 1
+        assert result["workflow_steps"][0]["action"] == "LLM Call (Generate Plan)"
+        assert result["workflow_steps"][1]["step"] == 1
+        assert result["workflow_steps"][1]["status"] == "Success"
+        assert result["workflow_steps"][2]["step"] == 2
+        assert result["workflow_steps"][2]["action"] == "Tool Call (save_plan)"
+        assert result["workflow_steps"][3]["step"] == 2
+        assert result["workflow_steps"][3]["status"] == "Success"
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_llm_failure(
+        self, planning_agent: PlanningAgent, mock_mcp_host: MagicMock
+    ):
+        """Verify workflow handles failure during the LLM call (Step 1)."""
+        user_message = "Create a plan for failure."
+        plan_name = "fail_llm_plan"
+
+        # Mock _make_llm_call to raise an exception
+        llm_error = anthropic.APIConnectionError(
+            message="Network error",
+            request=None,  # Add required 'request' argument
+        )
+        planning_agent._make_llm_call = AsyncMock(side_effect=llm_error)
+        planning_agent.save_new_plan = (
+            AsyncMock()
+        )  # Mock save to ensure it's NOT called
+
+        result = await planning_agent.execute_workflow(
+            user_message=user_message, host_instance=mock_mcp_host, plan_name=plan_name
+        )
+
+        # Assertions
+        assert "Plan generation failed" in result["error"]
+        assert str(llm_error) in result["error"]
+        assert result["final_output"] is None
+        assert len(result["workflow_steps"]) == 2  # LLM Call + LLM Failure
+
+        # Check LLM call mock was called
+        planning_agent._make_llm_call.assert_awaited_once()
+        # Check save_new_plan was NOT called
+        planning_agent.save_new_plan.assert_not_awaited()
+
+        # Check workflow steps
+        assert result["workflow_steps"][0]["step"] == 1
+        assert result["workflow_steps"][0]["action"] == "LLM Call (Generate Plan)"
+        assert result["workflow_steps"][1]["step"] == 1
+        assert result["workflow_steps"][1]["status"] == "Failed"
+        assert str(llm_error) in result["workflow_steps"][1]["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_tool_failure(
+        self, planning_agent: PlanningAgent, mock_mcp_host: MagicMock
+    ):
+        """Verify workflow handles failure during the tool call (Step 2)."""
+        user_message = "Create a plan for tool failure."
+        plan_name = "fail_tool_plan"
+        generated_plan_content = "Step 1: Generate. Step 2: Fail save."
+
+        # Mock LLM call success
+        mock_llm_response = MagicMock(spec=anthropic.types.Message)
+        mock_llm_response.content = [
+            anthropic.types.TextBlock(
+                type="text", text=generated_plan_content
+            )  # Use anthropic.types
+        ]
+        planning_agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
+
+        # Mock save_new_plan to raise an exception
+        tool_error = ValueError("Disk full")
+        planning_agent.save_new_plan = AsyncMock(side_effect=tool_error)
+
+        result = await planning_agent.execute_workflow(
+            user_message=user_message, host_instance=mock_mcp_host, plan_name=plan_name
+        )
+
+        # Assertions
+        assert "Plan saving failed" in result["error"]
+        assert str(tool_error) in result["error"]
+        assert result["final_output"] is None
+        assert (
+            len(result["workflow_steps"]) == 4
+        )  # LLM Call + LLM Success + Tool Call + Tool Failure
+
+        # Check mocks were called
+        planning_agent._make_llm_call.assert_awaited_once()
+        planning_agent.save_new_plan.assert_awaited_once()
+
+        # Check workflow steps
+        assert result["workflow_steps"][0]["step"] == 1
+        assert result["workflow_steps"][0]["action"] == "LLM Call (Generate Plan)"
+        assert result["workflow_steps"][1]["step"] == 1
+        assert result["workflow_steps"][1]["status"] == "Success"
+        assert result["workflow_steps"][2]["step"] == 2
+        assert result["workflow_steps"][2]["action"] == "Tool Call (save_plan)"
+        assert result["workflow_steps"][3]["step"] == 2
+        assert result["workflow_steps"][3]["status"] == "Failed"
+        assert str(tool_error) in result["workflow_steps"][3]["error"]
 
     # TODO: Add tests for generate_plan if/when implemented

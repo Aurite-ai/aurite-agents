@@ -6,7 +6,6 @@ and basic state management, potentially using mocked clients or configs.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.host import MCPHost

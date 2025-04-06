@@ -66,7 +66,7 @@ class TestAgentE2E:
         # Execute the agent - NO MOCKING of Anthropic client
         user_message = "Briefly say hello."  # Keep it simple to minimize tokens
         try:
-            result = await agent.execute(
+            result = await agent.execute_agent(
                 user_message=user_message,
                 host_instance=real_mcp_host,  # Pass the real host instance
             )

@@ -6,10 +6,12 @@ import pytest
 import logging
 import uuid
 from pathlib import Path
+from unittest.mock import MagicMock, AsyncMock  # Add mock imports
+import anthropic  # Add anthropic import
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.agents.management.planning_agent import PlanningAgent
-from src.host.models import AgentConfig, HostConfig
+from src.host.models import AgentConfig
 from src.host.host import MCPHost  # Needed for type hinting
 
 logger = logging.getLogger(__name__)
@@ -97,7 +99,7 @@ class TestPlanningAgentE2E:
         assert found_plan, f"Saved plan '{plan_name}' not found in list_all_result"
 
         # --- List Plan (With Tag) ---
-        logger.info(f"Attempting to list plans with tag 'e2e' via agent...")
+        logger.info("Attempting to list plans with tag 'e2e' via agent...")
         list_tagged_result = await agent.list_existing_plans(
             host_instance=host, tag="e2e"
         )
@@ -113,6 +115,79 @@ class TestPlanningAgentE2E:
                 break
         assert found_tagged_plan, (
             f"Saved plan '{plan_name}' not found in list_tagged_result with tag 'e2e'"
+        )
+
+        # --- Cleanup ---
+        logger.info(f"Cleaning up created plan files for '{plan_name}'...")
+        if plan_file_path.exists():
+            plan_file_path.unlink()
+        if meta_file_path.exists():
+            meta_file_path.unlink()
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_e2e(
+        self, planning_agent_instance: PlanningAgent, real_mcp_host: MCPHost
+    ):
+        """Verify the full planning workflow E2E: LLM call (mocked) -> save_plan tool call."""
+        host = real_mcp_host
+        agent = planning_agent_instance
+        user_message = "Generate an E2E test plan."
+        plan_name = f"e2e_workflow_plan_{uuid.uuid4()}"
+        tags = ["e2e", "workflow_test"]
+        generated_plan_content = "Step 1: Setup E2E env.\nStep 2: Run workflow.\nStep 3: Assert file creation."
+        plan_file_path = PLAN_SAVE_DIR / f"{plan_name}.txt"
+        meta_file_path = PLAN_SAVE_DIR / f"{plan_name}.meta.json"
+
+        # --- Mock the LLM Call within the workflow ---
+        # We mock _make_llm_call because we don't want to hit the actual LLM API,
+        # but we DO want to hit the actual save_plan tool via the host.
+        mock_llm_response = MagicMock(spec=anthropic.types.Message)
+        mock_llm_response.content = [
+            anthropic.types.TextBlock(type="text", text=generated_plan_content)
+        ]
+        # Patch the method on the *instance* for this test
+        agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
+
+        # --- Execute Workflow ---
+        logger.info(f"Attempting to execute workflow for plan '{plan_name}'...")
+        result = await agent.execute_workflow(
+            user_message=user_message,
+            host_instance=host,
+            plan_name=plan_name,
+            tags=tags,
+            # anthropic_api_key is not needed here as _make_llm_call is mocked
+        )
+        logger.info(f"Execute workflow result: {result}")
+
+        # --- Assertions ---
+        assert result.get("error") is None, (
+            f"Workflow returned error: {result.get('error')}"
+        )
+        assert result.get("final_output") is not None, "Workflow final_output is None"
+        final_output = result.get("final_output", {})
+        assert final_output.get("success") is True, (
+            "Final output (save_plan result) indicates failure"
+        )
+        assert plan_name in final_output.get("message", "")
+
+        # Verify workflow steps log (basic check)
+        assert (
+            len(result.get("workflow_steps", [])) >= 4
+        )  # LLM Call, LLM Success, Tool Call, Tool Success
+        assert result["workflow_steps"][0]["action"] == "LLM Call (Generate Plan)"
+        assert result["workflow_steps"][1]["status"] == "Success"
+        assert result["workflow_steps"][2]["action"] == "Tool Call (save_plan)"
+        assert result["workflow_steps"][3]["status"] == "Success"
+
+        # Check mocks
+        agent._make_llm_call.assert_awaited_once()  # Ensure mocked LLM part was called
+
+        # Check file system for actual file creation by the real planning server
+        assert plan_file_path.exists(), (
+            f"Plan file {plan_file_path} was not created by the server"
+        )
+        assert meta_file_path.exists(), (
+            f"Meta file {meta_file_path} was not created by the server"
         )
 
         # --- Cleanup ---

@@ -1,22 +1,37 @@
-[
-  {
-    "client_id": "plan_creation",
-    "server_path": "src/agents/planning/planning_server.py",
-    "roots": [
-      {
-        "uri": "planning://",
-        "name": "Planning Root",
-        "capabilities": ["read", "write"]
-      },
-      {
-        "uri": "file://plans/",
-        "name": "Plan Storage",
-        "capabilities": ["read", "write"]
-      }
-    ],
-    "capabilities": ["tools", "prompts", "resources", "roots"],
-    "timeout": 30.0,
-    "routing_weight": 1.0,
-    "exclude": ["save_plan"]
-  }
-]
+{
+  "agents": [
+    {
+      "client_id": "planning",
+      "server_path": "src/agents/planning/planning_server.py",
+      "roots": [
+        {
+          "uri": "planning://",
+          "name": "Planning Root",
+          "capabilities": ["read", "write"]
+        },
+        {
+          "uri": "file://plans/",
+          "name": "Plan Storage",
+          "capabilities": ["read", "write"]
+        }
+      ],
+      "capabilities": ["tools", "prompts", "resources", "roots"],
+      "timeout": 30.0,
+      "routing_weight": 1.0
+    },
+    {
+      "client_id": "evaluation",
+      "server_path": "src/agents/evaluation/evaluation_server.py",
+      "roots": [
+        {
+          "uri": "file://evaluations/",
+          "name": "Evaluation Storage",
+          "capabilities": ["read", "write"]
+        }
+      ],
+      "capabilities": ["tools", "prompts", "resources", "roots"],
+      "timeout": 30.0,
+      "routing_weight": 1.0
+    }
+  ]
+}
