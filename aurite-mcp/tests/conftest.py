@@ -10,6 +10,16 @@ import logging
 import pytest
 import asyncio  # Added for event loop fixture
 
+# Import fixtures from the fixtures directory to make them discoverable
+# Note: Fixtures need to be imported, even if not directly used in conftest.py,
+# for pytest to find them when running tests in other files.
+from tests.fixtures.agent_fixtures import (
+    minimal_agent_config,  # noqa: F401
+    agent_config_with_llm_params,  # noqa: F401
+    agent_config_with_mock_host,  # noqa: F401
+)
+from tests.fixtures.host_fixtures import mock_host_config, mock_mcp_host, real_mcp_host  # noqa: F401
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")
 logger = logging.getLogger(__name__)

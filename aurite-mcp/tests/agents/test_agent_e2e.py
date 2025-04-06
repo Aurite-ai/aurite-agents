@@ -5,7 +5,6 @@ End-to-end tests for the Agent class, involving real MCPHost and client servers.
 import os
 import pytest
 import asyncio
-from pathlib import Path
 
 # Imports from the project
 from src.host.models import AgentConfig
@@ -13,11 +12,7 @@ from src.agents.agent import Agent
 from src.host.host import MCPHost
 
 # Import fixtures explicitly for discovery
-from tests.fixtures.host_fixtures import real_mcp_host
 
-# Assume the basic echo server is available for testing
-# Adjust path relative to aurite-mcp directory
-EXAMPLE_SERVER_PATH = Path("examples/basic/test_mcp_server.py")
 
 # --- Fixtures ---
 
