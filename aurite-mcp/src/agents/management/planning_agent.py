@@ -2,9 +2,7 @@
 Agent implementation for interacting with the Planning MCP Server.
 """
 
-import os
 import logging
-import anthropic
 from typing import Optional, List, Dict, Any
 from anthropic.types import MessageParam, TextBlock
 
