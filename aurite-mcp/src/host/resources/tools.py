@@ -61,17 +61,30 @@ class ToolManager:
         self._clients[client_id] = client_session
 
     async def register_tool(
-        self, tool_name: str, tool: types.Tool, client_id: str, capabilities: List[str]
+        self,
+        tool_name: str,
+        tool: types.Tool,
+        client_id: str,
+        capabilities: List[str],
+        exclude_list: Optional[List[str]] = None,
     ):
         """
-        Register a tool with its providing client and capabilities.
+        Register a tool with its providing client and capabilities, excluding specified ones.
 
         Args:
             tool_name: The name of the tool
             tool: The tool definition
             client_id: The ID of the client providing the tool
             capabilities: The capabilities of the tool
+            exclude_list: Optional list of tool names to exclude.
         """
+        # Check against exclude list first
+        if exclude_list and tool_name in exclude_list:
+            logger.debug(
+                f"Excluding tool '{tool_name}' for client {client_id} as per config."
+            )
+            return  # Skip registration
+
         # Store the tool
         self._tools[tool_name] = tool
 
@@ -118,14 +131,14 @@ class ToolManager:
 
             normalized_response = ToolsResponse(tools)
 
-            # Register each tool
-            for tool in tools:
-                await self.register_tool(
-                    tool_name=tool.name,
-                    tool=tool,
-                    client_id=client_id,
-                    capabilities=[],  # Will be updated by the host
-                )
+            # REMOVED: Registration loop is now handled by the host
+            # for tool in tools:
+            #     await self.register_tool(
+            #         tool_name=tool.name,
+            #         tool=tool,
+            #         client_id=client_id,
+            #         capabilities=[],
+            #     )
 
             return normalized_response
         except Exception as e:

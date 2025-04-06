@@ -127,9 +127,12 @@ class PromptManager:
         raise ValueError(f"Cannot convert {type(result_data)} to GetPromptResult")
 
     async def register_client_prompts(
-        self, client_id: str, prompts: Union[List[types.Prompt], List[Dict], List[str]]
+        self,
+        client_id: str,
+        prompts: Union[List[types.Prompt], List[Dict], List[str]],
+        exclude_list: Optional[List[str]] = None,
     ):
-        """Register prompts available from a client"""
+        """Register prompts available from a client, excluding specified ones."""
         logger.info(f"Registering prompts for client {client_id}")
 
         if client_id not in self._prompts:
@@ -138,6 +141,12 @@ class PromptManager:
         for prompt_data in prompts:
             try:
                 prompt = self._convert_to_prompt(prompt_data)
+                # Check against exclude list
+                if exclude_list and prompt.name in exclude_list:
+                    logger.debug(
+                        f"Excluding prompt '{prompt.name}' for client {client_id} as per config."
+                    )
+                    continue
                 self._prompts[client_id][prompt.name] = prompt
             except Exception as e:
                 logger.warning(f"Failed to register prompt {prompt_data}: {e}")

@@ -32,9 +32,12 @@ class ResourceManager:
         logger.info("Initializing resource manager")
 
     async def register_client_resources(
-        self, client_id: str, resources: List[types.Resource]
+        self,
+        client_id: str,
+        resources: List[types.Resource],
+        exclude_list: Optional[List[str]] = None,
     ):
-        """Register resources available from a client"""
+        """Register resources available from a client, excluding specified ones."""
         logger.info(
             f"Registering resources for client {client_id}: {[str(r.uri) for r in resources]}"
         )
@@ -43,6 +46,12 @@ class ResourceManager:
             self._resources[client_id] = {}
 
         for resource in resources:
+            # Check against exclude list using resource.name
+            if exclude_list and resource.name and resource.name in exclude_list:
+                logger.debug(
+                    f"Excluding resource '{resource.name}' (URI: {resource.uri}) for client {client_id} as per config."
+                )
+                continue
             self._resources[client_id][str(resource.uri)] = resource
 
     async def get_resource(self, uri: str, client_id: str) -> Optional[types.Resource]:

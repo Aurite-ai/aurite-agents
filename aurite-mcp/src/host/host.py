@@ -191,20 +191,21 @@ class MCPHost:
                         tool=tool,
                         client_id=config.client_id,
                         capabilities=config.capabilities,
+                        exclude_list=config.exclude,
                     )
 
             # Initialize prompts if supported
             if "prompts" in config.capabilities:
                 prompts_response = await session.list_prompts()
                 await self._prompt_manager.register_client_prompts(
-                    config.client_id, prompts_response.prompts
+                    config.client_id, prompts_response.prompts, config.exclude
                 )
 
             # Initialize resources if supported
             if "resources" in config.capabilities:
                 resources_response = await session.list_resources()
                 await self._resource_manager.register_client_resources(
-                    config.client_id, resources_response.resources
+                    config.client_id, resources_response.resources, config.exclude
                 )
 
             logger.info(

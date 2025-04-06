@@ -8,7 +8,7 @@ This module provides:
 """
 
 import logging
-from typing import List, TypeVar
+from typing import List, TypeVar, Optional
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -35,6 +35,9 @@ class ClientConfig(BaseModel):
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
     routing_weight: float = 1.0  # Weight for server selection
+    exclude: Optional[List[str]] = (
+        None  # List of component names (prompt, resource, tool) to exclude
+    )
 
 
 class HostConfig(BaseModel):
