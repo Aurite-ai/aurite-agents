@@ -16,6 +16,7 @@ This follows the recent project refactoring and cleanup efforts.
 *   **Readability & Maintainability:** Structure tests and fixtures logically.
 *   **Effective Async Handling:** Implement consistent patterns for managing asyncio event loops and operations within tests.
 *   **Minimal Setup:** Avoid unnecessary global setup; fixtures should provide only what's needed for a specific test or module.
+*   **Configuration Consistency:** Utilize the same configuration loading mechanisms (where appropriate) in tests as in the main application.
 
 ## 3. Proposed Structure and Components
 
@@ -67,8 +68,17 @@ tests/
 *   **`host_fixtures.py`:** Fixtures for creating `HostConfig`, potentially a mocked `MCPHost`, or even a fully initialized `MCPHost` with specific mock/real clients (scoped appropriately, e.g., `function` or `module`).
 *   **`agent_fixtures.py`:** Fixtures for creating `AgentConfig` instances (minimal, with params, etc.), potentially pre-initialized `Agent` instances using host fixtures.
 *   **`servers/`:** Fixtures that can start/stop actual test MCP servers (like the echo server) for integration/e2e tests. These should handle process management and cleanup.
+*   **JSON Configuration Loading:** Fixtures (especially for integration/e2e tests) should leverage a shared utility function to load `HostConfig` from dedicated JSON files (e.g., `config/agents/testing_config.json`) mirroring the application's approach.
 
-### 3.4. `conftest.py`
+### 3.4. Configuration Loading Utility (`src/config.py`)
+
+*   **Goal:** Centralize the logic for parsing JSON configuration files into Pydantic `HostConfig` objects.
+*   **Implementation:**
+    *   Refactor the JSON parsing and `HostConfig` instantiation logic currently in `src/main.py::lifespan` into a reusable function within `src/config.py` (e.g., `load_host_config_from_json(config_path: Path) -> HostConfig`).
+    *   This function must handle resolving relative paths for `server_path` within the JSON, likely relative to the project's root directory (`aurite-mcp`).
+*   **Usage:** Both `src/main.py` and test fixtures requiring a `HostConfig` from a file will call this utility function.
+
+### 3.5. `conftest.py`
 
 *   **Goal:** Define project-wide configurations, hooks, and potentially very core, universally used fixtures.
 *   **Avoid:** Heavy session-scoped fixtures like initializing a full `MCPHost`, as not all tests need it. This slows down test collection and execution.
@@ -112,10 +122,12 @@ tests/
 2.  **Create `tests/fixtures/`:** Define core fixtures for `AgentConfig`, `HostConfig`, potentially mock `MCPHost`, etc. Refactor tests to use these fixtures.
 3.  **Refactor `conftest.py`:** Define the event loop scope explicitly. Move any overly broad fixtures out. Add marker definitions if not using `pyproject.toml`.
 4.  **Address Async Issues:** Review the `real_mcp_host` fixture and `MCPHost.shutdown` for correct async context management, potentially adjusting the fixture scope or teardown logic.
-5.  **Apply Markers:** Add `@pytest.mark.unit/integration/e2e` to existing tests.
-6.  **(Optional) Configure `pyproject.toml`:** Add pytest settings.
-7.  **Refactor Existing Tests:** Update `test_agent.py`, `test_agent_e2e.py`, `test_exclusion.py` to align with the new structure, fixtures, and mocks.
-8.  **Fix `test_agent_e2e.py`:** Re-run and debug the e2e test using the improved infrastructure.
+5.  **Refactor Config Loading:** Create the `load_host_config_from_json` utility in `src/config.py` by moving logic from `src/main.py`. Update `main.py` to use the new utility.
+6.  **Update Fixtures:** Modify host fixtures (in `tests/fixtures/host_fixtures.py`) to use the new config loading utility and potentially a `testing_config.json`.
+7.  **Apply Markers:** Add `@pytest.mark.unit/integration/e2e` to existing tests.
+8.  **(Optional) Configure `pyproject.toml`:** Add pytest settings.
+9.  **Refactor Existing Tests:** Update `test_agent.py`, `test_agent_e2e.py`, `test_exclusion.py` to align with the new structure, fixtures, and mocks.
+10. **Fix `test_agent_e2e.py`:** Re-run and debug the e2e test using the improved infrastructure.
 
 ## 5. Next Steps
 

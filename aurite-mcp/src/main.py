@@ -151,7 +151,6 @@ async def lifespan(app: FastAPI):
                 )
                 for agent in host_config_data.get("agents", [])  # Use .get for safety
             ]
-            # Removed reading host-specific settings (like enable_memory) from JSON
 
             # Create the HostConfig Pydantic model
             host_pydantic_config = HostConfig(clients=client_configs)
