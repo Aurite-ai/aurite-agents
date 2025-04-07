@@ -55,7 +55,9 @@ class AgentConfig(BaseModel):
     # Optional name for the agent instance
     name: Optional[str] = None
     # Link to the Host configuration defining available clients/capabilities
-    host: Optional[HostConfig] = None
+    # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
+    # List of client IDs this agent is allowed to use (for host filtering)
+    client_ids: Optional[List[str]] = None
     # Agent-specific LLM parameters (override host/defaults if provided)
     system_prompt: Optional[str] = None
     model: Optional[str] = None

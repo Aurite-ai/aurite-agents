@@ -11,10 +11,14 @@ import secrets  # For safe comparison
 from fastapi import FastAPI, HTTPException, Request, Depends, Security
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError  # Added BaseModel
 import uvicorn
 
 from src.host.host import MCPHost
+
+# Import Agent for type hinting if needed later, and AgentConfig
+from src.agents.agent import Agent
+from src.host.models import AgentConfig
 
 # Import the new ServerConfig and the loading utility
 from src.config import ServerConfig, load_host_config_from_json
@@ -103,15 +107,16 @@ async def lifespan(app: FastAPI):
         # Load server config
         server_config = get_server_config()
 
-        # Load host config using the utility function from src.config
+        # Load host and agent configs using the utility function from src.config
         # The utility handles path resolution and validation
-        host_pydantic_config = load_host_config_from_json(
+        host_pydantic_config, agent_configs_dict = load_host_config_from_json(
             server_config.HOST_CONFIG_PATH
         )
 
-        # Initialize MCPHost
+        # Initialize MCPHost, passing the loaded agent configurations
         host_instance = MCPHost(
             config=host_pydantic_config,
+            agent_configs=agent_configs_dict,  # Pass loaded agent configs
             encryption_key=server_config.ENCRYPTION_KEY,
         )
         await (
@@ -119,8 +124,9 @@ async def lifespan(app: FastAPI):
         )  # This should handle workflow registration based on config now
         logger.info("MCPHost initialized successfully.")
 
-        # Store host instance in app state
+        # Store host instance and agent configs in app state
         app.state.mcp_host = host_instance
+        app.state.agent_configs = agent_configs_dict  # Store loaded agent configs
 
         yield  # Server runs here
 
@@ -137,6 +143,7 @@ async def lifespan(app: FastAPI):
         raise  # Re-raise the original exception to prevent server from starting improperly
     finally:
         # Shutdown MCPHost on application exit
+        # No changes needed here, host shutdown remains the same
         final_host_instance = getattr(app.state, "mcp_host", None)
         if final_host_instance:
             logger.info("Shutting down MCPHost...")
@@ -147,6 +154,9 @@ async def lifespan(app: FastAPI):
                 logger.error(f"Error during MCPHost shutdown: {e}")
         else:
             logger.info("MCPHost was not initialized or already shut down.")
+        # Clear agent configs from state as well
+        if hasattr(app.state, "agent_configs"):
+            del app.state.agent_configs
         logger.info("FastAPI server shutdown sequence complete.")
 
 
@@ -189,7 +199,14 @@ app.add_middleware(
 )
 
 
-# Define request models - Removed PreparePromptRequest, ExecutePromptRequest, ExecuteWorkflowRequest
+# --- Request/Response Models ---
+class ExecuteAgentRequest(BaseModel):
+    """Request body for executing a named agent."""
+
+    user_message: str
+
+
+# No explicit response model needed, as Agent.execute_agent returns a Dict
 
 
 # --- Health Check Endpoint ---
@@ -212,6 +229,51 @@ async def get_status(
 # Removed /prepare_prompt endpoint
 # Removed /execute_prompt endpoint
 # Removed /execute_workflow endpoint
+
+
+@app.post("/agents/{agent_name}/execute")
+async def execute_agent_endpoint(
+    agent_name: str,
+    request_body: ExecuteAgentRequest,
+    api_key: str = Depends(get_api_key),
+    host: MCPHost = Depends(get_mcp_host),
+):
+    """
+    Executes a configured agent by name with the provided user message.
+    """
+    logger.info(f"Received request to execute agent: {agent_name}")
+    try:
+        # 1. Retrieve AgentConfig from host (using method added in Phase 2)
+        agent_config = host.get_agent_config(agent_name)
+        logger.debug(f"Found AgentConfig for '{agent_name}'")
+
+        # 2. Instantiate the Agent
+        agent = Agent(config=agent_config)
+        logger.debug(f"Instantiated Agent '{agent_name}'")
+
+        # 3. Extract client_ids for filtering
+        filter_ids = agent_config.client_ids
+        logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
+
+        # 4. Execute the agent
+        result = await agent.execute_agent(
+            user_message=request_body.user_message,
+            host_instance=host,
+            filter_client_ids=filter_ids,  # Pass the filter list
+        )
+        logger.info(f"Agent '{agent_name}' execution finished successfully.")
+        return result
+
+    except KeyError:
+        logger.warning(f"Agent configuration not found for name: {agent_name}")
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    except Exception as e:
+        logger.error(f"Error during agent '{agent_name}' execution: {e}", exc_info=True)
+        # Consider more specific error handling based on potential exceptions
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error during agent execution: {str(e)}",
+        )
 
 
 def start():

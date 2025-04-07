@@ -1,23 +1,43 @@
 {
+  "name": "DefaultMCPHost",
   "clients": [
     {
-      "client_id": "planning",
-      "server_path": "src/agents/planning/planning_server.py",
-      "roots": [
-        {
-          "uri": "planning://",
-          "name": "Planning Root",
-          "capabilities": ["read", "write"]
-        },
-        {
-          "uri": "file://plans/",
-          "name": "Plan Storage",
-          "capabilities": ["read", "write"]
-        }
-      ],
-      "capabilities": ["tools", "prompts", "resources", "roots"],
-      "timeout": 30.0,
-      "routing_weight": 1.0
+      "client_id": "weather_server",
+      "server_path": "tests/fixtures/servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "client_id": "planning_server",
+      "server_path": "src/servers/management/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    }
+  ],
+  "agents": [
+    {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "client_ids": ["weather_fixture"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
+      "client_ids": ["weather_server", "planning_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
     }
   ]
 }

@@ -30,11 +30,19 @@ CLIENT_C = "client-c"
 @pytest.fixture
 def mock_managers() -> Dict[str, Mock]:
     """Provides mocked manager instances."""
+    # Create the router mock separately to configure it
+    router_mock = AsyncMock(spec=MessageRouter)
+    # Explicitly add the methods expected by the tests to the mock
+    # We need get_clients_for_tool, get_clients_for_prompt, AND get_clients_for_resource
+    router_mock.get_clients_for_tool = AsyncMock()
+    router_mock.get_clients_for_prompt = AsyncMock()
+    router_mock.get_clients_for_resource = AsyncMock()  # Add the missing one
+
     return {
         "tool_manager": AsyncMock(spec=ToolManager),
         "prompt_manager": AsyncMock(spec=PromptManager),
         "resource_manager": AsyncMock(spec=ResourceManager),
-        "message_router": AsyncMock(spec=MessageRouter),
+        "message_router": router_mock,  # Use the configured mock
         "root_manager": AsyncMock(spec=FoundationRootManager),
         "security_manager": AsyncMock(spec=SecurityManager),
     }

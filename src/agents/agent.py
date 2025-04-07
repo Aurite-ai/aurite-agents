@@ -108,20 +108,23 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
+        filter_client_ids: Optional[List[str]] = None,  # Added filter parameter
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
-        provided MCP Host and all its available tools in a multi-turn conversation.
+        provided MCP Host and potentially a filtered set of its available tools
+        in a multi-turn conversation.
 
         This method orchestrates the interaction with the LLM, including prompt
-        preparation, tool definition using all host tools, and handling tool calls based on the
-        agent's configuration and the host's capabilities.
+        preparation, tool definition, and handling tool calls based on the
+        agent's configuration and the host's capabilities within the specified filter.
 
         Args:
             user_message: The input message or task description from the user.
             host_instance: The instantiated MCPHost to use for accessing prompts,
                            resources, and tools.
-            # anthropic_api_key: Removed parameter
+            filter_client_ids: Optional list of client IDs to restrict tool usage to.
+                               If None, all tools from the host are available.
 
         Returns:
             A dictionary containing the conversation history and final response.
@@ -160,11 +163,20 @@ class Agent:
             f"Using system prompt: '{system_prompt[:100]}...'"
         )  # Log truncated prompt
 
-        # Prepare Tools (Using Host's ToolManager) - Renumbered step
-        # For now, include all tools available via the host.
-        # TODO: Add option to specify tool_names if needed later.
-        tools_data = host_instance.tools.format_tools_for_llm()
+        # Prepare Tools (Using Host's ToolManager, potentially filtered) - Renumbered step
+        # TODO: Enhance format_tools_for_llm to accept filter_client_ids if needed,
+        #       or rely on execute_tool filtering. For now, format all tools known to host.
+        #       The filtering primarily happens during *execution*.
+        all_tools_data = host_instance.tools.format_tools_for_llm()
+        # Filter tools presented to LLM based on filter_client_ids?
+        # This is complex as format_tools_for_llm doesn't know client source.
+        # Let's rely on execute_tool filtering for now and present all tools.
+        tools_data = all_tools_data  # Use all tools for now
         logger.debug(f"Formatted tools for LLM: {[t['name'] for t in tools_data]}")
+        if filter_client_ids:
+            logger.debug(
+                f"Agent execution will filter tool calls to clients: {filter_client_ids}"
+            )
 
         # Initialize Message History - Renumbered step
         # TODO: Implement history loading/management if include_history is True
@@ -237,10 +249,15 @@ class Agent:
                     )
                     try:
                         # ToolManager.execute_tool is async
-                        tool_result_content = await host_instance.tools.execute_tool(
-                            tool_name=tool_use.name, arguments=tool_use.input
+                        # Pass the filter_client_ids down to the host's execute_tool method
+                        tool_result_content = await host_instance.execute_tool(
+                            tool_name=tool_use.name,
+                            arguments=tool_use.input,
+                            filter_client_ids=filter_client_ids,  # Pass filter
                         )
-                        logger.info(f"Tool '{tool_use.name}' executed successfully.")
+                        logger.info(
+                            f"Tool '{tool_use.name}' executed successfully (within filter)."
+                        )
 
                         # Use ToolManager to format the tool result block
                         tool_result_block = (

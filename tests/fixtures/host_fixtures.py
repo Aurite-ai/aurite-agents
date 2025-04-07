@@ -66,11 +66,15 @@ async def real_mcp_host() -> MCPHost:
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Load host config using the utility function
+    # Load host and agent configs using the utility function
     try:
-        host_config = load_host_config_from_json(test_config_path)
+        # Unpack the tuple, we only need host_config for this fixture
+        host_config, _ = load_host_config_from_json(test_config_path)
         # Ensure the loaded config has the expected client for the test server
-        # This assumes echo_server_fixture.py is correctly referenced in testing_config.json
+        # This assumes weather_mcp_server.py is correctly referenced in testing_config.json
+        # Check if clients list is not empty before accessing index 0
+        if not host_config.clients:
+            pytest.fail("Testing config loaded, but 'clients' list is empty.")
         server_path_in_config = host_config.clients[0].server_path
         if not server_path_in_config.exists():
             pytest.skip(

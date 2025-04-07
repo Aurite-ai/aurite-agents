@@ -15,10 +15,7 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager, MessageRouter
-from .models import (
-    HostConfig,
-    ClientConfig,
-)
+from .models import HostConfig, ClientConfig, AgentConfig  # Added AgentConfig
 
 
 # Resource management layer
@@ -31,11 +28,16 @@ class MCPHost:
     """
     The MCP Host manages connections to configured MCP servers (clients) and provides
     a unified interface for interacting with their capabilities (tools, prompts, resources)
-    via dedicated managers. It serves as the core infrastructure layer used by higher-level
-    components like the Agent framework.
+    via dedicated managers. It also stores configurations for named agents.
+    It serves as the core infrastructure layer used by higher-level components.
     """
 
-    def __init__(self, config: HostConfig, encryption_key: Optional[str] = None):
+    def __init__(
+        self,
+        config: HostConfig,
+        agent_configs: Optional[Dict[str, AgentConfig]] = None,  # Added agent_configs
+        encryption_key: Optional[str] = None,
+    ):
         # Layer 1: Foundation layer
         self._security_manager = SecurityManager(encryption_key=encryption_key)
         self._root_manager = RootManager()
@@ -52,6 +54,7 @@ class MCPHost:
 
         # State management
         self._config = config
+        self._agent_configs = agent_configs or {}  # Store agent configs
         self._clients: Dict[str, ClientSession] = {}
         self._exit_stack = AsyncExitStack()
 
@@ -295,7 +298,24 @@ class MCPHost:
             # but returning None defensively.
             logger.error(f"Could not determine client for prompt '{prompt_name}'.")
             return None
-        # Removed duplicated else block here
+
+    def get_agent_config(self, agent_name: str) -> AgentConfig:
+        """
+        Retrieves the configuration for a specific agent by name.
+
+        Args:
+            agent_name: The name of the agent whose configuration is needed.
+
+        Returns:
+            The AgentConfig object for the specified agent.
+
+        Raises:
+            KeyError: If no agent with the given name is found.
+        """
+        if agent_name not in self._agent_configs:
+            logger.error(f"Agent configuration not found for name: {agent_name}")
+            raise KeyError(f"Agent configuration not found for name: {agent_name}")
+        return self._agent_configs[agent_name]
 
     async def execute_tool(
         self,
@@ -503,5 +523,8 @@ class MCPHost:
         logger.info("Shutting down foundation layer...")
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
+
+        # Clear stored agent configs
+        self._agent_configs.clear()
 
         logger.info("MCP Host shutdown complete")
