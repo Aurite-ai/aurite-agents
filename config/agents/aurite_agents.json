@@ -18,20 +18,6 @@
       "capabilities": ["tools", "prompts", "resources", "roots"],
       "timeout": 30.0,
       "routing_weight": 1.0
-    },
-    {
-      "client_id": "evaluation",
-      "server_path": "src/agents/evaluation/evaluation_server.py",
-      "roots": [
-        {
-          "uri": "file://evaluations/",
-          "name": "Evaluation Storage",
-          "capabilities": ["read", "write"]
-        }
-      ],
-      "capabilities": ["tools", "prompts", "resources", "roots"],
-      "timeout": 30.0,
-      "routing_weight": 1.0
     }
   ]
 }

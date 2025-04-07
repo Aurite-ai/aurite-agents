@@ -108,7 +108,6 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
-        # anthropic_api_key: Optional[str] = None, # Removed parameter
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the

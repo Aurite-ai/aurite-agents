@@ -15,15 +15,12 @@ from mcp import (
 import mcp.types as types
 
 # Foundation layer
-from .foundation import SecurityManager, RootManager
+from .foundation import SecurityManager, RootManager, MessageRouter
 from .models import (
     HostConfig,
     ClientConfig,
 )  # Renamed config.py to models.py
 
-# Communication layer
-# Removed TransportManager import as it's unused and will be deleted
-from .communication import MessageRouter
 
 # Resource management layer
 from .resources import PromptManager, ResourceManager, ToolManager

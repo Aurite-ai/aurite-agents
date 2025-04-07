@@ -65,8 +65,6 @@ def event_loop(request):
 
 # --- Utility Fixtures ---
 
-# Removed mock_mcp_host fixture (moved to tests/fixtures/host_fixtures.py)
-
 
 @pytest.fixture
 def parse_json_result():

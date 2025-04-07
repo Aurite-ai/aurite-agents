@@ -15,8 +15,7 @@ import asyncio
 import mcp.types as types
 
 # Import from lower layers for dependencies
-from ..foundation import RootManager
-from ..communication import MessageRouter
+from ..foundation import RootManager, MessageRouter
 
 logger = logging.getLogger(__name__)
 
