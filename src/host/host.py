@@ -2,7 +2,7 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
-from typing import Dict, Optional, Any  # Removed Union
+from typing import Dict, Optional, Any, List
 import logging
 from contextlib import AsyncExitStack
 
@@ -18,14 +18,11 @@ from .foundation import SecurityManager, RootManager, MessageRouter
 from .models import (
     HostConfig,
     ClientConfig,
-)  # Renamed config.py to models.py
+)
 
 
 # Resource management layer
 from .resources import PromptManager, ResourceManager, ToolManager
-
-# Agent layer - Removed WorkflowManager import
-# from .agent import WorkflowManager
 
 logger = logging.getLogger(__name__)
 
@@ -198,20 +195,16 @@ class MCPHost:
             logger.error(f"Failed to initialize client {config.client_id}: {e}")
             raise
 
-    # prepare_prompt_with_tools method removed.
-    # Logic moved to Agent.execute in src/agents/agent.py
-
-    # execute_prompt_with_tools method removed.
-    # Logic moved to Agent.execute in src/agents/agent.py
-
     async def get_prompt(
         self,
         prompt_name: str,
         arguments: Dict[str, Any],  # Kept for potential future use by manager
         client_name: Optional[str] = None,
+        filter_client_ids: Optional[List[str]] = None,  # Added filter parameter
     ) -> Optional[types.Prompt]:  # Manager returns Prompt object or None
         """
-        Gets a specific prompt template definition, discovering the client if necessary.
+        Gets a specific prompt template definition, discovering the client if necessary,
+        optionally filtering by a list of allowed client IDs.
 
         Note: This retrieves the prompt *template definition* (mcp.types.Prompt).
               Executing a prompt (which involves an LLM call) is handled
@@ -227,33 +220,63 @@ class MCPHost:
                        and consistency).
             client_name: Optional specific client ID to get the prompt from.
                          If None, the host will attempt to find a unique client
-                         providing the prompt.
+                         providing the prompt within the filter.
+            filter_client_ids: Optional list of client IDs to restrict the search/retrieval to.
 
         Returns:
             The Prompt definition object, or None if not found.
 
         Raises:
             ValueError: If client_name is None and the prompt is not found or
-                        is found on multiple clients (ambiguous).
+                        is found on multiple clients within the filter (ambiguous).
+            ValueError: If client_name is specified but is not in filter_client_ids (if provided).
         """
-        target_client_id = client_name
-        if not target_client_id:
-            logger.info(
-                f"Discovering client for prompt '{prompt_name}' before retrieval..."
+        target_client_id: Optional[str] = None
+
+        if client_name:
+            # If specific client is requested, check filter first
+            if filter_client_ids and client_name not in filter_client_ids:
+                raise ValueError(
+                    f"Specified client '{client_name}' is not in the allowed filter list."
+                )
+            # Check if the specified client actually provides the prompt (manager check)
+            # Note: get_prompt itself will return None if client doesn't have it,
+            # but we could add an explicit check using get_clients_for_prompt if needed for clarity.
+            target_client_id = client_name
+        else:
+            # Discover clients
+            logger.info(f"Discovering client for prompt '{prompt_name}'...")
+            # Call the correct manager (MessageRouter) and await
+            all_providing_clients = await self._message_router.get_clients_for_prompt(
+                prompt_name
             )
-            providing_clients = self.prompts.get_clients_for_prompt(prompt_name)
+
+            # Apply filter if provided
+            if (
+                filter_client_ids is not None
+            ):  # Check for None explicitly, empty list is a valid filter
+                providing_clients = [
+                    cid for cid in all_providing_clients if cid in filter_client_ids
+                ]
+                logger.debug(
+                    f"Filtered potential clients {all_providing_clients} to {providing_clients} using filter {filter_client_ids}"
+                )
+            else:
+                providing_clients = all_providing_clients
 
             if not providing_clients:
                 logger.warning(
-                    f"Prompt '{prompt_name}' not found on any registered client."
+                    f"Prompt '{prompt_name}' not found on any registered client"
+                    f"{' matching the filter' if filter_client_ids is not None else ''}."
                 )
                 return None
             elif len(providing_clients) > 1:
                 raise ValueError(
-                    f"Prompt '{prompt_name}' is ambiguous; found on multiple clients: "
+                    f"Prompt '{prompt_name}' is ambiguous within the filter; found on multiple clients: "
                     f"{providing_clients}. Specify a client_name."
                 )
             else:
+                # Exactly one client found (either overall or within the filter)
                 target_client_id = providing_clients[0]
                 logger.info(
                     f"Found unique client '{target_client_id}' for prompt '{prompt_name}'."
@@ -279,66 +302,100 @@ class MCPHost:
         tool_name: str,
         arguments: Dict[str, Any],
         client_name: Optional[str] = None,
+        filter_client_ids: Optional[List[str]] = None,  # Added filter parameter
     ) -> Any:
         """
-        Executes a tool, either on a specific client or by discovering a unique client.
+        Executes a tool, either on a specific client or by discovering a unique client,
+        optionally filtering by a list of allowed client IDs.
 
         Args:
             tool_name: The name of the tool to execute.
             arguments: The arguments to pass to the tool.
             client_name: Optional specific client ID to execute the tool on.
                          If None, the host will attempt to find a unique client
-                         providing the tool.
+                         providing the tool within the filter.
+            filter_client_ids: Optional list of client IDs to restrict the search/execution to.
 
         Returns:
             The result from the tool execution (typically List[TextContent]).
 
         Raises:
             ValueError: If client_name is None and the tool is not found or
-                        is found on multiple clients (ambiguous).
+                        is found on multiple clients within the filter (ambiguous).
+            ValueError: If client_name is specified but is not in filter_client_ids (if provided).
             Exception: Any exception raised during the underlying tool execution.
         """
+        target_client_id: Optional[str] = None
+
         if client_name:
-            # Direct execution on specified client
+            # If specific client is requested, check filter first
+            if filter_client_ids and client_name not in filter_client_ids:
+                raise ValueError(
+                    f"Specified client '{client_name}' is not in the allowed filter list."
+                )
+            # We also need ToolManager to verify this client provides the tool
+            target_client_id = client_name
             logger.info(
-                f"Executing tool '{tool_name}' on specified client '{client_name}'"
-            )
-            return await self.tools.execute_tool(
-                client_name=client_name, tool_name=tool_name, arguments=arguments
+                f"Executing tool '{tool_name}' on specified client '{target_client_id}'"
             )
         else:
-            # Discover client providing the tool
-            logger.info(
-                f"Discovering client for tool '{tool_name}' before execution..."
+            # Discover clients
+            logger.info(f"Discovering client for tool '{tool_name}'...")
+            # Call the correct manager (MessageRouter) and await
+            all_providing_clients = await self._message_router.get_clients_for_tool(
+                tool_name
             )
-            providing_clients = self.tools.get_clients_for_tool(tool_name)
+
+            # Apply filter if provided
+            if filter_client_ids is not None:
+                providing_clients = [
+                    cid for cid in all_providing_clients if cid in filter_client_ids
+                ]
+                logger.debug(
+                    f"Filtered potential clients {all_providing_clients} to {providing_clients} using filter {filter_client_ids}"
+                )
+            else:
+                providing_clients = all_providing_clients
 
             if not providing_clients:
                 raise ValueError(
-                    f"Tool '{tool_name}' not found on any registered client."
+                    f"Tool '{tool_name}' not found on any registered client"
+                    f"{' matching the filter' if filter_client_ids is not None else ''}."
                 )
             elif len(providing_clients) > 1:
-                # TODO: Future enhancement - allow selection strategy (e.g., based on weight)
                 raise ValueError(
-                    f"Tool '{tool_name}' is ambiguous; found on multiple clients: "
+                    f"Tool '{tool_name}' is ambiguous within the filter; found on multiple clients: "
                     f"{providing_clients}. Specify a client_name."
                 )
             else:
-                unique_client_id = providing_clients[0]
+                # Exactly one client found
+                target_client_id = providing_clients[0]
                 logger.info(
-                    f"Executing tool '{tool_name}' on uniquely found client '{unique_client_id}'"
-                )
-                return await self.tools.execute_tool(
-                    client_name=unique_client_id,
-                    tool_name=tool_name,
-                    arguments=arguments,
+                    f"Executing tool '{tool_name}' on uniquely found client '{target_client_id}'"
                 )
 
+        # Ensure we have a target client ID before calling manager
+        if not target_client_id:
+            raise ValueError(
+                f"Could not determine target client for tool '{tool_name}'."
+            )  # Should be unreachable
+
+        # Call the ToolManager's execute_tool, passing the determined client_name
+        return await self.tools.execute_tool(
+            client_name=target_client_id,  # Pass the determined client
+            tool_name=tool_name,
+            arguments=arguments,
+        )
+
     async def read_resource(
-        self, uri: str, client_name: Optional[str] = None
+        self,
+        uri: str,
+        client_name: Optional[str] = None,
+        filter_client_ids: Optional[List[str]] = None,  # Added filter parameter
     ) -> Optional[types.Resource]:
         """
-        Gets a specific resource definition, discovering the client if necessary.
+        Gets a specific resource definition, discovering the client if necessary,
+        optionally filtering by a list of allowed client IDs.
 
         Note: This retrieves the resource *definition* (mcp.types.Resource),
               not the actual resource content. Reading content requires direct
@@ -348,50 +405,80 @@ class MCPHost:
             uri: The URI of the resource to read.
             client_name: Optional specific client ID to read the resource from.
                          If None, the host will attempt to find a unique client
-                         providing the resource.
+                         providing the resource within the filter.
+            filter_client_ids: Optional list of client IDs to restrict the search/retrieval to.
 
         Returns:
             The Resource definition object, or None if not found.
 
         Raises:
             ValueError: If client_name is None and the resource URI is not found or
-                        is found on multiple clients (ambiguous).
+                        is found on multiple clients within the filter (ambiguous).
+            ValueError: If client_name is specified but is not in filter_client_ids (if provided).
             Exception: Any exception raised during the underlying resource reading.
-                       (Note: The manager's get_resource currently doesn't read,
-                        it just returns the registered Resource object. Reading
-                        happens via session.read_resource, which isn't wrapped here yet).
+                       (Note: This method only gets the definition, not content).
         """
         uri_str = str(uri)  # Ensure string comparison
+        target_client_id: Optional[str] = None
+
         if client_name:
-            logger.info(
-                f"Getting resource definition '{uri_str}' from specified client '{client_name}'"
-            )
-            # Note: Manager's get_resource returns the *registered* definition.
-            return await self.resources.get_resource(uri=uri_str, client_id=client_name)
+            # If specific client is requested, check filter first
+            if filter_client_ids and client_name not in filter_client_ids:
+                raise ValueError(
+                    f"Specified client '{client_name}' is not in the allowed filter list."
+                )
+            # We assume ResourceManager.get_resource will return None if client doesn't have it.
+            target_client_id = client_name
         else:
-            logger.info(
-                f"Discovering client for resource '{uri_str}' before retrieval..."
+            # Discover clients
+            logger.info(f"Discovering client for resource '{uri_str}'...")
+            # Call the correct manager (MessageRouter) and await
+            all_providing_clients = await self._message_router.get_clients_for_resource(
+                uri_str
             )
-            providing_clients = self.resources.get_clients_for_resource(uri_str)
+
+            # Apply filter if provided
+            if filter_client_ids is not None:
+                providing_clients = [
+                    cid for cid in all_providing_clients if cid in filter_client_ids
+                ]
+                logger.debug(
+                    f"Filtered potential clients {all_providing_clients} to {providing_clients} using filter {filter_client_ids}"
+                )
+            else:
+                providing_clients = all_providing_clients
 
             if not providing_clients:
                 logger.warning(
-                    f"Resource definition '{uri_str}' not found on any registered client."
+                    f"Resource definition '{uri_str}' not found on any registered client"
+                    f"{' matching the filter' if filter_client_ids is not None else ''}."
                 )
-                return None
+                return None  # Return None if not found
             elif len(providing_clients) > 1:
                 raise ValueError(
-                    f"Resource URI '{uri_str}' is ambiguous; found on multiple clients: "
+                    f"Resource URI '{uri_str}' is ambiguous within the filter; found on multiple clients: "
                     f"{providing_clients}. Specify a client_name."
                 )
             else:
-                unique_client_id = providing_clients[0]
+                # Exactly one client found
+                target_client_id = providing_clients[0]
                 logger.info(
-                    f"Getting resource definition '{uri_str}' from uniquely found client '{unique_client_id}'"
+                    f"Found unique client '{target_client_id}' for resource '{uri_str}'."
                 )
-                return await self.resources.get_resource(
-                    uri=uri_str, client_id=unique_client_id
-                )
+
+        # Ensure we have a target client ID before calling manager
+        if not target_client_id:
+            # Should be unreachable if logic above is correct and resource exists
+            logger.error(f"Could not determine target client for resource '{uri_str}'.")
+            return None
+
+        # Call the ResourceManager's get_resource
+        logger.info(
+            f"Getting resource definition '{uri_str}' from client '{target_client_id}'"
+        )
+        return await self.resources.get_resource(
+            uri=uri_str, client_id=target_client_id
+        )
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""

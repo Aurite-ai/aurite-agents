@@ -7,7 +7,7 @@
 
 ---
 
-## Phase 1: Documentation Update
+## Phase 1: Documentation Update [COMPLETED]
 
 **Objective:** Bring core documentation in line with the current architecture.
 
@@ -25,7 +25,7 @@
     *   Remove discussion points related to already removed components. Add new points if necessary based on the current state.
 3.  **Review `tests/README.md`:** Ensure it accurately reflects the current testing setup, fixtures, and known issues (like the `real_mcp_host` teardown). Make minor updates if needed.
 
-## Phase 2: Code Cleanup & Simplification
+## Phase 2: Code Cleanup & Simplification [COMPLETED]
 
 **Objective:** Improve code clarity, remove dead code, and ensure consistency after the refactor.
 
@@ -46,7 +46,7 @@
 4.  **Review `src/host/models.py`:**
     *   Ensure Pydantic models are well-defined and accurately represent the configuration structure.
 
-## Phase 3: Test Review & Refinement
+## Phase 3: Test Review & Refinement [COMPLETED]
 
 **Objective:** Ensure tests are relevant, clear, and effectively cover the refactored codebase.
 
@@ -56,7 +56,7 @@
 4.  **Improve Test Clarity:** Refactor tests for better readability and maintainability where needed.
 5.  **(Optional/Deferred):** Investigate the `real_mcp_host` teardown issue if time permits or if it becomes blocking, but prioritize other phases first as it's marked `xfail`.
 
-## Phase 4: Implement MCPHost Filtering Feature
+## Phase 4: Implement MCPHost Filtering Feature [WIP]
 
 **Objective:** Allow `MCPHost` convenience methods to operate on a specified subset of clients.
 
