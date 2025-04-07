@@ -18,7 +18,6 @@ from src.host.host import MCPHost
 
 # Import Agent for type hinting if needed later, and AgentConfig
 from src.agents.agent import Agent
-from src.host.models import AgentConfig
 
 # Import the new ServerConfig and the loading utility
 from src.config import ServerConfig, load_host_config_from_json

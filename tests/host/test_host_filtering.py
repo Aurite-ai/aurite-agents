@@ -8,11 +8,11 @@ client discovery and execution/retrieval in methods like `execute_tool`,
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, List, Optional, Any
+from typing import Dict
 
 import mcp.types as types
 from src.host.host import MCPHost
-from src.host.models import HostConfig, ClientConfig, RootConfig
+from src.host.models import HostConfig, ClientConfig
 from src.host.resources import ToolManager, PromptManager, ResourceManager
 from src.host.foundation import (
     MessageRouter,

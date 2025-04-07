@@ -16,9 +16,11 @@ import asyncio  # Added for event loop fixture
 from tests.fixtures.agent_fixtures import (
     minimal_agent_config,  # noqa: F401
     agent_config_with_llm_params,  # noqa: F401
-    agent_config_with_mock_host,  # noqa: F401
+    # agent_config_with_mock_host, # Removed noqa: F401
 )
 from tests.fixtures.host_fixtures import mock_host_config, mock_mcp_host, real_mcp_host  # noqa: F401
+# Import weather server fixture explicitly if needed globally, otherwise tests import directly
+# from tests.fixtures.servers.weather_mcp_server import weather_mcp_server_fixture # noqa: F401
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")

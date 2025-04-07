@@ -37,12 +37,7 @@ class TestAgent:
         assert agent.config == agent_config_with_llm_params
         assert agent.config.model == "test-model-override"
 
-    def test_agent_initialization_with_host_config(self, agent_config_with_mock_host):
-        """Test Agent initialization with linked HostConfig."""
-        agent = Agent(config=agent_config_with_mock_host)
-        assert agent.config == agent_config_with_mock_host
-        assert agent.config.host is not None
-        assert agent.config.host.name == "MockHost"
+    # Removed obsolete test_agent_initialization_with_host_config
 
     def test_agent_initialization_invalid_config(self):
         """Test Agent initialization raises TypeError with invalid config type."""
@@ -131,12 +126,45 @@ class TestAgent:
         assert call_kwargs.get("max_tokens") == 4096  # Default
         assert call_kwargs.get("system") == "You are a helpful assistant."  # Default
 
+    @pytest.mark.parametrize(
+        "agent_config_fixture, filter_ids_to_pass, expected_filter_in_host_call",
+        [
+            (
+                "minimal_agent_config",
+                None,
+                None,
+            ),  # Test case 1: No filter passed to execute_agent
+            (
+                "minimal_agent_config",
+                ["client-x"],
+                ["client-x"],
+            ),  # Test case 2: Filter passed to execute_agent
+            # ("agent_config_filtered", None, None), # Test case 3: Agent config filter is ignored if None passed to execute_agent
+            (
+                "agent_config_filtered",
+                ["client-y"],
+                ["client-y"],
+            ),  # Test case 4: Filter passed to execute_agent overrides agent config filter
+        ],
+    )
     @pytest.mark.asyncio
-    # Remove mock_anthropic_client fixture, use patch instead
-    async def test_execute_tool_call_flow(self, minimal_agent_config, mock_mcp_host):
-        """Test the full flow when the LLM requests a tool call."""
+    async def test_execute_tool_call_flow_with_filtering(
+        self,
+        request,
+        agent_config_fixture,
+        filter_ids_to_pass,
+        expected_filter_in_host_call,
+        mock_mcp_host,
+    ):
+        """
+        Test the full flow when the LLM requests a tool call, verifying filter_client_ids pass-through.
+        Uses parametrization to cover different filter scenarios.
+        """
+        # Get the actual agent_config fixture value using request.getfixturevalue
+        agent_config = request.getfixturevalue(agent_config_fixture)
+
         # Define the tool call structure for the mock utility
-        tool_use_id = "tool_abc123"
+        tool_use_id = f"tool_{agent_config_fixture}_{filter_ids_to_pass}"  # Make unique per test case
         tool_name = "mock_tool"
         tool_input = {"arg1": "value1"}
         tool_calls_spec = [{"id": tool_use_id, "name": tool_name, "input": tool_input}]
@@ -172,8 +200,8 @@ class TestAgent:
 
         # Patch the constructor once to return a single mock client instance
         with patch("src.agents.agent.anthropic.Anthropic") as mock_constructor:
-            # Instantiate Agent *inside* the patch context
-            agent = Agent(config=minimal_agent_config)
+            # Instantiate Agent *inside* the patch context using the parametrized config
+            agent = Agent(config=agent_config)
             mock_client = agent.anthropic_client  # Get the mock from the agent instance
             mock_constructor.return_value = (
                 mock_client  # Ensure the patch uses this instance if needed by others
@@ -197,21 +225,27 @@ class TestAgent:
                 mock_tool_result_block
             )
 
-            # Execute the agent
+            # Execute the agent, passing the filter_ids_to_pass from parametrization
             result = await agent.execute_agent(
-                user_message="Use the mock tool", host_instance=mock_mcp_host
+                user_message="Use the mock tool",
+                host_instance=mock_mcp_host,
+                filter_client_ids=filter_ids_to_pass,  # Pass the filter
             )
 
             # Assertions
             # 1. Anthropic client's create method called twice
             assert mock_client.messages.create.call_count == 2
 
-            # 2. Host's execute_tool was called with correct args (remains the same)
-            mock_mcp_host.tools.execute_tool.assert_awaited_once_with(
-                tool_name=tool_name, arguments=tool_input
+            # 2. Host's execute_tool was called with correct args, including the filter
+            # Note: We assert on mock_mcp_host.execute_tool because that's the mock object
+            # passed into agent.execute_agent as host_instance.
+            mock_mcp_host.execute_tool.assert_awaited_once_with(
+                tool_name=tool_name,
+                arguments=tool_input,
+                filter_client_ids=expected_filter_in_host_call,  # Assert filter pass-through
             )
 
-            # 3. Host's create_tool_result_blocks was called
+            # 3. Host's create_tool_result_blocks was called (via host.tools)
             mock_mcp_host.tools.create_tool_result_blocks.assert_called_once()
             # We can add more specific checks on args if needed
 
