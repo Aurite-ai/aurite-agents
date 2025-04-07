@@ -24,6 +24,5 @@
     "tsconfig.json": "tsconfig.*.json, jest.config.cjs, playwright.config.ts",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb"
   },
-  "terminal.integrated.cwd": "${workspaceFolder}/aurite-mcp",
-  "python.defaultInterpreterPath": "${workspaceFolder}/aurite-mcp/.venv/bin/python"
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
 }

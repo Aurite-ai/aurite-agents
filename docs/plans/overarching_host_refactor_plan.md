@@ -79,3 +79,8 @@ The refactoring will proceed in the following phases and sequential steps:
     *   Define new API endpoints as needed (e.g., `/routers/storage/execute`, `/agents/planning/execute`, `/workflows/plan_and_execute/start`).
     *   Update Postman collection or create new tests for these endpoints.
     *   *(Deferred: Implement dynamic routing based on `routing_weight` after core components are stable).*
+
+Improve discovery system to work with client_ids
+When to use server networking vs direct function calls?
+Clean up and simplify. Make barebones examples in fixtures. Review tests
+implement storage solutions to test agents and workflows

@@ -2,9 +2,9 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "aurite-mcp"
-version = "0.1.0"
-description = "Aurite MCP implementation"
+name = "aurite-agents"
+version = "0.2.0"
+description = "Aurite Agent Framework with MCP"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -101,3 +101,4 @@ junit_family = "xunit2"
 # asyncio_mode moved up
 [project.scripts]
 mcp-server = "src.servers.server:main"
+main = "src.main:main"

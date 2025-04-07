@@ -56,7 +56,7 @@ class TestAgent:
         with pytest.raises(
             ValueError, match="MCPHost instance is required for execution"
         ):
-            await agent.execute(user_message="Test message", host_instance=None)
+            await agent.execute_agent(user_message="Test message", host_instance=None)
 
     @pytest.mark.asyncio
     async def test_execute_requires_mcp_host_instance(self, minimal_agent_config):
@@ -65,7 +65,7 @@ class TestAgent:
         with pytest.raises(
             TypeError, match="host_instance must be an instance of MCPHost"
         ):
-            await agent.execute(
+            await agent.execute_agent(
                 user_message="Test message", host_instance=Mock()
             )  # Pass a generic Mock
 
@@ -82,7 +82,7 @@ class TestAgent:
             return_value=get_mock_anthropic_client(),
         ) as mock_constructor:
             mock_client = mock_constructor.return_value  # Get the mock client instance
-            await agent.execute(
+            await agent.execute_agent(
                 user_message="Test message", host_instance=mock_mcp_host
             )
 
@@ -109,7 +109,7 @@ class TestAgent:
             return_value=get_mock_anthropic_client(),
         ) as mock_constructor:
             mock_client = mock_constructor.return_value
-            await agent.execute(
+            await agent.execute_agent(
                 user_message="Test message", host_instance=mock_mcp_host
             )
 
@@ -173,7 +173,7 @@ class TestAgent:
             )
 
             # Execute the agent
-            result = await agent.execute(
+            result = await agent.execute_agent(
                 user_message="Use the mock tool", host_instance=mock_mcp_host
             )
 
