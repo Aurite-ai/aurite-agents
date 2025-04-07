@@ -17,7 +17,9 @@ from .host.models import (
     ClientConfig,
     RootConfig,
     AgentConfig,
-)  # Added AgentConfig
+    WorkflowConfig,
+    CustomWorkflowConfig,  # Added CustomWorkflowConfig
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +75,17 @@ class ServerConfig(BaseSettings):
 PROJECT_ROOT_DIR = Path(__file__).parent.parent.resolve()
 
 
-def load_host_config_from_json(
+def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic is related
     config_path: Path,
-) -> Tuple[HostConfig, Dict[str, AgentConfig]]:
+) -> Tuple[
+    HostConfig,
+    Dict[str, AgentConfig],
+    Dict[str, WorkflowConfig],
+    Dict[str, CustomWorkflowConfig],
+]:
     """
-    Loads MCP Host and Agent configurations from a JSON file, validates them,
-    and resolves relative server paths for clients.
+    Loads MCP Host, Agent, Workflow, and Custom Workflow configurations from a JSON file,
+    validates them, and resolves relative paths for clients and custom workflows.
 
     Args:
         config_path: The path to the JSON configuration file.
@@ -87,6 +94,8 @@ def load_host_config_from_json(
         A tuple containing:
             - A validated HostConfig object.
             - A dictionary mapping agent names to validated AgentConfig objects.
+            - A dictionary mapping workflow names to validated WorkflowConfig objects.
+            - A dictionary mapping custom workflow names to validated CustomWorkflowConfig objects.
 
     Raises:
         FileNotFoundError: If the config file does not exist.
@@ -213,7 +222,112 @@ def load_host_config_from_json(
             f"{len(agent_configs_dict)} AgentConfig(s) loaded successfully from {config_path}"
         )
 
-        return host_pydantic_config, agent_configs_dict
+        # --- Load Workflow Configs ---
+        workflow_configs_dict: Dict[str, WorkflowConfig] = {}
+        for workflow_data in config_data.get("workflows", []):
+            workflow_name = workflow_data.get("name")
+            if not workflow_name:
+                logger.error(f"Workflow definition missing 'name' in {config_path}")
+                raise RuntimeError(
+                    f"Workflow definition missing 'name' in {config_path}"
+                )
+
+            steps = workflow_data.get("steps", [])
+            if not steps:
+                logger.warning(
+                    f"Workflow '{workflow_name}' has no steps defined in {config_path}"
+                )
+                # Allow empty workflows? Or raise error? Let's allow for now.
+
+            # Validate that agent names in steps exist in loaded agent_configs_dict
+            for step_agent_name in steps:
+                if step_agent_name not in agent_configs_dict:
+                    error_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}' in {config_path}"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
+            try:
+                workflow_config = WorkflowConfig(
+                    name=workflow_name,
+                    steps=steps,
+                    description=workflow_data.get("description"),
+                )
+                workflow_configs_dict[workflow_name] = workflow_config
+            except ValidationError as workflow_val_err:
+                logger.error(
+                    f"Workflow configuration validation failed for '{workflow_name}' in {config_path}: {workflow_val_err}"
+                )
+                raise RuntimeError(
+                    f"Workflow configuration validation failed for '{workflow_name}': {workflow_val_err}"
+                ) from workflow_val_err
+
+        logger.info(
+            f"{len(workflow_configs_dict)} WorkflowConfig(s) loaded successfully from {config_path}"
+        )
+
+        # --- Load Custom Workflow Configs ---
+        custom_workflow_configs_dict: Dict[str, CustomWorkflowConfig] = {}
+        for cwf_data in config_data.get("custom_workflows", []):
+            cwf_name = cwf_data.get("name")
+            module_path_str = cwf_data.get("module_path")
+            class_name = cwf_data.get("class_name")
+
+            if not cwf_name:
+                logger.error(
+                    f"Custom workflow definition missing 'name' in {config_path}"
+                )
+                raise RuntimeError(
+                    f"Custom workflow definition missing 'name' in {config_path}"
+                )
+            if not module_path_str:
+                logger.error(
+                    f"Custom workflow '{cwf_name}' missing 'module_path' in {config_path}"
+                )
+                raise RuntimeError(
+                    f"Custom workflow '{cwf_name}' missing 'module_path' in {config_path}"
+                )
+            if not class_name:
+                logger.error(
+                    f"Custom workflow '{cwf_name}' missing 'class_name' in {config_path}"
+                )
+                raise RuntimeError(
+                    f"Custom workflow '{cwf_name}' missing 'class_name' in {config_path}"
+                )
+
+            # Resolve module_path relative to project root
+            resolved_module_path = (PROJECT_ROOT_DIR / module_path_str).resolve()
+            if not resolved_module_path.exists():
+                # Log warning but allow loading; execution will fail later if path is invalid
+                logger.warning(
+                    f"Custom workflow module path does not exist for '{cwf_name}': {resolved_module_path}"
+                )
+
+            try:
+                custom_workflow_config = CustomWorkflowConfig(
+                    name=cwf_name,
+                    module_path=resolved_module_path,
+                    class_name=class_name,
+                    description=cwf_data.get("description"),
+                )
+                custom_workflow_configs_dict[cwf_name] = custom_workflow_config
+            except ValidationError as cwf_val_err:
+                logger.error(
+                    f"Custom workflow configuration validation failed for '{cwf_name}' in {config_path}: {cwf_val_err}"
+                )
+                raise RuntimeError(
+                    f"Custom workflow configuration validation failed for '{cwf_name}': {cwf_val_err}"
+                ) from cwf_val_err
+
+        logger.info(
+            f"{len(custom_workflow_configs_dict)} CustomWorkflowConfig(s) loaded successfully from {config_path}"
+        )
+
+        return (
+            host_pydantic_config,
+            agent_configs_dict,
+            workflow_configs_dict,
+            custom_workflow_configs_dict,
+        )
 
     except ValidationError as e:
         # Catch validation errors during HostConfig creation specifically

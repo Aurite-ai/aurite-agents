@@ -66,10 +66,14 @@ async def real_mcp_host() -> MCPHost:
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Load host and agent configs using the utility function
+    # Load all configs using the utility function
     try:
-        # Unpack the tuple, we only need host_config for this fixture
-        host_config, _ = load_host_config_from_json(test_config_path)
+        (
+            host_config,
+            agent_configs,
+            workflow_configs,
+            custom_workflow_configs,
+        ) = load_host_config_from_json(test_config_path)
         # Ensure the loaded config has the expected client for the test server
         # This assumes weather_mcp_server.py is correctly referenced in testing_config.json
         # Check if clients list is not empty before accessing index 0
@@ -82,13 +86,22 @@ async def real_mcp_host() -> MCPHost:
             )
 
     except Exception as e:
-        pytest.fail(f"Failed to load host config for real_mcp_host fixture: {e}")
+        pytest.fail(f"Failed to load full config for real_mcp_host fixture: {e}")
 
-    # Initialize the host
-    host_instance = MCPHost(config=host_config)
-    await host_instance.initialize()  # This starts the client process
+    # Initialize the host with all loaded configs
+    host_instance = MCPHost(
+        config=host_config,
+        agent_configs=agent_configs,
+        workflow_configs=workflow_configs,
+        # Removed custom_workflow_configs argument
+        # encryption_key can be added here if needed for tests
+    )
+    try:
+        await host_instance.initialize()  # This starts the client processes
+    except Exception as init_e:
+        pytest.fail(f"MCPHost initialization failed in real_mcp_host fixture: {init_e}")
 
-    yield host_instance  # Provide the initialized host to the test
+    yield host_instance  # Provide the fully initialized host to the test
 
     # Teardown: Shutdown the host and its clients
     await host_instance.shutdown()

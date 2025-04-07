@@ -2,9 +2,14 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
-from typing import Dict, Optional, Any, List
-import logging
+import logging  # Removed importlib, inspect, Path
 from contextlib import AsyncExitStack
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)  # Kept Any, Dict, List, Optional as they are used elsewhere
 
 from mcp import (
     ClientSession,
@@ -15,7 +20,13 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager, MessageRouter
-from .models import HostConfig, ClientConfig, AgentConfig  # Added AgentConfig
+from .models import (  # Import WorkflowConfig
+    AgentConfig,
+    ClientConfig,
+    # Removed CustomWorkflowConfig
+    HostConfig,
+    WorkflowConfig,
+)
 
 
 # Resource management layer
@@ -35,7 +46,9 @@ class MCPHost:
     def __init__(
         self,
         config: HostConfig,
-        agent_configs: Optional[Dict[str, AgentConfig]] = None,  # Added agent_configs
+        agent_configs: Optional[Dict[str, AgentConfig]] = None,
+        workflow_configs: Optional[Dict[str, WorkflowConfig]] = None,
+        # Removed custom_workflow_configs parameter
         encryption_key: Optional[str] = None,
     ):
         # Layer 1: Foundation layer
@@ -54,7 +67,9 @@ class MCPHost:
 
         # State management
         self._config = config
-        self._agent_configs = agent_configs or {}  # Store agent configs
+        self._agent_configs = agent_configs or {}
+        self._workflow_configs = workflow_configs or {}
+        # Removed self._custom_workflow_configs initialization
         self._clients: Dict[str, ClientSession] = {}
         self._exit_stack = AsyncExitStack()
 
@@ -317,6 +332,29 @@ class MCPHost:
             raise KeyError(f"Agent configuration not found for name: {agent_name}")
         return self._agent_configs[agent_name]
 
+    def get_workflow_config(self, workflow_name: str) -> WorkflowConfig:
+        """
+        Retrieves the configuration for a specific workflow by name.
+
+        Args:
+            workflow_name: The name of the workflow whose configuration is needed.
+
+        Returns:
+            The WorkflowConfig object for the specified workflow.
+
+        Raises:
+            KeyError: If no workflow with the given name is found.
+        """
+        if workflow_name not in self._workflow_configs:
+            logger.error(f"Workflow configuration not found for name: {workflow_name}")
+            raise KeyError(
+                f"Workflow configuration not found for name: {workflow_name}"
+            )
+        return self._workflow_configs[workflow_name]
+
+    # Removed get_custom_workflow_config method
+    # Removed execute_custom_workflow method
+
     async def execute_tool(
         self,
         tool_name: str,
@@ -524,7 +562,9 @@ class MCPHost:
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
 
-        # Clear stored agent configs
+        # Clear stored agent and workflow configs
         self._agent_configs.clear()
+        self._workflow_configs.clear()
+        # Removed clearing of self._custom_workflow_configs
 
         logger.info("MCP Host shutdown complete")

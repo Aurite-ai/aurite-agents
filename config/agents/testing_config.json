@@ -22,7 +22,7 @@
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
-      "client_ids": ["weather_fixture"],
+      "client_ids": ["weather_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
       "max_tokens": 4096,
@@ -38,6 +38,44 @@
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Workflow Step 1",
+      "system_prompt": "Your job is to use the tools at your disposal to research the current weather in San Fransisco. Respond with this information",
+      "client_ids": ["weather_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Workflow Step 2",
+      "system_prompt": "Your job is to use the current weather information for San Fransisco (provided in the user message) to write and save a plan with the save_plan tool. Your plan should specify what the user should wear based on the current weather",
+      "client_ids": ["planning_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Example workflow using weather and planning servers",
+      "steps": [
+        "Weather Planning Workflow Step 1",
+        "Weather Planning Workflow Step 2"
+      ],
+      "description": "Example workflow to test simple workflow execution using agents."
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "ExampleCustom",
+      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "An example custom workflow for testing."
     }
   ]
 }

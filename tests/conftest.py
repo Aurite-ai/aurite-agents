@@ -15,8 +15,9 @@ import asyncio  # Added for event loop fixture
 # for pytest to find them when running tests in other files.
 from tests.fixtures.agent_fixtures import (
     minimal_agent_config,  # noqa: F401
+    agent_config_filtered,  # noqa: F401 - Add this fixture
     agent_config_with_llm_params,  # noqa: F401
-    # agent_config_with_mock_host, # Removed noqa: F401
+    # agent_config_with_mock_host, # This was correctly removed
 )
 from tests.fixtures.host_fixtures import mock_host_config, mock_mcp_host, real_mcp_host  # noqa: F401
 # Import weather server fixture explicitly if needed globally, otherwise tests import directly

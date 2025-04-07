@@ -67,3 +67,24 @@ class AgentConfig(BaseModel):
     include_history: Optional[bool] = (
         None  # Whether to include the conversation history, or just the latest message
     )
+
+
+class WorkflowConfig(BaseModel):
+    """
+    Configuration for a simple, sequential agent workflow.
+    """
+
+    name: str
+    steps: List[str]  # List of agent names (must match keys in loaded AgentConfig dict)
+    description: Optional[str] = None
+
+
+class CustomWorkflowConfig(BaseModel):
+    """
+    Configuration for a custom Python-based workflow.
+    """
+
+    name: str
+    module_path: Path  # Resolved absolute path to the python file
+    class_name: str  # Name of the class within the file implementing the workflow
+    description: Optional[str] = None
