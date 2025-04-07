@@ -14,9 +14,6 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Base configuration directory
-CONFIG_DIR = Path(__file__).parents[2] / "config"
-
 
 class RootConfig(BaseModel):
     """Configuration for an MCP root"""
@@ -64,16 +61,7 @@ class AgentConfig(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
+    max_iterations: Optional[int] = None  # Max conversation turns before stopping
     include_history: Optional[bool] = (
         None  # Whether to include the conversation history, or just the latest message
     )
-
-
-# Type variable for generic config loading
-T = TypeVar("T")
-
-
-# Removed ConfigurationManager class as it is deprecated and its functionality
-# for loading storage config is now handled directly in StorageManager.
-# Other potential uses (like workflow config) are not currently implemented
-# or will be handled differently.

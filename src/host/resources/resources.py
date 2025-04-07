@@ -8,6 +8,10 @@ from urllib.parse import urlparse
 
 import mcp.types as types
 
+# Import RootManager for type hinting
+from ..foundation.roots import RootManager
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,16 +20,15 @@ logger = logging.getLogger(__name__)
 
 class ResourceManager:
     """
-    Manages resources across MCP clients.
-    Handles resource discovery, access, and updates.
+    Manages resource definitions across MCP clients.
+    Handles resource registration, retrieval, and access validation based on roots.
     """
 
     def __init__(self):
-        # client_id -> {resource_uri -> Resource}
+        # client_id -> {resource_uri_string -> Resource}
         self._resources: Dict[str, Dict[str, types.Resource]] = {}
 
-        # resource_uri -> set(client_ids)
-        self._subscriptions: Dict[str, Set[str]] = {}
+        # _subscriptions removed as unused
 
     async def initialize(self):
         """Initialize the resource manager"""
@@ -36,23 +39,29 @@ class ResourceManager:
         client_id: str,
         resources: List[types.Resource],
         exclude_list: Optional[List[str]] = None,
-    ):
+    ) -> List[types.Resource]:  # Return list of registered resources
         """Register resources available from a client, excluding specified ones."""
         logger.info(
             f"Registering resources for client {client_id}: {[str(r.uri) for r in resources]}"
         )
+        registered_resources = []
 
         if client_id not in self._resources:
             self._resources[client_id] = {}
 
         for resource in resources:
             # Check against exclude list using resource.name
+            # Note: Resources might not always have a name, rely on URI primarily.
+            # Exclude list should ideally support URIs too, but currently based on name.
             if exclude_list and resource.name and resource.name in exclude_list:
                 logger.debug(
                     f"Excluding resource '{resource.name}' (URI: {resource.uri}) for client {client_id} as per config."
                 )
                 continue
-            self._resources[client_id][str(resource.uri)] = resource
+            uri_str = str(resource.uri)
+            self._resources[client_id][uri_str] = resource
+            registered_resources.append(resource)
+        return registered_resources
 
     async def get_resource(self, uri: str, client_id: str) -> Optional[types.Resource]:
         """Get a specific resource"""
@@ -85,30 +94,18 @@ class ResourceManager:
                 client_ids.append(client_id)
         return client_ids
 
-    async def subscribe(self, uri: str, client_id: str):
-        """Subscribe a client to resource updates"""
-        if uri not in self._subscriptions:
-            self._subscriptions[uri] = set()
-        self._subscriptions[uri].add(client_id)
-        logger.info(f"Client {client_id} subscribed to resource {uri}")
-
-    async def unsubscribe(self, uri: str, client_id: str):
-        """Unsubscribe a client from resource updates"""
-        if uri in self._subscriptions:
-            self._subscriptions[uri].discard(client_id)
-            if not self._subscriptions[uri]:
-                del self._subscriptions[uri]
-        logger.info(f"Client {client_id} unsubscribed from resource {uri}")
-
-    async def get_subscribers(self, uri: str) -> Set[str]:
-        """Get all clients subscribed to a resource"""
-        return self._subscriptions.get(uri, set())
+    # subscribe method removed.
+    # unsubscribe method removed.
+    # get_subscribers method removed.
 
     async def validate_resource_access(
-        self, uri: str, client_id: str, root_manager: Any
+        self,
+        uri: str,
+        client_id: str,
+        root_manager: RootManager,  # Updated type hint
     ) -> bool:
         """Validate resource access against client's root boundaries"""
-        # Convert URI to string if it's an AnyUrl
+        # Convert URI to string
         uri_str = str(uri)
         parsed = urlparse(uri_str)
 
@@ -139,4 +136,4 @@ class ResourceManager:
         """Shutdown the resource manager"""
         logger.info("Shutting down resource manager")
         self._resources.clear()
-        self._subscriptions.clear()
+        # _subscriptions removed

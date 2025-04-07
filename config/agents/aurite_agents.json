@@ -1,5 +1,5 @@
 {
-  "agents": [
+  "clients": [
     {
       "client_id": "planning",
       "server_path": "src/agents/planning/planning_server.py",

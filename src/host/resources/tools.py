@@ -10,7 +10,7 @@ This module provides a ToolManager class that handles:
 
 from typing import Dict, List, Any, Optional
 import logging
-import asyncio
+# import asyncio # No longer needed after removing _active_requests
 
 import mcp.types as types
 
@@ -42,13 +42,13 @@ class ToolManager:
 
         # Tool registry
         self._tools: Dict[str, types.Tool] = {}
+        # Tool metadata (simplified, capabilities removed)
         self._tool_metadata: Dict[str, Dict[str, Any]] = {}
 
-        # Client registry - will be populated during client initialization
-        self._clients: Dict[str, Any] = {}  # Client ID to client session
+        # Client registry - Client ID to client session
+        self._clients: Dict[str, Any] = {}
 
-        # Active requests
-        self._active_requests: Dict[str, asyncio.Task] = {}
+        # _active_requests removed as unused
 
     async def initialize(self):
         """Initialize the tool manager"""
@@ -64,41 +64,46 @@ class ToolManager:
         tool_name: str,
         tool: types.Tool,
         client_id: str,
-        capabilities: List[str],
+        # capabilities parameter removed
         exclude_list: Optional[List[str]] = None,
-    ):
+    ) -> bool:  # Return bool indicating if registered
         """
-        Register a tool with its providing client and capabilities, excluding specified ones.
+        Register a tool with its providing client, excluding specified ones.
 
         Args:
-            tool_name: The name of the tool
-            tool: The tool definition
-            client_id: The ID of the client providing the tool
-            capabilities: The capabilities of the tool
+            tool_name: The name of the tool.
+            tool: The tool definition (mcp.types.Tool).
+            client_id: The ID of the client providing the tool.
             exclude_list: Optional list of tool names to exclude.
+
+        Returns:
+            True if the tool was registered, False if excluded.
         """
         # Check against exclude list first
         if exclude_list and tool_name in exclude_list:
             logger.debug(
                 f"Excluding tool '{tool_name}' for client {client_id} as per config."
             )
-            return  # Skip registration
+            return False  # Indicate not registered
 
-        # Store the tool
+        # Store the tool definition (overwrites if same tool name registered again by another client,
+        # but MessageRouter handles the multiple client mapping)
         self._tools[tool_name] = tool
 
-        # Store metadata
+        # Store simplified metadata (consider if this is still needed or if _tools is enough)
+        # Keeping description/parameters might be useful for list_tools
         self._tool_metadata[tool_name] = {
-            "client_id": client_id,
-            "capabilities": capabilities,
+            # "client_id": client_id, # Redundant? Router knows this.
             "description": tool.description if hasattr(tool, "description") else "",
-            "parameters": tool.parameters if hasattr(tool, "parameters") else {},
+            # Use inputSchema if available, fallback to parameters for compatibility
+            "parameters": getattr(tool, "inputSchema", getattr(tool, "parameters", {})),
         }
 
-        # Register with the message router
-        await self._message_router.register_tool(tool_name, client_id, capabilities)
+        # Register with the message router (only name and client_id needed now)
+        await self._message_router.register_tool(tool_name, client_id)
 
-        logger.info(f"Registered tool {tool_name} for client {client_id}")
+        logger.debug(f"Registered tool '{tool_name}' for client '{client_id}'")
+        return True  # Indicate registered
 
     async def discover_client_tools(self, client_id: str, client_session):
         """
@@ -109,75 +114,113 @@ class ToolManager:
             client_session: The client session
 
         Returns:
-            List of discovered tools
+            List of discovered tool definitions (mcp.types.Tool).
         """
         try:
             # Get tools from the client
-            tools_response = await client_session.list_tools()
+            tools_response = (
+                await client_session.list_tools()
+            )  # Returns ListToolsResult
 
-            # Handle different response formats (compatibility with different MCP implementations)
+            # Extract the list of tools
+            # Assuming tools_response has a 'tools' attribute based on mcp.types
             if hasattr(tools_response, "tools"):
-                # Format from some MCP implementations
-                tools = tools_response.tools
+                discovered_tools: List[types.Tool] = tools_response.tools
+                logger.debug(
+                    f"Discovered {len(discovered_tools)} tools for client {client_id}"
+                )
+                return discovered_tools
             else:
-                # Format from FastMCP and newer MCP implementations
-                tools = tools_response
+                logger.warning(
+                    f"Unexpected response format from list_tools for client {client_id}: {tools_response}"
+                )
+                return []  # Return empty list if format is unexpected
 
-            # Create a response object that works with both host.py code patterns
-            class ToolsResponse:
-                def __init__(self, tools_list):
-                    self.tools = tools_list
-
-            normalized_response = ToolsResponse(tools)
-
-            # REMOVED: Registration loop is now handled by the host
-            # for tool in tools:
-            #     await self.register_tool(
-            #         tool_name=tool.name,
-            #         tool=tool,
-            #         client_id=client_id,
-            #         capabilities=[],
-            #     )
-
-            return normalized_response
         except Exception as e:
             logger.error(f"Failed to discover tools for client {client_id}: {e}")
             raise
 
     async def execute_tool(
-        self, tool_name: str, arguments: Dict[str, Any]
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        client_name: Optional[str] = None,  # Added client_name parameter
     ) -> List[types.TextContent]:
         """
-        Execute a tool with the given arguments.
+        Execute a tool with the given arguments, potentially on a specific client.
 
         Args:
-            tool_name: The name of the tool to execute
-            arguments: The arguments to pass to the tool
+            tool_name: The name of the tool to execute.
+            arguments: The arguments to pass to the tool.
+            client_name: Optional specific client ID to execute the tool on.
+                         If None, the manager will attempt to find a unique client.
 
         Returns:
-            The result of the tool execution
-        """
-        # Validate tool exists
-        if tool_name not in self._tools:
-            raise ValueError(f"Unknown tool: {tool_name}")
+            The result content from the tool execution (List[TextContent]).
 
-        # Get server for this tool
-        server_id = await self._message_router.select_server_for_tool(
-            tool_name,
-            required_capabilities=set(),  # Could be derived from arguments/context
-        )
-        if not server_id:
-            raise ValueError(f"No server found for tool: {tool_name}")
+        Raises:
+            ValueError: If the tool is unknown, ambiguous (and client_name not specified),
+                        or the specified client_name is invalid or doesn't provide the tool.
+            Exception: Any exception raised during the underlying tool execution by the client.
+        """
+        target_client_id: Optional[str] = None
+
+        # Determine the target client ID
+        if client_name:
+            # If a specific client is requested, validate it
+            if client_name not in self._clients:
+                raise ValueError(f"Specified client '{client_name}' is not registered.")
+            # Check if this specific client actually provides the tool (using router)
+            providing_clients = await self._message_router.get_clients_for_tool(
+                tool_name
+            )
+            if client_name not in providing_clients:
+                raise ValueError(
+                    f"Specified client '{client_name}' does not provide tool '{tool_name}'."
+                )
+            target_client_id = client_name
+            logger.debug(
+                f"Executing tool '{tool_name}' on specified client '{target_client_id}'"
+            )
+        else:
+            # Discover clients providing the tool
+            logger.debug(f"Discovering client for tool '{tool_name}'...")
+            providing_clients = await self._message_router.get_clients_for_tool(
+                tool_name
+            )
+
+            if not providing_clients:
+                raise ValueError(
+                    f"Tool '{tool_name}' not found on any registered client."
+                )
+            elif len(providing_clients) > 1:
+                raise ValueError(
+                    f"Tool '{tool_name}' is ambiguous; found on multiple clients: "
+                    f"{providing_clients}. Specify a client_name."
+                )
+            else:
+                target_client_id = providing_clients[0]
+                logger.debug(
+                    f"Executing tool '{tool_name}' on uniquely found client '{target_client_id}'"
+                )
+
+        # Ensure we have a target client ID
+        if not target_client_id:
+            # Should be unreachable due to logic above, but raise defensively
+            raise ValueError(
+                f"Could not determine target client for tool '{tool_name}'."
+            )
 
         # Get client session
-        client = self._clients.get(server_id)
+        client = self._clients.get(target_client_id)
         if not client:
-            raise ValueError(f"Client not found for server: {server_id}")
+            # Should also be unreachable if target_client_id was validated
+            raise ValueError(
+                f"Client session not found for determined client ID: {target_client_id}"
+            )
 
-        # Validate access through root manager
-        await self._root_manager.validate_access(
-            client_id=server_id, tool_name=tool_name
-        )
+        # Validate access through root manager (using simplified method)
+        await self._root_manager.validate_access(client_id=target_client_id)
 
         # Execute the tool
         try:
@@ -195,34 +238,78 @@ class ToolManager:
 
             # Handle the result directly as a CallToolResult
             if hasattr(result, "isError") and result.isError:
-                raise ValueError(
-                    result.content[0].text if result.content else "Unknown error"
+                error_message = (
+                    result.content[0].text
+                    if result.content and hasattr(result.content[0], "text")
+                    else "Unknown tool execution error"
                 )
+                logger.error(
+                    f"Tool '{tool_name}' execution on client '{target_client_id}' returned an error: {error_message}"
+                )
+                # Re-raise as a ValueError or a custom exception? Using ValueError for now.
+                raise ValueError(f"Tool execution failed: {error_message}")
 
             if hasattr(result, "content"):
-                return result.content
+                # Ensure content is List[TextContent] or similar
+                if isinstance(result.content, list) and all(
+                    isinstance(item, types.TextContent) for item in result.content
+                ):
+                    return result.content
+                else:
+                    # Attempt conversion if possible, or raise error
+                    logger.warning(
+                        f"Unexpected content format in tool result for '{tool_name}': {result.content}"
+                    )
+                    # Basic conversion attempt:
+                    try:
+                        return [
+                            types.TextContent(type="text", text=str(item))
+                            for item in result.content
+                        ]
+                    except Exception:
+                        raise TypeError(
+                            f"Could not convert tool result content for '{tool_name}' to List[TextContent]"
+                        )
 
-            return result
+            # If result has no 'content', maybe it's an older format or error?
+            logger.warning(
+                f"Tool '{tool_name}' result from client '{target_client_id}' has no 'content' attribute: {result}"
+            )
+            # Return empty list or raise error? Returning empty for now.
+            return []
         except Exception as e:
-            logger.error(f"Tool execution failed - {tool_name}: {e}")
-            raise
+            logger.error(
+                f"Tool execution failed - Tool: '{tool_name}', Client: '{target_client_id}', Error: {e}"
+            )
+            raise  # Re-raise the original exception
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """
-        List all available tools with metadata.
+        List all available tools with basic metadata (name, description, parameters).
 
         Returns:
-            List of tools with metadata
+            List of tools with metadata.
         """
-        return [
-            {
-                "name": name,
-                "description": self._tool_metadata[name].get("description", ""),
-                "capabilities": self._tool_metadata[name].get("capabilities", []),
-                "parameters": self._tool_metadata[name].get("parameters", {}),
-            }
-            for name in self._tools
-        ]
+        tool_list = []
+        for name, tool_def in self._tools.items():
+            # Use metadata if available, otherwise fallback to tool_def attributes
+            metadata = self._tool_metadata.get(name, {})
+            description = metadata.get(
+                "description", getattr(tool_def, "description", "")
+            )
+            parameters = metadata.get(
+                "parameters",
+                getattr(tool_def, "inputSchema", getattr(tool_def, "parameters", {})),
+            )
+            tool_list.append(
+                {
+                    "name": name,
+                    "description": description,
+                    # "capabilities" removed
+                    "parameters": parameters,
+                }
+            )
+        return tool_list
 
     def get_tool(self, tool_name: str) -> Optional[types.Tool]:
         """
@@ -248,21 +335,7 @@ class ToolManager:
         """
         return tool_name in self._tools
 
-    async def find_tools_by_capability(self, capability: str) -> List[str]:
-        """
-        Find tools that provide a specific capability.
-
-        Args:
-            capability: The capability to search for
-
-        Returns:
-            List of tool names that provide the capability
-        """
-        return [
-            name
-            for name, metadata in self._tool_metadata.items()
-            if capability in metadata.get("capabilities", [])
-        ]
+    # find_tools_by_capability method removed.
 
     def format_tools_for_llm(
         self, tool_names: Optional[List[str]] = None
@@ -331,23 +404,33 @@ class ToolManager:
             tool_result: The result from executing the tool
 
         Returns:
-            Formatted tool result block
+            Formatted tool result block suitable for Anthropic API.
         """
-        result_text = self.format_tool_result(tool_result)
+        # Ensure content is formatted as a list of text blocks
+        if isinstance(tool_result, list) and all(
+            hasattr(item, "text") for item in tool_result
+        ):
+            content_list = [{"type": "text", "text": item.text} for item in tool_result]
+        elif isinstance(tool_result, str):
+            content_list = [{"type": "text", "text": tool_result}]
+        else:
+            # Fallback for unexpected formats
+            logger.warning(
+                f"Formatting unexpected tool result type: {type(tool_result)}"
+            )
+            content_list = [{"type": "text", "text": str(tool_result)}]
 
         return {
             "type": "tool_result",
             "tool_use_id": tool_use_id,
-            "content": result_text,
+            "content": content_list,  # Ensure content is a list
         }
 
     async def shutdown(self):
         """Shutdown the tool manager"""
         logger.info("Shutting down tool manager")
 
-        # Cancel any active requests
-        for task in self._active_requests.values():
-            task.cancel()
+        # _active_requests removed
 
         # Clear registries
         self._tools.clear()

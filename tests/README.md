@@ -1,10 +1,10 @@
-# Aurite-MCP Testing Environment
+# Aurite Agents Testing Environment
 
-This directory contains the automated tests for the `aurite-mcp` project. The testing strategy aims for clarity, reusability, and effective handling of asynchronous components.
+This directory contains the automated tests for the `aurite-agents` project. The testing strategy aims for clarity, reusability, and effective handling of asynchronous components.
 
 ## Running Tests
 
-Tests are run using `pytest`. Ensure you have installed the development dependencies (including `pytest` and `pytest-asyncio`). Run tests from the root `aurite-mcp` directory:
+Tests are run using `pytest`. Ensure you have installed the development dependencies (including `pytest` and `pytest-asyncio`). Run tests from the root `aurite-agents` directory:
 
 ```bash
 # Run all tests

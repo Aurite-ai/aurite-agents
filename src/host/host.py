@@ -1,8 +1,8 @@
 """
-MCP Host implementation for managing multiple tool servers and clients.
+MCP Host implementation for managing MCP client connections and interactions.
 """
 
-from typing import Dict, Optional, Any, Union  # Add Union
+from typing import Dict, Optional, Any  # Removed Union
 import asyncio
 import logging
 from contextlib import AsyncExitStack
@@ -33,8 +33,10 @@ logger = logging.getLogger(__name__)
 
 class MCPHost:
     """
-    The MCP Host orchestrates communication between agents and tool servers through MCP clients.
-    This is the highest layer of abstraction in the MCP architecture.
+    The MCP Host manages connections to configured MCP servers (clients) and provides
+    a unified interface for interacting with their capabilities (tools, prompts, resources)
+    via dedicated managers. It serves as the core infrastructure layer used by higher-level
+    components like the Agent framework.
     """
 
     def __init__(self, config: HostConfig, encryption_key: Optional[str] = None):
@@ -43,35 +45,24 @@ class MCPHost:
         self._root_manager = RootManager()
 
         # Layer 2: Communication layer
-        # self._transport_manager = TransportManager() # Removed unused manager
         self._message_router = MessageRouter()
 
         # Layer 3: Resource management layer
         self._prompt_manager = PromptManager()
         self._resource_manager = ResourceManager()
-        # self._storage_manager = StorageManager() # Removed
         self._tool_manager = ToolManager(
             root_manager=self._root_manager, message_router=self._message_router
         )
-        # Removed memory_config definition
-
-        # Layer 4: Agent layer - Removed WorkflowManager instantiation
-        # self._workflow_manager = WorkflowManager(host=self)
 
         # State management
         self._config = config
         self._clients: Dict[str, ClientSession] = {}
-
-        # Track active requests
-        self._active_requests: Dict[str, asyncio.Task] = {}
         self._exit_stack = AsyncExitStack()
 
         # Create property accessors for resource layer managers
         self.prompts = self._prompt_manager
         self.resources = self._resource_manager
-        # self.storage = self._storage_manager # Removed
         self.tools = self._tool_manager
-        # self.workflows = self._workflow_manager # Removed
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
@@ -86,31 +77,17 @@ class MCPHost:
 
         # Layer 2: Communication layer
         logger.info("Initializing communication layer...")
-        # await self._transport_manager.initialize() # Removed unused manager call
         await self._message_router.initialize()
 
         # Layer 3: Resource management layer
         logger.info("Initializing resource management layer...")
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
-        # await self._storage_manager.initialize() # Removed
         await self._tool_manager.initialize()
-
-        # Removed conditional memory client initialization
-
-        # Layer 4: Agent layer - Removed WorkflowManager initialization
-        # logger.info("Initializing agent layer...")
-        # await self._workflow_manager.initialize()
 
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
-
-            # Register permissions based on capabilities
-            # Removed storage-specific permission registration block
-            # if "storage" in client_config.capabilities:
-            #     await self._security_manager.register_server_permissions(...)
-            #     await self._storage_manager.register_server_permissions(...)
 
         logger.info("MCP Host initialization complete")
 
@@ -137,7 +114,9 @@ class MCPHost:
                 method="initialize",
                 params=types.InitializeRequestParams(
                     protocolVersion="2024-11-05",
-                    clientInfo=types.Implementation(name="aurite-mcp", version="0.1.0"),
+                    clientInfo=types.Implementation(
+                        name="aurite-agents", version="0.1.0"
+                    ),  # Updated name
                     capabilities=types.ClientCapabilities(
                         roots=types.RootsCapability(listChanged=True)
                         if "roots" in config.capabilities
@@ -168,43 +147,52 @@ class MCPHost:
                 weight=config.routing_weight,
             )
 
-            # Store client and register with tool manager
+            # Store client session
             self._clients[config.client_id] = session
+
+            # Discover and register components based on capabilities, applying exclusions
+            tool_names = []
+            prompt_names = []
+            resource_names = []
 
             if "tools" in config.capabilities:
                 self._tool_manager.register_client(config.client_id, session)
-
-                # Discover tools and register with the tool manager
                 tools_response = await self._tool_manager.discover_client_tools(
                     client_id=config.client_id, client_session=session
                 )
-
-                # Update tool capabilities based on client capabilities
                 for tool in tools_response.tools:
-                    await self._tool_manager.register_tool(
+                    # register_tool now handles the exclusion check internally
+                    registered = await self._tool_manager.register_tool(
                         tool_name=tool.name,
                         tool=tool,
                         client_id=config.client_id,
                         capabilities=config.capabilities,
                         exclude_list=config.exclude,
                     )
+                    if registered:
+                        tool_names.append(tool.name)
 
-            # Initialize prompts if supported
             if "prompts" in config.capabilities:
                 prompts_response = await session.list_prompts()
-                await self._prompt_manager.register_client_prompts(
+                # register_client_prompts handles exclusion internally
+                registered_prompts = await self._prompt_manager.register_client_prompts(
                     config.client_id, prompts_response.prompts, config.exclude
                 )
+                prompt_names = [p.name for p in registered_prompts]
 
-            # Initialize resources if supported
             if "resources" in config.capabilities:
                 resources_response = await session.list_resources()
-                await self._resource_manager.register_client_resources(
-                    config.client_id, resources_response.resources, config.exclude
+                # register_client_resources handles exclusion internally
+                registered_resources = (
+                    await self._resource_manager.register_client_resources(
+                        config.client_id, resources_response.resources, config.exclude
+                    )
                 )
+                resource_names = [r.name for r in registered_resources]
 
             logger.info(
-                f"Client {config.client_id} initialized with tools: {[t.name for t in tools_response.tools]}"
+                f"Client '{config.client_id}' initialized. "
+                f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
             )
 
         except Exception as e:
@@ -220,13 +208,13 @@ class MCPHost:
     async def get_prompt(
         self,
         prompt_name: str,
-        arguments: Dict[str, Any],
+        arguments: Dict[str, Any],  # Kept for potential future use by manager
         client_name: Optional[str] = None,
-    ) -> Optional[Union[types.Prompt, types.GetPromptResult]]:
+    ) -> Optional[types.Prompt]:  # Manager returns Prompt object or None
         """
-        Gets a specific prompt template, discovering the client if necessary.
+        Gets a specific prompt template definition, discovering the client if necessary.
 
-        Note: This currently only retrieves the prompt *template*.
+        Note: This retrieves the prompt *template definition* (mcp.types.Prompt).
               Executing a prompt (which involves an LLM call) is handled
               within the Agent.execute method. This method primarily helps
               find the correct prompt definition from potentially multiple clients.
@@ -243,46 +231,49 @@ class MCPHost:
                          providing the prompt.
 
         Returns:
-            The Prompt template object, or None if not found.
+            The Prompt definition object, or None if not found.
 
         Raises:
             ValueError: If client_name is None and the prompt is not found or
                         is found on multiple clients (ambiguous).
         """
-        if client_name:
-            logger.info(
-                f"Getting prompt template '{prompt_name}' from specified client '{client_name}'"
-            )
-            # Note: Passing arguments here, though manager currently ignores them for template retrieval
-            return await self.prompts.get_prompt(
-                name=prompt_name, client_id=client_name
-            )
-        else:
+        target_client_id = client_name
+        if not target_client_id:
             logger.info(
                 f"Discovering client for prompt '{prompt_name}' before retrieval..."
             )
             providing_clients = self.prompts.get_clients_for_prompt(prompt_name)
 
             if not providing_clients:
-                # Return None if not found, consistent with manager's get_prompt
                 logger.warning(
                     f"Prompt '{prompt_name}' not found on any registered client."
                 )
                 return None
-                # Or raise ValueError("Prompt '{prompt_name}' not found...") if preferred
             elif len(providing_clients) > 1:
                 raise ValueError(
                     f"Prompt '{prompt_name}' is ambiguous; found on multiple clients: "
                     f"{providing_clients}. Specify a client_name."
                 )
             else:
-                unique_client_id = providing_clients[0]
+                target_client_id = providing_clients[0]
                 logger.info(
-                    f"Getting prompt template '{prompt_name}' from uniquely found client '{unique_client_id}'"
+                    f"Found unique client '{target_client_id}' for prompt '{prompt_name}'."
                 )
-                return await self.prompts.get_prompt(
-                    name=prompt_name, client_id=unique_client_id
-                )
+
+        if target_client_id:
+            logger.info(
+                f"Getting prompt template '{prompt_name}' from client '{target_client_id}'"
+            )
+            # Note: Manager's get_prompt currently only needs name and client_id
+            return await self.prompts.get_prompt(
+                name=prompt_name, client_id=target_client_id
+            )
+        else:
+            # This case should technically be unreachable due to checks above,
+            # but returning None defensively.
+            logger.error(f"Could not determine client for prompt '{prompt_name}'.")
+            return None
+        # Removed duplicated else block here
 
     async def execute_tool(
         self,
@@ -328,6 +319,7 @@ class MCPHost:
                     f"Tool '{tool_name}' not found on any registered client."
                 )
             elif len(providing_clients) > 1:
+                # TODO: Future enhancement - allow selection strategy (e.g., based on weight)
                 raise ValueError(
                     f"Tool '{tool_name}' is ambiguous; found on multiple clients: "
                     f"{providing_clients}. Specify a client_name."
@@ -347,7 +339,11 @@ class MCPHost:
         self, uri: str, client_name: Optional[str] = None
     ) -> Optional[types.Resource]:
         """
-        Reads a specific resource, discovering the client if necessary.
+        Gets a specific resource definition, discovering the client if necessary.
+
+        Note: This retrieves the resource *definition* (mcp.types.Resource),
+              not the actual resource content. Reading content requires direct
+              access to the client session's `read_resource` method.
 
         Args:
             uri: The URI of the resource to read.
@@ -356,7 +352,7 @@ class MCPHost:
                          providing the resource.
 
         Returns:
-            The Resource object, or None if not found.
+            The Resource definition object, or None if not found.
 
         Raises:
             ValueError: If client_name is None and the resource URI is not found or
@@ -371,8 +367,7 @@ class MCPHost:
             logger.info(
                 f"Getting resource definition '{uri_str}' from specified client '{client_name}'"
             )
-            # Note: This currently returns the *registered* resource definition,
-            # not the *content* read from the server.
+            # Note: Manager's get_resource returns the *registered* definition.
             return await self.resources.get_resource(uri=uri_str, client_id=client_name)
         else:
             logger.info(
@@ -382,7 +377,7 @@ class MCPHost:
 
             if not providing_clients:
                 logger.warning(
-                    f"Resource '{uri_str}' not found on any registered client."
+                    f"Resource definition '{uri_str}' not found on any registered client."
                 )
                 return None
             elif len(providing_clients) > 1:
@@ -399,37 +394,23 @@ class MCPHost:
                     uri=uri_str, client_id=unique_client_id
                 )
 
-    # Removed register_workflow, execute_workflow, list_workflows, get_workflow methods
-    # Removed add_memories and search_memories methods
-
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
         logger.info("Shutting down MCP Host...")
 
-        # Cancel any active requests
-        for task in self._active_requests.values():
-            task.cancel()
-
-        # Close all resources using the exit stack
+        # Close all client connections and resources using the exit stack
         await self._exit_stack.aclose()
-        # logger.warning("Skipping AsyncExitStack.aclose() for debugging.") # Re-enabled after debugging
 
         # Shutdown managers in reverse layer order
-
-        # Layer 4: Agent layer - Removed WorkflowManager shutdown
-        # logger.info("Shutting down agent layer...")
-        # await self._workflow_manager.shutdown()
 
         # Layer 3: Resource management layer
         logger.info("Shutting down resource management layer...")
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
-        # await self._storage_manager.shutdown() # Removed
         await self._tool_manager.shutdown()
 
         # Layer 2: Communication layer
         logger.info("Shutting down communication layer...")
-        # await self._transport_manager.shutdown() # Removed unused manager call
         await self._message_router.shutdown()
 
         # Layer 1: Foundation layer

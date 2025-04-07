@@ -97,25 +97,26 @@ def load_host_config_from_json(config_path: Path) -> HostConfig:
 
     try:
         client_configs = []
-        for agent_data in host_config_data.get("agents", []):
+        # Look for "clients" key instead of "agents"
+        for client_data in host_config_data.get("clients", []):
             # Resolve server_path relative to the project root directory
-            raw_server_path = agent_data.get("server_path")
+            raw_server_path = client_data.get("server_path")
             if not raw_server_path:
                 raise KeyError(
-                    f"Missing 'server_path' for client_id: {agent_data.get('client_id', 'UNKNOWN')}"
+                    f"Missing 'server_path' for client_id: {client_data.get('client_id', 'UNKNOWN')}"
                 )
 
             resolved_server_path = (PROJECT_ROOT_DIR / raw_server_path).resolve()
             if not resolved_server_path.exists():
                 logger.warning(
-                    f"Server path does not exist for client '{agent_data.get('client_id', 'UNKNOWN')}': {resolved_server_path}"
+                    f"Server path does not exist for client '{client_data.get('client_id', 'UNKNOWN')}': {resolved_server_path}"
                 )
                 # Decide if this should be a fatal error or just a warning
                 # For now, let's allow it but log a warning. Pydantic might still fail if Path validation is strict.
 
             client_configs.append(
                 ClientConfig(
-                    client_id=agent_data[
+                    client_id=client_data[
                         "client_id"
                     ],  # Let potential KeyError raise here
                     server_path=resolved_server_path,
@@ -125,12 +126,12 @@ def load_host_config_from_json(config_path: Path) -> HostConfig:
                             name=root["name"],
                             capabilities=root["capabilities"],
                         )
-                        for root in agent_data.get("roots", [])
+                        for root in client_data.get("roots", [])
                     ],
-                    capabilities=agent_data.get("capabilities", []),
-                    timeout=agent_data.get("timeout", 10.0),
-                    routing_weight=agent_data.get("routing_weight", 1.0),
-                    exclude=agent_data.get("exclude", None),  # Include exclude field
+                    capabilities=client_data.get("capabilities", []),
+                    timeout=client_data.get("timeout", 10.0),
+                    routing_weight=client_data.get("routing_weight", 1.0),
+                    exclude=client_data.get("exclude", None),  # Include exclude field
                 )
             )
 

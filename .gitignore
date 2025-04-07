@@ -158,7 +158,6 @@ __package_previews__
 .store
 .cursor
 privatePackages/store
-storage
 yarn.lock
 RELEASE.md
 .jest-cache

@@ -174,7 +174,9 @@ class Agent:
         # Execute Conversation Loop - Renumbered step
         final_response = None
         tool_uses_in_last_turn = []  # Track tool uses specifically for the return value
-        max_iterations = 10  # Prevent infinite loops
+        # Use max_iterations from config or default to 10
+        max_iterations = self.config.max_iterations or 10
+        logger.debug(f"Conversation loop max iterations set to: {max_iterations}")
         current_iteration = 0
 
         while current_iteration < max_iterations:

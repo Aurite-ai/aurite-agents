@@ -25,8 +25,7 @@ class RootManager:
         # client_id -> Set[str] (normalized URIs)
         self._client_uris: Dict[str, Set[str]] = {}
 
-        # tool_name -> Set[str] (required root URIs)
-        self._tool_requirements: Dict[str, Set[str]] = {}
+        # Tool-specific requirements removed for simplification
 
     async def initialize(self):
         """Initialize the root manager"""
@@ -67,34 +66,27 @@ class RootManager:
 
         logger.info(f"Registered roots for client {client_id}: {normalized_uris}")
 
-    async def register_tool_requirements(
-        self, tool_name: str, required_roots: Set[str]
-    ):
-        """Register the root URIs required by a tool"""
-        self._tool_requirements[tool_name] = required_roots
+    # register_tool_requirements method removed.
 
-    async def validate_access(self, client_id: str, tool_name: str) -> bool:
+    async def validate_access(self, client_id: str) -> bool:
         """
-        Validate that a client has access to all roots required by a tool.
-        Raises ValueError if access is not allowed.
+        Placeholder validation method. Currently always returns True.
+        Original logic checked tool-specific root requirements, which have been removed.
+        This method is kept for potential future use or more basic checks if needed.
         """
-        # If client has no registered roots, assume unrestricted access
-        # This allows tools to work even when no roots are defined
+        # Original logic checked tool-specific requirements here.
+        # Since that's removed, and the check for client registration happens
+        # before this would be called, we just return True.
+        # We could add a basic check like `return client_id in self._client_roots`
+        # if we wanted to ensure the client is known, but ToolManager likely handles that.
         if client_id not in self._client_roots:
-            logger.info(
-                f"No roots registered for client: {client_id}, assuming unrestricted access"
+            # This case might indicate an issue elsewhere if ToolManager calls this
+            # for an unknown client, but we'll log a warning just in case.
+            logger.warning(
+                f"validate_access called for unknown or rootless client: {client_id}"
             )
+            # Still return True based on original logic's fallback for rootless clients.
             return True
-
-        if tool_name in self._tool_requirements:
-            required_roots = self._tool_requirements[tool_name]
-            client_roots = self._client_uris[client_id]
-
-            missing_roots = required_roots - client_roots
-            if missing_roots:
-                raise ValueError(
-                    f"Client {client_id} missing required roots for {tool_name}: {missing_roots}"
-                )
 
         return True
 
@@ -104,15 +96,12 @@ class RootManager:
         """Get all roots registered for a client"""
         return self._client_roots.get(client_id, [])
 
-    async def get_tool_requirements(self, tool_name: str) -> Set[str]:
-        """Get all root URIs required by a tool"""
-        return self._tool_requirements.get(tool_name, set())
+    # get_tool_requirements method removed.
 
     async def shutdown(self):
         """Shutdown the root manager"""
         logger.info("Shutting down root manager")
 
-        # Clear all stored data
+        # Clear stored data
         self._client_roots.clear()
         self._client_uris.clear()
-        self._tool_requirements.clear()

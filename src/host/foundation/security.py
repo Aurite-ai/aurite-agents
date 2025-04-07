@@ -9,7 +9,7 @@ import logging
 import base64
 import hashlib
 import time
-from typing import Dict, Optional, List, Any, Tuple
+from typing import Dict, Optional, List, Any  # Removed Tuple
 from dataclasses import dataclass
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -38,8 +38,8 @@ class Credential:
 
 class SecurityManager:
     """
-    Manages credentials, encryption, and security policies for the MCP host.
-    Handles secure storage and retrieval of sensitive information.
+    Manages credentials, encryption, access tokens, and data masking for the MCP host.
+    Handles secure storage (in-memory) and retrieval of sensitive information.
     """
 
     def __init__(self, encryption_key: Optional[str] = None):
@@ -59,8 +59,7 @@ class SecurityManager:
         # Map of token IDs to credential IDs
         self._access_tokens: Dict[str, str] = {}
 
-        # Map of server IDs to allowed credential types
-        self._server_permissions: Dict[str, List[str]] = {}
+        # Server permissions removed as they are not currently used by the refactored host.
 
     async def initialize(self):
         """Initialize the security manager"""
@@ -97,14 +96,7 @@ class SecurityManager:
 
         return Fernet(key_bytes)
 
-    async def register_server_permissions(
-        self, server_id: str, allowed_credential_types: List[str]
-    ):
-        """Register which credential types a server is allowed to access"""
-        self._server_permissions[server_id] = allowed_credential_types
-        logger.info(
-            f"Registered permissions for server {server_id}: {allowed_credential_types}"
-        )
+    # register_server_permissions method removed.
 
     async def store_credential(
         self,
@@ -182,46 +174,9 @@ class SecurityManager:
         cred_id = self._access_tokens[token]
         return await self.get_credential(cred_id)
 
-    async def validate_server_access(self, server_id: str, cred_id: str) -> bool:
-        """
-        Validate if a server is allowed to access a specific credential
-        """
-        if server_id not in self._server_permissions:
-            return False
+    # validate_server_access method removed.
 
-        if cred_id not in self._credentials:
-            return False
-
-        # Check if server has permission for this credential type
-        allowed_types = self._server_permissions[server_id]
-        cred_type = self._credentials[cred_id].type
-
-        return cred_type in allowed_types
-
-    async def secure_database_connection(
-        self, connection_string: str
-    ) -> Tuple[str, str]:
-        """
-        Securely handle a database connection string.
-        Returns a token and masked connection string.
-
-        The token can be used to retrieve the actual connection string.
-        The masked string is safe to log or return to clients.
-        """
-        # Store the connection string as a credential
-        cred_id = await self.store_credential(
-            type="database_connection",
-            value=connection_string,
-            metadata={"purpose": "sql_connection"},
-        )
-
-        # Create an access token
-        token = await self.create_access_token(cred_id)
-
-        # Create a masked version for display
-        masked = self.mask_sensitive_data(connection_string)
-
-        return token, masked
+    # secure_database_connection method removed.
 
     def mask_sensitive_data(self, data: str) -> str:
         """
@@ -243,7 +198,6 @@ class SecurityManager:
         """Shutdown the security manager"""
         logger.info("Shutting down security manager")
 
-        # Clear all credentials from memory
+        # Clear credentials and tokens from memory
         self._credentials.clear()
         self._access_tokens.clear()
-        self._server_permissions.clear()

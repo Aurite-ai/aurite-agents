@@ -1,28 +1,38 @@
 # MCP Host System - Technical Implementation Specification
 
-**Version:** 0.1
-**Date:** 2025-04-05
+**Version:** 0.2
+**Date:** 2025-04-07
 
 ## 1. Overview
 
-This document details the technical implementation of the `aurite-mcp` Host system (`src/host/`), based on the code review conducted in Phase 2 of the overarching development plan. It aims to provide a clear understanding of the current state, serving as a baseline for discussion and potential improvements.
+This document details the technical implementation of the `aurite-agents` MCP Host system (`src/host/`), reflecting the state after the major refactor completed on 2025-04-06. It aims to provide a clear understanding of the current implementation, focusing solely on the Host's role in managing MCP server interactions.
 
-The Host system orchestrates communication between AI agents/workflows and various MCP tool servers. It follows a layered architecture as outlined in `docs/architecture_overview.md`.
+The Host system orchestrates communication with various MCP tool servers, providing a unified interface for higher-level components like the `Agent` framework (`src/agents/`). It follows a layered architecture as outlined in the updated `docs/architecture_overview.md`.
 
 ## 2. Core Class: `MCPHost` (`src/host/host.py`)
 
 The `MCPHost` class is the central orchestrator.
 
 *   **Initialization:**
-    *   Takes a `HostConfig` object (defined in `src/host/config.py`) and an optional `encryption_key` (passed to `SecurityManager`).
-    *   Instantiates all manager classes for each layer.
-    *   The `initialize()` method calls the `initialize()` method of each manager sequentially, respecting layer order (Foundation -> Communication -> Resource Management -> Agent).
-    *   Initializes client connections based on the `HostConfig.clients` list, registering roots, capabilities, tools, prompts, and resources with the relevant managers.
-    *   Conditionally initializes a dedicated "memory" client (`mem0_server.py`) based on the `HostConfig.enable_memory` flag.
-*   **Dependencies:** Uses an `AsyncExitStack` to manage the lifecycle of client sessions created via `stdio_client`.
-*   **Service Access:** Exposes managers from the Resource Management and Agent layers (Prompts, Resources, Storage, Tools, Workflows) as public properties (e.g., `host.tools`, `host.workflows`).
-*   **Core Functionality:** Provides high-level methods like `prepare_prompt_with_tools`, `execute_prompt_with_tools`, `register_workflow`, `execute_workflow`, `add_memories`, `search_memories` which delegate tasks to the appropriate managers.
-*   **Shutdown:** The `shutdown()` method calls the `shutdown()` method of each manager in reverse layer order and closes client connections via the `AsyncExitStack`.
+    *   Takes a `HostConfig` object (defined in `src/host/models.py`) and an optional `encryption_key` (passed to `SecurityManager`).
+    *   Instantiates manager classes for the Foundation, Communication, and Resource Management layers.
+    *   The `initialize()` method calls the `initialize()` method of each manager sequentially (Foundation -> Communication -> Resource Management).
+    *   Initializes client connections based on the `HostConfig.clients` list using an `AsyncExitStack` to manage `stdio_client` lifecycles.
+    *   During client initialization (`_initialize_client`):
+        *   Registers roots with `RootManager`.
+        *   Registers server capabilities with `MessageRouter`.
+        *   Registers the client session with `ToolManager`, `PromptManager`, and `ResourceManager`.
+        *   Discovers tools, prompts, and resources from the client.
+        *   Registers discovered components with the respective managers, applying the `exclude` list from the `ClientConfig` to filter out unwanted components *at registration time*.
+*   **Dependencies:** Uses `contextlib.AsyncExitStack` to manage client session lifecycles.
+*   **Service Access:** Exposes managers from the Resource Management layer (Prompts, Resources, Tools) as public properties (e.g., `host.tools`, `host.prompts`, `host.resources`).
+*   **Core Functionality (Convenience Methods):** Provides high-level async methods that wrap manager functions for easier use by consumers like the `Agent` class:
+    *   `get_prompt(prompt_name, arguments, client_name=None)`: Retrieves a prompt template. Discovers the client if `client_name` is None.
+    *   `execute_tool(tool_name, arguments, client_name=None)`: Executes a tool. Discovers the client if `client_name` is None.
+    *   `read_resource(uri, client_name=None)`: Retrieves a resource definition (currently not the content). Discovers the client if `client_name` is None.
+    *   *(Implicitly uses underlying manager methods like `list_tools`, `list_prompts`, `list_resources`)*.
+    *   **Note:** These methods currently only support specifying a single optional `client_name`. Filtering by a list of client IDs is planned for a future update.
+*   **Shutdown:** The `shutdown()` method calls the `shutdown()` method of each manager in reverse layer order (Resource Management -> Communication -> Foundation) and closes client connections via the `AsyncExitStack`.
 
 ## 3. Layered Architecture Implementation
 
@@ -31,59 +41,46 @@ The `MCPHost` class is the central orchestrator.
 *   **`RootManager` (`src/host/foundation/roots.py`)**
     *   **Purpose:** Manages MCP roots (resource URI boundaries) associated with clients.
     *   **Implementation:** Stores `client_id` -> `List[RootConfig]` mapping. Validates and normalizes URIs upon registration. Provides `validate_access` method used by `ToolManager` and `ResourceManager` to check if a required URI is within a client's allowed roots.
-    *   **Notes:** Defines its own `RootConfig` dataclass, potentially redundant with `src/host/config.py`. Assumes unrestricted access if no roots are registered for a client.
+    *   **Notes:** Assumes unrestricted access if no roots are registered for a client.
 *   **`SecurityManager` (`src/host/foundation/security.py`)**
-    *   **Purpose:** Handles encryption, credential storage, access tokens, and permissions.
+    *   **Purpose:** Handles encryption (optional), credential storage (in-memory), access tokens, and basic server permissions (currently unused after refactor).
     *   **Implementation:** Uses `cryptography.fernet` for symmetric encryption. Derives key from `AURITE_MCP_ENCRYPTION_KEY` env var or generates one. Stores encrypted credentials in an *in-memory* dictionary (`_credentials`). Creates temporary access tokens (`_access_tokens`) mapped to credential IDs. Manages server permissions (`_server_permissions`) mapping `server_id` to allowed credential *types*. Provides masking for sensitive data.
     *   **Notes:** In-memory storage is not suitable for production secrets.
 
 ### 3.2. Layer 2: Communication
 
-*   **`TransportManager` (`src/host/communication/transport.py`)**
-    *   **Purpose:** Manages the creation and lifecycle of transport connections to MCP servers.
-    *   **Implementation:** Currently supports `STDIO` transport using `mcp.client.stdio.stdio_client`. Holds references to active transport objects. Has placeholders for `SSE`.
-    *   **Notes:** Seems underutilized currently, as `host.py` directly uses `stdio_client` within its `_initialize_client` method via the `AsyncExitStack`. The manager itself doesn't appear to be directly used for creating the main client transports in the current `host.py` flow.
-*   **`MessageRouter` (`src/host/communication/routing.py`)**
-    *   **Purpose:** Maps tools and prompts to the clients/servers that provide them. Selects servers for tool execution.
-    *   **Implementation:** Maintains dictionaries mapping `tool_name` -> `client_id` and `prompt_name` -> `client_id`. Stores server capabilities and routing weights. `select_server_for_tool` method uses weights primarily to distinguish primary (weight=1.0) vs. backup (weight<1.0) servers.
-    *   **Notes:** Routing logic based on weight seems basic currently.
+*   **`MessageRouter` (`src/host/foundation/routing.py`)**
+    *   **Purpose:** Maps tools and prompts to the clients/servers that provide them based on registration during host initialization. Selects servers for tool execution.
+    *   **Implementation:** Maintains dictionaries mapping `tool_name` -> `List[client_id]` and `prompt_name` -> `List[client_id]`. Stores server capabilities and routing weights (`ClientConfig.routing_weight`). The `select_server_for_tool` method (used internally by `ToolManager`) currently uses weights primarily to distinguish primary (weight=1.0) vs. backup (weight<1.0) servers if multiple clients offer the same tool.
+    *   **Notes:** Provides methods like `get_clients_for_tool` used by `MCPHost` convenience methods for discovery.
 
 ### 3.3. Layer 3: Resource Management
 
 *   **`PromptManager` (`src/host/resources/prompts.py`)**
     *   **Purpose:** Manages system prompts provided by clients.
-    *   **Implementation:** Registers prompts per client. Includes helper methods to convert various data formats into standard `mcp.types.Prompt` and `mcp.types.GetPromptResult`. Validates arguments against prompt definitions.
-    *   **Notes:** Defines an unused `PromptConfig` dataclass.
+    *   **Implementation:** Registers prompts per client, applying the `exclude` list from `ClientConfig`. Provides `get_prompt` (retrieves template), `list_prompts`, and `get_clients_for_prompt`.
+    *   **Notes:** Prompt *execution* (LLM call) is handled by the `Agent` framework.
 *   **`ResourceManager` (`src/host/resources/resources.py`)**
     *   **Purpose:** Manages MCP resources (data identified by URIs) provided by clients.
-    *   **Implementation:** Registers resources per client. Provides `validate_resource_access` which uses `RootManager` to enforce boundaries. Includes subscription methods (publish/subscribe mechanism not fully implemented).
-    *   **Notes:** Defines an unused `ResourceConfig` dataclass.
-*   **`StorageManager` (`src/host/resources/storage.py`)**
-    *   **Purpose:** Manages SQL database connections using SQLAlchemy.
-    *   **Implementation:** Creates/manages SQLAlchemy `Engine` objects based on parameters or named configurations (`config/storage/connections.json`). Provides `execute_query` method. Manages server permissions based on allowed *database types* (e.g., 'postgresql'). Loads named connection configs and retrieves credentials from environment variables specified in the config.
-    *   **Notes:** Tightly coupled to SQLAlchemy. Permission model is type-based, not instance-based.
+    *   **Implementation:** Registers resources per client, applying the `exclude` list from `ClientConfig`. Provides `get_resource` (retrieves definition), `list_resources`, `get_clients_for_resource`, and `validate_resource_access` (using `RootManager`).
+    *   **Notes:** Actual resource *reading* requires calling `session.read_resource` on the specific client session, which is not currently wrapped by a high-level `ResourceManager` or `MCPHost` method.
 *   **`ToolManager` (`src/host/resources/tools.py`)**
     *   **Purpose:** Central hub for tool registration, discovery, execution, and formatting for LLMs.
-    *   **Implementation:** Takes `RootManager` and `MessageRouter` as dependencies. Registers tools discovered from clients. Orchestrates `execute_tool` by selecting a server via `MessageRouter`, validating access via `RootManager`, and calling the tool on the client session. Provides specific formatting methods (`format_tools_for_llm`, `create_tool_result_blocks`) for LLM interaction.
-    *   **Notes:** Core component bridging the host infrastructure and agent capabilities.
+    *   **Implementation:** Takes `RootManager` and `MessageRouter` as dependencies. Registers tools discovered from clients, applying the `exclude` list from `ClientConfig`. Orchestrates `execute_tool` by selecting a server via `MessageRouter`, validating access via `RootManager` (if tool requires resources), and calling the tool on the client session. Provides `list_tools`, `get_clients_for_tool`, and specific formatting methods (`format_tools_for_llm`, `create_tool_result_blocks`) for LLM interaction (used by the `Agent` class).
+    *   **Notes:** Core component bridging the host infrastructure and the `Agent` framework.
 
-### 3.4. Layer 4: Agent
+*(Note: `StorageManager`, `TransportManager`, and `WorkflowManager` have been removed from the Host system).*
 
-*   **`WorkflowManager` (`src/host/agent/workflows.py`)**
-    *   **Purpose:** Manages the registration, execution, and lifecycle of `BaseWorkflow` instances.
-    *   **Implementation:** Takes the `MCPHost` instance as a dependency, allowing workflows to access host services. Can dynamically register a client specified by a workflow's `ClientConfig`, modifying the host's configuration and triggering client initialization via the host instance. Executes workflows and manages their lifecycle.
-    *   **Notes:** The dynamic client registration mechanism involves a higher layer (Agent) modifying the configuration/state managed by the core Host, which might be an area to review for potential complexity or unexpected side effects.
+## 4. Configuration (`src/host/models.py`)
 
-## 4. Configuration (`src/host/config.py`)
+*   Defines core Pydantic models used for host configuration: `RootConfig`, `ClientConfig`, `HostConfig`.
+*   These models are loaded from a JSON file (specified by `ServerConfig.HOST_CONFIG_PATH`) by the utility function `src.config.load_host_config_from_json` during application startup (`src/main.py`).
+*   `ClientConfig` includes the `exclude: Optional[List[str]]` field, used during host initialization to prevent specific tools, prompts, or resources from being registered for that client.
 
-*   Defines core Pydantic models: `RootConfig`, `ClientConfig`, `HostConfig`. These are used by `main.py` to load the primary host configuration during startup.
-*   Includes a `ConfigurationManager` utility class with static methods for loading/saving other JSON configuration files (workflows, storage) from the `aurite-mcp/config/` directory. This seems separate from the main `HostConfig` loading.
+## 5. Current Discussion Points / Areas for Improvement
 
-## 5. Initial Discussion Points
-
-*   **Redundant Config Classes:** `RootManager`, `PromptManager`, `ResourceManager` define dataclasses similar to Pydantic models in `config.py`. Consolidate?
-*   **SecurityManager Storage:** In-memory credential storage is insecure for production. Plan for integration with a vault?
-*   **TransportManager Usage:** The manager exists but `host.py` seems to handle transport creation directly via `AsyncExitStack`. Clarify role or refactor?
-*   **StorageManager Specificity:** Tightly coupled to SQLAlchemy. Is this sufficient, or is broader storage support needed?
-*   **WorkflowManager Dynamic Config:** The ability for `WorkflowManager` to modify host config and trigger client initialization feels complex. Is this the desired pattern?
-*   **ConfigurationManager Utility:** Clarify the role of `ConfigurationManager` vs. the main `HostConfig` loading in `main.py`. Are both needed?
+*   **SecurityManager Storage:** In-memory credential storage is insecure for production. Integration with a secrets management solution should be considered.
+*   **Resource Reading:** Currently, no high-level method exists on the Host or `ResourceManager` to directly read resource content; consumers need to access the client session. Consider adding `host.read_resource_content(uri)` or similar.
+*   **Host Filtering Feature:** Implement the planned feature to allow convenience methods (`execute_tool`, `list_tools`, etc.) to filter based on a provided list of `client_ids` (Phase 4 of current plan).
+*   **Error Handling:** Review error propagation from managers and client sessions up through the host convenience methods.
+*   **Configuration Schema:** Review if `RootConfig` defined within `models.py` is sufficient or if managers still need internal representations. (Initial review suggests `models.RootConfig` is used).
