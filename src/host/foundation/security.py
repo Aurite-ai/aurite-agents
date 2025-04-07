@@ -9,7 +9,7 @@ import logging
 import base64
 import hashlib
 import time
-from typing import Dict, Optional, List, Any  # Removed Tuple
+from typing import Dict, Optional, Any  # Removed Tuple
 from dataclasses import dataclass
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes

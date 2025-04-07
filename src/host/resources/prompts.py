@@ -2,7 +2,7 @@
 Prompt management for MCP host.
 """
 
-from typing import Dict, List, Set, Optional, Any  # Removed Union
+from typing import Dict, List, Optional, Any  # Removed Union
 import logging
 import mcp.types as types
 

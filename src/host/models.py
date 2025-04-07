@@ -8,7 +8,7 @@ This module provides:
 """
 
 import logging
-from typing import List, TypeVar, Optional
+from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel
 

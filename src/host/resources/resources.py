@@ -2,7 +2,7 @@
 Resource management for MCP host.
 """
 
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Optional
 import logging
 from urllib.parse import urlparse
 

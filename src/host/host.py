@@ -3,7 +3,6 @@ MCP Host implementation for managing MCP client connections and interactions.
 """
 
 from typing import Dict, Optional, Any  # Removed Union
-import asyncio
 import logging
 from contextlib import AsyncExitStack
 

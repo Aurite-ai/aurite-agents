@@ -129,14 +129,22 @@ class TestWeatherMCPServerE2E:
         """Verify the get_prompt for weather_assistant via host.prompts.get_prompt."""
         host = real_mcp_host
 
-        logger.info(f"Calling get_prompt with args: {args}")
-        result = await host.prompts.get_prompt(
-            client_name=WEATHER_CLIENT_ID,
+        logger.info(f"Calling host.get_prompt with args: {args}")
+        # Call the host's get_prompt method, which handles discovery/execution
+        # Note: The weather server's _get_prompt_handler actually returns GetPromptResult
+        # So, although host.get_prompt usually returns Prompt definition, in this E2E
+        # test against this specific server, we expect GetPromptResult back.
+        # This highlights a slight inconsistency, but the test should work as is.
+        result = await host.get_prompt(  # Call host method
+            client_name=WEATHER_CLIENT_ID,  # Pass client_name
             prompt_name="weather_assistant",
-            arguments=args,
+            arguments=args,  # Pass arguments
         )
 
-        assert isinstance(result, types.GetPromptResult)
+        # The weather server's handler returns GetPromptResult, so assert that
+        assert isinstance(result, types.GetPromptResult), (
+            f"Expected GetPromptResult, but got {type(result)}"
+        )
         assert len(result.messages) == 1
         message = result.messages[0]
         assert isinstance(message, types.PromptMessage)
