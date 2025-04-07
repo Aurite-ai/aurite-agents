@@ -29,8 +29,8 @@ class TestGenericMCPServerE2E:
     async def test_server_responds_to_list_requests(self, real_mcp_host: MCPHost):
         """Verify connected servers respond to list_tools and list_prompts."""
         host = real_mcp_host
-        assert host.is_running, "Host should be running"
-        assert len(host.clients) > 0, (
+        # assert host.is_running, "Host should be running" # Removed check for non-existent attribute
+        assert len(host._clients) > 0, (  # Check internal _clients dict instead
             "Host should have at least one client configured for E2E tests"
         )
 
@@ -42,7 +42,8 @@ class TestGenericMCPServerE2E:
 
             # Test list_tools
             try:
-                tools = await host.tools.list_tools(client_names=[client_name])
+                # Use client_id parameter instead of client_names
+                tools = await host.tools.list_tools(client_id=client_name)
                 assert isinstance(tools, list), (
                     f"list_tools for {client_name} should return a list"
                 )
@@ -60,7 +61,8 @@ class TestGenericMCPServerE2E:
 
             # Test list_prompts
             try:
-                prompts = await host.prompts.list_prompts(client_names=[client_name])
+                # Use client_id parameter instead of client_names
+                prompts = await host.prompts.list_prompts(client_id=client_name)
                 assert isinstance(prompts, list), (
                     f"list_prompts for {client_name} should return a list"
                 )
@@ -85,15 +87,20 @@ class TestGenericMCPServerE2E:
         if they offer any prompts or tools.
         """
         host = real_mcp_host
-        assert host.is_running, "Host should be running"
+        # assert host.is_running, "Host should be running" # Removed check for non-existent attribute
+        assert len(host._clients) > 0, (
+            "Host should have active clients"
+        )  # Check internal _clients dict
 
-        logger.info(f"Testing get/call requests against {len(host.clients)} clients...")
+        logger.info(
+            f"Testing get/call requests against {len(host._clients)} clients..."
+        )
 
         for client_name, client_info in host.clients.items():
             logger.info(f"Checking client: {client_name}")
 
-            # Check if tools exist first
-            tools = await host.tools.list_tools(client_names=[client_name])
+            # Check if tools exist first (using corrected list_tools call)
+            tools = await host.tools.list_tools(client_id=client_name)
             if tools:
                 # Attempt to call the first tool found with dummy args if possible
                 # This is a basic check, might need refinement based on tool schemas
@@ -132,28 +139,28 @@ class TestGenericMCPServerE2E:
             else:
                 logger.info(f"Client {client_name} has no tools to call.")
 
-            # Check if prompts exist
-            prompts = await host.prompts.list_prompts(client_names=[client_name])
+            # Check if prompts exist (using corrected list_prompts call)
+            prompts = await host.prompts.list_prompts(client_id=client_name)
             if prompts:
                 first_prompt = prompts[0]
                 logger.info(
                     f"Client {client_name} has prompts. Attempting get_prompt for '{first_prompt.name}'"
                 )
                 try:
-                    # Attempt to get the prompt with empty arguments
+                    # Attempt to get the prompt using the correct manager signature
                     result = await host.prompts.get_prompt(
-                        client_name=client_name,
-                        prompt_name=first_prompt.name,
-                        arguments={},
+                        name=first_prompt.name,  # Use 'name' parameter
+                        client_id=client_name,  # Use 'client_id' parameter
+                        # No 'arguments' parameter for manager's get_prompt
                     )
-                    assert isinstance(result, types.GetPromptResult), (
-                        f"get_prompt for {client_name}.{first_prompt.name} should return GetPromptResult"
+                    # Manager's get_prompt returns types.Prompt or None
+                    assert isinstance(result, types.Prompt), (
+                        f"get_prompt for {client_name}.{first_prompt.name} should return Prompt"
                     )
-                    assert isinstance(result.messages, list), (
-                        f"GetPromptResult for {client_name}.{first_prompt.name} should have a messages list"
-                    )
+                    # Add basic checks for the returned Prompt object
+                    assert result.name == first_prompt.name
                     logger.info(
-                        f"Client {client_name} - get_prompt for '{first_prompt.name}' successful."
+                        f"Client {client_name} - get_prompt for '{first_prompt.name}' successful (returned Prompt definition)."
                     )
                 except Exception as e:
                     pytest.fail(

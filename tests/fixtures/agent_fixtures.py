@@ -22,6 +22,7 @@ def agent_config_with_llm_params() -> AgentConfig:
         model="test-model-override",
         temperature=0.5,
         max_tokens=100,
+        max_iterations=5,  # Add example value
         system_prompt="Test system prompt override.",
     )
 

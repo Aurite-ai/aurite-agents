@@ -29,7 +29,12 @@ def mock_mcp_host() -> Mock:
     # Mock the methods that will be called by Agent.execute
     host.tools.format_tools_for_llm = Mock(
         return_value=[
-            {"name": "mock_tool", "description": "A mock tool", "input_schema": {}}
+            {
+                "name": "mock_tool",
+                "description": "A mock tool",
+                # Ensure the mock returns the required 'type' field for the schema
+                "input_schema": {"type": "object", "properties": {}},
+            }
         ]
     )
     host.tools.execute_tool = AsyncMock(

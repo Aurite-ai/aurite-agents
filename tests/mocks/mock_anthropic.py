@@ -3,6 +3,7 @@ Provides mock objects simulating the anthropic client for testing.
 """
 
 from unittest.mock import Mock
+from anthropic.types import ToolUseBlock, TextBlock  # Corrected import
 
 
 def get_mock_anthropic_client(
@@ -33,21 +34,20 @@ def get_mock_anthropic_client(
         # Simulate a response requesting tool calls
         mock_response.content = []
         for call in tool_calls:
-            mock_tool_use_block = Mock(
-                name=f"MockToolUseBlock_{call.get('name', 'unknown')}"
+            # Create actual ToolUseBlock instances
+            tool_use_block = ToolUseBlock(
+                type="tool_use",
+                id=call.get("id", "mock_tool_id"),  # Use provided or default ID
+                name=call.get("name", "mock_tool_name"),  # Use provided or default name
+                input=call.get("input", {}),  # Use provided or default input
             )
-            mock_tool_use_block.type = "tool_use"
-            mock_tool_use_block.id = call.get("id", "mock_tool_id")
-            mock_tool_use_block.name = call.get("name", "mock_tool_name")
-            mock_tool_use_block.input = call.get("input", {})
-            mock_response.content.append(mock_tool_use_block)
+            mock_response.content.append(tool_use_block)
         mock_response.stop_reason = "tool_use"
     else:
         # Simulate a simple text response
-        mock_text_block = Mock(name="MockTextBlock")
-        mock_text_block.type = "text"
-        mock_text_block.text = response_text
-        mock_response.content = [mock_text_block]
+        # Create an actual TextBlock content block
+        text_block = TextBlock(type="text", text=response_text)  # Use TextBlock
+        mock_response.content = [text_block]
         mock_response.stop_reason = stop_reason
 
     # Configure the mock messages.create method

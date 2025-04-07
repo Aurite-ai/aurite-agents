@@ -4,6 +4,8 @@ Tests for the Agent class implementation.
 
 import pytest
 from unittest.mock import Mock, patch  # Use AsyncMock for async methods
+import anthropic  # Add import
+from anthropic.types import ToolUseBlock  # Add import
 
 # Use relative imports from the project root (aurite-mcp)
 from src.agents.agent import Agent
@@ -75,13 +77,17 @@ class TestAgent:
         self, agent_config_with_llm_params, mock_mcp_host
     ):
         """Verify agent LLM params override defaults when calling Anthropic."""
-        agent = Agent(config=agent_config_with_llm_params)
-        # Patch the client within the agent's execution scope
+        # Patch the client constructor *before* initializing the agent
         with patch(
             "src.agents.agent.anthropic.Anthropic",
+            # Configure the mock client if needed (default mock is usually fine for checking args)
             return_value=get_mock_anthropic_client(),
         ) as mock_constructor:
-            mock_client = mock_constructor.return_value  # Get the mock client instance
+            # Instantiate Agent *inside* the patch context
+            agent = Agent(config=agent_config_with_llm_params)
+            # The agent.anthropic_client is now the mock instance
+            mock_client = agent.anthropic_client
+
             await agent.execute_agent(
                 user_message="Test message", host_instance=mock_mcp_host
             )
@@ -103,12 +109,16 @@ class TestAgent:
         self, minimal_agent_config, mock_mcp_host
     ):
         """Verify default LLM params are used when not in AgentConfig."""
-        agent = Agent(config=minimal_agent_config)
+        # Patch the client constructor *before* initializing the agent
         with patch(
             "src.agents.agent.anthropic.Anthropic",
+            # Configure the mock client if needed
             return_value=get_mock_anthropic_client(),
         ) as mock_constructor:
-            mock_client = mock_constructor.return_value
+            # Instantiate Agent *inside* the patch context
+            agent = Agent(config=minimal_agent_config)
+            mock_client = agent.anthropic_client  # Get the mock from the agent instance
+
             await agent.execute_agent(
                 user_message="Test message", host_instance=mock_mcp_host
             )
@@ -125,8 +135,6 @@ class TestAgent:
     # Remove mock_anthropic_client fixture, use patch instead
     async def test_execute_tool_call_flow(self, minimal_agent_config, mock_mcp_host):
         """Test the full flow when the LLM requests a tool call."""
-        agent = Agent(config=minimal_agent_config)
-
         # Define the tool call structure for the mock utility
         tool_use_id = "tool_abc123"
         tool_name = "mock_tool"
@@ -144,17 +152,32 @@ class TestAgent:
         mock_llm_response_with_tool = (
             mock_client_tool_request.messages.create.return_value
         )
+        # Get the response objects *from the mocks* to assert against later
+        mock_llm_response_with_tool: anthropic.types.Message = (
+            mock_client_tool_request.messages.create.return_value
+        )
+        # Extract the actual tool_use_id from the first mock response content
+        actual_tool_use_id = None
+        for block in mock_llm_response_with_tool.content:
+            if isinstance(block, ToolUseBlock):
+                actual_tool_use_id = block.id
+                break
+        assert actual_tool_use_id is not None, (
+            "Mock response did not contain a ToolUseBlock"
+        )
+
         mock_llm_final_response = (
             mock_client_final_response.messages.create.return_value
         )
 
         # Patch the constructor once to return a single mock client instance
         with patch("src.agents.agent.anthropic.Anthropic") as mock_constructor:
-            # Get the single mock client instance
-            mock_client = (
-                get_mock_anthropic_client()
-            )  # Use default simple response initially
-            mock_constructor.return_value = mock_client
+            # Instantiate Agent *inside* the patch context
+            agent = Agent(config=minimal_agent_config)
+            mock_client = agent.anthropic_client  # Get the mock from the agent instance
+            mock_constructor.return_value = (
+                mock_client  # Ensure the patch uses this instance if needed by others
+            )
 
             # Configure the side_effect on the *create method* of the instance
             mock_client.messages.create.side_effect = [
@@ -162,12 +185,14 @@ class TestAgent:
                 mock_llm_final_response,  # Second call returns final text
             ]
 
-            # Mock the tool result formatting (remains the same)
+            # Mock the tool result formatting, using the *actual* tool_use_id
+            mock_tool_result_content = "Mock tool result content"  # Example content
             mock_tool_result_block = {
                 "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": [{"type": "text", "text": "Mock tool result content"}],
+                "tool_use_id": actual_tool_use_id,  # Use the extracted ID
+                "content": [{"type": "text", "text": mock_tool_result_content}],
             }
+            # Configure the mock host's create_tool_result_blocks to return this
             mock_mcp_host.tools.create_tool_result_blocks.return_value = (
                 mock_tool_result_block
             )
@@ -193,16 +218,22 @@ class TestAgent:
             # 4. Second call to Anthropic included the tool result message
             #    Get args from the single mock client's create method history
             second_call_args, second_call_kwargs = (
-                mock_client.messages.create.call_args_list[1]
+                mock_client.messages.create.call_args_list[
+                    1
+                ]  # Index 1 for the second call
             )
-            messages = second_call_kwargs.get("messages", [])
+            messages_for_second_call = second_call_kwargs.get("messages", [])
+            assert len(messages_for_second_call) == 3, (
+                "Second call should have 3 messages"
+            )
+            assert messages_for_second_call[0]["role"] == "user"
             assert (
-                len(messages) == 3
-            )  # user -> assistant (tool_use) -> user (tool_result)
-            assert messages[2]["role"] == "user"
-            assert messages[2]["content"] == [
-                mock_tool_result_block
-            ]  # Check content matches formatted block
+                messages_for_second_call[1]["role"] == "assistant"
+            )  # Tool request turn
+            assert messages_for_second_call[2]["role"] == "user"  # Tool result turn
+            assert messages_for_second_call[2]["content"] == [mock_tool_result_block], (
+                "Tool result block in second call messages mismatch"
+            )
 
             # 5. Final response is correct
             assert result["final_response"] == mock_llm_final_response
