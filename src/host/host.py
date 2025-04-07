@@ -157,16 +157,16 @@ class MCPHost:
 
             if "tools" in config.capabilities:
                 self._tool_manager.register_client(config.client_id, session)
-                tools_response = await self._tool_manager.discover_client_tools(
+                # discover_client_tools now returns List[types.Tool] directly
+                discovered_tools = await self._tool_manager.discover_client_tools(
                     client_id=config.client_id, client_session=session
                 )
-                for tool in tools_response.tools:
+                for tool in discovered_tools:  # Iterate directly over the list
                     # register_tool now handles the exclusion check internally
                     registered = await self._tool_manager.register_tool(
                         tool_name=tool.name,
                         tool=tool,
                         client_id=config.client_id,
-                        capabilities=config.capabilities,
                         exclude_list=config.exclude,
                     )
                     if registered:

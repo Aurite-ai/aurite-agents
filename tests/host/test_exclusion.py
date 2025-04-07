@@ -167,8 +167,13 @@ class TestComponentExclusion:
     async def test_access_excluded_tool(self, initialized_host: MCPHost):
         """Verify attempting to get an excluded tool fails."""
         assert initialized_host.tools.get_tool("tool_to_exclude") is None
-        # Also test execution attempt (should fail because tool is not registered)
-        with pytest.raises(ValueError, match="Unknown tool: tool_to_exclude"):
+        # Also test execution attempt (should fail because tool is not registered in router)
+        # Update the expected error message based on refactored execute_tool logic
+        expected_error_msg = (
+            "Tool 'tool_to_exclude' not found on any registered client."
+        )
+        with pytest.raises(ValueError, match=expected_error_msg):
+            # Note: We call the ToolManager's execute_tool directly here for focused testing
             await initialized_host.tools.execute_tool("tool_to_exclude", {})
 
     @pytest.mark.asyncio
