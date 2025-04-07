@@ -63,11 +63,16 @@ class ExampleCustomWorkflow:
                     final_message = text_block.text
 
             logger.info("ExampleCustomWorkflow finished successfully.")
-            return {
+            return_value = {
                 "status": "success",
                 "input_received": initial_input,
                 "agent_result_text": final_message,
             }
+            # Add detailed log before returning
+            logger.debug(
+                f"ExampleCustomWorkflow returning: type={type(return_value)}, value={return_value}"
+            )
+            return return_value
 
         except KeyError as e:
             logger.error(f"Error getting agent config '{agent_name}': {e}")

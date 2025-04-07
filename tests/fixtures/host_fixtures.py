@@ -50,12 +50,18 @@ def mock_mcp_host() -> Mock:
     return host
 
 
+from typing import Tuple  # Add Tuple import
+from src.workflows.manager import CustomWorkflowManager  # Import manager
+
+
 # Change scope from "module" to "function" to potentially resolve async teardown issues
 @pytest.fixture(scope="function")
-async def real_mcp_host() -> MCPHost:
+async def real_host_and_manager() -> Tuple[
+    MCPHost, CustomWorkflowManager
+]:  # Rename and update return type
     """
-    Sets up and tears down a real MCPHost instance connected to the example echo server.
-    (Moved from test_agent_e2e.py)
+    Sets up and tears down real MCPHost and CustomWorkflowManager instances
+    based on the testing_config.json file.
     """
     # Import necessary modules
     from src.config import load_host_config_from_json, PROJECT_ROOT_DIR
@@ -86,22 +92,29 @@ async def real_mcp_host() -> MCPHost:
             )
 
     except Exception as e:
-        pytest.fail(f"Failed to load full config for real_mcp_host fixture: {e}")
+        pytest.fail(
+            f"Failed to load full config for real_host_and_manager fixture: {e}"
+        )
 
-    # Initialize the host with all loaded configs
+    # Initialize the host (without custom workflows)
     host_instance = MCPHost(
         config=host_config,
         agent_configs=agent_configs,
         workflow_configs=workflow_configs,
-        # Removed custom_workflow_configs argument
         # encryption_key can be added here if needed for tests
     )
+    # Initialize the manager
+    manager_instance = CustomWorkflowManager(custom_workflow_configs)
+
     try:
         await host_instance.initialize()  # This starts the client processes
     except Exception as init_e:
-        pytest.fail(f"MCPHost initialization failed in real_mcp_host fixture: {init_e}")
+        pytest.fail(
+            f"MCPHost initialization failed in real_host_and_manager fixture: {init_e}"
+        )
 
-    yield host_instance  # Provide the fully initialized host to the test
+    yield host_instance, manager_instance  # Provide both instances
 
     # Teardown: Shutdown the host and its clients
+    # Manager doesn't have explicit shutdown for now
     await host_instance.shutdown()

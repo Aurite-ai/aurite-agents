@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 import os
-from typing import Any
+from typing import Any, Tuple  # Added Tuple
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.main import (
@@ -70,20 +70,22 @@ def mock_custom_workflow_dependencies(monkeypatch):
 
 
 @pytest.mark.integration
-@pytest.mark.usefixtures(
-    "mock_custom_workflow_dependencies"
-)  # Apply mock fixture explicitly
+# Removed class-level usefixtures decorator
 class TestCustomWorkflowExecutionEndpoint:
     """Tests for the POST /custom_workflows/{workflow_name}/execute endpoint."""
 
-    # This test now uses the mock_custom_workflow_dependencies fixture via the class mark
+    @pytest.mark.usefixtures(
+        "mock_custom_workflow_dependencies"
+    )  # Apply fixture individually
     def test_execute_custom_workflow_success(
         self,
         api_client: TestClient,
         mock_custom_workflow_dependencies,  # Fixture provides the mock manager
     ):
         """Test successful execution of a valid custom workflow."""
-        mock_manager = mock_custom_workflow_dependencies  # Rename for clarity
+        mock_manager = (
+            mock_custom_workflow_dependencies  # Fixture is passed directly now
+        )
         workflow_name = CUSTOM_WF_VALID_NAME
         request_body = {"initial_input": MOCK_INITIAL_INPUT}
         headers = {"X-API-Key": TEST_API_KEY}
@@ -114,14 +116,18 @@ class TestCustomWorkflowExecutionEndpoint:
             ],  # Verify host was passed
         )
 
-    # This test now uses the mock_custom_workflow_dependencies fixture via the class mark
+    @pytest.mark.usefixtures(
+        "mock_custom_workflow_dependencies"
+    )  # Apply fixture individually
     def test_execute_custom_workflow_not_found(
         self,
         api_client: TestClient,
         mock_custom_workflow_dependencies,  # Fixture provides the mock manager
     ):
         """Test executing a non-existent custom workflow returns 404."""
-        mock_manager = mock_custom_workflow_dependencies  # Rename for clarity
+        mock_manager = (
+            mock_custom_workflow_dependencies  # Fixture is passed directly now
+        )
         workflow_name = CUSTOM_WF_NOT_FOUND_NAME
         request_body = {"initial_input": {}}
         headers = {"X-API-Key": TEST_API_KEY}
@@ -141,14 +147,18 @@ class TestCustomWorkflowExecutionEndpoint:
         assert workflow_name in response.json().get("detail", "")
         mock_manager.execute_custom_workflow.assert_awaited_once()  # Still called
 
-    # This test now uses the mock_custom_workflow_dependencies fixture via the class mark
+    @pytest.mark.usefixtures(
+        "mock_custom_workflow_dependencies"
+    )  # Apply fixture individually
     def test_execute_custom_workflow_host_setup_error(
         self,
         api_client: TestClient,
         mock_custom_workflow_dependencies,  # Fixture provides the mock manager
     ):
         """Test workflow returns 500 if manager fails during setup (e.g., import, attribute error)."""
-        mock_manager = mock_custom_workflow_dependencies  # Rename for clarity
+        mock_manager = (
+            mock_custom_workflow_dependencies  # Fixture is passed directly now
+        )
         workflow_name = CUSTOM_WF_HOST_ERROR_NAME
         request_body = {"initial_input": {}}
         headers = {"X-API-Key": TEST_API_KEY}
@@ -175,14 +185,18 @@ class TestCustomWorkflowExecutionEndpoint:
         # Assert manager interaction
         mock_manager.execute_custom_workflow.assert_awaited_once()
 
-    # This test now uses the mock_custom_workflow_dependencies fixture via the class mark
+    @pytest.mark.usefixtures(
+        "mock_custom_workflow_dependencies"
+    )  # Apply fixture individually
     def test_execute_custom_workflow_internal_runtime_error(
         self,
         api_client: TestClient,
         mock_custom_workflow_dependencies,  # Fixture provides the mock manager
     ):
         """Test workflow returns 200 but failed status if the workflow itself raises RuntimeError."""
-        mock_manager = mock_custom_workflow_dependencies  # Rename for clarity
+        mock_manager = (
+            mock_custom_workflow_dependencies  # Fixture is passed directly now
+        )
         workflow_name = CUSTOM_WF_INTERNAL_ERROR_NAME
         request_body = {"initial_input": {}}
         headers = {"X-API-Key": TEST_API_KEY}
@@ -256,37 +270,41 @@ class TestCustomWorkflowExecutionEndpoint:
         not os.environ.get("ANTHROPIC_API_KEY"),
         reason="Requires ANTHROPIC_API_KEY environment variable for agent call within workflow",
     )
-    # Note: This test relies on the 'real_mcp_host' fixture.
-    # We explicitly override the get_mcp_host dependency for this test
-    # to ensure the correct host instance is used by the endpoint.
+    # Note: This test relies on the 'real_host_and_manager' fixture.
+    # We explicitly override the dependencies for this test
+    # to ensure the correct instances are used by the endpoint.
     def test_execute_example_custom_workflow_e2e(
-        self, real_mcp_host: MCPHost
-    ):  # Added real_mcp_host fixture
+        self,
+        real_host_and_manager: Tuple[MCPHost, CustomWorkflowManager],  # Use new fixture
+    ):
         """
         Test executing the example custom workflow end-to-end.
-        Requires the real_mcp_host fixture (run with -m e2e).
+        Requires the real_host_and_manager fixture (run with -m e2e).
         """
         workflow_name = "ExampleCustom"  # Defined in testing_config.json
         request_body = {
             "initial_input": "San Francisco"
         }  # Input for the example workflow
         headers = {"X-API-Key": TEST_API_KEY}
+        host_instance, manager_instance = real_host_and_manager  # Unpack instances
 
         # Instantiate TestClient directly for this test
         client = TestClient(app)
 
-        # Override the dependency to return the specific host instance from the fixture
-        app.dependency_overrides[get_mcp_host] = lambda: real_mcp_host
+        # Override dependencies to return the specific instances from the fixture
+        app.dependency_overrides[get_mcp_host] = lambda: host_instance
+        app.dependency_overrides[get_workflow_manager] = lambda: manager_instance
         try:
-            # No mocking of host.execute_custom_workflow here - we want the real execution
+            # No mocking here - we want the real execution using the real manager and host
             response = client.post(
                 f"/custom_workflows/{workflow_name}/execute",
                 json=request_body,
                 headers=headers,
             )
         finally:
-            # Clean up the dependency override
+            # Clean up the dependency overrides
             app.dependency_overrides.pop(get_mcp_host, None)
+            app.dependency_overrides.pop(get_workflow_manager, None)
 
         # Assertions
         assert response.status_code == 200

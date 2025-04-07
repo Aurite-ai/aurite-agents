@@ -507,7 +507,15 @@ async def execute_custom_workflow_endpoint(
             initial_input=request_body.initial_input,
             host_instance=host,  # Pass the host instance
         )
+        # Add detailed logging immediately after the call
+        logger.info(
+            f"RAW Result received from manager: {result!r}"
+        )  # Use !r for detailed repr
         logger.info(f"Custom workflow '{workflow_name}' executed successfully via API.")
+        # Existing debug log
+        logger.debug(
+            f"Result from manager.execute_custom_workflow: type={type(result)}, value={result}"
+        )
         return ExecuteCustomWorkflowResponse(
             workflow_name=workflow_name, status="completed", result=result
         )
