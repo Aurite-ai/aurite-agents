@@ -14,13 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError  # Added BaseModel
 import uvicorn
 
-from src.host_manager import HostManager  # Import the new manager
-
-# Import Agent for type hinting if needed later, and AgentConfig
-from src.config import (  # Import the new ServerConfig and the loading utility
+# Adjust imports for new location (src/bin -> src)
+from ..host_manager import HostManager  # Import the new manager
+from ..config import (  # Import the new ServerConfig and the loading utility
     ServerConfig,
 )
-from src.host.models import (  # Added imports for registration
+from ..host.models import (  # Added imports for registration
     ClientConfig,
     AgentConfig,
     WorkflowConfig,
@@ -44,6 +43,7 @@ def get_server_config() -> ServerConfig:
     Uses lru_cache to load only once.
     """
     try:
+        # Assuming .env and HOST_CONFIG_PATH are relative to project root, not this file
         config = ServerConfig()
         logger.info("Server configuration loaded successfully.")
         # Update logging level based on config
@@ -531,8 +531,9 @@ def start():
         f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
     )
 
+    # Update the app path for uvicorn
     uvicorn.run(
-        "src.main:app",
+        "src.bin.api:app",  # Changed from "src.main:app"
         host=config.HOST,
         port=config.PORT,
         workers=config.WORKERS,

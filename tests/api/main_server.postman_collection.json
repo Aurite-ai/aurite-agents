@@ -232,6 +232,395 @@
           }
         }
       ]
+    },
+    {
+      "name": "[Dynamic] Register Client (Success)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"client_id\": \"dynamic_test_client\",\n    \"server_path\": \"tests/fixtures/servers/weather_mcp_server.py\",\n    \"roots\": [],\n    \"capabilities\": [\"tools\"],\n    \"timeout\": 10.0,\n    \"routing_weight\": 0.5,\n    \"exclude\": null\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/clients/register",
+          "host": ["{{base_url}}"],
+          "path": ["clients", "register"]
+        },
+        "description": "Registers a new client dynamically."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response body is correct\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.eql({status: 'success', client_id: 'dynamic_test_client'});",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Client (Duplicate)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"client_id\": \"dynamic_test_client\",\n    \"server_path\": \"tests/fixtures/servers/weather_mcp_server.py\",\n    \"roots\": [],\n    \"capabilities\": [\"tools\"],\n    \"timeout\": 10.0,\n    \"routing_weight\": 0.5,\n    \"exclude\": null\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/clients/register",
+          "host": ["{{base_url}}"],
+          "path": ["clients", "register"]
+        },
+        "description": "Attempts to register a client with an ID that already exists."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"Response body contains error detail\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "    pm.expect(jsonData.detail).to.contain('already registered');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Agent (Success)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"client_ids\": [\"dynamic_test_client\", \"weather_server\"],\n    \"system_prompt\": \"This is a dynamically registered agent.\",\n    \"model\": \"claude-3-haiku-20240307\",\n    \"temperature\": 0.5,\n    \"max_tokens\": 100,\n    \"max_iterations\": 3,\n    \"include_history\": false\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/register",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "register"]
+        },
+        "description": "Registers a new agent dynamically."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response body is correct\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.eql({status: 'success', agent_name: 'Dynamic Test Agent'});",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Agent (Duplicate Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"client_ids\": [\"weather_server\"],\n    \"system_prompt\": \"Attempting duplicate registration.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/register",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "register"]
+        },
+        "description": "Attempts to register an agent with a name that already exists."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"Response body contains error detail\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "    pm.expect(jsonData.detail).to.contain('already registered');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Agent (Invalid Client ID)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Agent With Invalid Client\",\n    \"client_ids\": [\"non_existent_client\"],\n    \"system_prompt\": \"This registration should fail.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/register",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "register"]
+        },
+        "description": "Attempts to register an agent referencing a client ID that does not exist."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Response body contains error detail\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "    pm.expect(jsonData.detail).to.contain('not found');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Workflow (Success)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Dynamic Test Workflow\",\n    \"steps\": [\"Dynamic Test Agent\", \"Weather Agent\"],\n    \"description\": \"A workflow registered dynamically.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/workflows/register",
+          "host": ["{{base_url}}"],
+          "path": ["workflows", "register"]
+        },
+        "description": "Registers a new workflow dynamically."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response body is correct\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.eql({status: 'success', workflow_name: 'Dynamic Test Workflow'});",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Workflow (Duplicate Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Dynamic Test Workflow\",\n    \"steps\": [\"Weather Agent\"],\n    \"description\": \"Attempting duplicate registration.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/workflows/register",
+          "host": ["{{base_url}}"],
+          "path": ["workflows", "register"]
+        },
+        "description": "Attempts to register a workflow with a name that already exists."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"Response body contains error detail\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "    pm.expect(jsonData.detail).to.contain('already registered');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "[Dynamic] Register Workflow (Invalid Agent Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Workflow With Invalid Agent\",\n    \"steps\": [\"Non_Existent_Agent\"],\n    \"description\": \"This registration should fail.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/workflows/register",
+          "host": ["{{base_url}}"],
+          "path": ["workflows", "register"]
+        },
+        "description": "Attempts to register a workflow referencing an agent name that does not exist."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Response body contains error detail\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "    pm.expect(jsonData.detail).to.contain('not found');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -240,6 +629,12 @@
       "value": "http://localhost:8000",
       "type": "string",
       "description": "Base URL of the running FastAPI server"
+    },
+    {
+      "key": "api_key",
+      "value": "YOUR_API_KEY_HERE",
+      "type": "secret",
+      "description": "API Key for accessing protected endpoints (Set this in your environment)"
     }
   ]
 }

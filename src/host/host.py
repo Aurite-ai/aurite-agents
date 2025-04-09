@@ -538,6 +538,37 @@ class MCPHost:
             uri=uri_str, client_id=target_client_id
         )
 
+    async def register_client(self, config: ClientConfig):
+        """
+        Dynamically registers and initializes a new client after the host has started.
+
+        Args:
+            config: The configuration for the client to register.
+
+        Raises:
+            ValueError: If a client with the same ID is already registered.
+            Exception: Propagates exceptions from the underlying client initialization process.
+        """
+        logger.info(f"Attempting to dynamically register client: {config.client_id}")
+        if config.client_id in self._clients:
+            logger.error(f"Client ID '{config.client_id}' already registered.")
+            raise ValueError(f"Client ID '{config.client_id}' already registered.")
+
+        try:
+            # Reuse the existing internal initialization logic
+            # This will add the client to self._clients and manage its lifecycle via self._exit_stack
+            await self._initialize_client(config)
+            logger.info(
+                f"Client '{config.client_id}' dynamically registered and initialized successfully."
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to dynamically register client '{config.client_id}': {e}",
+                exc_info=True,
+            )
+            # Re-raise the exception for the caller (HostManager) to handle
+            raise
+
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
         logger.info("Shutting down MCP Host...")

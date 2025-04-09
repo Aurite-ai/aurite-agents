@@ -5,10 +5,7 @@ Pytest fixtures related to MCPHost configuration and mocking.
 import pytest
 from unittest.mock import Mock, AsyncMock
 
-import pytest
 import pytest_asyncio  # Import for async fixture decorator
-from unittest.mock import Mock, AsyncMock
-from pathlib import Path  # Import Path
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.models import HostConfig

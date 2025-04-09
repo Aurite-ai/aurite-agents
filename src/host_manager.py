@@ -9,7 +9,12 @@ from typing import Dict, Optional, Any
 # Assuming this file is in src/, use relative imports
 from .config import load_host_config_from_json
 from .host.host import MCPHost
-from .host.models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from .host.models import (
+    AgentConfig,
+    WorkflowConfig,
+    CustomWorkflowConfig,
+    ClientConfig,
+)  # Added ClientConfig
 
 # Imports needed for execution methods
 from .agents.agent import Agent
@@ -158,6 +163,122 @@ class HostManager:
         self.custom_workflow_configs.clear()
         logger.info("HostManager internal state cleared.")
         logger.info("HostManager shutdown complete.")
+
+    # --- Registration Methods ---
+
+    async def register_client(self, client_config: "ClientConfig"):
+        """
+        Dynamically registers and initializes a new MCP client.
+
+        Args:
+            client_config: The configuration for the client to register.
+
+        Raises:
+            ValueError: If the HostManager is not initialized, or if the client ID already exists.
+            Exception: Propagates exceptions from the underlying MCPHost client initialization.
+        """
+        logger.info(
+            f"Attempting to dynamically register client: {client_config.client_id}"
+        )
+        if not self.host:
+            logger.error("HostManager is not initialized. Cannot register client.")
+            raise ValueError("HostManager is not initialized.")
+
+        # Check for duplicate client ID (MCPHost will also check, but good to check early)
+        # Accessing host._clients directly might be fragile, consider adding a method to host?
+        # For now, following the plan.
+        if client_config.client_id in self.host._clients:
+            logger.error(f"Client ID '{client_config.client_id}' already registered.")
+            raise ValueError(
+                f"Client ID '{client_config.client_id}' already registered."
+            )
+
+        try:
+            # Delegate to MCPHost to handle the actual initialization and lifecycle management
+            await self.host.register_client(client_config)
+            logger.info(f"Client '{client_config.client_id}' registered successfully.")
+        except Exception as e:
+            logger.error(
+                f"Failed to register client '{client_config.client_id}': {e}",
+                exc_info=True,
+            )
+            # Re-raise the exception for the caller (e.g., API endpoint) to handle
+            raise
+
+    async def register_agent(self, agent_config: "AgentConfig"):
+        """
+        Dynamically registers a new Agent configuration.
+
+        Args:
+            agent_config: The configuration for the agent to register.
+
+        Raises:
+            ValueError: If the HostManager is not initialized, the agent name already exists,
+                        or if any specified client_id is not found.
+        """
+        logger.info(f"Attempting to dynamically register agent: {agent_config.name}")
+        if not self.host:
+            logger.error("HostManager is not initialized. Cannot register agent.")
+            raise ValueError("HostManager is not initialized.")
+
+        if agent_config.name in self.agent_configs:
+            logger.error(f"Agent name '{agent_config.name}' already registered.")
+            raise ValueError(f"Agent name '{agent_config.name}' already registered.")
+
+        # Validate client_ids exist
+        if agent_config.client_ids:
+            # Accessing host._clients directly might be fragile
+            for client_id in agent_config.client_ids:
+                if client_id not in self.host._clients:
+                    logger.error(
+                        f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found."
+                    )
+                    raise ValueError(
+                        f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
+                    )
+
+        # Add the agent config
+        self.agent_configs[agent_config.name] = agent_config
+        logger.info(f"Agent '{agent_config.name}' registered successfully.")
+
+    async def register_workflow(self, workflow_config: "WorkflowConfig"):
+        """
+        Dynamically registers a new simple Workflow configuration.
+
+        Args:
+            workflow_config: The configuration for the workflow to register.
+
+        Raises:
+            ValueError: If the HostManager is not initialized, the workflow name already exists,
+                        or if any agent name in the steps is not found.
+        """
+        logger.info(
+            f"Attempting to dynamically register workflow: {workflow_config.name}"
+        )
+        if not self.host:
+            logger.error("HostManager is not initialized. Cannot register workflow.")
+            raise ValueError("HostManager is not initialized.")
+
+        if workflow_config.name in self.workflow_configs:
+            logger.error(f"Workflow name '{workflow_config.name}' already registered.")
+            raise ValueError(
+                f"Workflow name '{workflow_config.name}' already registered."
+            )
+
+        # Validate agent names in steps exist
+        if workflow_config.steps:
+            for agent_name in workflow_config.steps:
+                if agent_name not in self.agent_configs:
+                    logger.error(
+                        f"Agent name '{agent_name}' in workflow '{workflow_config.name}' steps not found."
+                    )
+                    raise ValueError(
+                        f"Agent '{agent_name}' not found for workflow '{workflow_config.name}'."
+                    )
+
+        # Add the workflow config
+        self.workflow_configs[workflow_config.name] = workflow_config
+        logger.info(f"Workflow '{workflow_config.name}' registered successfully.")
 
     # --- Execution Methods ---
 
