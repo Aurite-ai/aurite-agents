@@ -8,13 +8,10 @@ import httpx
 import logging
 import os
 import sys
-from typing import Optional
 
 import typer
-from pydantic import ValidationError  # Keep for potential use in registration commands
 
 # Import models needed for request bodies, even if commands aren't fully implemented
-from ..host.models import ClientConfig, AgentConfig, WorkflowConfig
 import json
 
 # Configure logging
