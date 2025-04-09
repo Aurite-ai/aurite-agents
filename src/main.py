@@ -14,7 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError  # Added BaseModel
 import uvicorn
 
-from src.host.host import MCPHost
+from src.host.host import (
+    MCPHost,
+)  # Keep for type hints if needed, though manager abstracts it
+from src.host_manager import HostManager  # Import the new manager
 
 # Import Agent for type hinting if needed later, and AgentConfig
 from src.agents.agent import Agent
@@ -23,8 +26,7 @@ from src.config import (  # Import the new ServerConfig and the loading utility
     load_host_config_from_json,
 )
 
-# Removed CustomWorkflowConfig import from here
-from src.workflows.manager import CustomWorkflowManager  # Import the manager
+# Removed CustomWorkflowManager import
 
 # Configure logging
 logging.basicConfig(
@@ -83,40 +85,22 @@ async def get_api_key(
     return api_key_header_value  # Return the valid key (though not strictly needed by callers)
 
 
-# --- MCPHost Dependency ---
-async def get_mcp_host(request: Request) -> MCPHost:
+# --- HostManager Dependency ---
+async def get_host_manager(request: Request) -> HostManager:
     """
-    Dependency function to get the initialized MCPHost instance.
-    Relies on the host being initialized during the application lifespan
-    and stored in app.state.
-    """
-    host: Optional[MCPHost] = getattr(request.app.state, "mcp_host", None)
-    if not host:
-        logger.error("MCPHost not initialized or not found in app state.")
-        raise HTTPException(
-            status_code=503,  # Service Unavailable
-            detail="MCPHost is not available or not initialized.",
-        )
-    logger.debug(f"get_mcp_host: Retrieved host instance from app.state: {host}")
-    logger.debug(f"get_mcp_host: Retrieved host instance from app.state: {host}")
-    return host
-
-
-# --- CustomWorkflowManager Dependency ---
-async def get_workflow_manager(request: Request) -> CustomWorkflowManager:
-    """
-    Dependency function to get the initialized CustomWorkflowManager instance.
+    Dependency function to get the initialized HostManager instance.
     Relies on the manager being initialized during the application lifespan
     and stored in app.state.
     """
-    manager: Optional[CustomWorkflowManager] = getattr(
-        request.app.state, "workflow_manager", None
-    )
+    manager: Optional[HostManager] = getattr(request.app.state, "host_manager", None)
     if not manager:
-        logger.error("CustomWorkflowManager not initialized or not found in app state.")
-        raise HTTPException(status_code=503, detail="WorkflowManager is not available.")
+        logger.error("HostManager not initialized or not found in app state.")
+        raise HTTPException(
+            status_code=503,  # Service Unavailable
+            detail="HostManager is not available or not initialized.",
+        )
     logger.debug(
-        f"get_workflow_manager: Retrieved manager instance from app.state: {manager}"
+        f"get_host_manager: Retrieved manager instance from app.state: {manager}"
     )
     return manager
 
@@ -124,81 +108,55 @@ async def get_workflow_manager(request: Request) -> CustomWorkflowManager:
 # --- FastAPI Lifecycle ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle FastAPI lifecycle events: initialize MCPHost on startup, shutdown on exit."""
-    host_instance: Optional[MCPHost] = None
+    """Handle FastAPI lifecycle events: initialize HostManager on startup, shutdown on exit."""
+    manager_instance: Optional[HostManager] = None
     try:
-        logger.info("Starting FastAPI server and initializing MCPHost...")
+        logger.info("Starting FastAPI server and initializing HostManager...")
         # Load server config
         server_config = get_server_config()
 
-        # Load host, agent, and workflow configs using the utility function from src.config
-        # The utility handles path resolution and validation
-        (
-            host_pydantic_config,
-            agent_configs_dict,
-            workflow_configs_dict,
-            custom_workflow_configs_dict,  # Receive custom workflow configs
-        ) = load_host_config_from_json(server_config.HOST_CONFIG_PATH)
+        # Instantiate HostManager
+        manager_instance = HostManager(config_path=server_config.HOST_CONFIG_PATH)
 
-        # Initialize MCPHost, passing all loaded configurations
-        host_instance = MCPHost(
-            config=host_pydantic_config,
-            agent_configs=agent_configs_dict,
-            workflow_configs=workflow_configs_dict,
-            # Removed custom_workflow_configs from MCPHost constructor
-            encryption_key=server_config.ENCRYPTION_KEY,
-        )
-        # Instantiate the manager
-        manager = CustomWorkflowManager(custom_workflow_configs_dict)
+        # Initialize HostManager (loads configs, initializes MCPHost)
+        await manager_instance.initialize()
+        logger.info("HostManager initialized successfully.")
 
-        await (
-            host_instance.initialize()
-        )  # This should handle workflow registration based on config now
-        logger.info("MCPHost initialized successfully.")
-
-        # Store host instance and all configs in app state
-        # Store host instance and workflow manager in app state
-        app.state.mcp_host = host_instance
-        app.state.workflow_manager = manager  # Store the manager instance
-        # No longer need to store individual configs directly if accessed via host/manager
-        # app.state.agent_configs = agent_configs_dict
-        # app.state.workflow_configs = workflow_configs_dict
-        # app.state.custom_workflow_configs = custom_workflow_configs_dict
+        # Store manager instance in app state
+        app.state.host_manager = manager_instance
 
         yield  # Server runs here
 
     except Exception as e:
-        logger.error(f"Error during MCPHost initialization or server startup: {e}")
-        # Ensure host is cleaned up if initialization partially succeeded
-        if host_instance:
+        logger.error(
+            f"Error during HostManager initialization or server startup: {e}",
+            exc_info=True,
+        )
+        # Ensure manager (and its host) is cleaned up if initialization partially succeeded
+        if manager_instance:
             try:
-                await host_instance.shutdown()
+                await manager_instance.shutdown()
             except Exception as shutdown_e:
                 logger.error(
-                    f"Error during host shutdown after startup failure: {shutdown_e}"
+                    f"Error during manager shutdown after startup failure: {shutdown_e}"
                 )
         raise  # Re-raise the original exception to prevent server from starting improperly
     finally:
-        # Shutdown MCPHost on application exit
-        # No changes needed here, host shutdown remains the same
-        final_host_instance = getattr(app.state, "mcp_host", None)
-        if final_host_instance:
-            logger.info("Shutting down MCPHost...")
+        # Shutdown HostManager on application exit
+        final_manager_instance = getattr(app.state, "host_manager", None)
+        if final_manager_instance:
+            logger.info("Shutting down HostManager...")
             try:
-                await final_host_instance.shutdown()
-                logger.info("MCPHost shutdown complete.")
+                await final_manager_instance.shutdown()
+                logger.info("HostManager shutdown complete.")
             except Exception as e:
-                logger.error(f"Error during MCPHost shutdown: {e}")
+                logger.error(f"Error during HostManager shutdown: {e}")
         else:
-            logger.info("MCPHost was not initialized or already shut down.")
-        # Clear all configs from state as well
-        # Clear host and manager from state
-        # if hasattr(app.state, "agent_configs"):
-        #     del app.state.agent_configs
-        # if hasattr(app.state, "workflow_configs"):
-        #     del app.state.workflow_configs
-        if hasattr(app.state, "workflow_manager"):
-            del app.state.workflow_manager  # Clear manager
+            logger.info("HostManager was not initialized or already shut down.")
+
+        # Clear manager from state
+        if hasattr(app.state, "host_manager"):
+            del app.state.host_manager
         logger.info("FastAPI server shutdown sequence complete.")
 
 
@@ -285,11 +243,13 @@ async def health_check():
 # --- Application Endpoints ---
 @app.get("/status")
 async def get_status(
-    api_key: str = Depends(get_api_key), host: MCPHost = Depends(get_mcp_host)
+    api_key: str = Depends(get_api_key),
+    manager: HostManager = Depends(get_host_manager),
 ):
-    """Endpoint to check the status of the MCPHost."""
-    # The get_mcp_host dependency ensures the host is initialized if we reach here
-    return {"status": "initialized"}
+    """Endpoint to check the status of the HostManager and its underlying MCPHost."""
+    # The get_host_manager dependency ensures the manager and host are initialized
+    # We can add more detailed status checks later if needed (e.g., check manager.host)
+    return {"status": "initialized", "manager_status": "active"}
 
 
 # Removed /prepare_prompt endpoint
@@ -302,37 +262,30 @@ async def execute_agent_endpoint(
     agent_name: str,
     request_body: ExecuteAgentRequest,
     api_key: str = Depends(get_api_key),
-    host: MCPHost = Depends(get_mcp_host),
+    manager: HostManager = Depends(get_host_manager),  # Use HostManager dependency
 ):
     """
-    Executes a configured agent by name with the provided user message.
+    Executes a configured agent by name using the HostManager.
     """
     logger.info(f"Received request to execute agent: {agent_name}")
     try:
-        # 1. Retrieve AgentConfig from host (using method added in Phase 2)
-        agent_config = host.get_agent_config(agent_name)
-        logger.debug(f"Found AgentConfig for '{agent_name}'")
-
-        # 2. Instantiate the Agent
-        agent = Agent(config=agent_config)
-        logger.debug(f"Instantiated Agent '{agent_name}'")
-
-        # 3. Extract client_ids for filtering
-        filter_ids = agent_config.client_ids
-        logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
-
-        # 4. Execute the agent
-        result = await agent.execute_agent(
-            user_message=request_body.user_message,
-            host_instance=host,
-            filter_client_ids=filter_ids,  # Pass the filter list
+        # Delegate execution to the HostManager
+        result = await manager.execute_agent(
+            agent_name=agent_name, user_message=request_body.user_message
         )
-        logger.info(f"Agent '{agent_name}' execution finished successfully.")
+        logger.info(
+            f"Agent '{agent_name}' execution finished successfully via manager."
+        )
+        # The result from manager.execute_agent should be directly returnable
         return result
-
     except KeyError:
+        # This exception is raised by manager.execute_agent if agent_name is not found
         logger.warning(f"Agent configuration not found for name: {agent_name}")
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    except ValueError as ve:
+        # Catch potential ValueError if manager wasn't initialized (shouldn't happen with lifespan)
+        logger.error(f"ValueError during agent execution: {ve}")
+        raise HTTPException(status_code=503, detail=str(ve))
     except Exception as e:
         logger.error(f"Error during agent '{agent_name}' execution: {e}", exc_info=True)
         # Consider more specific error handling based on potential exceptions
@@ -347,142 +300,45 @@ async def execute_workflow_endpoint(
     workflow_name: str,
     request_body: ExecuteWorkflowRequest,
     api_key: str = Depends(get_api_key),
-    host: MCPHost = Depends(get_mcp_host),
+    manager: HostManager = Depends(get_host_manager),  # Use HostManager dependency
 ):
     """
-    Executes a configured workflow by name with the provided initial user message.
+    Executes a configured simple workflow by name using the HostManager.
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
-    current_message = request_body.initial_user_message
-    final_status = "failed"  # Default status
-    error_message = None
-
     try:
-        # 1. Retrieve WorkflowConfig
-        workflow_config = host.get_workflow_config(workflow_name)
-        logger.debug(
-            f"Found WorkflowConfig for '{workflow_name}' with steps: {workflow_config.steps}"
+        # Delegate execution to the HostManager
+        result = await manager.execute_workflow(
+            workflow_name=workflow_name,
+            initial_user_message=request_body.initial_user_message,
         )
-
-        if not workflow_config.steps:
-            logger.warning(f"Workflow '{workflow_name}' has no steps to execute.")
-            return ExecuteWorkflowResponse(
-                workflow_name=workflow_name,
-                status="completed_empty",
-                final_message=current_message,  # Return initial message if no steps
-            )
-
-        # 2. Loop through steps
-        for i, agent_name in enumerate(workflow_config.steps):
-            step_num = i + 1
-            logger.info(
-                f"Executing workflow '{workflow_name}' step {step_num}: Agent '{agent_name}'"
-            )
-            try:
-                # 2a. Get AgentConfig for the current step
-                agent_config = host.get_agent_config(agent_name)
-                logger.debug(f"Step {step_num}: Found AgentConfig for '{agent_name}'")
-
-                # 2b. Instantiate Agent
-                agent = Agent(config=agent_config)
-                logger.debug(f"Step {step_num}: Instantiated Agent '{agent_name}'")
-
-                # 2c. Extract client_ids for filtering
-                filter_ids = agent_config.client_ids
-                logger.debug(f"Step {step_num}: Applying client filter: {filter_ids}")
-
-                # 2d. Execute Agent with current message and filter
-                result = await agent.execute_agent(
-                    user_message=current_message,
-                    host_instance=host,
-                    filter_client_ids=filter_ids,
-                )
-
-                # 2e. Error Handling for Agent Execution
-                if result.get("error"):
-                    error_message = f"Agent '{agent_name}' (step {step_num}) failed: {result['error']}"
-                    logger.error(error_message)
-                    break  # Stop workflow execution
-
-                if (
-                    not result.get("final_response")
-                    or not result["final_response"].content
-                ):
-                    error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response."
-                    logger.error(error_message)
-                    break  # Stop workflow execution
-
-                # 2f. Output Extraction (Basic: first text block)
-                try:
-                    # Find the first text block in the content list
-                    text_content = next(
-                        (
-                            block.text
-                            for block in result["final_response"].content
-                            if block.type == "text"
-                        ),
-                        None,
-                    )
-                    if text_content is None:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) response content has no text block."
-                        logger.error(error_message)
-                        break  # Stop workflow execution
-                    current_message = text_content  # Update message for the next step
-                    logger.debug(
-                        f"Step {step_num}: Output message: '{current_message[:100]}...'"
-                    )
-                except (AttributeError, IndexError, TypeError) as e:
-                    error_message = f"Error extracting text from agent '{agent_name}' (step {step_num}) response: {e}"
-                    logger.error(error_message, exc_info=True)
-                    break  # Stop workflow execution
-
-            except KeyError:
-                # This should ideally be caught by config validation, but handle defensively
-                error_message = f"Configuration error: Agent '{agent_name}' (step {step_num}) not found in host config."
-                logger.error(error_message)
-                raise HTTPException(
-                    status_code=500, detail=error_message
-                )  # Internal error
-            except Exception as agent_exec_e:
-                error_message = f"Unexpected error during agent '{agent_name}' (step {step_num}) execution: {agent_exec_e}"
-                logger.error(error_message, exc_info=True)
-                break  # Stop workflow execution
-
-        # 3. Determine final status
-        if error_message is None:
-            final_status = "completed"
-            logger.info(f"Workflow '{workflow_name}' completed successfully.")
+        logger.info(f"Workflow '{workflow_name}' execution finished via manager.")
+        # manager.execute_workflow returns a dict matching ExecuteWorkflowResponse structure
+        return ExecuteWorkflowResponse(**result)
 
     except KeyError:
-        logger.warning(f"Workflow configuration not found for name: {workflow_name}")
-        raise HTTPException(
-            status_code=404, detail=f"Workflow '{workflow_name}' not found"
+        # This exception is raised by manager.execute_workflow if workflow or agent is not found
+        logger.warning(
+            f"Workflow configuration or agent within workflow '{workflow_name}' not found."
         )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Workflow '{workflow_name}' or one of its agents not found",
+        )
+    except ValueError as ve:
+        # Catch potential ValueError if manager wasn't initialized
+        logger.error(f"ValueError during workflow execution: {ve}")
+        raise HTTPException(status_code=503, detail=str(ve))
     except Exception as e:
+        # Catch other unexpected errors from manager.execute_workflow
         logger.error(
             f"Unexpected error during workflow '{workflow_name}' execution: {e}",
             exc_info=True,
         )
-        # Use the generic error message if no specific step error occurred
-        error_message = (
-            error_message
-            or f"Internal server error during workflow execution: {str(e)}"
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error during workflow execution: {str(e)}",
         )
-        # Return 500 but include details in the response body
-        return ExecuteWorkflowResponse(
-            workflow_name=workflow_name,
-            status=final_status,  # Will be 'failed'
-            final_message=current_message,  # Return last successful message or initial
-            error=error_message,
-        )
-
-    # 4. Return final response
-    return ExecuteWorkflowResponse(
-        workflow_name=workflow_name,
-        status=final_status,
-        final_message=current_message if final_status == "completed" else None,
-        error=error_message,
-    )
 
 
 @app.post(
@@ -492,34 +348,26 @@ async def execute_workflow_endpoint(
 async def execute_custom_workflow_endpoint(
     workflow_name: str,
     request_body: ExecuteCustomWorkflowRequest,
-    api_key: str = Depends(get_api_key),  # Reuse security dependency
-    host: MCPHost = Depends(get_mcp_host),  # Get host instance
-    manager: CustomWorkflowManager = Depends(
-        get_workflow_manager
-    ),  # Get manager instance
+    api_key: str = Depends(get_api_key),
+    manager: HostManager = Depends(get_host_manager),  # Use HostManager dependency
 ):
-    """Executes a configured custom Python workflow by name."""
+    """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
     try:
-        # Use the manager to execute the workflow, passing the host instance
+        # Delegate execution to the HostManager
         result = await manager.execute_custom_workflow(
             workflow_name=workflow_name,
             initial_input=request_body.initial_input,
-            host_instance=host,  # Pass the host instance
         )
-        # Add detailed logging immediately after the call
         logger.info(
-            f"RAW Result received from manager: {result!r}"
-        )  # Use !r for detailed repr
-        logger.info(f"Custom workflow '{workflow_name}' executed successfully via API.")
-        # Existing debug log
-        logger.debug(
-            f"Result from manager.execute_custom_workflow: type={type(result)}, value={result}"
+            f"Custom workflow '{workflow_name}' executed successfully via manager."
         )
+        # Return success response
         return ExecuteCustomWorkflowResponse(
             workflow_name=workflow_name, status="completed", result=result
         )
-    except (KeyError, FileNotFoundError):  # Config or file not found
+    except (KeyError, FileNotFoundError):
+        # Raised by manager if config or module file not found
         logger.warning(
             f"Custom workflow '{workflow_name}' not found or module file missing."
         )
@@ -527,31 +375,31 @@ async def execute_custom_workflow_endpoint(
             status_code=404,
             detail=f"Custom workflow '{workflow_name}' not found or its file is missing.",
         )
-    except (
-        AttributeError,
-        ImportError,
-        PermissionError,
-        TypeError,
-    ) as import_exec_err:  # Errors during import/setup
+    except (AttributeError, ImportError, PermissionError, TypeError) as setup_err:
+        # Raised by manager during import/setup
         logger.error(
-            f"Error setting up custom workflow '{workflow_name}': {import_exec_err}",
+            f"Error setting up custom workflow '{workflow_name}': {setup_err}",
             exc_info=True,
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Error setting up custom workflow '{workflow_name}': {str(import_exec_err)}",
+            detail=f"Error setting up custom workflow '{workflow_name}': {str(setup_err)}",
         )
-    except (
-        RuntimeError
-    ) as exec_err:  # Errors during the workflow's own execution or host execution logic
+    except RuntimeError as exec_err:
+        # Raised by manager for errors during the workflow's own execution
         logger.error(
             f"Error during custom workflow '{workflow_name}' execution: {exec_err}",
             exc_info=True,
         )
-        # Return 200 OK but indicate failure in the response body
+        # Return 200 OK but indicate failure in the response body (consistent with previous behavior)
+        # Or consider returning 500 here? Let's stick to 200 + error for now.
         return ExecuteCustomWorkflowResponse(
             workflow_name=workflow_name, status="failed", error=str(exec_err)
         )
+    except ValueError as ve:
+        # Catch potential ValueError if manager wasn't initialized
+        logger.error(f"ValueError during custom workflow execution: {ve}")
+        raise HTTPException(status_code=503, detail=str(ve))
     except Exception as e:  # Catch-all for unexpected errors
         logger.error(
             f"Unexpected error during custom workflow '{workflow_name}' API call: {e}",

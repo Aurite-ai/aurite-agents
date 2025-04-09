@@ -67,9 +67,164 @@
               "    pm.response.to.have.status(200);",
               "});",
               "",
-              "pm.test(\"Response body indicates initialized\", function () {",
+              "pm.test(\"Response body indicates initialized and active manager\", function () {",
               "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.eql({status: 'initialized'});",
+              "    pm.expect(jsonData).to.eql({status: 'initialized', manager_status: 'active'});",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execute Agent (Weather Agent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/Weather Agent/execute",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "Weather Agent", "execute"]
+        },
+        "description": "Executes the 'Weather Agent' defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has final_response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('final_response');",
+              "    pm.expect(jsonData.final_response).to.not.be.null;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execute Simple Workflow (Example)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"initial_user_message\": \"Check weather in SF and save plan.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/workflows/Example workflow using weather and planning servers/execute",
+          "host": ["{{base_url}}"],
+          "path": [
+            "workflows",
+            "Example workflow using weather and planning servers",
+            "execute"
+          ]
+        },
+        "description": "Executes the example simple workflow defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response indicates completed status\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('completed');",
+              "    pm.expect(jsonData.error).to.be.null;",
+              "    pm.expect(jsonData.final_message).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execute Custom Workflow (Example)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"initial_input\": \"Run the example custom workflow for London\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/custom_workflows/ExampleCustom/execute",
+          "host": ["{{base_url}}"],
+          "path": ["custom_workflows", "ExampleCustom", "execute"]
+        },
+        "description": "Executes the example custom workflow defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response indicates completed status and has result\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('completed');",
+              "    pm.expect(jsonData.error).to.be.null;",
+              "    pm.expect(jsonData.result).to.exist;",
+              "    // Add more specific result checks if needed",
+              "    pm.expect(jsonData.result.status).to.eql('success');",
               "});"
             ],
             "type": "text/javascript",

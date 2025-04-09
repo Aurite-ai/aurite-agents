@@ -20,10 +20,10 @@ from tests.fixtures.agent_fixtures import (
     # agent_config_with_mock_host, # This was correctly removed
 )
 from tests.fixtures.host_fixtures import (
-    mock_host_config,
-    mock_mcp_host,
-    real_host_and_manager,
-)  # noqa: F401 - Updated fixture name
+    mock_host_config,  # noqa: F401
+    mock_mcp_host,  # noqa: F401
+    host_manager,  # noqa: F401 - Import the new fixture
+)
 # Import weather server fixture explicitly if needed globally, otherwise tests import directly
 # from tests.fixtures.servers.weather_mcp_server import weather_mcp_server_fixture # noqa: F401
 

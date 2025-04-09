@@ -69,5 +69,13 @@
       ],
       "description": "Example workflow to test simple workflow execution using agents."
     }
+  ],
+  "custom_workflows": [
+    {
+      "name": "ExampleCustom",
+      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "An example custom workflow for testing."
+    }
   ]
 }

@@ -83,8 +83,9 @@ markers = [
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
 pythonpath = [".", "src"]
-# Ensure asyncio_mode is set
+# Ensure asyncio_mode is set and default scope is function
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",

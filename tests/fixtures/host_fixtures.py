@@ -5,10 +5,17 @@ Pytest fixtures related to MCPHost configuration and mocking.
 import pytest
 from unittest.mock import Mock, AsyncMock
 
+import pytest
+import pytest_asyncio  # Import for async fixture decorator
+from unittest.mock import Mock, AsyncMock
+from pathlib import Path  # Import Path
+
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.models import HostConfig
 from src.host.host import MCPHost
+from src.host_manager import HostManager  # Import HostManager
 from src.host.resources import ToolManager, PromptManager
+from src.config import PROJECT_ROOT_DIR  # Import project root
 
 
 @pytest.fixture
@@ -50,71 +57,62 @@ def mock_mcp_host() -> Mock:
     return host
 
 
-from typing import Tuple  # Add Tuple import
-from src.workflows.manager import CustomWorkflowManager  # Import manager
-
-
-# Change scope from "module" to "function" to potentially resolve async teardown issues
-@pytest.fixture(scope="function")
-async def real_host_and_manager() -> Tuple[
-    MCPHost, CustomWorkflowManager
-]:  # Rename and update return type
+# New fixture for HostManager
+@pytest_asyncio.fixture(scope="function")  # Use pytest_asyncio decorator
+async def host_manager() -> HostManager:
     """
-    Sets up and tears down real MCPHost and CustomWorkflowManager instances
-    based on the testing_config.json file.
+    Provides an initialized HostManager instance for testing, based on
+    the testing_config.json file. Handles setup and teardown.
     """
-    # Import necessary modules
-    from src.config import load_host_config_from_json, PROJECT_ROOT_DIR
-
     # Define path to the test config file relative to project root
     test_config_path = PROJECT_ROOT_DIR / "config/agents/testing_config.json"
 
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Load all configs using the utility function
+    # Check if the referenced server path exists to avoid unnecessary setup failure
+    # This requires loading the config partially or making assumptions.
+    # Let's load it quickly just to check the server path for skipping.
     try:
-        (
-            host_config,
-            agent_configs,
-            workflow_configs,
-            custom_workflow_configs,
-        ) = load_host_config_from_json(test_config_path)
-        # Ensure the loaded config has the expected client for the test server
-        # This assumes weather_mcp_server.py is correctly referenced in testing_config.json
-        # Check if clients list is not empty before accessing index 0
-        if not host_config.clients:
-            pytest.fail("Testing config loaded, but 'clients' list is empty.")
-        server_path_in_config = host_config.clients[0].server_path
-        if not server_path_in_config.exists():
-            pytest.skip(
-                f"Test server path in config does not exist: {server_path_in_config}"
-            )
+        import json
 
+        with open(test_config_path, "r") as f:
+            raw_config = json.load(f)
+        first_client_path_str = raw_config.get("clients", [{}])[0].get("server_path")
+        if first_client_path_str:
+            first_client_path = (PROJECT_ROOT_DIR / first_client_path_str).resolve()
+            if not first_client_path.exists():
+                pytest.skip(
+                    f"Test server path in config does not exist: {first_client_path}"
+                )
+        else:
+            pytest.fail("Could not read first client server_path from testing config.")
     except Exception as e:
-        pytest.fail(
-            f"Failed to load full config for real_host_and_manager fixture: {e}"
-        )
+        pytest.fail(f"Failed to pre-check server path in testing config: {e}")
 
-    # Initialize the host (without custom workflows)
-    host_instance = MCPHost(
-        config=host_config,
-        agent_configs=agent_configs,
-        workflow_configs=workflow_configs,
-        # encryption_key can be added here if needed for tests
-    )
-    # Initialize the manager
-    manager_instance = CustomWorkflowManager(custom_workflow_configs)
+    # Instantiate HostManager
+    manager = HostManager(config_path=test_config_path)
 
+    # Initialize (this loads configs and starts MCPHost/clients)
     try:
-        await host_instance.initialize()  # This starts the client processes
+        await manager.initialize()
     except Exception as init_e:
-        pytest.fail(
-            f"MCPHost initialization failed in real_host_and_manager fixture: {init_e}"
-        )
+        # Attempt cleanup even if init fails partially
+        try:
+            await manager.shutdown()
+        except Exception:
+            pass  # Ignore shutdown errors after init failure
+        pytest.fail(f"HostManager initialization failed in fixture: {init_e}")
 
-    yield host_instance, manager_instance  # Provide both instances
+    yield manager  # Provide the initialized manager to the test
 
-    # Teardown: Shutdown the host and its clients
-    # Manager doesn't have explicit shutdown for now
-    await host_instance.shutdown()
+    # Teardown: Shutdown the manager (which shuts down the host)
+    try:
+        await manager.shutdown()
+    except Exception as shutdown_e:
+        # Log or handle teardown errors if necessary, but don't fail the test run here
+        print(f"Error during HostManager shutdown in fixture: {shutdown_e}")
+
+
+# Note: The old real_host_and_manager fixture is removed as host_manager replaces it.
+# The mock_mcp_host fixture remains useful for unit tests not needing real clients.
