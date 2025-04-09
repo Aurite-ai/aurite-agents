@@ -273,9 +273,10 @@ class Agent:
                         error_content = (
                             f"Error executing tool '{tool_use.name}': {str(e)}"
                         )
+                        # Format error message using the standard method (no is_error flag)
                         tool_result_block = (
                             host_instance.tools.create_tool_result_blocks(
-                                tool_use.id, error_content, is_error=True
+                                tool_use.id, error_content
                             )
                         )
                         tool_results_for_next_turn.append(tool_result_block)

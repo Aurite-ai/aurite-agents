@@ -4,28 +4,67 @@ This document provides a high-level overview of the Aurite architecture, focusin
 
 ## System Architecture
 
-Aurite consists of two primary components: the **MCP Host System** (handling server interactions) and the **Agent Framework** (handling LLM interactions and task execution). Applications interact with the Agent Framework, which utilizes the MCP Host.
+The framework provides multiple entrypoints (`src/bin/`) that utilize the **Host Manager** (`src/host_manager.py`) to orchestrate the **MCP Host** (`src/host/host.py`) and component execution. The MCP Host, in turn, interacts with external **MCP Servers**.
 
-```mermaid
-graph TD
-    Users["Users/Applications"] --> AF["Agent Framework (src/agents)"]
-    AF --> Host["MCP Host System (src/host)"]
-    Host --> Servers["MCP Servers & External Systems"]
-
-    subgraph Host [MCP Host System]
-        direction TB
-        L3[Layer 3: Resource Mgmt] --> L2[Layer 2: Communication]
-        L2 --> L1[Layer 1: Foundation]
-    end
-
-    classDef layer fill:#f9f9f9,stroke:#333,stroke-width:2px;
-    class L1,L2,L3 layer;
-    class AF fill:#e6f3ff,stroke:#333,stroke-width:2px;
-    class Host fill:#d4f0c4,stroke:#333,stroke-width:2px;
-
+```text
++-----------------------------------------------------------------+
+| Layer 1: Entrypoints (src/bin)                                  |
+| +--------------+   +----------------+   +---------------------+ |
+| | CLI          |   | API Server     |   | Worker              | |
+| | (cli.py)     |   | (api.py)       |   | (worker.py)         | |
+| +--------------+   +----------------+   +---------------------+ |
+|        |                 |                  |                   |
+|        +-------+---------+--------+---------+                   |
+|                v                  v                             |
++----------------|------------------|-----------------------------+
+                 |                  |
+                 v                  v
++----------------+------------------+-----------------------------+
+| Layer 2: Orchestration                                          |
+| +-------------------------------------------------------------+ |
+| | Host Manager (host_manager.py)                              | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Load Host JSON Config                                     | |
+| | - Init/Shutdown MCP Host                                    | |
+| | - Register/Execute Agents, Simple/Custom Workflows          | |
+| | - Dynamic Registration                                      | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 3: Host Infrastructure (MCP Host System)                  |
+| +-------------------------------------------------------------+ |
+| | MCP Host (host.py)                                          | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Manage Client Connections                                 | |
+| | - Handle Roots/Security                                     | |
+| | - Register/Execute Tools, Prompts, Resources                | |
+| | - Component Discovery/Filtering                             | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 4: External Capabilities                                  |
+| +-------------------------------------------------------------+ |
+| | MCP Servers (e.g., src/servers/, external)                  | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Implement MCP Protocol                                    | |
+| | - Provide Tools, Prompts, Resources                         | |
+| | - Handle Discovery (ListTools, etc.)                        | |
+| +-------------------------------------------------------------+ |
++-----------------------------------------------------------------+
 ```
 
-The **MCP Host System** itself is built on a layered architecture:
+The **MCP Host System** itself is built on further internal layers (Foundation, Communication, Resource Management) as detailed below:
 
 ### Layer 1: Security and Foundation
 

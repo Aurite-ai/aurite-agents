@@ -58,6 +58,12 @@ class ServerConfig(BaseSettings):
         case_sensitive=False,  # Environment variables are typically uppercase
     )
 
+    # Redis configuration (for worker)
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_STREAM_NAME: str = "aurite:tasks"  # Default stream name for worker tasks
+
 
 # Example of how to load the config:
 # try:

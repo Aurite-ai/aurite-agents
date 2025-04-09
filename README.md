@@ -42,7 +42,7 @@ Configuration is typically loaded from JSON files (e.g., `config/agents/aurite_a
 
 ## Installation
 
-1.  **Prerequisites:** Python >= 3.12, `pip`.
+1.  **Prerequisites:** Python >= 3.12, `pip`, `redis-server` (for worker).
 2.  **Clone the repository:**
     ```bash
     git clone <repository-url>
@@ -61,24 +61,61 @@ Configuration is typically loaded from JSON files (e.g., `config/agents/aurite_a
 
 ## Usage
 
-### Running the API Server
+The framework now provides multiple entrypoints located in `src/bin/`:
 
-The framework includes a FastAPI application (`src/main.py`) that initializes the `MCPHost` based on configuration.
+### 1. API Server (`src/bin/api.py`)
+
+Runs a FastAPI application providing HTTP endpoints for executing and dynamically registering components.
 
 1.  **Set Environment Variables:** Create a `.env` file in the project root and define required variables, especially:
     *   `API_KEY`: An API key for securing the FastAPI endpoints.
-    *   `HOST_CONFIG_PATH`: Path to the desired host configuration JSON file (e.g., `config/agents/aurite_agents.json`).
+    *   `HOST_CONFIG_PATH`: Path to the desired host configuration JSON file (e.g., `config/agents/testing_config.json`).
     *   `ANTHROPIC_API_KEY`: Required by the `Agent` class for LLM calls.
     *   `AURITE_MCP_ENCRYPTION_KEY` (Optional): For the `SecurityManager`. If not set, a temporary one will be generated.
 2.  **Run the server:**
     ```bash
-    python -m src.main
+    python -m src.bin.api
     ```
-    The server will start (default: `http://0.0.0.0:8000`).
+    The server will start (default: `http://0.0.0.0:8000`). You can interact with it using tools like Postman (see `tests/api/main_server.postman_collection.json`) or `curl`.
 
-### Using the Agent (Example Snippet)
+### 2. Command-Line Interface (`src/bin/cli.py`)
 
-While the primary interaction might be via the API, here's a conceptual example of using the core classes programmatically:
+Provides commands to interact with the framework from the terminal.
+
+1.  **Set Environment Variables:** Ensure `ANTHROPIC_API_KEY` is set if executing agents/workflows that use it.
+2.  **Run commands:** Requires specifying the host configuration file (`-c` or `--config`).
+    ```bash
+    # Example: Execute an agent
+    python -m src.bin.cli -c config/agents/testing_config.json execute agent "Weather Agent" --message "Weather in London?"
+
+    # Example: Register a client (pass config as JSON string)
+    python -m src.bin.cli -c config/agents/testing_config.json register client \
+      '{"client_id": "cli_client", "server_path": "tests/fixtures/servers/weather_mcp_server.py", "capabilities": ["tools"], "roots": []}'
+
+    # Example: List commands
+    python -m src.bin.cli --help
+    python -m src.bin.cli register --help
+    python -m src.bin.cli execute --help
+    ```
+
+### 3. Redis Worker (`src/bin/worker.py`)
+
+Listens to a Redis stream for tasks (registration or execution requests).
+
+1.  **Prerequisites:** Ensure Redis server is running and accessible.
+2.  **Set Environment Variables:**
+    *   `HOST_CONFIG_PATH`: Path to the host configuration JSON file.
+    *   `ANTHROPIC_API_KEY` (if needed by components).
+    *   `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_STREAM_NAME` (defaults are provided in `src/config.py` but can be overridden via `.env`).
+3.  **Run the worker:**
+    ```bash
+    python -m src.bin.worker
+    ```
+    The worker will connect to Redis and wait for messages on the configured stream (default: `aurite:tasks`). Messages should be JSON strings in a field named `task_data`, specifying `action`, `component_type`, and `data`.
+
+### Using the Core Classes Programmatically (Example)
+
+You can still use the core classes directly in your Python scripts:
 
 ```python
 import asyncio
@@ -153,8 +190,8 @@ See `tests/README.md` for detailed instructions on running tests and understandi
     *   `src/host/`: Implementation of the MCP Host system and its managers.
     *   `src/agents/`: Implementation of the Agent framework.
     *   `src/servers/`: Example MCP server implementations (e.g., planning, weather).
-    *   `src/config.py`: Server/Host configuration loading.
-    *   `src/main.py`: FastAPI application entry point.
+    *   `src/config.py`: Configuration loading (Server, Host, etc.).
+    *   `src/bin/`: Entrypoint scripts (API, CLI, Worker).
 *   **`tests/`**: Contains all automated tests.
     *   `tests/host/`: Tests for the MCP Host components.
     *   `tests/agents/`: Tests for the Agent framework.
