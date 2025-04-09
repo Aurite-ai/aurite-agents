@@ -573,10 +573,7 @@ class MCPHost:
         """Shutdown the host and cleanup all resources"""
         logger.info("Shutting down MCP Host...")
 
-        # Close all client connections and resources using the exit stack
-        await self._exit_stack.aclose()
-
-        # Shutdown managers in reverse layer order
+        # Shutdown managers first, in reverse layer order, before closing connections
 
         # Layer 3: Resource management layer
         logger.info("Shutting down resource management layer...")
@@ -592,6 +589,10 @@ class MCPHost:
         logger.info("Shutting down foundation layer...")
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
+
+        # Now, close all client connections and resources using the exit stack
+        logger.info("Closing client connections via AsyncExitStack...")
+        await self._exit_stack.aclose()
 
         # Clear stored agent and workflow configs
         self._agent_configs.clear()
