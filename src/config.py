@@ -14,11 +14,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Assuming models are accessible from here
 from .host.models import (
     HostConfig,
+    HostConfig,
     ClientConfig,
     RootConfig,
     AgentConfig,
     WorkflowConfig,
-    CustomWorkflowConfig,  # Added CustomWorkflowConfig
+    CustomWorkflowConfig,
+    GCPSecretConfig,  # Added GCPSecretConfig
 )
 
 logger = logging.getLogger(__name__)
@@ -138,11 +140,26 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                 # Decide if this should be a fatal error or just a warning
                 # For now, let's allow it but log a warning. Pydantic might still fail if Path validation is strict.
 
+            # Parse GCP secrets if present
+            gcp_secrets_config = None
+            if "gcp_secrets" in client_data and client_data["gcp_secrets"]:
+                try:
+                    gcp_secrets_config = [
+                        GCPSecretConfig(**secret_data)
+                        for secret_data in client_data["gcp_secrets"]
+                    ]
+                except (ValidationError, KeyError) as secret_err:
+                    logger.error(
+                        f"Error parsing 'gcp_secrets' for client '{client_data.get('client_id', 'UNKNOWN')}': {secret_err}"
+                    )
+                    # Decide if this should be fatal. Raising for now.
+                    raise RuntimeError(
+                        f"Invalid 'gcp_secrets' configuration for client '{client_data.get('client_id', 'UNKNOWN')}': {secret_err}"
+                    ) from secret_err
+
             client_configs.append(
                 ClientConfig(
-                    client_id=client_data[
-                        "client_id"
-                    ],  # Let potential KeyError raise here
+                    client_id=client_data["client_id"],
                     server_path=resolved_server_path,
                     roots=[
                         RootConfig(
@@ -155,7 +172,8 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     capabilities=client_data.get("capabilities", []),
                     timeout=client_data.get("timeout", 10.0),
                     routing_weight=client_data.get("routing_weight", 1.0),
-                    exclude=client_data.get("exclude", None),  # Include exclude field
+                    exclude=client_data.get("exclude", None),
+                    gcp_secrets=gcp_secrets_config,  # Pass parsed secrets
                 )
             )
 

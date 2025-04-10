@@ -2,6 +2,7 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
+import os  # Added os import
 import logging  # Removed importlib, inspect, Path
 from contextlib import AsyncExitStack
 from typing import (
@@ -110,9 +111,40 @@ class MCPHost:
         logger.info(f"Initializing client: {config.client_id}")
 
         try:
-            # Setup transport
+            # Resolve GCP secrets if configured
+            client_env = os.environ.copy()  # Start with current environment
+            if (
+                config.gcp_secrets and self._security_manager
+            ):  # Check if SecurityManager exists and secrets are configured
+                logger.info(f"Resolving GCP secrets for client: {config.client_id}")
+                try:
+                    # Await the resolution method
+                    resolved_env_vars = (
+                        await self._security_manager.resolve_gcp_secrets(
+                            config.gcp_secrets
+                        )
+                    )
+                    if resolved_env_vars:
+                        # Update the environment dictionary for the subprocess
+                        client_env.update(resolved_env_vars)
+                        logger.info(
+                            f"Injecting {len(resolved_env_vars)} secrets into environment for client: {config.client_id}"
+                        )
+                        # Optional: Log the keys being injected for debugging (DO NOT log values)
+                        logger.debug(
+                            f"Injecting env vars: {list(resolved_env_vars.keys())}"
+                        )
+                except Exception as e:
+                    # Log error but allow host to continue initialization without injected secrets
+                    logger.error(
+                        f"Failed to resolve or inject GCP secrets for client {config.client_id}: {e}. Proceeding without injected secrets."
+                    )
+
+            # Setup transport with potentially updated environment
             server_params = StdioServerParameters(
-                command="python", args=[str(config.server_path)], env=None
+                command="python",
+                args=[str(config.server_path)],
+                env=client_env,  # Pass the modified env
             )
 
             # Create transport using context manager

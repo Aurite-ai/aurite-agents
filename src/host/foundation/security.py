@@ -9,13 +9,28 @@ import logging
 import base64
 import hashlib
 import time
-from typing import Dict, Optional, Any  # Removed Tuple
+from typing import Dict, Optional, Any, List  # Added List
 from dataclasses import dataclass
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logger = logging.getLogger(__name__)
+
+# GCP Imports
+try:
+    from google.cloud import secretmanager
+    from google.api_core import exceptions as gcp_exceptions  # Alias for clarity
+except ImportError:
+    secretmanager = None
+    gcp_exceptions = None
+    logger.warning(
+        "google-cloud-secret-manager not installed. GCP secret functionality will be disabled."
+    )
+
+# Local imports
+from ..models import GCPSecretConfig  # Assuming models.py is one level up
 
 # Patterns for sensitive data detection
 SENSITIVE_PATTERNS = {
@@ -58,6 +73,24 @@ class SecurityManager:
 
         # Map of token IDs to credential IDs
         self._access_tokens: Dict[str, str] = {}
+
+        # Initialize GCP Secret Manager Client
+        self._gcp_secret_client = None
+        if secretmanager:  # Check if import succeeded
+            try:
+                self._gcp_secret_client = secretmanager.SecretManagerServiceClient()
+                logger.info(
+                    "GCP Secret Manager client initialized successfully via ADC."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to initialize GCP Secret Manager client (ADC might be missing/misconfigured): {e}"
+                )
+                # self._gcp_secret_client remains None
+        else:
+            logger.info(
+                "GCP Secret Manager client library not found. Skipping client initialization."
+            )
 
         # Server permissions removed as they are not currently used by the refactored host.
 
@@ -193,6 +226,58 @@ class SecurityManager:
             )
 
         return data
+
+    async def resolve_gcp_secrets(
+        self, secrets_config: List[GCPSecretConfig]
+    ) -> Dict[str, str]:
+        """Fetches secrets from GCP Secrets Manager based on config."""
+        if not self._gcp_secret_client:
+            logger.error(
+                "GCP Secret Manager client not available. Cannot resolve secrets."
+            )
+            # Consider if raising an error is more appropriate depending on requirements
+            return {}
+        if not gcp_exceptions:  # Check if exception types were imported
+            logger.error(
+                "GCP exception types not available. Cannot safely handle API errors."
+            )
+            return {}
+
+        resolved_secrets: Dict[str, str] = {}
+        logger.info(f"Attempting to resolve {len(secrets_config)} GCP secrets.")
+        for secret_conf in secrets_config:
+            secret_name = secret_conf.secret_id
+            env_var = secret_conf.env_var_name
+            logger.debug(
+                f"Attempting to access secret: {secret_name} for env var: {env_var}"
+            )
+            try:
+                request = secretmanager.AccessSecretVersionRequest(name=secret_name)
+                # Use the synchronous client method directly as SDK doesn't provide async access method
+                # This will block the event loop briefly for each secret access.
+                # If many secrets are needed frequently, consider running in a thread pool executor.
+                response = self._gcp_secret_client.access_secret_version(
+                    request=request
+                )
+                secret_value = response.payload.data.decode("UTF-8")
+                resolved_secrets[env_var] = secret_value
+                logger.debug(f"Successfully resolved GCP secret for env var: {env_var}")
+            except gcp_exceptions.NotFound:
+                logger.error(f"GCP Secret not found: {secret_name}")
+                # Skip this secret and continue
+            except gcp_exceptions.PermissionDenied:
+                logger.error(
+                    f"Permission denied accessing GCP secret: {secret_name}. Check IAM roles for ADC."
+                )
+                # Skip this secret and continue
+            except Exception as e:
+                logger.error(f"Failed to access GCP secret {secret_name}: {e}")
+                # Skip this secret and continue
+
+        logger.info(
+            f"Resolved {len(resolved_secrets)} out of {len(secrets_config)} requested GCP secrets."
+        )
+        return resolved_secrets
 
     async def shutdown(self):
         """Shutdown the security manager"""

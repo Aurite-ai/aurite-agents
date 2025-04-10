@@ -16,6 +16,24 @@
       "timeout": 15.0,
       "routing_weight": 1.0,
       "roots": []
+    },
+    {
+      "client_id": "env_check_server",
+      "server_path": "tests/fixtures/servers/env_check_server.py",
+      "capabilities": [],
+      "timeout": 5.0,
+      "routing_weight": 1.0,
+      "roots": [],
+      "gcp_secrets": [
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_SECRET_1_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_1"
+        },
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_DB_PASSWORD_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_DB_PASSWORD"
+        }
+      ]
     }
   ],
   "agents": [

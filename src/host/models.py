@@ -10,7 +10,7 @@ This module provides:
 import logging
 from typing import List, Optional
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field  # Added Field
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,18 @@ class RootConfig(BaseModel):
     uri: str
     name: str
     capabilities: List[str]
+
+
+class GCPSecretConfig(BaseModel):
+    """Configuration for a single GCP Secret to resolve."""
+
+    secret_id: str = Field(
+        ...,
+        description="Full GCP Secret Manager secret ID (e.g., projects/my-proj/secrets/my-secret/versions/latest)",
+    )
+    env_var_name: str = Field(
+        ..., description="Environment variable name to map the secret value to"
+    )
 
 
 class ClientConfig(BaseModel):
@@ -34,6 +46,10 @@ class ClientConfig(BaseModel):
     routing_weight: float = 1.0  # Weight for server selection
     exclude: Optional[List[str]] = (
         None  # List of component names (prompt, resource, tool) to exclude
+    )
+    gcp_secrets: Optional[List[GCPSecretConfig]] = Field(
+        None,
+        description="List of GCP secrets to resolve and inject into the server environment",
     )
 
 

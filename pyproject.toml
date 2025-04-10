@@ -54,7 +54,14 @@ dependencies = [
     "tzdata>=2025.1",
     "uvicorn>=0.34.0",
     "fastapi",
+    "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest-timeout>=2.3.1", # Added for test timeouts
+]
+
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
 [tool.setuptools.packages.find]
@@ -103,6 +110,8 @@ addopts = "--verbose --no-header --disable-warnings"
 # Configure test result captures
 junit_family = "xunit2"
 # asyncio_mode moved up
+timeout = 30 # Default test timeout in seconds
+
 [project.scripts]
 start-api = "src.bin.api:start"
 start-worker = "src.bin.worker:main" # Assumes main is the async entry point

@@ -1,0 +1,69 @@
+# Build stage
+FROM python:3.12-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy dependency files first for better caching
+COPY pyproject.toml .
+
+# Install dependencies only (this layer will be cached)
+RUN pip install --no-cache-dir ".[dev]"
+
+# Copy source code and config files
+COPY . .
+
+# Install the package in development mode
+RUN pip install -e .
+
+# Runtime stage
+FROM python:3.12-slim
+
+# Install runtime dependencies
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy built package and dependencies from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --from=builder /build/src/ ./src/
+COPY --from=builder /build/alembic.ini .
+
+# Create cache directory with proper permissions
+RUN mkdir -p /app/cache && chown -R appuser:appuser /app /app/cache && chmod 755 /app/cache
+
+# Switch to non-root user
+USER appuser
+
+# Set only essential environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    ENV=development \
+    CACHE_DIR=/app/cache
+
+# Expose port
+EXPOSE 8080
+
+# Health check - use netcat to check if port is open first, then curl health endpoint
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD (nc -z localhost 8080 && curl -f http://localhost:8080/api/health/live) || exit 1
+
+# Run the development server with auto-reload
+CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--reload-dir", "/app/src"]
