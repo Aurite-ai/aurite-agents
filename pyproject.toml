@@ -7,6 +7,24 @@ version = "0.2.0"
 description = "Aurite Agent Framework with MCP"
 readme = "README.md"
 requires-python = ">=3.12"
+
+authors = [
+    { name = "Ryan W", email = "ryan@aurite.ai" },
+    { name = "Blake R", email = "blake@aurite.ai" },
+    { name = "Patrick W", email = "patrick@aurite.ai" },
+]
+
+license = { file = "LICENSE" } # Reference the LICENSE file
+
+keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 dependencies = [
     "mcp>=1.4.1",
     "httpx>=0.28.1",

@@ -2,12 +2,12 @@
 FROM python:3.12-slim AS builder
 
 # Install build dependencies
-RUN apt-get update && \
+RUN apt-get update &&
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+        gcc \
+        python3-dev \
+        libpq-dev &&
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /build
@@ -15,6 +15,8 @@ WORKDIR /build
 # Copy project files
 COPY pyproject.toml .
 COPY src/ ./src/
+COPY config/ ./config/
+
 COPY alembic.ini .
 
 # Install dependencies and build package
@@ -24,11 +26,11 @@ RUN pip install --no-cache-dir .
 FROM python:3.12-slim
 
 # Install runtime dependencies
-RUN apt-get update && \
+RUN apt-get update &&
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    curl \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+        curl \
+        libpq5 &&
+    rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser

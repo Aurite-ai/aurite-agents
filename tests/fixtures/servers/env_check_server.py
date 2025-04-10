@@ -22,9 +22,9 @@ OUTPUT_FILE_ENV_VAR = "ENV_CHECK_OUTPUT_FILE"
 mcp = FastMCP("env-check-server")
 
 
-async def run_server():
-    logger.info("env_check_server starting.")
-
+# --- Synchronous function to check env and write to file ---
+def check_env_and_write_output():
+    logger.info("env_check_server: Checking environment and writing output.")
     output_file_path = os.getenv(OUTPUT_FILE_ENV_VAR)
     output_target = None
 
@@ -44,7 +44,7 @@ async def run_server():
         )
         output_target = sys.stdout
 
-    # Retrieve and log the environment variables (still write to file for test assertion)
+    # Retrieve and log the environment variables
     secret_value_1 = os.getenv(SECRET_VAR_1)
     secret_value_2 = os.getenv(SECRET_VAR_2)
 
@@ -68,21 +68,21 @@ async def run_server():
     # Close the file if it was opened
     if output_target is not sys.stdout:
         output_target.close()
-
-    # Run the MCP server briefly to handle initialization, then exit
-    # This allows the host's stdio_client to connect and disconnect cleanly
-    try:
-        logger.info("Starting minimal MCP server loop...")
-        # Run the server with a short timeout to allow initialization then exit
-        await asyncio.wait_for(
-            mcp.run(transport="stdio", run_forever=False), timeout=2.0
-        )
-        logger.info("MCP server loop finished or timed out.")
-    except asyncio.TimeoutError:
-        logger.info("MCP server run timed out as expected.")
-    except Exception as e:
-        logger.error(f"Error running MCP server loop: {e}")
+    logger.info("env_check_server: Finished writing output.")
 
 
+# --- Main execution block ---
 if __name__ == "__main__":
-    asyncio.run(run_server())
+    # Perform the check/write immediately when the script starts
+    check_env_and_write_output()
+
+    # Now, start the MCP server to handle the connection handshake
+    # This will block until the client disconnects or the process is terminated
+    logger.info("env_check_server: Starting MCP server loop...")
+    try:
+        # Let FastMCP manage the asyncio loop
+        mcp.run(transport="stdio")
+    except Exception as e:
+        logger.error(f"env_check_server: Error during MCP run: {e}")
+    finally:
+        logger.info("env_check_server: MCP server loop exited.")

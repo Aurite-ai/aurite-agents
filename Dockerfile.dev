@@ -14,12 +14,11 @@ WORKDIR /build
 
 # Copy dependency files first for better caching
 COPY pyproject.toml .
+COPY src/ ./src/
+COPY config/ ./config/
 
 # Install dependencies only (this layer will be cached)
 RUN pip install --no-cache-dir ".[dev]"
-
-# Copy source code and config files
-COPY . .
 
 # Install the package in development mode
 RUN pip install -e .
@@ -65,5 +64,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
     CMD (nc -z localhost 8080 && curl -f http://localhost:8080/api/health/live) || exit 1
 
-# Run the development server with auto-reload
 CMD ["python", "-m", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--reload-dir", "/app/src"]
