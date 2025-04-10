@@ -1,0 +1,99 @@
+{
+  "name": "DefaultMCPHost",
+  "clients": [
+    {
+      "client_id": "weather_server",
+      "server_path": "src/packaged_servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "client_id": "planning_server",
+      "server_path": "src/packaged_servers/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "client_id": "env_check_server",
+      "server_path": "src/packaged_servers/env_check_server.py",
+      "capabilities": [],
+      "timeout": 5.0,
+      "routing_weight": 1.0,
+      "roots": [],
+      "gcp_secrets": [
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_SECRET_1_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_1"
+        },
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_DB_PASSWORD_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_DB_PASSWORD"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "client_ids": ["weather_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
+      "client_ids": ["weather_server", "planning_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Workflow Step 1",
+      "system_prompt": "Your job is to use the tools at your disposal to research the current weather in San Fransisco. Respond with this information",
+      "client_ids": ["weather_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Weather Planning Workflow Step 2",
+      "system_prompt": "Your job is to use the current weather information for San Fransisco (provided in the user message) to write and save a plan with the save_plan tool. Your plan should specify what the user should wear based on the current weather",
+      "client_ids": ["planning_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Example workflow using weather and planning servers",
+      "steps": [
+        "Weather Planning Workflow Step 1",
+        "Weather Planning Workflow Step 2"
+      ],
+      "description": "Example workflow to test simple workflow execution using agents."
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "ExampleCustom",
+      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "An example custom workflow for testing."
+    }
+  ]
+}

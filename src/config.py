@@ -14,7 +14,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Assuming models are accessible from here
 from .host.models import (
     HostConfig,
-    HostConfig,
     ClientConfig,
     RootConfig,
     AgentConfig,

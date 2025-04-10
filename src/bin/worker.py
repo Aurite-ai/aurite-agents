@@ -319,3 +319,16 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received, exiting.")
+
+
+# Synchronous wrapper function for the entry point
+def start():
+    """Synchronous entry point for the console script."""
+    logger.info("Starting worker via console script...")
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received during startup/runtime, exiting.")
+    except Exception as e:
+        logger.critical(f"Worker failed to start or crashed: {e}", exc_info=True)
+        sys.exit(1)  # Exit with error code if startup fails

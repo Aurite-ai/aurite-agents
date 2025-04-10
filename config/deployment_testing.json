@@ -3,7 +3,7 @@
   "clients": [
     {
       "client_id": "weather_server",
-      "server_path": "tests/fixtures/servers/weather_mcp_server.py",
+      "server_path": "src/packaged_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
       "routing_weight": 1.0,
@@ -11,11 +11,29 @@
     },
     {
       "client_id": "planning_server",
-      "server_path": "src/servers/management/planning_server.py",
+      "server_path": "src/packaged_servers/planning_server.py",
       "capabilities": ["tools", "prompts", "resources"],
       "timeout": 15.0,
       "routing_weight": 1.0,
       "roots": []
+    },
+    {
+      "client_id": "env_check_server",
+      "server_path": "src/packaged_servers/env_check_server.py",
+      "capabilities": [],
+      "timeout": 5.0,
+      "routing_weight": 1.0,
+      "roots": [],
+      "gcp_secrets": [
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_SECRET_1_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_1"
+        },
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_DB_PASSWORD_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_DB_PASSWORD"
+        }
+      ]
     }
   ],
   "agents": [
@@ -70,12 +88,5 @@
       "description": "Example workflow to test simple workflow execution using agents."
     }
   ],
-  "custom_workflows": [
-    {
-      "name": "ExampleCustom",
-      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
-      "class_name": "ExampleCustomWorkflow",
-      "description": "An example custom workflow for testing."
-    }
-  ]
+  "custom_workflows": []
 }

@@ -14,7 +14,7 @@ authors = [
     { name = "Patrick W", email = "patrick@aurite.ai" },
 ]
 
-license = { file = "LICENSE" } # Reference the LICENSE file
+license-files = ["LICENSE"] # Use recommended field
 
 keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
 classifiers = [
@@ -81,7 +81,11 @@ dev = [
 ]
 
 [tool.setuptools.package-data]
+# Include py.typed for all packages found
 "*" = ["py.typed"]
+# Specifically include the packaged server scripts within the 'src' package
+"src" = ["packaged_servers/*.py"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
@@ -132,6 +136,6 @@ timeout = 30 # Default test timeout in seconds
 
 [project.scripts]
 start-api = "src.bin.api:start"
-start-worker = "src.bin.worker:main" # Assumes main is the async entry point
+start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
 run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
 # test-api = "newman run tests/api/main_server.postman_collection.json -e tests/api/main_server.postman_environment.json --reporters cli"

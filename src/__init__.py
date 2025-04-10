@@ -1,10 +1,9 @@
-"""Aurite MCP package.
-
-Provides an implementation of the Model Context Protocol (MCP) for building
-and managing AI agents using the Aurite framework.
+"""
+Initialization for the src package (aurite_agents).
+Exposes key public interfaces.
 """
 
-# Expose top-level modules
-from . import host
+from .host_manager import HostManager
+from .agents.agent import Agent
 
-__all__ = ["host"]
+__all__ = ["HostManager", "Agent"]

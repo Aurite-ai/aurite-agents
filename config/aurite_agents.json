@@ -3,7 +3,7 @@
   "clients": [
     {
       "client_id": "weather_server",
-      "server_path": "tests/fixtures/servers/weather_mcp_server.py",
+      "server_path": "src/packaged_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
       "routing_weight": 1.0,
@@ -11,7 +11,7 @@
     },
     {
       "client_id": "planning_server",
-      "server_path": "src/servers/management/planning_server.py",
+      "server_path": "src/packaged_servers/planning_server.py",
       "capabilities": ["tools", "prompts", "resources"],
       "timeout": 15.0,
       "routing_weight": 1.0,
@@ -19,7 +19,7 @@
     },
     {
       "client_id": "env_check_server",
-      "server_path": "tests/fixtures/servers/env_check_server.py",
+      "server_path": "src/packaged_servers/env_check_server.py",
       "capabilities": [],
       "timeout": 5.0,
       "routing_weight": 1.0,
