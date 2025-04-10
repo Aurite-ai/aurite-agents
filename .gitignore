@@ -174,4 +174,4 @@ blob-report/
 playwright/.cache/
 **/__pytest__/ # Keep this specific pattern
 **/**environment.json
-docs/plans/completed/*
+docs/plans/completed/**/*
