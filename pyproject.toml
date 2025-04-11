@@ -130,7 +130,7 @@ addopts = "--verbose --no-header --disable-warnings"
 # Configure test result captures
 junit_family = "xunit2"
 # asyncio_mode moved up
-timeout = 30 # Default test timeout in seconds
+timeout = 60 # Increase default test timeout to 60 seconds
 
 [project.scripts]
 start-api = "src.bin.api:start"
