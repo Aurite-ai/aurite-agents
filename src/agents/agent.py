@@ -290,7 +290,7 @@ class Agent:
             # Ensure we actually processed tool calls if stop_reason was tool_use
             if not has_tool_calls:
                 logger.warning(
-                    f"LLM stop_reason was 'tool_use' but no tool_use blocks found in content. Breaking loop."
+                    "LLM stop_reason was 'tool_use' but no tool_use blocks found in content. Breaking loop."
                 )
                 final_response = response  # Treat as final response in this edge case
                 break

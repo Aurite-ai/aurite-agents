@@ -5,13 +5,10 @@ E2E tests for interacting with planning tools via a generic Agent.
 import pytest
 import logging
 import uuid
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.models import AgentConfig
-from src.host.host import MCPHost  # Needed for type hinting
 from src.host_manager import HostManager  # Import HostManager
 from src.agents.agent import Agent  # Import the generic Agent
 

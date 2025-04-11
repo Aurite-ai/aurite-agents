@@ -9,7 +9,6 @@ import pytest
 # Imports from the project
 from src.host.models import AgentConfig
 from src.agents.agent import Agent
-from src.host.host import MCPHost
 from src.host_manager import HostManager  # Import HostManager
 
 # Import fixtures explicitly for discovery
