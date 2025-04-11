@@ -5,6 +5,7 @@ E2E tests for interacting with planning tools via a generic Agent.
 import pytest
 import logging
 import uuid
+import json  # <-- Add this import
 from pathlib import Path
 
 # Use relative imports assuming tests run from aurite-mcp root
@@ -43,32 +44,35 @@ class TestPlanningAgentE2E:
         if not host_manager or not host_manager.host or not host_manager.host._config:
             pytest.fail("HostManager fixture did not provide a valid host config")
 
-        # Create a config that targets the planning server
-        # You might want to load a specific agent config from the main config file
-        # if one is defined there for planning tasks. For now, create a basic one.
+        # Use a slightly more specific system prompt for the test agent
         return AgentConfig(
             name="E2EPlanningToolTesterAgent",
-            host=host_manager.host._config,  # Link to the host's config
+            # host=host_manager.host._config, # AgentConfig doesn't take host directly
             client_ids=[PLANNING_CLIENT_ID],  # Explicitly target planning server
-            system_prompt="You are an agent designed to test planning tools.",
-            # Add other relevant params like model if needed, or rely on defaults
+            system_prompt=(
+                "You are an agent designed to test planning tools. "
+                "Use the 'save_plan' tool to save plans and 'list_plans' to list them. "
+                "Follow the user's instructions precisely. "
+                "When listing plans, make sure to include the names of the plans found in your final response."
+            ),
+            model="claude-3-haiku-20240307",  # Use a faster model for testing
+            temperature=0.1,  # Low temperature for predictable results
         )
 
     @pytest.fixture(autouse=True)
     def check_client_exists(self, host_manager: HostManager):
         """Fixture to ensure the planning client is loaded before tests run."""
-        if PLANNING_CLIENT_ID not in host_manager.host.clients:
+        # Access the private _clients attribute, which holds the client sessions
+        if PLANNING_CLIENT_ID not in host_manager.host._clients:
             pytest.skip(
                 f"Planning server client '{PLANNING_CLIENT_ID}' not found in host config. "
                 "Ensure it's defined in config/testing_config.json"
             )
         logger.info(f"Host fixture confirmed client '{PLANNING_CLIENT_ID}' is loaded.")
-        # Ensure the plan save directory exists for cleanup later
+        # Ensure the plan save directory exists
         PLAN_SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
-    @pytest.mark.skip(
-        reason="Test logic needs to be implemented for generic Agent and tools"
-    )
+    # Remove the skip marker
     async def test_planning_tools_via_agent(
         self, planning_agent_config: AgentConfig, host_manager: HostManager
     ):
@@ -85,33 +89,114 @@ class TestPlanningAgentE2E:
         9. Verify the response contains the previously saved plan.
         10. Clean up created files.
         """
-        # Example setup (needs implementation)
         agent = Agent(config=planning_agent_config)
+        # host_manager already provides the initialized host via its .host attribute
         host = host_manager.host
-        plan_name = f"rebuilt_e2e_plan_{uuid.uuid4()}"
-        plan_content = "Step 1: Rebuild test.\nStep 2: Implement logic."
-        tags = ["rebuilt", "testing"]
+        plan_name = f"e2e_plan_{uuid.uuid4()}"
+        plan_content = (
+            "Step 1: Define test.\nStep 2: Run test.\nStep 3: Verify results."
+        )
+        tags = ["e2e", "testing"]
         plan_file_path = PLAN_SAVE_DIR / f"{plan_name}.txt"
         meta_file_path = PLAN_SAVE_DIR / f"{plan_name}.meta.json"
 
-        logger.info(f"Placeholder test for plan: {plan_name}")
+        logger.info(f"Starting E2E planning test for plan: {plan_name}")
 
-        # --- Test Logic Placeholder ---
-        # Example: Save Plan via Agent
-        # save_message = f"Save a plan named '{plan_name}' with content: {plan_content}"
-        # save_result = await agent.execute_agent(save_message, host, filter_client_ids=[PLANNING_CLIENT_ID])
-        # assert 'save_plan' in [use['name'] for use in save_result.get('tool_uses', [])]
-        # assert plan_file_path.exists()
-        # assert meta_file_path.exists()
+        # Ensure files don't exist initially (e.g., from failed previous run)
+        if plan_file_path.exists():
+            plan_file_path.unlink()
+        if meta_file_path.exists():
+            meta_file_path.unlink()
 
-        # Example: List Plan via Agent
-        # list_message = f"List plans tagged 'rebuilt'"
-        # list_result = await agent.execute_agent(list_message, host, filter_client_ids=[PLANNING_CLIENT_ID])
-        # assert 'list_plans' in [use['name'] for use in list_result.get('tool_uses', [])]
-        # Check final_response content for the plan details
+        try:
+            # 1. Save Plan via Agent
+            save_message = (
+                f"Save a plan named '{plan_name}' with the following content:\n"
+                f"{plan_content}\n"
+                f"Also, tag it with: {json.dumps(tags)}"
+            )
+            logger.info(f"Sending save message to agent: {save_message}")
+            save_result = await agent.execute_agent(
+                user_message=save_message,
+                host_instance=host,
+                filter_client_ids=[PLANNING_CLIENT_ID],
+            )
 
-        # --- Cleanup ---
-        # if plan_file_path.exists(): plan_file_path.unlink()
-        # if meta_file_path.exists(): meta_file_path.unlink()
+            logger.debug(f"Save agent result: {save_result}")
 
-        pass  # Remove once implemented
+            # Verify save_plan tool was used
+            tool_uses = save_result.get("tool_uses", [])
+            assert any(use["name"] == "save_plan" for use in tool_uses), (
+                "Agent did not use 'save_plan' tool"
+            )
+            logger.info("Verified 'save_plan' tool was used.")
+
+            # Verify files were created
+            assert plan_file_path.exists(), (
+                f"Plan file was not created: {plan_file_path}"
+            )
+            assert meta_file_path.exists(), (
+                f"Metadata file was not created: {meta_file_path}"
+            )
+            logger.info("Verified plan and metadata files were created.")
+
+            # Optional: Verify content
+            with open(plan_file_path, "r") as f:
+                # Strip whitespace from each line before comparing
+                actual_content_lines = [line.strip() for line in f.readlines()]
+                expected_content_lines = [
+                    line.strip() for line in plan_content.splitlines()
+                ]
+                assert actual_content_lines == expected_content_lines, (
+                    f"Plan content mismatch after stripping lines.\nExpected: {expected_content_lines}\nActual: {actual_content_lines}"
+                )
+            with open(meta_file_path, "r") as f:
+                meta_data = json.load(f)
+                assert meta_data.get("name") == plan_name
+                assert set(meta_data.get("tags", [])) == set(tags)
+            logger.info("Verified file content and metadata.")
+
+            # 2. List Plans (Tagged) via Agent
+            list_message = "List all plans tagged with 'e2e'"
+            logger.info(f"Sending list message to agent: {list_message}")
+            list_result = await agent.execute_agent(
+                user_message=list_message,
+                host_instance=host,
+                filter_client_ids=[PLANNING_CLIENT_ID],
+            )
+
+            logger.debug(f"List agent result: {list_result}")
+
+            # Verify list_plans tool was used
+            list_tool_uses = list_result.get("tool_uses", [])
+            assert any(use["name"] == "list_plans" for use in list_tool_uses), (
+                "Agent did not use 'list_plans' tool"
+            )
+            logger.info("Verified 'list_plans' tool was used.")
+
+            # Verify the final response contains the plan name
+            final_response_content = ""
+            if list_result.get("final_response"):
+                # Extract text from potential list of content blocks
+                content_list = getattr(list_result["final_response"], "content", [])
+                text_blocks = [
+                    block.text for block in content_list if block.type == "text"
+                ]
+                final_response_content = "\n".join(text_blocks)
+
+            assert plan_name in final_response_content
+
+        finally:
+            # --- Cleanup ---
+            logger.info("Cleaning up created test files...")
+            if plan_file_path.exists():
+                plan_file_path.unlink()
+                logger.info(f"Deleted plan file: {plan_file_path}")
+            else:
+                logger.warning(f"Plan file not found for cleanup: {plan_file_path}")
+
+            if meta_file_path.exists():
+                meta_file_path.unlink()
+                logger.info(f"Deleted metadata file: {meta_file_path}")
+            else:
+                logger.warning(f"Metadata file not found for cleanup: {meta_file_path}")

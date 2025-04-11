@@ -277,7 +277,7 @@ def execute_workflow_via_api_sync(  # Sync wrapper
     try:
         # Run the async logic within asyncio.run
         asyncio.run(_execute_workflow_async_logic(workflow_name, message))
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPStatusError:
         # Handle expected API errors gracefully (already logged in async func)
         # Optionally exit with non-zero code
         raise typer.Exit(code=1)
@@ -314,7 +314,7 @@ def execute_custom_workflow_via_api_sync(  # Sync wrapper
             # Handle other potential ValueErrors
             logger.error(f"CLI command failed due to ValueError: {e}", exc_info=True)
             raise typer.Exit(code=1)
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPStatusError:
         # Handle expected API errors gracefully (already logged)
         raise typer.Exit(code=1)
     except httpx.ConnectError:

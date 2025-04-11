@@ -99,9 +99,9 @@
           "raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/agents/Weather Agent/execute",
+          "raw": "{{base_url}}/agents/Weather%20Agent/execute",
           "host": ["{{base_url}}"],
-          "path": ["agents", "Weather Agent", "execute"]
+          "path": ["agents", "Weather%20Agent", "execute"]
         },
         "description": "Executes the 'Weather Agent' defined in the config."
       },
@@ -148,11 +148,11 @@
           "raw": "{\n    \"initial_user_message\": \"Check weather in SF and save plan.\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/workflows/Example workflow using weather and planning servers/execute",
+          "raw": "{{base_url}}/workflows/Example%20workflow%20using%20weather%20and%20planning%20servers/execute",
           "host": ["{{base_url}}"],
           "path": [
             "workflows",
-            "Example workflow using weather and planning servers",
+            "Example%20workflow%20using%20weather%20and%20planning%20servers",
             "execute"
           ]
         },
