@@ -62,7 +62,7 @@ async def host_manager() -> HostManager:
     the testing_config.json file. Handles setup and teardown.
     """
     # Define path to the test config file relative to project root
-    test_config_path = PROJECT_ROOT_DIR / "config/agents/testing_config.json"
+    test_config_path = PROJECT_ROOT_DIR / "config/testing_config.json"
 
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
