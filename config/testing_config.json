@@ -69,7 +69,7 @@
     },
     {
       "name": "Weather Planning Workflow Step 2",
-      "system_prompt": "Your job is to use the current weather information for San Fransisco (provided in the user message) to write and save a plan with the save_plan tool. Your plan should specify what the user should wear based on the current weather",
+      "system_prompt": "You have been provided with the current weather information for San Francisco in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. Do NOT attempt to look up the weather again. Use ONLY the 'save_plan' tool.",
       "client_ids": ["planning_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",

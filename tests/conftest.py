@@ -8,7 +8,7 @@ framework, with special attention to agent and workflow testing fixtures.
 import json
 import logging
 import pytest
-import asyncio  # Added for event loop fixture
+# import asyncio # Removed - anyio plugin handles the loop
 
 # Import fixtures from the fixtures directory to make them discoverable
 # Note: Fixtures need to be imported, even if not directly used in conftest.py,
@@ -58,17 +58,21 @@ def pytest_unconfigure(config):
     # Cleanup can be expanded as needed
 
 
-# --- Event Loop Fixture ---
+# --- AnyIO Backend Configuration ---
 
 
-# Change scope to "function" for potentially safer async context management per test
-@pytest.fixture(scope="function")
-def event_loop(request):
-    """Create an instance of the default event loop for each test function."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(scope="session")
+def anyio_backend():
+    """
+    Configure AnyIO to use the asyncio backend globally for all tests.
+    This fixture is session-scoped as recommended by AnyIO for potentially
+    sharing resources across tests if higher-scoped async fixtures are used later.
+    """
+    # Options can be added here if needed, e.g., {'use_uvloop': True}
+    return "asyncio"
 
+
+# Removed the explicit event_loop fixture as the anyio plugin manages it.
 
 # --- Utility Fixtures ---
 

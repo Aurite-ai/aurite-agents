@@ -3,6 +3,10 @@ Tests for the HostManager class.
 """
 
 import pytest
+
+# Mark all tests in this module to be run by the anyio plugin
+pytestmark = pytest.mark.anyio
+
 import os  # Add import for environment variable check
 
 # Assuming tests run from project root
@@ -26,7 +30,7 @@ EXPECTED_CUSTOM_WORKFLOW_COUNT = 1
 class TestHostManagerInitialization:
     """Tests related to HostManager initialization."""
 
-    @pytest.mark.asyncio
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     async def test_host_manager_initialization_success(self, host_manager: HostManager):
         """
         Verify that the host_manager fixture successfully initializes the
@@ -84,7 +88,7 @@ class TestHostManagerInitialization:
 class TestHostManagerExecution:
     """Tests for HostManager execution methods."""
 
-    @pytest.mark.asyncio
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     async def test_execute_agent_success(self, host_manager: HostManager):
         """Test executing a known agent successfully."""
         agent_name = "Weather Agent"  # Agent defined in testing_config.json
@@ -119,7 +123,7 @@ class TestHostManagerExecution:
         # assert len(result["tool_uses"]) > 0
         # assert result["tool_uses"][0]["name"] == "weather_lookup" # Example
 
-    @pytest.mark.asyncio
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     async def test_execute_workflow_success(self, host_manager: HostManager):
         """Test executing a known simple workflow successfully."""
         workflow_name = "Example workflow using weather and planning servers"  # From testing_config.json
@@ -149,7 +153,7 @@ class TestHostManagerExecution:
         # For now, just checking for successful completion and a non-empty message.
         print(f"\nWorkflow Final Message: {result['final_message']}")  # Log for info
 
-    @pytest.mark.asyncio
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     async def test_execute_custom_workflow_success(self, host_manager: HostManager):
         """Test executing a known custom workflow successfully."""
         workflow_name = "ExampleCustom"  # From testing_config.json

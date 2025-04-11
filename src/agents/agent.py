@@ -4,7 +4,8 @@ Core Agent implementation for interacting with MCP Hosts and executing tasks.
 
 import os
 import logging
-import anthropic
+import anthropic  # Keep for types if needed
+from anthropic import AsyncAnthropic  # Import the async client
 from anthropic.types import MessageParam, ToolUseBlock
 from typing import Dict, Any, Optional, List
 
@@ -42,7 +43,8 @@ class Agent:
             raise ValueError("ANTHROPIC_API_KEY environment variable not found.")
 
         try:
-            self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+            # Use the ASYNC client
+            self.anthropic_client = AsyncAnthropic(api_key=api_key)
             logger.info("Anthropic client initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic client: {e}")
@@ -94,7 +96,8 @@ class Agent:
                 api_args["tools"] = tools
 
             # Use the client initialized in __init__
-            response = self.anthropic_client.messages.create(**api_args)
+            # AWAIT the call since the client is async
+            response = await self.anthropic_client.messages.create(**api_args)
             logger.debug(
                 f"Anthropic API response received (stop_reason: {response.stop_reason})"
             )
@@ -223,13 +226,21 @@ class Agent:
             conversation_history.append(
                 {"role": "assistant", "content": response.content}
             )
-            # NOTE: Don't add assistant response to messages here unconditionally.
-            # It's only needed for the *next* turn if there are tool calls.
 
-            # Check for tool use
+            # Check stop reason FIRST
+            if response.stop_reason != "tool_use":
+                # If the LLM didn't request tools, this is the final response.
+                final_response = response
+                logger.debug(
+                    f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."
+                )
+                break  # Exit the loop
+
+            # If we reach here, stop_reason MUST be 'tool_use'
+            logger.debug("LLM requested tool use. Processing tools...")
             tool_results_for_next_turn = []
-            tool_uses_in_this_turn = []  # Track for this specific turn
-            has_tool_calls = False
+            tool_uses_in_this_turn = []
+            has_tool_calls = False  # Reset for this check
 
             for block in response.content:
                 if block.type == "tool_use":
@@ -242,24 +253,19 @@ class Agent:
                             "input": tool_use.input,
                         }
                     )
-
                     # Execute the tool via Host's ToolManager
                     logger.info(
                         f"Executing tool '{tool_use.name}' via host_instance (ID: {tool_use.id})"
                     )
                     try:
-                        # ToolManager.execute_tool is async
-                        # Pass the filter_client_ids down to the host's execute_tool method
                         tool_result_content = await host_instance.execute_tool(
                             tool_name=tool_use.name,
                             arguments=tool_use.input,
-                            filter_client_ids=filter_client_ids,  # Pass filter
+                            filter_client_ids=filter_client_ids,
                         )
                         logger.info(
                             f"Tool '{tool_use.name}' executed successfully (within filter)."
                         )
-
-                        # Use ToolManager to format the tool result block
                         tool_result_block = (
                             host_instance.tools.create_tool_result_blocks(
                                 tool_use.id, tool_result_content
@@ -268,8 +274,8 @@ class Agent:
                         tool_results_for_next_turn.append(tool_result_block)
 
                     except Exception as e:
-                        logger.error(f"Error executing tool {tool_use.name}: {e}")
                         # Create an error result block using the same format
+                        logger.error(f"Error executing tool {tool_use.name}: {e}")
                         error_content = (
                             f"Error executing tool '{tool_use.name}': {str(e)}"
                         )
@@ -281,35 +287,46 @@ class Agent:
                         )
                         tool_results_for_next_turn.append(tool_result_block)
 
-            # If no tool calls in this turn, the conversation might be finished
+            # Ensure we actually processed tool calls if stop_reason was tool_use
             if not has_tool_calls:
-                final_response = response  # The last assistant message is the final one
-                logger.debug("No tool calls in the last response. Ending loop.")
+                logger.warning(
+                    f"LLM stop_reason was 'tool_use' but no tool_use blocks found in content. Breaking loop."
+                )
+                final_response = response  # Treat as final response in this edge case
                 break
 
-            # If there were tool calls, add the assistant's response (requesting the tools)
-            # and the user's response (tool results) to the messages for the next API call.
-            if has_tool_calls and tool_results_for_next_turn:
-                # Add assistant message with tool calls
-                messages.append({"role": "assistant", "content": response.content})
-                # Add user message with combined tool results
-                messages.append({"role": "user", "content": tool_results_for_next_turn})
-                # Also log the user turn in history
+            # Prepare messages for the next iteration
+            if tool_results_for_next_turn:
+                messages.append(
+                    {"role": "assistant", "content": response.content}
+                )  # Add assistant request
+                messages.append(
+                    {"role": "user", "content": tool_results_for_next_turn}
+                )  # Add tool results
                 conversation_history.append(
                     {"role": "user", "content": tool_results_for_next_turn}
-                )  # Also log this turn
-                tool_uses_in_last_turn = tool_uses_in_this_turn  # Update last tool uses
+                )
+                tool_uses_in_last_turn = tool_uses_in_this_turn
                 logger.debug(
                     f"Added {len(tool_results_for_next_turn)} tool result(s) for next turn."
                 )
             else:
-                # Should not happen if has_tool_calls is True, but log just in case
-                logger.warning("Tool calls detected, but no results generated.")
+                # Should not happen if has_tool_calls is True, but handle defensively
+                logger.warning(
+                    "Tool calls expected based on stop_reason, but no results generated. Breaking loop."
+                )
+                final_response = response
+                break
 
-        if current_iteration >= max_iterations:
+        # Check if loop finished due to max iterations
+        if (
+            current_iteration >= max_iterations and final_response is None
+        ):  # Check final_response is None to avoid overwriting a valid break
             logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
             # Potentially return an error or the last response? Return last response for now.
-            final_response = response
+            final_response = (
+                response  # Assign the last response before loop termination
+            )
 
         # Return Results - Renumbered step
         logger.info(f"Agent '{self.config.name or 'Unnamed'}' execution finished.")
