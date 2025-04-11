@@ -21,7 +21,7 @@
   "agents": [
     {
       "name": "Preferences Agent",
-      "system_prompt": "Your job is to use the given conversation transcript to record facts about the customer's preferences.",
+      "system_prompt": "Your job is to use the given conversation transcript to record facts about the customer's preferences. When you are given a transcript, return a list of preferences.",
       "client_ids": [""],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
@@ -31,13 +31,23 @@
     },
     {
       "name": "Memory Agent",
-      "system_prompt": "Your job is to store facts about customer preferences in memory.",
+      "system_prompt": "Your job is to store facts about customer preferences in memory. When you recieve a list of preferences, you should use your tool to store them. The user_id is always \"default_user\"",
       "client_ids": ["memory_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "MemoryWorkflow",
+      "steps": [
+        "Preferences Agent",
+        "Memory Agent"
+      ],
+      "description": "Simple memory workflow"
     }
   ],
   "custom_workflows": [
