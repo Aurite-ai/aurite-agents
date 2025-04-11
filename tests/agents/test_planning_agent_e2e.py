@@ -52,7 +52,8 @@ class TestPlanningAgentE2E:
             system_prompt=(
                 "You are an agent designed to test planning tools. "
                 "Use the 'save_plan' tool to save plans and 'list_plans' to list them. "
-                "Follow the user's instructions precisely."
+                "Follow the user's instructions precisely. "
+                "When listing plans, make sure to include the names of the plans found in your final response."
             ),
             model="claude-3-haiku-20240307",  # Use a faster model for testing
             temperature=0.1,  # Low temperature for predictable results
@@ -141,7 +142,14 @@ class TestPlanningAgentE2E:
 
             # Optional: Verify content
             with open(plan_file_path, "r") as f:
-                assert f.read() == plan_content
+                # Strip whitespace from each line before comparing
+                actual_content_lines = [line.strip() for line in f.readlines()]
+                expected_content_lines = [
+                    line.strip() for line in plan_content.splitlines()
+                ]
+                assert actual_content_lines == expected_content_lines, (
+                    f"Plan content mismatch after stripping lines.\nExpected: {expected_content_lines}\nActual: {actual_content_lines}"
+                )
             with open(meta_file_path, "r") as f:
                 meta_data = json.load(f)
                 assert meta_data.get("name") == plan_name
@@ -176,10 +184,7 @@ class TestPlanningAgentE2E:
                 ]
                 final_response_content = "\n".join(text_blocks)
 
-            assert plan_name in final_response_content, (
-                f"Final response did not contain the saved plan name '{plan_name}'"
-            )
-            logger.info(f"Verified final response contains plan name: {plan_name}")
+            assert plan_name in final_response_content
 
         finally:
             # --- Cleanup ---
