@@ -1,0 +1,12 @@
+Weather conditions for San Francisco: 
+- Temperature: 68°F / 20°C 
+- Conditions: Partly cloudy
+- Wind: 10 mph
+
+Recommended clothing for these conditions:
+- Light layers such as a t-shirt or long sleeve shirt
+- Light jacket or sweater
+- Pants or shorts depending on preference 
+- Closed-toe shoes
+- Sunglasses
+- Consider a light scarf or hat if wind picks up

@@ -1,5 +1,5 @@
 import pytest
-import asyncio
+import anyio  # Import anyio for sleep
 import os
 import tempfile
 from unittest.mock import patch, AsyncMock
@@ -11,21 +11,17 @@ from src.config import load_host_config_from_json
 from src.host.foundation.security import SecurityManager
 
 # Define the path to the test configuration file
-TEST_CONFIG_PATH = Path("config/agents/testing_config.json")
+# Corrected path based on project structure (assuming tests run from root)
+TEST_CONFIG_PATH = Path("config/testing_config.json")
 
-# Mark all tests in this file as integration tests
-pytestmark = pytest.mark.integration
-
-
-@pytest.fixture(scope="module")
-def event_loop():
-    """Overrides default pytest-asyncio event_loop fixture to module scope."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Mark all tests in this file as integration tests and use anyio backend
+pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
 
-@pytest.fixture(scope="module")
+# Removed module-scoped event_loop fixture - let pytest-anyio handle it
+
+
+@pytest.fixture(scope="function")  # Changed scope to function for better isolation
 async def configured_host_instance_with_outfile():
     """
     Fixture to initialize and shutdown an MCPHost instance using the test config,
@@ -81,7 +77,7 @@ async def configured_host_instance_with_outfile():
             await host.initialize()
 
             # Give the env_check_server a moment to start and write output
-            await asyncio.sleep(1.0)  # Adjust sleep time if needed
+            await anyio.sleep(1.0)  # Use anyio.sleep
 
             yield host, output_file_path  # Provide the host and output file path
 
@@ -104,9 +100,6 @@ async def configured_host_instance_with_outfile():
                 print(f"\n[Fixture] Error removing temp file {output_file}: {e}")
 
 
-# Test case for verifying secret injection
-@pytest.mark.xfail(reason="Known issue with stdio_client teardown in pytest fixtures")
-@pytest.mark.asyncio
 async def test_gcp_secrets_injected_into_client_env(
     configured_host_instance_with_outfile,
 ):
@@ -120,7 +113,7 @@ async def test_gcp_secrets_injected_into_client_env(
     output_content = ""
     try:
         # Wait a tiny bit more just in case file writing was delayed
-        await asyncio.sleep(0.2)
+        await anyio.sleep(0.2)  # Use anyio.sleep
         with open(output_file_path, "r", encoding="utf-8") as f:
             output_content = f.read()
         print(f"\nRead output from {output_file_path}:\n---\n{output_content}\n---")

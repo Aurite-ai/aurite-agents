@@ -1,196 +1,142 @@
+# filepath: /home/wilcoxr/workspace/aurite/aurite-agents/tests/host/test_host_manager.py
 """
-Tests for MCP component exclusion functionality in the MCPHost and its managers.
+Tests for the HostManager class.
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+import os  # Add import for environment variable check
 
-import mcp.types as types
+# Assuming tests run from project root
+from src.host_manager import HostManager
 from src.host.host import MCPHost
-from src.host.models import HostConfig, ClientConfig
-from pathlib import Path
-from mcp import ClientSession
+from src.host.models import (
+    AgentConfig,
+    WorkflowConfig,
+    CustomWorkflowConfig,
+)
 
-# --- Test Fixtures ---
-
-
-@pytest.fixture
-def mock_exclusion_client_session():
-    """Creates a mock ClientSession that returns predefined components."""
-    session = AsyncMock(spec=ClientSession)
-
-    # Define the components this mock client "provides"
-    mock_tools = [
-        types.Tool(
-            name="tool_allowed",
-            description="This tool should be allowed",
-            inputSchema={"type": "object"},
-        ),
-        types.Tool(
-            name="tool_to_exclude",
-            description="This tool should be excluded",
-            inputSchema={"type": "object"},
-        ),
-        types.Tool(
-            name="another_tool",
-            description="Another allowed tool",
-            inputSchema={"type": "object"},
-        ),
-    ]
-    mock_prompts = [
-        types.Prompt(name="prompt_allowed", description="Allowed prompt"),
-        types.Prompt(name="prompt_to_exclude", description="Excluded prompt"),
-    ]
-    mock_resources = [
-        types.Resource(uri="resource://allowed", name="resource_allowed"),
-        types.Resource(uri="resource://to_exclude", name="resource_to_exclude"),
-    ]
-
-    # Mock the listing methods to return objects with the expected attributes
-    mock_tools_response = MagicMock()
-    mock_tools_response.tools = mock_tools
-    session.list_tools = AsyncMock(return_value=mock_tools_response)
-
-    mock_prompts_response = MagicMock()
-    mock_prompts_response.prompts = mock_prompts
-    session.list_prompts = AsyncMock(return_value=mock_prompts_response)
-
-    mock_resources_response = MagicMock()
-    mock_resources_response.resources = mock_resources
-    session.list_resources = AsyncMock(return_value=mock_resources_response)
-
-    # Mock other methods that might be called during initialization
-    # Provide a valid InitializeResult including required fields
-    mock_init_result = types.InitializeResult(
-        protocolVersion="2024-11-05",  # Match host request
-        serverInfo=types.Implementation(name="mock-server", version="0.1.0"),
-        capabilities=types.ServerCapabilities(),  # Empty capabilities fine for this test
-    )
-    session.send_request = AsyncMock(return_value=mock_init_result)
-    session.send_notification = AsyncMock()
-
-    return session
+# Expected counts based on testing_config.json
+EXPECTED_AGENT_COUNT = 4
+EXPECTED_WORKFLOW_COUNT = 1
+EXPECTED_CUSTOM_WORKFLOW_COUNT = 1
 
 
-@pytest.fixture
-@pytest.mark.asyncio
-async def initialized_host(mock_exclusion_client_session):
-    """Creates and initializes an MCPHost with a mock client session and exclusions."""
-    client_id = "test-exclusion-client"
-    exclude_list = ["tool_to_exclude", "prompt_to_exclude", "resource_to_exclude"]
-
-    client_config = ClientConfig(
-        client_id=client_id,
-        server_path=Path("dummy/path/to/server"),  # Path doesn't matter due to patching
-        roots=[],
-        capabilities=["tools", "prompts", "resources"],
-        exclude=exclude_list,
-    )
-    # Add a name to satisfy HostConfig validation
-    host_config = HostConfig(name="TestExclusionHost", clients=[client_config])
-
-    # Patch the context managers used for client creation in MCPHost._initialize_client
-    # Patch stdio_client to return mock transport handles
-    mock_transport = (AsyncMock(), AsyncMock())  # reader, writer
-    stdio_patch = patch(
-        "src.host.host.stdio_client",
-        return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_transport), __aexit__=AsyncMock()
-        ),
-    )
-
-    # Patch ClientSession to return our mock session
-    session_patch = patch(
-        "src.host.host.ClientSession",
-        return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_exclusion_client_session),
-            __aexit__=AsyncMock(),
-        ),
-    )
-
-    # Start the patches manually
-    stdio_patch.start()
-    session_patch.start()
-    try:
-        host = MCPHost(config=host_config)
-        await host.initialize()  # This will now use the mocked session
-        yield host  # Provide the initialized host to the test
-    finally:
-        # Ensure patches are stopped
-        session_patch.stop()
-        stdio_patch.stop()
-        # No host.shutdown() needed as we didn't fully start real clients
-
-
-# --- Exclusion Tests ---
-
-
-# Since these tests involve initializing a host (even with mocks),
-# they lean towards integration testing.
 @pytest.mark.integration
-class TestComponentExclusion:
-    @pytest.mark.asyncio
-    async def test_list_tools_exclusion(self, initialized_host: MCPHost):
-        """Verify that excluded tools are not listed."""
-        listed_tools = initialized_host.tools.list_tools()
-        listed_tool_names = {tool["name"] for tool in listed_tools}
+class TestHostManagerInitialization:
+    """Tests related to HostManager initialization."""
 
-        assert "tool_allowed" in listed_tool_names
-        assert "another_tool" in listed_tool_names
-        assert "tool_to_exclude" not in listed_tool_names
-        assert len(listed_tools) == 2
+    async def test_host_manager_initialization_success(self, host_manager: HostManager):
+        """
+        Verify that the host_manager fixture successfully initializes the
+        HostManager, loads configurations, and initializes the MCPHost.
+        """
+        assert host_manager is not None
+        assert host_manager.host is not None
+        assert isinstance(host_manager.host, MCPHost)
 
-    @pytest.mark.asyncio
-    async def test_list_prompts_exclusion(self, initialized_host: MCPHost):
-        """Verify that excluded prompts are not listed."""
-        listed_prompts = await initialized_host.prompts.list_prompts()
-        listed_prompt_names = {prompt.name for prompt in listed_prompts}
-
-        assert "prompt_allowed" in listed_prompt_names
-        assert "prompt_to_exclude" not in listed_prompt_names
-        assert len(listed_prompts) == 1
-
-    @pytest.mark.asyncio
-    async def test_list_resources_exclusion(self, initialized_host: MCPHost):
-        """Verify that excluded resources are not listed."""
-        listed_resources = await initialized_host.resources.list_resources()
-        # Note: We exclude by name, so we check names here
-        listed_resource_names = {
-            resource.name for resource in listed_resources if resource.name
-        }
-
-        assert "resource_allowed" in listed_resource_names
-        assert "resource_to_exclude" not in listed_resource_names
-        assert len(listed_resources) == 1
-
-    @pytest.mark.asyncio
-    async def test_access_excluded_tool(self, initialized_host: MCPHost):
-        """Verify attempting to get an excluded tool fails."""
-        assert initialized_host.tools.get_tool("tool_to_exclude") is None
-        # Also test execution attempt (should fail because tool is not registered in router)
-        # Update the expected error message based on refactored execute_tool logic
-        expected_error_msg = (
-            "Tool 'tool_to_exclude' not found on any registered client."
+        # Check if configs are loaded
+        assert len(host_manager.agent_configs) == EXPECTED_AGENT_COUNT
+        assert all(
+            isinstance(cfg, AgentConfig) for cfg in host_manager.agent_configs.values()
         )
-        with pytest.raises(ValueError, match=expected_error_msg):
-            # Note: We call the ToolManager's execute_tool directly here for focused testing
-            await initialized_host.tools.execute_tool("tool_to_exclude", {})
+        assert "Weather Agent" in host_manager.agent_configs
 
-    @pytest.mark.asyncio
-    async def test_access_excluded_prompt(self, initialized_host: MCPHost):
-        """Verify attempting to get an excluded prompt fails."""
-        client_id = "test-exclusion-client"  # From initialized_host fixture
-        prompt = await initialized_host.prompts.get_prompt(
-            "prompt_to_exclude", client_id
+        assert len(host_manager.workflow_configs) == EXPECTED_WORKFLOW_COUNT
+        assert all(
+            isinstance(cfg, WorkflowConfig)
+            for cfg in host_manager.workflow_configs.values()
         )
-        assert prompt is None
+        assert (
+            "Example workflow using weather and planning servers"
+            in host_manager.workflow_configs
+        )
 
-    @pytest.mark.asyncio
-    async def test_access_excluded_resource(self, initialized_host: MCPHost):
-        """Verify attempting to get an excluded resource fails."""
-        client_id = "test-exclusion-client"  # From initialized_host fixture
-        # We excluded by name 'resource_to_exclude', the URI was 'resource://to_exclude'
-        resource = await initialized_host.resources.get_resource(
-            "resource://to_exclude", client_id
+        assert (
+            len(host_manager.custom_workflow_configs) == EXPECTED_CUSTOM_WORKFLOW_COUNT
         )
-        assert resource is None
+        assert all(
+            isinstance(cfg, CustomWorkflowConfig)
+            for cfg in host_manager.custom_workflow_configs.values()
+        )
+        assert "ExampleCustom" in host_manager.custom_workflow_configs
+
+        # Check if the underlying host seems initialized
+        assert host_manager.host._clients is not None
+        assert len(host_manager.host._clients) > 0
+        assert "weather_server" in host_manager.host._clients
+        assert "planning_server" in host_manager.host._clients
+
+        # Check if tool manager seems populated
+        assert host_manager.host.tools is not None
+        assert len(host_manager.host.tools._tools) > 0
+        assert "weather_lookup" in host_manager.host.tools._tools
+
+
+@pytest.mark.integration
+class TestHostManagerExecution:
+    """Tests for HostManager execution methods."""
+
+    async def test_execute_agent_success(self, host_manager: HostManager):
+        """Test executing a known agent successfully."""
+        agent_name = "Weather Agent"
+        user_message = "What's the weather like?"
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
+
+        result = await host_manager.execute_agent(
+            agent_name=agent_name, user_message=user_message
+        )
+
+        assert result is not None
+        assert isinstance(result, dict)
+        assert "final_response" in result
+        assert "error" not in result or result["error"] is None
+        assert result["final_response"] is not None
+        # Check Anthropic response structure
+        assert hasattr(result["final_response"], "content")
+        assert len(result["final_response"].content) > 0
+        assert hasattr(result["final_response"].content[0], "text")
+        assert isinstance(result["final_response"].content[0].text, str)
+        assert len(result["final_response"].content[0].text) > 0
+
+    async def test_execute_workflow_success(self, host_manager: HostManager):
+        """Test executing a known simple workflow successfully."""
+        workflow_name = "Example workflow using weather and planning servers"
+        initial_message = "Get the weather and make a plan."
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
+
+        result = await host_manager.execute_workflow(
+            workflow_name=workflow_name, initial_user_message=initial_message
+        )
+
+        assert result is not None
+        assert isinstance(result, dict)
+        assert result.get("workflow_name") == workflow_name
+        assert result.get("status") == "completed"
+        assert result.get("error") is None
+        assert "final_message" in result
+        assert isinstance(result["final_message"], str)
+        assert len(result["final_message"]) > 0
+
+    async def test_execute_custom_workflow_success(self, host_manager: HostManager):
+        """Test executing a known custom workflow successfully."""
+        workflow_name = "ExampleCustom"
+        initial_input = "Test Input String"
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
+
+        result = await host_manager.execute_custom_workflow(
+            workflow_name=workflow_name, initial_input=initial_input
+        )
+
+        assert result is not None
+        assert isinstance(result, dict)
+        assert result.get("status") == "success"
+        assert result.get("input_received") == initial_input
+        assert "agent_result_text" in result
+        assert isinstance(result["agent_result_text"], str)
+        assert len(result["agent_result_text"]) > 0

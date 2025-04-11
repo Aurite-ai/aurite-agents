@@ -11,24 +11,28 @@ import logging
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.host import MCPHost
+from src.host_manager import HostManager  # Import HostManager
 
 # Configure logging for debugging E2E tests if needed
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.e2e
-# Apply xfail due to the known host shutdown issue with the fixture
-@pytest.mark.xfail(
-    reason="Known issue with real_mcp_host teardown async complexity", strict=False
-)
+# Mark all tests in this module as e2e and use anyio backend
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.anyio,
+]
+
+
 class TestHostBasicE2E:
     """E2E tests for basic MCPHost state and communication."""
 
-    @pytest.mark.asyncio
-    async def test_host_is_running_after_initialize(self, real_mcp_host: MCPHost):
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
+    async def test_host_is_running_after_initialize(self, host_manager: HostManager):
         """Verify the host reports as running after the fixture initializes it."""
-        host = real_mcp_host
-        # The real_mcp_host fixture calls host.initialize()
+        # Use host_manager fixture which initializes the host
+        host = host_manager.host
+        # The host_manager fixture calls host.initialize() via manager.initialize()
         # We need a way to check if it's considered 'running'.
         # Let's assume the presence of client processes indicates running state,
         # or check if a dedicated status method/attribute exists.
@@ -50,17 +54,18 @@ class TestHostBasicE2E:
         except Exception as e:
             pytest.fail(f"Calling host.get_status() failed: {e}")
 
-    @pytest.mark.asyncio
-    async def test_host_basic_communication(self, real_mcp_host: MCPHost):
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
+    async def test_host_basic_communication(self, host_manager: HostManager):
         """Verify basic list_tools/list_prompts communication via the initialized host."""
-        host = real_mcp_host
+        # Use host_manager fixture
+        host = host_manager.host
         assert len(host._clients) > 0, "Host should have active clients"
 
         logger.info("Testing basic communication (list_tools/list_prompts) via host...")
 
         try:
-            # Call list_tools for all connected clients
-            all_tools = await host.tools.list_tools()
+            # Call list_tools for all connected clients (synchronous method)
+            all_tools = host.tools.list_tools()  # Removed await
             assert isinstance(all_tools, list)
             logger.info(f"Host received {len(all_tools)} tools total from clients.")
             # We don't need to deeply inspect here, just check the call succeeded
