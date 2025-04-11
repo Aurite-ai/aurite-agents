@@ -5,7 +5,7 @@ Pytest fixtures related to MCPHost configuration and mocking.
 import pytest
 from unittest.mock import Mock, AsyncMock
 
-import pytest_asyncio  # Import for async fixture decorator
+# import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.models import HostConfig
@@ -55,8 +55,8 @@ def mock_mcp_host() -> Mock:
 
 
 # New fixture for HostManager
-@pytest_asyncio.fixture(scope="function")  # Use pytest_asyncio decorator
-async def host_manager() -> HostManager:
+@pytest.fixture(scope="function")  # Use standard pytest fixture decorator
+async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
     the testing_config.json file. Handles setup and teardown.

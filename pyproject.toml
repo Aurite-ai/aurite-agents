@@ -57,7 +57,7 @@ dependencies = [
     "pydub>=0.25.1",
     "PyMySQL>=1.1.1",
     "pytest>=8.3.5",
-    "pytest-asyncio>=0.25.3",
+    # "pytest-asyncio>=0.25.3", # Removed for anyio plugin
     "python-dateutil>=2.9.0.post0",
     "python-dotenv>=1.0.1",
     # "click-async", # Removed - unnecessary with Click 8+/Typer 0.4+
@@ -103,7 +103,7 @@ markers = [
     "unit: marks tests as unit tests (fast, isolated)",
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
-    "asyncio: mark test as async test",                                      # Keep existing
+    # "asyncio: mark test as async test", # Removed - use pytest.mark.anyio instead
     "core: mark test as core functionality test",                            # Keep existing
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
@@ -115,9 +115,7 @@ markers = [
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
 pythonpath = [".", "src"]
-# Ensure asyncio_mode is set and default scope is function
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+# Removed asyncio_mode and asyncio_default_fixture_loop_scope for anyio plugin
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
