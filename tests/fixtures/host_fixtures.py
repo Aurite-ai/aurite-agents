@@ -54,8 +54,7 @@ def mock_mcp_host() -> Mock:
     return host
 
 
-# New fixture for HostManager
-@pytest.fixture(scope="function")  # Use standard pytest fixture decorator
+@pytest.fixture(scope="class")  # Use standard pytest fixture decorator
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on

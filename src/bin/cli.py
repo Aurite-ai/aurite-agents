@@ -135,6 +135,116 @@ async def _execute_agent_async_logic(agent_name: str, message: str):
         raise
 
 
+# --- Async Logic for Workflow Execution ---
+async def _execute_workflow_async_logic(workflow_name: str, message: str):
+    """Contains the actual async logic for executing a simple workflow via API."""
+    api_url = f"{state['api_base_url']}/workflows/{workflow_name}/execute"
+    headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
+    # Correct payload key for simple workflows
+    payload = {"initial_user_message": message}
+
+    logger.info(f"Sending request to API: POST {api_url}")
+    try:
+        # Increase timeout for potentially longer workflows (e.g., 120 seconds)
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(api_url, headers=headers, json=payload)
+
+        logger.info(f"API Response Status: {response.status_code}")
+
+        # Try to parse and print JSON response
+        try:
+            response_data = response.json()
+            print(json.dumps(response_data, indent=2))
+            if response.status_code >= 400:
+                logger.error(
+                    f"API returned error status {response.status_code}. Response: {response_data}"
+                )
+                # Optionally raise typer.Exit(code=1) on API errors
+        except json.JSONDecodeError:
+            logger.warning("Could not decode JSON response from API.")
+            print("--- Raw API Response ---")
+            print(response.text)
+            print("------------------------")
+            if response.status_code >= 400:
+                logger.error(f"API returned error status {response.status_code}.")
+
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+
+    except httpx.ConnectError as e:
+        logger.error(f"Connection to API server failed: {e}")
+        raise  # Re-raise to be caught by the sync wrapper
+    except httpx.HTTPStatusError as e:
+        # Log the status error here as well for clarity before re-raising
+        logger.error(
+            f"API request failed with status {e.response.status_code}. Response: {e.response.text}"
+        )
+        raise  # Re-raise to be caught by the sync wrapper
+    except Exception as e:
+        logger.error(
+            f"An unexpected error occurred during async API call: {e}", exc_info=True
+        )
+        raise  # Re-raise other exceptions
+
+
+# --- Async Logic for Custom Workflow Execution ---
+async def _execute_custom_workflow_async_logic(
+    workflow_name: str, initial_input_json: str
+):
+    """Contains the actual async logic for executing a custom workflow via API."""
+    api_url = f"{state['api_base_url']}/custom_workflows/{workflow_name}/execute"
+    headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
+
+    # Parse the input JSON string
+    try:
+        initial_input = json.loads(initial_input_json)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON provided for initial input: {e}")
+        # Raise an error that the sync wrapper can catch and convert
+        raise ValueError(f"Invalid JSON input: {e}") from e
+
+    payload = {"initial_input": initial_input}
+
+    logger.info(f"Sending request to API: POST {api_url}")
+    try:
+        # Use a potentially longer timeout for custom workflows (e.g., 180 seconds)
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            response = await client.post(api_url, headers=headers, json=payload)
+
+        logger.info(f"API Response Status: {response.status_code}")
+
+        # Try to parse and print JSON response
+        try:
+            response_data = response.json()
+            print(json.dumps(response_data, indent=2))
+            if response.status_code >= 400:
+                logger.error(
+                    f"API returned error status {response.status_code}. Response: {response_data}"
+                )
+        except json.JSONDecodeError:
+            logger.warning("Could not decode JSON response from API.")
+            print("--- Raw API Response ---")
+            print(response.text)
+            print("------------------------")
+            if response.status_code >= 400:
+                logger.error(f"API returned error status {response.status_code}.")
+
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+
+    except httpx.ConnectError as e:
+        logger.error(f"Connection to API server failed: {e}")
+        raise
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            f"API request failed with status {e.response.status_code}. Response: {e.response.text}"
+        )
+        raise
+    except Exception as e:
+        logger.error(
+            f"An unexpected error occurred during async API call: {e}", exc_info=True
+        )
+        raise
+
+
 @execute_app.command("agent")
 def execute_agent_via_api_sync(  # Make the command function synchronous
     agent_name: str = typer.Argument(..., help="Name of the agent to execute."),
@@ -163,10 +273,21 @@ def execute_workflow_via_api_sync(  # Sync wrapper
     workflow_name: str = typer.Argument(..., help="Name of the workflow to execute."),
     message: str = typer.Argument(..., help="Initial user message for the workflow."),
 ):
-    """Executes a registered simple workflow via API. [TODO: Implement]"""
-    logger.warning("Workflow execution via API not yet implemented.")
-    # async def _logic(): ...
-    # asyncio.run(_logic())
+    """Executes a registered simple workflow via API (sync wrapper)."""
+    try:
+        # Run the async logic within asyncio.run
+        asyncio.run(_execute_workflow_async_logic(workflow_name, message))
+    except httpx.HTTPStatusError as e:
+        # Handle expected API errors gracefully (already logged in async func)
+        # Optionally exit with non-zero code
+        raise typer.Exit(code=1)
+    except httpx.ConnectError:
+        # Handle connection errors (already logged in async func)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        # Catch other errors from the async logic or asyncio.run itself
+        logger.error(f"CLI command failed: {e}", exc_info=True)
+        raise typer.Exit(code=1)
 
 
 @execute_app.command("custom-workflow")
@@ -178,10 +299,31 @@ def execute_custom_workflow_via_api_sync(  # Sync wrapper
         ..., help="JSON string for the initial input."
     ),
 ):
-    """Executes a registered custom workflow via API. [TODO: Implement]"""
-    logger.warning("Custom workflow execution via API not yet implemented.")
-    # async def _logic(): ...
-    # asyncio.run(_logic())
+    """Executes a registered custom workflow via API (sync wrapper)."""
+    try:
+        # Run the async logic within asyncio.run
+        asyncio.run(
+            _execute_custom_workflow_async_logic(workflow_name, initial_input_json)
+        )
+    except ValueError as e:
+        # Catch JSON parsing errors from the async function
+        if "Invalid JSON input" in str(e):
+            # Logged already in async func, raise Typer error for user
+            raise typer.BadParameter(str(e))
+        else:
+            # Handle other potential ValueErrors
+            logger.error(f"CLI command failed due to ValueError: {e}", exc_info=True)
+            raise typer.Exit(code=1)
+    except httpx.HTTPStatusError as e:
+        # Handle expected API errors gracefully (already logged)
+        raise typer.Exit(code=1)
+    except httpx.ConnectError:
+        # Handle connection errors (already logged)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        # Catch other errors
+        logger.error(f"CLI command failed: {e}", exc_info=True)
+        raise typer.Exit(code=1)
 
 
 @register_app.command("client")

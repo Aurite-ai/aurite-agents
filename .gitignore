@@ -175,3 +175,4 @@ playwright/.cache/
 **/__pytest__/ # Keep this specific pattern
 **/**environment.json
 docs/plans/completed/**
+packaged_servers/plans/*

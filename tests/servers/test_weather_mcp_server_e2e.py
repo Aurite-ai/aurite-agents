@@ -8,15 +8,14 @@ to verify the server's tool and prompt functionality through host interactions.
 
 import pytest
 import logging
-import pytest  # Add import for pytest
+
+# Use relative imports assuming tests run from aurite-mcp root
+from src.host_manager import HostManager  # Add import for HostManager
+import mcp.types as types
 
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
 
-# Use relative imports assuming tests run from aurite-mcp root
-from src.host.host import MCPHost
-from src.host_manager import HostManager  # Add import for HostManager
-import mcp.types as types
 
 # Configure logging for debugging E2E tests if needed
 logger = logging.getLogger(__name__)

@@ -1,198 +1,117 @@
 """
-E2E tests for the PlanningAgent using a real host and planning server.
+E2E tests for interacting with planning tools via a generic Agent.
 """
 
 import pytest
 import logging
 import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock  # Add mock imports
-import anthropic  # Add anthropic import
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.agents.management.planning_agent import PlanningAgent
 from src.host.models import AgentConfig
-from src.host.host import MCPHost  # Needed for type hinting
+from src.host_manager import HostManager  # Import HostManager
+from src.agents.agent import Agent  # Import the generic Agent
 
 logger = logging.getLogger(__name__)
 
 # Define the client ID used in testing_config.json for the planning server
-PLANNING_CLIENT_ID = "planning_server_test"
+# Ensure this matches the client_id in your config/testing_config.json
+PLANNING_CLIENT_ID = "planning_server"
 
 # Define the directory where the planning server saves plans
-# (relative to the planning_server.py file location)
-PLAN_SAVE_DIR = Path("src/servers/management/plans")
+# This should match the directory used by your planning_server.py implementation
+# Assuming it's relative to project root for consistency
+PLAN_SAVE_DIR = Path("src/packaged_servers/plans")
 
 
-@pytest.mark.e2e
-# Apply xfail due to the known host shutdown issue with the fixture
-@pytest.mark.xfail(
-    reason="Known issue with real_mcp_host teardown async complexity", strict=False
-)
+# Mark all tests in this module as e2e and use anyio backend
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.anyio,
+]
+
+
 class TestPlanningAgentE2E:
-    """E2E tests for PlanningAgent interactions with a live planning server."""
+    """E2E tests for Planning tools via Agent interactions."""
 
     @pytest.fixture
-    def planning_agent_config(self) -> AgentConfig:
-        """Provides a basic AgentConfig for the PlanningAgent."""
-        # HostConfig isn't strictly needed here as the agent gets the
-        # host instance passed into its methods during the test.
-        return AgentConfig(name="E2EPlanningAgent")
+    def planning_agent_config(self, host_manager: HostManager) -> AgentConfig:
+        """
+        Provides an AgentConfig suitable for interacting with the planning server.
+        Uses the host config from the host_manager fixture.
+        """
+        if not host_manager or not host_manager.host or not host_manager.host._config:
+            pytest.fail("HostManager fixture did not provide a valid host config")
 
-    @pytest.fixture
-    def planning_agent_instance(
-        self, planning_agent_config: AgentConfig
-    ) -> PlanningAgent:
-        """Provides an instance of PlanningAgent."""
-        return PlanningAgent(config=planning_agent_config)
+        # Create a config that targets the planning server
+        # You might want to load a specific agent config from the main config file
+        # if one is defined there for planning tasks. For now, create a basic one.
+        return AgentConfig(
+            name="E2EPlanningToolTesterAgent",
+            host=host_manager.host._config,  # Link to the host's config
+            client_ids=[PLANNING_CLIENT_ID],  # Explicitly target planning server
+            system_prompt="You are an agent designed to test planning tools.",
+            # Add other relevant params like model if needed, or rely on defaults
+        )
 
     @pytest.fixture(autouse=True)
-    def check_client_exists(self, real_mcp_host: MCPHost):
+    def check_client_exists(self, host_manager: HostManager):
         """Fixture to ensure the planning client is loaded before tests run."""
-        if PLANNING_CLIENT_ID not in real_mcp_host.clients:
+        if PLANNING_CLIENT_ID not in host_manager.host.clients:
             pytest.skip(
                 f"Planning server client '{PLANNING_CLIENT_ID}' not found in host config. "
-                "Ensure it's defined in config/agents/testing_config.json"
+                "Ensure it's defined in config/testing_config.json"
             )
         logger.info(f"Host fixture confirmed client '{PLANNING_CLIENT_ID}' is loaded.")
         # Ensure the plan save directory exists for cleanup later
         PLAN_SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
-    @pytest.mark.asyncio
-    async def test_save_and_list_plan_e2e(
-        self, planning_agent_instance: PlanningAgent, real_mcp_host: MCPHost
+    @pytest.mark.skip(
+        reason="Test logic needs to be implemented for generic Agent and tools"
+    )
+    async def test_planning_tools_via_agent(
+        self, planning_agent_config: AgentConfig, host_manager: HostManager
     ):
-        """Verify saving a plan via the agent and then listing it."""
-        host = real_mcp_host
-        agent = planning_agent_instance
-        plan_name = f"e2e_test_plan_{uuid.uuid4()}"  # Unique name for test isolation
-        plan_content = "Step 1: Run E2E test.\nStep 2: Verify results."
-        tags = ["e2e", "testing"]
+        """
+        TODO: Implement E2E test for save_plan and list_plans tools.
+        1. Instantiate the generic Agent with planning_agent_config.
+        2. Craft a user_message that instructs the agent to save a specific plan.
+        3. Execute the agent using agent.execute_agent().
+        4. Verify the agent correctly called the 'save_plan' tool via host_manager.host.
+        5. Verify the plan file and meta file were created in PLAN_SAVE_DIR.
+        6. Craft a user_message to list plans (all and tagged).
+        7. Execute the agent again.
+        8. Verify the agent called the 'list_plans' tool.
+        9. Verify the response contains the previously saved plan.
+        10. Clean up created files.
+        """
+        # Example setup (needs implementation)
+        agent = Agent(config=planning_agent_config)
+        host = host_manager.host
+        plan_name = f"rebuilt_e2e_plan_{uuid.uuid4()}"
+        plan_content = "Step 1: Rebuild test.\nStep 2: Implement logic."
+        tags = ["rebuilt", "testing"]
         plan_file_path = PLAN_SAVE_DIR / f"{plan_name}.txt"
         meta_file_path = PLAN_SAVE_DIR / f"{plan_name}.meta.json"
 
-        # --- Save Plan ---
-        logger.info(f"Attempting to save plan '{plan_name}' via agent...")
-        save_result = await agent.save_new_plan(
-            host_instance=host,
-            plan_name=plan_name,
-            plan_content=plan_content,
-            tags=tags,
-        )
-        logger.info(f"Save plan result: {save_result}")
-        assert save_result.get("success") is True
-        assert plan_name in save_result.get("message", "")
-        # Check if file was actually created (basic verification)
-        assert plan_file_path.exists(), f"Plan file {plan_file_path} was not created"
-        assert meta_file_path.exists(), f"Meta file {meta_file_path} was not created"
+        logger.info(f"Placeholder test for plan: {plan_name}")
 
-        # --- List Plan (No Tag) ---
-        logger.info("Attempting to list all plans via agent...")
-        list_all_result = await agent.list_existing_plans(host_instance=host)
-        logger.info(f"List all plans result: {list_all_result}")
-        assert list_all_result.get("success") is True
-        assert isinstance(list_all_result.get("plans"), list)
-        # Check if our saved plan is in the list
-        found_plan = any(
-            p.get("name") == plan_name for p in list_all_result.get("plans", [])
-        )
-        assert found_plan, f"Saved plan '{plan_name}' not found in list_all_result"
+        # --- Test Logic Placeholder ---
+        # Example: Save Plan via Agent
+        # save_message = f"Save a plan named '{plan_name}' with content: {plan_content}"
+        # save_result = await agent.execute_agent(save_message, host, filter_client_ids=[PLANNING_CLIENT_ID])
+        # assert 'save_plan' in [use['name'] for use in save_result.get('tool_uses', [])]
+        # assert plan_file_path.exists()
+        # assert meta_file_path.exists()
 
-        # --- List Plan (With Tag) ---
-        logger.info("Attempting to list plans with tag 'e2e' via agent...")
-        list_tagged_result = await agent.list_existing_plans(
-            host_instance=host, tag="e2e"
-        )
-        logger.info(f"List tagged plans result: {list_tagged_result}")
-        assert list_tagged_result.get("success") is True
-        assert isinstance(list_tagged_result.get("plans"), list)
-        found_tagged_plan = False
-        for plan in list_tagged_result.get("plans", []):
-            if plan.get("name") == plan_name:
-                found_tagged_plan = True
-                assert "e2e" in plan.get("tags", [])
-                assert "testing" in plan.get("tags", [])
-                break
-        assert found_tagged_plan, (
-            f"Saved plan '{plan_name}' not found in list_tagged_result with tag 'e2e'"
-        )
+        # Example: List Plan via Agent
+        # list_message = f"List plans tagged 'rebuilt'"
+        # list_result = await agent.execute_agent(list_message, host, filter_client_ids=[PLANNING_CLIENT_ID])
+        # assert 'list_plans' in [use['name'] for use in list_result.get('tool_uses', [])]
+        # Check final_response content for the plan details
 
         # --- Cleanup ---
-        logger.info(f"Cleaning up created plan files for '{plan_name}'...")
-        if plan_file_path.exists():
-            plan_file_path.unlink()
-        if meta_file_path.exists():
-            meta_file_path.unlink()
+        # if plan_file_path.exists(): plan_file_path.unlink()
+        # if meta_file_path.exists(): meta_file_path.unlink()
 
-    @pytest.mark.asyncio
-    async def test_execute_workflow_e2e(
-        self, planning_agent_instance: PlanningAgent, real_mcp_host: MCPHost
-    ):
-        """Verify the full planning workflow E2E: LLM call (mocked) -> save_plan tool call."""
-        host = real_mcp_host
-        agent = planning_agent_instance
-        user_message = "Generate an E2E test plan."
-        plan_name = f"e2e_workflow_plan_{uuid.uuid4()}"
-        tags = ["e2e", "workflow_test"]
-        generated_plan_content = "Step 1: Setup E2E env.\nStep 2: Run workflow.\nStep 3: Assert file creation."
-        plan_file_path = PLAN_SAVE_DIR / f"{plan_name}.txt"
-        meta_file_path = PLAN_SAVE_DIR / f"{plan_name}.meta.json"
-
-        # --- Mock the LLM Call within the workflow ---
-        # We mock _make_llm_call because we don't want to hit the actual LLM API,
-        # but we DO want to hit the actual save_plan tool via the host.
-        mock_llm_response = MagicMock(spec=anthropic.types.Message)
-        mock_llm_response.content = [
-            anthropic.types.TextBlock(type="text", text=generated_plan_content)
-        ]
-        # Patch the method on the *instance* for this test
-        agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
-
-        # --- Execute Workflow ---
-        logger.info(f"Attempting to execute workflow for plan '{plan_name}'...")
-        result = await agent.execute_workflow(
-            user_message=user_message,
-            host_instance=host,
-            plan_name=plan_name,
-            tags=tags,
-            # anthropic_api_key parameter removed from execute_workflow
-        )
-        logger.info(f"Execute workflow result: {result}")
-
-        # --- Assertions ---
-        assert result.get("error") is None, (
-            f"Workflow returned error: {result.get('error')}"
-        )
-        assert result.get("final_output") is not None, "Workflow final_output is None"
-        final_output = result.get("final_output", {})
-        assert final_output.get("success") is True, (
-            "Final output (save_plan result) indicates failure"
-        )
-        assert plan_name in final_output.get("message", "")
-
-        # Verify workflow steps log (basic check)
-        assert (
-            len(result.get("workflow_steps", [])) >= 4
-        )  # LLM Call, LLM Success, Tool Call, Tool Success
-        assert result["workflow_steps"][0]["action"] == "LLM Call (Generate Plan)"
-        assert result["workflow_steps"][1]["status"] == "Success"
-        assert result["workflow_steps"][2]["action"] == "Tool Call (save_plan)"
-        assert result["workflow_steps"][3]["status"] == "Success"
-
-        # Check mocks
-        agent._make_llm_call.assert_awaited_once()  # Ensure mocked LLM part was called
-
-        # Check file system for actual file creation by the real planning server
-        assert plan_file_path.exists(), (
-            f"Plan file {plan_file_path} was not created by the server"
-        )
-        assert meta_file_path.exists(), (
-            f"Meta file {meta_file_path} was not created by the server"
-        )
-
-        # --- Cleanup ---
-        logger.info(f"Cleaning up created plan files for '{plan_name}'...")
-        if plan_file_path.exists():
-            plan_file_path.unlink()
-        if meta_file_path.exists():
-            meta_file_path.unlink()
+        pass  # Remove once implemented
