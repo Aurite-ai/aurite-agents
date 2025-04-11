@@ -1,0 +1,51 @@
+{
+  "name": "DefaultMCPHost",
+  "clients": [
+    {
+      "client_id": "speech_server",
+      "server_path": "src/servers/speech/speech_server.py",
+      "capabilities": ["tools"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "client_id": "memory_server",
+      "server_path": "src/servers/memory/mem0_server.py",
+      "capabilities": ["tools"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    }
+  ],
+  "agents": [
+    {
+      "name": "Preferences Agent",
+      "system_prompt": "Your job is to use the given conversation transcript to record facts about the customer's preferences.",
+      "client_ids": [""],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    },
+    {
+      "name": "Memory Agent",
+      "system_prompt": "Your job is to store facts about customer preferences in memory.",
+      "client_ids": ["memory_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "MemoryCustom",
+      "module_path": "tests/fixtures/custom_workflows/memory_workflow.py",
+      "class_name": "MemoryCustomWorkflow",
+      "description": "An example custom workflow for testing."
+    }
+  ]
+}
