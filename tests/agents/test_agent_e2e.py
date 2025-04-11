@@ -4,12 +4,13 @@ End-to-end tests for the Agent class, involving real MCPHost and client servers.
 
 import os
 import pytest
-import asyncio
+# import asyncio # Removed
 
 # Imports from the project
 from src.host.models import AgentConfig
 from src.agents.agent import Agent
 from src.host.host import MCPHost
+from src.host_manager import HostManager  # Import HostManager
 
 # Import fixtures explicitly for discovery
 
@@ -17,24 +18,21 @@ from src.host.host import MCPHost
 # --- Fixtures ---
 
 
-@pytest.fixture(scope="module")
-def event_loop():
-    """Ensure the event loop is available for async fixtures."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Removed module-scoped event_loop fixture - let pytest-anyio handle it
 
 
 # real_mcp_host fixture moved to tests/fixtures/host_fixtures.py
 
 
 @pytest.fixture
-def e2e_agent_config(real_mcp_host) -> AgentConfig:
-    """Provides an AgentConfig linked to the real HostConfig."""
-    # We use the config *from* the initialized host fixture
+def e2e_agent_config(host_manager: HostManager) -> AgentConfig:
+    """Provides an AgentConfig linked to the HostManager's HostConfig."""
+    # Use the config *from* the initialized host_manager's host
+    if not host_manager or not host_manager.host or not host_manager.host._config:
+        pytest.fail("HostManager fixture did not provide a valid host config")
     return AgentConfig(
         name="E2E_Test_Agent",
-        host=real_mcp_host._config,  # Link to the actual config used by the host
+        host=host_manager.host._config,  # Link to the host's config
         # Use default LLM params for this test
     )
 
@@ -42,7 +40,13 @@ def e2e_agent_config(real_mcp_host) -> AgentConfig:
 # --- Test Class ---
 
 
-@pytest.mark.e2e  # Mark as an end-to-end test
+# Mark all tests in this module as e2e and use anyio backend
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.anyio,
+]
+
+
 class TestAgentE2E:
     """End-to-end tests for the Agent class."""
 
@@ -51,10 +55,9 @@ class TestAgentE2E:
         not os.environ.get("ANTHROPIC_API_KEY"),
         reason="Requires ANTHROPIC_API_KEY environment variable",
     )
-    @pytest.mark.xfail(reason="Known async teardown issue in real_mcp_host fixture")
-    @pytest.mark.asyncio
+    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     async def test_agent_e2e_basic_execution_real_llm(
-        self, e2e_agent_config: AgentConfig, real_mcp_host: MCPHost
+        self, e2e_agent_config: AgentConfig, host_manager: HostManager
     ):
         """
         Test basic agent execution with a real host/client and real LLM call.
@@ -68,7 +71,7 @@ class TestAgentE2E:
         try:
             result = await agent.execute_agent(
                 user_message=user_message,
-                host_instance=real_mcp_host,  # Pass the real host instance
+                host_instance=host_manager.host,  # Pass the host from host_manager
             )
         except Exception as e:
             pytest.fail(f"Agent execution failed with real LLM call: {e}")
