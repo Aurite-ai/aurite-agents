@@ -22,7 +22,7 @@
     {
       "name": "Preferences Agent",
       "system_prompt": "Your job is to use the given conversation transcript to record facts about the customer's preferences. When you are given a transcript, return a list of preferences.",
-      "client_ids": [""],
+      "client_ids": [],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
       "max_tokens": 4096,
