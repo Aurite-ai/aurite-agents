@@ -93,7 +93,7 @@ class ToolManager:
         # Store simplified metadata (consider if this is still needed or if _tools is enough)
         # Keeping description/parameters might be useful for list_tools
         self._tool_metadata[tool_name] = {
-            # "client_id": client_id, # Redundant? Router knows this.
+            "client_id": client_id, # Redundant? Router knows this.
             "description": tool.description if hasattr(tool, "description") else "",
             # Use inputSchema if available, fallback to parameters for compatibility
             "parameters": getattr(tool, "inputSchema", getattr(tool, "parameters", {})),
@@ -283,9 +283,12 @@ class ToolManager:
             )
             raise  # Re-raise the original exception
 
-    def list_tools(self) -> List[Dict[str, Any]]:
+    def list_tools(self, allowed_clients: list[str] | None = None) -> List[Dict[str, Any]]:
         """
         List all available tools with basic metadata (name, description, parameters).
+        
+        Args:
+            allowed_clients: Optional list of clients to list tools from (if None, all tools are listed)
 
         Returns:
             List of tools with metadata.
@@ -294,6 +297,11 @@ class ToolManager:
         for name, tool_def in self._tools.items():
             # Use metadata if available, otherwise fallback to tool_def attributes
             metadata = self._tool_metadata.get(name, {})
+            
+            # skip if not an allowed client
+            if allowed_clients is not None and metadata.get("client_id") not in allowed_clients:
+                continue
+            
             description = metadata.get(
                 "description", getattr(tool_def, "description", "")
             )
@@ -338,18 +346,22 @@ class ToolManager:
     # find_tools_by_capability method removed.
 
     def format_tools_for_llm(
-        self, tool_names: Optional[List[str]] = None
+        self, tool_names: Optional[List[str]] = None, allowed_clients: Optional[list[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Format tools for use with LLM APIs like Anthropic's Claude.
 
         Args:
             tool_names: Optional list of specific tool names to include (if None, includes all available tools)
+            allowed_clients: Optional list of clients to list tools from (if None, includes tools from all clients) 
 
         Returns:
             List of formatted tool definitions ready for API calls
         """
-        tool_list = tool_names or [t["name"] for t in self.list_tools()]
+        tool_list = [t["name"] for t in self.list_tools(allowed_clients=allowed_clients)]
+        if tool_names is not None:
+            tool_list = list(set(tool_names).intersection(set(tool_list)))
+            
         tools_data = []
 
         for tool_name in tool_list:
