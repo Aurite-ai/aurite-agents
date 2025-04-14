@@ -353,7 +353,7 @@ class ToolManager:
 
         Args:
             tool_names: Optional list of specific tool names to include (if None, includes all available tools)
-            allowed_clients: Optional list of clients to list tools from (if None, includes all available tools) 
+            allowed_clients: Optional list of clients to list tools from (if None, includes tools from all clients) 
 
         Returns:
             List of formatted tool definitions ready for API calls
