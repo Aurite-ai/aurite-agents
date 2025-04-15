@@ -9,6 +9,7 @@ import mcp.types as types
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
 from ..models import ClientConfig
+from ..foundation import MessageRouter  # Import MessageRouter
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,10 @@ class PromptManager:
     Handles prompt registration and retrieval.
     """
 
-    def __init__(self):
+    def __init__(self, message_router: MessageRouter):  # Inject MessageRouter
         # client_id -> {prompt_name -> Prompt}
         self._prompts: Dict[str, Dict[str, types.Prompt]] = {}
+        self._message_router = message_router  # Store router instance
 
         # _subscriptions removed as unused
 
@@ -80,6 +82,14 @@ class PromptManager:
                     # Logging is handled within is_registration_allowed
                     continue
                 self._prompts[client_id][prompt.name] = prompt
+                # Register with the message router
+                await self._message_router.register_prompt(
+                    prompt_name=prompt.name,
+                    client_id=client_id,  # Corrected keyword argument
+                )
+                logger.debug(
+                    f"Registered prompt '{prompt.name}' for client '{client_id}' with router."
+                )
                 registered_prompts.append(
                     prompt
                 )  # Add to list of successfully registered

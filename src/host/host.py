@@ -64,8 +64,12 @@ class MCPHost:
         )  # Added instantiation
 
         # Layer 3: Resource management layer
-        self._prompt_manager = PromptManager()
-        self._resource_manager = ResourceManager()
+        self._prompt_manager = PromptManager(
+            message_router=self._message_router
+        )  # Pass router
+        self._resource_manager = ResourceManager(
+            message_router=self._message_router
+        )  # Pass router
         self._tool_manager = ToolManager(
             root_manager=self._root_manager, message_router=self._message_router
         )

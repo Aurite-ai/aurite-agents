@@ -14,6 +14,7 @@ from ..foundation.roots import RootManager
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
 from ..models import ClientConfig
+from ..foundation import MessageRouter  # Import MessageRouter
 
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,10 @@ class ResourceManager:
     Handles resource registration, retrieval, and access validation based on roots.
     """
 
-    def __init__(self):
+    def __init__(self, message_router: MessageRouter):  # Inject MessageRouter
         # client_id -> {resource_uri_string -> Resource}
         self._resources: Dict[str, Dict[str, types.Resource]] = {}
+        self._message_router = message_router  # Store router instance
 
         # _subscriptions removed as unused
 
@@ -66,6 +68,13 @@ class ResourceManager:
                 continue
 
             self._resources[client_id][uri_str] = resource
+            # Register with the message router
+            await self._message_router.register_resource(
+                resource_uri=uri_str, client_id=client_id
+            )
+            logger.debug(
+                f"Registered resource '{uri_str}' for client '{client_id}' with router."
+            )
             registered_resources.append(resource)
         return registered_resources
 

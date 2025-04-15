@@ -80,9 +80,13 @@
     },
     {
       "name": "Filtering Test Agent",
-      "system_prompt": "This agent tests filtering. It should only see planning_server and exclude the save_plan tool.",
+      "system_prompt": "This agent tests filtering. It should only see planning_server and exclude the save_plan tool, create_plan_prompt, and a specific resource.",
       "client_ids": ["planning_server"],
-      "exclude_components": ["save_plan"],
+      "exclude_components": [
+        "save_plan",
+        "create_plan_prompt",
+        "planning://plan/excluded-test-plan"
+      ],
       "model": "claude-3-haiku-20240307",
       "temperature": "0.1",
       "max_tokens": 1024,

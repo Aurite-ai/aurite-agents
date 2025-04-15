@@ -29,6 +29,12 @@ class MessageRouter:
         # client_id -> Set[str] (prompt names provided by this client)
         self._client_prompts: Dict[str, Set[str]] = defaultdict(set)
 
+        # resource_uri -> List[client_id]
+        self._resource_routes: Dict[str, List[str]] = defaultdict(list)
+
+        # client_id -> Set[str] (resource URIs provided by this client)
+        self._client_resources: Dict[str, Set[str]] = defaultdict(set)
+
         # Server-specific mappings (kept for now, might be useful)
         self._server_capabilities: Dict[str, Set[str]] = {}  # server_id -> capabilities
         self._server_weights: Dict[str, float] = {}  # server_id -> routing weight
@@ -61,6 +67,17 @@ class MessageRouter:
 
         logger.debug(f"Registered prompt '{prompt_name}' for client '{client_id}'")
 
+    async def register_resource(self, resource_uri: str, client_id: str):
+        """Register that a specific client provides a given resource."""
+        # Append client_id to the list for this resource_uri, ensuring no duplicates
+        if client_id not in self._resource_routes[resource_uri]:
+            self._resource_routes[resource_uri].append(client_id)
+
+        # Add resource_uri to the set for this client_id
+        self._client_resources[client_id].add(resource_uri)
+
+        logger.debug(f"Registered resource '{resource_uri}' for client '{client_id}'")
+
     async def get_clients_for_tool(self, tool_name: str) -> List[str]:
         """Get the list of client IDs that provide a specific tool."""
         # Return a copy to prevent modification of the internal list
@@ -71,6 +88,11 @@ class MessageRouter:
         # Return a copy
         return list(self._prompt_routes.get(prompt_name, []))
 
+    async def get_clients_for_resource(self, resource_uri: str) -> List[str]:
+        """Get the list of client IDs that provide a specific resource."""
+        # Return a copy
+        return list(self._resource_routes.get(resource_uri, []))
+
     async def get_tools_for_client(self, client_id: str) -> Set[str]:
         """Get the set of tool names provided by a specific client."""
         # Return a copy
@@ -80,6 +102,11 @@ class MessageRouter:
         """Get the set of prompt names provided by a specific client."""
         # Return a copy
         return set(self._client_prompts.get(client_id, set()))
+
+    async def get_resources_for_client(self, client_id: str) -> Set[str]:
+        """Get the set of resource URIs provided by a specific client."""
+        # Return a copy
+        return set(self._client_resources.get(client_id, set()))
 
     # Removed get_tool_capabilities
     # Removed find_tool_by_capability
@@ -105,6 +132,8 @@ class MessageRouter:
         self._client_tools.clear()
         self._prompt_routes.clear()
         self._client_prompts.clear()
+        self._resource_routes.clear()  # Clear resource routes
+        self._client_resources.clear()  # Clear client resources
         self._server_capabilities.clear()
         self._server_weights.clear()
 
@@ -148,8 +177,20 @@ class MessageRouter:
                 if not self._prompt_routes[prompt_name]:
                     del self._prompt_routes[prompt_name]
 
-        # Remove the client's tool and prompt sets
+        # Remove the client from resource routes
+        resources_to_update = list(
+            self._resource_routes.keys()
+        )  # Iterate over keys copy
+        for resource_uri in resources_to_update:
+            if server_id in self._resource_routes[resource_uri]:
+                self._resource_routes[resource_uri].remove(server_id)
+                # If the list becomes empty, remove the resource entry itself
+                if not self._resource_routes[resource_uri]:
+                    del self._resource_routes[resource_uri]
+
+        # Remove the client's tool, prompt, and resource sets
         self._client_tools.pop(server_id, None)
         self._client_prompts.pop(server_id, None)
+        self._client_resources.pop(server_id, None)  # Remove client resources
 
         logger.info(f"Removed server '{server_id}' and its registrations.")
