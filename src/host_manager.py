@@ -315,14 +315,14 @@ class HostManager:
             logger.debug(f"Instantiated Agent '{agent_name}'")
 
             # 3. Extract client_ids for filtering
-            filter_ids = agent_config.client_ids
-            logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
+            # filter_ids = agent_config.client_ids
+            # logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
 
             # 4. Execute the agent
             result = await agent.execute_agent(
                 user_message=user_message,
                 host_instance=self.host,
-                filter_client_ids=filter_ids,
+                # filter_client_ids=filter_ids,
             )
             logger.info(f"Agent '{agent_name}' execution finished.")
             return result
