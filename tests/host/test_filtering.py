@@ -361,14 +361,14 @@ class TestHostFilteringIntegration:
         Verify execute_tool raises ValueError when trying to execute a tool
         excluded by AgentConfig.exclude_components.
         """
-        # Weather Agent excludes 'get_current_time'
+        # Weather Agent excludes 'current_time' (corrected name)
         agent_config = host_manager.agent_configs["Weather Agent"]
-        assert "get_current_time" in agent_config.exclude_components
+        assert "current_time" in agent_config.exclude_components
 
         # Attempt to execute the excluded tool
         with pytest.raises(ValueError) as excinfo:
             await host_manager.host.execute_tool(
-                tool_name="get_current_time",
+                tool_name="current_time",  # Corrected tool name
                 arguments={},
                 agent_config=agent_config,
             )

@@ -46,7 +46,7 @@
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["get_current_time"]
+      "exclude_components": ["current_time"]
     },
     {
       "name": "Weather Planning Agent",
