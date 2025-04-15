@@ -16,6 +16,8 @@ import mcp.types as types
 
 # Import from lower layers for dependencies
 from ..foundation import RootManager, MessageRouter
+from ..filtering import FilteringManager  # Added import
+from ..models import ClientConfig, AgentConfig  # Added imports
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +31,23 @@ class ToolManager:
     without requiring the entire host system.
     """
 
-    def __init__(self, root_manager: RootManager, message_router: MessageRouter):
+    def __init__(
+        self,
+        root_manager: RootManager,
+        message_router: MessageRouter,
+        # filtering_manager: FilteringManager # Added filtering_manager - Decided against adding here, pass to methods instead
+    ):
         """
         Initialize the tool manager.
 
         Args:
-            root_manager: The root manager for access control
-            message_router: The message router for routing decisions
+            root_manager: The root manager for access control.
+            message_router: The message router for routing decisions.
+            # filtering_manager: The filtering manager for applying rules. # Removed from init
         """
         self._root_manager = root_manager
         self._message_router = message_router
+        # self._filtering_manager = filtering_manager # Removed from init
 
         # Tool registry
         self._tools: Dict[str, types.Tool] = {}
@@ -64,26 +73,25 @@ class ToolManager:
         tool_name: str,
         tool: types.Tool,
         client_id: str,
-        # capabilities parameter removed
-        exclude_list: Optional[List[str]] = None,
+        client_config: ClientConfig,  # Added client_config
+        filtering_manager: FilteringManager,  # Added filtering_manager
     ) -> bool:  # Return bool indicating if registered
         """
-        Register a tool with its providing client, excluding specified ones.
+        Register a tool with its providing client, applying client-level exclusions.
 
         Args:
             tool_name: The name of the tool.
             tool: The tool definition (mcp.types.Tool).
             client_id: The ID of the client providing the tool.
-            exclude_list: Optional list of tool names to exclude.
+            client_config: The configuration object for the client.
+            filtering_manager: The filtering manager instance.
 
         Returns:
-            True if the tool was registered, False if excluded.
+            True if the tool was registered, False if excluded by client config.
         """
-        # Check against exclude list first
-        if exclude_list and tool_name in exclude_list:
-            logger.debug(
-                f"Excluding tool '{tool_name}' for client {client_id} as per config."
-            )
+        # Check registration allowance using FilteringManager
+        if not filtering_manager.is_registration_allowed(tool_name, client_config):
+            # Logging is handled within is_registration_allowed
             return False  # Indicate not registered
 
         # Store the tool definition (overwrites if same tool name registered again by another client,
@@ -93,7 +101,7 @@ class ToolManager:
         # Store simplified metadata (consider if this is still needed or if _tools is enough)
         # Keeping description/parameters might be useful for list_tools
         self._tool_metadata[tool_name] = {
-            "client_id": client_id, # Redundant? Router knows this.
+            "client_id": client_id,  # Redundant? Router knows this.
             "description": tool.description if hasattr(tool, "description") else "",
             # Use inputSchema if available, fallback to parameters for compatibility
             "parameters": getattr(tool, "inputSchema", getattr(tool, "parameters", {})),
@@ -283,10 +291,12 @@ class ToolManager:
             )
             raise  # Re-raise the original exception
 
-    def list_tools(self, allowed_clients: list[str] | None = None) -> List[Dict[str, Any]]:
+    def list_tools(
+        self, allowed_clients: list[str] | None = None
+    ) -> List[Dict[str, Any]]:
         """
         List all available tools with basic metadata (name, description, parameters).
-        
+
         Args:
             allowed_clients: Optional list of clients to list tools from (if None, all tools are listed)
 
@@ -297,11 +307,14 @@ class ToolManager:
         for name, tool_def in self._tools.items():
             # Use metadata if available, otherwise fallback to tool_def attributes
             metadata = self._tool_metadata.get(name, {})
-            
+
             # skip if not an allowed client
-            if allowed_clients is not None and metadata.get("client_id") not in allowed_clients:
+            if (
+                allowed_clients is not None
+                and metadata.get("client_id") not in allowed_clients
+            ):
                 continue
-            
+
             description = metadata.get(
                 "description", getattr(tool_def, "description", "")
             )
@@ -309,10 +322,14 @@ class ToolManager:
                 "parameters",
                 getattr(tool_def, "inputSchema", getattr(tool_def, "parameters", {})),
             )
+            client_id = metadata.get(
+                "client_id", "UNKNOWN"
+            )  # Get client_id from metadata
             tool_list.append(
                 {
                     "name": name,
                     "description": description,
+                    "client_id": client_id,  # Add client_id here
                     # "capabilities" removed
                     "parameters": parameters,
                 }
@@ -346,25 +363,76 @@ class ToolManager:
     # find_tools_by_capability method removed.
 
     def format_tools_for_llm(
-        self, tool_names: Optional[List[str]] = None, allowed_clients: Optional[list[str]] = None
+        self,
+        filtering_manager: FilteringManager,  # Added filtering_manager
+        agent_config: Optional[AgentConfig] = None,  # Added agent_config
+        tool_names: Optional[List[str]] = None,
+        # allowed_clients parameter is now handled by filtering_manager based on agent_config
     ) -> List[Dict[str, Any]]:
         """
-        Format tools for use with LLM APIs like Anthropic's Claude.
+        Format tools for use with LLM APIs like Anthropic's Claude, applying agent-specific filters.
 
         Args:
-            tool_names: Optional list of specific tool names to include (if None, includes all available tools)
-            allowed_clients: Optional list of clients to list tools from (if None, includes tools from all clients) 
+            filtering_manager: The filtering manager instance.
+            agent_config: Optional configuration of the agent requesting the tools.
+                          Used for filtering by client_ids and exclude_components.
+            tool_names: Optional list of specific tool names to *potentially* include
+                        (if None, considers all registered tools subject to filtering).
 
         Returns:
-            List of formatted tool definitions ready for API calls
+            List of formatted tool definitions ready for API calls, filtered for the agent.
         """
-        tool_list = [t["name"] for t in self.list_tools(allowed_clients=allowed_clients)]
-        if tool_names is not None:
-            tool_list = list(set(tool_names).intersection(set(tool_list)))
-            
-        tools_data = []
+        # 1. Get all registered tools initially
+        all_tools_metadata = self.list_tools()  # Gets metadata for all tools
 
-        for tool_name in tool_list:
+        # 2. Determine allowed clients for the agent (if agent_config provided)
+        allowed_clients = None
+        if agent_config:
+            # Get all client IDs that have registered *any* tool
+            clients_with_tools = {
+                meta.get("client_id")
+                for meta in all_tools_metadata
+                if meta.get("client_id")
+            }
+            allowed_clients = filtering_manager.filter_clients_for_request(
+                list(clients_with_tools), agent_config
+            )
+
+        # 3. Filter tools based on allowed clients
+        if allowed_clients is not None:
+            client_filtered_tools = [
+                tool_meta
+                for tool_meta in all_tools_metadata
+                if tool_meta.get("client_id") in allowed_clients
+            ]
+        else:
+            # If no agent_config or agent_config allows all clients
+            client_filtered_tools = all_tools_metadata
+
+        # 4. Filter by specific tool_names if provided
+        if tool_names is not None:
+            specific_tool_filtered = [
+                tool_meta
+                for tool_meta in client_filtered_tools
+                if tool_meta.get("name") in tool_names
+            ]
+        else:
+            specific_tool_filtered = client_filtered_tools
+
+        # 5. Filter by agent's exclude_components list (if agent_config provided)
+        agent_excluded_filtered = specific_tool_filtered
+        if agent_config:
+            agent_excluded_filtered = filtering_manager.filter_component_list(
+                specific_tool_filtered, agent_config
+            )
+
+        # 6. Format the final list for the LLM
+        tools_data = []
+        for tool_meta in agent_excluded_filtered:
+            tool_name = tool_meta.get("name")
+            if not tool_name:
+                continue  # Skip if name is missing
+
             tool = self.get_tool(tool_name)
             if tool:
                 # Get correct input schema format

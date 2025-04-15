@@ -176,3 +176,4 @@ playwright/.cache/
 **/**environment.json
 docs/plans/completed/**
 src/packaged_servers/plans/*
+docs/learning/

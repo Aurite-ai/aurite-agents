@@ -6,6 +6,11 @@ from typing import Dict, List, Optional, Any  # Removed Union
 import logging
 import mcp.types as types
 
+# Import necessary types and models for filtering
+from ..filtering import FilteringManager
+from ..models import ClientConfig
+from ..foundation import MessageRouter  # Import MessageRouter
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,9 +23,10 @@ class PromptManager:
     Handles prompt registration and retrieval.
     """
 
-    def __init__(self):
+    def __init__(self, message_router: MessageRouter):  # Inject MessageRouter
         # client_id -> {prompt_name -> Prompt}
         self._prompts: Dict[str, Dict[str, types.Prompt]] = {}
+        self._message_router = message_router  # Store router instance
 
         # _subscriptions removed as unused
 
@@ -55,12 +61,11 @@ class PromptManager:
     async def register_client_prompts(
         self,
         client_id: str,
-        prompts: List[
-            Any
-        ],  # Accept list of various types handled by _convert_to_prompt
-        exclude_list: Optional[List[str]] = None,
+        prompts: List[Any],
+        client_config: ClientConfig,  # Added client_config
+        filtering_manager: FilteringManager,  # Added filtering_manager
     ) -> List[types.Prompt]:  # Return list of registered prompts
-        """Register prompts available from a client, excluding specified ones."""
+        """Register prompts available from a client, applying client-level exclusions."""
         logger.info(f"Registering prompts for client {client_id}")
         registered_prompts = []
 
@@ -70,13 +75,21 @@ class PromptManager:
         for prompt_data in prompts:
             try:
                 prompt = self._convert_to_prompt(prompt_data)
-                # Check against exclude list
-                if exclude_list and prompt.name in exclude_list:
-                    logger.debug(
-                        f"Excluding prompt '{prompt.name}' for client {client_id} as per config."
-                    )
+                # Check registration allowance using FilteringManager
+                if not filtering_manager.is_registration_allowed(
+                    prompt.name, client_config
+                ):
+                    # Logging is handled within is_registration_allowed
                     continue
                 self._prompts[client_id][prompt.name] = prompt
+                # Register with the message router
+                await self._message_router.register_prompt(
+                    prompt_name=prompt.name,
+                    client_id=client_id,  # Corrected keyword argument
+                )
+                logger.debug(
+                    f"Registered prompt '{prompt.name}' for client '{client_id}' with router."
+                )
                 registered_prompts.append(
                     prompt
                 )  # Add to list of successfully registered
