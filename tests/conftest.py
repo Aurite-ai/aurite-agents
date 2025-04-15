@@ -97,5 +97,5 @@ def parse_json_result():
 def pytest_addoption(parser):
     """Add custom command line options."""
     parser.addoption(
-        "--client", action="store", default=None, help="Client ID to test (e.g. HCSCOK)"
+        "--config", action="store", default=None, help="The config file to use located in config/testing/ (e.g. planning_agent.json)"
     )

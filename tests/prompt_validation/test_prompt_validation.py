@@ -30,10 +30,15 @@ class TestPromptValidation:
             
         return output
 
-    async def test_workflow_prompt_validation(self, host_manager: HostManager):
+    async def test_workflow_prompt_validation(self, request, host_manager: HostManager):
         
-        #TODO: Edit the path based on command line args
-        testing_config_path = PROJECT_ROOT_DIR / "config/testing/planning_agent.json"
+        # edit the path based on command line args
+        config_file = request.config.getoption("--config")
+        
+        if config_file:
+            testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{config_file}"
+        else:
+            pytest.fail("No json config specified. Use --config=[filename]")
         
         if not testing_config_path.exists():
             pytest.skip(f"Testing config file not found at {testing_config_path}")
