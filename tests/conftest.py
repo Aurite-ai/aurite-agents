@@ -93,3 +93,9 @@ def parse_json_result():
         return {"error": "Invalid result format", "raw": str(result)}
 
     return _parse
+
+def pytest_addoption(parser):
+    """Add custom command line options."""
+    parser.addoption(
+        "--client", action="store", default=None, help="Client ID to test (e.g. HCSCOK)"
+    )

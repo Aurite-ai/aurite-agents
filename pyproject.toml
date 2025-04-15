@@ -97,7 +97,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 log_cli = true
-log_cli_level = "DEBUG"
+log_cli_level = "INFO"
 # Ensure unit, integration, e2e markers are defined
 markers = [
     "unit: marks tests as unit tests (fast, isolated)",
