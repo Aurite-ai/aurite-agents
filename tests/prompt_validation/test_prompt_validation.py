@@ -9,6 +9,7 @@ pytestmark = pytest.mark.anyio
 
 import os  
 import json
+import logging
 from src.host_manager import HostManager
 from src.host.host import MCPHost
 from src.host.models import (
@@ -19,28 +20,15 @@ from src.host.models import (
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
 class TestPromptValidation:
-    
-    def _get_rubric_prompt(self, name: str = "default") -> str:
-        rubric_path = PROJECT_ROOT_DIR / "config/testings/rubrics.json"
         
-        try:
-            with open(rubric_path, "r") as f:
-                raw_config = json.load(f)
-                
-            return raw_config.get(name, "")
+    def _clean_thinking_output(self, output: str) -> str:
+        substring = "</thinking>"
+        index = output.rfind(substring)
         
-        except Exception as e:
-            print(f"Rubric not found {name}")
-            return ""
-        
-    def _analyze_output(self, output: str, rubric_name: str):
-        rubric = self._get_rubric_prompt(rubric_name)
-        
-        #TODO: Call agent / llm directly to analyze this output based on a rubric
-        
-        return {
-            ""
-        }
+        if index > 0:
+            output = output[index + len(substring):]
+            
+        return output
 
     async def test_workflow_prompt_validation(self, host_manager: HostManager):
           
@@ -52,8 +40,9 @@ class TestPromptValidation:
         output_type = "numeric"
         type_prompts = {
             "numeric": """{
-    "criteria 1": (numeric score here),
-    "criteria 2": (score 2 here)
+    "<first criteria name>": <score from 1-10 here>,
+    "<second criteria name>": <score from 1-10 here>,
+    ...
 }"""
         }
         rubric = {
@@ -78,18 +67,38 @@ class TestPromptValidation:
         testing_prompt = "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined."
         system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {agent_name}.
 You have been provided with a prompt explaining how you should evaluate this agent.
-Here is the system prompt provided: {testing_prompt}
-This prompt explains how to evaluate the output using this rubric: {json.dumps(rubric)}"""
+Here is the system prompt provided: "{testing_prompt}"
+This prompt explains how to evaluate the output using this rubric: {json.dumps(rubric)}
+
+Format your output as JSON. Do not include any other text, and do not format it as a code block (```). Start with {{ and end with }}. Here is a template: {{
+    "analysis": "<your analysis here>",
+    "output": {type_prompts[output_type]}
+}}
+"""
         
-        host_manager.register_agent(AgentConfig(name="Quality Assurance Agent", client_ids=None, system_prompt=system_prompt))
+        await host_manager.register_agent(AgentConfig(name="Quality Assurance Agent", client_ids=None, system_prompt=system_prompt))
         
         #output = host_manager.execute_workflow(workflow_name=workflow_name, initial_user_message=user_input)
-        agent_output = host_manager.execute_agent(agent_name=agent_name, user_message=user_input)
+        agent_output = await host_manager.execute_agent(agent_name=agent_name, user_message=user_input)
+        
+        logging.info(f'Agent result: {agent_output.get("final_response").content[0].text}')
         
         # Call agent to analyze this output based on a rubric
-        analysis_output = host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=agent_output.get("final_response"))
+        analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=agent_output.get("final_response").content[0].text)
+                
+        logging.info(f'Analysis result: {analysis_output.get("final_response").content[0].text}')
         
-        assert analysis_output.get("final_response") == ""
+        try:
+            analysis_json = json.loads(self._clean_thinking_output(analysis_output.get("final_response").content[0].text))
+        except Exception as e:
+            pytest.fail(f"Error converting agent output to json: {e}")
+            
+        assert "analysis" in analysis_json
+        assert "output" in analysis_json
+        
+        assert "Completeness" in analysis_json["output"]
+        assert len(analysis_json["output"]) == 3
+        
         
         
         
