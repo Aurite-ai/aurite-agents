@@ -111,7 +111,7 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
-        filter_client_ids: Optional[List[str]] = None,  # Added filter parameter
+        # filter_client_ids parameter removed, filtering now handled via self.config
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
@@ -125,9 +125,8 @@ class Agent:
         Args:
             user_message: The input message or task description from the user.
             host_instance: The instantiated MCPHost to use for accessing prompts,
-                           resources, and tools.
-            filter_client_ids: Optional list of client IDs to restrict tool usage to.
-                               If None, all tools from the host are available.
+                           resources, and tools. Agent-specific filtering (client_ids,
+                           exclude_components) is applied based on self.config.
 
         Returns:
             A dictionary containing the conversation history and final response.
@@ -166,16 +165,11 @@ class Agent:
             f"Using system prompt: '{system_prompt[:100]}...'"
         )  # Log truncated prompt
 
-        # Prepare Tools (Using Host's ToolManager, potentially filtered) - Renumbered step
-        all_tools_data = host_instance.tools.format_tools_for_llm(allowed_clients=filter_client_ids)
-        # Filter tools presented to LLM based on filter_client_ids
-        
-        tools_data = all_tools_data  # Use all tools for now
-        logger.debug(f"Formatted tools for LLM: {[t['name'] for t in tools_data]}")
-        if filter_client_ids:
-            logger.debug(
-                f"Agent execution will filter tool calls to clients: {filter_client_ids}"
-            )
+        # Prepare Tools (Using Host's get_formatted_tools, which applies agent filtering)
+        tools_data = host_instance.get_formatted_tools(agent_config=self.config)
+        logger.debug(
+            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}"
+        )
 
         # Initialize Message History - Renumbered step
         # TODO: Implement history loading/management if include_history is True
@@ -254,13 +248,14 @@ class Agent:
                         f"Executing tool '{tool_use.name}' via host_instance (ID: {tool_use.id})"
                     )
                     try:
+                        # Pass agent_config for filtering within execute_tool
                         tool_result_content = await host_instance.execute_tool(
                             tool_name=tool_use.name,
                             arguments=tool_use.input,
-                            filter_client_ids=filter_client_ids,
+                            agent_config=self.config,
                         )
                         logger.info(
-                            f"Tool '{tool_use.name}' executed successfully (within filter)."
+                            f"Tool '{tool_use.name}' executed successfully (agent filters applied)."
                         )
                         tool_result_block = (
                             host_instance.tools.create_tool_result_blocks(

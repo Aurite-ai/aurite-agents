@@ -83,6 +83,11 @@ class AgentConfig(BaseModel):
     include_history: Optional[bool] = (
         None  # Whether to include the conversation history, or just the latest message
     )
+    # List of component names (tool, prompt, resource) to specifically exclude for this agent
+    exclude_components: Optional[List[str]] = Field(
+        None,
+        description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
+    )
 
 
 class WorkflowConfig(BaseModel):

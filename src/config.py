@@ -224,6 +224,9 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
                     include_history=include_history,
+                    exclude_components=agent_data.get(
+                        "exclude_components"
+                    ),  # Added this line
                 )
                 agent_configs_dict[agent_name] = agent_config
             except (ValueError, TypeError) as conv_err:

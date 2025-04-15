@@ -11,6 +11,10 @@ import mcp.types as types
 # Import RootManager for type hinting
 from ..foundation.roots import RootManager
 
+# Import necessary types and models for filtering
+from ..filtering import FilteringManager
+from ..models import ClientConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +42,10 @@ class ResourceManager:
         self,
         client_id: str,
         resources: List[types.Resource],
-        exclude_list: Optional[List[str]] = None,
+        client_config: ClientConfig,  # Added client_config
+        filtering_manager: FilteringManager,  # Added filtering_manager
     ) -> List[types.Resource]:  # Return list of registered resources
-        """Register resources available from a client, excluding specified ones."""
+        """Register resources available from a client, applying client-level exclusions."""
         logger.info(
             f"Registering resources for client {client_id}: {[str(r.uri) for r in resources]}"
         )
@@ -50,15 +55,16 @@ class ResourceManager:
             self._resources[client_id] = {}
 
         for resource in resources:
-            # Check against exclude list using resource.name
-            # Note: Resources might not always have a name, rely on URI primarily.
-            # Exclude list should ideally support URIs too, but currently based on name.
-            if exclude_list and resource.name and resource.name in exclude_list:
+            uri_str = str(resource.uri)
+            # Check registration allowance using FilteringManager (using URI as identifier)
+            if not filtering_manager.is_registration_allowed(uri_str, client_config):
+                # Logging is handled within is_registration_allowed
+                # Log which URI is being skipped for clarity
                 logger.debug(
-                    f"Excluding resource '{resource.name}' (URI: {resource.uri}) for client {client_id} as per config."
+                    f"Skipping registration for excluded resource URI: {uri_str}"
                 )
                 continue
-            uri_str = str(resource.uri)
+
             self._resources[client_id][uri_str] = resource
             registered_resources.append(resource)
         return registered_resources
