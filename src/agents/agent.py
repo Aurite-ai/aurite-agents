@@ -167,13 +167,9 @@ class Agent:
         )  # Log truncated prompt
 
         # Prepare Tools (Using Host's ToolManager, potentially filtered) - Renumbered step
-        # TODO: Enhance format_tools_for_llm to accept filter_client_ids if needed,
-        #       or rely on execute_tool filtering. For now, format all tools known to host.
-        #       The filtering primarily happens during *execution*.
-        all_tools_data = host_instance.tools.format_tools_for_llm()
-        # Filter tools presented to LLM based on filter_client_ids?
-        # This is complex as format_tools_for_llm doesn't know client source.
-        # Let's rely on execute_tool filtering for now and present all tools.
+        all_tools_data = host_instance.tools.format_tools_for_llm(allowed_clients=filter_client_ids)
+        # Filter tools presented to LLM based on filter_client_ids
+        
         tools_data = all_tools_data  # Use all tools for now
         logger.debug(f"Formatted tools for LLM: {[t['name'] for t in tools_data]}")
         if filter_client_ids:
