@@ -66,32 +66,46 @@ Format your output as JSON. Do not include any other text, and do not format it 
 """
         
         await host_manager.register_agent(AgentConfig(name="Quality Assurance Agent", client_ids=None, system_prompt=system_prompt))
-        
-        match testing_config["type"]:
-            case "agent":
-                output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
-            case "workflow":
-                output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
-            case "custom_workflow":
-                output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
-            case _:
-                pytest.fail(f"Unrecognized type {testing_config['type']}")
-        
-        logging.info(f'Agent result: {output.get("final_response").content[0].text}')
-        
-        # Call agent to analyze this output based on a rubric
-        analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text)
                 
-        logging.info(f'Analysis result: {analysis_output.get("final_response").content[0].text}')
+        num_iterations = testing_config.get("iterations", 1)
+        results = []
         
-        try:
-            analysis_json = json.loads(self._clean_thinking_output(analysis_output.get("final_response").content[0].text))
-        except Exception as e:
-            pytest.fail(f"Error converting agent output to json: {e}")
+        for i in range(num_iterations):
+            logging.info(f"Prompt Validation: iteration {i+1} of {num_iterations}")
+            match testing_config["type"]:
+                case "agent":
+                    output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
+                case "workflow":
+                    output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
+                case "custom_workflow":
+                    output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
+                case _:
+                    pytest.fail(f"Unrecognized type {testing_config['type']}")
             
-        assert "analysis" in analysis_json
-        assert "output" in analysis_json
+            logging.info(f'Agent result: {output.get("final_response").content[0].text}')
+            
+            # Call agent to analyze this output based on a rubric
+            analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text)
+                    
+            logging.info(f'Analysis result: {analysis_output.get("final_response").content[0].text}')
+            
+            try:
+                analysis_json = json.loads(self._clean_thinking_output(analysis_output.get("final_response").content[0].text))
+            except Exception as e:
+                pytest.fail(f"Error converting agent output to json: {e}")
+            
+            assert "analysis" in analysis_json
+            assert "output" in analysis_json
+            
+            results.append(analysis_json)
+            
+        final_results = {}
+        if testing_config["evaluation_type"] == "numeric":
+            for key in results[0]["output"].keys():
+                total = 0
+                for i in range(num_iterations):
+                    total += results[i]["output"][key]
+                final_results[key] = total/num_iterations
+        #TODO: add aggregation for non-numeric output
         
-        
-        
-        
+        logging.info(f"Final Prompt Validation Results: {final_results}")        
