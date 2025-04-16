@@ -30,6 +30,7 @@ class TestPromptValidation:
             
         return output
 
+    @pytest.mark.timeout(300)
     async def test_workflow_prompt_validation(self, request, host_manager: HostManager):
         
         # edit the path based on command line args
@@ -99,13 +100,19 @@ Format your output as JSON. Do not include any other text, and do not format it 
             
             results.append(analysis_json)
             
-        final_results = {}
+            
         if testing_config["evaluation_type"] == "numeric":
+            final_results = {}
+            final_score = 0
             for key in results[0]["output"].keys():
                 total = 0
                 for i in range(num_iterations):
                     total += results[i]["output"][key]
                 final_results[key] = total/num_iterations
+                
+            for criteria in testing_config["rubric"]["criteria"]:
+                final_score += final_results[criteria["name"]] * criteria["weight"]
+                
+            logging.info(f"Final Prompt Validation Results: {final_results}")
+            logging.info(f"Final Prompt Validation Weighted Score: {final_score}/10")
         #TODO: add aggregation for non-numeric output
-        
-        logging.info(f"Final Prompt Validation Results: {final_results}")        
