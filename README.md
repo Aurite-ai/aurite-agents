@@ -2,43 +2,102 @@
 
 **Aurite Agents** is a Python framework for building AI agents that leverage the Model Context Protocol (MCP) for interacting with tools, prompts, and resources provided by external MCP servers.
 
-It provides two core components:
+It provides three core components:
 
-1.  **MCP Host (`src/host/host.py`)**: Manages connections to MCP servers (clients), handles component registration (tools, prompts, resources), enforces security/access boundaries, and provides a unified interface for interaction via specialized managers.
-2.  **Agent Framework (`src/agents/agent.py`)**: Provides a base `Agent` class that orchestrates interactions with Large Language Models (LLMs) like Anthropic's Claude. It uses an `MCPHost` instance to discover and execute tools requested by the LLM during multi-turn conversations.
+1.  **MCP Host (`src/host/host.py`)**: The core infrastructure layer. Manages connections to MCP servers (clients), handles component registration (tools, prompts, resources), enforces security/access boundaries, and provides a unified interface for interaction via specialized managers.
+2.  **Host Manager (`src/host_manager.py`)**: The orchestration layer. Manages the lifecycle of the `MCPHost`, loads configurations from JSON, and handles the registration and execution of Agents, Simple Workflows, and Custom Workflows.
+3.  **Agent Framework (`src/agents/agent.py`)**: Provides the `Agent` class for implementing LLM interaction logic. Agents use an injected `MCPHost` instance (managed by the `HostManager`) to access tools and accomplish tasks.
 
 ## Key Concepts
 
 *   **MCP (Model Context Protocol):** A standardized way for AI models/agents to interact with external tools, prompts, and resources. See `docs/official-mcp/` for protocol details.
-*   **MCP Host:** The central orchestrator in this framework that connects to and manages various MCP servers.
+*   **MCP Host:** The infrastructure layer connecting to and managing MCP servers.
+*   **Host Manager:** The orchestration layer managing the Host, Agents, and Workflows.
 *   **MCP Server/Client:** An external process implementing the MCP protocol to provide specific capabilities (e.g., a weather tool server, a planning tool server). The Host connects to these servers, referring to them as clients.
-*   **Agent:** An AI entity (powered by an LLM) that uses the `MCPHost` to access tools and information to accomplish tasks defined by user messages.
+*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information to accomplish tasks.
+*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially by the `HostManager`.
+*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic with access to the `HostManager` and `MCPHost`.
 
 ## Architecture
 
-The system separates concerns between the Host (managing MCP interactions) and the Agent (managing LLM interactions and task execution).
+The framework follows a layered architecture:
 
-```mermaid
-graph TD
-    User --> AgentFramework["Agent Framework (src/agents)"]
-    AgentFramework --> |Uses| MCPHost["MCP Host System (src/host)"]
-    MCPHost --> |Connects to| MCPServers["MCP Servers (src/servers, tests/fixtures/servers)"]
-
-    style AgentFramework fill:#e6f3ff,stroke:#333,stroke-width:2px;
-    style MCPHost fill:#d4f0c4,stroke:#333,stroke-width:2px;
+```text
++-----------------------------------------------------------------+
+| Layer 1: Entrypoints (src/bin)                                  |
+| +--------------+   +----------------+   +---------------------+ |
+| | CLI          |   | API Server     |   | Worker              | |
+| | (cli.py)     |   | (api.py)       |   | (worker.py)         | |
+| +--------------+   +----------------+   +---------------------+ |
+|        |                 |                  |                   |
+|        +-------+---------+--------+---------+                   |
+|                v                  v                             |
++----------------|------------------|-----------------------------+
+                 |                  |
+                 v                  v
++----------------+------------------+-----------------------------+
+| Layer 2: Orchestration                                          |
+| +-------------------------------------------------------------+ |
+| | Host Manager (host_manager.py)                              | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Load Host JSON Config                                     | |
+| | - Init/Shutdown MCP Host                                    | |
+| | - Register/Execute Agents, Simple/Custom Workflows          | |
+| | - Dynamic Registration                                      | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 3: Host Infrastructure (MCP Host System)                  |
+| +-------------------------------------------------------------+ |
+| | MCP Host (host.py)                                          | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Manage Client Connections                                 | |
+| | - Handle Roots/Security                                     | |
+| | - Register/Execute Tools, Prompts, Resources                | |
+| | - Component Discovery/Filtering                             | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 4: External Capabilities                                  |
+| +-------------------------------------------------------------+ |
+| | MCP Servers (e.g., src/packaged_servers/, external)         | |
+| |-------------------------------------------------------------| |
+| | Purpose:                                                    | |
+| | - Implement MCP Protocol                                    | |
+| | - Provide Tools, Prompts, Resources                         | |
+| | - Handle Discovery (ListTools, etc.)                        | |
+| +-------------------------------------------------------------+ |
++-----------------------------------------------------------------+
 ```
 
-For more details, see `docs/architecture_overview.md` and `docs/host/host_implementation.md`.
+*   **Layer 4: External Capabilities:** MCP Servers providing tools/prompts/resources.
+*   **Layer 3: Host Infrastructure:** The `MCPHost` manages connections and low-level MCP interactions.
+*   **Layer 2: Orchestration:** The `HostManager` loads configuration and orchestrates the Host, Agents, and Workflows.
+*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces for interacting with the `HostManager`.
+
+For more details, see `docs/architecture_overview.md` and `docs/framework_overview.md`.
 
 ## Configuration
 
 The framework uses Pydantic models for configuration (`src/host/models.py`):
 
-*   **`HostConfig`**: Defines the overall host setup, primarily a list of clients to connect to.
-*   **`ClientConfig`**: Defines settings for connecting to a specific MCP server, including its path, capabilities, roots, and any components to exclude.
-*   **`AgentConfig`**: Defines settings for an `Agent` instance, such as LLM parameters (model, temperature, max\_tokens, max\_iterations).
+*   **`HostConfig`**: Defines the host name and a list of `ClientConfig` objects.
+*   **`ClientConfig`**: Defines settings for connecting to a specific MCP server, including its path, capabilities, roots, optional GCP secrets, and global component exclusions (`exclude`).
+*   **`AgentConfig`**: Defines settings for an `Agent` instance, including LLM parameters (model, temperature, etc.) and filtering rules (`client_ids`, `exclude_components`).
+*   **`WorkflowConfig`**: Defines a simple workflow as a named sequence of agent names (`steps`).
+*   **`CustomWorkflowConfig`**: Defines a custom workflow by pointing to its Python module path and class name.
 
-Configuration is typically loaded from JSON files (e.g., `config/agents/aurite_agents.json`, `config/agents/testing_config.json`) via utilities in `src/config.py`. The main FastAPI application (`src/main.py`) uses environment variables (via `.env`) and `ServerConfig` to determine which `HostConfig` JSON file to load on startup.
+Configuration for the entire system (Host, Clients, Agents, Workflows) is loaded from a single JSON file specified by the `HOST_CONFIG_PATH` environment variable. The `HostManager` uses `src/config.py` to parse this file during initialization. See `config/testing_config.json` for an example structure.
 
 ## Installation
 
@@ -113,94 +172,26 @@ Listens to a Redis stream for tasks (registration or execution requests).
     ```
     The worker will connect to Redis and wait for messages on the configured stream (default: `aurite:tasks`). Messages should be JSON strings in a field named `task_data`, specifying `action`, `component_type`, and `data`.
 
-### Using the Core Classes Programmatically (Example)
-
-You can still use the core classes directly in your Python scripts:
-
-```python
-import asyncio
-from pathlib import Path
-from src.host.host import MCPHost
-from src.host.models import HostConfig, AgentConfig
-from src.agents.agent import Agent
-from src.config import load_host_config_from_json
-
-async def run_agent_example():
-    # 1. Load Host Configuration
-    #    (Assuming HOST_CONFIG_PATH points to a valid config like testing_config.json)
-    host_config_path = Path("config/agents/testing_config.json") # Example path
-    host_config = load_host_config_from_json(host_config_path)
-
-    # 2. Initialize MCPHost
-    host = MCPHost(config=host_config)
-    await host.initialize()
-
-    # 3. Configure and Initialize Agent
-    agent_config = AgentConfig(
-        name="ExampleAgent",
-        # Optional: Override LLM defaults
-        # model="claude-3-haiku-20240307",
-        # temperature=0.5,
-        max_iterations=8
-    )
-    agent = Agent(config=agent_config)
-
-    # 4. Execute Agent Task
-    user_message = "What is the weather in London and what time is it there?"
-    try:
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=host
-        )
-        print("Agent execution finished.")
-        # Process the result (contains conversation history, final response, etc.)
-        if result.get("final_response"):
-             final_content = result["final_response"].content
-             if final_content and hasattr(final_content[0], 'text'):
-                 print("Final Response:", final_content[0].text)
-        if result.get("error"):
-            print("Error:", result["error"])
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        # 5. Shutdown Host
-        await host.shutdown()
-
-if __name__ == "__main__":
-    # Ensure ANTHROPIC_API_KEY is set in environment
-    import os
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("Error: ANTHROPIC_API_KEY environment variable not set.")
-    else:
-        asyncio.run(run_agent_example())
-
-```
-*(Note: This example assumes `config/agents/testing_config.json` is configured correctly with runnable servers like the weather server).*
-
 ## Testing
 
-The project uses `pytest` for testing. Tests are categorized into `unit`, `integration`, and `e2e`.
+The project uses `pytest` for testing, with tests categorized into unit, integration, and end-to-end (E2E). A prompt validation system is also included for testing agent outputs against rubrics.
 
-See `tests/README.md` for detailed instructions on running tests and understanding the testing structure.
+See `docs/testing_strategy.md` and `tests/README.md` for detailed instructions on running tests and understanding the testing structure.
 
 ## Directory Structure
 
 *   **`src/`**: Contains the core source code.
-    *   `src/host/`: Implementation of the MCP Host system and its managers.
-    *   `src/agents/`: Implementation of the Agent framework.
-    *   `src/servers/`: Example MCP server implementations (e.g., planning, weather).
-    *   `src/config.py`: Configuration loading (Server, Host, etc.).
+    *   `src/host/`: Implementation of the MCP Host system (`host.py`) and its managers.
+    *   `src/agents/`: Implementation of the Agent framework (`agent.py`).
+    *   `src/host_manager.py`: Orchestration layer managing Host, Agents, and Workflows.
+    *   `src/packaged_servers/`: Example and pre-built MCP server implementations.
+    *   `src/config.py`: Configuration loading utilities.
     *   `src/bin/`: Entrypoint scripts (API, CLI, Worker).
-*   **`tests/`**: Contains all automated tests.
-    *   `tests/host/`: Tests for the MCP Host components.
-    *   `tests/agents/`: Tests for the Agent framework.
-    *   `tests/servers/`: Tests for the example MCP servers.
-    *   `tests/fixtures/`: Reusable pytest fixtures.
+*   **`tests/`**: Contains all automated tests (unit, integration, e2e).
+    *   `tests/fixtures/`: Reusable pytest fixtures and mock servers.
     *   `tests/mocks/`: Mock objects for external services (e.g., Anthropic API).
-*   **`config/`**: Contains JSON configuration files.
-    *   `config/agents/`: Host configurations defining which clients/servers to load.
-*   **`docs/`**: Project documentation.
+*   **`config/`**: Contains JSON configuration files defining hosts, clients, agents, and workflows.
+*   **`docs/`**: Project documentation, including architecture, guides, and plans.
 
 ## Contributing
 

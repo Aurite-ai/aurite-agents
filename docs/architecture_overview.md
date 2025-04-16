@@ -64,9 +64,9 @@ The framework provides multiple entrypoints (`src/bin/`) that utilize the **Host
 +-----------------------------------------------------------------+
 ```
 
-The **MCP Host System** itself is built on further internal layers (Foundation, Communication, Resource Management) as detailed below:
+The **MCP Host System** (`src/host/host.py`) itself is built on further internal layers (Foundation, Communication, Resource Management, Filtering) as detailed below:
 
-### Layer 1: Security and Foundation
+### Layer 1: Foundation & Security
 
 The foundation layer establishes security boundaries and access control:
 
@@ -86,9 +86,10 @@ The resource management layer provides access to capabilities offered by connect
 - **Tool Manager**: Manages tool registration, discovery, execution, and formatting for LLMs across servers.
 - **Prompt Manager**: Manages system prompt registration and retrieval.
 - **Resource Manager**: Manages MCP resource registration and retrieval.
+- **Filtering Manager** (`src/host/filtering.py`): Centralizes logic for filtering components based on `ClientConfig` and `AgentConfig`.
 
-The Tool Manager provides a unified interface for:
-- Tool registration and discovery
+The `MCPHost` class orchestrates these managers. The Tool Manager, for example, provides a unified interface for:
+- Tool registration and discovery (respecting filters)
 - Tool execution with routing
 - Capability-based tool selection
 - Access control validation through the Root Manager
@@ -124,8 +125,6 @@ The agent framework provides the logic for AI agents to interact with users and 
     - Formats tool results and continues the loop until completion.
   - Can be configured with specific LLM parameters (model, temperature, system prompt).
   - Can potentially be extended or subclassed for more specialized agent behaviors (like the Agency Spectrum describes).
-
-*(Note: Previous components like WorkflowManager and BaseWorkflow have been removed from the host system and are superseded by the `Agent` class logic).*
 
 ## The Agency Spectrum
 
@@ -163,81 +162,89 @@ Each type of agent serves different use cases:
 
 ## Core Components
 
-The Aurite system is organized around two main components:
+The Aurite system is organized around three main components, reflecting the architectural layers:
 
 ### 1. MCP Host System (`src/host/host.py`)
 
-The core orchestration layer for MCP server interaction:
+The core infrastructure layer for MCP server interaction:
 - Manages connections to configured MCP servers (clients).
-- Initializes and coordinates managers for Foundation (Security, Roots), Communication (Routing), and Resource Management (Tools, Prompts, Resources).
-- Provides convenience methods (`execute_tool`, `get_prompt`, `read_resource`, `list_tools`, etc.) to interact with client capabilities, including discovery and filtering based on `ClientConfig.exclude`. *(Filtering by a list of client IDs is planned)*.
+- Initializes and coordinates internal managers: Foundation (Security, Roots), Communication (Routing), Resource Management (Tools, Prompts, Resources), and Filtering.
+- Provides methods (`execute_tool`, `get_prompt`, `read_resource`, `get_formatted_tools`, etc.) to interact with client capabilities.
+- Handles component discovery across clients.
+- Implements multi-level filtering via the `FilteringManager`:
+    - `ClientConfig.exclude` (Global client component exclusion)
+    - `AgentConfig.client_ids` (Agent-specific client selection)
+    - `AgentConfig.exclude_components` (Agent-specific component exclusion)
 - Enforces security policies (via `SecurityManager`) and resource access boundaries (via `RootManager`).
-- Does **not** directly handle agent execution logic or workflow management.
+- Does **not** directly handle agent/workflow execution logic.
 
-### 2. Agent Framework (`src/agents/agent.py`)
+### 2. Host Manager (`src/host_manager.py`)
 
-The agent implementation layer built on top of the MCP Host:
+The orchestration layer sitting above the `MCPHost`:
+- Loads the complete system configuration (Host, Clients, Agents, Workflows) from a JSON file.
+- Manages the lifecycle (initialization, shutdown) of the `MCPHost` instance.
+- Registers Agents, Simple Workflows, and Custom Workflows based on the loaded configuration.
+- Provides execution methods (`execute_agent`, `execute_workflow`, `execute_custom_workflow`) which handle instantiation and invocation.
+- Supports dynamic registration of components via API/Worker/CLI.
+
+### 3. Agent Framework (`src/agents/agent.py`)
+
+The agent implementation layer:
 - Provides the `Agent` class for implementing agent behavior.
 - Handles interaction with LLMs (e.g., Anthropic API calls).
-- Manages the conversation loop, including state and history (if configured).
-- Uses an injected `MCPHost` instance to discover and execute tools, retrieve prompts, and access resources provided by connected MCP servers.
-- Implements the logic for different agent types (fitting the Agency Spectrum) within or extending the `Agent` class.
+- Manages the conversation loop, including calling tools via the `MCPHost` instance provided by the `HostManager`.
+- Configured via `AgentConfig` (LLM params, filtering rules).
+- Can be used directly or as steps within Simple/Custom Workflows.
 
 ## Implementation Status
 
 Current implementation status:
 
-- **MCP Host System (`src/host/`)**
-  - **Layer 1 (Foundation)**: ✅ Implemented (Security Manager, Root Manager)
-  - **Layer 2 (Communication)**: ✅ Implemented (Message Router)
-  - **Layer 3 (Resource Mgmt)**: ✅ Implemented (Tool Manager, Prompt Manager, Resource Manager)
-  - **Host Convenience Methods**: ✅ Implemented (Basic discovery, `ClientConfig.exclude` filtering)
-- **Agent Framework (`src/agents/`)**
-  - ✅ `Agent` Class (`agent.py`): Implemented (Handles LLM loop, uses Host for tools)
-  - ⏳ Specialized Agent Types (Hybrid/Dynamic): Planned
+- **MCP Host System (`src/host/`)**: ✅ Implemented
+  - Foundation/Security Managers: ✅
+  - Message Router: ✅
+  - Resource Managers (Tool, Prompt, Resource): ✅
+  - Filtering Manager & Logic: ✅ (`ClientConfig.exclude`, `AgentConfig.client_ids`, `AgentConfig.exclude_components`)
+- **Host Manager (`src/host_manager.py`)**: ✅ Implemented
+  - JSON Configuration Loading: ✅
+  - Host Lifecycle Management: ✅
+  - Agent/Workflow Registration & Execution: ✅
+  - Dynamic Registration Support: ✅
+- **Agent Framework (`src/agents/`)**: ✅ Implemented
+  - `Agent` Class (LLM loop, tool use via Host): ✅
+- **Entrypoints (`src/bin/`)**: ✅ Implemented
+  - API Server (FastAPI): ✅
+  - CLI: ✅
+  - Redis Worker: ✅
+- **Testing (`tests/`)**: ✅ Implemented
+  - Unit, Integration, E2E Tests: ✅
+  - Prompt Validation System: ✅
 
-## Roadmap
+## Roadmap (Potential Next Steps)
 
-Future development plans:
+Based on the v1 completion, potential future development includes:
 
-### Short-term
-1.  **Implement Host Filtering Feature**: Allow `MCPHost` methods to filter by a list of client IDs (Phase 4 of current plan).
-2.  **Code Cleanup & Test Refinement**: Complete Phases 2 & 3 of the current plan.
-3.  **Enhance `Agent` Class**:
-    *   Add robust conversation history management.
-    *   Explore strategies for error handling and retries within the agent loop.
-    *   Consider adding hooks or middleware points.
-4.  **Develop Agent Examples**: Create concrete examples using the `Agent` class and `MCPHost` (e.g., document processor, research assistant).
-5.  **Refine `main.py` API**: Add endpoints relevant to the `Agent` class if needed (e.g., endpoint to trigger `execute_agent`).
-
-### Medium-term
-1.  **Implement Hybrid/Dynamic Agent Capabilities**: Extend the `Agent` class or create subclasses to support more autonomous behaviors (decision points, planning loops).
-2.  **Integrate Memory Solutions**: Re-integrate memory capabilities (like Mem0) potentially via dedicated MCP servers accessed by the `Agent` through the `MCPHost`.
-3.  **Improve Planning Capabilities**: Develop more sophisticated planning agents/strategies.
-
-### Long-term
-1. **Multi-agent coordination**
-   - Agent-to-agent communication
-   - Task delegation and collaboration
-   - Shared knowledge and resources
-
-2. **Specialized agent types**
-   - Task-specific agent implementations
-   - Domain-specific knowledge integration
-   - Custom tool development
+*   **Develop More Examples:** Create concrete examples of agents and workflows for specific use cases (e.g., document processing, research).
+*   **Monitoring & Observability:** Add structured logging, tracing, and metrics collection.
+*   **UI/Frontend:** Develop a user interface for interaction and management.
+*   **Expand Tooling:** Create more packaged MCP servers for common enterprise tools/APIs.
+*   **Refine Agent Capabilities:** Enhance `Agent` class (history management, error handling, planning).
+*   **Integrate Memory:** Explore integrating persistent memory solutions (e.g., Mem0 server).
+*   **Advanced Agency:** Implement more dynamic/hybrid agent types (Agency Spectrum).
+*   **Multi-agent Coordination:** Explore agent-to-agent communication and task delegation.
 
 ## Development Approach
 
 When developing within the Aurite architecture:
 
-1.  **Respect Component Boundaries**: Maintain a clear separation between the `MCPHost` (server interaction) and the `Agent` framework (LLM interaction, task logic). Agents *use* the Host.
-2.  **Host Layer Boundaries**: Within the `MCPHost`, respect the layered structure (Foundation -> Communication -> Resource Management).
-3.  **Follow the Manager Pattern**: Within the `MCPHost`, encapsulate specific functionalities (tools, prompts, roots, security, routing) in dedicated managers.
-4.  **Dependency Injection**: Inject dependencies (like `MCPHost` into `Agent`, managers into `MCPHost`).
-5.  **Validate Security**: Ensure security checks (`SecurityManager`, `RootManager`) are applied appropriately within the Host.
+1.  **Respect Component Boundaries**: Maintain separation between `MCPHost` (infrastructure), `HostManager` (orchestration), and `Agent` (LLM/task logic).
+2.  **Host Layer Boundaries**: Within the `MCPHost`, respect the internal manager structure.
+3.  **Follow the Manager Pattern**: Use dedicated managers within the `MCPHost` for specific functionalities.
+4.  **Dependency Injection**: Inject dependencies (`MCPHost` into `HostManager`, `HostManager` into entrypoints, `MCPHost` into `Agent`/Custom Workflows).
+5.  **Validate Security**: Ensure security checks are applied appropriately within the Host.
 6.  **Maintain Asyncio Consistency**: Use `async/await` throughout.
 7.  **Design for Extensibility**: Build components with potential extension in mind.
-8.  **Configuration Driven**: Use configuration files (`HostConfig`, `AgentConfig`) to define system setup.
+8.  **Configuration Driven**: Define system setup via JSON configuration loaded by the `HostManager`.
 
 ## Conclusion
 

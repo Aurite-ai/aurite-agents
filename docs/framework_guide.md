@@ -83,9 +83,11 @@ This JSON file (e.g., `config/agents/testing_config.json`) defines the initial s
     *   `timeout` (Optional): Connection timeout.
     *   `routing_weight` (Optional): Weight for tool routing decisions.
     *   `exclude` (Optional): List of tool/prompt/resource names *not* to register from this client.
+    *   `gcp_secrets` (Optional): List of GCP secrets to resolve and inject into the server's environment.
 *   **`agents`**: Defines pre-configured agents. Each agent object specifies:
     *   `name`: Unique name for the agent.
-    *   `client_ids` (Optional): List of `client_id`s this agent is allowed to use. If omitted, the agent can use any client.
+    *   `client_ids` (Optional): List of `client_id`s this agent is allowed to use (client-level filtering). If omitted, the agent can use any client.
+    *   `exclude_components` (Optional): List of specific tool/prompt/resource names this agent *cannot* use, even if provided by allowed clients (component-level filtering).
     *   `system_prompt` (Optional): The system prompt for the LLM.
     *   `model`, `temperature`, `max_tokens`, `max_iterations`, `include_history` (Optional): LLM parameters.
 *   **`workflows`**: Defines simple, sequential workflows. Each workflow object specifies:
@@ -195,5 +197,6 @@ All three entrypoints (API, CLI, Worker) support dynamic registration of clients
 
 ## 5. Development & Testing
 
-*   See `tests/README.md` for instructions on running the `pytest` test suite.
+*   See `tests/README.md` for instructions on running the `pytest` test suite, which includes unit, integration, and E2E tests.
+*   Refer to `docs/testing_strategy.md` for a detailed overview of the testing approach, including the prompt validation system.
 *   Use the Postman collection (`tests/api/main_server.postman_collection.json`) with its environment file (`tests/api/main_server.postman_environment.json`) for API testing.
