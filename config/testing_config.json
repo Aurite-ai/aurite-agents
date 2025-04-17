@@ -92,6 +92,17 @@
       "max_tokens": 1024,
       "max_iterations": 5,
       "include_history": "False"
+    },
+    {
+      "name": "Planning Agent",
+      "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
+      "client_ids": [],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": ["current_time"]
     }
   ],
   "workflows": [

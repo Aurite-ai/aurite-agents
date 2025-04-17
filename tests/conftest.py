@@ -93,3 +93,9 @@ def parse_json_result():
         return {"error": "Invalid result format", "raw": str(result)}
 
     return _parse
+
+def pytest_addoption(parser):
+    """Add custom command line options."""
+    parser.addoption(
+        "--config", action="store", default=None, help="The config file to use located in config/testing/ (e.g. planning_agent.json)"
+    )
