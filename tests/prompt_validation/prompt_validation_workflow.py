@@ -6,9 +6,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from src.agents.agent import Agent
-from tests.prompt_validation.prompt_validation_helper import prepare_prompts, clean_thinking_output, run_iterations, evaluate_results
-from src.host.models import AgentConfig
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results
 
 logger = logging.getLogger(__name__)
 

@@ -7,14 +7,8 @@ import pytest
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
 
-import os  
-import json
-import logging
 from src.host_manager import HostManager
-from src.host.host import MCPHost
 from src.host.models import (
-    AgentConfig,
-    WorkflowConfig,
     CustomWorkflowConfig,
 )
 from src.config import PROJECT_ROOT_DIR  # Import project root
