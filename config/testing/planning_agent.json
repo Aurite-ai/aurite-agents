@@ -6,22 +6,30 @@
     "evaluation_type": "numeric",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
     "rubric": {
-      "criteria": [
-        {
-          "name": "Completeness",
-          "description": "The plan covers all major historical events and periods.",
-          "weight": 0.4
+        "criteria": [
+            {
+                "name": "Completeness",
+                "description": "The plan covers all major historical events and periods.",
+                "weight": 0.4
+            },
+            {
+                "name": "Clarity",
+                "description": "The plan is easy to understand and follow.",
+                "weight": 0.3
+            },
+            {
+                "name": "Feasibility",
+                "description": "The plan is realistic and achievable within the given time frame.",
+                "weight": 0.3
+            }
+        ]
+    },
+    "output": {
+        "criteria_results": {
+            "Completeness": 8.5,
+            "Clarity": 8.5,
+            "Feasibility": 7.0
         },
-        {
-          "name": "Clarity",
-          "description": "The plan is easy to understand and follow.",
-          "weight": 0.3
-        },
-        {
-          "name": "Feasibility",
-          "description": "The plan is realistic and achievable within the given time frame.",
-          "weight": 0.3
-        }
-      ]
+        "weighted_score": 8.05
     }
-  }
+}

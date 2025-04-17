@@ -59,9 +59,13 @@ class PromptValidationWorkflow:
             logger.debug(
                 f"PromptValidationWorkflow returning: type={type(return_value)}, value={return_value}"
             )
+            
+            # write output into config file
+            testing_config["output"] = final_result
+            with open(testing_config_path, "w") as f:
+                json.dump(testing_config, f, indent=4)
+            
             return return_value
-
-        
         except Exception as e:
             logger.error(
                 f"Error within PromptValidationWorkflow execution: {e}", exc_info=True
