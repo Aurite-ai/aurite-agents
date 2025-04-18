@@ -1,4 +1,5 @@
 import json
+import asyncio
 import logging
 from src.host.models import AgentConfig
 from src.host_manager import HostManager
@@ -47,6 +48,34 @@ def clean_thinking_output(output: str) -> str:
         
     return output
 
+async def _run_single_iteration(host_manager: HostManager, testing_config, prompts, i) -> dict:
+    logging.info(f"Prompt Validation: Iteration {i+1}")
+    
+    # call the agent/workflow being tested
+    match testing_config["type"]:
+        case "agent":
+            output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
+        case "workflow":
+            output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
+        case "custom_workflow":
+            output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
+        case _:
+            raise ValueError(f"Unrecognized type {testing_config['type']}")
+    
+    logging.info(f'Agent result {i+1}: {output.get("final_response").content[0].text}')
+    
+    # analyze the agent/workflow output, overriding system prompt
+    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text, system_prompt=prompts["qa_system_prompt"])
+            
+    logging.info(f'Analysis result {i+1}: {analysis_output.get("final_response").content[0].text}')
+    
+    try:
+        analysis_json = json.loads(clean_thinking_output(analysis_output.get("final_response").content[0].text))
+    except Exception as e:
+        raise ValueError(f"Error converting agent output to json: {e}")
+    
+    return analysis_json
+
 async def run_iterations(host_manager: HostManager, testing_config) -> list:
     """Run iterations of the agent/workflow and the analysis agent.
     
@@ -58,35 +87,9 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
     
-    results = []
+    tasks = [_run_single_iteration(host_manager,testing_config,prompts,i) for i in range(num_iterations)]
     
-    for i in range(num_iterations):
-        logging.info(f"Prompt Validation: Iteration {i+1} of {num_iterations}")
-        
-        # call the agent/workflow being tested
-        match testing_config["type"]:
-            case "agent":
-                output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
-            case "workflow":
-                output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
-            case "custom_workflow":
-                output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
-            case _:
-                raise ValueError(f"Unrecognized type {testing_config['type']}")
-        
-        logging.info(f'Agent result: {output.get("final_response").content[0].text}')
-        
-        # analyze the agent/workflow output, overriding system prompt
-        analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text, system_prompt=prompts["qa_system_prompt"])
-                
-        logging.info(f'Analysis result: {analysis_output.get("final_response").content[0].text}')
-        
-        try:
-            analysis_json = json.loads(clean_thinking_output(analysis_output.get("final_response").content[0].text))
-        except Exception as e:
-            raise ValueError(f"Error converting agent output to json: {e}")
-        
-        results.append(analysis_json)
+    results = await asyncio.gather(*tasks)
         
     return results
 
