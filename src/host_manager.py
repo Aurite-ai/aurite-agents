@@ -279,6 +279,51 @@ class HostManager:
         # Add the workflow config
         self.workflow_configs[workflow_config.name] = workflow_config
         logger.info(f"Workflow '{workflow_config.name}' registered successfully.")
+        
+    async def register_custom_workflow(self, custom_workflow_config: "CustomWorkflowConfig"):
+        """
+        Dynamically registers a new custom Workflow configuration.
+
+        Args:
+            custom_workflow_config: The configuration for the custom workflow to register.
+
+        Raises:
+            ValueError: If the HostManager is not initialized, the custom workflow name already exists,
+                        or the module_path is invalid
+        """
+        logger.info(
+            f"Attempting to dynamically register workflow: {custom_workflow_config.name}"
+        )
+        if not self.host:
+            logger.error("HostManager is not initialized. Cannot register custom workflow.")
+            raise ValueError("HostManager is not initialized.")
+
+        if custom_workflow_config.name in self.custom_workflow_configs:
+            logger.error(f"Custom Workflow name '{custom_workflow_config.name}' already registered.")
+            raise ValueError(
+                f"Custom Workflow name '{custom_workflow_config.name}' already registered."
+            )
+            
+        module_path = custom_workflow_config.module_path
+        if not str(module_path.resolve()).startswith(
+            str(PROJECT_ROOT_DIR.resolve())
+        ):
+            logger.error(
+                f"Custom workflow path '{module_path}' is outside the project directory {PROJECT_ROOT_DIR}. Aborting."
+            )
+            raise ValueError(
+                "Custom workflow path is outside the project directory."
+            )
+
+        if not module_path.exists():
+            logger.error(f"Custom workflow module file not found: {module_path}")
+            raise ValueError(
+                f"Custom workflow module file not found: {module_path}"
+            )
+
+        # Add the workflow config
+        self.custom_workflow_configs[custom_workflow_config.name] = custom_workflow_config
+        logger.info(f"Custom Workflow '{custom_workflow_config.name}' registered successfully.")
 
     # --- Execution Methods ---
 
