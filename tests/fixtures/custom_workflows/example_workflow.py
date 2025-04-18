@@ -41,7 +41,6 @@ class ExampleCustomWorkflow:
             agent_result = await agent.execute_agent(
                 user_message=user_message,
                 host_instance=host_instance,
-                filter_client_ids=agent_config.client_ids,
             )
 
             # Basic extraction - assumes final_response and text content exist

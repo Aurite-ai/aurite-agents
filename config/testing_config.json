@@ -20,6 +20,17 @@
   ],
   "agents": [
     {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "client_ids": ["weather_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": ["current_time"]
+    },
+    {
       "name": "Weather Planning Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
       "client_ids": ["weather_server", "planning_server"],
