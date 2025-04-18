@@ -571,7 +571,6 @@ class HostManager:
                 result = await agent.execute_agent(
                     user_message=user_message,
                     host_instance=self.host,
-                    # filter_client_ids=filter_ids,
                 )
             logger.info(f"Agent '{agent_name}' execution finished.")
             return result
