@@ -265,12 +265,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                 )
                 # Allow empty workflows? Or raise error? Let's allow for now.
 
-            # Validate that agent names in steps exist in loaded agent_configs_dict
-            for step_agent_name in steps:
-                if step_agent_name not in agent_configs_dict:
-                    error_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}' in {config_path}"
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
+            # Validation of agent steps will be done in HostManager where full context is available.
 
             try:
                 workflow_config = WorkflowConfig(

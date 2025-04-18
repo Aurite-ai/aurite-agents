@@ -177,3 +177,68 @@ class TestHostManagerExecution:
         assert len(result["agent_result_text"]) > 0  # Check agent response is non-empty
 
         print(f"\nCustom Workflow Result: {result}")  # Log for info
+
+
+from pathlib import Path  # Add Path import
+
+
+@pytest.mark.integration
+class TestHostManagerDynamicRegistration:
+    """Tests for dynamically registering components via config file."""
+
+    async def test_register_config_file_success(self, host_manager: HostManager):
+        """
+        Verify that register_config_file correctly loads and registers components
+        from a new config file, handling duplicates gracefully.
+        """
+        # Ensure host_manager is initialized (fixture should handle this)
+        assert host_manager is not None
+        assert host_manager.host is not None
+
+        # --- Get initial counts ---
+        initial_client_count = len(host_manager.host._clients)
+        initial_agent_count = len(host_manager.agent_configs)
+        initial_workflow_count = len(host_manager.workflow_configs)
+        initial_custom_workflow_count = len(host_manager.custom_workflow_configs)
+
+        # --- Define path to the dynamic config file ---
+        # Assuming tests run from the project root
+        dynamic_config_path = Path("config/testing_dynamic_config.json")
+        assert dynamic_config_path.exists(), "Dynamic config file must exist for test"
+
+        # --- Call the method under test ---
+        await host_manager.register_config_file(dynamic_config_path)
+
+        # --- Assert changes based on testing_dynamic_config.json ---
+
+        # Client: 'env_check_server' is new
+        assert len(host_manager.host._clients) == initial_client_count + 1
+        assert "env_check_server" in host_manager.host._clients
+
+        # Agent: 'Weather Agent' is new and should be added
+        assert len(host_manager.agent_configs) == initial_agent_count + 1
+        assert "Weather Agent" in host_manager.agent_configs  # Now present
+
+        # Workflow: 'A second testing workflow...' is new
+        new_workflow_name = (
+            "A second testing workflow using weather and planning servers"
+        )
+        assert len(host_manager.workflow_configs) == initial_workflow_count + 1
+        assert new_workflow_name in host_manager.workflow_configs
+        # Verify the steps reference agents loaded initially (or dynamically, if applicable)
+        assert host_manager.workflow_configs[new_workflow_name].steps == [
+            "Weather Planning Workflow Step 1",
+            "Weather Planning Workflow Step 2",
+        ]
+
+        # Custom Workflow: 'SecondExampleCustom' is new
+        new_custom_workflow_name = "SecondExampleCustom"
+        assert (
+            len(host_manager.custom_workflow_configs)
+            == initial_custom_workflow_count + 1
+        )
+        assert new_custom_workflow_name in host_manager.custom_workflow_configs
+        assert (
+            host_manager.custom_workflow_configs[new_custom_workflow_name].class_name
+            == "PromptValidationWorkflow"
+        )

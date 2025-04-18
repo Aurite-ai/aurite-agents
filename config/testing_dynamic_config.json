@@ -1,0 +1,54 @@
+{
+  "name": "Testing Dynamic Config",
+  "clients": [
+    {
+      "client_id": "env_check_server",
+      "server_path": "src/packaged_servers/env_check_server.py",
+      "capabilities": [],
+      "timeout": 5.0,
+      "routing_weight": 1.0,
+      "roots": [],
+      "gcp_secrets": [
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_SECRET_1_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_1"
+        },
+        {
+          "secret_id": "projects/aurite-dev/secrets/TEST_DB_PASSWORD_ID/versions/latest",
+          "env_var_name": "TEST_SECRET_DB_PASSWORD"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "client_ids": ["weather_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": ["current_time"]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "A second testing workflow using weather and planning servers",
+      "steps": [
+        "Weather Planning Workflow Step 1",
+        "Weather Planning Workflow Step 2"
+      ],
+      "description": "Updated workflow to test simple workflow execution using agents."
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "SecondExampleCustom",
+      "module_path": "tests/prompt_validation/prompt_validation_workflow.py",
+      "class_name": "PromptValidationWorkflow",
+      "description": "An example custom workflow for testing."
+    }
+  ]
+}

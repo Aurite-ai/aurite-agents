@@ -279,8 +279,10 @@ class HostManager:
         # Add the workflow config
         self.workflow_configs[workflow_config.name] = workflow_config
         logger.info(f"Workflow '{workflow_config.name}' registered successfully.")
-        
-    async def register_custom_workflow(self, custom_workflow_config: "CustomWorkflowConfig"):
+
+    async def register_custom_workflow(
+        self, custom_workflow_config: "CustomWorkflowConfig"
+    ):
         """
         Dynamically registers a new custom Workflow configuration.
 
@@ -295,35 +297,227 @@ class HostManager:
             f"Attempting to dynamically register workflow: {custom_workflow_config.name}"
         )
         if not self.host:
-            logger.error("HostManager is not initialized. Cannot register custom workflow.")
+            logger.error(
+                "HostManager is not initialized. Cannot register custom workflow."
+            )
             raise ValueError("HostManager is not initialized.")
 
         if custom_workflow_config.name in self.custom_workflow_configs:
-            logger.error(f"Custom Workflow name '{custom_workflow_config.name}' already registered.")
+            logger.error(
+                f"Custom Workflow name '{custom_workflow_config.name}' already registered."
+            )
             raise ValueError(
                 f"Custom Workflow name '{custom_workflow_config.name}' already registered."
             )
-            
+
         module_path = custom_workflow_config.module_path
-        if not str(module_path.resolve()).startswith(
-            str(PROJECT_ROOT_DIR.resolve())
-        ):
+        if not str(module_path.resolve()).startswith(str(PROJECT_ROOT_DIR.resolve())):
             logger.error(
                 f"Custom workflow path '{module_path}' is outside the project directory {PROJECT_ROOT_DIR}. Aborting."
             )
-            raise ValueError(
-                "Custom workflow path is outside the project directory."
-            )
+            raise ValueError("Custom workflow path is outside the project directory.")
 
         if not module_path.exists():
             logger.error(f"Custom workflow module file not found: {module_path}")
-            raise ValueError(
-                f"Custom workflow module file not found: {module_path}"
-            )
+            raise ValueError(f"Custom workflow module file not found: {module_path}")
 
         # Add the workflow config
-        self.custom_workflow_configs[custom_workflow_config.name] = custom_workflow_config
-        logger.info(f"Custom Workflow '{custom_workflow_config.name}' registered successfully.")
+        self.custom_workflow_configs[custom_workflow_config.name] = (
+            custom_workflow_config
+        )
+        logger.info(
+            f"Custom Workflow '{custom_workflow_config.name}' registered successfully."
+        )
+
+    async def register_config_file(self, file_path: Path):
+        """
+        Dynamically loads and registers all components (clients, agents, workflows, custom workflows)
+        from a specified JSON configuration file path.
+
+        Args:
+            file_path: The Path object pointing to the JSON configuration file.
+
+        Raises:
+            ValueError: If the HostManager is not initialized.
+            FileNotFoundError: If the specified file_path does not exist.
+            RuntimeError: If there's an error parsing the config file or during registration.
+        """
+        logger.info(
+            f"Attempting to dynamically register components from file: {file_path}"
+        )
+        if not self.host:
+            logger.error("HostManager is not initialized. Cannot register from file.")
+            raise ValueError("HostManager is not initialized.")
+
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
+
+        if not file_path.is_absolute():
+            logger.warning(
+                f"Provided file path is not absolute: {file_path}. Resolving relative to CWD."
+            )
+            file_path = file_path.resolve()
+
+        if not file_path.is_file():
+            logger.error(f"Configuration file not found at path: {file_path}")
+            raise FileNotFoundError(f"Configuration file not found: {file_path}")
+
+        registered_counts = {
+            "clients": 0,
+            "agents": 0,
+            "workflows": 0,
+            "custom_workflows": 0,
+        }
+        skipped_counts = {
+            "clients": 0,
+            "agents": 0,
+            "workflows": 0,
+            "custom_workflows": 0,
+        }
+        error_messages = []
+
+        try:
+            # 1. Load all configurations from the specified file
+            (
+                host_config,
+                agent_configs_dict,
+                workflow_configs_dict,
+                custom_workflow_configs_dict,
+            ) = load_host_config_from_json(file_path)
+            logger.info(f"Successfully loaded configurations from {file_path}.")
+
+            # 2. Register Clients
+            logger.info(f"Registering {len(host_config.clients)} clients...")
+            for client_config in host_config.clients:
+                try:
+                    await self.host.register_client(client_config)
+                    registered_counts["clients"] += 1
+                    logger.debug(
+                        f"Successfully registered client: {client_config.client_id}"
+                    )
+                except ValueError as e:  # Catch duplicate client IDs
+                    logger.warning(
+                        f"Skipping client registration for '{client_config.client_id}': {e}"
+                    )
+                    skipped_counts["clients"] += 1
+                except Exception as e:
+                    err_msg = (
+                        f"Failed to register client '{client_config.client_id}': {e}"
+                    )
+                    logger.error(err_msg, exc_info=True)
+                    error_messages.append(err_msg)
+                    skipped_counts["clients"] += 1  # Count as skipped due to error
+
+            # 3. Register Agents
+            logger.info(f"Registering {len(agent_configs_dict)} agents...")
+            for agent_name, agent_config in agent_configs_dict.items():
+                try:
+                    await self.register_agent(agent_config)
+                    registered_counts["agents"] += 1
+                    logger.debug(f"Successfully registered agent: {agent_name}")
+                except ValueError as e:  # Catch duplicates or invalid client IDs
+                    logger.warning(
+                        f"Skipping agent registration for '{agent_name}': {e}"
+                    )
+                    skipped_counts["agents"] += 1
+                except Exception as e:  # Catch unexpected errors
+                    err_msg = f"Failed to register agent '{agent_name}': {e}"
+                    logger.error(err_msg, exc_info=True)
+                    error_messages.append(err_msg)
+                    skipped_counts["agents"] += 1
+
+            # 4. Validate and Register Workflows
+            logger.info(
+                f"Validating and registering {len(workflow_configs_dict)} workflows..."
+            )
+            # Create a combined view of existing and newly loaded agents for validation
+            available_agent_names = set(self.agent_configs.keys()) | set(
+                agent_configs_dict.keys()
+            )
+            valid_workflows_to_register = {}
+
+            for workflow_name, workflow_config in workflow_configs_dict.items():
+                is_valid = True
+                if workflow_config.steps:
+                    for step_agent_name in workflow_config.steps:
+                        if step_agent_name not in available_agent_names:
+                            err_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}'. Agent not found in existing or newly loaded configurations."
+                            logger.error(err_msg)
+                            error_messages.append(err_msg)
+                            skipped_counts["workflows"] += 1
+                            is_valid = False
+                            break  # No need to check other steps for this workflow
+                if is_valid:
+                    valid_workflows_to_register[workflow_name] = workflow_config
+
+            # Now register only the valid workflows
+            for workflow_name, workflow_config in valid_workflows_to_register.items():
+                try:
+                    # Use the existing register_workflow which checks for duplicates in self.workflow_configs
+                    await self.register_workflow(workflow_config)
+                    registered_counts["workflows"] += 1
+                    logger.debug(f"Successfully registered workflow: {workflow_name}")
+                except ValueError as e:  # Catch duplicates or invalid agent names
+                    logger.warning(
+                        f"Skipping workflow registration for '{workflow_name}': {e}"
+                    )
+                    skipped_counts["workflows"] += 1
+                except Exception as e:  # Catch unexpected errors
+                    err_msg = f"Failed to register workflow '{workflow_name}': {e}"
+                    logger.error(err_msg, exc_info=True)
+                    error_messages.append(err_msg)
+                    skipped_counts["workflows"] += 1
+
+            # 5. Register Custom Workflows
+            logger.info(
+                f"Registering {len(custom_workflow_configs_dict)} custom workflows..."
+            )
+            for cwf_name, cwf_config in custom_workflow_configs_dict.items():
+                try:
+                    await self.register_custom_workflow(cwf_config)
+                    registered_counts["custom_workflows"] += 1
+                    logger.debug(f"Successfully registered custom workflow: {cwf_name}")
+                except ValueError as e:  # Catch duplicates or invalid paths
+                    logger.warning(
+                        f"Skipping custom workflow registration for '{cwf_name}': {e}"
+                    )
+                    skipped_counts["custom_workflows"] += 1
+                except Exception as e:  # Catch unexpected errors
+                    err_msg = f"Failed to register custom workflow '{cwf_name}': {e}"
+                    logger.error(err_msg, exc_info=True)
+                    error_messages.append(err_msg)
+                    skipped_counts["custom_workflows"] += 1
+
+            # Log summary
+            summary_msg = (
+                f"Finished processing config file '{file_path}'. "
+                f"Registered: {registered_counts}. Skipped: {skipped_counts}."
+            )
+            if error_messages:
+                summary_msg += (
+                    f" Encountered {len(error_messages)} errors during registration."
+                )
+                logger.error(summary_msg)
+                # Optionally re-raise a generic error if any individual errors occurred
+                # raise RuntimeError(f"Errors occurred during dynamic registration from {file_path}. See logs for details.")
+            else:
+                logger.info(summary_msg)
+
+        except (FileNotFoundError, RuntimeError, ValueError) as e:
+            # Catch errors from load_host_config_from_json or initial checks
+            logger.error(
+                f"Error processing config file {file_path}: {e}", exc_info=True
+            )
+            raise  # Re-raise the original exception
+        except Exception as e:
+            # Catch any other unexpected errors during the process
+            logger.error(
+                f"Unexpected error during registration from file {file_path}: {e}",
+                exc_info=True,
+            )
+            raise RuntimeError(
+                f"Unexpected error during registration from {file_path}: {e}"
+            ) from e
 
     # --- Execution Methods ---
 
