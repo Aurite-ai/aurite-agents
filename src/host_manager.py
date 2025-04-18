@@ -521,7 +521,9 @@ class HostManager:
 
     # --- Execution Methods ---
 
-    async def execute_agent(self, agent_name: str, user_message: str) -> Dict[str, Any]:
+    async def execute_agent(
+        self, agent_name: str, user_message: str, system_prompt: Optional[str]
+    ) -> Dict[str, Any]:
         """
         Executes a configured agent by name.
 
@@ -558,11 +560,19 @@ class HostManager:
             # logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
 
             # 4. Execute the agent
-            result = await agent.execute_agent(
-                user_message=user_message,
-                host_instance=self.host,
-                # filter_client_ids=filter_ids,
-            )
+            if system_prompt:
+                logger.debug(f"Using system prompt for '{agent_name}': {system_prompt}")
+                result = await agent.execute_agent(
+                    user_message=user_message,
+                    host_instance=self.host,
+                    system_prompt=system_prompt,
+                )
+            else:
+                result = await agent.execute_agent(
+                    user_message=user_message,
+                    host_instance=self.host,
+                    # filter_client_ids=filter_ids,
+                )
             logger.info(f"Agent '{agent_name}' execution finished.")
             return result
 
