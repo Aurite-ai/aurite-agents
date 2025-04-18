@@ -111,6 +111,7 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
+        system_prompt: Optional[str] = None,
         # filter_client_ids parameter removed, filtering now handled via self.config
     ) -> Dict[str, Any]:
         """
@@ -153,7 +154,14 @@ class Agent:
         model = self.config.model or "claude-3-opus-20240229"
         temperature = self.config.temperature or 0.7
         max_tokens = self.config.max_tokens or 4096
-        system_prompt = self.config.system_prompt or "You are a helpful assistant."
+        if system_prompt is None:
+            system_prompt = self.config.system_prompt
+        if not system_prompt:
+            # Fallback to default system prompt if not provided
+            # This is a generic prompt; consider making it configurable
+            # or providing a more specific default in the config.
+            system_prompt = "You are a helpful assistant."
+
         include_history = (
             self.config.include_history or False
         )  # Default to not including history unless specified
