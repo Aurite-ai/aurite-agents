@@ -53,9 +53,7 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
     Returns:
         List of analysis results"""
     prompts = prepare_prompts(testing_config)
-    
-    await host_manager.register_agent(AgentConfig(name="Quality Assurance Agent", client_ids=None, system_prompt=prompts["qa_system_prompt"]))
-                
+                    
     num_iterations = testing_config.get("iterations", 1)
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
@@ -78,8 +76,8 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
         
         logging.info(f'Agent result: {output.get("final_response").content[0].text}')
         
-        # analyze the agent/workflow output
-        analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text)
+        # analyze the agent/workflow output, overriding system prompt
+        analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text, system_prompt=prompts["qa_system_prompt"])
                 
         logging.info(f'Analysis result: {analysis_output.get("final_response").content[0].text}')
         
@@ -118,7 +116,6 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
             }
         case "default":
             if num_iterations > 1:
-                await host_manager.register_agent(AgentConfig(name="Aggregation Agent", client_ids=None, system_prompt=prompts["aggregation_system_prompt"]))
                 aggregation_output = await host_manager.execute_agent(agent_name="Aggregation Agent", user_message=",\n".join([json.dumps(r) for r in results]))
                 logging.info(f"Aggregated Validation Output: {aggregation_output.get("final_response").content[0].text}")
                 

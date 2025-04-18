@@ -522,7 +522,7 @@ class HostManager:
     # --- Execution Methods ---
 
     async def execute_agent(
-        self, agent_name: str, user_message: str, system_prompt: Optional[str]
+        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executes a configured agent by name.

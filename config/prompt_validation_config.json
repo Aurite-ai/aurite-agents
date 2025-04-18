@@ -1,0 +1,33 @@
+{
+    "name": "Prompt Validation Config",
+    "agents": [
+      {
+        "name": "Quality Assurance Agent",
+        "system_prompt": "",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.3",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      },
+      {
+        "name": "Aggregation Agent",
+        "system_prompt": "You are a Quality Assurance Agent. Your task is to aggregate multiple reports from a coworker into a single report. Give your report output as a three sentence summary of the analysis, with an overall assessment at the bottom (Very Bad, Poor, Average, Good, Excellent).",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.3",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      }
+    ],
+    "custom_workflows": [
+      {
+        "name": "Prompt Validation Workflow",
+        "module_path": "tests/prompt_validation/prompt_validation_workflow.py",
+        "class_name": "PromptValidationWorkflow"
+      }
+    ]
+  }
+  
