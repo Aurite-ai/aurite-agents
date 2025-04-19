@@ -48,19 +48,25 @@ def clean_thinking_output(output: str) -> str:
         
     return output
 
-async def _run_single_iteration(host_manager: HostManager, testing_config, prompts, i) -> dict:
+async def _run_single_iteration(host_manager: HostManager, testing_config, prompts, i, override_system_prompt: str | None = None) -> dict:
     logging.info(f"Prompt Validation: Iteration {i+1}")
     
-    # call the agent/workflow being tested
-    match testing_config["type"]:
-        case "agent":
-            output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
-        case "workflow":
-            output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
-        case "custom_workflow":
-            output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
-        case _:
-            raise ValueError(f"Unrecognized type {testing_config['type']}")
+    if override_system_prompt:
+        if testing_config["type"] != "agent":
+            raise ValueError(f"Invalid type {testing_config['type']}, A/B testing only works with agents")
+        else:
+            output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"], system_prompt=override_system_prompt)
+    else:
+        # call the agent/workflow being tested
+        match testing_config["type"]:
+            case "agent":
+                output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
+            case "workflow":
+                output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
+            case "custom_workflow":
+                output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
+            case _:
+                raise ValueError(f"Unrecognized type {testing_config['type']}")
     
     logging.info(f'Agent result {i+1}: {output.get("final_response").content[0].text}')
     
@@ -77,7 +83,7 @@ async def _run_single_iteration(host_manager: HostManager, testing_config, promp
     return analysis_json
 
 async def run_iterations(host_manager: HostManager, testing_config) -> list:
-    """Run iterations of the agent/workflow and the analysis agent.
+    """Run iterations of the agent/workflow and the analysis agent for prompt validation
     
     Returns:
         List of analysis results"""
@@ -92,6 +98,27 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
     results = await asyncio.gather(*tasks)
         
     return results
+
+async def run_iterations_ab(host_manager: HostManager, testing_config) -> dict:
+    """Run iterations of the agent/workflow and the analysis agent for a/b testing
+    
+    Returns:
+        List of analysis results"""
+    prompts = prepare_prompts(testing_config)
+                    
+    num_iterations = testing_config.get("iterations", 1)
+    if type(num_iterations) is not int or num_iterations < 1:
+        raise ValueError("iterations must be a positive integer")
+    
+    tasks_a = [_run_single_iteration(host_manager,testing_config,prompts,i) for i in range(num_iterations)]
+    
+    results_a = await asyncio.gather(*tasks_a)
+    
+    tasks_b = [_run_single_iteration(host_manager,testing_config,prompts,i,testing_config["new_prompt"]) for i in range(num_iterations)]
+    
+    results_b = await asyncio.gather(*tasks_b)
+        
+    return {"A": results_a, "B": results_b}
 
 async def evaluate_results(host_manager: HostManager, testing_config, results: list):
     num_iterations = testing_config.get("iterations", 1)
@@ -127,3 +154,10 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
                 logging.info(f"Prompt Validation Output: {json.dumps(results[0])}")
                 
                 return json.dumps(results[0])
+            
+async def evaluate_results_ab(host_manager: HostManager, testing_config, results: dict):
+    ab_output = await host_manager.execute_agent(agent_name="A/B Agent", user_message=json.dumps(results))
+    
+    logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")
+                
+    return ab_output.get("final_response").content[0].text

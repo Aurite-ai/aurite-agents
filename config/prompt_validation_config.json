@@ -20,6 +20,16 @@
         "max_tokens": 4096,
         "max_iterations": 10,
         "include_history": "True"
+      },
+      {
+        "name": "A/B Agent",
+        "system_prompt": "You are a Quality Assurance Agent. Your task is to evaluate two sets of reports, A and B. It is your job to determine which set performed better based on these reports. Give your output as a three sentence summary with your analysis, and your final choice (A or B) at the bottom.",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.3",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
       }
     ],
     "custom_workflows": [
@@ -27,6 +37,11 @@
         "name": "Prompt Validation Workflow",
         "module_path": "tests/prompt_validation/prompt_validation_workflow.py",
         "class_name": "PromptValidationWorkflow"
+      },
+      {
+        "name": "A/B Testing Workflow",
+        "module_path": "tests/prompt_validation/ab_testing_workflow.py",
+        "class_name": "ABTestingWorkflow"
       }
     ]
   }

@@ -13,10 +13,10 @@ from src.host.models import (
 )
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
-class TestPromptValidation:
+class TestABTesting:
 
     @pytest.mark.timeout(300)
-    async def test_workflow_prompt_validation(self, request, host_manager: HostManager):
+    async def test_workflow_ab_testing(self, request, host_manager: HostManager):
         
         # edit the path based on command line args
         config_file = request.config.getoption("--config")
@@ -29,7 +29,7 @@ class TestPromptValidation:
         await host_manager.register_config_file("config/prompt_validation_config.json")
                 
         result = await host_manager.execute_custom_workflow(
-            workflow_name="Prompt Validation Workflow", 
+            workflow_name="A/B Testing Workflow", 
             initial_input={
                 "host_manager": host_manager,
                 "config_path": testing_config_path
