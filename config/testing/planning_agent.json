@@ -23,13 +23,5 @@
                 "weight": 0.3
             }
         ]
-    },
-    "output": {
-        "criteria_results": {
-            "Completeness": 8.5,
-            "Clarity": 8.5,
-            "Feasibility": 7.0
-        },
-        "weighted_score": 8.05
     }
 }

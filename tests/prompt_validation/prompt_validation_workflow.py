@@ -34,6 +34,8 @@ class PromptValidationWorkflow:
             
             testing_config_path = initial_input["config_path"]
             
+            if testing_config_path.suffix != ".json":
+                raise ValueError("Testing config file has wrong extension (.json expected)")
             if not testing_config_path.exists():
                 raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
                 
@@ -58,10 +60,10 @@ class PromptValidationWorkflow:
                 f"PromptValidationWorkflow returning: type={type(return_value)}, value={return_value}"
             )
             
-            # write output into config file
-            testing_config["output"] = final_result
-            with open(testing_config_path, "w") as f:
-                json.dump(testing_config, f, indent=4)
+            # write output 
+            output_path = testing_config_path.with_name(testing_config_path.stem + "_output.json")
+            with open(output_path, "w") as f:
+                json.dump({"output": final_result}, f, indent=4)
             
             return return_value
         except Exception as e:
