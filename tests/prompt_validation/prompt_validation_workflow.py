@@ -6,7 +6,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,11 @@ class PromptValidationWorkflow:
             # final results based on eval type
             final_result = await evaluate_results(host_manager, testing_config, results)
             
+            improved_prompt = None
+            if "weighted_score" in final_result and "threshold" in testing_config:
+                if final_result["weighted_score"] < testing_config["threshold"]:
+                    improved_prompt = await improve_prompt(host_manager, testing_config, results)
+            
             return_value = {
                 "status": "success",
                 "input_received": initial_input,
@@ -61,9 +66,14 @@ class PromptValidationWorkflow:
             )
             
             # write output 
+            output = {
+                "output": final_result
+            }
+            if improved_prompt:
+                output["new_prompt"] = improved_prompt
             output_path = testing_config_path.with_name(testing_config_path.stem + "_output.json")
             with open(output_path, "w") as f:
-                json.dump({"output": final_result}, f, indent=4)
+                json.dump(output, f, indent=4)
             
             return return_value
         except Exception as e:

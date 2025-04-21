@@ -19,12 +19,12 @@ def prepare_prompts(testing_config: dict):
     if evaluation_type not in type_prompts:
         raise ValueError(f"Evaluation type not recognized '{evaluation_type}', Expected types: {list(type_prompts.keys())}")
     
-    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config["id"]}.
+    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config["id"]} based on a given input.
     You have been provided with a prompt explaining how you should evaluate it.
     Here is the system prompt provided: "{testing_config["testing_prompt"]}"
     This prompt explains how to evaluate the output using this rubric: {json.dumps(testing_config["rubric"])}
 
-    Format your output as JSON. Do not include any other text, and do not format it as a code block (```). Start with {{ and end with }}. Here is a template: {{
+    Format your output as JSON. IMPORTANT: Do not include any other text, and do not format it as a code block (```). Start with {{ and end with }}. Here is a template: {{
         "analysis": "<your analysis here>",
         "output": {type_prompts[evaluation_type]}
     }}
@@ -48,30 +48,30 @@ def clean_thinking_output(output: str) -> str:
         
     return output
 
-async def _run_single_iteration(host_manager: HostManager, testing_config, prompts, i, override_system_prompt: str | None = None) -> dict:
+async def _run_single_iteration(host_manager: HostManager, test_type, test_id, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
     logging.info(f"Prompt Validation: Iteration {i+1}")
     
     if override_system_prompt:
-        if testing_config["type"] != "agent":
-            raise ValueError(f"Invalid type {testing_config['type']}, A/B testing only works with agents")
+        if test_type != "agent":
+            raise ValueError(f"Invalid type {test_type}, A/B testing only works with agents")
         else:
-            output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"], system_prompt=override_system_prompt)
+            output = await host_manager.execute_agent(agent_name=test_id, user_message=test_input, system_prompt=override_system_prompt)
     else:
         # call the agent/workflow being tested
-        match testing_config["type"]:
+        match test_type:
             case "agent":
-                output = await host_manager.execute_agent(agent_name=testing_config["id"], user_message=testing_config["input"])
+                output = await host_manager.execute_agent(agent_name=test_id, user_message=test_input)
             case "workflow":
-                output = await host_manager.execute_workflow(workflow_name=testing_config["id"], initial_user_message=testing_config["input"])
+                output = await host_manager.execute_workflow(workflow_name=test_id, initial_user_message=test_input)
             case "custom_workflow":
-                output = await host_manager.execute_custom_workflow(workflow_name=testing_config["id"], initial_input=testing_config["input"])
+                output = await host_manager.execute_custom_workflow(workflow_name=test_id, initial_input=test_input)
             case _:
-                raise ValueError(f"Unrecognized type {testing_config['type']}")
+                raise ValueError(f"Unrecognized type {test_type}")
     
     logging.info(f'Agent result {i+1}: {output.get("final_response").content[0].text}')
     
     # analyze the agent/workflow output, overriding system prompt
-    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=output.get("final_response").content[0].text, system_prompt=prompts["qa_system_prompt"])
+    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output.get("final_response").content[0].text}", system_prompt=prompts["qa_system_prompt"])
             
     logging.info(f'Analysis result {i+1}: {analysis_output.get("final_response").content[0].text}')
     
@@ -79,6 +79,8 @@ async def _run_single_iteration(host_manager: HostManager, testing_config, promp
         analysis_json = json.loads(clean_thinking_output(analysis_output.get("final_response").content[0].text))
     except Exception as e:
         raise ValueError(f"Error converting agent output to json: {e}")
+    
+    analysis_json["input"] = test_input
     
     return analysis_json
 
@@ -93,7 +95,9 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
     
-    tasks = [_run_single_iteration(host_manager,testing_config,prompts,i) for i in range(num_iterations)]
+    test_input = [testing_config["input"]] if type(testing_config["input"]) is str else testing_config["input"]
+    
+    tasks = [_run_single_iteration(host_manager,testing_config["type"],testing_config["id"],t_in,prompts,i) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
@@ -161,3 +165,12 @@ async def evaluate_results_ab(host_manager: HostManager, testing_config, results
     logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")
                 
     return ab_output.get("final_response").content[0].text
+
+async def improve_prompt(host_manager: HostManager, testing_config, results):
+    current_prompt = host_manager.agent_configs[testing_config["id"]].system_prompt
+    
+    user_message = f"""System Prompt: {current_prompt}\n\nExample Input: {testing_config["input"]}\n\nAssessment:{results}"""
+    
+    new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
+    
+    return new_prompt_output.get("final_response").content[0].text
