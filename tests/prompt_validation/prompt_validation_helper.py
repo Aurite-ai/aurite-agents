@@ -125,27 +125,6 @@ async def run_iterations(host_manager: HostManager, testing_config, override_sys
         
     return results
 
-async def run_iterations_ab(host_manager: HostManager, testing_config) -> dict:
-    """Run iterations of the agent/workflow and the analysis agent for a/b testing
-    
-    Returns:
-        List of analysis results"""
-    prompts = prepare_prompts(testing_config)
-                    
-    num_iterations = testing_config.get("iterations", 1)
-    if type(num_iterations) is not int or num_iterations < 1:
-        raise ValueError("iterations must be a positive integer")
-    
-    tasks_a = [_run_single_iteration(host_manager,testing_config,prompts,i) for i in range(num_iterations)]
-    
-    results_a = await asyncio.gather(*tasks_a)
-    
-    tasks_b = [_run_single_iteration(host_manager,testing_config,prompts,i,testing_config["new_prompt"]) for i in range(num_iterations)]
-    
-    results_b = await asyncio.gather(*tasks_b)
-        
-    return {"A": results_a, "B": results_b}
-
 async def evaluate_results(host_manager: HostManager, testing_config, results: list):
     prompts = prepare_prompts(testing_config)
     
@@ -193,3 +172,18 @@ async def improve_prompt(host_manager: HostManager, results, current_prompt):
     new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
     
     return new_prompt_output.get("final_response").content[0].text
+
+def load_config(testing_config_path: str) -> dict:
+    """Load the config from path and validate the file path and data within"""
+    
+    if testing_config_path.suffix != ".json":
+        raise ValueError("Testing config file has wrong extension (.json expected)")
+    if not testing_config_path.exists():
+        raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
+        
+    with open(testing_config_path, "r") as f:
+        testing_config = json.load(f)
+        
+    ValidationConfig.model_validate(testing_config, strict=True)
+    
+    return testing_config

@@ -1,12 +1,13 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
 import json
+import asyncio
 from typing import Any
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations_ab, evaluate_results_ab
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results_ab, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +35,20 @@ class ABTestingWorkflow:
             
             testing_config_path = initial_input["config_path"]
             
-            if not testing_config_path.exists():
-                raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
+            testing_config = load_config(testing_config_path)
                 
-            with open(testing_config_path, "r") as f:
-                testing_config = json.load(f)
-                
-            results = await run_iterations_ab(host_manager=host_manager, testing_config=testing_config)
-                
+            results = await asyncio.gather(
+                run_iterations(host_manager=host_manager, testing_config=testing_config),
+                run_iterations(host_manager=host_manager, testing_config=testing_config,override_system_prompt=testing_config["new_prompt"])
+            )
+                        
+            formatted_results = {
+                "A": results[0],
+                "B": results[1]
+            }
+                                
             # final results based on eval type
-            final_result = await evaluate_results_ab(host_manager, testing_config, results)
+            final_result = await evaluate_results_ab(host_manager, testing_config, formatted_results)
             
             return_value = {
                 "status": "success",
@@ -58,10 +63,13 @@ class ABTestingWorkflow:
                 f"ABTestingWorkflow returning: type={type(return_value)}, value={return_value}"
             )
             
-            # write output into config file
-            testing_config["output"] = final_result
-            with open(testing_config_path, "w") as f:
-                json.dump(testing_config, f, indent=4)
+            # write output 
+            output = {
+                "output": final_result
+            }
+            output_path = testing_config_path.with_name(testing_config_path.stem + "_output.json")
+            with open(output_path, "w") as f:
+                json.dump(output, f, indent=4)
             
             return return_value
         except Exception as e:

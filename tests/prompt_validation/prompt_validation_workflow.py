@@ -6,7 +6,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, ValidationConfig
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, load_config, ValidationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +34,7 @@ class PromptValidationWorkflow:
             
             testing_config_path = initial_input["config_path"]
             
-            if testing_config_path.suffix != ".json":
-                raise ValueError("Testing config file has wrong extension (.json expected)")
-            if not testing_config_path.exists():
-                raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
-                
-            with open(testing_config_path, "r") as f:
-                testing_config = json.load(f)
-                
-            ValidationConfig.model_validate(testing_config, strict=True)
+            testing_config = load_config(testing_config_path)
                 
             improved_prompt = None
             
