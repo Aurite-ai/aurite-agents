@@ -125,7 +125,6 @@ async def run_iterations_ab(host_manager: HostManager, testing_config) -> dict:
     return {"A": results_a, "B": results_b}
 
 async def evaluate_results(host_manager: HostManager, testing_config, results: list):
-    num_iterations = testing_config.get("iterations", 1)
     prompts = prepare_prompts(testing_config)
     
     match testing_config.get("evaluation_type", "default"):
@@ -134,9 +133,9 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
             final_score = 0
             for key in results[0]["output"].keys():
                 total = 0
-                for i in range(num_iterations):
+                for i in range(len(results)):
                     total += results[i]["output"][key]
-                final_results[key] = total/num_iterations
+                final_results[key] = total/len(results)
                 
             for criteria in testing_config["rubric"]["criteria"]:
                 final_score += final_results[criteria["name"]] * criteria["weight"]
@@ -149,7 +148,7 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
                 "weighted_score": final_score,
             }
         case "default":
-            if num_iterations > 1:
+            if len(results) > 1:
                 aggregation_output = await host_manager.execute_agent(agent_name="Aggregation Agent", user_message=",\n".join([json.dumps(r) for r in results]))
                 logging.info(f"Aggregated Validation Output: {aggregation_output.get("final_response").content[0].text}")
                 
