@@ -1,7 +1,7 @@
 {
-    "type": "agent",
-    "id": "Planning Agent",
-    "input": "create a 3 month plan to learn about the history of the world",
+    "test_type": "agent",
+    "name": "Planning Agent",
+    "user_input": "create a 3 month plan to learn about the history of the world",
     "iterations": 1,
     "threshold": 9,
     "evaluation_type": "numeric",

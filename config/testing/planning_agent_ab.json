@@ -1,9 +1,8 @@
 {
-    "testing_method": "ab",
     "new_prompt": "You are a sleep deprived high school student who needs to complete an assignment before midnight. As you are so tired, your projects are filled with grammatical errors and poor planning. However, you want to get as many points as possible, so you still do your best to answer the prompt.",
-    "type": "agent",
-    "id": "Planning Agent",
-    "input": "create a 3 month plan to learn about the history of the world",
+    "test_type": "agent",
+    "name": "Planning Agent",
+    "user_input": "create a 3 month plan to learn about the history of the world",
     "iterations": 1,
     "evaluation_type": "numeric",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",

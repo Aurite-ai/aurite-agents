@@ -2,13 +2,13 @@
 Updated as of 4/22/2025
 
 
-- type
+- test_type
   - "agent" or "workflow" or "custom_workflow"
-  - The object being tested
-- id
+  - The type of object being tested
+- name
   - str
-  - The id of the object being tested. Should match the name in config file
-- input
+  - The name of the object being tested. Should match the name in config file
+- user_input
   - str or list[str]
   - The input to be used as the initial user input. If a list of strings, it will run it with each separately
 - iterations
@@ -56,3 +56,7 @@ Updated as of 4/22/2025
 - edit_prompt
   - bool, default false
   - If the prompt validator should try to improve the prompt if it fails to meet threshold. The new prompt will be used in the next retry, and the final prompt will be included with the output
+
+- new_prompt
+  - str, optional
+  - For A/B Testing. The new prompt to try and compare to the original prompt

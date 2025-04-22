@@ -1,8 +1,31 @@
 import json
 import asyncio
 import logging
+from pydantic import BaseModel, Field
 from src.host.models import AgentConfig
 from src.host_manager import HostManager
+
+class ValidationCriteria(BaseModel):
+    name: str
+    description: str
+    weight: float | None = None
+    
+class ValidationRubric(BaseModel):
+    criteria: list[ValidationCriteria]
+
+class ValidationConfig(BaseModel):
+    test_type: str = Field(..., description="The type of object being tested", pattern="^(agent|workflow|custom_workflow)$")
+    name: str = Field(..., description="The name of the object being tested. Should match the name in config file")
+    user_input: str | list[str] = Field(..., description="The input to be used as the initial user input. If a list of strings, it will run it with each separately")
+    iterations: int = Field(default=1, description="The total number of iterations to do when running the agent/workflow")
+    testing_prompt: str = Field(..., description="The prompt to be passed to the evaluation agent")
+    rubric: ValidationRubric = Field(..., description="The rubric to use when evaluating the agent")
+    evaluation_type: str = Field(default="default", description="If the output should be a score from 0-10 (numeric), or semantic (default)", pattern="^(numeric|default)$")
+    threshold: float | None = Field(None, description="The expected score threshold for the numeric evaluation_type", ge=0, le=10)
+    retry: bool = Field(default=False, description="If the process should retry if it fails to pass the threshold score")
+    max_retries: int = Field(default=0, description="The maximum retries, after the initial run")
+    edit_prompt: bool = Field(default=False, description="If the prompt validator should try to improve the prompt if it fails to meet threshold")
+    new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
 
 def prepare_prompts(testing_config: dict):
     type_prompts = {
@@ -19,7 +42,7 @@ def prepare_prompts(testing_config: dict):
     if evaluation_type not in type_prompts:
         raise ValueError(f"Evaluation type not recognized '{evaluation_type}', Expected types: {list(type_prompts.keys())}")
     
-    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config["id"]} based on a given input.
+    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config["name"]} based on a given input.
     You have been provided with a prompt explaining how you should evaluate it.
     Here is the system prompt provided: "{testing_config["testing_prompt"]}"
     This prompt explains how to evaluate the output using this rubric: {json.dumps(testing_config["rubric"])}
@@ -95,9 +118,9 @@ async def run_iterations(host_manager: HostManager, testing_config, override_sys
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
     
-    test_input = [testing_config["input"]] if type(testing_config["input"]) is str else testing_config["input"]
+    test_input = [testing_config["user_input"]] if type(testing_config["user_input"]) is str else testing_config["user_input"]
     
-    tasks = [_run_single_iteration(host_manager,testing_config["type"],testing_config["id"],t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
+    tasks = [_run_single_iteration(host_manager,testing_config["test_type"],testing_config["name"],t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
@@ -165,9 +188,7 @@ async def evaluate_results_ab(host_manager: HostManager, testing_config, results
                 
     return ab_output.get("final_response").content[0].text
 
-async def improve_prompt(host_manager: HostManager, results, current_prompt):
-    # current_prompt = host_manager.agent_configs[testing_config["id"]].system_prompt
-    
+async def improve_prompt(host_manager: HostManager, results, current_prompt):    
     user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
     
     new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)

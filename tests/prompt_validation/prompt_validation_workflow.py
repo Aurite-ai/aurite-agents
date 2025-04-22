@@ -6,7 +6,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, ValidationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,8 @@ class PromptValidationWorkflow:
             with open(testing_config_path, "r") as f:
                 testing_config = json.load(f)
                 
+            ValidationConfig.model_validate(testing_config, strict=True)
+                
             improved_prompt = None
             
             for i in range(1+testing_config.get("max_retries", 0)):
@@ -53,7 +55,7 @@ class PromptValidationWorkflow:
                 if "weighted_score" in final_result and "threshold" in testing_config:
                     if final_result["weighted_score"] < testing_config["threshold"]:
                         if testing_config.get("edit_prompt"):
-                            current_prompt = improved_prompt or host_manager.agent_configs[testing_config["id"]].system_prompt
+                            current_prompt = improved_prompt or host_manager.agent_configs[testing_config["name"]].system_prompt
                             improved_prompt = await improve_prompt(host_manager, results, current_prompt)
                     else:
                         logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config["threshold"]})")
