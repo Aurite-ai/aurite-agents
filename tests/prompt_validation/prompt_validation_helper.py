@@ -2,7 +2,6 @@ import json
 import asyncio
 import logging
 from pydantic import BaseModel, Field
-from src.host.models import AgentConfig
 from src.host_manager import HostManager
 
 class ValidationCriteria(BaseModel):

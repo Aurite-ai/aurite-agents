@@ -8,9 +8,6 @@ import pytest
 pytestmark = pytest.mark.anyio
 
 from src.host_manager import HostManager
-from src.host.models import (
-    CustomWorkflowConfig,
-)
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
 class TestABTesting:
