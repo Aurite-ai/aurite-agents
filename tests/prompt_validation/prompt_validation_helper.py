@@ -24,7 +24,7 @@ def prepare_prompts(testing_config: dict):
     Here is the system prompt provided: "{testing_config["testing_prompt"]}"
     This prompt explains how to evaluate the output using this rubric: {json.dumps(testing_config["rubric"])}
 
-    Format your output as JSON. IMPORTANT: Do not include any other text, and do not format it as a code block (```). Start with {{ and end with }}. Here is a template: {{
+    Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do not format it as a code block (```). Here is a template: {{
         "analysis": "<your analysis here>",
         "output": {type_prompts[evaluation_type]}
     }}
@@ -53,7 +53,7 @@ async def _run_single_iteration(host_manager: HostManager, test_type, test_id, t
     
     if override_system_prompt:
         if test_type != "agent":
-            raise ValueError(f"Invalid type {test_type}, A/B testing only works with agents")
+            raise ValueError(f"Invalid type {test_type}, overriding system prompt only works with agents")
         else:
             output = await host_manager.execute_agent(agent_name=test_id, user_message=test_input, system_prompt=override_system_prompt)
     else:
@@ -84,7 +84,7 @@ async def _run_single_iteration(host_manager: HostManager, test_type, test_id, t
     
     return analysis_json
 
-async def run_iterations(host_manager: HostManager, testing_config) -> list:
+async def run_iterations(host_manager: HostManager, testing_config, override_system_prompt: str | None = None) -> list:
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
     
     Returns:
@@ -97,7 +97,7 @@ async def run_iterations(host_manager: HostManager, testing_config) -> list:
     
     test_input = [testing_config["input"]] if type(testing_config["input"]) is str else testing_config["input"]
     
-    tasks = [_run_single_iteration(host_manager,testing_config["type"],testing_config["id"],t_in,prompts,i) for i in range(num_iterations) for t_in in test_input]
+    tasks = [_run_single_iteration(host_manager,testing_config["type"],testing_config["id"],t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
@@ -166,10 +166,10 @@ async def evaluate_results_ab(host_manager: HostManager, testing_config, results
                 
     return ab_output.get("final_response").content[0].text
 
-async def improve_prompt(host_manager: HostManager, testing_config, results):
-    current_prompt = host_manager.agent_configs[testing_config["id"]].system_prompt
+async def improve_prompt(host_manager: HostManager, results, current_prompt):
+    # current_prompt = host_manager.agent_configs[testing_config["id"]].system_prompt
     
-    user_message = f"""System Prompt: {current_prompt}\n\nExample Input: {testing_config["input"]}\n\nAssessment:{results}"""
+    user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
     
     new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
     

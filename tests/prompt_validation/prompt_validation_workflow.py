@@ -42,15 +42,23 @@ class PromptValidationWorkflow:
             with open(testing_config_path, "r") as f:
                 testing_config = json.load(f)
                 
-            results = await run_iterations(host_manager=host_manager, testing_config=testing_config)
-                
-            # final results based on eval type
-            final_result = await evaluate_results(host_manager, testing_config, results)
-            
             improved_prompt = None
-            if "weighted_score" in final_result and "threshold" in testing_config:
-                if final_result["weighted_score"] < testing_config["threshold"]:
-                    improved_prompt = await improve_prompt(host_manager, testing_config, results)
+            
+            for i in range(testing_config.get("max_repetitions", 1)):
+                results = await run_iterations(host_manager=host_manager, testing_config=testing_config, override_system_prompt=improved_prompt)
+                    
+                # final results based on eval type
+                final_result = await evaluate_results(host_manager, testing_config, results)
+                
+                if "weighted_score" in final_result and "threshold" in testing_config:
+                    if final_result["weighted_score"] < testing_config["threshold"]:
+                        current_prompt = improved_prompt or host_manager.agent_configs[testing_config["id"]].system_prompt
+                        improved_prompt = await improve_prompt(host_manager, results, current_prompt)
+                    else:
+                        logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config["threshold"]})")
+                        break
+                else:
+                    break
             
             return_value = {
                 "status": "success",
