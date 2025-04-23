@@ -7,6 +7,7 @@
     "retry": true,
     "max_retries": 0,
     "edit_prompt": true,
+    "editor_model": "claude",
     "evaluation_type": "numeric",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
     "rubric": {

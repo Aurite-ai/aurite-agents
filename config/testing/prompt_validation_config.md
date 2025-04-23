@@ -56,7 +56,9 @@ Updated as of 4/22/2025
 - edit_prompt
   - bool, default false
   - If the prompt validator should try to improve the prompt if it fails to meet threshold. The new prompt will be used in the next retry, and the final prompt will be included with the output
-
+- editor_model
+  - "gemini" or "claude", default "gemini"
+  - The model to use for prompt editing. If gemini, will pass the full agent output + summary, and if claude will only use the summary
 - new_prompt
   - str, optional
   - For A/B Testing. The new prompt to try and compare to the original prompt

@@ -48,7 +48,7 @@ class PromptValidationWorkflow:
                     if final_result["weighted_score"] < testing_config["threshold"]:
                         if testing_config.get("edit_prompt"):
                             current_prompt = improved_prompt or host_manager.agent_configs[testing_config["name"]].system_prompt
-                            improved_prompt = await improve_prompt(host_manager, results, current_prompt)
+                            improved_prompt = await improve_prompt(host_manager, testing_config.get("editor_model", "gemini"), results, current_prompt)
                     else:
                         logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config["threshold"]})")
                         break

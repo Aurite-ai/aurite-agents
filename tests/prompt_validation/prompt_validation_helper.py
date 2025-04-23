@@ -25,6 +25,7 @@ class ValidationConfig(BaseModel):
     retry: bool = Field(default=False, description="If the process should retry if it fails to pass the threshold score")
     max_retries: int = Field(default=0, description="The maximum retries, after the initial run")
     edit_prompt: bool = Field(default=False, description="If the prompt validator should try to improve the prompt if it fails to meet threshold")
+    editor_model: str = Field(default="gemini", description="The model to use for prompt editing", pattern="^(gemini|claude)$")
     new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
 
 def prepare_prompts(testing_config: dict):
@@ -182,27 +183,33 @@ async def evaluate_results_ab(host_manager: HostManager, testing_config, results
                 
     return ab_output.get("final_response").content[0].text
 
-async def improve_prompt(host_manager: HostManager, results, current_prompt):    
-    '''
-    user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
-    
-    new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
-    
-    return new_prompt_output.get("final_response").content[0].text
-    '''
-    
-    #now use gemini to improve the prompt
-    client = genai.Client()
-    
-    response = client.models.generate_content(
-        model="gemini-2.5-pro-preview-03-25",
-        config=genai.types.GenerateContentConfig(
-            system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
-        ),
-        contents=json.dumps({"current_prompt": current_prompt, "samples": results})
-    )
-    
-    return response.text
+async def improve_prompt(host_manager: HostManager, model, results, current_prompt):    
+    match model:
+        case "claude":
+            for res in results: #remove output to reduce tokens
+                res.pop("output")
+            
+            user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
+            
+            new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
+            
+            return new_prompt_output.get("final_response").content[0].text
+            
+        case "gemini":
+            #now use gemini to improve the prompt
+            client = genai.Client()
+            
+            response = client.models.generate_content(
+                model="gemini-2.5-pro-preview-03-25",
+                config=genai.types.GenerateContentConfig(
+                    system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
+                ),
+                contents=json.dumps({"current_prompt": current_prompt, "samples": results})
+            )
+            
+            return response.text
+        case _:
+            raise ValueError(f"Unrecognized prompt editor model {model}")
     
 
 def load_config(testing_config_path: str) -> dict:
