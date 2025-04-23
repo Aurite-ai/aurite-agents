@@ -1,6 +1,7 @@
 import json
 import asyncio
 import logging
+from google import genai
 from pydantic import BaseModel, Field
 from src.host_manager import HostManager
 
@@ -48,7 +49,7 @@ def prepare_prompts(testing_config: dict):
 
     Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do not format it as a code block (```). Here is a template: {{
         "analysis": "<your analysis here>",
-        "output": {type_prompts[evaluation_type]}
+        "grade": {type_prompts[evaluation_type]}
     }}
     """
     aggregation_system_prompt = """You are a Quality Assurance Agent. Your task is to aggregate multiple reports from a coworker into a single report. 
@@ -68,11 +69,14 @@ def clean_thinking_output(output: str) -> str:
     if index > 0:
         output = output[index + len(substring):]
         
+    # also trim to first curly brace to remove any preambles like "Here is the json: {}" 
+    index = output.find("{")
+    if index > 0:
+        output = output[index:]
+        
     return output
 
-async def _run_single_iteration(host_manager: HostManager, test_type, test_id, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
-    logging.info(f"Prompt Validation: Iteration {i+1}")
-    
+async def _get_agent_result(host_manager: HostManager, test_type, test_id, test_input, override_system_prompt: str | None = None) -> str:
     if override_system_prompt:
         if test_type != "agent":
             raise ValueError(f"Invalid type {test_type}, overriding system prompt only works with agents")
@@ -90,19 +94,31 @@ async def _run_single_iteration(host_manager: HostManager, test_type, test_id, t
             case _:
                 raise ValueError(f"Unrecognized type {test_type}")
     
-    logging.info(f'Agent result {i+1}: {output.get("final_response").content[0].text}')
+    if test_type == "agent":
+        output = output.get("final_response").content[0].text
+    
+    logging.info(f'Agent result: {output}')
+    
+    return output
+    
+async def _run_single_iteration(host_manager: HostManager, test_type, test_id, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
+    logging.info(f"Prompt Validation: Iteration {i+1}")
+    
+    output = await _get_agent_result(host_manager, test_type, test_id, test_input, override_system_prompt)
     
     # analyze the agent/workflow output, overriding system prompt
-    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output.get("final_response").content[0].text}", system_prompt=prompts["qa_system_prompt"])
-            
-    logging.info(f'Analysis result {i+1}: {analysis_output.get("final_response").content[0].text}')
+    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
+    analysis_output = analysis_output.get("final_response").content[0].text
+    
+    logging.info(f'Analysis result {i+1}: {analysis_output}')
     
     try:
-        analysis_json = json.loads(clean_thinking_output(analysis_output.get("final_response").content[0].text))
+        analysis_json = json.loads(clean_thinking_output(analysis_output))
     except Exception as e:
         raise ValueError(f"Error converting agent output to json: {e}")
     
     analysis_json["input"] = test_input
+    analysis_json["output"] = output
     
     return analysis_json
 
@@ -132,10 +148,10 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
         case "numeric":
             final_results = {}
             final_score = 0
-            for key in results[0]["output"].keys():
+            for key in results[0]["grade"].keys():
                 total = 0
                 for i in range(len(results)):
-                    total += results[i]["output"][key]
+                    total += results[i]["grade"][key]
                 final_results[key] = total/len(results)
                 
             for criteria in testing_config["rubric"]["criteria"]:
@@ -167,11 +183,27 @@ async def evaluate_results_ab(host_manager: HostManager, testing_config, results
     return ab_output.get("final_response").content[0].text
 
 async def improve_prompt(host_manager: HostManager, results, current_prompt):    
+    '''
     user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
     
     new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
     
     return new_prompt_output.get("final_response").content[0].text
+    '''
+    
+    #now use gemini to improve the prompt
+    client = genai.Client()
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-pro-preview-03-25",
+        config=genai.types.GenerateContentConfig(
+            system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
+        ),
+        contents=json.dumps({"current_prompt": current_prompt, "samples": results})
+    )
+    
+    return response.text
+    
 
 def load_config(testing_config_path: str) -> dict:
     """Load the config from path and validate the file path and data within"""
