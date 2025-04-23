@@ -38,19 +38,19 @@ class PromptValidationWorkflow:
                 
             improved_prompt = None
             
-            for i in range(1+testing_config.get("max_retries", 0)):
+            for i in range(1+testing_config.max_retries):
                 results = await run_iterations(host_manager=host_manager, testing_config=testing_config, override_system_prompt=improved_prompt)
                     
                 # final results based on eval type
                 final_result = await evaluate_results(host_manager, testing_config, results)
                 
-                if "weighted_score" in final_result and "threshold" in testing_config:
-                    if final_result["weighted_score"] < testing_config["threshold"]:
-                        if testing_config.get("edit_prompt"):
-                            current_prompt = improved_prompt or host_manager.agent_configs[testing_config["name"]].system_prompt
-                            improved_prompt = await improve_prompt(host_manager, testing_config.get("editor_model", "gemini"), results, current_prompt)
+                if "weighted_score" in final_result and testing_config.threshold is not None:
+                    if final_result["weighted_score"] < testing_config.threshold:
+                        if testing_config.edit_prompt:
+                            current_prompt = improved_prompt or host_manager.agent_configs[testing_config.name].system_prompt
+                            improved_prompt = await improve_prompt(host_manager, testing_config.editor_model, results, current_prompt)
                     else:
-                        logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config["threshold"]})")
+                        logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config.threshold})")
                         break
                 else:
                     break

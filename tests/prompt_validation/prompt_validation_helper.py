@@ -28,7 +28,7 @@ class ValidationConfig(BaseModel):
     editor_model: str = Field(default="gemini", description="The model to use for prompt editing", pattern="^(gemini|claude)$")
     new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
 
-def prepare_prompts(testing_config: dict):
+def prepare_prompts(testing_config: ValidationConfig):
     type_prompts = {
         "numeric": """{
             "<first criteria name>": <score from 1-10 here>,
@@ -38,15 +38,15 @@ def prepare_prompts(testing_config: dict):
         "default": """<overall assessment (Very Bad, Poor, Average, Good, Excellent)>"""
     }
     
-    evaluation_type = testing_config.get("evaluation_type", "default")
+    evaluation_type = testing_config.evaluation_type
     
     if evaluation_type not in type_prompts:
         raise ValueError(f"Evaluation type not recognized '{evaluation_type}', Expected types: {list(type_prompts.keys())}")
     
-    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config["name"]} based on a given input.
+    qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config.name} based on a given input.
     You have been provided with a prompt explaining how you should evaluate it.
-    Here is the system prompt provided: "{testing_config["testing_prompt"]}"
-    This prompt explains how to evaluate the output using this rubric: {json.dumps(testing_config["rubric"])}
+    Here is the system prompt provided: "{testing_config.testing_prompt}"
+    This prompt explains how to evaluate the output using this rubric: {testing_config.rubric.model_dump_json()}
 
     Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do not format it as a code block (```). Here is a template: {{
         "analysis": "<your analysis here>",
@@ -123,29 +123,30 @@ async def _run_single_iteration(host_manager: HostManager, test_type, test_id, t
     
     return analysis_json
 
-async def run_iterations(host_manager: HostManager, testing_config, override_system_prompt: str | None = None) -> list:
+async def run_iterations(host_manager: HostManager, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> list:
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
     
     Returns:
         List of analysis results"""
     prompts = prepare_prompts(testing_config)
                     
-    num_iterations = testing_config.get("iterations", 1)
+    num_iterations = testing_config.iterations
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
     
-    test_input = [testing_config["user_input"]] if type(testing_config["user_input"]) is str else testing_config["user_input"]
+    # convert to list[str] if given input is a single string
+    test_input = [testing_config.user_input] if type(testing_config.user_input) is str else testing_config.user_input
     
-    tasks = [_run_single_iteration(host_manager,testing_config["test_type"],testing_config["name"],t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
+    tasks = [_run_single_iteration(host_manager,testing_config.test_type,testing_config.name,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
     return results
 
-async def evaluate_results(host_manager: HostManager, testing_config, results: list):
+async def evaluate_results(host_manager: HostManager, testing_config: ValidationConfig, results: list):
     prompts = prepare_prompts(testing_config)
     
-    match testing_config.get("evaluation_type", "default"):
+    match testing_config.evaluation_type:
         case "numeric":
             final_results = {}
             final_score = 0
@@ -155,8 +156,8 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
                     total += results[i]["grade"][key]
                 final_results[key] = total/len(results)
                 
-            for criteria in testing_config["rubric"]["criteria"]:
-                final_score += final_results[criteria["name"]] * criteria["weight"]
+            for criteria in testing_config.rubric.criteria:
+                final_score += final_results[criteria.name] * criteria.weight
                 
             logging.info(f"Final Prompt Validation Results: {final_results}")
             logging.info(f"Final Prompt Validation Weighted Score: {final_score}/10")
@@ -176,7 +177,7 @@ async def evaluate_results(host_manager: HostManager, testing_config, results: l
                 
                 return json.dumps(results[0])
             
-async def evaluate_results_ab(host_manager: HostManager, testing_config, results: dict):
+async def evaluate_results_ab(host_manager: HostManager, testing_config: ValidationConfig, results: dict):
     ab_output = await host_manager.execute_agent(agent_name="A/B Agent", user_message=json.dumps(results))
     
     logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")
@@ -212,7 +213,7 @@ async def improve_prompt(host_manager: HostManager, model, results, current_prom
             raise ValueError(f"Unrecognized prompt editor model {model}")
     
 
-def load_config(testing_config_path: str) -> dict:
+def load_config(testing_config_path: str) -> ValidationConfig:
     """Load the config from path and validate the file path and data within"""
     
     if testing_config_path.suffix != ".json":
@@ -221,8 +222,8 @@ def load_config(testing_config_path: str) -> dict:
         raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
         
     with open(testing_config_path, "r") as f:
-        testing_config = json.load(f)
+        testing_config_data = json.load(f)
         
-    ValidationConfig.model_validate(testing_config, strict=True)
+    testing_config = ValidationConfig.model_validate(testing_config_data, strict=True)
     
     return testing_config
