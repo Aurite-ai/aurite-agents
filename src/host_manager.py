@@ -571,6 +571,7 @@ class HostManager:
                 result = await agent.execute_agent(
                     user_message=user_message,
                     host_instance=self.host,
+                    system_prompt=agent_config.system_prompt or "You are a helpful assistant.",
                 )
             logger.info(f"Agent '{agent_name}' execution finished.")
             return result
