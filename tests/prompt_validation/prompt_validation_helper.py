@@ -1,4 +1,5 @@
 import json
+import yaml
 import asyncio
 import logging
 from google import genai
@@ -216,14 +217,18 @@ async def improve_prompt(host_manager: HostManager, model, results, current_prom
 def load_config(testing_config_path: str) -> ValidationConfig:
     """Load the config from path and validate the file path and data within"""
     
-    if testing_config_path.suffix != ".json":
-        raise ValueError("Testing config file has wrong extension (.json expected)")
     if not testing_config_path.exists():
         raise FileNotFoundError(f"Testing config file not found at {testing_config_path}")
-        
-    with open(testing_config_path, "r") as f:
-        testing_config_data = json.load(f)
-        
-    testing_config = ValidationConfig.model_validate(testing_config_data, strict=True)
     
+    with open(testing_config_path, "r") as f:
+        match testing_config_path.suffix:
+            case ".json":
+                testing_config_data = json.load(f)
+            case ".yaml":
+                testing_config_data = yaml.load(f, Loader=yaml.SafeLoader)
+            case _:
+                raise ValueError("Testing config file has wrong extension (.json or .yaml expected)")
+    
+    testing_config = ValidationConfig.model_validate(testing_config_data, strict=True)
+            
     return testing_config
