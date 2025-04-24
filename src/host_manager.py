@@ -522,7 +522,7 @@ class HostManager:
     # --- Execution Methods ---
 
     async def execute_agent(
-        self, agent_name: str, user_message: str, system_prompt: Optional[str]
+        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executes a configured agent by name.
@@ -560,7 +560,8 @@ class HostManager:
             # logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
 
             # 4. Execute the agent
-            if system_prompt:
+            if system_prompt is not None:
+                # Use the provided system prompt if available
                 logger.debug(f"Using system prompt for '{agent_name}': {system_prompt}")
                 result = await agent.execute_agent(
                     user_message=user_message,
