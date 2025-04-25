@@ -20,27 +20,27 @@ Updated as of 4/22/2025
 - rubric
   - dict, example below
   - The rubric to use when evaluating the agent. Expects weight if evaluation_type is numeric, otherwise optional
-```json 
-    "rubric": {
-        "criteria": [
-            {
-                "name": "Completeness",
-                "description": "The plan covers all details asked for in the initial prompt.",
-                "weight": 0.4
-            },
-            {
-                "name": "Clarity",
-                "description": "The plan is easy to understand and follow.",
-                "weight": 0.3
-            },
-            {
-                "name": "Feasibility",
-                "description": "The plan is realistic and achievable within the given time frame.",
-                "weight": 0.3
-            }
-        ]
-    }
-```
+  ```json 
+      "rubric": {
+          "criteria": [
+              {
+                  "name": "Completeness",
+                  "description": "The plan covers all details asked for in the initial prompt.",
+                  "weight": 0.4
+              },
+              {
+                  "name": "Clarity",
+                  "description": "The plan is easy to understand and follow.",
+                  "weight": 0.3
+              },
+              {
+                  "name": "Feasibility",
+                  "description": "The plan is realistic and achievable within the given time frame.",
+                  "weight": 0.3
+              }
+          ]
+      }
+  ```
 - evaluation_type
   - "numeric" or "default"
   - If the output should be a score from 0-10 (numeric), or semantic (default)
@@ -62,3 +62,20 @@ Updated as of 4/22/2025
 - new_prompt
   - str, optional
   - For A/B Testing. The new prompt to try and compare to the original prompt
+- expected_tools
+  - list[dict], default []
+  - A list of tool calls expected to occur, ignored if test_type is not agent
+  - Each entry must have **name**, the tool name, and one or more rules from among **eq**, **lt**, **le**, **gt**, **ge**. In the below example, tool_a must be called once and tool_b must be called more than 0 and less than or equal to 3 times:
+  ```json 
+    "expected_tools": [
+      {
+        "name": "tool_a",
+        "eq": 1
+      },
+      {
+        "name": "tool_b",
+        "gt": 0,
+        "le": 3
+      }
+    ]      
+  ```

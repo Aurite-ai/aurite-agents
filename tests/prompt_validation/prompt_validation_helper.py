@@ -13,7 +13,15 @@ class ValidationCriteria(BaseModel):
     
 class ValidationRubric(BaseModel):
     criteria: list[ValidationCriteria]
-
+    
+class ExpectedToolCall(BaseModel):
+    name: str
+    eq: int | None = None
+    lt: int | None = None
+    le: int | None = None
+    gt: int | None = None
+    ge: int | None = None
+    
 class ValidationConfig(BaseModel):
     test_type: str = Field(..., description="The type of object being tested", pattern="^(agent|workflow|custom_workflow)$")
     name: str = Field(..., description="The name of the object being tested. Should match the name in config file")
@@ -28,6 +36,7 @@ class ValidationConfig(BaseModel):
     edit_prompt: bool = Field(default=False, description="If the prompt validator should try to improve the prompt if it fails to meet threshold")
     editor_model: str = Field(default="gemini", description="The model to use for prompt editing", pattern="^(gemini|claude)$")
     new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
+    expected_tools: list[ExpectedToolCall] = Field([], description="A list of tool calls expected to occur, ignored if test_type is not agent")
 
 def prepare_prompts(testing_config: ValidationConfig):
     type_prompts = {
@@ -78,35 +87,40 @@ def clean_thinking_output(output: str) -> str:
         
     return output
 
-async def _get_agent_result(host_manager: HostManager, test_type, test_id, test_input, override_system_prompt: str | None = None) -> str:
+async def _get_agent_result(host_manager: HostManager, testing_config: ValidationConfig, test_input, override_system_prompt: str | None = None) -> str:
     if override_system_prompt:
-        if test_type != "agent":
-            raise ValueError(f"Invalid type {test_type}, overriding system prompt only works with agents")
+        if testing_config.test_type != "agent":
+            raise ValueError(f"Invalid type {testing_config.test_type}, overriding system prompt only works with agents")
         else:
-            output = await host_manager.execute_agent(agent_name=test_id, user_message=test_input, system_prompt=override_system_prompt)
+            output = await host_manager.execute_agent(agent_name=testing_config.name, user_message=test_input, system_prompt=override_system_prompt)
     else:
         # call the agent/workflow being tested
-        match test_type:
+        match testing_config.test_type:
             case "agent":
-                output = await host_manager.execute_agent(agent_name=test_id, user_message=test_input)
+                output = await host_manager.execute_agent(agent_name=testing_config.name, user_message=test_input)
             case "workflow":
-                output = await host_manager.execute_workflow(workflow_name=test_id, initial_user_message=test_input)
+                output = await host_manager.execute_workflow(workflow_name=testing_config.name, initial_user_message=test_input)
             case "custom_workflow":
-                output = await host_manager.execute_custom_workflow(workflow_name=test_id, initial_input=test_input)
+                output = await host_manager.execute_custom_workflow(workflow_name=testing_config.name, initial_input=test_input)
             case _:
-                raise ValueError(f"Unrecognized type {test_type}")
+                raise ValueError(f"Unrecognized type {testing_config.test_type}")
     
-    if test_type == "agent":
+    if testing_config.test_type == "agent":
+        if testing_config.expected_tools:
+            tool_check = check_tool_calls(output, testing_config.expected_tools)
+            if not tool_check["success"]:
+                raise RuntimeError(tool_check["message"])
+            
         output = output.get("final_response").content[0].text
     
     logging.info(f'Agent result: {output}')
     
     return output
     
-async def _run_single_iteration(host_manager: HostManager, test_type, test_id, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
+async def _run_single_iteration(host_manager: HostManager, testing_config: ValidationConfig, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
     logging.info(f"Prompt Validation: Iteration {i+1}")
     
-    output = await _get_agent_result(host_manager, test_type, test_id, test_input, override_system_prompt)
+    output = await _get_agent_result(host_manager, testing_config, test_input, override_system_prompt)
     
     # analyze the agent/workflow output, overriding system prompt
     analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
@@ -138,7 +152,7 @@ async def run_iterations(host_manager: HostManager, testing_config: ValidationCo
     # convert to list[str] if given input is a single string
     test_input = [testing_config.user_input] if type(testing_config.user_input) is str else testing_config.user_input
     
-    tasks = [_run_single_iteration(host_manager,testing_config.test_type,testing_config.name,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
+    tasks = [_run_single_iteration(host_manager,testing_config,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
@@ -232,3 +246,71 @@ def load_config(testing_config_path: str) -> ValidationConfig:
     testing_config = ValidationConfig.model_validate(testing_config_data, strict=True)
             
     return testing_config
+
+def extract_tool_calls(agent_response) -> list[dict]:
+    """Extract a list of tool calls from agent response"""
+    tool_calls = []
+    for item in agent_response.get("conversation", []):
+        if item.get("role") == "assistant":
+            for c in item.get("content", []):
+                if c.type == "tool_use":
+                    tool_calls.append({
+                        "name": c.name,
+                        "input": c.input
+                    })
+                    
+    return tool_calls
+
+def count_tool_calls(tool_calls: list[dict]) -> dict[str, int]:
+    """Count how many times tools are called by name"""
+    results = {}
+    for call in tool_calls:
+        if call["name"] not in results:
+            results[call["name"]] = 0
+        results[call["name"]] += 1
+        
+    return results
+
+def check_tool_calls(agent_response, expected_tools) -> dict:
+    """Check if the expected tools appear in the agent response
+    
+    Returns:
+        {
+            "success": bool, true if all expected tools appear
+            "message": str, error message if not successful }"""
+    
+    tool_calls = extract_tool_calls(agent_response)
+    call_counts = count_tool_calls(tool_calls)
+    
+    for expected in expected_tools:
+        count = call_counts.get(expected.name, 0)
+        
+        if expected.eq is not None and count != expected.eq:
+            return {
+                "success": False,
+                "message": f"Expected tool {expected.name} to be called == {expected.eq} time(s). Called {count} time(s) instead"
+            }
+        if expected.le is not None and count > expected.le:
+            return {
+                "success": False,
+                "message": f"Expected tool {expected.name} to be called <= {expected.le} time(s). Called {count} time(s) instead"
+            }
+        if expected.lt is not None and count >= expected.lt:
+            return {
+                "success": False,
+                "message": f"Expected tool {expected.name} to be called < {expected.lt} time(s). Called {count} time(s) instead"
+            }
+        if expected.ge is not None and count < expected.ge:
+            return {
+                "success": False,
+                "message": f"Expected tool {expected.name} to be called >= {expected.ge} time(s). Called {count} time(s) instead"
+            }
+        if expected.gt is not None and count <= expected.gt:
+            return {
+                "success": False,
+                "message": f"Expected tool {expected.name} to be called > {expected.gt} time(s). Called {count} time(s) instead"
+            }
+        
+    return {
+        "success": True
+    }

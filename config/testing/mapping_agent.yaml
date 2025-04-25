@@ -1,0 +1,27 @@
+test_type: agent
+name: Mapping Agent
+user_input: What is the distance between Alice and Bob's houses?
+iterations: 1
+threshold: 6
+retry: true
+max_retries: 0
+edit_prompt: false
+editor_model: gemini
+evaluation_type: numeric
+testing_prompt: Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.
+rubric:
+  criteria:
+    - name: Completeness
+      description: The plan covers all details asked for in the initial prompt.
+      weight: 0.4
+    - name: Clarity
+      description: The plan is easy to understand and follow.
+      weight: 0.3
+    - name: Feasibility
+      description: The plan is realistic and achievable within the given time frame.
+      weight: 0.3
+expected_tools:
+  - name: get_address
+    eq: 2
+  - name: calculate_distance
+    gt: 1
