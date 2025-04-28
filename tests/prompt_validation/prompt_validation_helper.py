@@ -86,6 +86,10 @@ def clean_thinking_output(output: str) -> str:
     if index > 0:
         output = output[index:]
         
+    output = output.replace("\n", " ")
+        
+    logging.info(f"clean_thinking_output returning {output}")
+        
     return output
 
 async def _get_agent_result(host_instance: MCPHost, testing_config: ValidationConfig, test_input, override_system_prompt: str | None = None) -> str:
