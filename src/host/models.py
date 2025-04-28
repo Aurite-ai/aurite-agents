@@ -88,6 +88,10 @@ class AgentConfig(BaseModel):
         None,
         description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
     )
+    evaluation: Optional[str] = Field(
+        None,
+        description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
+    )
 
 
 class WorkflowConfig(BaseModel):

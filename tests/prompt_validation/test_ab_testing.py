@@ -22,8 +22,9 @@ class TestABTesting:
             testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{config_file}"
         else:
             pytest.skip("No json config specified. Use --config=[filename]")
-            
-        await host_manager.register_config_file("config/prompt_validation_config.json")
+        
+        # moved to host_manager initialize()  
+        # await host_manager.register_config_file("config/prompt_validation_config.json")
                 
         result = await host_manager.execute_custom_workflow(
             workflow_name="A/B Testing Workflow", 

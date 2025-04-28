@@ -100,6 +100,10 @@ class HostManager:
             # 3. Initialize MCPHost (connects to clients, etc.)
             await self.host.initialize()
             logger.info("MCPHost initialized successfully.")
+            
+            # Also load the prompt validation config
+            await self.register_config_file("config/prompt_validation_config.json")
+            logger.info("Prompt Validation Config loaded.")
 
             logger.info("HostManager initialization complete.")
 
@@ -555,9 +559,14 @@ class HostManager:
             agent = Agent(config=agent_config)
             logger.debug(f"Instantiated Agent '{agent_name}'")
 
-            # 3. Extract client_ids for filtering
-            # filter_ids = agent_config.client_ids
-            # logger.debug(f"Applying client filter for '{agent_name}': {filter_ids}")
+            # 3. Determine if prompt evaluation should happen
+            if agent_config.evaluation:
+                logger.debug(f"Using evaluation for '{agent_name}'")
+                #TODO: determine if path to config or simple prompt. fill in default values if simple prompt
+                
+                #TODO: run a custom workflow instead of the agent directly
+                
+                #TODO: return the result of the workflow 
 
             # 4. Execute the agent
             if system_prompt:
