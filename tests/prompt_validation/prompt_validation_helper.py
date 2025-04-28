@@ -46,7 +46,7 @@ def prepare_prompts(testing_config: ValidationConfig):
             "<second criteria name>": <score from 1-10 here>,
             ...
         }""",
-        "default": """<overall assessment (Very Bad, Poor, Average, Good, Excellent)>"""
+        "default": "\"PASS\" or \"FAIL\""
     }
     
     evaluation_type = testing_config.evaluation_type
@@ -55,7 +55,7 @@ def prepare_prompts(testing_config: ValidationConfig):
         raise ValueError(f"Evaluation type not recognized '{evaluation_type}', Expected types: {list(type_prompts.keys())}")
     
     qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config.name} based on a given input.
-    You have been provided with a prompt explaining how you should evaluate it.
+    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a pass or fail grade based on the system prompt and rubric.
     Here is the system prompt provided: "{testing_config.testing_prompt}"
     This prompt explains how to evaluate the output using this rubric: {testing_config.rubric.model_dump_json()}
 
@@ -64,13 +64,10 @@ def prepare_prompts(testing_config: ValidationConfig):
         "grade": {type_prompts[evaluation_type]}
     }}
     """
-    aggregation_system_prompt = """You are a Quality Assurance Agent. Your task is to aggregate multiple reports from a coworker into a single report. 
-    Give your report output as a three sentence summary of the analysis, with an overall assessment at the bottom (Very Bad, Poor, Average, Good, Excellent)."""
     
     return {
         "type_prompts": type_prompts,
         "qa_system_prompt": qa_system_prompt,
-        "aggregation_system_prompt": aggregation_system_prompt,
     }
 
 def clean_thinking_output(output: str) -> str:
@@ -163,9 +160,7 @@ async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfi
         
     return results
 
-async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list):
-    prompts = prepare_prompts(testing_config)
-    
+async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list):    
     match testing_config.evaluation_type:
         case "numeric":
             final_results = {}
@@ -174,7 +169,7 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
                 total = 0
                 for i in range(len(results)):
                     total += results[i]["grade"][key]
-                final_results[key] = total/len(results)
+                final_results[key] = round(total/len(results), 2)
                 
             for criteria in testing_config.rubric.criteria:
                 final_score += final_results[criteria.name] * criteria.weight
@@ -184,18 +179,15 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
             
             return {
                 "criteria_results": final_results,
-                "weighted_score": final_score,
+                "weighted_score": round(final_score, 2),
+                "pass": (final_score >= testing_config.threshold) if testing_config.threshold else True
             }
         case "default":
-            if len(results) > 1:
-                aggregation_output = await call_agent(host_instance=host_instance, agent_name="Aggregation Agent", user_message=",\n".join([json.dumps(r) for r in results]))
-                logging.info(f"Aggregated Validation Output: {aggregation_output.get("final_response").content[0].text}")
-                
-                return aggregation_output.get("final_response").content[0].text
-            else:
-                logging.info(f"Prompt Validation Output: {json.dumps(results[0])}")
-                
-                return json.dumps(results[0])
+            # simplify default eval to simply return pass if each result passes
+            return {
+                "pass": all([res["grade"] == "PASS" for res in results]),
+                "full_results": results
+            }
             
 async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
     ab_output = await call_agent(host_instance=host_instance, agent_name="A/B Agent", user_message=json.dumps(results))

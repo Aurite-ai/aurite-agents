@@ -42,15 +42,13 @@ class PromptValidationWorkflow:
                 # final results based on eval type
                 final_result = await evaluate_results(host_instance, testing_config, results)
                 
-                if "weighted_score" in final_result and testing_config.threshold is not None:
-                    if final_result["weighted_score"] < testing_config.threshold:
-                        if testing_config.edit_prompt:
-                            current_prompt = improved_prompt or host_instance.get_agent_config(testing_config.name).system_prompt
-                            improved_prompt = await improve_prompt(host_instance, testing_config.editor_model, results, current_prompt)
-                    else:
-                        logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config.threshold})")
-                        break
+                if not final_result.get("pass", False):
+                    # didn't pass, edit prompt / retry
+                    if testing_config.edit_prompt:
+                        current_prompt = improved_prompt or host_instance.get_agent_config(testing_config.name).system_prompt
+                        improved_prompt = await improve_prompt(host_instance, testing_config.editor_model, results, current_prompt) 
                 else:
+                    # passed, break out of retry loop
                     break
                 
             agent_responses = [{"input": res["input"], "output": res["output"]} for res in results]
