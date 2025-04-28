@@ -24,4 +24,4 @@ expected_tools:
   - name: get_address
     eq: 2
   - name: calculate_distance
-    gt: 1
+    eq: 1

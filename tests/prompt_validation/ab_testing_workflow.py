@@ -30,16 +30,14 @@ class ABTestingWorkflow:
         """
         logger.info(f"ABTestingWorkflow started with input: {initial_input}")
 
-        try:
-            host_manager = initial_input["host_manager"]
-            
+        try:            
             testing_config_path = initial_input["config_path"]
             
             testing_config = load_config(testing_config_path)
                 
             results = await asyncio.gather(
-                run_iterations(host_manager=host_manager, testing_config=testing_config),
-                run_iterations(host_manager=host_manager, testing_config=testing_config,override_system_prompt=testing_config["new_prompt"])
+                run_iterations(host_manager=host_instance, testing_config=testing_config),
+                run_iterations(host_manager=host_instance, testing_config=testing_config,override_system_prompt=testing_config["new_prompt"])
             )
                         
             formatted_results = {
@@ -48,7 +46,7 @@ class ABTestingWorkflow:
             }
                                 
             # final results based on eval type
-            final_result = await evaluate_results_ab(host_manager, testing_config, formatted_results)
+            final_result = await evaluate_results_ab(host_instance, testing_config, formatted_results)
             
             return_value = {
                 "status": "success",

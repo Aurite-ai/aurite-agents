@@ -4,7 +4,8 @@ import asyncio
 import logging
 from google import genai
 from pydantic import BaseModel, Field
-from src.host_manager import HostManager
+from src.host import MCPHost
+from src.agents import Agent
 
 class ValidationCriteria(BaseModel):
     name: str
@@ -87,21 +88,21 @@ def clean_thinking_output(output: str) -> str:
         
     return output
 
-async def _get_agent_result(host_manager: HostManager, testing_config: ValidationConfig, test_input, override_system_prompt: str | None = None) -> str:
+async def _get_agent_result(host_instance: MCPHost, testing_config: ValidationConfig, test_input, override_system_prompt: str | None = None) -> str:
     if override_system_prompt:
         if testing_config.test_type != "agent":
             raise ValueError(f"Invalid type {testing_config.test_type}, overriding system prompt only works with agents")
         else:
-            output = await host_manager.execute_agent(agent_name=testing_config.name, user_message=test_input, system_prompt=override_system_prompt)
+            output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input, system_prompt=override_system_prompt)
     else:
         # call the agent/workflow being tested
         match testing_config.test_type:
             case "agent":
-                output = await host_manager.execute_agent(agent_name=testing_config.name, user_message=test_input)
+                output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input)
             case "workflow":
-                output = await host_manager.execute_workflow(workflow_name=testing_config.name, initial_user_message=test_input)
+                output = await call_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_user_message=test_input)
             case "custom_workflow":
-                output = await host_manager.execute_custom_workflow(workflow_name=testing_config.name, initial_input=test_input)
+                output = await call_custom_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_input=test_input)
             case _:
                 raise ValueError(f"Unrecognized type {testing_config.test_type}")
     
@@ -117,13 +118,13 @@ async def _get_agent_result(host_manager: HostManager, testing_config: Validatio
     
     return output
     
-async def _run_single_iteration(host_manager: HostManager, testing_config: ValidationConfig, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
+async def _run_single_iteration(host_instance: MCPHost, testing_config: ValidationConfig, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
     logging.info(f"Prompt Validation: Iteration {i+1}")
     
-    output = await _get_agent_result(host_manager, testing_config, test_input, override_system_prompt)
+    output = await _get_agent_result(host_instance, testing_config, test_input, override_system_prompt)
     
     # analyze the agent/workflow output, overriding system prompt
-    analysis_output = await host_manager.execute_agent(agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
+    analysis_output = await call_agent(host_instance=host_instance, agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
     analysis_output = analysis_output.get("final_response").content[0].text
     
     logging.info(f'Analysis result {i+1}: {analysis_output}')
@@ -138,7 +139,7 @@ async def _run_single_iteration(host_manager: HostManager, testing_config: Valid
     
     return analysis_json
 
-async def run_iterations(host_manager: HostManager, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> list:
+async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> list:
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
     
     Returns:
@@ -152,13 +153,13 @@ async def run_iterations(host_manager: HostManager, testing_config: ValidationCo
     # convert to list[str] if given input is a single string
     test_input = [testing_config.user_input] if type(testing_config.user_input) is str else testing_config.user_input
     
-    tasks = [_run_single_iteration(host_manager,testing_config,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
+    tasks = [_run_single_iteration(host_instance,testing_config,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
     results = await asyncio.gather(*tasks)
         
     return results
 
-async def evaluate_results(host_manager: HostManager, testing_config: ValidationConfig, results: list):
+async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list):
     prompts = prepare_prompts(testing_config)
     
     match testing_config.evaluation_type:
@@ -183,7 +184,7 @@ async def evaluate_results(host_manager: HostManager, testing_config: Validation
             }
         case "default":
             if len(results) > 1:
-                aggregation_output = await host_manager.execute_agent(agent_name="Aggregation Agent", user_message=",\n".join([json.dumps(r) for r in results]))
+                aggregation_output = await call_agent(host_instance=host_instance, agent_name="Aggregation Agent", user_message=",\n".join([json.dumps(r) for r in results]))
                 logging.info(f"Aggregated Validation Output: {aggregation_output.get("final_response").content[0].text}")
                 
                 return aggregation_output.get("final_response").content[0].text
@@ -192,14 +193,14 @@ async def evaluate_results(host_manager: HostManager, testing_config: Validation
                 
                 return json.dumps(results[0])
             
-async def evaluate_results_ab(host_manager: HostManager, testing_config: ValidationConfig, results: dict):
-    ab_output = await host_manager.execute_agent(agent_name="A/B Agent", user_message=json.dumps(results))
+async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
+    ab_output = await call_agent(host_instance=host_instance, agent_name="A/B Agent", user_message=json.dumps(results))
     
     logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")
                 
     return ab_output.get("final_response").content[0].text
 
-async def improve_prompt(host_manager: HostManager, model, results, current_prompt):    
+async def improve_prompt(host_instance: MCPHost, model, results, current_prompt):    
     match model:
         case "claude":
             for res in results: #remove output to reduce tokens
@@ -207,12 +208,14 @@ async def improve_prompt(host_manager: HostManager, model, results, current_prom
             
             user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
             
-            new_prompt_output = await host_manager.execute_agent(agent_name="Prompt Editor Agent", user_message=user_message)
+            new_prompt_output = await call_agent(host_instance=host_instance, agent_name="Prompt Editor Agent", user_message=user_message)
             
             return new_prompt_output.get("final_response").content[0].text
             
         case "gemini":
             #now use gemini to improve the prompt
+            
+            #TODO: call as an agent once gemini is added to models
             client = genai.Client()
             
             response = client.models.generate_content(
@@ -314,3 +317,27 @@ def check_tool_calls(agent_response, expected_tools) -> dict:
     return {
         "success": True
     }
+    
+async def call_agent(host_instance: MCPHost, agent_name: str, user_message: str, system_prompt: str | None = None):
+    """Calls an agent using the MCP host, returns its full output"""
+    
+    agent_config = host_instance.get_agent_config(agent_name)
+    agent = Agent(config=agent_config)
+
+    agent_result = await agent.execute_agent(
+        user_message=user_message,
+        host_instance=host_instance,
+        system_prompt=system_prompt,
+    )
+    
+    return agent_result
+
+async def call_workflow(host_instance: MCPHost, workflow_name: str, initial_user_message: str):
+    """Calls a workflow using the MCP host, returns its full output"""
+    # TODO
+    pass
+
+async def call_custom_workflow(host_instance: MCPHost, workflow_name: str, initial_input):
+    """Calls a custom workflow using dynamic import, returns its full output"""
+    # TODO
+    pass

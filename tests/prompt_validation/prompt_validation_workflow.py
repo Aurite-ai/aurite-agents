@@ -29,9 +29,7 @@ class PromptValidationWorkflow:
         """
         logger.info(f"PromptValidationWorkflow started with input: {initial_input}")
 
-        try:
-            host_manager = initial_input["host_manager"]
-            
+        try:            
             testing_config_path = initial_input["config_path"]
             
             testing_config = load_config(testing_config_path)
@@ -39,16 +37,16 @@ class PromptValidationWorkflow:
             improved_prompt = None
             
             for i in range(1+testing_config.max_retries):
-                results = await run_iterations(host_manager=host_manager, testing_config=testing_config, override_system_prompt=improved_prompt)
+                results = await run_iterations(host_instance=host_instance, testing_config=testing_config, override_system_prompt=improved_prompt)
                     
                 # final results based on eval type
-                final_result = await evaluate_results(host_manager, testing_config, results)
+                final_result = await evaluate_results(host_instance, testing_config, results)
                 
                 if "weighted_score" in final_result and testing_config.threshold is not None:
                     if final_result["weighted_score"] < testing_config.threshold:
                         if testing_config.edit_prompt:
-                            current_prompt = improved_prompt or host_manager.agent_configs[testing_config.name].system_prompt
-                            improved_prompt = await improve_prompt(host_manager, testing_config.editor_model, results, current_prompt)
+                            current_prompt = improved_prompt or host_instance.get_agent_config(testing_config.name).system_prompt
+                            improved_prompt = await improve_prompt(host_instance, testing_config.editor_model, results, current_prompt)
                     else:
                         logger.info(f"Weighted score satisfied threshold ({final_result["weighted_score"]} >= {testing_config.threshold})")
                         break

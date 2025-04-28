@@ -28,7 +28,6 @@ class TestPromptValidation:
         result = await host_manager.execute_custom_workflow(
             workflow_name="Prompt Validation Workflow", 
             initial_input={
-                "host_manager": host_manager,
                 "config_path": testing_config_path
             }
         )
