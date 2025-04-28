@@ -76,6 +76,10 @@ class AgentConfig(BaseModel):
     client_ids: Optional[List[str]] = None
     # Agent-specific LLM parameters (override host/defaults if provided)
     system_prompt: Optional[str] = None
+    schema: Optional[dict] = Field(
+        None,
+        description="JSON schema for validating agent-specific configurations",
+    )
     model: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None

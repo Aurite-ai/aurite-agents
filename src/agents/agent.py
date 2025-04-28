@@ -10,6 +10,7 @@ from anthropic.types import MessageParam, ToolUseBlock
 from typing import Dict, Any, Optional, List
 
 from ..host.models import AgentConfig
+from jsonschema import validate, ValidationError
 from ..host.host import MCPHost  # Import MCPHost for type hinting
 
 logger = logging.getLogger(__name__)
@@ -207,7 +208,6 @@ class Agent:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-                # Logger message for success is now inside _make_llm_call
             except Exception as e:
                 # Logger message for failure is now inside _make_llm_call
                 # Decide how to handle API errors - re-raise, return error message?
@@ -228,6 +228,24 @@ class Agent:
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
                 # If the LLM didn't request tools, this is the final response.
+                 # Validate the response content against the schema if provided
+                if self.config.schema:
+
+                    try:
+                        validate(instance=response.content, schema=self.config.schema)
+                        logger.debug("Response content validated successfully against schema.")
+                    except ValidationError as schema_err:
+                        logger.warning(
+                            f"Response content did not match schema: {schema_err.message}. Retrying LLM call."
+                        )
+                        # Add a retry message to the conversation history
+                        conversation_history.append(
+                            {
+                                "role": "system",
+                                "content": f"Response did not match schema. Retrying iteration {current_iteration}.",
+                            }
+                        )
+                        continue  # Retry the loop iteration
                 final_response = response
                 logger.debug(
                     f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."

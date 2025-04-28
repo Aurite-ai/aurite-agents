@@ -193,6 +193,10 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
 
             # Convert string bools/numbers if necessary (Pydantic usually handles this, but explicit is safer)
             try:
+                schema = ( agent_data.get("schema")
+                    if schema in agent_data
+                    else None
+                )
                 temperature = (
                     float(agent_data["temperature"])
                     if "temperature" in agent_data
@@ -219,6 +223,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     name=agent_name,
                     client_ids=agent_data.get("client_ids"),  # Added
                     system_prompt=agent_data.get("system_prompt"),
+                    schema=schema,
                     model=agent_data.get("model"),
                     temperature=temperature,
                     max_tokens=max_tokens,
