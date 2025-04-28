@@ -56,7 +56,6 @@ class Agent:
 
     async def _make_llm_call(
         self,
-        # client: anthropic.Anthropic, # Removed client parameter
         messages: List[MessageParam],
         system_prompt: Optional[str],
         tools: Optional[List[Dict]],  # Anthropic tool format
@@ -84,6 +83,18 @@ class Agent:
         """
         logger.debug(f"Making LLM call to model '{model}'")
         try:
+            # Add schema to system prompt if available
+            final_system_prompt = system_prompt
+            if self.config.schema:
+                import json
+                schema_str = json.dumps(self.config.schema, indent=2)
+                final_system_prompt = f"""{system_prompt}
+
+Your response must be valid JSON matching this schema:
+{schema_str}
+
+Remember to format your response as a valid JSON object."""
+
             # Construct arguments, omitting None values for system and tools
             api_args = {
                 "model": model,
@@ -91,8 +102,8 @@ class Agent:
                 "temperature": temperature,
                 "messages": messages,
             }
-            if system_prompt:
-                api_args["system"] = system_prompt
+            if final_system_prompt:
+                api_args["system"] = final_system_prompt
             if tools:
                 api_args["tools"] = tools
 
