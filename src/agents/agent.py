@@ -10,7 +10,6 @@ from anthropic.types import MessageParam, ToolUseBlock
 from typing import Dict, Any, Optional, List
 
 from ..host.models import AgentConfig
-from jsonschema import validate, ValidationError
 from ..host.host import MCPHost  # Import MCPHost for type hinting
 
 logger = logging.getLogger(__name__)
@@ -124,7 +123,6 @@ Remember to format your response as a valid JSON object."""
         user_message: str,
         host_instance: MCPHost,
         system_prompt: Optional[str] = None,
-        # filter_client_ids parameter removed, filtering now handled via self.config
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
@@ -147,7 +145,6 @@ Remember to format your response as a valid JSON object."""
         Raises:
             ValueError: If host_instance is not provided.
             TypeError: If host_instance is not an instance of MCPHost.
-            # ValueError: If Anthropic API key is not found. # Removed as key checked in __init__
         """
         # --- Start of standard agent execution logic ---
         logger.debug(
@@ -211,7 +208,6 @@ Remember to format your response as a valid JSON object."""
             # Make API call using the helper method
             try:
                 response = await self._make_llm_call(
-                    # client=client, # Removed, uses self.anthropic_client now
                     messages=messages,
                     system_prompt=system_prompt,
                     tools=tools_data,
@@ -220,9 +216,6 @@ Remember to format your response as a valid JSON object."""
                     max_tokens=max_tokens,
                 )
             except Exception as e:
-                # Logger message for failure is now inside _make_llm_call
-                # Decide how to handle API errors - re-raise, return error message?
-                # For now, let's return an error structure.
                 return {
                     "conversation": conversation_history,
                     "final_response": None,
@@ -231,42 +224,61 @@ Remember to format your response as a valid JSON object."""
                 }
 
             # Store assistant response in history
-            # Ensure content is serializable if needed later
             conversation_history.append(
                 {"role": "assistant", "content": response.content}
             )
 
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
-                # Validate the response content against the schema if provided
-                if self.config.schema:
-                    try:
-                        # Parse content as dictionary if it's a string
-                        content_to_validate = response.content
-                        if isinstance(content_to_validate, str):
-                            try:
-                                import json
-                                content_to_validate = json.loads(content_to_validate)
-                            except json.JSONDecodeError as json_err:
-                                logger.warning(f"Response content is not valid JSON: {json_err}. Retrying LLM call.")
-                                messages.append({
-                                    "role": "system",
-                                    "content": "Your response must be valid JSON matching the required schema. Please try again."
-                                })
-                                continue
+                # Get the text content from the last block
+                text_content = next((block.text for block in response.content if block.type == "text"), None)
+                if not text_content:
+                    logger.warning("No text content found in response")
+                    messages.append({
+                        "role": "user",
+                        "content": "You must provide your response as a valid JSON object."
+                    })
+                    continue
 
-                        validate(instance=content_to_validate, schema=self.config.schema)
-                        logger.debug("Response content validated successfully against schema.")
-                    except ValidationError as schema_err:
-                        logger.warning(f"Response content did not match schema: {schema_err.message}. Retrying LLM call.")
+                # For final response, ALWAYS try to parse as JSON if schema is provided
+                if self.config.schema:
+                    import json
+                    from jsonschema import validate
+                    
+                    # First try to parse JSON
+                    try:
+                        json_content = json.loads(text_content)
+                    except json.JSONDecodeError:
+                        # If not valid JSON, force Claude to fix it
+                        logger.warning("Response was not valid JSON")
                         messages.append({
-                            "role": "system", 
-                            "content": f"Your response did not match the required schema: {schema_err.message}. Please try again."
+                            "role": "user",
+                            "content": f"""Your response MUST be a single JSON object with no additional text or explanation.
+The JSON must match this schema exactly:
+
+{json.dumps(self.config.schema, indent=2)}
+
+Format your entire response as valid JSON."""
                         })
                         continue
-                
+
+                    # Then try to validate schema
+                    try:
+                        validate(instance=json_content, schema=self.config.schema)
+                        logger.debug("Response validated successfully against schema")
+                    except Exception as e:
+                        logger.warning(f"Schema validation failed: {e}")
+                        messages.append({
+                            "role": "user", 
+                            "content": f"""Your response must be a valid JSON object matching this schema:
+{json.dumps(self.config.schema, indent=2)}
+
+The error was: {str(e)}
+Try again with just the JSON object."""
+                        })
+                        continue
+
                 final_response = response
-                logger.debug(f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop.")
                 break
 
             # If we reach here, stop_reason MUST be 'tool_use'
