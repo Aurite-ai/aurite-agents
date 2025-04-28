@@ -227,30 +227,36 @@ class Agent:
 
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
-                # If the LLM didn't request tools, this is the final response.
-                 # Validate the response content against the schema if provided
+                # Validate the response content against the schema if provided
                 if self.config.schema:
-
                     try:
-                        validate(instance=response.content, schema=self.config.schema)
+                        # Parse content as dictionary if it's a string
+                        content_to_validate = response.content
+                        if isinstance(content_to_validate, str):
+                            try:
+                                import json
+                                content_to_validate = json.loads(content_to_validate)
+                            except json.JSONDecodeError as json_err:
+                                logger.warning(f"Response content is not valid JSON: {json_err}. Retrying LLM call.")
+                                messages.append({
+                                    "role": "system",
+                                    "content": "Your response must be valid JSON matching the required schema. Please try again."
+                                })
+                                continue
+
+                        validate(instance=content_to_validate, schema=self.config.schema)
                         logger.debug("Response content validated successfully against schema.")
                     except ValidationError as schema_err:
-                        logger.warning(
-                            f"Response content did not match schema: {schema_err.message}. Retrying LLM call."
-                        )
-                        # Add a retry message to the conversation history
-                        conversation_history.append(
-                            {
-                                "role": "system",
-                                "content": f"Response did not match schema. Retrying iteration {current_iteration}.",
-                            }
-                        )
-                        continue  # Retry the loop iteration
+                        logger.warning(f"Response content did not match schema: {schema_err.message}. Retrying LLM call.")
+                        messages.append({
+                            "role": "system", 
+                            "content": f"Your response did not match the required schema: {schema_err.message}. Please try again."
+                        })
+                        continue
+                
                 final_response = response
-                logger.debug(
-                    f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."
-                )
-                break  # Exit the loop
+                logger.debug(f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop.")
+                break
 
             # If we reach here, stop_reason MUST be 'tool_use'
             logger.debug("LLM requested tool use. Processing tools...")

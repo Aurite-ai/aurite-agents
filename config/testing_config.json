@@ -21,14 +21,35 @@
   "agents": [
     {
       "name": "Weather Agent",
-      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately. Your response must follow the specified JSON schema.",
       "client_ids": ["weather_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["current_time"]
+      "exclude_components": ["current_time"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "weather_summary": {
+            "type": "string",
+            "description": "A summary of the current weather"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "The temperature in degrees"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of recommendations based on the weather"
+          }
+        },
+        "required": ["weather_summary", "temperature", "recommendations"]
+      }
     },
     {
       "name": "Weather Planning Agent",

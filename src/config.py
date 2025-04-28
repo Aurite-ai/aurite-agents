@@ -193,10 +193,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
 
             # Convert string bools/numbers if necessary (Pydantic usually handles this, but explicit is safer)
             try:
-                schema = ( agent_data.get("schema")
-                    if schema in agent_data
-                    else None
-                )
+                schema = agent_data.get("schema") # Fixed: removed incorrect if/else logic
                 temperature = (
                     float(agent_data["temperature"])
                     if "temperature" in agent_data
