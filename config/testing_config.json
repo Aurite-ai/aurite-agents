@@ -89,7 +89,7 @@
   ],
   "workflows": [
     {
-      "name": "Example workflow using weather and planning servers",
+      "name": "main",
       "steps": [
         "Weather Planning Workflow Step 1",
         "Weather Planning Workflow Step 2"
