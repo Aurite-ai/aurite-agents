@@ -52,11 +52,14 @@ class PromptValidationWorkflow:
                         break
                 else:
                     break
+                
+            agent_responses = [{"input": res["input"], "output": res["output"]} for res in results]
             
             return_value = {
                 "status": "success",
                 "input_received": initial_input,
-                "result": final_result,
+                "validation_result": final_result,
+                "agent_responses": agent_responses
             }
             
             logger.info("PromptValidationWorkflow finished successfully.")
@@ -68,7 +71,8 @@ class PromptValidationWorkflow:
             
             # write output 
             output = {
-                "output": final_result
+                "validation_result": final_result,
+                "agent_responses": agent_responses
             }
             if improved_prompt:
                 output["new_prompt"] = improved_prompt
