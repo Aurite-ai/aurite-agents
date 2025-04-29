@@ -1,5 +1,5 @@
 ## Config Parameters
-Updated as of 4/22/2025
+Updated as of 4/29/2025
 
 
 - test_type
@@ -18,8 +18,8 @@ Updated as of 4/22/2025
   - str
   - The prompt to be passed to the evaluation agent
 - rubric
-  - dict, example below
-  - The rubric to use when evaluating the agent. Expects weight if evaluation_type is numeric, otherwise optional
+  - dict, optional, example below
+  - The rubric to use when evaluating the agent. Expects weight if evaluation_type is numeric, otherwise weight is optional
   ```json 
       "rubric": {
           "criteria": [
