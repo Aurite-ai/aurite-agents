@@ -29,7 +29,7 @@ class ValidationConfig(BaseModel):
     user_input: str | list[str] = Field(..., description="The input to be used as the initial user input. If a list of strings, it will run it with each separately")
     iterations: int = Field(default=1, description="The total number of iterations to do when running the agent/workflow")
     testing_prompt: str = Field(..., description="The prompt to be passed to the evaluation agent")
-    rubric: ValidationRubric = Field(..., description="The rubric to use when evaluating the agent")
+    rubric: ValidationRubric | None = Field(None, description="The rubric to use when evaluating the agent")
     evaluation_type: str = Field(default="default", description="If the output should be a score from 0-10 (numeric), or semantic (default)", pattern="^(numeric|default)$")
     threshold: float | None = Field(None, description="The expected score threshold for the numeric evaluation_type", ge=0, le=10)
     retry: bool = Field(default=False, description="If the process should retry if it fails to pass the threshold score")
@@ -55,9 +55,9 @@ def prepare_prompts(testing_config: ValidationConfig):
         raise ValueError(f"Evaluation type not recognized '{evaluation_type}', Expected types: {list(type_prompts.keys())}")
     
     qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config.name} based on a given input.
-    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a pass or fail grade based on the system prompt and rubric.
+    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a pass or fail grade based on the system prompt.
     Here is the system prompt provided: "{testing_config.testing_prompt}"
-    This prompt explains how to evaluate the output using this rubric: {testing_config.rubric.model_dump_json()}
+    {f'You have also been provided a rubric containing criteria to use in your evaluation: {testing_config.rubric.model_dump_json()}' if testing_config.rubric else ''}
 
     Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do not format it as a code block (```). Here is a template: {{
         "analysis": "<your analysis here>",
@@ -344,3 +344,13 @@ async def call_custom_workflow(host_instance: MCPHost, workflow_name: str, initi
     """Calls a custom workflow using dynamic import, returns its full output"""
     # TODO
     pass
+
+def generate_config(agent_name: str, user_input: str, testing_prompt: str) -> ValidationConfig:
+    """Generate a simple ValidationConfig for an agent"""
+    
+    return ValidationConfig(
+        test_type = "agent",
+        name = agent_name,
+        user_input = user_input,
+        testing_prompt = testing_prompt,
+    )
