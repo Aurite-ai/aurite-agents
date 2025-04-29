@@ -7,7 +7,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results_ab, load_config
+from src.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results_ab, load_config
 
 logger = logging.getLogger(__name__)
 
