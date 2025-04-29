@@ -214,6 +214,11 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     if isinstance(include_history_str, str)
                     else include_history_str  # Assume bool if not str
                 )
+                evaluation = (
+                    str(agent_data["evaluation"])
+                    if "evaluation" in agent_data
+                    else None
+                )
 
                 agent_config = AgentConfig(
                     name=agent_name,
@@ -227,6 +232,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     exclude_components=agent_data.get(
                         "exclude_components"
                     ),  # Added this line
+                    evaluation=evaluation,
                 )
                 agent_configs_dict[agent_name] = agent_config
             except (ValueError, TypeError) as conv_err:

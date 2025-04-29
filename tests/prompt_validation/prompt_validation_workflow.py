@@ -6,7 +6,7 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, load_config, ValidationConfig
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, load_config, ValidationConfig, generate_config
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class PromptValidationWorkflow:
         Executes the prompt validation workflow.
 
         Args:
-            initial_input: An object containing the path to the config json file ("config_path") or a ValidationConfig ("validation_config").
+            initial_input: An object containing the path to the config json file ("config_path"), a ValidationConfig ("validation_config"), or the info for simple validation ("agent_name", "testing_prompt", and "user_input").
             host_instance: The MCPHost instance to interact with agents/tools.
 
         Returns:
@@ -35,6 +35,8 @@ class PromptValidationWorkflow:
                 testing_config = load_config(initial_input["config_path"])
             elif "validation_config" in initial_input:
                 testing_config = ValidationConfig.model_validate(initial_input["validation_config"], strict=True)
+            elif "agent_name" in initial_input and "testing_prompt" in initial_input and "user_input" in initial_input:
+                testing_config = generate_config(initial_input["agent_name"], initial_input["user_input"], initial_input["testing_prompt"])
             else:
                 raise ValueError("Testing config not found. Expected ValidationConfig or path to config file")                
                 

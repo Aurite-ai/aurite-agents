@@ -81,7 +81,8 @@
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["current_time"]
+      "exclude_components": ["current_time"],
+      "evaluation": "Your job is to evaluate the plan created by the Planning Agent. Ensure the plan covers all details the user asks for, is easy to understand and follow, and is realistic and achievable for the time frame if given."
     },
     {
       "name": "Mapping Agent",

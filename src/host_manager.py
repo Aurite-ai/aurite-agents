@@ -16,7 +16,6 @@ from .host.models import (
     CustomWorkflowConfig,
     ClientConfig,
 )  # Added ClientConfig
-from tests.prompt_validation.prompt_validation_helper import generate_config
 
 # Imports needed for execution methods
 from .agents.agent import Agent
@@ -580,11 +579,12 @@ class HostManager:
                     result = workflow_result.get("agent_responses")[-1]
                 else:
                     # invalid path, it is system prompt
-                    testing_config = generate_config(agent_name=agent_name, user_input=user_message, testing_prompt=agent_config.evaluation)
                     workflow_result = await self.execute_custom_workflow(
                         workflow_name="Prompt Validation Workflow", 
                         initial_input={
-                            "testing_config": testing_config
+                            "testing_prompt": agent_config.evaluation,
+                            "user_input": user_message,
+                            "agent_name": agent_name
                         }
                     )
                     result = workflow_result.get("agent_responses")[-1]
