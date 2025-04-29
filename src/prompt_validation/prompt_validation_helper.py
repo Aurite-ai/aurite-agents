@@ -353,4 +353,6 @@ def generate_config(agent_name: str, user_input: str, testing_prompt: str) -> Va
         name = agent_name,
         user_input = user_input,
         testing_prompt = testing_prompt,
+        retry = True,
+        max_retries = 2,
     )

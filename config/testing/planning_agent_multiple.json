@@ -6,8 +6,8 @@
     "threshold": 9.5,
     "retry": true,
     "max_retries": 1,
-    "edit_prompt": true,
-    "editor_model": "gemini",
+    "edit_prompt": false,
+    "editor_model": "claude",
     "evaluation_type": "numeric",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
     "rubric": {

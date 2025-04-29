@@ -16,6 +16,7 @@ from .host.models import (
     CustomWorkflowConfig,
     ClientConfig,
 )  # Added ClientConfig
+from src.prompt_validation.prompt_validation_helper import load_config
 
 # Imports needed for execution methods
 from .agents.agent import Agent
@@ -568,12 +569,14 @@ class HostManager:
                 testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{agent_config.evaluation}"
                 if os.path.exists(testing_config_path):
                     # valid path, run as normal
-                    # NOTE: currently, it will use the input message from the config file as the input, not the actual user input
-                    # TODO: overwrite with actual user input?
+                    # overwrite input in config with actual user input
+                    testing_config = load_config(testing_config_path)
+                    testing_config.user_input = user_message
+                    
                     workflow_result = await self.execute_custom_workflow(
                         workflow_name="Prompt Validation Workflow", 
                         initial_input={
-                            "config_path": testing_config_path
+                            "validation_config": testing_config
                         }
                     )
                     result = workflow_result.get("agent_responses")[-1]
