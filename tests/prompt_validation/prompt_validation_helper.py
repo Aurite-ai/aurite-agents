@@ -324,6 +324,7 @@ async def call_agent(host_instance: MCPHost, agent_name: str, user_message: str,
     """Calls an agent using the MCP host, returns its full output"""
     
     agent_config = host_instance.get_agent_config(agent_name)
+    agent_config.evaluation = None # override evaluation to None to prevent loops
     agent = Agent(config=agent_config)
 
     agent_result = await agent.execute_agent(
