@@ -6,7 +6,8 @@ from typing import Any
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from src.host.host import MCPHost
-from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, load_config
+from tests.prompt_validation.prompt_validation_helper import run_iterations, evaluate_results, improve_prompt, load_config, ValidationConfig
+from src.config import PROJECT_ROOT_DIR  # Import project root
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class PromptValidationWorkflow:
         Executes the prompt validation workflow.
 
         Args:
-            initial_input: The path to the config json file.
+            initial_input: An object containing the path to the config json file ("config_path") or a ValidationConfig ("validation_config").
             host_instance: The MCPHost instance to interact with agents/tools.
 
         Returns:
@@ -29,10 +30,13 @@ class PromptValidationWorkflow:
         """
         logger.info(f"PromptValidationWorkflow started with input: {initial_input}")
 
-        try:            
-            testing_config_path = initial_input["config_path"]
-            
-            testing_config = load_config(testing_config_path)
+        try:                        
+            if "config_path" in initial_input:
+                testing_config = load_config(initial_input["config_path"])
+            elif "validation_config" in initial_input:
+                testing_config = ValidationConfig.model_validate(initial_input["validation_config"], strict=True)
+            else:
+                raise ValueError("Testing config not found. Expected ValidationConfig or path to config file")                
                 
             improved_prompt = None
             
@@ -70,7 +74,13 @@ class PromptValidationWorkflow:
             }
             if improved_prompt:
                 output["new_prompt"] = improved_prompt
-            output_path = testing_config_path.with_name(testing_config_path.stem + "_output.json")
+                
+            
+ 
+            if "config_path" in initial_input:
+                output_path = initial_input["config_path"].with_name(initial_input["config_path"].stem + "_output.json")
+            else:
+                output_path = PROJECT_ROOT_DIR / "config/testing/default_output.json"
             
             logger.info(f"Writing to file: {output}")
             

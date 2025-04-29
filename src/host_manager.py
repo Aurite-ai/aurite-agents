@@ -3,6 +3,7 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Optional, Any
 
@@ -15,6 +16,7 @@ from .host.models import (
     CustomWorkflowConfig,
     ClientConfig,
 )  # Added ClientConfig
+from tests.prompt_validation.prompt_validation_helper import generate_config
 
 # Imports needed for execution methods
 from .agents.agent import Agent
@@ -562,25 +564,45 @@ class HostManager:
             # 3. Determine if prompt evaluation should happen
             if agent_config.evaluation:
                 logger.debug(f"Using evaluation for '{agent_name}'")
-                #TODO: determine if path to config or simple prompt. fill in default values if simple prompt
                 
-                #TODO: run a custom workflow instead of the agent directly
+                # determine if path to config or simple prompt. fill in default values if simple prompt
+                testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{agent_config.evaluation}"
+                if os.path.exists(testing_config_path):
+                    # valid path, run as normal
+                    # NOTE: currently, it will use the input message from the config file as the input, not the actual user input
+                    # TODO: overwrite with actual user input?
+                    workflow_result = await self.execute_custom_workflow(
+                        workflow_name="Prompt Validation Workflow", 
+                        initial_input={
+                            "config_path": testing_config_path
+                        }
+                    )
+                    result = workflow_result.get("agent_responses")[-1]
+                else:
+                    # invalid path, it is system prompt
+                    testing_config = generate_config(agent_name=agent_name, user_input=user_message, testing_prompt=agent_config.evaluation)
+                    workflow_result = await self.execute_custom_workflow(
+                        workflow_name="Prompt Validation Workflow", 
+                        initial_input={
+                            "testing_config": testing_config
+                        }
+                    )
+                    result = workflow_result.get("agent_responses")[-1]
                 
-                #TODO: return the result of the workflow 
-
-            # 4. Execute the agent
-            if system_prompt:
-                logger.debug(f"Using system prompt for '{agent_name}': {system_prompt}")
-                result = await agent.execute_agent(
-                    user_message=user_message,
-                    host_instance=self.host,
-                    system_prompt=system_prompt,
-                )
             else:
-                result = await agent.execute_agent(
-                    user_message=user_message,
-                    host_instance=self.host,
-                )
+                # 4. Execute the agent as normal
+                if system_prompt:
+                    logger.debug(f"Using system prompt for '{agent_name}': {system_prompt}")
+                    result = await agent.execute_agent(
+                        user_message=user_message,
+                        host_instance=self.host,
+                        system_prompt=system_prompt,
+                    )
+                else:
+                    result = await agent.execute_agent(
+                        user_message=user_message,
+                        host_instance=self.host,
+                    )
             logger.info(f"Agent '{agent_name}' execution finished.")
             return result
 
