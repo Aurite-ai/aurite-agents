@@ -94,35 +94,38 @@ async def _get_agent_result(host_instance: MCPHost, testing_config: ValidationCo
         if testing_config.test_type != "agent":
             raise ValueError(f"Invalid type {testing_config.test_type}, overriding system prompt only works with agents")
         else:
-            output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input, system_prompt=override_system_prompt)
+            full_output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input, system_prompt=override_system_prompt)
     else:
         # call the agent/workflow being tested
         match testing_config.test_type:
             case "agent":
-                output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input)
+                full_output = await call_agent(host_instance=host_instance, agent_name=testing_config.name, user_message=test_input)
             case "workflow":
-                output = await call_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_user_message=test_input)
+                full_output = await call_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_user_message=test_input)
             case "custom_workflow":
-                output = await call_custom_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_input=test_input)
+                full_output = await call_custom_workflow(host_instance=host_instance, workflow_name=testing_config.name, initial_input=test_input)
             case _:
                 raise ValueError(f"Unrecognized type {testing_config.test_type}")
     
     if testing_config.test_type == "agent":
         if testing_config.expected_tools:
-            tool_check = check_tool_calls(output, testing_config.expected_tools)
+            tool_check = check_tool_calls(full_output, testing_config.expected_tools)
             if not tool_check["success"]:
-                raise RuntimeError(tool_check["message"])
+                raise RuntimeError(tool_check["error"])
             
-        output = output.get("final_response").content[0].text
+        output = full_output.get("final_response").content[0].text
+    else:
+        # for workflows 
+        output = full_output
     
     logging.info(f'Agent result: {output}')
     
-    return output
+    return output, full_output
     
 async def _run_single_iteration(host_instance: MCPHost, testing_config: ValidationConfig, test_input, prompts, i, override_system_prompt: str | None = None) -> dict:
     logging.info(f"Prompt Validation: Iteration {i+1}")
     
-    output = await _get_agent_result(host_instance, testing_config, test_input, override_system_prompt)
+    output, full_output = await _get_agent_result(host_instance, testing_config, test_input, override_system_prompt)
     
     # analyze the agent/workflow output, overriding system prompt
     analysis_output = await call_agent(host_instance=host_instance, agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
@@ -137,6 +140,7 @@ async def _run_single_iteration(host_instance: MCPHost, testing_config: Validati
     
     analysis_json["input"] = test_input
     analysis_json["output"] = output
+    analysis_json["full_output"] = full_output
     
     return analysis_json
 
@@ -186,7 +190,7 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
             # simplify default eval to simply return pass if each result passes
             return {
                 "pass": all([res["grade"] == "PASS" for res in results]),
-                "full_results": results
+                "full_results": [{k: v for k,v in res.items() if k != "full_output"} for res in results]
             }
             
 async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
@@ -196,13 +200,15 @@ async def evaluate_results_ab(host_instance: MCPHost, testing_config: Validation
                 
     return ab_output.get("final_response").content[0].text
 
-async def improve_prompt(host_instance: MCPHost, model, results, current_prompt):    
+async def improve_prompt(host_instance: MCPHost, model, results, current_prompt):
+    filtered_results = [{k: v for k,v in res.items() if k != "full_output"} for res in results]
+        
     match model:
         case "claude":
-            for res in results: #remove output to reduce tokens
+            for res in filtered_results: #remove output to reduce tokens
                 res.pop("output")
             
-            user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
+            user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{filtered_results}"""
             
             new_prompt_output = await call_agent(host_instance=host_instance, agent_name="Prompt Editor Agent", user_message=user_message)
             
@@ -219,7 +225,7 @@ async def improve_prompt(host_instance: MCPHost, model, results, current_prompt)
                 config=genai.types.GenerateContentConfig(
                     system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
                 ),
-                contents=json.dumps({"current_prompt": current_prompt, "samples": results})
+                contents=json.dumps({"current_prompt": current_prompt, "samples": filtered_results})
             )
             
             return response.text
@@ -276,7 +282,7 @@ def check_tool_calls(agent_response, expected_tools) -> dict:
     Returns:
         {
             "success": bool, true if all expected tools appear
-            "message": str, error message if not successful }"""
+            "error": str, error message if not successful }"""
     
     tool_calls = extract_tool_calls(agent_response)
     call_counts = count_tool_calls(tool_calls)
@@ -287,27 +293,27 @@ def check_tool_calls(agent_response, expected_tools) -> dict:
         if expected.eq is not None and count != expected.eq:
             return {
                 "success": False,
-                "message": f"Expected tool {expected.name} to be called == {expected.eq} time(s). Called {count} time(s) instead"
+                "error": f"Expected tool {expected.name} to be called == {expected.eq} time(s). Called {count} time(s) instead"
             }
         if expected.le is not None and count > expected.le:
             return {
                 "success": False,
-                "message": f"Expected tool {expected.name} to be called <= {expected.le} time(s). Called {count} time(s) instead"
+                "error": f"Expected tool {expected.name} to be called <= {expected.le} time(s). Called {count} time(s) instead"
             }
         if expected.lt is not None and count >= expected.lt:
             return {
                 "success": False,
-                "message": f"Expected tool {expected.name} to be called < {expected.lt} time(s). Called {count} time(s) instead"
+                "error": f"Expected tool {expected.name} to be called < {expected.lt} time(s). Called {count} time(s) instead"
             }
         if expected.ge is not None and count < expected.ge:
             return {
                 "success": False,
-                "message": f"Expected tool {expected.name} to be called >= {expected.ge} time(s). Called {count} time(s) instead"
+                "error": f"Expected tool {expected.name} to be called >= {expected.ge} time(s). Called {count} time(s) instead"
             }
         if expected.gt is not None and count <= expected.gt:
             return {
                 "success": False,
-                "message": f"Expected tool {expected.name} to be called > {expected.gt} time(s). Called {count} time(s) instead"
+                "error": f"Expected tool {expected.name} to be called > {expected.gt} time(s). Called {count} time(s) instead"
             }
         
     return {

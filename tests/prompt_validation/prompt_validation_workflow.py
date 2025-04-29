@@ -51,30 +51,29 @@ class PromptValidationWorkflow:
                     # passed, break out of retry loop
                     break
                 
-            agent_responses = [{"input": res["input"], "output": res["output"]} for res in results]
+            full_agent_responses = [{"input": res["input"], "output": res["full_output"]} for res in results]
+            simple_agent_responses = [{"input": res["input"], "output": res["output"]} for res in results]
             
             return_value = {
                 "status": "success",
                 "input_received": initial_input,
                 "validation_result": final_result,
-                "agent_responses": agent_responses
+                "agent_responses": full_agent_responses
             }
             
             logger.info("PromptValidationWorkflow finished successfully.")
             
-            # Add detailed log before returning
-            logger.debug(
-                f"PromptValidationWorkflow returning: type={type(return_value)}, value={return_value}"
-            )
-            
             # write output 
             output = {
                 "validation_result": final_result,
-                "agent_responses": agent_responses
+                "agent_responses": simple_agent_responses
             }
             if improved_prompt:
                 output["new_prompt"] = improved_prompt
             output_path = testing_config_path.with_name(testing_config_path.stem + "_output.json")
+            
+            logger.info(f"Writing to file: {output}")
+            
             with open(output_path, "w") as f:
                 json.dump(output, f, indent=4)
             
