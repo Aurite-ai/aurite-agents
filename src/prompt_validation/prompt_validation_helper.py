@@ -108,11 +108,7 @@ async def _get_agent_result(host_instance: MCPHost, testing_config: ValidationCo
                 raise ValueError(f"Unrecognized type {testing_config.test_type}")
     
     if testing_config.test_type == "agent":
-        if testing_config.expected_tools:
-            tool_check = check_tool_calls(full_output, testing_config.expected_tools)
-            if not tool_check["success"]:
-                raise RuntimeError(tool_check["error"])
-            
+        # get text output for agents
         output = full_output.get("final_response").content[0].text
     else:
         # for workflows 
@@ -165,6 +161,7 @@ async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfi
     return results
 
 async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list):    
+    evaluation = {}
     match testing_config.evaluation_type:
         case "numeric":
             final_results = {}
@@ -181,17 +178,32 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
             logging.info(f"Final Prompt Validation Results: {final_results}")
             logging.info(f"Final Prompt Validation Weighted Score: {final_score}/10")
             
-            return {
+            evaluation = {
                 "criteria_results": final_results,
                 "weighted_score": round(final_score, 2),
                 "pass": (final_score >= testing_config.threshold) if testing_config.threshold else True
             }
         case "default":
             # simplify default eval to simply return pass if each result passes
-            return {
+            evaluation = {
                 "pass": all([res["grade"] == "PASS" for res in results]),
                 "full_results": [{k: v for k,v in res.items() if k != "full_output"} for res in results]
             }
+            
+    # check if tools are satisfied:
+    if testing_config.test_type == "agent" and testing_config.expected_tools:
+        tool_checks = {}
+        for res in results:
+            tool_check = check_tool_calls(res["full_output"], testing_config.expected_tools)
+            tool_checks[res["input"]] = tool_check
+            
+            if not tool_check["success"]:
+                # fails if a tool check does not pass
+                evaluation["pass"] = False
+                
+        evaluation["tool_checks"] = tool_checks
+    
+    return evaluation
             
 async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
     ab_output = await call_agent(host_instance=host_instance, agent_name="A/B Agent", user_message=json.dumps(results))
@@ -287,38 +299,38 @@ def check_tool_calls(agent_response, expected_tools) -> dict:
     tool_calls = extract_tool_calls(agent_response)
     call_counts = count_tool_calls(tool_calls)
     
+    calls = []
+    errors = []
+    
     for expected in expected_tools:
         count = call_counts.get(expected.name, 0)
         
-        if expected.eq is not None and count != expected.eq:
-            return {
-                "success": False,
-                "error": f"Expected tool {expected.name} to be called == {expected.eq} time(s). Called {count} time(s) instead"
-            }
-        if expected.le is not None and count > expected.le:
-            return {
-                "success": False,
-                "error": f"Expected tool {expected.name} to be called <= {expected.le} time(s). Called {count} time(s) instead"
-            }
-        if expected.lt is not None and count >= expected.lt:
-            return {
-                "success": False,
-                "error": f"Expected tool {expected.name} to be called < {expected.lt} time(s). Called {count} time(s) instead"
-            }
-        if expected.ge is not None and count < expected.ge:
-            return {
-                "success": False,
-                "error": f"Expected tool {expected.name} to be called >= {expected.ge} time(s). Called {count} time(s) instead"
-            }
-        if expected.gt is not None and count <= expected.gt:
-            return {
-                "success": False,
-                "error": f"Expected tool {expected.name} to be called > {expected.gt} time(s). Called {count} time(s) instead"
-            }
+        num_errors = len(errors)
         
-    return {
-        "success": True
+        if expected.eq is not None and count != expected.eq:
+            errors.append(f"Expected tool {expected.name} to be called == {expected.eq} time(s). Called {count} time(s) instead")
+        if expected.le is not None and count > expected.le:
+            errors.append(f"Expected tool {expected.name} to be called <= {expected.le} time(s). Called {count} time(s) instead")
+        if expected.lt is not None and count >= expected.lt:
+            errors.append(f"Expected tool {expected.name} to be called < {expected.lt} time(s). Called {count} time(s) instead")
+        if expected.ge is not None and count < expected.ge:
+            errors.append(f"Expected tool {expected.name} to be called >= {expected.ge} time(s). Called {count} time(s) instead")
+        if expected.gt is not None and count <= expected.gt:
+            errors.append(f"Expected tool {expected.name} to be called > {expected.gt} time(s). Called {count} time(s) instead")
+            
+        calls.append({
+            "tool_name": expected.name,
+            "call_count": count,
+            "matches_expectation": num_errors == len(errors) # success if no errors were added
+        })
+        
+    result = {
+        "success": len(errors) == 0,
+        "tools": calls,
     }
+    if errors:
+        result["errors"] = errors
+    return result
     
 async def call_agent(host_instance: MCPHost, agent_name: str, user_message: str, system_prompt: str | None = None):
     """Calls an agent using the MCP host, returns its full output"""
