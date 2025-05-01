@@ -7,12 +7,15 @@ import time
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any, Callable, Optional  # Added Any
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Depends, Security
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError  # Added BaseModel
 import uvicorn
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse  # Add this import
 
 # Adjust imports for new location (src/bin -> src)
 from ..host_manager import HostManager  # Import the new manager
@@ -144,7 +147,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown HostManager on application exit
         final_manager_instance = getattr(app.state, "host_manager", None)
-        if final_manager_instance:
+        if (final_manager_instance):
             logger.info("Shutting down HostManager...")
             try:
                 await final_manager_instance.shutdown()
@@ -168,6 +171,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Get project root (2 levels up from this file)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Mount static files - use relative path from project root
+app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "static"), name="static")
+
+@app.get("/")
+async def serve_index():
+    return FileResponse(PROJECT_ROOT / "static" / "index.html")
 
 # Request logging middleware
 @app.middleware("http")
@@ -202,13 +214,12 @@ app.add_middleware(
 # --- Request/Response Models ---
 class ExecuteAgentRequest(BaseModel):
     """Request body for executing a named agent."""
-
     user_message: str
+    system_prompt: Optional[str] = None
 
 
 class ExecuteWorkflowRequest(BaseModel):
     """Request body for executing a named workflow."""
-
     initial_user_message: str
 
 
@@ -271,7 +282,9 @@ async def execute_agent_endpoint(
     try:
         # Delegate execution to the HostManager
         result = await manager.execute_agent(
-            agent_name=agent_name, user_message=request_body.user_message
+            agent_name=agent_name, 
+            user_message=request_body.user_message,
+            system_prompt=request_body.system_prompt
         )
         logger.info(
             f"Agent '{agent_name}' execution finished successfully via manager."

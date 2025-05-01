@@ -1,0 +1,42 @@
+{
+  "name": "SalesWorkflow",
+  "clients": [
+    {
+      "client_id": "memory",
+      "server_path": "src/servers/memory/mem0_hosted_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    }
+  ],
+  "agents": [
+    {
+      "name": "Memory Agent",
+      "system_prompt": "Your job is to use memory tools to retrieve information about the customer.",
+      "client_ids": ["memory"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": []
+    },
+    {
+      "name": "Sales Information Filter",
+      "system_prompt": "Your job is to filter out sales information from a transcript.",
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "mainworkflow",
+      "steps": ["Memory Agent", "Sales Information Filter"],
+      "description": "Sales agent workflow"
+    }
+  ]
+}
