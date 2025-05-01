@@ -39,7 +39,7 @@ class ValidationConfig(BaseModel):
     new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
     expected_tools: list[ExpectedToolCall] = Field([], description="A list of tool calls expected to occur, ignored if test_type is not agent")
 
-async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> list:
+async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> (list, list):
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
     
     Args:
@@ -48,7 +48,7 @@ async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfi
         override_system_prompt: Optional, test_type "agent" only. A system prompt to use instead of the tested agent's system prompt
     
     Returns:
-        List of analysis results"""
+        List of analysis results, list of full agent responses"""
     prompts = _prepare_prompts(testing_config)
                     
     num_iterations = testing_config.iterations
@@ -60,17 +60,19 @@ async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfi
     
     tasks = [_run_single_iteration(host_instance,testing_config,t_in,prompts,i,override_system_prompt) for i in range(num_iterations) for t_in in test_input]
     
-    results = await asyncio.gather(*tasks)
+    results_tuple = await asyncio.gather(*tasks)
+    results, agent_responses = zip(*results_tuple)
         
-    return results
+    return list(results), list(agent_responses)
 
-async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list) -> dict:    
+async def evaluate_results(host_instance: MCPHost, testing_config: ValidationConfig, results: list, agent_responses: list) -> dict:    
     """Evaluate the prompt validation results
     
     Args:
         host_instance: The MCPHost
         testing_config: The ValidationConfig
         results: The results list from run_iterations()
+        agent_responses: The list of full agent responses from run_iterations()
     
     Returns:
         An evaluation dictionary with a bool "pass", if the results passed evaluation, as well as other details 
@@ -101,14 +103,14 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
             # simplify default eval to simply return pass if each result passes
             evaluation = {
                 "pass": all([res["grade"] == "PASS" for res in results]),
-                "full_results": [{k: v for k,v in res.items() if k != "full_output"} for res in results]
+                "full_results": results
             }
             
     # check if tools are satisfied:
     if testing_config.test_type == "agent" and testing_config.expected_tools:
         tool_checks = {}
-        for res in results:
-            tool_check = check_tool_calls(res["full_output"], testing_config.expected_tools)
+        for res in agent_responses:
+            tool_check = check_tool_calls(res["output"], testing_config.expected_tools)
             tool_checks[res["input"]] = tool_check
             
             if not tool_check["success"]:
@@ -120,11 +122,6 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
     return evaluation
             
 async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
-    # remove full_output to reduce tokens
-    # TODO: handle full_output separately from results
-    results["A"] = [{k: v for k,v in res.items() if k != "full_output"} for res in results["A"]]
-    results["B"] = [{k: v for k,v in res.items() if k != "full_output"} for res in results["B"]]
-    
     ab_output = await call_agent(host_instance=host_instance, agent_name="A/B Agent", user_message=json.dumps(results))
     
     logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")
@@ -143,15 +140,13 @@ async def improve_prompt(host_instance: MCPHost, model: str, results: list, curr
     Returns:
         The improved prompt
     """
-    
-    filtered_results = [{k: v for k,v in res.items() if k != "full_output"} for res in results]
-        
+            
     match model:
         case "claude":
-            for res in filtered_results: #remove output to reduce tokens
+            for res in results: #remove output to reduce tokens
                 res.pop("output")
             
-            user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{filtered_results}"""
+            user_message = f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
             
             new_prompt_output = await call_agent(host_instance=host_instance, agent_name="Prompt Editor Agent", user_message=user_message)
             
@@ -168,7 +163,7 @@ async def improve_prompt(host_instance: MCPHost, model: str, results: list, curr
                 config=genai.types.GenerateContentConfig(
                     system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
                 ),
-                contents=json.dumps({"current_prompt": current_prompt, "samples": filtered_results})
+                contents=json.dumps({"current_prompt": current_prompt, "samples": results})
             )
             
             return response.text
@@ -393,9 +388,13 @@ async def _run_single_iteration(host_instance: MCPHost, testing_config: Validati
     
     analysis_json["input"] = test_input
     analysis_json["output"] = output
-    analysis_json["full_output"] = full_output
     
-    return analysis_json
+    agent_response = {
+        "input": test_input,
+        "output": full_output
+    }
+    
+    return analysis_json, agent_response
 
 def _extract_tool_calls(agent_response) -> list[dict]:
     """Extract a list of tool calls from agent response"""

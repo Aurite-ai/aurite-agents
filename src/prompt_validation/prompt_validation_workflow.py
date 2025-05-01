@@ -43,10 +43,10 @@ class PromptValidationWorkflow:
             improved_prompt = None
             
             for i in range(1+testing_config.max_retries):
-                results = await run_iterations(host_instance=host_instance, testing_config=testing_config, override_system_prompt=improved_prompt)
+                results, full_agent_responses = await run_iterations(host_instance=host_instance, testing_config=testing_config, override_system_prompt=improved_prompt)
                     
                 # final results based on eval type
-                final_result = await evaluate_results(host_instance, testing_config, results)
+                final_result = await evaluate_results(host_instance, testing_config, results, full_agent_responses)
                 
                 if not final_result.get("pass", False):
                     # didn't pass, edit prompt / retry
@@ -57,7 +57,6 @@ class PromptValidationWorkflow:
                     # passed, break out of retry loop
                     break
                 
-            full_agent_responses = [{"input": res["input"], "output": res["full_output"]} for res in results]
             simple_agent_responses = [{"input": res["input"], "output": res["output"]} for res in results]
             
             return_value = {
@@ -76,8 +75,6 @@ class PromptValidationWorkflow:
             }
             if improved_prompt:
                 output["new_prompt"] = improved_prompt
-                
-            
  
             if "config_path" in initial_input:
                 output_path = initial_input["config_path"].with_name(initial_input["config_path"].stem + "_output.json")

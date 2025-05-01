@@ -41,8 +41,8 @@ class ABTestingWorkflow:
             )
                         
             formatted_results = {
-                "A": results[0],
-                "B": results[1]
+                "A": results[0][0],
+                "B": results[1][0]
             }
                                 
             # final results based on eval type
