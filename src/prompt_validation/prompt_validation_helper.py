@@ -120,6 +120,11 @@ async def evaluate_results(host_instance: MCPHost, testing_config: ValidationCon
     return evaluation
             
 async def evaluate_results_ab(host_instance: MCPHost, testing_config: ValidationConfig, results: dict):
+    # remove full_output to reduce tokens
+    # TODO: handle full_output separately from results
+    results["A"] = [{k: v for k,v in res.items() if k != "full_output"} for res in results["A"]]
+    results["B"] = [{k: v for k,v in res.items() if k != "full_output"} for res in results["B"]]
+    
     ab_output = await call_agent(host_instance=host_instance, agent_name="A/B Agent", user_message=json.dumps(results))
     
     logging.info(f"A/B Output: {ab_output.get("final_response").content[0].text}")

@@ -36,8 +36,8 @@ class ABTestingWorkflow:
             testing_config = load_config(testing_config_path)
                 
             results = await asyncio.gather(
-                run_iterations(host_manager=host_instance, testing_config=testing_config),
-                run_iterations(host_manager=host_instance, testing_config=testing_config,override_system_prompt=testing_config["new_prompt"])
+                run_iterations(host_instance=host_instance, testing_config=testing_config),
+                run_iterations(host_instance=host_instance, testing_config=testing_config,override_system_prompt=testing_config.new_prompt)
             )
                         
             formatted_results = {
