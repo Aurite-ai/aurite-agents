@@ -42,7 +42,9 @@ class PromptValidationWorkflow:
                 
             improved_prompt = None
             
-            for i in range(1+testing_config.max_retries):
+            total_tries = (1+testing_config.max_retries) if testing_config.retry else 1
+            
+            for i in range(total_tries):
                 results, full_agent_responses = await run_iterations(host_instance=host_instance, testing_config=testing_config, override_system_prompt=improved_prompt)
                     
                 # final results based on eval type

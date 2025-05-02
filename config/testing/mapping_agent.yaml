@@ -13,3 +13,4 @@ expected_tools:
     eq: 2
   - name: calculate_distance
     eq: 1
+analysis: false

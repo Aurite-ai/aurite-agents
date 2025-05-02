@@ -33,11 +33,12 @@ class ValidationConfig(BaseModel):
     evaluation_type: str = Field(default="default", description="If the output should be a score from 0-10 (numeric), or semantic (default)", pattern="^(numeric|default)$")
     threshold: float | None = Field(None, description="The expected score threshold for the numeric evaluation_type", ge=0, le=10)
     retry: bool = Field(default=False, description="If the process should retry if it fails to pass the threshold score")
-    max_retries: int = Field(default=0, description="The maximum retries, after the initial run")
+    max_retries: int = Field(default=0, description="The maximum retries, after the initial run", ge=0)
     edit_prompt: bool = Field(default=False, description="If the prompt validator should try to improve the prompt if it fails to meet threshold")
     editor_model: str = Field(default="gemini", description="The model to use for prompt editing", pattern="^(gemini|claude)$")
     new_prompt: str | None = Field(None, description="For A/B Testing. The new prompt to try and compare to the original prompt")
     expected_tools: list[ExpectedToolCall] = Field([], description="A list of tool calls expected to occur, ignored if test_type is not agent")
+    analysis: bool = Field(True, description="If analysis should be performed on the agent output. Set to false for cases where you only want to check tool calls")
 
 async def run_iterations(host_instance: MCPHost, testing_config: ValidationConfig, override_system_prompt: str | None = None) -> (list, list):
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
@@ -375,16 +376,21 @@ async def _run_single_iteration(host_instance: MCPHost, testing_config: Validati
     
     output, full_output = await _get_agent_result(host_instance, testing_config, test_input, override_system_prompt)
     
-    # analyze the agent/workflow output, overriding system prompt
-    analysis_output = await call_agent(host_instance=host_instance, agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
-    analysis_output = analysis_output.get("final_response").content[0].text
     
-    logging.info(f'Analysis result {i+1}: {analysis_output}')
-    
-    try:
-        analysis_json = json.loads(_clean_thinking_output(analysis_output))
-    except Exception as e:
-        raise ValueError(f"Error converting agent output to json: {e}")
+    if testing_config.analysis:
+        # analyze the agent/workflow output, overriding system prompt
+        analysis_output = await call_agent(host_instance=host_instance, agent_name="Quality Assurance Agent", user_message=f"Input:{test_input}\n\nOutput:{output}", system_prompt=prompts["qa_system_prompt"])
+        analysis_output = analysis_output.get("final_response").content[0].text
+        
+        logging.info(f'Analysis result {i+1}: {analysis_output}')
+        
+        try:
+            analysis_json = json.loads(_clean_thinking_output(analysis_output))
+        except Exception as e:
+            raise ValueError(f"Error converting agent output to json: {e}")
+    else:
+        # if no analysis to be done, automatically pass
+        analysis_json = {"grade": "PASS"}
     
     analysis_json["input"] = test_input
     analysis_json["output"] = output

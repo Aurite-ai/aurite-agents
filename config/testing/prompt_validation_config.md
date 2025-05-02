@@ -1,5 +1,5 @@
 ## Config Parameters
-Updated as of 4/29/2025
+Updated as of 5/2/2025
 
 
 - test_type
@@ -43,7 +43,7 @@ Updated as of 4/29/2025
   ```
 - evaluation_type
   - "numeric" or "default"
-  - If the output should be a score from 0-10 (numeric), or semantic (default)
+  - If the output should be a score from 0-10 (numeric), or semantic analysis with PASS/FAIL (default)
 - threshold
   - number (0-10), optional
   - The expected score threshold for the numeric evaluation_type
@@ -52,7 +52,7 @@ Updated as of 4/29/2025
   - If the process should retry if it fails to pass the threshold score
 - max_retries
   - int, default 0
-  - The maximum retries, after the initial run (max_retries=2 would result in 3 total runs)
+  - The maximum retries, after the initial run (max_retries=2 would result in up to 3 total runs)
 - edit_prompt
   - bool, default false
   - If the prompt validator should try to improve the prompt if it fails to meet threshold. The new prompt will be used in the next retry, and the final prompt will be included with the output
@@ -79,3 +79,6 @@ Updated as of 4/29/2025
       }
     ]      
   ```
+- analysis
+  - bool, default true
+  - If analysis should be performed on the agent output. Set to false for cases where you only want to check tool calls
