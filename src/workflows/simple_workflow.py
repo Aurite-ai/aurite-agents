@@ -123,26 +123,45 @@ class SimpleWorkflowExecutor:
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    # 5. Extract Output for Next Step (Basic: first text block)
+                    # 5. Extract Output for Next Step (Handle potential missing text/content)
                     try:
-                        text_content = next(
-                            (
-                                block.text
-                                for block in result["final_response"].content
-                                if block.type == "text"
-                            ),
-                            None,
-                        )
-                        if text_content is None:
-                            error_message = f"Agent '{agent_name}' (step {step_num}) response content has no text block."
+                        if (
+                            result.get("final_response")
+                            and result["final_response"].content
+                        ):
+                            text_content = next(
+                                (
+                                    block.text
+                                    for block in result["final_response"].content
+                                    if block.type == "text"
+                                ),
+                                None,
+                            )
+                            if text_content is not None:
+                                current_message = text_content
+                                logger.debug(
+                                    f"Step {step_num}: Output message for next step: '{current_message[:100]}...'"
+                                )
+                            else:
+                                # Agent responded, but no text block found. What should happen?
+                                # Option 1: Fail the workflow
+                                # error_message = f"Agent '{agent_name}' (step {step_num}) response content has no text block."
+                                # logger.error(error_message)
+                                # break
+                                # Option 2: Pass an empty string or placeholder? Let's pass empty string for now.
+                                current_message = ""
+                                logger.warning(
+                                    f"Agent '{agent_name}' (step {step_num}) response content has no text block. Passing empty string to next step."
+                                )
+                        else:
+                            # Agent result structure is missing expected parts
+                            error_message = f"Agent '{agent_name}' (step {step_num}) returned unexpected result structure (missing final_response or content)."
                             logger.error(error_message)
                             break
-                        current_message = text_content
-                        logger.debug(
-                            f"Step {step_num}: Output message for next step: '{current_message[:100]}...'"
-                        )
-                    except (AttributeError, IndexError, TypeError) as e:
-                        error_message = f"Error extracting text from agent '{agent_name}' (step {step_num}) response: {e}"
+
+                    except (AttributeError, TypeError) as e:
+                        # Catch errors if the result structure is malformed
+                        error_message = f"Error processing agent '{agent_name}' (step {step_num}) response structure: {e}"
                         logger.error(error_message, exc_info=True)
                         break
 

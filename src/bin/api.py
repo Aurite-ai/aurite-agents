@@ -284,9 +284,8 @@ async def execute_agent_endpoint(
     """
     logger.info(f"Received request to execute agent: {agent_name}")
     try:
-        # TODO (Refactor): Update to use ExecutionFacade
-        # result = await manager.execution.run_agent(...)
-        result = await manager.execute_agent(  # Keep old call for now
+        # Use the ExecutionFacade via the manager
+        result = await manager.execution.run_agent(
             agent_name=agent_name,
             user_message=request_body.user_message,
             system_prompt=request_body.system_prompt,
@@ -294,10 +293,10 @@ async def execute_agent_endpoint(
         logger.info(
             f"Agent '{agent_name}' execution finished successfully via manager."
         )
-        # The result from manager.execute_agent should be directly returnable
+        # The result from manager.execution.run_agent should be directly returnable
         return result
     except KeyError:
-        # This exception is raised by manager.execute_agent if agent_name is not found
+        # This exception is raised by the facade if agent_name is not found
         logger.warning(f"Agent configuration not found for name: {agent_name}")
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     except ValueError as ve:
@@ -325,18 +324,17 @@ async def execute_workflow_endpoint(
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
     try:
-        # TODO (Refactor): Update to use ExecutionFacade
-        # result = await manager.execution.run_simple_workflow(...)
-        result = await manager.execute_workflow(  # Keep old call for now
+        # Use the ExecutionFacade via the manager
+        result = await manager.execution.run_simple_workflow(
             workflow_name=workflow_name,
-            initial_user_message=request_body.initial_user_message,
+            initial_input=request_body.initial_user_message,  # Facade expects initial_input
         )
         logger.info(f"Workflow '{workflow_name}' execution finished via manager.")
-        # manager.execute_workflow returns a dict matching ExecuteWorkflowResponse structure
+        # manager.execution.run_simple_workflow returns a dict matching ExecuteWorkflowResponse structure
         return ExecuteWorkflowResponse(**result)
 
     except KeyError:
-        # This exception is raised by manager.execute_workflow if workflow or agent is not found
+        # This exception is raised by the facade if workflow or agent is not found
         logger.warning(
             f"Workflow configuration or agent within workflow '{workflow_name}' not found."
         )
@@ -373,21 +371,33 @@ async def execute_custom_workflow_endpoint(
     """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
     try:
-        # TODO (Refactor): Update to use ExecutionFacade
-        # result = await manager.execution.run_custom_workflow(...)
-        result = await manager.execute_custom_workflow(  # Keep old call for now
+        # Use the ExecutionFacade via the manager
+        result = await manager.execution.run_custom_workflow(
             workflow_name=workflow_name,
             initial_input=request_body.initial_input,
         )
         logger.info(
             f"Custom workflow '{workflow_name}' executed successfully via manager."
         )
-        # Return success response
-        return ExecuteCustomWorkflowResponse(
-            workflow_name=workflow_name, status="completed", result=result
-        )
+        # The facade returns the direct result or an error structure
+        # Check if the result indicates an error from the facade itself
+        if isinstance(result, dict) and result.get("status") == "failed":
+            logger.error(
+                f"Custom workflow '{workflow_name}' execution failed (reported by facade): {result.get('error')}"
+            )
+            # Return the error structure from the facade
+            return ExecuteCustomWorkflowResponse(
+                workflow_name=workflow_name,
+                status="failed",
+                error=result.get("error", "Unknown execution error"),
+            )
+        else:
+            # Return success response with the result from the custom workflow
+            return ExecuteCustomWorkflowResponse(
+                workflow_name=workflow_name, status="completed", result=result
+            )
     except (KeyError, FileNotFoundError):
-        # Raised by manager if config or module file not found
+        # Raised by facade if config or module file not found
         logger.warning(
             f"Custom workflow '{workflow_name}' not found or module file missing."
         )
@@ -396,7 +406,7 @@ async def execute_custom_workflow_endpoint(
             detail=f"Custom workflow '{workflow_name}' not found or its file is missing.",
         )
     except (AttributeError, ImportError, PermissionError, TypeError) as setup_err:
-        # Raised by manager during import/setup
+        # Raised by facade during import/setup
         logger.error(
             f"Error setting up custom workflow '{workflow_name}': {setup_err}",
             exc_info=True,
@@ -406,15 +416,15 @@ async def execute_custom_workflow_endpoint(
             detail=f"Error setting up custom workflow '{workflow_name}': {str(setup_err)}",
         )
     except RuntimeError as exec_err:
-        # Raised by manager for errors during the workflow's own execution
+        # Raised by facade for errors during the workflow's own execution
         logger.error(
             f"Error during custom workflow '{workflow_name}' execution: {exec_err}",
             exc_info=True,
         )
-        # Return 200 OK but indicate failure in the response body (consistent with previous behavior)
-        # Or consider returning 500 here? Let's stick to 200 + error for now.
-        return ExecuteCustomWorkflowResponse(
-            workflow_name=workflow_name, status="failed", error=str(exec_err)
+        # Return 500 as this is an internal error during execution
+        raise HTTPException(
+            status_code=500,
+            detail=f"Runtime error during custom workflow execution: {str(exec_err)}",
         )
     except ValueError as ve:
         # Catch potential ValueError if manager wasn't initialized

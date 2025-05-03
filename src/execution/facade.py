@@ -224,10 +224,8 @@ class ExecutionFacade:
 
         # 2. Instantiate CustomWorkflowExecutor
         try:
-            executor = CustomWorkflowExecutor(
-                config=custom_config,
-                host_instance=self._host,  # Executor needs host for dynamic loading
-            )
+            # CustomWorkflowExecutor __init__ only takes config now
+            executor = CustomWorkflowExecutor(config=custom_config)
             logger.debug(
                 f"Facade: Instantiated CustomWorkflowExecutor for '{workflow_name}'"
             )

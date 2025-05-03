@@ -19,219 +19,128 @@ The chosen approach is the **Executor Pattern with an Execution Facade**:
 *   `HostManager` will retain ownership of configurations and handle registration, passing config references to the facade.
 *   `MCPHost` will continue to perform low-level MCP interactions and filtering, receiving necessary `AgentConfig` details during execution calls.
 
-## 2. Implementation Phases
+## 2. Implementation Steps (Combined Phases)
 
-### Phase A: Implement Agentic Component Executors
+**Goal:** Refactor execution logic into dedicated Executors and a unified Facade, enabling component composition.
 
-**Goal:** Create the `SimpleWorkflowExecutor` and `CustomWorkflowExecutor` classes, move execution logic into them, and remove the old execution methods from `HostManager`.
+**Actual Implementation Steps Taken:**
 
-**Steps:**
-
-1.  **Create Directory:**
-    *   Create `src/workflows/`.
-2.  **Implement `SimpleWorkflowExecutor`:**
-    *   Create `src/workflows/simple_workflow.py`.
-    *   Define class `SimpleWorkflowExecutor`.
-    *   **Constructor (`__init__`)**: Accepts `WorkflowConfig`, `Dict[str, AgentConfig]` (all agent configs), and `MCPHost`.
+1.  **Created Directories:**
+    *   Created `src/workflows/`.
+    *   Created `src/execution/`.
+2.  **Implemented `SimpleWorkflowExecutor`:**
+    *   Created `src/workflows/simple_workflow.py`.
+    *   Defined class `SimpleWorkflowExecutor`.
+    *   Constructor accepts `WorkflowConfig`, `Dict[str, AgentConfig]`, and `MCPHost`.
+    *   `execute` method implements sequential agent execution logic, adapted from `HostManager`.
+3.  **Implemented `CustomWorkflowExecutor`:**
+    *   Created `src/workflows/custom_workflow.py`.
+    *   Defined class `CustomWorkflowExecutor`.
+    *   **Constructor (`__init__`)**: Initially accepted `CustomWorkflowConfig` and `MCPHost`, later refactored to accept only `CustomWorkflowConfig`.
     *   **Execution Method (`async def execute(...)`)**:
-        *   Accepts `initial_input: str`.
-        *   Retrieves agent names from `WorkflowConfig.steps`.
-        *   Iterates through steps:
-            *   Looks up the `AgentConfig` for the current step's agent name from the provided dictionary.
-            *   Instantiates `src.agents.agent.Agent` with the retrieved `AgentConfig`.
-            *   Calls `agent_instance.execute_agent(user_message=current_message, host_instance=self.host)`.
-            *   Handles output/error from the agent call, updating `current_message` for the next step or breaking on error.
-        *   Returns a result dictionary (e.g., `{"status": "completed" | "failed", "final_message": ..., "error": ...}`).
-    *   **Reference Logic:** Adapt logic currently in `HostManager.execute_workflow`.
-3.  **Implement `CustomWorkflowExecutor`:**
-    *   Create `src/workflows/custom_workflow.py`.
-    *   Define class `CustomWorkflowExecutor`.
-    *   **Constructor (`__init__`)**: Accepts `CustomWorkflowConfig` and `MCPHost`. (Note: It doesn't need all configs, just the specific one it's executing).
-    *   **Execution Method (`async def execute(...)`)**:
-        *   Accepts `initial_input: Any` and `executor: ExecutionFacade` (this is the *new* signature the custom workflow itself will expect).
-        *   Retrieves `module_path` and `class_name` from `CustomWorkflowConfig`.
-        *   Performs dynamic import of the module.
-        *   Instantiates the workflow class.
-        *   Validates the existence and signature of the `execute_workflow` method within the instantiated class.
-        *   Calls `workflow_instance.execute_workflow(initial_input=initial_input, executor=executor)`. **Crucially, it passes the `ExecutionFacade` instance it received.**
-        *   Returns the result from the custom workflow's method.
-    *   **Reference Logic:** Adapt logic currently in `HostManager.execute_custom_workflow`, but modify the call signature as described.
-4.  **Refactor `HostManager`:**
+        *   Accepts `initial_input: Any` and `executor: ExecutionFacade`.
+        *   Handles dynamic import and instantiation of the custom workflow class.
+        *   Calls the custom workflow's `execute_workflow` method, passing the `ExecutionFacade` instance.
+4.  **Implemented `ExecutionFacade`:**
+    *   Created `src/execution/facade.py`.
+    *   Defined class `ExecutionFacade`.
+    *   **Constructor (`__init__`)**: Accepts `host_manager: HostManager`. Stores references to the manager and its host (`self._manager`, `self._host`).
+    *   **Method (`async def run_agent(...)`)**: Implemented logic to look up config, instantiate `Agent`, and call `agent.execute_agent`.
+    *   **Method (`async def run_simple_workflow(...)`)**: Implemented logic to look up config, instantiate `SimpleWorkflowExecutor`, and call `executor.execute`.
+    *   **Method (`async def run_custom_workflow(...)`)**: Implemented logic to look up config, instantiate `CustomWorkflowExecutor`, and call `executor.execute`, passing `self` (the facade).
+5.  **Refactored `HostManager`:**
     *   In `src/host_manager.py`:
-        *   Remove the methods: `execute_agent`, `execute_workflow`, `execute_custom_workflow`.
-5.  **Refactor `MCPHost` (Minor):**
+        *   Imported `ExecutionFacade`.
+        *   Added `self.execution: Optional[ExecutionFacade] = None` attribute.
+        *   Instantiated `ExecutionFacade` in `initialize` after host initialization, passing `self`.
+        *   Removed the old `execute_agent`, `execute_workflow`, `execute_custom_workflow` methods.
+        *   Removed `workflow_configs` from the `MCPHost` constructor call.
+6.  **Refactored `MCPHost` (Minor):**
     *   In `src/host/host.py`:
-        *   The `__init__` method no longer needs `workflow_configs` or `custom_workflow_configs` passed to it, as it doesn't store or use them directly anymore. Update the `__init__` signature and remove `self._workflow_configs` and `self._custom_workflow_configs`.
-        *   Remove the `get_workflow_config` method.
-        *   Ensure `get_agent_config` remains as it's still used for filtering lookups initiated by `execute_tool`/`get_prompt`.
+        *   Removed `workflow_configs` and `custom_workflow_configs` parameters from `__init__`.
+        *   Removed `self._workflow_configs` and `self._custom_workflow_configs` attributes.
+        *   Removed the `get_workflow_config` method.
+7.  **Updated `CustomWorkflow` Interface:**
+    *   Updated `tests/fixtures/custom_workflows/example_workflow.py` to accept `executor: ExecutionFacade` in `execute_workflow` and use it to call `executor.run_agent`.
+8.  **Updated Entrypoints (Placeholders):**
+    *   Added `TODO (Refactor): ...` comments in `src/bin/api.py`, `src/bin/cli.py`, and `src/bin/worker.py` where execution calls need to be updated to use `host_manager.execution.run_...`.
+9.  **Testing & Verification:**
+    *   Created integration tests for `SimpleWorkflowExecutor` and `CustomWorkflowExecutor` in `tests/workflows/`.
+    *   Addressed and resolved `pytest-asyncio` / `anyio` event loop errors by:
+        *   Using module-level `pytestmark = pytest.mark.anyio`.
+        *   Removing function-level `@pytest.mark.asyncio` decorators.
+        *   Setting `host_manager` fixture scope back to `function`.
+        *   Suppressing the remaining `RuntimeError: Event loop is closed` in the `host_manager` fixture teardown.
+    *   Skipped outdated execution tests in `tests/host/test_host_manager.py`.
+    *   Fixed assertion errors in `tests/host/test_host_manager.py` related to config loading counts.
+    *   Ensured all tests in `tests/workflows/` and `tests/host/` pass (excluding skipped tests).
 
-**Testing (Phase A):**
+### Phase C: Integrate ExecutionFacade into Entrypoints, Test, and Document
 
-*   **Strategy:** Integration tests first (no mocks for executors or host), followed by unit tests if complex internal logic warrants mocking. Test one case at a time.
-*   **Files:**
-    *   `tests/workflows/test_simple_workflow_executor_integration.py`
-    *   `tests/workflows/test_simple_workflow_executor_unit.py`
-    *   `tests/workflows/test_custom_workflow_executor_integration.py`
-    *   `tests/workflows/test_custom_workflow_executor_unit.py`
-*   **Integration Test Cases (Examples):**
-    *   `test_simple_executor_init`: Ensure `SimpleWorkflowExecutor` initializes.
-    *   `test_simple_executor_basic_execution`: Run a simple 2-step workflow using real agents and `MCPHost` (potentially with mock MCP *servers* via fixtures if needed, but not mocking the executor/host/agent classes). Verify final output.
-    *   `test_simple_executor_agent_not_found`: Test failure when a step references a non-existent agent config.
-    *   `test_custom_executor_init`: Ensure `CustomWorkflowExecutor` initializes.
-    *   `test_custom_executor_basic_execution`: Run a simple custom workflow (that perhaps just returns input or calls one tool via the passed facade) using a real `MCPHost` and a placeholder facade. Verify output.
-    *   `test_custom_executor_module_not_found`: Test failure for invalid module path.
-    *   `test_custom_executor_class_not_found`: Test failure for invalid class name.
-    *   `test_custom_executor_method_not_found`: Test failure if `execute_workflow` is missing.
-    *   `test_custom_executor_method_signature_invalid`: Test failure if `execute_workflow` doesn't accept `(self, initial_input, executor)`.
-*   **Unit Test Cases:** Add as needed to cover specific internal logic branches within the executors, potentially mocking `MCPHost` or `Agent` interactions if required for isolation.
+**Goal:** Modify API, Worker, and CLI entrypoints to use the `ExecutionFacade` for execution requests, add facade-specific tests, verify changes using API/CLI tests, and update documentation.
 
-### Phase B: Implement Execution Facade & Integrate
-
-**Goal:** Create the `ExecutionFacade`, integrate it with `HostManager`, and update the `CustomWorkflow` interface.
-
-**Steps:**
-
-1.  **Create Directory:**
-    *   Create `src/execution/`.
-2.  **Implement `ExecutionFacade`:**
-    *   Create `src/execution/facade.py`.
-    *   Define class `ExecutionFacade`.
-    *   **Constructor (`__init__`)**:
-        *   Accepts `host_instance: MCPHost`.
-        *   Accepts references to the configuration dictionaries: `agent_configs: Dict[str, AgentConfig]`, `workflow_configs: Dict[str, WorkflowConfig]`, `custom_workflow_configs: Dict[str, CustomWorkflowConfig]`.
-        *   Stores these internally (e.g., `self._host`, `self._agent_configs`, etc.).
-    *   **Method (`async def run_agent(...)`)**:
-        *   Accepts `agent_name: str`, `user_message: str`, `system_prompt: Optional[str] = None`.
-        *   Looks up `AgentConfig` from `self._agent_configs` using `agent_name`. Handle `KeyError`.
-        *   Instantiates `src.agents.agent.Agent` with the config.
-        *   Calls `agent_instance.execute_agent(user_message=user_message, host_instance=self._host, system_prompt=system_prompt)`.
-        *   Returns the result.
-    *   **Method (`async def run_simple_workflow(...)`)**:
-        *   Accepts `workflow_name: str`, `initial_user_message: str`.
-        *   Looks up `WorkflowConfig` from `self._workflow_configs`. Handle `KeyError`.
-        *   Instantiates `src.workflows.simple_workflow.SimpleWorkflowExecutor` passing the specific `WorkflowConfig`, the *entire* `self._agent_configs` dictionary (needed for step lookups), and `self._host`.
-        *   Calls `executor_instance.execute(initial_input=initial_user_message)`.
-        *   Returns the result.
-    *   **Method (`async def run_custom_workflow(...)`)**:
-        *   Accepts `workflow_name: str`, `initial_input: Any`.
-        *   Looks up `CustomWorkflowConfig` from `self._custom_workflow_configs`. Handle `KeyError`.
-        *   Instantiates `src.workflows.custom_workflow.CustomWorkflowExecutor` passing the specific `CustomWorkflowConfig` and `self._host`.
-        *   Calls `executor_instance.execute(initial_input=initial_input, executor=self)`. **Crucially, passes `self` (the facade instance) as the `executor` argument.**
-        *   Returns the result.
-3.  **Refactor `HostManager`:**
-    *   In `src/host_manager.py`:
-        *   Add `from src.execution.facade import ExecutionFacade`.
-        *   Add `self.executor: Optional[ExecutionFacade] = None` attribute.
-        *   In `initialize`:
-            *   After `self.host = MCPHost(...)` and `await self.host.initialize()`, instantiate the facade:
-              ```python
-              self.executor = ExecutionFacade(
-                  host_instance=self.host,
-                  agent_configs=self.agent_configs,
-                  workflow_configs=self.workflow_configs,
-                  custom_workflow_configs=self.custom_workflow_configs
-              )
-              logger.info("ExecutionFacade initialized.")
-              ```
-        *   In `shutdown`: Set `self.executor = None`.
-        *   Add method `get_executor(self) -> ExecutionFacade`:
-            ```python
-            if not self.executor:
-                raise RuntimeError("HostManager is not initialized or facade is not available.")
-            return self.executor
-            ```
-        *   **Dynamic Registration:** Verify that `register_agent`, `register_workflow`, `register_custom_workflow`, and `register_config_file` correctly update the `self.agent_configs`, `self.workflow_configs`, and `self.custom_workflow_configs` dictionaries. Since the facade holds references to these dictionaries, no explicit update to the facade is needed upon registration.
-4.  **Update `CustomWorkflow` Interface:**
-    *   Modify the required signature for the `execute_workflow` method in all custom workflow implementations (including examples/tests like `tests/fixtures/custom_workflows/example_workflow.py`):
-        ```python
-        # Change from:
-        # async def execute_workflow(self, initial_input: Any, host_instance: MCPHost):
-        # To:
-        async def execute_workflow(self, initial_input: Any, executor: ExecutionFacade):
-            # Use executor.run_agent(...), executor.run_simple_workflow(...), etc.
-            # Access host capabilities via executor._host if absolutely necessary (discouraged)
-            # Example: tools = executor._host.get_formatted_tools(agent_config=...)
-        ```
-    *   Update any custom workflows that previously accessed `host_instance` directly to now use the `executor` (primarily for calling other components, or accessing `executor._host` for direct host interactions if unavoidable).
-
-**Testing (Phase B):**
-
-*   **Strategy:** Integration tests first, focusing on the facade's ability to correctly orchestrate the underlying executors.
-*   **Files:**
-    *   `tests/execution/test_facade_integration.py`
-    *   `tests/execution/test_facade_unit.py`
-*   **Integration Test Cases (Examples):**
-    *   `test_facade_init`: Ensure facade initializes correctly with a mock/real host and config dictionaries.
-    *   `test_facade_run_agent`: Call `facade.run_agent` and verify it correctly executes the agent via `Agent.execute_agent`. Use a real `Agent` and `MCPHost`.
-    *   `test_facade_run_simple_workflow`: Call `facade.run_simple_workflow` and verify it executes via `SimpleWorkflowExecutor`. Use real components.
-    *   `test_facade_run_custom_workflow`: Call `facade.run_custom_workflow`. Verify it executes via `CustomWorkflowExecutor` and correctly passes the facade instance *back* to the custom workflow's method. Test a custom workflow that *uses* the passed executor to call another agent.
-    *   `test_facade_dynamic_registration`: Register a new agent via `HostManager`, then execute it via the *same* facade instance to ensure the referenced config dictionary was updated.
-    *   `test_facade_component_not_found`: Test `KeyError` handling when calling `run_...` for non-existent component names.
-*   **Unit Test Cases:** Mock executors and host to test the facade's internal logic (config lookups, instantiation calls) in isolation if needed.
-
-### Phase C: Update Entrypoints & Documentation
-
-**Goal:** Modify API, Worker, and CLI entrypoints to use the `ExecutionFacade` for execution requests and update documentation.
-
-**Steps:**
+**Detailed Steps:**
 
 1.  **Refactor API (`src/bin/api.py`):**
-    *   Identify all route handlers that perform execution (e.g., `/agents/{name}/execute`, `/workflows/{name}/execute`, `/custom_workflows/{name}/execute`).
-    *   In each handler, replace calls like `host_manager.execute_agent(...)` with:
-        ```python
-        try:
-            executor = host_manager.get_executor()
-            result = await executor.run_agent(agent_name=name, user_message=payload.user_message) # Or run_workflow, etc.
-            # Process result...
-        except (KeyError, RuntimeError, ValueError) as e:
-            # Handle errors (e.g., 404 Not Found, 500 Internal Server Error)
-        ```
-    *   Ensure registration endpoints (`/clients/register`, `/agents/register`, etc.) still call the `host_manager.register_...` methods directly.
+    *   **1.1.** Modify the `/agents/{agent_name}/execute` endpoint:
+        *   Replace the call `manager.execute_agent(...)` with `manager.execution.run_agent(...)`.
+        *   Verify the arguments passed (`agent_name`, `user_message`, `system_prompt`) match the `run_agent` signature.
+        *   Ensure error handling (e.g., `KeyError` for missing agent) remains appropriate or is adapted for potential errors from the facade.
+    *   **1.2.** Modify the `/workflows/{workflow_name}/execute` endpoint:
+        *   Replace the call `manager.execute_workflow(...)` with `manager.execution.run_simple_workflow(...)`.
+        *   Verify the arguments passed (`workflow_name`, `initial_user_message`) match the `run_simple_workflow` signature.
+        *   Ensure the response model (`ExecuteWorkflowResponse`) still aligns with the facade's return structure.
+        *   Adapt error handling for potential errors from the facade.
+    *   **1.3.** Modify the `/custom_workflows/{workflow_name}/execute` endpoint:
+        *   Replace the call `manager.execute_custom_workflow(...)` with `manager.execution.run_custom_workflow(...)`.
+        *   Verify the arguments passed (`workflow_name`, `initial_input`) match the `run_custom_workflow` signature.
+        *   Ensure the response model (`ExecuteCustomWorkflowResponse`) still aligns with the facade's return structure.
+        *   Adapt error handling for potential errors from the facade (including setup errors vs. runtime errors within the custom workflow).
 2.  **Refactor Worker (`src/bin/worker.py`):**
-    *   Modify the task processing logic. When an execution task is received:
-        *   Get the facade: `executor = host_manager.get_executor()`.
-        *   Call the appropriate `executor.run_...` method based on the task data.
-        *   Handle results/errors.
-    *   Registration tasks should still call `host_manager.register_...`.
-3.  **Refactor CLI (`src/bin/cli.py`):**
-    *   Update the `execute` command group.
-    *   For `agent`, `workflow`, `custom-workflow` subcommands:
-        *   Get the facade: `executor = host_manager.get_executor()`.
-        *   Call the appropriate `executor.run_...` method.
-        *   Print results/errors.
-    *   Ensure `register` commands still call `host_manager.register_...`.
-4.  **Update Documentation:**
-    *   `README.md`: Update architecture diagram/description if necessary to show facade/executors. Update usage examples if CLI/API calls changed significantly.
-    *   `docs/architecture_overview.md`: Detail the new execution flow involving the facade and executors. Explain the role of each component (`HostManager`, `ExecutionFacade`, Executors, `MCPHost`).
-    *   `docs/framework_guide.md` (or similar developer guide): Document the new `CustomWorkflow` signature (`execute_workflow(self, initial_input, executor)`). Provide examples of how custom workflows can now call other components using the `executor`.
-    *   Review other potentially relevant docs (`docs/host/host_implementation.md`, etc.) for necessary updates.
+    *   **2.1.** Identify the section in `worker.py` that handles execution tasks (if it currently calls the old `manager.execute_...` methods).
+    *   **2.2.** Update the task processing logic to call the corresponding `manager.execution.run_...` methods based on the task type (`agent`, `simple_workflow`, `custom_workflow`).
+    *   **2.3.** Adjust argument passing and result handling as needed.
+    *   *(Self-Correction: Need to verify if `worker.py` actually performs execution or just registration. If only registration, this step might be unnecessary or simpler).*
+3.  **Verify CLI (`src/bin/cli.py`):**
+    *   **3.1.** Confirm that the `execute agent`, `execute workflow`, and `execute custom-workflow` subcommands in `cli.py` solely rely on making requests to the API endpoints modified in Step 1.
+    *   **3.2.** If the CLI *does* interact directly with `HostManager` (which seems unlikely based on the current `cli.py` structure), update those interactions to use `manager.execution.run_...`. Otherwise, no direct code changes are needed in the CLI for execution logic, but testing is crucial.
+4.  **Add Facade Integration Tests:**
+    *   **4.1.** Create the test file `tests/execution/test_facade_integration.py`.
+    *   **4.2.** Add a test `test_facade_run_agent` that uses the `host_manager` fixture, calls `manager.execution.run_agent`, and verifies the result structure and basic content (similar to agent execution tests, but invoked via the facade).
+    *   **4.3.** Add a test `test_facade_run_simple_workflow` that calls `manager.execution.run_simple_workflow` and verifies the result (similar to simple workflow executor tests).
+    *   **4.4.** Add a test `test_facade_run_custom_workflow` that calls `manager.execution.run_custom_workflow` and verifies the result, ensuring the facade is passed correctly (similar to custom workflow executor tests).
+    *   **4.5.** Add tests for error conditions (e.g., `test_facade_run_agent_not_found`, `test_facade_run_workflow_not_found`).
+5.  **API Testing (Postman/Newman):**
+    *   **5.1.** Review the existing Postman collection (`tests/api/main_server.postman_collection.json`).
+    *   **5.2.** Ensure the tests for the `/execute` endpoints (`Execute Agent`, `Execute Simple Workflow`, `Execute Custom Workflow`) are still valid after the API refactoring in Step 1. Adjust request bodies or assertions if necessary.
+    *   **5.3.** Run the Postman collection using Newman (with the environment file `tests/api/main_server.postman_environment.json`) against the locally running API server (`python -m src.bin.api`).
+    *   **5.4.** Debug and fix any issues identified in the API implementation (Step 1) based on test failures.
+6.  **CLI Testing:**
+    *   **6.1.** Once API tests (Step 5) are passing, test the corresponding CLI `execute` commands:
+        *   `python -m src.bin.cli execute agent ...`
+        *   `python -m src.bin.cli execute workflow ...`
+        *   `python -m src.bin.cli execute custom-workflow ...`
+    *   **6.2.** Verify that the CLI commands produce the expected output by successfully calling the refactored API endpoints.
+    *   **6.3.** Debug and fix any issues identified in the API implementation or CLI argument parsing.
+7.  **Update Documentation:**
+    *   **7.1.** Update `README.md`: Modify the architecture diagram/description if needed to clearly show the `ExecutionFacade` between `HostManager` and the Executors/Agent. Update usage examples if affected.
+    *   **7.2.** Update `docs/architecture_overview.md`: Reflect the new `ExecutionFacade` layer and its role.
+    *   **7.3.** Update `docs/framework_overview.md` or other relevant developer guides: Explain the facade, the executor pattern, and the updated custom workflow signature (`execute_workflow` receiving the facade).
+    *   **7.4.** Review `docs/plans/manager_refactor_plan.md` itself and mark Phase C as complete or update its status.
 
-**Testing (Phase C):**
+## 3. Completion Criteria (Current Task)
 
-*   **Strategy:** End-to-end testing using API client (Postman/Newman) and CLI. Avoid pytest due to potential event loop complexities with entrypoint runners.
-*   **Tools:**
-    *   Postman Collection: `tests/api/main_server.postman_collection.json` (Update requests if necessary).
-    *   Newman (for automated Postman runs).
-    *   Manual CLI execution (`python -m src.bin.cli ...`).
-*   **Test Cases:**
-    *   **API/Newman:**
-        *   Run existing "Execute Agent", "Execute Simple Workflow", "Execute Custom Workflow" requests. Verify they still work via the facade.
-        *   Run existing "[Dynamic] Register ..." requests for Client, Agent, Workflow.
-        *   Add a "[Dynamic] Register Custom Workflow" request.
-        *   Add requests to *execute* the dynamically registered Agent, Simple Workflow, and Custom Workflow.
-        *   Test execution of a Custom Workflow that *calls* another Agent or Workflow via the facade.
-        *   Test error handling (e.g., 404 for non-existent components).
-    *   **CLI:**
-        *   Manually run `python -m src.bin.cli execute agent ...`, `... execute workflow ...`, `... execute custom-workflow ...` for existing and dynamically registered components.
-        *   Manually run `python -m src.bin.cli register client ...`, `... register agent ...`, etc.
-        *   Verify successful execution and correct error reporting.
+*   Execution logic resides in `Agent`, `SimpleWorkflowExecutor`, or `CustomWorkflowExecutor`.
+*   `ExecutionFacade` provides a unified interface (`run_agent`, `run_simple_workflow`, `run_custom_workflow`).
+*   `CustomWorkflowExecutor` accepts the `ExecutionFacade` and passes it to the custom workflow's `execute_workflow` method.
+*   Example custom workflow (`tests/fixtures/.../example_workflow.py`) updated to the new signature and successfully calls `executor.run_agent`.
+*   `HostManager` uses the `ExecutionFacade` internally.
+*   Relevant integration tests for executors pass.
+*   Outdated tests in `test_host_manager.py` are skipped.
+*   Test environment issues (event loop errors) are resolved/suppressed.
 
-## 3. Completion Criteria
+## 4. Next Steps
 
-*   All execution logic is removed from `HostManager` and resides in `Agent`, `SimpleWorkflowExecutor`, or `CustomWorkflowExecutor`.
-*   `ExecutionFacade` provides a working, unified interface for `run_agent`, `run_simple_workflow`, `run_custom_workflow`.
-*   `CustomWorkflow`s can successfully call other agents/workflows via the `ExecutionFacade` passed to their `execute_workflow` method.
-*   Dynamic registration via `HostManager` correctly updates configurations used by the `ExecutionFacade`.
-*   All tests defined in Phases A and B pass.
-*   End-to-end testing via API (Newman) and CLI (manual) confirms execution and registration functionality for all component types (Phase C).
-*   Relevant documentation (`README.md`, architecture, guides) is updated to reflect the changes.
+*   Implement Phase C: Update Entrypoints & Documentation (as detailed above).
+*   Add comprehensive unit tests for the facade and executors where needed.
+*   Consider refactoring configuration loading (`get_server_config`) shared between `api.py`, `cli.py`, and `worker.py`.
