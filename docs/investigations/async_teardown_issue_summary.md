@@ -46,9 +46,3 @@ The core issue appears to be a fundamental incompatibility between:
 **Supporting Evidence:**
 
 *   [GitHub Issue mcp-py#79](https://github.com/modelcontextprotocol/mcp-py/issues/79): Describes the identical problem and confirms the cause is calling `AsyncExitStack.aclose()` in a different task. The suggested workaround involves managing the stack within a single scope.
-
-**Next Proposed Step (Plan v6):**
-
-Given the failures of managing the lifecycle across fixture boundaries, the next plan involves:
-*   Making the `host_manager` fixture synchronous and minimal (only instantiating `HostManager`).
-*   Moving *all* async operations (host initialization, client connections using a local `AsyncExitStack`, test assertions, and host shutdown) directly into the `async def` test function's scope, managed by `try`/`async with`/`finally` blocks within the test itself. This aims to guarantee all `anyio` context management occurs within the single task executing the test function.

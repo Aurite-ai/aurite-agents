@@ -4,47 +4,60 @@ from typing import Any
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.host.host import MCPHost
-from src.agents.agent import Agent
+# from src.host.host import MCPHost # No longer needed directly
+# from src.agents.agent import Agent # Agent execution handled by facade
+from typing import TYPE_CHECKING
+
+# Type hint for ExecutionFacade to avoid circular import
+if TYPE_CHECKING:
+    from src.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
 
 
 class ExampleCustomWorkflow:
     """
-    A simple example custom workflow that uses an agent.
+    A simple example custom workflow that uses the ExecutionFacade.
     """
 
-    async def execute_workflow(self, initial_input: Any, host_instance: MCPHost) -> Any:
+    async def execute_workflow(
+        self, initial_input: Any, executor: "ExecutionFacade"
+    ) -> Any:
         """
-        Executes the example workflow.
+        Executes the example workflow using the provided facade.
 
         Args:
             initial_input: The input data for the workflow.
-            host_instance: The MCPHost instance to interact with agents/tools.
+            executor: The ExecutionFacade instance to run other components.
 
         Returns:
             A dictionary containing the result or an error.
         """
         logger.info(f"ExampleCustomWorkflow started with input: {initial_input}")
 
-        # Example: Use an agent defined in config
+        # Example: Use the facade to run an agent
         try:
             # Ensure this agent name matches one in your testing_config.json
             agent_name = "Weather Agent"
-            agent_config = host_instance.get_agent_config(agent_name)
-            agent = Agent(config=agent_config)
 
             # Construct a user message based on the input
-            user_message = f"Get weather based on input: {initial_input}"
-
-            agent_result = await agent.execute_agent(
-                user_message=user_message,
-                host_instance=host_instance,
+            # Use a simpler message for testing facade call
+            city = initial_input.get("city", "Unknown City")
+            user_message = f"What is the weather in {city}?"
+            logger.info(
+                f"Calling executor.run_agent for '{agent_name}' with message: '{user_message}'"
             )
 
+            # Use the executor to run the agent
+            agent_result = await executor.run_agent(
+                agent_name=agent_name, user_message=user_message
+            )
+            logger.info(f"Agent result received: {agent_result}")
+
             # Basic extraction - assumes final_response and text content exist
-            final_message = "No text content found in agent response."
+            final_message = "Agent execution failed or returned no text."
+            if agent_result and not agent_result.get("error"):
+                final_message = "No text content found in agent response."
             if (
                 agent_result.get("final_response")
                 and agent_result["final_response"].content
@@ -62,22 +75,24 @@ class ExampleCustomWorkflow:
                     final_message = text_block.text
 
             logger.info("ExampleCustomWorkflow finished successfully.")
-            return_value = {
-                "status": "success",
-                "input_received": initial_input,
-                "agent_result_text": final_message,
+            # Return a slightly different structure to confirm this version ran
+            return {
+                "status": "completed",  # Changed from 'success' for consistency? Or keep success? Let's use completed.
+                "error": None,
+                "result": {
+                    "status": "success",  # Keep internal success marker
+                    "message": f"Example custom workflow executed for {city}.",
+                    "input_received": initial_input,
+                    "agent_result_text": final_message,
+                },
             }
-            # Add detailed log before returning
-            logger.debug(
-                f"ExampleCustomWorkflow returning: type={type(return_value)}, value={return_value}"
-            )
-            return return_value
 
         except KeyError as e:
-            logger.error(f"Error getting agent config '{agent_name}': {e}")
+            # This might now happen in the facade if agent_name is invalid
+            logger.error(f"Error running agent '{agent_name}': {e}")
             return {
                 "status": "failed",
-                "error": f"Agent configuration '{agent_name}' not found.",
+                "error": f"Failed to run agent '{agent_name}': {e}",
             }
         except Exception as e:
             logger.error(
