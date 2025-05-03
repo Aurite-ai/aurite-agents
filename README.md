@@ -15,8 +15,8 @@ It provides three core components:
 *   **Host Manager:** The orchestration layer managing the Host, Agents, and Workflows.
 *   **MCP Server/Client:** An external process implementing the MCP protocol to provide specific capabilities (e.g., a weather tool server, a planning tool server). The Host connects to these servers, referring to them as clients.
 *   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information to accomplish tasks.
-*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially by the `HostManager`.
-*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic with access to the `HostManager` and `MCPHost`.
+*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially via the `ExecutionFacade`.
+*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic. Its `execute_workflow` method now receives an `ExecutionFacade` instance to call other components (Agents, Simple Workflows, other Custom Workflows).
 
 ## Architecture
 
@@ -43,11 +43,30 @@ The framework follows a layered architecture:
 | | Purpose:                                                    | |
 | | - Load Host JSON Config                                     | |
 | | - Init/Shutdown MCP Host                                    | |
-| | - Register/Execute Agents, Simple/Custom Workflows          | |
+| | - Holds Agent/Workflow Configs                              | |
 | | - Dynamic Registration                                      | |
+| | - Owns ExecutionFacade                                      | |
 | +-------------------------------------------------------------+ |
 |                       |                                         |
 |                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 2.5: Execution Facade & Executors                       |
+| +-------------------------------------------------------------+ |
+| | ExecutionFacade (execution/facade.py)                       | |
+| |-------------------------------------------------------------| |
+| | Purpose: Unified interface (run_agent, run_simple_workflow, | |
+| |          run_custom_workflow) for execution.                | |
+| | Delegates to specific Executors.                            | |
+| +-------------------------------------------------------------+ |
+| | Agent (agents/agent.py) - Executes itself                   | |
+| | SimpleWorkflowExecutor (workflows/simple_workflow.py)       | |
+| | CustomWorkflowExecutor (workflows/custom_workflow.py)       | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v (Uses MCP Host for execution)           |
 +-----------------------+-----------------------------------------+
                         |
                         v
@@ -82,8 +101,9 @@ The framework follows a layered architecture:
 
 *   **Layer 4: External Capabilities:** MCP Servers providing tools/prompts/resources.
 *   **Layer 3: Host Infrastructure:** The `MCPHost` manages connections and low-level MCP interactions.
-*   **Layer 2: Orchestration:** The `HostManager` loads configuration and orchestrates the Host, Agents, and Workflows.
-*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces for interacting with the `HostManager`.
+*   **Layer 2.5: Execution Facade & Executors:** The `ExecutionFacade` provides a unified interface for running components, delegating to specific executors (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`).
+*   **Layer 2: Orchestration:** The `HostManager` loads configuration, manages the `MCPHost` lifecycle, and owns the `ExecutionFacade`.
+*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces interact with the `HostManager` (and through it, the `ExecutionFacade`).
 
 For more details, see `docs/architecture_overview.md` and `docs/framework_overview.md`.
 

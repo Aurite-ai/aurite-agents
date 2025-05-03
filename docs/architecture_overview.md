@@ -27,11 +27,30 @@ The framework provides multiple entrypoints (`src/bin/`) that utilize the **Host
 | | Purpose:                                                    | |
 | | - Load Host JSON Config                                     | |
 | | - Init/Shutdown MCP Host                                    | |
-| | - Register/Execute Agents, Simple/Custom Workflows          | |
+| | - Holds Agent/Workflow Configs                              | |
 | | - Dynamic Registration                                      | |
+| | - Owns ExecutionFacade                                      | |
 | +-------------------------------------------------------------+ |
 |                       |                                         |
 |                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 2.5: Execution Facade & Executors                       |
+| +-------------------------------------------------------------+ |
+| | ExecutionFacade (execution/facade.py)                       | |
+| |-------------------------------------------------------------| |
+| | Purpose: Unified interface (run_agent, run_simple_workflow, | |
+| |          run_custom_workflow) for execution.                | |
+| | Delegates to specific Executors.                            | |
+| +-------------------------------------------------------------+ |
+| | Agent (agents/agent.py) - Executes itself                   | |
+| | SimpleWorkflowExecutor (workflows/simple_workflow.py)       | |
+| | CustomWorkflowExecutor (workflows/custom_workflow.py)       | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v (Uses MCP Host for execution)           |
 +-----------------------+-----------------------------------------+
                         |
                         v
@@ -54,7 +73,7 @@ The framework provides multiple entrypoints (`src/bin/`) that utilize the **Host
 +-----------------------+-----------------------------------------+
 | Layer 4: External Capabilities                                  |
 | +-------------------------------------------------------------+ |
-| | MCP Servers (e.g., src/servers/, external)                  | |
+| | MCP Servers (e.g., src/packaged_servers/, external)         | |
 | |-------------------------------------------------------------| |
 | | Purpose:                                                    | |
 | | - Implement MCP Protocol                                    | |
@@ -183,18 +202,32 @@ The core infrastructure layer for MCP server interaction:
 The orchestration layer sitting above the `MCPHost`:
 - Loads the complete system configuration (Host, Clients, Agents, Workflows) from a JSON file.
 - Manages the lifecycle (initialization, shutdown) of the `MCPHost` instance.
-- Registers Agents, Simple Workflows, and Custom Workflows based on the loaded configuration.
-- Provides execution methods (`execute_agent`, `execute_workflow`, `execute_custom_workflow`) which handle instantiation and invocation.
-- Supports dynamic registration of components via API/Worker/CLI.
+- Instantiates and owns the `ExecutionFacade`.
+- Holds the configurations for Agents, Simple Workflows, and Custom Workflows.
+- Handles dynamic registration of components (Clients, Agents, Workflows) via API/Worker/CLI, updating its own config state and informing the `MCPHost` as needed (e.g., for new clients).
+- Does **not** directly handle component execution logic anymore; execution requests from entrypoints are directed to its `ExecutionFacade` instance.
 
-### 3. Agent Framework (`src/agents/agent.py`)
+### 3. Agent Framework (`src/agents/agent.py`) and Executors (`src/workflows/`, `src/execution/`)
 
-The agent implementation layer:
-- Provides the `Agent` class for implementing agent behavior.
-- Handles interaction with LLMs (e.g., Anthropic API calls).
-- Manages the conversation loop, including calling tools via the `MCPHost` instance provided by the `HostManager`.
-- Configured via `AgentConfig` (LLM params, filtering rules).
-- Can be used directly or as steps within Simple/Custom Workflows.
+This layer contains the logic for executing specific component types:
+- **`Agent` Class (`src/agents/agent.py`)**:
+    - Provides the core logic for agent behavior (LLM interaction, tool use).
+    - Handles the conversation loop with the LLM.
+    - Executes tools via the `MCPHost` instance.
+    - Is invoked by the `ExecutionFacade` when an agent needs to be run.
+- **`SimpleWorkflowExecutor` (`src/workflows/simple_workflow.py`)**:
+    - Executes a sequence of Agents defined in a `WorkflowConfig`.
+    - Instantiates and calls `Agent.execute_agent` for each step.
+    - Is invoked by the `ExecutionFacade`.
+- **`CustomWorkflowExecutor` (`src/workflows/custom_workflow.py`)**:
+    - Dynamically loads and executes a Python class defined in `CustomWorkflowConfig`.
+    - Passes the `ExecutionFacade` instance to the custom workflow's `execute_workflow` method, enabling composition.
+    - Is invoked by the `ExecutionFacade`.
+- **`ExecutionFacade` (`src/execution/facade.py`)**:
+    - Provides the unified `run_agent`, `run_simple_workflow`, `run_custom_workflow` interface.
+    - Owned by the `HostManager`.
+    - Looks up configurations via the `HostManager`.
+    - Instantiates and calls the appropriate Agent or Executor.
 
 ## Implementation Status
 
