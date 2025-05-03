@@ -54,7 +54,7 @@ def mock_mcp_host() -> Mock:
     return host
 
 
-@pytest.fixture(scope="class")  # Reverted scope back to class
+@pytest.fixture(scope="function")
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
@@ -105,9 +105,21 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     # Teardown: Shutdown the manager (which shuts down the host)
     try:
         await manager.shutdown()
+    except RuntimeError as e:
+        # Catch and log the specific "Event loop is closed" error during teardown
+        if "Event loop is closed" in str(e):
+            print(
+                f"\n[WARN] Suppressed known teardown error in host_manager fixture: {e}"
+            )
+        else:
+            # Re-raise other RuntimeErrors
+            print(
+                f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}"
+            )
+            raise  # Re-raise unexpected RuntimeErrors
     except Exception as shutdown_e:
-        # Log or handle teardown errors if necessary, but don't fail the test run here
-        print(f"Error during HostManager shutdown in fixture: {shutdown_e}")
+        # Log or handle other teardown errors if necessary
+        print(f"\n[ERROR] Error during HostManager shutdown in fixture: {shutdown_e}")
 
 
 # Note: The old real_host_and_manager fixture is removed as host_manager replaces it.

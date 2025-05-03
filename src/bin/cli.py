@@ -94,6 +94,7 @@ app.add_typer(execute_app, name="execute")
 
 async def _execute_agent_async_logic(agent_name: str, message: str):
     """Contains the actual async logic for executing an agent via API."""
+    # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/agents/{agent_name}/execute"
     headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
     payload = {"user_message": message}
@@ -138,6 +139,7 @@ async def _execute_agent_async_logic(agent_name: str, message: str):
 # --- Async Logic for Workflow Execution ---
 async def _execute_workflow_async_logic(workflow_name: str, message: str):
     """Contains the actual async logic for executing a simple workflow via API."""
+    # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/workflows/{workflow_name}/execute"
     headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
     # Correct payload key for simple workflows
@@ -191,6 +193,7 @@ async def _execute_custom_workflow_async_logic(
     workflow_name: str, initial_input_json: str
 ):
     """Contains the actual async logic for executing a custom workflow via API."""
+    # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/custom_workflows/{workflow_name}/execute"
     headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
 

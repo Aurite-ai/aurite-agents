@@ -88,7 +88,9 @@ class TestHostManagerInitialization:
 class TestHostManagerExecution:
     """Tests for HostManager execution methods."""
 
-    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
+    @pytest.mark.skip(
+        reason="HostManager execution methods removed, moved to ExecutionFacade"
+    )
     async def test_execute_agent_success(self, host_manager: HostManager):
         """Test executing a known agent successfully."""
         agent_name = "Weather Agent"  # Agent defined in testing_config.json
@@ -123,7 +125,9 @@ class TestHostManagerExecution:
         # assert len(result["tool_uses"]) > 0
         # assert result["tool_uses"][0]["name"] == "weather_lookup" # Example
 
-    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
+    @pytest.mark.skip(
+        reason="HostManager execution methods removed, moved to ExecutionFacade"
+    )
     async def test_execute_workflow_success(self, host_manager: HostManager):
         """Test executing a known simple workflow successfully."""
         workflow_name = "Example workflow using weather and planning servers"  # From testing_config.json
@@ -153,7 +157,9 @@ class TestHostManagerExecution:
         # For now, just checking for successful completion and a non-empty message.
         print(f"\nWorkflow Final Message: {result['final_message']}")  # Log for info
 
-    # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
+    @pytest.mark.skip(
+        reason="HostManager execution methods removed, moved to ExecutionFacade"
+    )
     async def test_execute_custom_workflow_success(self, host_manager: HostManager):
         """Test executing a known custom workflow successfully."""
         workflow_name = "ExampleCustom"  # From testing_config.json

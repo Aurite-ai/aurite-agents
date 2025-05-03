@@ -16,6 +16,7 @@ custom workflow classes, interacting with a real MCPHost.
 """
 
 import pytest
+import os  # Import os for environment variable check
 from pathlib import Path
 import logging  # Add logging import
 
@@ -44,7 +45,7 @@ if not VALID_WORKFLOW_PATH.exists():
     )
 
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio # Removed - covered by module-level pytestmark
 async def test_custom_executor_init(host_manager: HostManager):
     """
     Test Case 1: Verify CustomWorkflowExecutor initializes correctly.
@@ -63,14 +64,15 @@ async def test_custom_executor_init(host_manager: HostManager):
     print(f"Workflow config: {workflow_config}")
 
     try:
+        # Updated: __init__ no longer takes host_instance
         executor = CustomWorkflowExecutor(
             config=workflow_config,
-            host_instance=host_instance,
+            # host_instance=host_instance, # Removed
         )
         print(f"Executor initialized: {executor}")
         assert executor is not None
         assert executor.config == workflow_config
-        assert executor._host == host_instance
+        # assert executor._host == host_instance # Removed internal check
         print("Assertions passed.")
 
     except Exception as e:
@@ -80,8 +82,69 @@ async def test_custom_executor_init(host_manager: HostManager):
     print("--- Test Finished: test_custom_executor_init ---")
 
 
-# NOTE: test_custom_executor_basic_execution removed as it requires the ExecutionFacade,
-# which will be implemented and tested in Phase B.
+async def test_custom_executor_basic_execution(host_manager: HostManager):
+    """
+    Test Case 2: Verify basic execution of a custom workflow via the executor.
+    Requires ANTHROPIC_API_KEY for the agent called within the example workflow.
+    """
+    print(f"\n--- Running Test: test_custom_executor_basic_execution ---")
+    assert host_manager.execution is not None, (
+        "ExecutionFacade not initialized in HostManager"
+    )
+    facade = host_manager.execution  # Get the facade instance
+
+    workflow_config = CustomWorkflowConfig(
+        name="TestCustomExecute",
+        module_path=VALID_WORKFLOW_PATH,
+        class_name=VALID_WORKFLOW_CLASS,
+        description="Test workflow for execution",
+    )
+    initial_input = {"city": "Paris"}  # Example input for the workflow
+    print(f"Workflow Config: {workflow_config}")
+    print(f"Initial Input: {initial_input}")
+
+    # Requires ANTHROPIC_API_KEY for the agent called within the custom workflow
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
+
+    try:
+        # Instantiate the executor
+        executor = CustomWorkflowExecutor(
+            config=workflow_config,
+            # host_instance is no longer needed here
+        )
+        print(f"Executor initialized: {executor}")
+
+        # Execute using the facade's host instance and passing the facade itself
+        result = await executor.execute(
+            initial_input=initial_input,
+            executor=facade,  # Pass the facade instance
+        )
+        print(f"Execution Result: {result}")
+
+        # Assertions based on the expected output of ExampleCustomWorkflow
+        assert result is not None
+        assert isinstance(result, dict)
+        assert result.get("status") == "completed"  # Check outer status
+        assert result.get("error") is None
+        assert "result" in result
+        inner_result = result["result"]
+        assert inner_result.get("status") == "success"  # Check inner status
+        assert inner_result.get("input_received") == initial_input
+        assert "agent_result_text" in inner_result
+        assert isinstance(inner_result["agent_result_text"], str)
+        assert len(inner_result["agent_result_text"]) > 0
+        assert "Paris" in inner_result["agent_result_text"]  # Check if city was used
+
+        print("Assertions passed.")
+
+    except Exception as e:
+        print(f"Error during execution: {e}")
+        pytest.fail(f"CustomWorkflowExecutor execution failed: {e}")
+
+    print("--- Test Finished: test_custom_executor_basic_execution ---")
+
+
 # Other CustomWorkflowExecutor tests (module not found, class not found, etc.)
 # can be added here later or during Phase B testing as needed.
 

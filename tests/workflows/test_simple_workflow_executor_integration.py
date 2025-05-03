@@ -37,7 +37,7 @@ SAMPLE_WORKFLOW_CONFIG = WorkflowConfig(
 from src.host_manager import HostManager  # Import HostManager
 
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio # Removed - covered by module-level pytestmark
 async def test_simple_executor_init(
     host_manager: HostManager,
 ):  # Use host_manager fixture
@@ -71,7 +71,7 @@ async def test_simple_executor_init(
     print("--- Test Finished: test_simple_executor_init ---")
 
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio # Removed - covered by module-level pytestmark
 async def test_simple_executor_basic_execution(host_manager: HostManager):
     """
     Test Case 2: Verify basic execution of a simple workflow.
@@ -139,7 +139,7 @@ async def test_simple_executor_basic_execution(host_manager: HostManager):
     print("--- Test Finished: test_simple_executor_basic_execution ---")
 
 
-@pytest.mark.asyncio
+# @pytest.mark.asyncio # Removed - covered by module-level pytestmark
 async def test_simple_executor_agent_not_found(host_manager: HostManager):
     """
     Test Case 3: Verify execution fails gracefully when an agent in steps is not found.

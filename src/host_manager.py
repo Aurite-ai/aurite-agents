@@ -24,6 +24,9 @@ from .config import PROJECT_ROOT_DIR  # Import project root for path validation
 import importlib
 import inspect
 
+# Import the new facade
+from .execution.facade import ExecutionFacade
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +64,7 @@ class HostManager:
         self.agent_configs: Dict[str, "AgentConfig"] = {}
         self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
         self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
+        self.execution: Optional[ExecutionFacade] = None  # Add facade attribute
 
         logger.info(f"HostManager initialized with config path: {self.config_path}")
 
@@ -106,6 +110,10 @@ class HostManager:
             # Also load the prompt validation config
             await self.register_config_file("config/prompt_validation_config.json")
             logger.info("Prompt Validation Config loaded.")
+
+            # 4. Instantiate ExecutionFacade, passing self (the manager)
+            self.execution = ExecutionFacade(host_manager=self)
+            logger.info("ExecutionFacade initialized within HostManager.")
 
             logger.info("HostManager initialization complete.")
 
@@ -525,4 +533,9 @@ class HostManager:
                 f"Unexpected error during registration from {file_path}: {e}"
             ) from e
 
-    # --- Execution Methods --- # Removed execute_agent, execute_workflow, execute_custom_workflow
+    # --- Execution Methods ---
+    # NOTE: The original execute_* methods are removed.
+    # Execution is now handled by self.execution (ExecutionFacade instance).
+    # Entrypoints (API, CLI, Worker) will need to be updated to call
+    # self.execution.run_agent(), self.execution.run_simple_workflow(), etc.
+    # (The actual method definitions below are removed by this change)

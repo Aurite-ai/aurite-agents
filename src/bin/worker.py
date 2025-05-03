@@ -128,7 +128,11 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                 ):  # Check for None explicitly, empty string might be valid
                     logger.error("Missing 'user_message' in data for execute agent.")
                     return
-                result = await manager.execute_agent(name, user_message)
+                # TODO (Refactor): Update to use ExecutionFacade
+                # result = await manager.execution.run_agent(...)
+                result = await manager.execute_agent(
+                    name, user_message
+                )  # Keep old call for now
                 logger.info(
                     f"Executed agent '{name}'. Result status (if applicable): {result.get('status', 'N/A')}"
                 )
@@ -140,7 +144,11 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                         "Missing 'initial_user_message' in data for execute workflow."
                     )
                     return
-                result = await manager.execute_workflow(name, initial_message)
+                # TODO (Refactor): Update to use ExecutionFacade
+                # result = await manager.execution.run_simple_workflow(...)
+                result = await manager.execute_workflow(
+                    name, initial_message
+                )  # Keep old call for now
                 logger.info(
                     f"Executed workflow '{name}'. Status: {result.get('status')}"
                 )
@@ -152,7 +160,11 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                         "Missing 'initial_input' in data for execute custom_workflow."
                     )
                     return
-                result = await manager.execute_custom_workflow(name, initial_input)
+                # TODO (Refactor): Update to use ExecutionFacade
+                # result = await manager.execution.run_custom_workflow(...)
+                result = await manager.execute_custom_workflow(
+                    name, initial_input
+                )  # Keep old call for now
                 logger.info(f"Executed custom workflow '{name}'.")
                 # Optionally publish result back to Redis
             else:

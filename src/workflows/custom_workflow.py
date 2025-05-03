@@ -9,12 +9,15 @@ from typing import Any, TYPE_CHECKING
 
 # Relative imports assuming this file is in src/workflows/
 from ..host.models import CustomWorkflowConfig
+
+# MCPHost is still needed for the __init__ method
 from ..host.host import MCPHost
 from ..config import PROJECT_ROOT_DIR  # Import project root for path validation
 
-# Type hint for ExecutionFacade to avoid circular import
+# Type hint for ExecutionFacade
 if TYPE_CHECKING:
     from ..execution.facade import ExecutionFacade
+    # MCPHost type hint is no longer needed here for the execute signature
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +28,24 @@ class CustomWorkflowExecutor:
     Handles dynamic loading and execution of the workflow class.
     """
 
-    def __init__(self, config: CustomWorkflowConfig, host_instance: MCPHost):
+    # Removed host_instance from __init__ as it's passed via facade in execute
+    def __init__(self, config: CustomWorkflowConfig):
         """
         Initializes the CustomWorkflowExecutor.
 
         Args:
             config: The configuration for the specific custom workflow to execute.
-            host_instance: The initialized MCPHost instance.
         """
         if not isinstance(config, CustomWorkflowConfig):
             raise TypeError("config must be an instance of CustomWorkflowConfig")
-        if not isinstance(host_instance, MCPHost):
-            raise TypeError("host_instance must be an instance of MCPHost")
 
         self.config = config
-        self._host = host_instance
+        # self._host = host_instance # Removed host instance storage
         logger.debug(
             f"CustomWorkflowExecutor initialized for workflow: {self.config.name}"
         )
 
+    # Changed signature to accept executor (ExecutionFacade) instead of host_instance
     async def execute(self, initial_input: Any, executor: "ExecutionFacade") -> Any:
         """
         Dynamically loads and executes the configured custom workflow.

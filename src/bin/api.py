@@ -147,7 +147,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown HostManager on application exit
         final_manager_instance = getattr(app.state, "host_manager", None)
-        if (final_manager_instance):
+        if final_manager_instance:
             logger.info("Shutting down HostManager...")
             try:
                 await final_manager_instance.shutdown()
@@ -177,9 +177,11 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 # Mount static files - use relative path from project root
 app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "static"), name="static")
 
+
 @app.get("/")
 async def serve_index():
     return FileResponse(PROJECT_ROOT / "static" / "index.html")
+
 
 # Request logging middleware
 @app.middleware("http")
@@ -214,12 +216,14 @@ app.add_middleware(
 # --- Request/Response Models ---
 class ExecuteAgentRequest(BaseModel):
     """Request body for executing a named agent."""
+
     user_message: str
     system_prompt: Optional[str] = None
 
 
 class ExecuteWorkflowRequest(BaseModel):
     """Request body for executing a named workflow."""
+
     initial_user_message: str
 
 
@@ -280,11 +284,12 @@ async def execute_agent_endpoint(
     """
     logger.info(f"Received request to execute agent: {agent_name}")
     try:
-        # Delegate execution to the HostManager
-        result = await manager.execute_agent(
-            agent_name=agent_name, 
+        # TODO (Refactor): Update to use ExecutionFacade
+        # result = await manager.execution.run_agent(...)
+        result = await manager.execute_agent(  # Keep old call for now
+            agent_name=agent_name,
             user_message=request_body.user_message,
-            system_prompt=request_body.system_prompt
+            system_prompt=request_body.system_prompt,
         )
         logger.info(
             f"Agent '{agent_name}' execution finished successfully via manager."
@@ -320,8 +325,9 @@ async def execute_workflow_endpoint(
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
     try:
-        # Delegate execution to the HostManager
-        result = await manager.execute_workflow(
+        # TODO (Refactor): Update to use ExecutionFacade
+        # result = await manager.execution.run_simple_workflow(...)
+        result = await manager.execute_workflow(  # Keep old call for now
             workflow_name=workflow_name,
             initial_user_message=request_body.initial_user_message,
         )
@@ -367,8 +373,9 @@ async def execute_custom_workflow_endpoint(
     """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
     try:
-        # Delegate execution to the HostManager
-        result = await manager.execute_custom_workflow(
+        # TODO (Refactor): Update to use ExecutionFacade
+        # result = await manager.execution.run_custom_workflow(...)
+        result = await manager.execute_custom_workflow(  # Keep old call for now
             workflow_name=workflow_name,
             initial_input=request_body.initial_input,
         )
