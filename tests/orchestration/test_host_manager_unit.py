@@ -143,10 +143,13 @@ class TestHostManagerAgentRegistration:
         await manager.register_agent(agent_config)
 
         # Verify the check was made using the new method for both clients
-        manager.host.is_client_registered.assert_has_calls([
-            call("existing_client_1"),
-            call("existing_client_2"),
-        ], any_order=True)
+        manager.host.is_client_registered.assert_has_calls(
+            [
+                call("existing_client_1"),
+                call("existing_client_2"),
+            ],
+            any_order=True,
+        )
 
         assert "AgentValidClients" in manager.agent_configs
         assert manager.agent_configs["AgentValidClients"] == agent_config
@@ -567,7 +570,9 @@ class TestHostManagerRegisterFromConfigHelpers:
         manager.host.is_client_registered.side_effect = contains_side_effect
 
         # Spy on the real register_agent to check calls
-        with patch.object(manager, "register_agent", wraps=manager.register_agent) as spy_register_agent:
+        with patch.object(
+            manager, "register_agent", wraps=manager.register_agent
+        ) as spy_register_agent:
             reg_a, skip_a, err_a = await manager._register_agents_from_config(
                 agents_to_register
             )

@@ -12,7 +12,7 @@ Key responsibilities include:
 *   Initializing and managing the lifecycle of the underlying `MCPHost`.
 *   Handling dynamic registration of clients, agents, and workflows.
 *   Providing a consistent facade (`ExecutionFacade`) for triggering the execution of any configured agentic component.
-*   Orchestrating the execution flow within different component types (e.g., sequential steps in Simple Workflows, dynamic loading in Custom Workflows).
+*   Instantiating and managing the execution flow within different component types (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`), which act as an intermediate layer (sometimes informally called Layer 2.5) translating Facade requests into interactions with the `MCPHost` (Layer 3).
 
 ## 2. Relevant Files
 
@@ -73,7 +73,7 @@ This layer orchestrates the core agentic capabilities of the framework.
     *   Takes a `CustomWorkflowConfig`.
     *   Dynamically imports the Python module specified in the config.
     *   Instantiates the specified class from the module.
-    *   Calls the required `async def execute_workflow(self, initial_input: Any, executor: ExecutionFacade)` method on the instance, passing the `ExecutionFacade` to enable further component calls.
+    *   Calls the required `async def execute_workflow(self, initial_input: Any, executor: "ExecutionFacade")` method on the instance, passing the `ExecutionFacade` instance (`executor`) to enable the custom workflow to call back into the facade for executing other agents or workflows if needed (composition).
 
 ## 4. Testing
 
@@ -104,53 +104,33 @@ This layer orchestrates the core agentic capabilities of the framework.
 
 | Functionality                                      | Relevant File(s)                              | Existing Test File(s) / Status                                                                                                                                                                                                                         |
 | :------------------------------------------------- | :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **HostManager: Initialization**                    | `host_manager.py`                             | `tests/orchestration/test_host_manager.py::TestHostManagerInitialization::test_host_manager_initialization_success` (Integration via `host_manager` fixture). Checks counts based on `testing_config.json` + `prompt_validation_config.json`. Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). |
-| **HostManager: Dynamic Registration (Individual)** | `host_manager.py`                             | Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). Integration tests using `host_manager` fixture could be added if needed, but lower priority. Partially covered by API tests.                                                  |
-| **HostManager: `register_config_file`**            | `host_manager.py`                             | `tests/orchestration/test_host_manager.py::TestHostManagerDynamicRegistration::test_register_config_file_success` (Integration via `host_manager` fixture, uses `testing_dynamic_config.json`). Checks counts and handles duplicates. Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). |
-| **ExecutionFacade: `run_agent`**                   | `facade.py`, `agent.py`                       | `tests/execution/test_facade_integration.py::test_facade_run_agent` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                               |
-| **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py` | `tests/execution/test_facade_integration.py::test_facade_run_simple_workflow` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                     |
-| **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`             | `tests/execution/test_facade_integration.py::test_facade_run_custom_workflow` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                     |
-| **ExecutionFacade: Error Handling**                | `facade.py`                                   | `tests/execution/test_facade_integration.py` (Tests `_not_found` errors). Coverage of `_execute_component` helper needs verification/addition.                                                                                                         |
-| **Agent: Execution Loop & Tool Use**               | `agent.py`                                    | `tests/agents/test_agent.py::TestAgentE2E::test_agent_e2e_basic_execution_real_llm` (E2E, requires API key). Implicitly tested via Facade/Workflow tests. Needs unit tests mocking LLM/tools.                                                          |
-| **Agent: Filtering (`client_ids`, `exclude`)**     | `agent.py`, `host.py` (filtering logic)       | `tests/host/test_filtering.py`, `tests/host/test_tool_filtering.py`. Good coverage exists, needs marking/moving. `test_agent.py` is outdated for filtering.                                                                                            |
-| **SimpleWorkflowExecutor: Sequential Execution**   | `simple_workflow.py`                          | `tests/workflows/test_simple_workflow_executor_integration.py` (Integration tests: init, basic exec, agent not found via `host_manager`). Needs unit tests.                                                                                            |
-| **CustomWorkflowExecutor: Dynamic Loading/Exec**   | `custom_workflow.py`                          | `tests/workflows/test_custom_workflow_executor_integration.py` (Integration tests: init, basic exec via `host_manager`). Needs unit tests (mocking `importlib`, etc.).                                                                                 |
-| **Config Loading & Validation**                    | `config.py`, `models.py`                      | `tests/config/test_config_loading.py`. Good coverage exists, needs marking/moving.                                                                                                                                                                     |
+| **HostManager: Initialization**                    | `host_manager.py`                             | `tests/orchestration/test_host_manager.py` (Integration), `tests/orchestration/test_host_manager_unit.py` (Unit). **Coverage: Good.** |
+| **HostManager: Dynamic Registration (Individual)** | `host_manager.py`                             | `tests/orchestration/test_host_manager_unit.py` (Unit). Integration tests lower priority. **Coverage: Sufficient.** |
+| **HostManager: `register_config_file`**            | `host_manager.py`                             | `tests/orchestration/test_host_manager.py` (Integration), `tests/orchestration/test_host_manager_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: `run_agent`**                   | `facade.py`, `agent.py`                       | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py` | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`             | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: Error Handling**                | `facade.py`                                   | `tests/orchestration/facade/test_facade_integration.py` (Integration - Not Found), `tests/orchestration/facade/test_facade_unit.py` (Unit - Not Found, Setup Error, Exec Error). **Coverage: Good.** |
+| **Agent: Execution Loop & Tool Use**               | `agent.py`                                    | `tests/orchestration/agent/test_agent.py` (E2E, requires API key). Implicitly tested via Facade/Workflow tests. Needs unit tests mocking LLM/tools (`tests/orchestration/agent/test_agent_unit.py`). |
+| **Agent: Filtering (`client_ids`, `exclude`)**     | `agent.py`, `host.py` (filtering logic)       | `tests/orchestration/test_filtering.py`, `tests/orchestration/test_tool_filtering.py`. Good coverage exists. Needs specific unit tests in `test_agent_unit.py`. |
+| **SimpleWorkflowExecutor: Sequential Execution**   | `simple_workflow.py`                          | `tests/orchestration/workflow/test_simple_workflow_executor_integration.py` (Integration). Needs unit tests (`tests/orchestration/workflow/test_simple_workflow_executor_unit.py`). |
+| **CustomWorkflowExecutor: Dynamic Loading/Exec**   | `custom_workflow.py`                          | `tests/orchestration/workflow/test_custom_workflow_executor_integration.py` (Integration). Needs unit tests (`tests/orchestration/workflow/test_custom_workflow_executor_unit.py`). |
+| **Config Loading & Validation**                    | `config.py`, `models.py`                      | `tests/orchestration/config/test_config_loading.py`. **Coverage: Good.** |
 
-**4.D. Next Steps for Testing (Updated):**
+**4.D. Remaining Testing Steps:**
 
-1.  **Create Directory & Marker:** Create `tests/orchestration/`. Define `@pytest.mark.orchestration` in `tests/conftest.py` (if not already present - it should be added).
-2.  **Refactor Existing Tests:**
-    *   **Status:** In Progress
-    *   **Moved & Marked:**
-        *   `tests/orchestration/test_config_loading.py`
-        *   `tests/orchestration/test_facade_integration.py`
-        *   `tests/orchestration/test_simple_workflow_executor_integration.py`
-        *   `tests/orchestration/test_custom_workflow_executor_integration.py`
-        *   `tests/orchestration/test_host_manager.py`
-        *   `tests/orchestration/test_filtering.py`
-    *   **To Move & Mark:**
-        *   `tests/host/test_tool_filtering.py` -> `tests/orchestration/test_tool_filtering.py`
-        *   `tests/agents/test_agent.py` -> `tests/orchestration/agent/test_agent.py`
-    *   **Description:** All relevant existing tests from `tests/execution/`, `tests/workflows/`, `tests/host/`, and `tests/agents/` have been moved to `tests/orchestration/` (or subdirs), marked with `@pytest.mark.orchestration`, and confirmed to be passing under `pytest -m orchestration`. This includes:
-        *   `tests/orchestration/config/test_config_loading.py`
-        *   `tests/orchestration/facade/test_facade_integration.py`
-        *   `tests/orchestration/workflow/test_simple_workflow_executor_integration.py`
-        *   `tests/orchestration/workflow/test_custom_workflow_executor_integration.py`
-        *   `tests/orchestration/test_host_manager.py`
-        *   `tests/orchestration/test_filtering.py`
-        *   `tests/orchestration/test_tool_filtering.py`
-        *   `tests/orchestration/agent/test_agent.py` (Note: Renamed from `test_agent.py` and moved)
-3.  **Implement Missing Unit Tests:**
-    *   **Status:** HostManager unit tests completed (`tests/orchestration/test_host_manager_unit.py`). Mock MCP Host implemented (`tests/mocks/mock_mcp_host.py`).
-    *   **Next:**
-        *   `ExecutionFacade`: Unit test `_execute_component` helper logic (mocking dependencies like `config_lookup`, `executor_setup`, `execution_func`). Create `tests/orchestration/facade/test_facade_unit.py`.
-        *   `Agent`: Unit test `execute_agent` loop logic, mocking `_make_llm_call` and `host_instance.execute_tool` (using `mock_mcp_host`) to simulate different LLM responses (tool use, no tool use, errors). **Crucially, add unit tests specifically verifying the `client_ids` and `exclude_components` filtering logic when `host_instance.get_formatted_tools` is called.** Create `tests/orchestration/agent/test_agent_unit.py`.
-        *   `SimpleWorkflowExecutor`: Unit test `execute` method logic, mocking `Agent` instantiation and `execute_agent` calls. Test edge cases (empty steps, agent errors). Create `tests/orchestration/workflow/test_simple_workflow_executor_unit.py`.
-        *   `CustomWorkflowExecutor`: Unit test `execute` method, mocking `importlib`, file system interactions (`Path.exists`), and the dynamically loaded class/method. Test error conditions (file not found, class not found, method not async, etc.). Create `tests/orchestration/workflow/test_custom_workflow_executor_unit.py`.
-4.  **Implement Missing Integration Tests:**
-    *   **Status:** HostManager integration tests are considered sufficient via `test_host_manager.py` which covers initialization and `register_config_file`. Individual registration method integration tests are lower priority compared to executor/agent tests.
-    *   **Next:** Focus on ensuring robust integration tests for the Facade and Executors (already partially covered but may need enhancement in step 5). Consider adding integration tests for `ExecutionFacade` error handling scenarios not covered by `test_facade_integration.py`.
-5.  **Update & Enhance Existing Tests:**
-    *   Update `tests/orchestration/agent/test_agent.py` (formerly `tests/agents/test_agent.py`) to correctly test agent execution *with* the current filtering mechanisms, potentially adding new test cases using the `agent_config_filtered` fixture.
-    *   Review integration tests (`test_facade_integration`, `test_*_workflow_executor_integration`, `test_host_manager`) to ensure they cover key success and failure paths in the orchestration flow.
+1.  **Implement Agent Unit Tests (`tests/orchestration/agent/test_agent_unit.py`):**
+    *   Focus on `execute_agent` loop logic.
+    *   Mock `_make_llm_call` and `host_instance.execute_tool` (using `mock_mcp_host`) to simulate various LLM responses (tool use, no tool use, errors).
+    *   **Crucially, add unit tests specifically verifying the `client_ids` and `exclude_components` filtering logic when `host_instance.get_formatted_tools` is called.**
+2.  **Implement SimpleWorkflowExecutor Unit Tests (`tests/orchestration/workflow/test_simple_workflow_executor_unit.py`):**
+    *   Focus on the `execute` method's sequential logic.
+    *   Mock `Agent` instantiation and `execute_agent` calls.
+    *   Test edge cases (empty steps, agent errors during a step).
+3.  **Implement CustomWorkflowExecutor Unit Tests (`tests/orchestration/workflow/test_custom_workflow_executor_unit.py`):**
+    *   Focus on the `execute` method's dynamic loading and execution.
+    *   Mock `importlib`, file system interactions (`Path.exists`), and the dynamically loaded class/method (`execute_workflow`).
+    *   Test error conditions (module not found, class not found, `execute_workflow` method missing or not async, errors within the custom workflow).
+4.  **Enhance Existing Integration/E2E Tests:**
+    *   Review `tests/orchestration/agent/test_agent.py` (E2E) to ensure it adequately covers agent execution with filtering, potentially adding cases using `agent_config_filtered`.
+    *   Review integration tests (`test_facade_integration`, `test_*_workflow_executor_integration`, `test_host_manager`) to ensure they cover key success and failure paths in the *orchestrated* flow (interactions between Facade, Executors, and Host). Consider adding specific integration tests for Facade error handling if gaps are identified.

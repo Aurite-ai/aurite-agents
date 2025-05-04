@@ -3,31 +3,31 @@ Unit tests for the ExecutionFacade.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock # Add MagicMock import
+from unittest.mock import Mock, AsyncMock, MagicMock  # Add MagicMock import
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.execution.facade import ExecutionFacade
-from src.host.models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from src.host.models import AgentConfig
 from src.host_manager import HostManager
 from src.agents.agent import Agent
-from src.workflows.simple_workflow import SimpleWorkflowExecutor
-from src.workflows.custom_workflow import CustomWorkflowExecutor
 from src.host.host import MCPHost  # Needed for type hinting if used
 
 # --- Fixtures ---
+
 
 @pytest.fixture
 def mock_host_manager() -> Mock:
     """Provides a mock HostManager."""
     manager = Mock(spec=HostManager)
-    manager.host = AsyncMock(spec=MCPHost) # Mock the host instance within the manager
+    manager.host = AsyncMock(spec=MCPHost)  # Mock the host instance within the manager
     manager.agent_configs = {}
     manager.workflow_configs = {}
     manager.custom_workflow_configs = {}
     return manager
+
 
 @pytest.fixture
 def execution_facade(mock_host_manager: Mock) -> ExecutionFacade:
@@ -36,7 +36,9 @@ def execution_facade(mock_host_manager: Mock) -> ExecutionFacade:
     facade = ExecutionFacade(host_manager=mock_host_manager)
     return facade
 
+
 # --- Test Class ---
+
 
 class TestExecutionFacadeUnit:
     """Unit tests for ExecutionFacade public methods."""
@@ -73,13 +75,15 @@ class TestExecutionFacadeUnit:
         assert call_kwargs.get("component_type") == "Agent"
         assert call_kwargs.get("component_name") == agent_name
         # assert call_kwargs.get("config_dict") == mock_host_manager.agent_configs # Incorrect: Facade passes lookup functions
-        assert "config_lookup" in call_kwargs # Check that the lookup function is passed
+        assert (
+            "config_lookup" in call_kwargs
+        )  # Check that the lookup function is passed
         assert "executor_setup" in call_kwargs
         assert "execution_func" in call_kwargs
         assert "error_structure_factory" in call_kwargs
         # Check args specific to the executor type that are passed through
         assert call_kwargs.get("host_instance") == mock_host_manager.host
-        assert call_kwargs.get("user_message") == initial_input # Agent specific arg
+        assert call_kwargs.get("user_message") == initial_input  # Agent specific arg
 
         # Check the final result
         assert result == expected_result
@@ -119,12 +123,16 @@ class TestExecutionFacadeUnit:
         assert call_kwargs.get("component_type") == "Simple Workflow"
         assert call_kwargs.get("component_name") == workflow_name
         # assert call_kwargs.get("config_dict") == mock_host_manager.workflow_configs # Incorrect: Facade passes lookup functions
-        assert "config_lookup" in call_kwargs # Check that the lookup function is passed
+        assert (
+            "config_lookup" in call_kwargs
+        )  # Check that the lookup function is passed
         assert "executor_setup" in call_kwargs
         assert "execution_func" in call_kwargs
         assert "error_structure_factory" in call_kwargs
         # Check args specific to the executor type that are passed through
-        assert call_kwargs.get("initial_input") == initial_input # Passed directly for workflows
+        assert (
+            call_kwargs.get("initial_input") == initial_input
+        )  # Passed directly for workflows
         # host_instance and agent_configs are used within the setup lambda, not passed directly here.
 
         # Check the final result
@@ -171,7 +179,9 @@ class TestExecutionFacadeUnit:
         assert "error_structure_factory" in call_kwargs
         # Check args specific to the executor type that are passed through
         assert call_kwargs.get("initial_input") == initial_input
-        assert call_kwargs.get("executor") == execution_facade # CustomWorkflow specific arg
+        assert (
+            call_kwargs.get("executor") == execution_facade
+        )  # CustomWorkflow specific arg
 
         # Check the final result
         assert result == expected_result
@@ -200,7 +210,9 @@ class TestExecutionFacadeUnit:
         }
 
         # Mock _execute_component to return the specific error structure
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         # Call the public method
         result = await execution_facade.run_agent(
@@ -241,7 +253,9 @@ class TestExecutionFacadeUnit:
             "details": None,
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_simple_workflow(
             workflow_name=workflow_name,
@@ -277,7 +291,9 @@ class TestExecutionFacadeUnit:
             "details": None,
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_custom_workflow(
             workflow_name=workflow_name,
@@ -324,8 +340,9 @@ class TestExecutionFacadeUnit:
         # _execute_component returns or raises. Let's refine: _execute_component *should* catch
         # the instantiation error and return the structured error. So we mock _execute_component
         # to return the expected error structure directly, simulating its internal error handling.
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
-
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         # Call the public method
         result = await execution_facade.run_agent(
@@ -367,7 +384,9 @@ class TestExecutionFacadeUnit:
             "details": str(instantiation_error),
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_simple_workflow(
             workflow_name=workflow_name,
@@ -404,7 +423,9 @@ class TestExecutionFacadeUnit:
             "details": str(instantiation_error),
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_custom_workflow(
             workflow_name=workflow_name,
@@ -444,7 +465,9 @@ class TestExecutionFacadeUnit:
         }
 
         # Mock _execute_component to return the error structure simulating an execution failure
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         # Call the public method
         result = await execution_facade.run_agent(
@@ -486,7 +509,9 @@ class TestExecutionFacadeUnit:
             "details": str(execution_error),
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_simple_workflow(
             workflow_name=workflow_name,
@@ -523,7 +548,9 @@ class TestExecutionFacadeUnit:
             "details": str(execution_error),
         }
 
-        execution_facade._execute_component = AsyncMock(return_value=expected_error_result)
+        execution_facade._execute_component = AsyncMock(
+            return_value=expected_error_result
+        )
 
         result = await execution_facade.run_custom_workflow(
             workflow_name=workflow_name,
@@ -541,9 +568,7 @@ class TestExecutionFacadeUnit:
 
         print("--- Test Finished: test_run_custom_workflow_execution_error ---")
 
-
     # TODO: Add tests for _execute_component itself (more complex, lower priority?)
-
 
     # --- Tests for _execute_component ---
 
@@ -560,7 +585,10 @@ class TestExecutionFacadeUnit:
         component_name = "TestAgent"
         component_type = "Agent"
         initial_input = "Test message"
-        expected_result = {"status": "completed", "final_response": "Mocked agent response"}
+        expected_result = {
+            "status": "completed",
+            "final_response": "Mocked agent response",
+        }
 
         # --- Mock dependencies ---
         # 1. Config Lookup: Mock the config_lookup function passed by run_agent
@@ -576,7 +604,7 @@ class TestExecutionFacadeUnit:
         mock_execution_func = AsyncMock(return_value=expected_result)
 
         # 4. Error Structure Factory: Mock the error factory
-        mock_error_factory = Mock() # Not expected to be called
+        mock_error_factory = Mock()  # Not expected to be called
 
         # --- Call the internal method ---
         # We need to provide the arguments as they would be passed by run_agent
@@ -600,12 +628,15 @@ class TestExecutionFacadeUnit:
         # 2. Executor setup was called with the found config
         mock_executor_setup.assert_called_once_with(mock_config)
 
-        # 3. Execution function was called with the instance and specific args
-        mock_execution_func.assert_awaited_once_with(
-            instance=mock_agent_instance,
-            host_instance=mock_host_manager.host,
-            user_message=initial_input,
-        )
+        # 3. Execution function was called correctly
+        mock_execution_func.assert_awaited_once()
+        positional_args, keyword_args = mock_execution_func.call_args
+        # Check the 'instance' positional argument
+        assert len(positional_args) == 1
+        assert positional_args[0] == mock_agent_instance
+        # Check the other arguments passed via **kwargs
+        assert keyword_args.get("host_instance") == mock_host_manager.host
+        assert keyword_args.get("user_message") == initial_input
 
         # 4. Error factory was NOT called
         mock_error_factory.assert_not_called()
@@ -615,3 +646,125 @@ class TestExecutionFacadeUnit:
         print("Assertions passed.")
 
         print("--- Test Finished: test_execute_component_success_internal ---")
+
+    @pytest.mark.asyncio
+    async def test_execute_component_config_not_found(
+        self, execution_facade: ExecutionFacade, mock_host_manager: Mock
+    ):
+        """
+        Test _execute_component returns error when config_lookup returns None.
+        """
+        print("\\n--- Running Test: test_execute_component_config_not_found ---")
+        component_name = "MissingComponent"
+        component_type = "Agent"
+
+        # --- Mock dependencies ---
+        # --- Mock dependencies ---
+        # 1. Config Lookup: Use a lambda that returns None
+        config_lookup_lambda = lambda name: None  # noqa: E731
+        # 2. Executor Setup: Not needed/expected to be called in this path
+        # 3. Execution Function: Not needed/expected to be called in this path
+        # 4. Error Structure Factory: Mock to check it's called correctly
+        expected_error = {
+            "status": "error",
+            "component_type": component_type,
+            "component_name": component_name,
+            "error": f"{component_type} '{component_name}' not found.",
+            "details": None,
+        }
+        mock_error_factory = Mock(return_value=expected_error)
+
+        # --- Call the internal method ---
+        result = await execution_facade._execute_component(
+            component_type=component_type,
+            component_name=component_name,
+            config_lookup=config_lookup_lambda,  # Pass the lambda
+            executor_setup=None,  # Pass None, shouldn't be called
+            execution_func=None,  # Pass None, shouldn't be called
+            error_structure_factory=mock_error_factory,
+            # Pass dummy args for kwargs, they shouldn't be used in this error path
+            host_instance=mock_host_manager.host,
+            user_message="irrelevant",
+        )
+        print(f"Execution Result: {result}")
+
+        # --- Assertions ---
+        # 1. Config lookup was called (We can't easily assert calls on the lambda,
+        #    but the subsequent assertions implicitly test its effect)
+        # Check the actual return value from the lambda (optional sanity check)
+        assert config_lookup_lambda(component_name) is None
+
+        # 2. Executor setup was NOT called (No mock to assert on)
+        # 3. Execution function was NOT called (No mock to assert on)
+        # 4. Error factory WAS called with correct keyword arguments
+        mock_error_factory.assert_called_once_with(
+            error_message=f"{component_type} '{component_name}' not found (lookup returned None).",  # Match the new error message
+            details=None,
+        )
+        # 5. Final result is the error structure
+        assert result == expected_error
+        print("Assertions passed.")
+
+        print("--- Test Finished: test_execute_component_config_not_found ---")
+
+    @pytest.mark.asyncio
+    async def test_execute_component_setup_error(
+        self, execution_facade: ExecutionFacade, mock_host_manager: Mock
+    ):
+        """
+        Test _execute_component returns error when executor_setup raises an exception.
+        """
+        print("\\n--- Running Test: test_execute_component_setup_error ---")
+        component_name = "TestAgent"
+        component_type = "Agent"
+        setup_error = ValueError("Failed to setup executor")
+
+        # --- Mock dependencies ---
+        # 1. Config Lookup: Mock to return a valid config
+        mock_config = MagicMock(spec=AgentConfig)
+        mock_config_lookup = Mock(return_value=mock_config)
+        # 2. Executor Setup: Mock to raise an error
+        mock_executor_setup = Mock(side_effect=setup_error)
+        # 3. Execution Function: Not expected to be called
+        mock_execution_func = AsyncMock()
+        # 4. Error Structure Factory: Mock to check it's called correctly
+        expected_error = {
+            "status": "error",
+            "component_type": component_type,
+            "component_name": component_name,
+            "error": f"Failed to instantiate {component_type}.",
+            "details": str(setup_error),
+        }
+        mock_error_factory = Mock(return_value=expected_error)
+
+        # --- Call the internal method ---
+        result = await execution_facade._execute_component(
+            component_type=component_type,
+            component_name=component_name,
+            config_lookup=mock_config_lookup,
+            executor_setup=mock_executor_setup,
+            execution_func=mock_execution_func,
+            error_structure_factory=mock_error_factory,
+            # Pass dummy args for kwargs, they shouldn't be used in this error path
+            host_instance=mock_host_manager.host,
+            user_message="irrelevant",
+        )
+        print(f"Execution Result: {result}")
+
+        # --- Assertions ---
+        # 1. Config lookup was called
+        mock_config_lookup.assert_called_once_with(component_name)
+        # 2. Executor setup was called
+        mock_executor_setup.assert_called_once_with(mock_config)
+        # 3. Execution function was NOT called
+        mock_execution_func.assert_not_awaited()
+        # 4. Error factory WAS called with correct keyword arguments
+        mock_error_factory.assert_called_once_with(
+            error_message=f"Failed to instantiate {component_type}.",
+            details=str(setup_error),
+        )
+        # 5. Final result is the error structure
+        assert result == expected_error
+        print("Assertions passed.")
+
+        print("--- Test Finished: test_execute_component_setup_error ---")

@@ -100,12 +100,21 @@ class ExecutionFacade:
                 f"Configuration error: {component_type} '{component_name}' not found."
             )
             logger.error(f"Facade: {error_msg}")
-            return error_structure_factory(component_name, error_msg)
+            # Pass keyword arguments and details=None explicitly
+            return error_structure_factory(error_message=error_msg, details=None)
         except Exception as config_err:
             # Catch unexpected errors during config lookup
             error_msg = f"Unexpected error retrieving config for {component_type} '{component_name}': {config_err}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             return error_structure_factory(component_name, error_msg)
+
+        # Add explicit check if config lookup succeeded but returned None
+        if config is None:
+            error_msg = (
+                f"{component_type} '{component_name}' not found (lookup returned None)."
+            )
+            logger.error(f"Facade: {error_msg}")
+            return error_structure_factory(error_message=error_msg, details=None)
 
         # 2. Instantiate Executor/Agent
         try:
@@ -116,7 +125,11 @@ class ExecutionFacade:
         except Exception as setup_err:
             error_msg = f"Initialization error for {component_type} '{component_name}': {setup_err}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return error_structure_factory(component_name, error_msg)
+            # Pass keyword arguments and error details
+            return error_structure_factory(
+                error_message=f"Failed to instantiate {component_type}.",
+                details=str(setup_err),
+            )
 
         # 3. Execute
         try:
@@ -143,8 +156,10 @@ class ExecutionFacade:
             # Catch other unexpected errors during execution
             error_msg = f"Unexpected runtime error during {component_type} '{component_name}' execution: {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            # Return standardized error structure for generic exceptions
-            return error_structure_factory(component_name, error_msg)
+            # Return standardized error structure for generic exceptions, passing keyword args
+            return error_structure_factory(
+                error_message=f"{component_type} execution failed.", details=str(e)
+            )
 
     # --- Public Execution Methods ---
 

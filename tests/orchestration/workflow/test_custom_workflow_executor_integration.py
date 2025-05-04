@@ -121,11 +121,14 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
         # Assertions based on the expected output of ExampleCustomWorkflow
         assert result is not None
         assert isinstance(result, dict)
-        assert result.get("status") == "completed"  # Check outer status
+        # Check the outer status from the CustomWorkflowExecutor.execute wrapper
+        assert result.get("status") == "completed"
         assert result.get("error") is None
-        assert "result" in result
+        assert "result" in result  # The inner result from the workflow itself
+
+        # Check the inner result structure from the ExampleCustomWorkflow
         inner_result = result["result"]
-        assert inner_result.get("status") == "success"  # Check inner status
+        assert inner_result.get("status") == "success"  # Status from the workflow
         assert inner_result.get("input_received") == initial_input
         assert "agent_result_text" in inner_result
         assert isinstance(inner_result["agent_result_text"], str)

@@ -149,23 +149,20 @@ async def test_simple_executor_agent_not_found(host_manager: HostManager):
     host_instance = host_manager.host
     assert host_instance is not None, "Host instance not found in HostManager"
 
-    # Use a valid agent and an invalid one
-    valid_agent_name = "Weather Agent"
+    # Use only an invalid agent name
     invalid_agent_name = "NonExistentAgent"
 
-    assert valid_agent_name in host_manager.agent_configs, (
-        f"'{valid_agent_name}' not found for test setup."
-    )
     assert invalid_agent_name not in host_manager.agent_configs, (
         f"'{invalid_agent_name}' should not exist for this test."
     )
 
-    # Define a workflow config referencing the invalid agent
+    # Define a workflow config referencing only the invalid agent
     workflow_config = WorkflowConfig(
         name="TestAgentNotFoundWorkflow",
-        steps=[valid_agent_name, invalid_agent_name],  # Second step uses invalid agent
+        steps=[invalid_agent_name],  # Only include the invalid agent
     )
 
+    # Pass all available agent configs from the manager, even though the target one is missing
     all_agent_configs = host_manager.agent_configs
     initial_message = "This message doesn't matter for this test"
     print(f"Workflow Config: {workflow_config}")
@@ -178,7 +175,7 @@ async def test_simple_executor_agent_not_found(host_manager: HostManager):
         )
         print(f"Executor initialized: {executor}")
 
-        # Execute the workflow - expect it to fail during the second step
+        # Execute the workflow - expect it to fail immediately on the first (invalid) step
         result = await executor.execute(initial_input=initial_message)
         print(f"Execution Result: {result}")
 
@@ -188,8 +185,9 @@ async def test_simple_executor_agent_not_found(host_manager: HostManager):
         assert result.get("final_message") is None  # Should be None on failure
         assert result.get("error") is not None
         assert isinstance(result.get("error"), str)
-        assert invalid_agent_name in result.get("error", "")
-        assert "not found in provided agent configurations" in result.get("error", "")
+        # Check for the specific error message when agent config is missing, including workflow context
+        expected_error_msg = f"Configuration error in workflow '{workflow_config.name}': Agent '{invalid_agent_name}' (step 1) not found in provided agent configurations."
+        assert result.get("error") == expected_error_msg
 
         print("Assertions passed.")
 

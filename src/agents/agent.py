@@ -92,8 +92,12 @@ class Agent:
             }
             if system_prompt:
                 api_args["system"] = system_prompt
+            # Only include tools if the list is not empty
             if tools:
                 api_args["tools"] = tools
+                logger.debug(f"Including {len(tools)} tools in API call.")
+            else:
+                logger.debug("No tools included in API call.")
 
             # Use the client initialized in __init__
             # AWAIT the call since the client is async
@@ -174,15 +178,18 @@ class Agent:
         )  # Log truncated prompt
 
         # Prepare Tools (Using Host's get_formatted_tools, which applies agent filtering)
-        tools_data = await host_instance.get_formatted_tools(agent_config=self.config) # Added await
+        # This method is synchronous, remove await
+        tools_data = host_instance.get_formatted_tools(agent_config=self.config)
         logger.debug(  # Already DEBUG
-            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}" # This expects tools_data to be a list of dicts
+            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}"  # This expects tools_data to be a list of dicts
         )
 
         # Initialize Message History - Renumbered step
         # TODO: Implement history loading/management if include_history is True
         messages: List[MessageParam] = [{"role": "user", "content": user_message}]
-        conversation_history = [{"role": "user", "content": user_message}] # Add initial user message to history
+        conversation_history = [
+            {"role": "user", "content": user_message}
+        ]  # Add initial user message to history
 
         # Execute Conversation Loop - Renumbered step
         final_response = None

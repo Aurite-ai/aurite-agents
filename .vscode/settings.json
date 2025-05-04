@@ -15,7 +15,7 @@
     "**/.venv/**": true,
     "**/*.egg-info/**": true
   },
-  "ruff.lint.ignore": ["F841", "E722"],
+  "ruff.lint.ignore": ["F841", "E722", "E402"],
   "explorer.fileNesting.patterns": {
     "*.ts": "${capture}.js",
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",

@@ -3,24 +3,19 @@ Unit tests for the Agent class.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, MagicMock
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-import pathlib # Import pathlib for Path
 
 # Imports from the project
 from src.agents.agent import Agent
-from src.host.models import AgentConfig, HostConfig, ClientConfig, RootConfig # Add RootConfig for dummy data
-from src.host.host import MCPHost
-from anthropic.types import Message # For mocking LLM response
-import anthropic # Import the library for exception types
+from src.host.models import AgentConfig  # Add RootConfig for dummy data
+from anthropic.types import Message  # For mocking LLM response
+import anthropic  # Import the library for exception types
 
 # Import shared fixtures
-from tests.fixtures.agent_fixtures import minimal_agent_config
-from tests.mocks.mock_anthropic import mock_anthropic_client
-from tests.mocks.mock_mcp_host import mock_mcp_host # Import shared host mock
 
 # --- Fixtures ---
 
@@ -28,19 +23,25 @@ from tests.mocks.mock_mcp_host import mock_mcp_host # Import shared host mock
 # Removed local minimal_agent_config fixture - using shared one
 # Removed local mock_anthropic_client fixture - using shared one
 
+
 @pytest.fixture
-def agent(minimal_agent_config: AgentConfig) -> Agent: # Now uses shared fixture
+def agent(minimal_agent_config: AgentConfig) -> Agent:  # Now uses shared fixture
     """Provides an Agent instance initialized with minimal config."""
     return Agent(config=minimal_agent_config)
 
+
 # --- Test Class ---
+
 
 class TestAgentUnit:
     """Unit tests for the Agent class."""
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_no_tool_use(
-        self, agent: Agent, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        agent: Agent,
+        mock_mcp_host: AsyncMock,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test successful agent execution when the LLM response does not request tool use.
@@ -65,11 +66,11 @@ class TestAgentUnit:
         # Assertions
         # Check the call on the mocked internal method
         agent._make_llm_call.assert_awaited_once()
-        mock_mcp_host.get_formatted_tools.assert_awaited_once() # Check tools were fetched
-        mock_mcp_host.execute_tool.assert_not_awaited() # Ensure no tool execution was attempted
+        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
+        mock_mcp_host.execute_tool.assert_not_awaited()  # Ensure no tool execution was attempted
 
         assert "conversation" in result
-        assert len(result["conversation"]) == 2 # User message + Assistant response
+        assert len(result["conversation"]) == 2  # User message + Assistant response
         assert result["conversation"][0]["role"] == "user"
         assert result["conversation"][0]["content"] == user_message
         assert result["conversation"][1]["role"] == "assistant"
@@ -81,17 +82,23 @@ class TestAgentUnit:
         assert assistant_content[0].text == "Hello back!"
 
         assert "final_response" in result
-        assert result["final_response"] == mock_llm_response # Should return the raw response object
+        assert (
+            result["final_response"] == mock_llm_response
+        )  # Should return the raw response object
 
         assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 0 # No tool use expected
+        assert len(result["tool_uses"]) == 0  # No tool use expected
 
         print("Assertions passed.")
         print("--- Test Finished: test_execute_agent_success_no_tool_use ---")
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_with_tool_use(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        agent: Agent,
+        mock_mcp_host: AsyncMock,
+        minimal_agent_config: AgentConfig,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test successful agent execution with a single tool use request.
@@ -117,11 +124,15 @@ class TestAgentUnit:
 
         # --- Mock LLM Response 2 (Final Text Response after Tool Result) ---
         mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [MagicMock(type="text", text="Okay, I echoed it.")]
+        mock_llm_response_2.content = [
+            MagicMock(type="text", text="Okay, I echoed it.")
+        ]
         mock_llm_response_2.stop_reason = "end_turn"
 
         # Mock the internal _make_llm_call method to return responses sequentially
-        agent._make_llm_call = AsyncMock(side_effect=[mock_llm_response_1, mock_llm_response_2])
+        agent._make_llm_call = AsyncMock(
+            side_effect=[mock_llm_response_1, mock_llm_response_2]
+        )
 
         # --- Mock Host Tool Execution ---
         # Mock the execute_tool method on the host instance
@@ -130,10 +141,15 @@ class TestAgentUnit:
         # We need a mock 'tools' attribute on the host mock first
         mock_mcp_host.tools = Mock()
         # Define the content of the block
-        mock_tool_result_block_content = {"type": "tool_result", "tool_use_id": tool_id, "content": tool_result_content}
+        mock_tool_result_block_content = {
+            "type": "tool_result",
+            "tool_use_id": tool_id,
+            "content": tool_result_content,
+        }
         # Mock create_tool_result_blocks to return a list containing the block content
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(return_value=[mock_tool_result_block_content])
-
+        mock_mcp_host.tools.create_tool_result_blocks = Mock(
+            return_value=[mock_tool_result_block_content]
+        )
 
         # --- Execute the agent ---
         result = await agent.execute_agent(
@@ -147,12 +163,12 @@ class TestAgentUnit:
         # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
         # Tools fetched once (at the start)
-        mock_mcp_host.get_formatted_tools.assert_awaited_once()
+        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
         # Tool executed once
         mock_mcp_host.execute_tool.assert_awaited_once_with(
             tool_name=tool_name,
             arguments=tool_input,
-            agent_config=minimal_agent_config # Ensure config is passed for filtering
+            agent_config=minimal_agent_config,  # Ensure config is passed for filtering
         )
         # Tool result block created once
         mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
@@ -161,7 +177,9 @@ class TestAgentUnit:
 
         # Conversation history check
         assert "conversation" in result
-        assert len(result["conversation"]) == 4 # user -> assistant (tool) -> user (result) -> assistant (final)
+        assert (
+            len(result["conversation"]) == 4
+        )  # user -> assistant (tool) -> user (result) -> assistant (final)
         # 1. Initial User Message
         assert result["conversation"][0]["role"] == "user"
         assert result["conversation"][0]["content"] == user_message
@@ -170,11 +188,12 @@ class TestAgentUnit:
         assert result["conversation"][1]["content"] == mock_llm_response_1.content
         # 3. User Tool Result (Content is a list containing the list returned by create_tool_result_blocks)
         assert result["conversation"][2]["role"] == "user"
-        assert result["conversation"][2]["content"] == [[mock_tool_result_block_content]] # Expect list of lists
+        assert result["conversation"][2]["content"] == [
+            [mock_tool_result_block_content]
+        ]  # Expect list of lists
         # 4. Final Assistant Response
         assert result["conversation"][3]["role"] == "assistant"
         assert result["conversation"][3]["content"] == mock_llm_response_2.content
-
 
         # Final response check
         assert "final_response" in result
@@ -192,12 +211,18 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_with_multiple_tool_uses(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        agent: Agent,
+        mock_mcp_host: AsyncMock,
+        minimal_agent_config: AgentConfig,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test successful agent execution with multiple tool use requests in one turn.
         """
-        print("\n--- Running Test: test_execute_agent_success_with_multiple_tool_uses ---")
+        print(
+            "\n--- Running Test: test_execute_agent_success_with_multiple_tool_uses ---"
+        )
         user_message = "Use tool1 with 'A' and tool2 with 'B'."
         tool1_name = "tool1"
         tool1_input = {"param": "A"}
@@ -213,26 +238,33 @@ class TestAgentUnit:
         mock_tool_use_block_1 = MagicMock()
         mock_tool_use_block_1.type = "tool_use"
         mock_tool_use_block_1.id = tool1_id
-        mock_tool_use_block_1.name = tool1_name # Set the return value for .name
+        mock_tool_use_block_1.name = tool1_name  # Set the return value for .name
         mock_tool_use_block_1.input = tool1_input
 
         mock_tool_use_block_2 = MagicMock()
         mock_tool_use_block_2.type = "tool_use"
         mock_tool_use_block_2.id = tool2_id
-        mock_tool_use_block_2.name = tool2_name # Set the return value for .name
+        mock_tool_use_block_2.name = tool2_name  # Set the return value for .name
         mock_tool_use_block_2.input = tool2_input
 
         mock_llm_response_1 = MagicMock(spec=Message)
-        mock_llm_response_1.content = [mock_tool_use_block_1, mock_tool_use_block_2] # Two tool uses
+        mock_llm_response_1.content = [
+            mock_tool_use_block_1,
+            mock_tool_use_block_2,
+        ]  # Two tool uses
         mock_llm_response_1.stop_reason = "tool_use"
 
         # --- Mock LLM Response 2 (Final Text Response after Tool Results) ---
         mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [MagicMock(type="text", text="Okay, used both tools.")]
+        mock_llm_response_2.content = [
+            MagicMock(type="text", text="Okay, used both tools.")
+        ]
         mock_llm_response_2.stop_reason = "end_turn"
 
         # Mock the internal _make_llm_call method to return responses sequentially
-        agent._make_llm_call = AsyncMock(side_effect=[mock_llm_response_1, mock_llm_response_2])
+        agent._make_llm_call = AsyncMock(
+            side_effect=[mock_llm_response_1, mock_llm_response_2]
+        )
 
         # --- Mock Host Tool Execution ---
         # Mock execute_tool to return different results based on tool name
@@ -243,22 +275,35 @@ class TestAgentUnit:
                 return tool2_result_content
             else:
                 raise ValueError("Unexpected tool name in mock")
+
         mock_mcp_host.execute_tool = AsyncMock(side_effect=mock_execute_tool_multi)
 
         # Mock create_tool_result_blocks
         mock_mcp_host.tools = Mock()
-        mock_tool1_result_block_content = {"type": "tool_result", "tool_use_id": tool1_id, "content": tool1_result_content}
-        mock_tool2_result_block_content = {"type": "tool_result", "tool_use_id": tool2_id, "content": tool2_result_content}
+        mock_tool1_result_block_content = {
+            "type": "tool_result",
+            "tool_use_id": tool1_id,
+            "content": tool1_result_content,
+        }
+        mock_tool2_result_block_content = {
+            "type": "tool_result",
+            "tool_use_id": tool2_id,
+            "content": tool2_result_content,
+        }
+
         # Mock create_tool_result_blocks to return the correct block based on tool_id
         def mock_create_results(*args, **kwargs):
-            tool_use_id = args[0] # First positional arg is tool_use_id
+            tool_use_id = args[0]  # First positional arg is tool_use_id
             if tool_use_id == tool1_id:
                 return [mock_tool1_result_block_content]
             elif tool_use_id == tool2_id:
                 return [mock_tool2_result_block_content]
             else:
                 raise ValueError("Unexpected tool_id in mock")
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(side_effect=mock_create_results)
+
+        mock_mcp_host.tools.create_tool_result_blocks = Mock(
+            side_effect=mock_create_results
+        )
 
         # --- Execute the agent ---
         result = await agent.execute_agent(
@@ -271,19 +316,33 @@ class TestAgentUnit:
         # --- Assertions ---
         # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
-        mock_mcp_host.get_formatted_tools.assert_awaited_once()
+        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
         # Tool executed twice
         assert mock_mcp_host.execute_tool.await_count == 2
-        mock_mcp_host.execute_tool.assert_any_await(tool_name=tool1_name, arguments=tool1_input, agent_config=minimal_agent_config)
-        mock_mcp_host.execute_tool.assert_any_await(tool_name=tool2_name, arguments=tool2_input, agent_config=minimal_agent_config)
+        mock_mcp_host.execute_tool.assert_any_await(
+            tool_name=tool1_name,
+            arguments=tool1_input,
+            agent_config=minimal_agent_config,
+        )
+        mock_mcp_host.execute_tool.assert_any_await(
+            tool_name=tool2_name,
+            arguments=tool2_input,
+            agent_config=minimal_agent_config,
+        )
         # Tool result block created twice
         assert mock_mcp_host.tools.create_tool_result_blocks.call_count == 2
-        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(tool1_id, tool1_result_content)
-        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(tool2_id, tool2_result_content)
+        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(
+            tool1_id, tool1_result_content
+        )
+        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(
+            tool2_id, tool2_result_content
+        )
 
         # Conversation history check
         assert "conversation" in result
-        assert len(result["conversation"]) == 4 # user -> assistant (tools) -> user (results) -> assistant (final)
+        assert (
+            len(result["conversation"]) == 4
+        )  # user -> assistant (tools) -> user (results) -> assistant (final)
         assert result["conversation"][0]["role"] == "user"
         assert result["conversation"][1]["role"] == "assistant"
         assert result["conversation"][1]["content"] == mock_llm_response_1.content
@@ -291,7 +350,9 @@ class TestAgentUnit:
         assert result["conversation"][2]["role"] == "user"
         user_tool_results_content = result["conversation"][2]["content"]
         assert isinstance(user_tool_results_content, list)
-        assert len(user_tool_results_content) == 2 # Should contain results for both tools
+        assert (
+            len(user_tool_results_content) == 2
+        )  # Should contain results for both tools
         # Check if both expected result blocks are present (order doesn't matter)
         assert [mock_tool1_result_block_content] in user_tool_results_content
         assert [mock_tool2_result_block_content] in user_tool_results_content
@@ -306,15 +367,27 @@ class TestAgentUnit:
         assert "tool_uses" in result
         assert len(result["tool_uses"]) == 2
         # Check presence of both tool uses (order might vary)
-        assert any(tu["id"] == tool1_id and tu["name"] == tool1_name for tu in result["tool_uses"])
-        assert any(tu["id"] == tool2_id and tu["name"] == tool2_name for tu in result["tool_uses"])
+        assert any(
+            tu["id"] == tool1_id and tu["name"] == tool1_name
+            for tu in result["tool_uses"]
+        )
+        assert any(
+            tu["id"] == tool2_id and tu["name"] == tool2_name
+            for tu in result["tool_uses"]
+        )
 
         print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_success_with_multiple_tool_uses ---")
+        print(
+            "--- Test Finished: test_execute_agent_success_with_multiple_tool_uses ---"
+        )
 
     @pytest.mark.asyncio
     async def test_execute_agent_tool_execution_error(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        agent: Agent,
+        mock_mcp_host: AsyncMock,
+        minimal_agent_config: AgentConfig,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test agent execution when a requested tool fails during execution.
@@ -326,7 +399,9 @@ class TestAgentUnit:
         tool_input = {"data": "irrelevant"}
         tool_id = "tool_fail123"
         tool_execution_error = ValueError("Tool exploded!")
-        error_content_string = f"Error executing tool '{tool_name}': {str(tool_execution_error)}"
+        error_content_string = (
+            f"Error executing tool '{tool_name}': {str(tool_execution_error)}"
+        )
 
         # --- Mock LLM Response 1 (Requesting Tool Use) ---
         mock_tool_use_block = MagicMock()
@@ -341,20 +416,30 @@ class TestAgentUnit:
 
         # --- Mock LLM Response 2 (Final Text Response after Error Result) ---
         mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [MagicMock(type="text", text="Okay, the tool failed.")]
+        mock_llm_response_2.content = [
+            MagicMock(type="text", text="Okay, the tool failed.")
+        ]
         mock_llm_response_2.stop_reason = "end_turn"
 
         # Mock the internal _make_llm_call method to return responses sequentially
-        agent._make_llm_call = AsyncMock(side_effect=[mock_llm_response_1, mock_llm_response_2])
+        agent._make_llm_call = AsyncMock(
+            side_effect=[mock_llm_response_1, mock_llm_response_2]
+        )
 
         # --- Mock Host Tool Execution (to raise error) ---
         mock_mcp_host.execute_tool = AsyncMock(side_effect=tool_execution_error)
 
         # Mock create_tool_result_blocks to return the error block
         mock_mcp_host.tools = Mock()
-        mock_error_result_block_content = {"type": "tool_result", "tool_use_id": tool_id, "content": error_content_string}
+        mock_error_result_block_content = {
+            "type": "tool_result",
+            "tool_use_id": tool_id,
+            "content": error_content_string,
+        }
         # We expect create_tool_result_blocks to be called with the error string
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(return_value=[mock_error_result_block_content])
+        mock_mcp_host.tools.create_tool_result_blocks = Mock(
+            return_value=[mock_error_result_block_content]
+        )
 
         # --- Execute the agent ---
         result = await agent.execute_agent(
@@ -367,27 +452,30 @@ class TestAgentUnit:
         # --- Assertions ---
         # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
-        mock_mcp_host.get_formatted_tools.assert_awaited_once()
+        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
         # Tool execution attempted once
         mock_mcp_host.execute_tool.assert_awaited_once_with(
-            tool_name=tool_name,
-            arguments=tool_input,
-            agent_config=minimal_agent_config
+            tool_name=tool_name, arguments=tool_input, agent_config=minimal_agent_config
         )
         # Tool result block created once (with the error message)
         mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
-            tool_id, error_content_string # Verify it was called with the error string
+            tool_id,
+            error_content_string,  # Verify it was called with the error string
         )
 
         # Conversation history check
         assert "conversation" in result
-        assert len(result["conversation"]) == 4 # user -> assistant (tool) -> user (error result) -> assistant (final)
+        assert (
+            len(result["conversation"]) == 4
+        )  # user -> assistant (tool) -> user (error result) -> assistant (final)
         assert result["conversation"][0]["role"] == "user"
         assert result["conversation"][1]["role"] == "assistant"
         assert result["conversation"][1]["content"] == mock_llm_response_1.content
         # Check the user message containing the error tool result
         assert result["conversation"][2]["role"] == "user"
-        assert result["conversation"][2]["content"] == [[mock_error_result_block_content]] # List of lists
+        assert result["conversation"][2]["content"] == [
+            [mock_error_result_block_content]
+        ]  # List of lists
         assert result["conversation"][3]["role"] == "assistant"
         assert result["conversation"][3]["content"] == mock_llm_response_2.content
 
@@ -406,7 +494,9 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_filtering_passed_to_host(
-        self, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        mock_mcp_host: AsyncMock,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test that agent filtering parameters are correctly passed to
@@ -419,13 +509,15 @@ class TestAgentUnit:
             name="FilteringAgent",
             model="claude-3-haiku-20240307",
             client_ids=["client1", "client2"],
-            exclude_components=["excluded_tool", "excluded_prompt"]
+            exclude_components=["excluded_tool", "excluded_prompt"],
         )
         agent_with_filtering = Agent(config=filtering_agent_config)
 
         # Mock the LLM response (no tool use needed for this test)
         mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [MagicMock(type="text", text="Checking filtering...")]
+        mock_llm_response.content = [
+            MagicMock(type="text", text="Checking filtering...")
+        ]
         mock_llm_response.stop_reason = "end_turn"
         # Mock the internal _make_llm_call method directly
         agent_with_filtering._make_llm_call = AsyncMock(return_value=mock_llm_response)
@@ -442,7 +534,7 @@ class TestAgentUnit:
 
         # --- Assertions ---
         # Verify get_formatted_tools was called exactly once with the correct agent_config
-        mock_mcp_host.get_formatted_tools.assert_awaited_once_with(
+        mock_mcp_host.get_formatted_tools.assert_called_once_with(  # Use synchronous assertion
             agent_config=filtering_agent_config
         )
 
@@ -451,7 +543,10 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_llm_call_failure(
-        self, agent: Agent, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
+        self,
+        agent: Agent,
+        mock_mcp_host: AsyncMock,
+        mock_anthropic_client: MagicMock,  # Add mock client fixture
     ):
         """
         Test agent execution when the _make_llm_call method raises an exception.
@@ -474,9 +569,9 @@ class TestAgentUnit:
 
         # Assertions
         # Check the call on the mocked internal method
-        agent._make_llm_call.assert_awaited_once() # LLM call was attempted
-        mock_mcp_host.get_formatted_tools.assert_awaited_once() # Tools were still fetched
-        mock_mcp_host.execute_tool.assert_not_awaited() # Tool execution should not happen
+        agent._make_llm_call.assert_awaited_once()  # LLM call was attempted
+        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
+        mock_mcp_host.execute_tool.assert_not_awaited()  # Tool execution should not happen
 
         # Check the returned error structure
         assert "error" in result

@@ -4,12 +4,12 @@ like HostManager, Agent, and Executors.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, Mock # Added Mock
-from typing import Dict
+from unittest.mock import MagicMock, AsyncMock, Mock  # Added Mock
 
 # Import the class we are mocking to ensure the mock spec matches
 from src.host.host import MCPHost
-from src.host.resources import ToolManager # Import ToolManager for spec
+from src.host.resources import ToolManager  # Import ToolManager for spec
+
 
 @pytest.fixture
 def mock_mcp_host() -> MagicMock:
@@ -28,21 +28,22 @@ def mock_mcp_host() -> MagicMock:
     host_mock.configure_mock(
         # === Attributes/Methods for HostManager Registration ===
         # Don't configure _clients here. Use is_client_registered mock instead.
-        config = MagicMock(),
-        register_client = AsyncMock(),
-        is_client_registered = Mock(return_value=True), # Add mock for the new method
-        initialize = AsyncMock(),
-        shutdown = AsyncMock(),
-
+        config=MagicMock(),
+        register_client=AsyncMock(),
+        is_client_registered=Mock(return_value=True),  # Add mock for the new method
+        initialize=AsyncMock(),
+        shutdown=AsyncMock(),
         # === Attributes/Methods for Agent/Executor Execution ===
-        tools = MagicMock(spec=ToolManager), # Mock the 'tools' attribute
-        get_formatted_tools = AsyncMock(return_value=[]), # Default: no tools
-        execute_tool = AsyncMock(), # Default: no specific return/side_effect
+        tools=MagicMock(spec=ToolManager),  # Mock the 'tools' attribute
+        get_formatted_tools=Mock(
+            return_value=[]
+        ),  # Default: no tools - Should be synchronous Mock
+        execute_tool=AsyncMock(),  # Default: no specific return/side_effect
     )
 
     # Configure methods on the nested 'tools' mock separately
     host_mock.tools.configure_mock(
-        create_tool_result_blocks = Mock() # Sync method
+        create_tool_result_blocks=Mock()  # Sync method
     )
 
     # Do NOT explicitly set host_mock._clients here, as spec=MCPHost likely prevents it.
