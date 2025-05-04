@@ -94,7 +94,8 @@ class RootManager:
         self, client_id: str
     ) -> List[RootConfig]:  # Type hint uses imported RootConfig
         """Get all roots registered for a client"""
-        return self._client_roots.get(client_id, [])
+        # Return a copy to prevent external modification
+        return list(self._client_roots.get(client_id, []))
 
     # get_tool_requirements method removed.
 
