@@ -116,6 +116,7 @@ markers = [
     "multirun: mark test that runs multiple evaluation iterations",
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
+asyncio_default_fixture_loop_scope = "function" # Default scope for asyncio tests
 pythonpath = [".", "src"]
 # Removed asyncio_mode and asyncio_default_fixture_loop_scope for anyio plugin
 filterwarnings = [
