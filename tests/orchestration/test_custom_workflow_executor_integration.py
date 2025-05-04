@@ -4,8 +4,8 @@ Integration tests for the CustomWorkflowExecutor.
 
 import pytest
 
-# Mark all tests in this module to be run by the anyio plugin
-pytestmark = pytest.mark.anyio
+# Mark all tests in this module as belonging to the Orchestration layer and use anyio
+pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
 import logging  # Add logging import
 

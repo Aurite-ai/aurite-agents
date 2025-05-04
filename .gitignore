@@ -136,7 +136,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
+.roorules*
+.roo/**
 logs
 npm-debug.log*
 **/node_modules/**

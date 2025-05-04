@@ -5,6 +5,9 @@ Tests for the FilteringManager and related filtering logic in MCPHost.
 import pytest
 from unittest.mock import MagicMock
 
+# Mark all tests in this module as belonging to the Orchestration layer
+pytestmark = pytest.mark.orchestration
+
 
 # Import components to test and dependencies
 from src.host.filtering import FilteringManager

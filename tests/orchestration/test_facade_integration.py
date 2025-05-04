@@ -3,6 +3,9 @@ Integration tests for the ExecutionFacade.
 """
 
 import pytest
+
+# Mark all tests in this module as belonging to the Orchestration layer
+pytestmark = pytest.mark.orchestration
 import os
 
 # Mark all tests in this module to be run by the anyio plugin

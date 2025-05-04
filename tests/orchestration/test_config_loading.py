@@ -4,9 +4,12 @@ specifically focusing on load_host_config_from_json.
 """
 
 import pytest
-import json
+import json  # Add json import back
 from pathlib import Path
 from unittest.mock import patch, mock_open
+
+# Mark all tests in this module as belonging to the Orchestration layer
+pytestmark = pytest.mark.orchestration
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.config import load_host_config_from_json
@@ -535,11 +538,30 @@ class TestConfigLoading:
     def test_load_invalid_config_workflow_unknown_agent(
         self, mock_exists, mock_is_file
     ):
-        """Test loading config with a workflow referencing an unknown agent."""
+        """
+        Test loading config with a workflow referencing an unknown agent.
+        load_host_config_from_json should SUCCEED here, as validation happens later.
+        """
         config_path = Path("/fake/path/to/unknown_agent_workflow.json")
         m = mock_open(read_data=json.dumps(INVALID_CONFIG_DATA_WORKFLOW_UNKNOWN_AGENT))
         with patch("builtins.open", m):
-            with pytest.raises(
-                RuntimeError, match="references unknown agent 'UnknownAgent'"
-            ):
-                load_host_config_from_json(config_path)
+            # Expect NO error during loading
+            try:
+                (
+                    host_config,
+                    agent_configs_dict,
+                    workflow_configs_dict,
+                    custom_workflow_configs_dict,
+                ) = load_host_config_from_json(config_path)
+            except Exception as e:
+                pytest.fail(
+                    f"load_host_config_from_json raised unexpected exception: {e}"
+                )
+
+            # Assert that the workflow was loaded, even with the unknown agent step
+            assert "WorkflowBadStep" in workflow_configs_dict
+            assert isinstance(workflow_configs_dict["WorkflowBadStep"], WorkflowConfig)
+            assert workflow_configs_dict["WorkflowBadStep"].steps == [
+                "KnownAgent",
+                "UnknownAgent",
+            ]

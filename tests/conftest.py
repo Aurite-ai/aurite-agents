@@ -49,6 +49,10 @@ def pytest_configure(config):
         "markers",
         "e2e: marks tests as end-to-end tests (may require external resources)",
     )
+    config.addinivalue_line(
+        "markers",
+        "orchestration: marks tests related to the Orchestration Layer (HostManager, Facade, Executors, Agent)",
+    )
     # Setup can be expanded as needed
 
 
@@ -94,8 +98,12 @@ def parse_json_result():
 
     return _parse
 
+
 def pytest_addoption(parser):
     """Add custom command line options."""
     parser.addoption(
-        "--config", action="store", default=None, help="The config file to use located in config/testing/ (e.g. planning_agent.json)"
+        "--config",
+        action="store",
+        default=None,
+        help="The config file to use located in config/testing/ (e.g. planning_agent.json)",
     )
