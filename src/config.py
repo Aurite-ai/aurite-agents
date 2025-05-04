@@ -108,7 +108,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
         FileNotFoundError: If the config file does not exist.
         RuntimeError: If JSON parsing, Pydantic validation, or required keys are missing.
     """
-    logger.info(f"Attempting to load HostConfig from: {config_path}")
+    logger.debug(f"Attempting to load HostConfig from: {config_path}")  # INFO -> DEBUG
     if not config_path.is_file():
         logger.error(f"Host configuration file not found: {config_path}")
         raise FileNotFoundError(f"Host configuration file not found: {config_path}")
@@ -181,7 +181,9 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
             name=config_data.get("name"),  # Allow optional host name
             clients=client_configs,
         )
-        logger.info(f"HostConfig loaded successfully from {config_path}")
+        logger.debug(
+            f"HostConfig loaded successfully from {config_path}"
+        )  # INFO -> DEBUG
 
         # --- Load Agent Configs ---
         agent_configs_dict: Dict[str, AgentConfig] = {}
@@ -250,7 +252,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     f"Agent configuration validation failed for '{agent_name}': {agent_val_err}"
                 ) from agent_val_err
 
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"{len(agent_configs_dict)} AgentConfig(s) loaded successfully from {config_path}"
         )
 
@@ -288,7 +290,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     f"Workflow configuration validation failed for '{workflow_name}': {workflow_val_err}"
                 ) from workflow_val_err
 
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"{len(workflow_configs_dict)} WorkflowConfig(s) loaded successfully from {config_path}"
         )
 
@@ -345,7 +347,7 @@ def load_host_config_from_json(  # noqa: C901 - Function is complex, but logic i
                     f"Custom workflow configuration validation failed for '{cwf_name}': {cwf_val_err}"
                 ) from cwf_val_err
 
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"{len(custom_workflow_configs_dict)} CustomWorkflowConfig(s) loaded successfully from {config_path}"
         )
 

@@ -59,7 +59,7 @@ class SimpleWorkflowExecutor:
             and any error message encountered.
         """
         workflow_name = self.config.name
-        logger.info(f"Executing simple workflow: {workflow_name}")
+        logger.info(f"Executing simple workflow: {workflow_name}")  # Keep start as INFO
 
         if not self._host:
             # This check might be redundant if __init__ validates, but good practice
@@ -88,7 +88,7 @@ class SimpleWorkflowExecutor:
             # Loop through steps (agents)
             for i, agent_name in enumerate(self.config.steps):
                 step_num = i + 1
-                logger.info(
+                logger.debug(  # INFO -> DEBUG
                     f"Executing workflow '{workflow_name}' step {step_num}: Agent '{agent_name}'"
                 )
 
@@ -181,7 +181,9 @@ class SimpleWorkflowExecutor:
             # Determine final status after loop finishes or breaks
             if error_message is None:
                 final_status = "completed"
-                logger.info(f"Workflow '{workflow_name}' completed successfully.")
+                logger.info(
+                    f"Workflow '{workflow_name}' completed successfully."
+                )  # Keep final success as INFO
             else:
                 # Ensure status remains 'failed' if loop broke due to error
                 final_status = "failed"

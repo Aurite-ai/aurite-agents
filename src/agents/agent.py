@@ -138,7 +138,7 @@ class Agent:
             # ValueError: If Anthropic API key is not found. # Removed as key checked in __init__
         """
         # --- Start of standard agent execution logic ---
-        logger.debug(
+        logger.debug(  # Already DEBUG
             f"Agent '{self.config.name or 'Unnamed'}' starting standard execution."
         )
 
@@ -166,16 +166,16 @@ class Agent:
             self.config.include_history or False
         )  # Default to not including history unless specified
 
-        logger.debug(
+        logger.debug(  # Already DEBUG
             f"Using LLM parameters: model={model}, temp={temperature}, max_tokens={max_tokens}"
         )
-        logger.debug(
+        logger.debug(  # Already DEBUG
             f"Using system prompt: '{system_prompt[:100]}...'"
         )  # Log truncated prompt
 
         # Prepare Tools (Using Host's get_formatted_tools, which applies agent filtering)
         tools_data = host_instance.get_formatted_tools(agent_config=self.config)
-        logger.debug(
+        logger.debug(  # Already DEBUG
             f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}"
         )
 
@@ -189,12 +189,16 @@ class Agent:
         tool_uses_in_last_turn = []  # Track tool uses specifically for the return value
         # Use max_iterations from config or default to 10
         max_iterations = self.config.max_iterations or 10
-        logger.debug(f"Conversation loop max iterations set to: {max_iterations}")
+        logger.debug(
+            f"Conversation loop max iterations set to: {max_iterations}"
+        )  # Already DEBUG
         current_iteration = 0
 
         while current_iteration < max_iterations:
             current_iteration += 1
-            logger.debug(f"Conversation loop iteration {current_iteration}")
+            logger.debug(
+                f"Conversation loop iteration {current_iteration}"
+            )  # Already DEBUG
 
             # Make API call using the helper method
             try:
@@ -229,13 +233,13 @@ class Agent:
             if response.stop_reason != "tool_use":
                 # If the LLM didn't request tools, this is the final response.
                 final_response = response
-                logger.debug(
+                logger.debug(  # Already DEBUG
                     f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."
                 )
                 break  # Exit the loop
 
             # If we reach here, stop_reason MUST be 'tool_use'
-            logger.debug("LLM requested tool use. Processing tools...")
+            logger.debug("LLM requested tool use. Processing tools...")  # Already DEBUG
             tool_results_for_next_turn = []
             tool_uses_in_this_turn = []
             has_tool_calls = False  # Reset for this check
@@ -262,7 +266,7 @@ class Agent:
                             arguments=tool_use.input,
                             agent_config=self.config,
                         )
-                        logger.info(
+                        logger.debug(  # INFO -> DEBUG
                             f"Tool '{tool_use.name}' executed successfully (agent filters applied)."
                         )
                         tool_result_block = (
@@ -306,7 +310,7 @@ class Agent:
                     {"role": "user", "content": tool_results_for_next_turn}
                 )
                 tool_uses_in_last_turn = tool_uses_in_this_turn
-                logger.debug(
+                logger.debug(  # Already DEBUG
                     f"Added {len(tool_results_for_next_turn)} tool result(s) for next turn."
                 )
             else:
@@ -328,7 +332,9 @@ class Agent:
             )
 
         # Return Results - Renumbered step
-        logger.info(f"Agent '{self.config.name or 'Unnamed'}' execution finished.")
+        logger.info(
+            f"Agent '{self.config.name or 'Unnamed'}' execution finished."
+        )  # Keep final success as INFO
         return {
             "conversation": conversation_history,
             "final_response": final_response,  # Could be None if loop aborted early or error

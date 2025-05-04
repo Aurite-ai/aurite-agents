@@ -38,7 +38,7 @@ class ResourceManager:
 
     async def initialize(self):
         """Initialize the resource manager"""
-        logger.info("Initializing resource manager")
+        logger.debug("Initializing resource manager")  # INFO -> DEBUG
 
     async def register_client_resources(
         self,
@@ -48,7 +48,7 @@ class ResourceManager:
         filtering_manager: FilteringManager,  # Added filtering_manager
     ) -> List[types.Resource]:  # Return list of registered resources
         """Register resources available from a client, applying client-level exclusions."""
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"Registering resources for client {client_id}: {[str(r.uri) for r in resources]}"
         )
         registered_resources = []

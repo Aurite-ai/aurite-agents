@@ -4,7 +4,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING, Callable, Coroutine
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -52,215 +52,171 @@ class ExecutionFacade:
             raise ValueError("HostManager must be initialized with an active MCPHost.")
 
         self._manager = host_manager
-        self._host: "MCPHost" = (
-            host_manager.host
-        )  # Store direct ref to host for convenience
-        logger.info("ExecutionFacade initialized.")
+        self._host: "MCPHost" = host_manager.host  # Store direct ref to host
+        logger.debug("ExecutionFacade initialized.")  # INFO -> DEBUG
 
-    # --- Execution Methods (to be implemented in subsequent steps) ---
+    # --- Private Execution Helper ---
+
+    async def _execute_component(
+        self,
+        component_type: str,
+        component_name: str,
+        config_lookup: Callable[[str], Any],
+        executor_setup: Callable[[Any], Any],
+        execution_func: Callable[..., Coroutine[Any, Any, Any]],
+        error_structure_factory: Callable[[str, str], Dict[str, Any]],
+        **execution_kwargs: Any,
+    ) -> Any:
+        """
+        Generic helper to execute a component (Agent, Workflow).
+
+        Handles config lookup, instantiation, execution, and error handling.
+
+        Args:
+            component_type: String description (e.g., "Agent", "Simple Workflow").
+            component_name: The name of the component instance to execute.
+            config_lookup: Callable that takes component_name and returns its config.
+            executor_setup: Callable that takes the config and returns the executor/agent instance.
+            execution_func: The async execution method of the executor/agent instance.
+            error_structure_factory: Callable that takes component_name and error message
+                                     and returns the standardized error dictionary.
+            **execution_kwargs: Arguments to pass to the execution_func.
+
+        Returns:
+            The result of the execution or a standardized error dictionary.
+        """
+        logger.info(
+            f"Facade: Received request to run {component_type} '{component_name}'"
+        )
+
+        # 1. Get Configuration
+        try:
+            config = config_lookup(component_name)
+            logger.debug(  # Already DEBUG
+                f"Facade: Found {component_type}Config for '{component_name}'"
+            )
+        except KeyError:
+            error_msg = (
+                f"Configuration error: {component_type} '{component_name}' not found."
+            )
+            logger.error(f"Facade: {error_msg}")
+            return error_structure_factory(component_name, error_msg)
+        except Exception as config_err:
+            # Catch unexpected errors during config lookup
+            error_msg = f"Unexpected error retrieving config for {component_type} '{component_name}': {config_err}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            return error_structure_factory(component_name, error_msg)
+
+        # 2. Instantiate Executor/Agent
+        try:
+            instance = executor_setup(config)
+            logger.debug(  # Already DEBUG
+                f"Facade: Instantiated {component_type} '{component_name}'"
+            )
+        except Exception as setup_err:
+            error_msg = f"Initialization error for {component_type} '{component_name}': {setup_err}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            return error_structure_factory(component_name, error_msg)
+
+        # 3. Execute
+        try:
+            result = await execution_func(instance, **execution_kwargs)
+            logger.info(  # Keep final success as INFO
+                f"Facade: {component_type} '{component_name}' execution finished."
+            )
+            return result
+        except (
+            KeyError,
+            FileNotFoundError,
+            AttributeError,
+            ImportError,
+            PermissionError,
+            TypeError,
+            RuntimeError,
+        ) as exec_err:
+            # Catch specific errors known to occur during execution/setup within executors
+            error_msg = f"Runtime error during {component_type} '{component_name}' execution: {type(exec_err).__name__}: {exec_err}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            # Re-raise these specific errors so API handlers can catch them
+            raise exec_err
+        except Exception as e:
+            # Catch other unexpected errors during execution
+            error_msg = f"Unexpected runtime error during {component_type} '{component_name}' execution: {e}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            # Return standardized error structure for generic exceptions
+            return error_structure_factory(component_name, error_msg)
+
+    # --- Public Execution Methods ---
 
     async def run_agent(
         self, agent_name: str, user_message: str, system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Executes a configured agent by name.
-        (Implementation to follow)
-        """
-        logger.info(f"Facade: Received request to run agent '{agent_name}'")
-        # Implementation will involve:
-        # 1. Getting AgentConfig from self._manager.agent_configs
-        # 2. Instantiating AgentExecutor (or directly Agent if we keep it simple)
-        # 1. Get AgentConfig
-        try:
-            agent_config = self._manager.agent_configs[agent_name]
-            logger.debug(f"Facade: Found AgentConfig for '{agent_name}'")
-        except KeyError:
-            logger.error(
-                f"Facade: Agent configuration not found for name: {agent_name}"
-            )
-            # Return an error structure consistent with Agent execution failures
+        """Executes a configured agent by name using the helper."""
+
+        def error_factory(name: str, msg: str) -> Dict[str, Any]:
             return {
                 "conversation": [],
                 "final_response": None,
                 "tool_uses": [],
-                "error": f"Configuration error: Agent '{agent_name}' not found.",
+                "error": msg,
             }
 
-        # 2. Instantiate Agent
-        try:
-            agent_instance = Agent(config=agent_config)
-            logger.debug(f"Facade: Instantiated Agent '{agent_name}'")
-        except Exception as e:
-            logger.error(
-                f"Facade: Error instantiating agent '{agent_name}': {e}", exc_info=True
-            )
-            return {
-                "conversation": [],
-                "final_response": None,
-                "tool_uses": [],
-                "error": f"Initialization error for agent '{agent_name}': {e}",
-            }
-
-        # 3. Execute Agent
-        try:
-            result = await agent_instance.execute_agent(
-                user_message=user_message,
-                host_instance=self._host,  # Pass the host instance
-                system_prompt=system_prompt,
-            )
-            logger.info(f"Facade: Agent '{agent_name}' execution finished.")
-            return result
-        except Exception as e:
-            logger.error(
-                f"Facade: Error during agent '{agent_name}' execution: {e}",
-                exc_info=True,
-            )
-            # Return error structure
-            return {
-                "conversation": [],  # May want to include partial history if available
-                "final_response": None,
-                "tool_uses": [],
-                "error": f"Runtime error during agent '{agent_name}' execution: {e}",
-            }
+        return await self._execute_component(
+            component_type="Agent",
+            component_name=agent_name,
+            config_lookup=lambda name: self._manager.agent_configs[name],
+            executor_setup=lambda config: Agent(config=config),
+            execution_func=lambda instance, **kwargs: instance.execute_agent(**kwargs),
+            error_structure_factory=error_factory,
+            # Execution kwargs:
+            user_message=user_message,
+            host_instance=self._host,
+            system_prompt=system_prompt,
+        )
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
     ) -> Dict[str, Any]:
-        """
-        Executes a configured simple workflow by name.
-        (Implementation to follow)
-        """
-        logger.info(
-            f"Facade: Received request to run simple workflow '{workflow_name}'"
-        )
-        # Implementation will involve:
-        # 1. Getting WorkflowConfig from self._manager.workflow_configs
-        # 2. Getting required AgentConfigs from self._manager.agent_configs
-        # 3. Instantiating SimpleWorkflowExecutor
-        # 1. Get WorkflowConfig
-        try:
-            workflow_config = self._manager.workflow_configs[workflow_name]
-            logger.debug(f"Facade: Found WorkflowConfig for '{workflow_name}'")
-        except KeyError:
-            logger.error(
-                f"Facade: Workflow configuration not found for name: {workflow_name}"
-            )
+        """Executes a configured simple workflow by name using the helper."""
+
+        def error_factory(name: str, msg: str) -> Dict[str, Any]:
             return {
-                "workflow_name": workflow_name,
+                "workflow_name": name,
                 "status": "failed",
                 "final_message": None,
-                "error": f"Configuration error: Workflow '{workflow_name}' not found.",
+                "error": msg,
             }
 
-        # 2. Get required AgentConfigs (all needed for the workflow steps)
-        # The SimpleWorkflowExecutor handles checking if specific step agents exist
-        all_agent_configs = self._manager.agent_configs
-
-        # 3. Instantiate SimpleWorkflowExecutor
-        try:
-            executor = SimpleWorkflowExecutor(
-                config=workflow_config,
-                agent_configs=all_agent_configs,
+        return await self._execute_component(
+            component_type="Simple Workflow",
+            component_name=workflow_name,
+            config_lookup=lambda name: self._manager.workflow_configs[name],
+            executor_setup=lambda config: SimpleWorkflowExecutor(
+                config=config,
+                agent_configs=self._manager.agent_configs,
                 host_instance=self._host,
-            )
-            logger.debug(
-                f"Facade: Instantiated SimpleWorkflowExecutor for '{workflow_name}'"
-            )
-        except Exception as e:
-            logger.error(
-                f"Facade: Error instantiating SimpleWorkflowExecutor for '{workflow_name}': {e}",
-                exc_info=True,
-            )
-            return {
-                "workflow_name": workflow_name,
-                "status": "failed",
-                "final_message": None,
-                "error": f"Initialization error for workflow '{workflow_name}': {e}",
-            }
-
-        # 4. Execute Workflow
-        try:
-            result = await executor.execute(initial_input=initial_input)
-            logger.info(
-                f"Facade: Simple workflow '{workflow_name}' execution finished."
-            )
-            return result
-        except Exception as e:
-            logger.error(
-                f"Facade: Error during simple workflow '{workflow_name}' execution: {e}",
-                exc_info=True,
-            )
-            return {
-                "workflow_name": workflow_name,
-                "status": "failed",
-                "final_message": None,  # Or potentially the last successful message? Keep None for now.
-                "error": f"Runtime error during simple workflow '{workflow_name}' execution: {e}",
-            }
+            ),
+            execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
+            error_structure_factory=error_factory,
+            # Execution kwargs:
+            initial_input=initial_input,
+        )
 
     async def run_custom_workflow(self, workflow_name: str, initial_input: Any) -> Any:
-        """
-        Executes a configured custom workflow by name.
-        (Implementation to follow)
-        """
-        logger.info(
-            f"Facade: Received request to run custom workflow '{workflow_name}'"
+        """Executes a configured custom workflow by name using the helper."""
+
+        def error_factory(name: str, msg: str) -> Dict[str, Any]:
+            # Custom workflows can return anything, so error structure is simpler
+            return {"status": "failed", "error": msg}
+
+        return await self._execute_component(
+            component_type="Custom Workflow",
+            component_name=workflow_name,
+            config_lookup=lambda name: self._manager.custom_workflow_configs[name],
+            executor_setup=lambda config: CustomWorkflowExecutor(config=config),
+            execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
+            error_structure_factory=error_factory,
+            # Execution kwargs:
+            initial_input=initial_input,
+            executor=self,  # Pass the facade itself to the custom workflow
         )
-        # Implementation will involve:
-        # 1. Getting CustomWorkflowConfig from self._manager.custom_workflow_configs
-        # 2. Instantiating CustomWorkflowExecutor
-        # 1. Get CustomWorkflowConfig
-        try:
-            custom_config = self._manager.custom_workflow_configs[workflow_name]
-            logger.debug(f"Facade: Found CustomWorkflowConfig for '{workflow_name}'")
-        except KeyError:
-            logger.error(
-                f"Facade: Custom workflow configuration not found for name: {workflow_name}"
-            )
-            # Return a generic error structure, as custom workflows can return anything
-            return {
-                "status": "failed",
-                "error": f"Configuration error: Custom workflow '{workflow_name}' not found.",
-            }
-
-        # 2. Instantiate CustomWorkflowExecutor
-        try:
-            # CustomWorkflowExecutor __init__ only takes config now
-            executor = CustomWorkflowExecutor(config=custom_config)
-            logger.debug(
-                f"Facade: Instantiated CustomWorkflowExecutor for '{workflow_name}'"
-            )
-        except Exception as e:
-            logger.error(
-                f"Facade: Error instantiating CustomWorkflowExecutor for '{workflow_name}': {e}",
-                exc_info=True,
-            )
-            return {
-                "status": "failed",
-                "error": f"Initialization error for custom workflow '{workflow_name}': {e}",
-            }
-
-        # 3. Execute Workflow, passing self (the facade) as the executor argument
-        try:
-            # The executor handles dynamic loading and calls the workflow's execute_workflow
-            result = await executor.execute(
-                initial_input=initial_input,
-                executor=self,  # Pass the facade instance itself
-            )
-            logger.info(
-                f"Facade: Custom workflow '{workflow_name}' execution finished."
-            )
-            return result
-        except Exception as e:
-            # Catch errors from executor setup OR from within the workflow's execution
-            logger.error(
-                f"Facade: Error during custom workflow '{workflow_name}' execution: {e}",
-                exc_info=True,
-            )
-            # Return a generic error structure
-            return {
-                "status": "failed",
-                "error": f"Runtime error during custom workflow '{workflow_name}' execution: {e}",
-            }
-
-    # --- Helper/Internal Methods (Optional) ---
-    # May add methods later if needed for shared logic between run_* methods.

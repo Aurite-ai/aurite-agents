@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError  # Added BaseModel
 import uvicorn
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse  # Add this import
+from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
 
 # Adjust imports for new location (src/bin -> src)
 from ..host_manager import HostManager  # Import the new manager
@@ -171,6 +171,130 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+# --- Custom Exception Handlers ---
+# Define handlers before endpoints that might raise these exceptions
+
+
+# Handler for KeyErrors (typically indicates resource not found)
+@app.exception_handler(KeyError)
+async def key_error_exception_handler(request: Request, exc: KeyError):
+    logger.warning(
+        f"Resource not found (KeyError): {exc} for request {request.url.path}"
+    )
+    # Extract the key name if possible from the exception args
+    detail = f"Resource not found: {str(exc)}"
+    return JSONResponse(
+        status_code=404,
+        content={"detail": detail},
+    )
+
+
+# Handler for ValueErrors (can indicate bad input, conflicts, or bad state)
+@app.exception_handler(ValueError)
+async def value_error_exception_handler(request: Request, exc: ValueError):
+    detail = f"Invalid request or state: {str(exc)}"
+    status_code = 400  # Default to Bad Request
+
+    # Check for specific error messages to set more specific status codes
+    exc_str = str(exc).lower()
+    if "already registered" in exc_str:
+        status_code = 409  # Conflict
+        logger.warning(
+            f"Conflict during registration: {exc} for request {request.url.path}"
+        )
+    elif "hostmanager is not initialized" in exc_str:
+        status_code = 503  # Service Unavailable
+        logger.error(
+            f"Service unavailable (HostManager not init): {exc} for request {request.url.path}"
+        )
+    elif "not found for agent" in exc_str or "not found for workflow" in exc_str:
+        status_code = (
+            400  # Bad request because config references non-existent component
+        )
+        logger.warning(
+            f"Configuration error (invalid reference): {exc} for request {request.url.path}"
+        )
+    else:
+        logger.warning(f"ValueError encountered: {exc} for request {request.url.path}")
+
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+    )
+
+
+# Handler for FileNotFoundError (e.g., custom workflow module, client server path)
+@app.exception_handler(FileNotFoundError)
+async def file_not_found_error_handler(request: Request, exc: FileNotFoundError):
+    logger.error(f"Required file not found: {exc} for request {request.url.path}")
+    return JSONResponse(
+        status_code=404,  # Treat as Not Found, could argue 500 if it's internal config
+        content={"detail": f"Required file not found: {str(exc)}"},
+    )
+
+
+# Handler for setup/import errors related to custom workflows
+@app.exception_handler(AttributeError)
+@app.exception_handler(ImportError)
+@app.exception_handler(PermissionError)
+@app.exception_handler(TypeError)
+async def custom_workflow_setup_error_handler(request: Request, exc: Exception):
+    # Check if the request path involves custom_workflows to be more specific
+    # This is a basic check; more robust checking might involve inspecting the exception origin
+    is_custom_workflow_path = "/custom_workflows/" in request.url.path
+    error_type = type(exc).__name__
+
+    if is_custom_workflow_path:
+        logger.error(
+            f"Error setting up custom workflow ({error_type}): {exc} for request {request.url.path}",
+            exc_info=True,
+        )
+        detail = f"Error setting up custom workflow: {error_type}: {str(exc)}"
+        status_code = 500  # Internal server error during setup
+    else:
+        # If it's not a custom workflow path, treat as a generic internal error
+        logger.error(
+            f"Internal server error ({error_type}): {exc} for request {request.url.path}",
+            exc_info=True,
+        )
+        detail = f"Internal server error: {error_type}: {str(exc)}"
+        status_code = 500
+
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+    )
+
+
+# Handler for RuntimeErrors (e.g., during custom workflow execution, config loading)
+@app.exception_handler(RuntimeError)
+async def runtime_error_exception_handler(request: Request, exc: RuntimeError):
+    logger.error(
+        f"Runtime error encountered: {exc} for request {request.url.path}",
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,  # Internal Server Error
+        content={"detail": f"Internal server error: {str(exc)}"},
+    )
+
+
+# Generic fallback handler for any other exceptions
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        f"Unhandled exception: {type(exc).__name__}: {exc} for request {request.url.path}",
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"An unexpected internal server error occurred: {type(exc).__name__}"
+        },
+    )
+
+
 # Get project root (2 levels up from this file)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -283,33 +407,17 @@ async def execute_agent_endpoint(
     Executes a configured agent by name using the HostManager.
     """
     logger.info(f"Received request to execute agent: {agent_name}")
-    try:
-        # Use the ExecutionFacade via the manager
-        result = await manager.execution.run_agent(
-            agent_name=agent_name,
-            user_message=request_body.user_message,
-            system_prompt=request_body.system_prompt,
-        )
-        logger.info(
-            f"Agent '{agent_name}' execution finished successfully via manager."
-        )
-        # The result from manager.execution.run_agent should be directly returnable
-        return result
-    except KeyError:
-        # This exception is raised by the facade if agent_name is not found
-        logger.warning(f"Agent configuration not found for name: {agent_name}")
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-    except ValueError as ve:
-        # Catch potential ValueError if manager wasn't initialized (shouldn't happen with lifespan)
-        logger.error(f"ValueError during agent execution: {ve}")
-        raise HTTPException(status_code=503, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Error during agent '{agent_name}' execution: {e}", exc_info=True)
-        # Consider more specific error handling based on potential exceptions
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error during agent execution: {str(e)}",
-        )
+    # Removed try...except block; exceptions will be caught by handlers
+    # Use the ExecutionFacade via the manager
+    result = await manager.execution.run_agent(
+        agent_name=agent_name,
+        user_message=request_body.user_message,
+        system_prompt=request_body.system_prompt,
+    )
+    logger.info(f"Agent '{agent_name}' execution finished successfully via manager.")
+    # The result from manager.execution.run_agent should be directly returnable
+    # If run_agent raises KeyError, ValueError, etc., the handlers will catch it.
+    return result
 
 
 @app.post("/workflows/{workflow_name}/execute", response_model=ExecuteWorkflowResponse)
@@ -323,39 +431,28 @@ async def execute_workflow_endpoint(
     Executes a configured simple workflow by name using the HostManager.
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
-    try:
-        # Use the ExecutionFacade via the manager
-        result = await manager.execution.run_simple_workflow(
-            workflow_name=workflow_name,
-            initial_input=request_body.initial_user_message,  # Facade expects initial_input
-        )
-        logger.info(f"Workflow '{workflow_name}' execution finished via manager.")
-        # manager.execution.run_simple_workflow returns a dict matching ExecuteWorkflowResponse structure
-        return ExecuteWorkflowResponse(**result)
-
-    except KeyError:
-        # This exception is raised by the facade if workflow or agent is not found
-        logger.warning(
-            f"Workflow configuration or agent within workflow '{workflow_name}' not found."
-        )
-        raise HTTPException(
-            status_code=404,
-            detail=f"Workflow '{workflow_name}' or one of its agents not found",
-        )
-    except ValueError as ve:
-        # Catch potential ValueError if manager wasn't initialized
-        logger.error(f"ValueError during workflow execution: {ve}")
-        raise HTTPException(status_code=503, detail=str(ve))
-    except Exception as e:
-        # Catch other unexpected errors from manager.execute_workflow
+    # Removed try...except block; exceptions will be caught by handlers
+    # Use the ExecutionFacade via the manager
+    result = await manager.execution.run_simple_workflow(
+        workflow_name=workflow_name,
+        initial_input=request_body.initial_user_message,  # Facade expects initial_input
+    )
+    logger.info(f"Workflow '{workflow_name}' execution finished via manager.")
+    # manager.execution.run_simple_workflow returns a dict matching ExecuteWorkflowResponse structure
+    # If run_simple_workflow raises KeyError, ValueError, etc., the handlers will catch it.
+    # We still need to handle the case where the *facade itself* returns an error structure
+    if isinstance(result, dict) and result.get("status") == "failed":
         logger.error(
-            f"Unexpected error during workflow '{workflow_name}' execution: {e}",
-            exc_info=True,
+            f"Simple workflow '{workflow_name}' failed (reported by facade): {result.get('error')}"
         )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error during workflow execution: {str(e)}",
-        )
+        # Re-raise a specific exception type that a handler can catch, or return the structure directly
+        # Let's return the structure directly, matching the response model
+        return ExecuteWorkflowResponse(
+            **result
+        )  # This assumes the facade error structure matches the response model
+    else:
+        # Assume success structure matches response model
+        return ExecuteWorkflowResponse(**result)
 
 
 @app.post(
@@ -370,74 +467,31 @@ async def execute_custom_workflow_endpoint(
 ):
     """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
-    try:
-        # Use the ExecutionFacade via the manager
-        result = await manager.execution.run_custom_workflow(
+    # Removed try...except block; exceptions will be caught by handlers
+    # Use the ExecutionFacade via the manager
+    result = await manager.execution.run_custom_workflow(
+        workflow_name=workflow_name,
+        initial_input=request_body.initial_input,
+    )
+    logger.info(f"Custom workflow '{workflow_name}' executed successfully via manager.")
+    # The facade returns the direct result or an error structure
+    # If run_custom_workflow raises an exception (KeyError, FileNotFoundError, setup errors, RuntimeError),
+    # the handlers will catch it.
+    # We still need to handle the case where the *facade itself* returns an error structure
+    if isinstance(result, dict) and result.get("status") == "failed":
+        logger.error(
+            f"Custom workflow '{workflow_name}' execution failed (reported by facade): {result.get('error')}"
+        )
+        # Return the error structure from the facade, matching the response model
+        return ExecuteCustomWorkflowResponse(
             workflow_name=workflow_name,
-            initial_input=request_body.initial_input,
+            status="failed",
+            error=result.get("error", "Unknown execution error"),
         )
-        logger.info(
-            f"Custom workflow '{workflow_name}' executed successfully via manager."
-        )
-        # The facade returns the direct result or an error structure
-        # Check if the result indicates an error from the facade itself
-        if isinstance(result, dict) and result.get("status") == "failed":
-            logger.error(
-                f"Custom workflow '{workflow_name}' execution failed (reported by facade): {result.get('error')}"
-            )
-            # Return the error structure from the facade
-            return ExecuteCustomWorkflowResponse(
-                workflow_name=workflow_name,
-                status="failed",
-                error=result.get("error", "Unknown execution error"),
-            )
-        else:
-            # Return success response with the result from the custom workflow
-            return ExecuteCustomWorkflowResponse(
-                workflow_name=workflow_name, status="completed", result=result
-            )
-    except (KeyError, FileNotFoundError):
-        # Raised by facade if config or module file not found
-        logger.warning(
-            f"Custom workflow '{workflow_name}' not found or module file missing."
-        )
-        raise HTTPException(
-            status_code=404,
-            detail=f"Custom workflow '{workflow_name}' not found or its file is missing.",
-        )
-    except (AttributeError, ImportError, PermissionError, TypeError) as setup_err:
-        # Raised by facade during import/setup
-        logger.error(
-            f"Error setting up custom workflow '{workflow_name}': {setup_err}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error setting up custom workflow '{workflow_name}': {str(setup_err)}",
-        )
-    except RuntimeError as exec_err:
-        # Raised by facade for errors during the workflow's own execution
-        logger.error(
-            f"Error during custom workflow '{workflow_name}' execution: {exec_err}",
-            exc_info=True,
-        )
-        # Return 500 as this is an internal error during execution
-        raise HTTPException(
-            status_code=500,
-            detail=f"Runtime error during custom workflow execution: {str(exec_err)}",
-        )
-    except ValueError as ve:
-        # Catch potential ValueError if manager wasn't initialized
-        logger.error(f"ValueError during custom workflow execution: {ve}")
-        raise HTTPException(status_code=503, detail=str(ve))
-    except Exception as e:  # Catch-all for unexpected errors
-        logger.error(
-            f"Unexpected error during custom workflow '{workflow_name}' API call: {e}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error during custom workflow execution.",
+    else:
+        # Return success response with the result from the custom workflow
+        return ExecuteCustomWorkflowResponse(
+            workflow_name=workflow_name, status="completed", result=result
         )
 
 
@@ -452,28 +506,10 @@ async def register_client_endpoint(
 ):
     """Dynamically registers a new MCP client."""
     logger.info(f"Received request to register client: {client_config.client_id}")
-    try:
-        await manager.register_client(client_config)
-        return {"status": "success", "client_id": client_config.client_id}
-    except ValueError as ve:
-        # Could be duplicate ID or host not ready
-        logger.warning(f"Failed to register client '{client_config.client_id}': {ve}")
-        # Use 409 Conflict for duplicate, 503 if host not ready (though dependency should handle 503)
-        status_code = 409 if "already registered" in str(ve) else 503
-        raise HTTPException(status_code=status_code, detail=str(ve))
-    except FileNotFoundError as fnf_err:  # If server_path doesn't exist during init
-        logger.error(f"Client server path not found during registration: {fnf_err}")
-        raise HTTPException(
-            status_code=400, detail=f"Client server path not found: {fnf_err}"
-        )
-    except Exception as e:
-        logger.error(
-            f"Error registering client '{client_config.client_id}': {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error registering client: {str(e)}",
-        )
+    # Removed try...except block; exceptions will be caught by handlers
+    await manager.register_client(client_config)
+    # If register_client raises ValueError, FileNotFoundError, etc., the handlers will catch it.
+    return {"status": "success", "client_id": client_config.client_id}
 
 
 @app.post("/agents/register", status_code=201)
@@ -484,34 +520,11 @@ async def register_agent_endpoint(
 ):
     """Dynamically registers a new agent configuration."""
     logger.info(f"Received request to register agent: {agent_config.name}")
-    try:
-        await manager.register_agent(agent_config)
-        return {"status": "success", "agent_name": agent_config.name}
-    except ValueError as ve:
-        # Could be duplicate name, invalid client ID, or host not ready
-        logger.warning(f"Failed to register agent '{agent_config.name}': {ve}")
-        status_code = (
-            409 if "already registered" in str(ve) else 400
-        )  # 400 for invalid client ID
-        if "HostManager is not initialized" in str(ve):
-            status_code = 503
-        raise HTTPException(status_code=status_code, detail=str(ve))
-    except (
-        ValidationError
-    ) as val_err:  # Should be caught by FastAPI ideally, but belt-and-suspenders
-        logger.warning(
-            f"Invalid agent configuration received for '{agent_config.name}': {val_err}"
-        )
-        raise HTTPException(
-            status_code=422, detail=f"Invalid agent configuration: {val_err}"
-        )
-    except Exception as e:
-        logger.error(
-            f"Error registering agent '{agent_config.name}': {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error registering agent: {str(e)}"
-        )
+    # Removed try...except block; exceptions will be caught by handlers
+    # Note: Pydantic ValidationError should be handled automatically by FastAPI (422)
+    await manager.register_agent(agent_config)
+    # If register_agent raises ValueError, etc., the handlers will catch it.
+    return {"status": "success", "agent_name": agent_config.name}
 
 
 @app.post("/workflows/register", status_code=201)
@@ -522,33 +535,11 @@ async def register_workflow_endpoint(
 ):
     """Dynamically registers a new simple workflow configuration."""
     logger.info(f"Received request to register workflow: {workflow_config.name}")
-    try:
-        await manager.register_workflow(workflow_config)
-        return {"status": "success", "workflow_name": workflow_config.name}
-    except ValueError as ve:
-        # Could be duplicate name, invalid agent name, or host not ready
-        logger.warning(f"Failed to register workflow '{workflow_config.name}': {ve}")
-        status_code = (
-            409 if "already registered" in str(ve) else 400
-        )  # 400 for invalid agent name
-        if "HostManager is not initialized" in str(ve):
-            status_code = 503
-        raise HTTPException(status_code=status_code, detail=str(ve))
-    except ValidationError as val_err:
-        logger.warning(
-            f"Invalid workflow configuration received for '{workflow_config.name}': {val_err}"
-        )
-        raise HTTPException(
-            status_code=422, detail=f"Invalid workflow configuration: {val_err}"
-        )
-    except Exception as e:
-        logger.error(
-            f"Error registering workflow '{workflow_config.name}': {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error registering workflow: {str(e)}",
-        )
+    # Removed try...except block; exceptions will be caught by handlers
+    # Note: Pydantic ValidationError should be handled automatically by FastAPI (422)
+    await manager.register_workflow(workflow_config)
+    # If register_workflow raises ValueError, etc., the handlers will catch it.
+    return {"status": "success", "workflow_name": workflow_config.name}
 
 
 def start():

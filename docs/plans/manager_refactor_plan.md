@@ -126,9 +126,9 @@ The chosen approach is the **Executor Pattern with an Execution Facade**:
     *   **7.1.** Update `README.md`: Modify the architecture diagram/description if needed to clearly show the `ExecutionFacade` between `HostManager` and the Executors/Agent. Update usage examples if affected.
     *   **7.2.** Update `docs/architecture_overview.md`: Reflect the new `ExecutionFacade` layer and its role.
     *   **7.3.** Update `docs/framework_overview.md` or other relevant developer guides: Explain the facade, the executor pattern, and the updated custom workflow signature (`execute_workflow` receiving the facade).
-    *   **7.4.** Review `docs/plans/manager_refactor_plan.md` itself and mark Phase C as complete or update its status.
+    *   **7.4.** Review `docs/plans/manager_refactor_plan.md` itself and mark Phase C as complete or update its status. **(Completed)**
 
-## 3. Completion Criteria (Current Task)
+## 3. Completion Criteria (COMPLETED)
 
 *   Execution logic resides in `Agent`, `SimpleWorkflowExecutor`, or `CustomWorkflowExecutor`.
 *   `ExecutionFacade` provides a unified interface (`run_agent`, `run_simple_workflow`, `run_custom_workflow`).
@@ -139,8 +139,42 @@ The chosen approach is the **Executor Pattern with an Execution Facade**:
 *   Outdated tests in `test_host_manager.py` are skipped.
 *   Test environment issues (event loop errors) are resolved/suppressed.
 
-## 4. Next Steps
+## 4. Refactoring Suggestions (Post-Implementation Review - 2025-05-03)
 
-*   Implement Phase C: Update Entrypoints & Documentation (as detailed above).
-*   Add comprehensive unit tests for the facade and executors where needed.
-*   Consider refactoring configuration loading (`get_server_config`) shared between `api.py`, `cli.py`, and `worker.py`.
+Based on a review of the modified files after completing Phase C, the following areas could benefit from refactoring in a future iteration to improve readability, maintainability, and reduce redundancy:
+
+1.  **API (`src/bin/api.py`) & CLI (`src/bin/cli.py`): Repetitive Error Handling:**
+    *   The FastAPI endpoints and registration endpoints in `api.py` share similar `try...except` blocks.
+    *   The CLI sync wrappers in `cli.py` also repeat error handling logic.
+    *   **Suggestion:** Create shared error handling logic (e.g., FastAPI exception handlers, helper functions/decorators) to reduce boilerplate.
+
+2.  **HostManager (`src/host_manager.py`): Complex Registration Logic:**
+    *   `register_config_file` is long and handles multiple concerns. Individual registration methods repeat checks.
+    *   **Suggestion:** Break down `register_config_file` into smaller private helpers. Refactor common validation checks into shared helpers or decorators.
+
+3.  **ExecutionFacade (`src/execution/facade.py`): Repetitive Execution Pattern:**
+    *   `run_agent`, `run_simple_workflow`, `run_custom_workflow` follow a similar structure (lookup, instantiate, execute, handle errors).
+    *   **Suggestion:** Implement a private helper method or decorator to encapsulate the common execution pattern and standardize return structures.
+
+4.  **MCPHost (`src/host/host.py`): Repetitive Client Resolution & Filtering:**
+    *   Logic for finding/filtering clients and checking exclusions is repeated in `get_prompt`, `execute_tool`, `read_resource`.
+    *   **Suggestion:** Extract this logic into a private helper method (e.g., `_resolve_target_client_and_check_access`) returning the target client ID or raising errors.
+
+5.  **MCPHost (`src/host/host.py`): Complex Client Initialization:**
+    *   `_initialize_client` handles many steps (secrets, env, transport, session, MCP init, registration, discovery).
+    *   **Suggestion:** Break down `_initialize_client` into smaller, focused private methods (e.g., `_setup_client_environment`, `_establish_client_session`, `_register_client_components`).
+
+6.  **Agent (`src/agents/agent.py`): Long Execution Loop:**
+    *   The `while` loop in `execute_agent` for multi-turn conversation and tool processing is complex.
+    *   **Suggestion:** Extract the tool processing logic into a separate private helper method.
+
+7.  **SimpleWorkflowExecutor (`src/workflows/simple_workflow.py`): Long Loop Body:**
+    *   The `for` loop body in `execute` handles agent lookup, instantiation, execution, and result processing.
+    *   **Suggestion:** Extract the logic for executing a single agent step and processing its result into a private helper method.
+
+8.  **CustomWorkflowExecutor (`src/workflows/custom_workflow.py`): Signature Check:**
+    *   The strict signature check for `execute_workflow` is currently skipped.
+    *   **Suggestion:** Re-evaluate if the check can be reliably implemented or add a comment explaining why it's skipped.
+
+9.  **General Consistency:**
+    *   **Suggestion:** Review logging across files for consistency. Ensure type hints are used consistently and accurately.

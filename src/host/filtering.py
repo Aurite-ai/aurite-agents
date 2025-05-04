@@ -33,7 +33,7 @@ class FilteringManager:
             message_router: The MessageRouter instance to query client capabilities.
         """
         self._message_router = message_router
-        logger.info("FilteringManager initialized.")
+        logger.debug("FilteringManager initialized.")  # INFO -> DEBUG
 
     def is_registration_allowed(
         self, component_name: str, client_config: ClientConfig

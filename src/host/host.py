@@ -89,21 +89,21 @@ class MCPHost:
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
-        logger.info("Initializing MCP Host...")
+        logger.info("Initializing MCP Host...")  # Keep high-level start as INFO
 
         # Initialize subsystems in layer order
 
         # Layer 1: Foundation layer
-        logger.info("Initializing foundation layer...")
+        logger.debug("Initializing foundation layer...")  # INFO -> DEBUG
         await self._security_manager.initialize()
         await self._root_manager.initialize()
 
         # Layer 2: Communication layer
-        logger.info("Initializing communication layer...")
+        logger.debug("Initializing communication layer...")  # INFO -> DEBUG
         await self._message_router.initialize()
 
         # Layer 3: Resource management layer
-        logger.info("Initializing resource management layer...")
+        logger.debug("Initializing resource management layer...")  # INFO -> DEBUG
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._tool_manager.initialize()
@@ -112,11 +112,11 @@ class MCPHost:
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
 
-        logger.info("MCP Host initialization complete")
+        logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
-        logger.info(f"Initializing client: {config.client_id}")
+        logger.debug(f"Initializing client: {config.client_id}")  # INFO -> DEBUG
 
         try:
             # Resolve GCP secrets if configured
@@ -139,14 +139,15 @@ class MCPHost:
                             f"Injecting {len(resolved_env_vars)} secrets into environment for client: {config.client_id}"
                         )
                         # Optional: Log the keys being injected for debugging (DO NOT log values)
-                        logger.debug(
-                            f"Injecting env vars: {list(resolved_env_vars.keys())}"
-                        )
+                        # Log keys at DEBUG level only if needed
+                        # logger.debug(
+                        #     f"Injecting env vars: {list(resolved_env_vars.keys())}"
+                        # )
                 except Exception as e:
                     # Log error but allow host to continue initialization without injected secrets
                     logger.error(
                         f"Failed to resolve or inject GCP secrets for client {config.client_id}: {e}. Proceeding without injected secrets."
-                    )
+                    )  # Keep error as ERROR
 
             # Setup transport with potentially updated environment
             server_params = StdioServerParameters(
@@ -254,10 +255,12 @@ class MCPHost:
             logger.info(
                 f"Client '{config.client_id}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
-            )
+            )  # Keep client summary as INFO
 
         except Exception as e:
-            logger.error(f"Failed to initialize client {config.client_id}: {e}")
+            logger.error(
+                f"Failed to initialize client {config.client_id}: {e}"
+            )  # Keep error as ERROR
             raise
 
     async def get_prompt(

@@ -29,7 +29,7 @@ class RootManager:
 
     async def initialize(self):
         """Initialize the root manager"""
-        logger.info("Initializing root manager")
+        logger.debug("Initializing root manager")  # INFO -> DEBUG
 
     async def register_roots(
         self, client_id: str, roots: List[RootConfig]

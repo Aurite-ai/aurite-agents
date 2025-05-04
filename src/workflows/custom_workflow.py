@@ -69,8 +69,8 @@ class CustomWorkflowExecutor:
         workflow_name = self.config.name
         module_path = self.config.module_path
         class_name = self.config.class_name
-        logger.info(f"Executing custom workflow: {workflow_name}")
-        logger.debug(f"Config: path={module_path}, class={class_name}")
+        logger.info(f"Executing custom workflow: {workflow_name}")  # Keep start as INFO
+        logger.debug(f"Config: path={module_path}, class={class_name}")  # Already DEBUG
 
         try:
             # 1. Security Check & Path Validation
@@ -96,7 +96,7 @@ class CustomWorkflowExecutor:
                 raise ImportError(f"Could not create module spec for {module_path}")
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            logger.debug(f"Dynamically imported module: {module_path}")
+            logger.debug(f"Dynamically imported module: {module_path}")  # Already DEBUG
 
             # 3. Get Class
             WorkflowClass = getattr(module, class_name, None)
@@ -109,7 +109,9 @@ class CustomWorkflowExecutor:
             # 4. Instantiate Workflow Class
             try:
                 workflow_instance = WorkflowClass()
-                logger.debug(f"Instantiated workflow class '{class_name}'")
+                logger.debug(
+                    f"Instantiated workflow class '{class_name}'"
+                )  # Already DEBUG
             except Exception as init_err:
                 logger.error(
                     f"Error instantiating workflow class '{class_name}' from {module_path}: {init_err}",
@@ -163,7 +165,7 @@ class CustomWorkflowExecutor:
             )  # Add warning
 
             # 6. Execute the workflow's method
-            logger.debug(
+            logger.debug(  # Already DEBUG
                 f"Calling '{execute_method_name}' on instance of '{class_name}', passing ExecutionFacade."
             )
             # Pass the ExecutionFacade instance as the 'executor' argument
@@ -171,7 +173,7 @@ class CustomWorkflowExecutor:
                 initial_input=initial_input, executor=executor
             )
 
-            logger.info(
+            logger.info(  # Keep final success as INFO
                 f"Custom workflow '{workflow_name}' execution finished successfully."
             )
             return result

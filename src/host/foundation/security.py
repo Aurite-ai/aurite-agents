@@ -79,7 +79,7 @@ class SecurityManager:
         if secretmanager:  # Check if import succeeded
             try:
                 self._gcp_secret_client = secretmanager.SecretManagerServiceClient()
-                logger.info(
+                logger.debug(  # INFO -> DEBUG
                     "GCP Secret Manager client initialized successfully via ADC."
                 )
             except Exception as e:
@@ -96,7 +96,7 @@ class SecurityManager:
 
     async def initialize(self):
         """Initialize the security manager"""
-        logger.info("Initializing security manager")
+        logger.debug("Initializing security manager")  # INFO -> DEBUG
         # Load credentials from secure storage if available
 
     def _generate_encryption_key(self) -> str:

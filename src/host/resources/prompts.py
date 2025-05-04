@@ -32,7 +32,7 @@ class PromptManager:
 
     async def initialize(self):
         """Initialize the prompt manager"""
-        logger.info("Initializing prompt manager")
+        logger.debug("Initializing prompt manager")  # INFO -> DEBUG
 
     def _convert_to_prompt(self, prompt_data: Any) -> types.Prompt:
         """Convert various prompt formats to MCP Prompt type"""
@@ -66,7 +66,7 @@ class PromptManager:
         filtering_manager: FilteringManager,  # Added filtering_manager
     ) -> List[types.Prompt]:  # Return list of registered prompts
         """Register prompts available from a client, applying client-level exclusions."""
-        logger.info(f"Registering prompts for client {client_id}")
+        logger.debug(f"Registering prompts for client {client_id}")  # INFO -> DEBUG
         registered_prompts = []
 
         if client_id not in self._prompts:

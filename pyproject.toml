@@ -138,5 +138,5 @@ timeout = 60 # Increase default test timeout to 60 seconds
 start-api = "src.bin.api:start"
 start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
 run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
-run-container = "bash scripts/run-container.sh" # Script to build and run the Docker container
-test-api = "bash scripts/test-api.sh" # Script to test the API using Postman
+# run-container = "bash scripts/run-container.sh" # Script to build and run the Docker container
+# test-api = "bash scripts/test-api.sh" # Script to test the API using Postman

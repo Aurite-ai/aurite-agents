@@ -10,6 +10,7 @@ import os
 import sys
 
 import typer
+from typing import Callable, Coroutine, Any, Tuple, Dict  # Added imports
 
 # Import models needed for request bodies, even if commands aren't fully implemented
 import json
@@ -89,7 +90,51 @@ app.add_typer(register_app, name="register")
 app.add_typer(execute_app, name="execute")
 
 
-# --- Execution Commands (Sync Wrappers for Async API Calls) ---
+# --- Helper for Running Async API Calls with CLI Error Handling ---
+
+
+def run_async_with_cli_error_handling(
+    async_func: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
+):
+    """
+    Runs an async function using asyncio.run and provides standardized CLI error handling.
+
+    Args:
+        async_func: The asynchronous function to execute (e.g., _execute_agent_async_logic).
+        *args: Positional arguments to pass to the async function.
+        **kwargs: Keyword arguments to pass to the async function.
+    """
+    try:
+        # Run the async logic within asyncio.run
+        asyncio.run(async_func(*args, **kwargs))
+        logger.info("CLI command executed successfully via API.")  # Generic success log
+    except httpx.HTTPStatusError as e:
+        # API returned an error status (4xx or 5xx)
+        # Error details should have been logged within the async_func
+        logger.error(
+            f"API request failed with status {e.response.status_code}. Check previous logs for response details."
+        )
+        raise typer.Exit(code=1)
+    except httpx.ConnectError as e:
+        # Connection failed (already logged in async_func)
+        logger.error(f"Failed to connect to the API server at {state['api_base_url']}.")
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        # Handle specific ValueErrors like invalid JSON input
+        if "Invalid JSON input" in str(e):
+            # Error logged in async_func, raise Typer error for user feedback
+            raise typer.BadParameter(str(e))
+        else:
+            # Handle other potential ValueErrors
+            logger.error(f"CLI command failed due to ValueError: {e}", exc_info=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        # Catch any other unexpected errors from the async logic or asyncio.run
+        logger.error(f"CLI command failed unexpectedly: {e}", exc_info=True)
+        raise typer.Exit(code=1)
+
+
+# --- Async API Logic Functions (Remain largely unchanged, focus on API interaction) ---
 
 
 async def _execute_agent_async_logic(agent_name: str, message: str):
@@ -253,19 +298,9 @@ def execute_agent_via_api_sync(  # Make the command function synchronous
     agent_name: str = typer.Argument(..., help="Name of the agent to execute."),
     message: str = typer.Argument(..., help="User message to send to the agent."),
 ):
-    """Executes a registered agent by calling the API endpoint (sync wrapper)."""
-    try:
-        # Run the async logic within asyncio.run
-        asyncio.run(_execute_agent_async_logic(agent_name, message))
-    except httpx.HTTPStatusError as e:
-        # Handle expected API errors gracefully
-        logger.error(f"API request failed with status {e.response.status_code}")
-        # Optionally exit with non-zero code
-        # raise typer.Exit(code=1)
-    except Exception as e:
-        # Catch other errors from the async logic or asyncio.run itself
-        logger.error(f"CLI command failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+    """Executes a registered agent by calling the API endpoint."""
+    # Use the error handling wrapper
+    run_async_with_cli_error_handling(_execute_agent_async_logic, agent_name, message)
 
 
 # --- Other Commands (Placeholders - Need similar sync wrapper pattern) ---
@@ -276,21 +311,11 @@ def execute_workflow_via_api_sync(  # Sync wrapper
     workflow_name: str = typer.Argument(..., help="Name of the workflow to execute."),
     message: str = typer.Argument(..., help="Initial user message for the workflow."),
 ):
-    """Executes a registered simple workflow via API (sync wrapper)."""
-    try:
-        # Run the async logic within asyncio.run
-        asyncio.run(_execute_workflow_async_logic(workflow_name, message))
-    except httpx.HTTPStatusError:
-        # Handle expected API errors gracefully (already logged in async func)
-        # Optionally exit with non-zero code
-        raise typer.Exit(code=1)
-    except httpx.ConnectError:
-        # Handle connection errors (already logged in async func)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        # Catch other errors from the async logic or asyncio.run itself
-        logger.error(f"CLI command failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+    """Executes a registered simple workflow via API."""
+    # Use the error handling wrapper
+    run_async_with_cli_error_handling(
+        _execute_workflow_async_logic, workflow_name, message
+    )
 
 
 @execute_app.command("custom-workflow")
@@ -302,31 +327,11 @@ def execute_custom_workflow_via_api_sync(  # Sync wrapper
         ..., help="JSON string for the initial input."
     ),
 ):
-    """Executes a registered custom workflow via API (sync wrapper)."""
-    try:
-        # Run the async logic within asyncio.run
-        asyncio.run(
-            _execute_custom_workflow_async_logic(workflow_name, initial_input_json)
-        )
-    except ValueError as e:
-        # Catch JSON parsing errors from the async function
-        if "Invalid JSON input" in str(e):
-            # Logged already in async func, raise Typer error for user
-            raise typer.BadParameter(str(e))
-        else:
-            # Handle other potential ValueErrors
-            logger.error(f"CLI command failed due to ValueError: {e}", exc_info=True)
-            raise typer.Exit(code=1)
-    except httpx.HTTPStatusError:
-        # Handle expected API errors gracefully (already logged)
-        raise typer.Exit(code=1)
-    except httpx.ConnectError:
-        # Handle connection errors (already logged)
-        raise typer.Exit(code=1)
-    except Exception as e:
-        # Catch other errors
-        logger.error(f"CLI command failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+    """Executes a registered custom workflow via API."""
+    # Use the error handling wrapper
+    run_async_with_cli_error_handling(
+        _execute_custom_workflow_async_logic, workflow_name, initial_input_json
+    )
 
 
 @register_app.command("client")
