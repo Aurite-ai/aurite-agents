@@ -3,15 +3,15 @@ Unit tests for the PromptManager.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, call
+from unittest.mock import MagicMock, call
 
 # Import the class to test and dependencies/models
 from src.host.resources.prompts import PromptManager
+
 # Import foundation classes for type hinting shared fixtures
-from src.host.foundation.routing import MessageRouter
-from src.host.filtering import FilteringManager
 # Import models
 from src.host.models import ClientConfig
+
 # Import mcp types
 import mcp.types as types
 
@@ -24,10 +24,12 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 # Removed local mock_message_router and mock_filtering_manager fixtures
 # They are now imported from tests.fixtures.host_fixtures
 
+
 @pytest.fixture
 def prompt_manager(mock_message_router: MagicMock) -> PromptManager:
     """Fixture to provide a clean PromptManager instance with a mocked router."""
     return PromptManager(message_router=mock_message_router)
+
 
 @pytest.fixture
 def sample_client_config() -> ClientConfig:
@@ -39,9 +41,13 @@ def sample_client_config() -> ClientConfig:
         roots=[],
     )
 
+
 # --- Test Cases ---
 
-async def test_prompt_manager_init(prompt_manager: PromptManager, mock_message_router: MagicMock):
+
+async def test_prompt_manager_init(
+    prompt_manager: PromptManager, mock_message_router: MagicMock
+):
     """Test initial state of the PromptManager."""
     assert prompt_manager._prompts == {}
     assert prompt_manager._message_router == mock_message_router
@@ -104,12 +110,13 @@ async def test_register_client_prompts_filtered(
     """Test that prompts are filtered by FilteringManager during registration."""
     client_id = sample_client_config.client_id
     prompt1 = types.Prompt(name="allowed_prompt")
-    prompt2 = types.Prompt(name="excluded_prompt") # This one will be filtered
+    prompt2 = types.Prompt(name="excluded_prompt")  # This one will be filtered
     prompts_to_register = [prompt1, prompt2]
 
     # Configure mock FilteringManager to exclude prompt2
     def filter_side_effect(name, config):
         return name != "excluded_prompt"
+
     mock_filtering_manager.is_registration_allowed.side_effect = filter_side_effect
 
     registered = await prompt_manager.register_client_prompts(
@@ -168,6 +175,7 @@ async def test_register_client_prompts_empty(
 
 # --- Tests for get_prompt ---
 
+
 async def test_get_prompt_success(
     prompt_manager: PromptManager,
     mock_filtering_manager: MagicMock,
@@ -181,15 +189,19 @@ async def test_get_prompt_success(
         prompts=[prompt1],
         client_config=sample_client_config,
         filtering_manager=mock_filtering_manager,
-        )
+    )
 
-    retrieved_prompt = await prompt_manager.get_prompt(client_id=client_id, name="prompt1") # await + name
+    retrieved_prompt = await prompt_manager.get_prompt(
+        client_id=client_id, name="prompt1"
+    )  # await + name
     assert retrieved_prompt == prompt1
 
 
 async def test_get_prompt_client_not_found(prompt_manager: PromptManager):
     """Test retrieving a prompt from a non-existent client."""
-    retrieved_prompt = await prompt_manager.get_prompt(client_id="non_existent_client", name="prompt1") # await + name
+    retrieved_prompt = await prompt_manager.get_prompt(
+        client_id="non_existent_client", name="prompt1"
+    )  # await + name
     assert retrieved_prompt is None
 
 
@@ -206,17 +218,20 @@ async def test_get_prompt_prompt_not_found(
         prompts=[prompt1],
         client_config=sample_client_config,
         filtering_manager=mock_filtering_manager,
-        )
+    )
 
-    retrieved_prompt = await prompt_manager.get_prompt(client_id=client_id, name="non_existent_prompt") # await + name
+    retrieved_prompt = await prompt_manager.get_prompt(
+        client_id=client_id, name="non_existent_prompt"
+    )  # await + name
     assert retrieved_prompt is None
 
 
 # --- Tests for list_prompts ---
 
+
 async def test_list_prompts_empty(prompt_manager: PromptManager):
     """Test listing prompts when none are registered."""
-    assert await prompt_manager.list_prompts() == [] # await + expect list
+    assert await prompt_manager.list_prompts() == []  # await + expect list
 
 
 async def test_list_prompts_single_client(
@@ -235,8 +250,8 @@ async def test_list_prompts_single_client(
         filtering_manager=mock_filtering_manager,
     )
 
-    expected_prompts = [prompt1, prompt2] # Expect flat list
-    listed_prompts = await prompt_manager.list_prompts() # await
+    expected_prompts = [prompt1, prompt2]  # Expect flat list
+    listed_prompts = await prompt_manager.list_prompts()  # await
     # Sort for comparison stability as order isn't guaranteed
     listed_prompts.sort(key=lambda p: p.name)
     assert listed_prompts == expected_prompts
@@ -245,7 +260,7 @@ async def test_list_prompts_single_client(
 async def test_list_prompts_multiple_clients(
     prompt_manager: PromptManager,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Use this as a base for client A
+    sample_client_config: ClientConfig,  # Use this as a base for client A
 ):
     """Test listing prompts for multiple registered clients."""
     client_id_a = sample_client_config.client_id
@@ -258,7 +273,9 @@ async def test_list_prompts_multiple_clients(
     )
 
     client_id_b = "client_B"
-    client_config_b = ClientConfig(client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[])
+    client_config_b = ClientConfig(
+        client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[]
+    )
     prompt_b1 = types.Prompt(name="prompt_b1")
     prompt_b2 = types.Prompt(name="prompt_b2")
     # Need to reset the mock for the second registration call if side_effect was used
@@ -271,8 +288,8 @@ async def test_list_prompts_multiple_clients(
         filtering_manager=mock_filtering_manager,
     )
 
-    expected_prompts = [prompt_a1, prompt_b1, prompt_b2] # Expect flat list
-    listed_prompts = await prompt_manager.list_prompts() # await
+    expected_prompts = [prompt_a1, prompt_b1, prompt_b2]  # Expect flat list
+    listed_prompts = await prompt_manager.list_prompts()  # await
     # Sort for comparison stability
     listed_prompts.sort(key=lambda p: p.name)
     assert listed_prompts == expected_prompts
@@ -280,15 +297,18 @@ async def test_list_prompts_multiple_clients(
 
 # --- Tests for get_clients_for_prompt ---
 
+
 async def test_get_clients_for_prompt_found(
     prompt_manager: PromptManager,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Client A
+    sample_client_config: ClientConfig,  # Client A
 ):
     """Test finding clients that provide a specific prompt."""
     client_id_a = sample_client_config.client_id
     client_id_b = "client_B"
-    client_config_b = ClientConfig(client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[])
+    client_config_b = ClientConfig(
+        client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[]
+    )
     prompt_common = types.Prompt(name="common_prompt")
     prompt_a_only = types.Prompt(name="prompt_a_only")
     prompt_b_only = types.Prompt(name="prompt_b_only")
@@ -327,6 +347,7 @@ async def test_get_clients_for_prompt_not_found(prompt_manager: PromptManager):
 
 # --- Test for shutdown ---
 
+
 async def test_shutdown(
     prompt_manager: PromptManager,
     mock_message_router: MagicMock,
@@ -356,24 +377,30 @@ async def test_shutdown_multiple_clients(
     prompt_manager: PromptManager,
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Client A
+    sample_client_config: ClientConfig,  # Client A
 ):
     """Test shutdown with multiple clients registered."""
     client_id_a = sample_client_config.client_id
     client_id_b = "client_B"
-    client_config_b = ClientConfig(client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[])
+    client_config_b = ClientConfig(
+        client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[]
+    )
 
     # Register Client A
     await prompt_manager.register_client_prompts(
-        client_id=client_id_a, prompts=[types.Prompt(name="p_a")],
-        client_config=sample_client_config, filtering_manager=mock_filtering_manager
+        client_id=client_id_a,
+        prompts=[types.Prompt(name="p_a")],
+        client_config=sample_client_config,
+        filtering_manager=mock_filtering_manager,
     )
     # Register Client B
     mock_filtering_manager.is_registration_allowed.side_effect = None
     mock_filtering_manager.is_registration_allowed.return_value = True
     await prompt_manager.register_client_prompts(
-        client_id=client_id_b, prompts=[types.Prompt(name="p_b")],
-        client_config=client_config_b, filtering_manager=mock_filtering_manager
+        client_id=client_id_b,
+        prompts=[types.Prompt(name="p_b")],
+        client_config=client_config_b,
+        filtering_manager=mock_filtering_manager,
     )
 
     assert client_id_a in prompt_manager._prompts

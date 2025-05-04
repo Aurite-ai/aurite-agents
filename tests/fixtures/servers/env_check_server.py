@@ -83,15 +83,18 @@ def check_env_and_write_output():
 
 # --- MCP Handlers ---
 
+
 @mcp.handle("list_tools")
-async def list_tools_handler() -> types.ListToolsResult: # Removed ctx parameter
+async def list_tools_handler() -> types.ListToolsResult:  # Removed ctx parameter
     """Handles the list_tools request."""
     logger.info("env_check_server: Received list_tools request.")
     return types.ListToolsResult(tools=[check_env_tool])
 
 
 @mcp.handle("call_tool")
-async def call_tool_handler(params: types.CallToolRequestParams) -> types.CallToolResult: # Removed ctx parameter
+async def call_tool_handler(
+    params: types.CallToolRequestParams,
+) -> types.CallToolResult:  # Removed ctx parameter
     """Handles the call_tool request."""
     logger.info(f"env_check_server: Received call_tool request for tool: {params.name}")
     if params.name == "check_env":
@@ -102,13 +105,15 @@ async def call_tool_handler(params: types.CallToolRequestParams) -> types.CallTo
                 content=[types.TextContent(text="Missing required argument: var_name")],
             )
 
-        value = os.getenv(var_name, "NOT_FOUND") # Default to NOT_FOUND if not set
+        value = os.getenv(var_name, "NOT_FOUND")  # Default to NOT_FOUND if not set
         logger.info(f"env_check_server: Checked env var '{var_name}', value: '{value}'")
         return types.CallToolResult(
             isError=False, content=[types.TextContent(text=value)]
         )
     else:
-        logger.warning(f"env_check_server: Received call for unknown tool: {params.name}")
+        logger.warning(
+            f"env_check_server: Received call for unknown tool: {params.name}"
+        )
         return types.CallToolResult(
             isError=True,
             content=[types.TextContent(text=f"Unknown tool: {params.name}")],

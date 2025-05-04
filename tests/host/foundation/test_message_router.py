@@ -3,7 +3,6 @@ Unit tests for the MessageRouter.
 """
 
 import pytest
-from unittest.mock import AsyncMock
 
 # Import the class to test
 from src.host.foundation.routing import MessageRouter
@@ -14,6 +13,7 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def message_router() -> MessageRouter:
     """Fixture to provide a clean MessageRouter instance for each test."""
@@ -21,6 +21,7 @@ def message_router() -> MessageRouter:
 
 
 # --- Test Cases ---
+
 
 async def test_message_router_init(message_router: MessageRouter):
     """Test initial state of the MessageRouter."""
@@ -51,12 +52,14 @@ async def test_register_server_duplicate(message_router: MessageRouter):
     """Test registering the same server ID again updates its info."""
     server_id = "server_A"
     await message_router.register_server(server_id, {"tools"}, 1.0)
-    await message_router.register_server(server_id, {"prompts"}, 2.0) # Register again
+    await message_router.register_server(server_id, {"prompts"}, 2.0)  # Register again
 
     assert server_id in message_router._server_capabilities
     assert server_id in message_router._server_weights
-    assert message_router._server_capabilities[server_id] == {"prompts"} # Should be updated
-    assert message_router._server_weights[server_id] == 2.0 # Should be updated
+    assert message_router._server_capabilities[server_id] == {
+        "prompts"
+    }  # Should be updated
+    assert message_router._server_weights[server_id] == 2.0  # Should be updated
 
 
 async def test_register_tool(message_router: MessageRouter):
@@ -82,7 +85,9 @@ async def test_register_tool_multiple_clients(message_router: MessageRouter):
     await message_router.register_server(client_1, {"tools"}, 1.0)
     await message_router.register_server(client_2, {"tools"}, 1.0)
     await message_router.register_tool(tool_name, client_1)
-    await message_router.register_tool(tool_name, client_2) # Register for second client
+    await message_router.register_tool(
+        tool_name, client_2
+    )  # Register for second client
 
     assert tool_name in message_router._tool_routes
     # Check both clients are in the list for the tool
@@ -107,6 +112,7 @@ async def test_register_tool_client_not_registered(message_router: MessageRouter
 
 
 # --- Prompt Registration Tests ---
+
 
 async def test_register_prompt(message_router: MessageRouter):
     """Test registering a prompt for a specific client."""
@@ -139,6 +145,7 @@ async def test_register_prompt_multiple_clients(message_router: MessageRouter):
 
 # --- Resource Registration Tests ---
 
+
 async def test_register_resource(message_router: MessageRouter):
     """Test registering a resource for a specific client."""
     resource_uri = "file:///tmp/resource1.txt"
@@ -169,6 +176,7 @@ async def test_register_resource_multiple_clients(message_router: MessageRouter)
 
 
 # --- Getter Tests ---
+
 
 async def test_get_clients_for_tool(message_router: MessageRouter):
     """Test retrieving clients for a specific tool."""
@@ -232,6 +240,7 @@ async def test_get_clients_for_resource(message_router: MessageRouter):
 
 # --- Shutdown Test ---
 
+
 async def test_shutdown(message_router: MessageRouter):
     """Test that shutdown clears all internal registries."""
     # Register some data
@@ -265,6 +274,7 @@ async def test_shutdown(message_router: MessageRouter):
 
 
 # --- Client Component Getter Tests ---
+
 
 async def test_get_tools_for_client(message_router: MessageRouter):
     """Test retrieving tools for a specific client."""
@@ -329,6 +339,7 @@ async def test_get_resources_for_client(message_router: MessageRouter):
 
 # --- Server Management Tests ---
 
+
 async def test_get_server_capabilities(message_router: MessageRouter):
     """Test retrieving capabilities for a registered server."""
     server_id = "server_Cap"
@@ -372,8 +383,8 @@ async def test_remove_server(message_router: MessageRouter):
     await message_router.register_server(s2, {"tools"}, 1.0)
 
     await message_router.register_tool(tool_a, s1)
-    await message_router.register_tool(tool_a, s2) # Tool A provided by both
-    await message_router.register_tool(tool_b, s1) # Tool B only by s1
+    await message_router.register_tool(tool_a, s2)  # Tool A provided by both
+    await message_router.register_tool(tool_b, s1)  # Tool B only by s1
     await message_router.register_prompt(prompt_a, s1)
     await message_router.register_resource(res_a, s1)
 
@@ -401,9 +412,9 @@ async def test_remove_server(message_router: MessageRouter):
     assert s1 not in message_router._client_resources
 
     # Verify routes are updated
-    assert tool_a in message_router._tool_routes # Tool A still exists (provided by s2)
-    assert message_router._tool_routes[tool_a] == [s2] # Only s2 remains
-    assert tool_b not in message_router._tool_routes # Tool B should be gone
+    assert tool_a in message_router._tool_routes  # Tool A still exists (provided by s2)
+    assert message_router._tool_routes[tool_a] == [s2]  # Only s2 remains
+    assert tool_b not in message_router._tool_routes  # Tool B should be gone
     assert prompt_a not in message_router._prompt_routes
     assert res_a not in message_router._resource_routes
 

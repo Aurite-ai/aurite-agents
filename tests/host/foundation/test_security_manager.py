@@ -5,24 +5,26 @@ Unit tests for the SecurityManager.
 import pytest
 import os
 import base64
-import time # Add missing import
+import time  # Add missing import
 from unittest.mock import patch, MagicMock
 
 # Import the class to test and dependent models
-from src.host.foundation.security import SecurityManager, Fernet
-from src.host.models import GCPSecretConfig # Import the model
+from src.host.foundation.security import SecurityManager
+from src.host.models import GCPSecretConfig  # Import the model
 
 # Mark tests as host_unit
-pytestmark = [pytest.mark.host_unit, pytest.mark.anyio] # Add anyio marker
+pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]  # Add anyio marker
 
 
 # --- Fixtures ---
+
 
 @pytest.fixture
 def security_manager() -> SecurityManager:
     """Fixture to provide a SecurityManager instance with a generated key."""
     # Use a generated key for simplicity in unit tests
     return SecurityManager()
+
 
 # --- Test Cases ---
 
@@ -96,12 +98,14 @@ def test_security_manager_init_derive_key_from_string():
     test_string_key = "this-is-not-a-base64-key"
     # We expect PBKDF2HMAC to be used to derive a key.
     # Force the initial base64 decode attempt to fail to ensure the except block is hit.
-    with patch(
-        "src.host.foundation.security.base64.urlsafe_b64decode",
-        side_effect=ValueError("Simulated decode error"),
-    ), patch("src.host.foundation.security.PBKDF2HMAC") as mock_kdf_class, patch(
-        "src.host.foundation.security.Fernet"
-    ) as mock_fernet:
+    with (
+        patch(
+            "src.host.foundation.security.base64.urlsafe_b64decode",
+            side_effect=ValueError("Simulated decode error"),
+        ),
+        patch("src.host.foundation.security.PBKDF2HMAC") as mock_kdf_class,
+        patch("src.host.foundation.security.Fernet") as mock_fernet,
+    ):
         # Mock the derive method of the KDF instance
         mock_kdf_instance = MagicMock()
         derived_key_bytes = os.urandom(32)  # Simulate derived key
@@ -124,6 +128,7 @@ def test_security_manager_init_derive_key_from_string():
 
 # --- Credential Storage and Retrieval Tests ---
 
+
 async def test_store_and_get_credential(security_manager: SecurityManager):
     """Test storing and retrieving a simple credential."""
     cred_type = "api_key"
@@ -137,7 +142,7 @@ async def test_store_and_get_credential(security_manager: SecurityManager):
 
     assert isinstance(cred_id, str)
     assert cred_id.startswith(cred_type)
-    assert cred_id in security_manager._credentials # Check internal storage
+    assert cred_id in security_manager._credentials  # Check internal storage
 
     # Retrieve the credential
     retrieved_value = await security_manager.get_credential(cred_id)
@@ -165,7 +170,7 @@ async def test_get_credential_expired(security_manager: SecurityManager):
     cred_type = "temp_token"
     cred_value = "expired-secret"
     # Store with an expiry time in the past
-    past_expiry = int(time.time()) - 60 # 1 minute ago
+    past_expiry = int(time.time()) - 60  # 1 minute ago
 
     cred_id = await security_manager.store_credential(
         type=cred_type, value=cred_value, expiry=past_expiry
@@ -178,7 +183,9 @@ async def test_get_credential_expired(security_manager: SecurityManager):
     assert retrieved_value is None
 
 
-async def test_store_credential_same_value_different_type(security_manager: SecurityManager):
+async def test_store_credential_same_value_different_type(
+    security_manager: SecurityManager,
+):
     """Test storing the same value with different types results in different IDs."""
     cred_value = "same-secret-value"
     cred_id_1 = await security_manager.store_credential(type="type1", value=cred_value)
@@ -194,6 +201,7 @@ async def test_store_credential_same_value_different_type(security_manager: Secu
 
 # --- Access Token Tests ---
 
+
 async def test_create_and_resolve_access_token(security_manager: SecurityManager):
     """Test creating an access token and resolving it back to the credential value."""
     cred_type = "db_pass"
@@ -205,7 +213,7 @@ async def test_create_and_resolve_access_token(security_manager: SecurityManager
 
     assert isinstance(token, str)
     assert token.startswith("aurite-tk-")
-    assert token in security_manager._access_tokens # Check internal storage
+    assert token in security_manager._access_tokens  # Check internal storage
     assert security_manager._access_tokens[token] == cred_id
 
     # Resolve token
@@ -225,7 +233,9 @@ async def test_resolve_access_token_invalid_token(security_manager: SecurityMana
     assert resolved_value is None
 
 
-async def test_resolve_access_token_for_expired_credential(security_manager: SecurityManager):
+async def test_resolve_access_token_for_expired_credential(
+    security_manager: SecurityManager,
+):
     """Test resolving a token for an expired credential returns None."""
     cred_type = "expired_api"
     cred_value = "some_api_key"
@@ -237,12 +247,13 @@ async def test_resolve_access_token_for_expired_credential(security_manager: Sec
 
     # Attempt to resolve, expect None due to expiry check in get_credential
     with pytest.warns(UserWarning, match=f"Credential {cred_id} has expired"):
-         resolved_value = await security_manager.resolve_access_token(token)
+        resolved_value = await security_manager.resolve_access_token(token)
 
     assert resolved_value is None
 
 
 # --- Data Masking Tests ---
+
 
 @pytest.mark.parametrize(
     "input_data, expected_output",
@@ -256,7 +267,10 @@ async def test_resolve_access_token_for_expired_credential(security_manager: Sec
             "mysql+pymysql://root:root_pass@127.0.0.1/mydb",
             "mysql+pymysql://root:*****@127.0.0.1/mydb",
         ),
-        ("No password here postgres://user@host/db", "No password here postgres://user@host/db"),
+        (
+            "No password here postgres://user@host/db",
+            "No password here postgres://user@host/db",
+        ),
         # Password patterns
         ("User password = 'secret_pass'", "User password = '*****'"),
         ('Set "password": "another_one"', 'Set "password": "*****"'),
@@ -266,7 +280,10 @@ async def test_resolve_access_token_for_expired_credential(security_manager: Sec
         ("API Key: 'sk-abcdef12345'", "API Key: '*****'"),
         ('Use token = "ghp_tokenstring"', 'Use token = "*****"'),
         ("api_key=mykey", "api_key=*****"),
-        ("Authorization: Bearer my_long_token", "Authorization: Bearer my_long_token"), # Should not match simple token=
+        (
+            "Authorization: Bearer my_long_token",
+            "Authorization: Bearer my_long_token",
+        ),  # Should not match simple token=
         # Combinations
         (
             "Config: db=postgresql://u:p@h/d, api_key='key'",
@@ -274,7 +291,9 @@ async def test_resolve_access_token_for_expired_credential(security_manager: Sec
         ),
     ],
 )
-def test_mask_sensitive_data(security_manager: SecurityManager, input_data: str, expected_output: str):
+def test_mask_sensitive_data(
+    security_manager: SecurityManager, input_data: str, expected_output: str
+):
     """Test masking various sensitive data patterns."""
     masked_data = security_manager.mask_sensitive_data(input_data)
     assert masked_data == expected_output
@@ -285,19 +304,28 @@ def test_mask_sensitive_data(security_manager: SecurityManager, input_data: str,
 # Mock GCP Secret Manager types if the library isn't installed
 try:
     from google.cloud import secretmanager
+
     # Import the actual types needed
-    from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse, AccessSecretVersionRequest, SecretPayload as ActualSecretPayload
+    from google.cloud.secretmanager_v1.types import (
+        AccessSecretVersionResponse,
+        AccessSecretVersionRequest,
+        SecretPayload as ActualSecretPayload,
+    )
     from google.api_core import exceptions as gcp_exceptions
-    SecretPayload = ActualSecretPayload # Assign the correct type
+
+    SecretPayload = ActualSecretPayload  # Assign the correct type
 except ImportError:
     # Create dummy types if google.cloud.secretmanager is not available
     # (Keep the existing dummy types as fallback)
     class MockGcpException(Exception):
         pass
+
     class MockNotFound(MockGcpException):
         pass
+
     class MockPermissionDenied(MockGcpException):
         pass
+
     gcp_exceptions = MagicMock()
     gcp_exceptions.NotFound = MockNotFound
     gcp_exceptions.PermissionDenied = MockPermissionDenied
@@ -305,11 +333,13 @@ except ImportError:
     class MockSecretPayload:
         def __init__(self, data: bytes):
             self.data = data
+
     SecretPayload = MockSecretPayload
 
     class MockAccessSecretVersionResponse:
         def __init__(self, payload: MockSecretPayload):
             self.payload = payload
+
     secretmanager = MagicMock()
     secretmanager.AccessSecretVersionResponse = MockAccessSecretVersionResponse
     secretmanager.AccessSecretVersionRequest = MagicMock()
@@ -318,8 +348,8 @@ except ImportError:
 @pytest.fixture
 def mock_gcp_secret_client():
     """Fixture for a mocked GCP Secret Manager client."""
-    if not secretmanager: # If original import failed
-         pytest.skip("google-cloud-secret-manager not installed, skipping GCP tests.")
+    if not secretmanager:  # If original import failed
+        pytest.skip("google-cloud-secret-manager not installed, skipping GCP tests.")
 
     mock_client = MagicMock(spec=secretmanager.SecretManagerServiceClient)
 
@@ -329,11 +359,11 @@ def mock_gcp_secret_client():
         if secret_name == "projects/p/secrets/secret1/versions/latest":
             # Use the correctly assigned SecretPayload type/class
             payload = SecretPayload(data=b"value1")
-            return AccessSecretVersionResponse(payload=payload) # Use imported type
+            return AccessSecretVersionResponse(payload=payload)  # Use imported type
         elif secret_name == "projects/p/secrets/secret2/versions/latest":
             # Use the correctly assigned SecretPayload type/class
             payload = SecretPayload(data=b"value2_!@#")
-            return AccessSecretVersionResponse(payload=payload) # Use imported type
+            return AccessSecretVersionResponse(payload=payload)  # Use imported type
         elif secret_name == "projects/p/secrets/notfound/versions/latest":
             raise gcp_exceptions.NotFound("Secret not found")
         elif secret_name == "projects/p/secrets/denied/versions/latest":
@@ -351,23 +381,31 @@ def security_manager_with_mock_gcp(mock_gcp_secret_client) -> SecurityManager:
     # Patch the client *before* initializing SecurityManager
     with patch(
         "src.host.foundation.security.secretmanager.SecretManagerServiceClient",
-            return_value=mock_gcp_secret_client,
+        return_value=mock_gcp_secret_client,
     ):
-         # We only need to patch the ServiceClient class, not the module variable
-         # The 'if secretmanager:' check in __init__ will use the actual imported module
-         manager = SecurityManager()
-         # Verify the mock client was assigned inside the try block
-         assert manager._gcp_secret_client == mock_gcp_secret_client
-         return manager # Correct indentation
+        # We only need to patch the ServiceClient class, not the module variable
+        # The 'if secretmanager:' check in __init__ will use the actual imported module
+        manager = SecurityManager()
+        # Verify the mock client was assigned inside the try block
+        assert manager._gcp_secret_client == mock_gcp_secret_client
+        return manager  # Correct indentation
 
 
-async def test_resolve_gcp_secrets_success(security_manager_with_mock_gcp: SecurityManager):
+async def test_resolve_gcp_secrets_success(
+    security_manager_with_mock_gcp: SecurityManager,
+):
     """Test resolving multiple GCP secrets successfully."""
     manager = security_manager_with_mock_gcp
     # Ensure these are GCPSecretConfig objects (already corrected in previous step, verify)
     secrets_config = [
-        GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="ENV_VAR_1"),
-        GCPSecretConfig(secret_id="projects/p/secrets/secret2/versions/latest", env_var_name="ENV_VAR_2"),
+        GCPSecretConfig(
+            secret_id="projects/p/secrets/secret1/versions/latest",
+            env_var_name="ENV_VAR_1",
+        ),
+        GCPSecretConfig(
+            secret_id="projects/p/secrets/secret2/versions/latest",
+            env_var_name="ENV_VAR_2",
+        ),
     ]
     resolved = await manager.resolve_gcp_secrets(secrets_config)
 
@@ -378,14 +416,25 @@ async def test_resolve_gcp_secrets_success(security_manager_with_mock_gcp: Secur
     assert manager._gcp_secret_client.access_secret_version.call_count == 2
 
 
-async def test_resolve_gcp_secrets_partial_failure(security_manager_with_mock_gcp: SecurityManager):
+async def test_resolve_gcp_secrets_partial_failure(
+    security_manager_with_mock_gcp: SecurityManager,
+):
     """Test resolving secrets with some failures (NotFound, PermissionDenied)."""
     manager = security_manager_with_mock_gcp
     # Ensure these are GCPSecretConfig objects (already corrected in previous step, verify)
     secrets_config = [
-        GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="GOOD_SECRET"),
-        GCPSecretConfig(secret_id="projects/p/secrets/notfound/versions/latest", env_var_name="BAD_SECRET_1"),
-        GCPSecretConfig(secret_id="projects/p/secrets/denied/versions/latest", env_var_name="BAD_SECRET_2"),
+        GCPSecretConfig(
+            secret_id="projects/p/secrets/secret1/versions/latest",
+            env_var_name="GOOD_SECRET",
+        ),
+        GCPSecretConfig(
+            secret_id="projects/p/secrets/notfound/versions/latest",
+            env_var_name="BAD_SECRET_1",
+        ),
+        GCPSecretConfig(
+            secret_id="projects/p/secrets/denied/versions/latest",
+            env_var_name="BAD_SECRET_2",
+        ),
     ]
     resolved = await manager.resolve_gcp_secrets(secrets_config)
 
@@ -397,7 +446,9 @@ async def test_resolve_gcp_secrets_partial_failure(security_manager_with_mock_gc
     assert manager._gcp_secret_client.access_secret_version.call_count == 3
 
 
-async def test_resolve_gcp_secrets_empty_config(security_manager_with_mock_gcp: SecurityManager):
+async def test_resolve_gcp_secrets_empty_config(
+    security_manager_with_mock_gcp: SecurityManager,
+):
     """Test resolving with an empty secrets config list."""
     manager = security_manager_with_mock_gcp
     resolved = await manager.resolve_gcp_secrets([])
@@ -408,14 +459,19 @@ async def test_resolve_gcp_secrets_empty_config(security_manager_with_mock_gcp: 
 async def test_resolve_gcp_secrets_no_client():
     """Test resolving secrets when the GCP client could not be initialized."""
     # Patch the import check and client init to simulate failure
-    with patch("src.host.foundation.security.secretmanager", None), \
-         patch("src.host.foundation.security.gcp_exceptions", None):
+    with (
+        patch("src.host.foundation.security.secretmanager", None),
+        patch("src.host.foundation.security.gcp_exceptions", None),
+    ):
         manager = SecurityManager()
         assert manager._gcp_secret_client is None
 
         # Create instance of GCPSecretConfig
         secrets_config = [
-             GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="ENV_VAR_1"),
+            GCPSecretConfig(
+                secret_id="projects/p/secrets/secret1/versions/latest",
+                env_var_name="ENV_VAR_1",
+            ),
         ]
         resolved = await manager.resolve_gcp_secrets(secrets_config)
-        assert resolved == {} # Should return empty dict if client is unavailable
+        assert resolved == {}  # Should return empty dict if client is unavailable

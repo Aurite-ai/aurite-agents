@@ -14,10 +14,12 @@ from src.host.filtering import FilteringManager
 
 # --- Shared Mock Manager Fixtures ---
 
+
 @pytest.fixture
 def mock_message_router() -> MagicMock:
     """Provides a shared AsyncMock for MessageRouter."""
     return AsyncMock(spec=MessageRouter)
+
 
 @pytest.fixture
 def mock_filtering_manager() -> MagicMock:
@@ -25,10 +27,15 @@ def mock_filtering_manager() -> MagicMock:
     mock = MagicMock(spec=FilteringManager)
     # Default behaviors often needed in manager tests
     mock.is_registration_allowed.return_value = True
-    mock.filter_component_list.side_effect = lambda components, config: components # Pass through
-    mock.filter_clients_for_request.side_effect = lambda clients, config: clients # Pass through
+    mock.filter_component_list.side_effect = (
+        lambda components, config: components
+    )  # Pass through
+    mock.filter_clients_for_request.side_effect = (
+        lambda clients, config: clients
+    )  # Pass through
     mock.is_component_allowed_for_agent.return_value = True
     return mock
+
 
 @pytest.fixture
 def mock_root_manager() -> MagicMock:

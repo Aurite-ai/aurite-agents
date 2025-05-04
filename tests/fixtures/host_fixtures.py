@@ -8,13 +8,10 @@ from unittest.mock import Mock, AsyncMock
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
-from unittest.mock import Mock, AsyncMock, MagicMock # Added MagicMock
 from src.host.models import HostConfig
 from src.host.host import MCPHost
 from src.host_manager import HostManager  # Import HostManager
-from src.host.resources import ToolManager, PromptManager, ResourceManager # Added ResourceManager
-from src.host.foundation import MessageRouter, RootManager # Corrected foundation import
-from src.host.filtering import FilteringManager # Import FilteringManager from correct location
+from src.host.resources import ToolManager, PromptManager  # Added ResourceManager
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
 
@@ -61,6 +58,7 @@ def mock_mcp_host() -> Mock:
 # (Moved to tests/host/conftest.py)
 
 # --- Integration Fixture ---
+
 
 @pytest.fixture(scope="function")
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument

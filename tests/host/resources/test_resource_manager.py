@@ -3,17 +3,16 @@ Unit tests for the ResourceManager.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, call
-from typing import List # Added List import
+from unittest.mock import MagicMock, call
+from typing import List  # Added List import
 
 # Import the class to test and dependencies/models
 from src.host.resources.resources import ResourceManager
+
 # Import foundation classes for type hinting shared fixtures
-from src.host.foundation.routing import MessageRouter
-from src.host.foundation.roots import RootManager
-from src.host.filtering import FilteringManager
 # Import models
 from src.host.models import ClientConfig, RootConfig
+
 # Import mcp types
 import mcp.types as types
 
@@ -26,16 +25,15 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 # Removed local mock_message_router, mock_filtering_manager, mock_root_manager fixtures
 # They are now imported from tests.fixtures.host_fixtures
 
+
 @pytest.fixture
 def resource_manager(
-    mock_message_router: MagicMock,
-    mock_root_manager: MagicMock
+    mock_message_router: MagicMock, mock_root_manager: MagicMock
 ) -> ResourceManager:
     """Fixture to provide a clean ResourceManager instance with mocked dependencies."""
     # ResourceManager __init__ only takes message_router
-    return ResourceManager(
-        message_router=mock_message_router
-    )
+    return ResourceManager(message_router=mock_message_router)
+
 
 @pytest.fixture
 def sample_client_config() -> ClientConfig:
@@ -48,6 +46,7 @@ def sample_client_config() -> ClientConfig:
         roots=[RootConfig(name="root1", uri="file:///data/", capabilities=[])],
     )
 
+
 @pytest.fixture
 def sample_resource() -> types.Resource:
     """Fixture for a sample Resource."""
@@ -55,23 +54,27 @@ def sample_resource() -> types.Resource:
         uri="file:///data/resource1.txt",
         name="resource1",
         description="Sample text resource",
-        metadata={"type": "text"}
+        metadata={"type": "text"},
     )
 
+
 # --- Test Cases ---
+
 
 # Test __init__
 def test_resource_manager_init(
     resource_manager: ResourceManager,
     mock_message_router: MagicMock,
-    mock_root_manager: MagicMock
+    mock_root_manager: MagicMock,
 ):
     """Test initial state of the ResourceManager."""
     assert resource_manager._resources == {}
     assert resource_manager._message_router == mock_message_router
     # Removed assertion for _root_manager as it's not stored
 
+
 # --- Tests for register_client_resources ---
+
 
 async def test_register_client_resources_success(
     resource_manager: ResourceManager,
@@ -101,7 +104,10 @@ async def test_register_client_resources_success(
 
     # Check internal state (using URI strings as keys)
     assert client_id in resource_manager._resources
-    assert resource_manager._resources[client_id][str(sample_resource.uri)] == sample_resource
+    assert (
+        resource_manager._resources[client_id][str(sample_resource.uri)]
+        == sample_resource
+    )
     assert resource_manager._resources[client_id][str(resource2.uri)] == resource2
 
     # Check calls to dependencies (using URI strings)
@@ -127,16 +133,19 @@ async def test_register_client_resources_filtered(
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
     sample_client_config: ClientConfig,
-    sample_resource: types.Resource, # Allowed resource
+    sample_resource: types.Resource,  # Allowed resource
 ):
     """Test that resources are filtered by FilteringManager during registration."""
     client_id = sample_client_config.client_id
-    excluded_resource = types.Resource(uri="file:///other/excluded.dat", name="excluded_resource")
+    excluded_resource = types.Resource(
+        uri="file:///other/excluded.dat", name="excluded_resource"
+    )
     resources_to_register = [sample_resource, excluded_resource]
 
     # Configure mock FilteringManager to exclude the second resource based on URI string
     def filter_side_effect(uri_str, config):
-        return uri_str != str(excluded_resource.uri) # Compare URI string
+        return uri_str != str(excluded_resource.uri)  # Compare URI string
+
     mock_filtering_manager.is_registration_allowed.side_effect = filter_side_effect
 
     registered = await resource_manager.register_client_resources(
@@ -195,6 +204,7 @@ async def test_register_client_resources_empty(
 
 # --- Tests for get_resource ---
 
+
 async def test_get_resource_success(
     resource_manager: ResourceManager,
     mock_filtering_manager: MagicMock,
@@ -211,14 +221,20 @@ async def test_get_resource_success(
     )
 
     # Use await and 'uri' argument
-    retrieved_resource = await resource_manager.get_resource(client_id=client_id, uri="file:///data/resource1.txt")
+    retrieved_resource = await resource_manager.get_resource(
+        client_id=client_id, uri="file:///data/resource1.txt"
+    )
     assert retrieved_resource == sample_resource
 
 
-async def test_get_resource_client_not_found(resource_manager: ResourceManager): # Make async
+async def test_get_resource_client_not_found(
+    resource_manager: ResourceManager,
+):  # Make async
     """Test retrieving a resource from a non-existent client."""
     # Use await and 'uri' argument
-    retrieved_resource = await resource_manager.get_resource(client_id="non_existent_client", uri="file:///data/resource1.txt")
+    retrieved_resource = await resource_manager.get_resource(
+        client_id="non_existent_client", uri="file:///data/resource1.txt"
+    )
     assert retrieved_resource is None
 
 
@@ -238,11 +254,14 @@ async def test_get_resource_resource_not_found(
     )
 
     # Use await and 'uri' argument
-    retrieved_resource = await resource_manager.get_resource(client_id=client_id, uri="file:///non/existent.txt")
+    retrieved_resource = await resource_manager.get_resource(
+        client_id=client_id, uri="file:///non/existent.txt"
+    )
     assert retrieved_resource is None
 
 
 # --- Tests for list_resources ---
+
 
 async def test_list_resources_empty(resource_manager: ResourceManager):
     """Test listing resources when none are registered."""
@@ -278,15 +297,17 @@ async def test_list_resources_single_client(
     assert resource2 in client_resources
 
     # Test listing for a non-existent client
-    non_existent_resources = await resource_manager.list_resources(client_id="non_existent")
+    non_existent_resources = await resource_manager.list_resources(
+        client_id="non_existent"
+    )
     assert non_existent_resources == []
 
 
 async def test_list_resources_multiple_clients(
     resource_manager: ResourceManager,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Client R
-    sample_resource: types.Resource, # Resource R1
+    sample_client_config: ClientConfig,  # Client R
+    sample_resource: types.Resource,  # Resource R1
 ):
     """Test listing resources for multiple registered clients."""
     client_id_r = sample_client_config.client_id
@@ -300,8 +321,15 @@ async def test_list_resources_multiple_clients(
 
     # Client S
     client_id_s = "client_S"
-    client_config_s = ClientConfig(client_id=client_id_s, server_path="path/s", capabilities=["resources"], roots=[])
-    resource_s1 = types.Resource(uri="file:///other/resource_s1.csv", name="resource_s1")
+    client_config_s = ClientConfig(
+        client_id=client_id_s,
+        server_path="path/s",
+        capabilities=["resources"],
+        roots=[],
+    )
+    resource_s1 = types.Resource(
+        uri="file:///other/resource_s1.csv", name="resource_s1"
+    )
     # Reset mock side effect if necessary
     mock_filtering_manager.is_registration_allowed.side_effect = None
     mock_filtering_manager.is_registration_allowed.return_value = True
@@ -333,15 +361,21 @@ async def test_list_resources_multiple_clients(
 
 # --- Tests for get_clients_for_resource ---
 
+
 async def test_get_clients_for_resource_found(
     resource_manager: ResourceManager,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Client R
+    sample_client_config: ClientConfig,  # Client R
 ):
     """Test finding clients that provide a specific resource URI."""
     client_id_r = sample_client_config.client_id
     client_id_s = "client_S"
-    client_config_s = ClientConfig(client_id=client_id_s, server_path="path/s", capabilities=["resources"], roots=[])
+    client_config_s = ClientConfig(
+        client_id=client_id_s,
+        server_path="path/s",
+        capabilities=["resources"],
+        roots=[],
+    )
 
     resource_common = types.Resource(uri="file:///common/data.txt", name="common")
     resource_r_only = types.Resource(uri="file:///data/r_only.txt", name="r_only")
@@ -381,26 +415,61 @@ def test_get_clients_for_resource_not_found(resource_manager: ResourceManager):
 
 # --- Tests for validate_resource_access ---
 
+
 @pytest.mark.parametrize(
     "resource_uri, client_roots, expected_result",
     [
         # Exact match
-        ("file:///data/resource1.txt", [RootConfig(name="root1", uri="file:///data/", capabilities=[])], True),
+        (
+            "file:///data/resource1.txt",
+            [RootConfig(name="root1", uri="file:///data/", capabilities=[])],
+            True,
+        ),
         # Subdirectory match
-        ("file:///data/subdir/resource2.txt", [RootConfig(name="root1", uri="file:///data/", capabilities=[])], True),
+        (
+            "file:///data/subdir/resource2.txt",
+            [RootConfig(name="root1", uri="file:///data/", capabilities=[])],
+            True,
+        ),
         # Different root
-        ("file:///other/resource3.txt", [RootConfig(name="root1", uri="file:///data/", capabilities=[])], False),
+        (
+            "file:///other/resource3.txt",
+            [RootConfig(name="root1", uri="file:///data/", capabilities=[])],
+            False,
+        ),
         # No matching root among multiple
-        ("file:///unmatched/resource4.txt", [RootConfig(name="root1", uri="file:///data/", capabilities=[]), RootConfig(name="root2", uri="file:///archive/", capabilities=[])], False),
+        (
+            "file:///unmatched/resource4.txt",
+            [
+                RootConfig(name="root1", uri="file:///data/", capabilities=[]),
+                RootConfig(name="root2", uri="file:///archive/", capabilities=[]),
+            ],
+            False,
+        ),
         # Matching root among multiple
-        ("file:///archive/resource5.zip", [RootConfig(name="root1", uri="file:///data/", capabilities=[]), RootConfig(name="root2", uri="file:///archive/", capabilities=[])], True),
+        (
+            "file:///archive/resource5.zip",
+            [
+                RootConfig(name="root1", uri="file:///data/", capabilities=[]),
+                RootConfig(name="root2", uri="file:///archive/", capabilities=[]),
+            ],
+            True,
+        ),
         # Client has no roots defined
         ("file:///data/resource1.txt", [], False),
         # Custom scheme match
-        ("weather://san_francisco/forecast", [RootConfig(name="weather", uri="weather://", capabilities=[])], True),
+        (
+            "weather://san_francisco/forecast",
+            [RootConfig(name="weather", uri="weather://", capabilities=[])],
+            True,
+        ),
         # Custom scheme mismatch
-        ("weather://new_york/alerts", [RootConfig(name="geo", uri="geo://", capabilities=[])], False),
-    ]
+        (
+            "weather://new_york/alerts",
+            [RootConfig(name="geo", uri="geo://", capabilities=[])],
+            False,
+        ),
+    ],
 )
 async def test_validate_resource_access(
     resource_manager: ResourceManager,
@@ -437,6 +506,7 @@ async def test_validate_resource_access(
 
 
 # --- Test for shutdown ---
+
 
 async def test_shutdown(
     resource_manager: ResourceManager,

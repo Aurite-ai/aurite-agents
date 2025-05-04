@@ -3,20 +3,18 @@ Unit tests for the ToolManager.
 """
 
 import pytest
-import re # Import re for escaping
-from unittest.mock import MagicMock, AsyncMock, call
+import re  # Import re for escaping
+from unittest.mock import MagicMock, AsyncMock
 from typing import List, Dict, Any
 
 # Import the class to test and dependencies/models
 from src.host.resources.tools import ToolManager
+
 # Import foundation classes for type hinting shared fixtures
-from src.host.foundation.routing import MessageRouter
-from src.host.foundation.roots import RootManager
-from src.host.filtering import FilteringManager
 # Import models
 from src.host.models import ClientConfig, RootConfig, AgentConfig
+
 # Import shared fixtures
-from tests.fixtures.agent_fixtures import minimal_agent_config # Import specific fixture
 # Import mcp types and session for mocking
 import mcp.types as types
 from mcp.client.session import ClientSession
@@ -30,26 +28,31 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 # Removed local mock_message_router, mock_filtering_manager, mock_root_manager fixtures
 # They are now imported from tests.fixtures.host_fixtures
 
+
 @pytest.fixture
 def mock_client_session() -> MagicMock:
     """Fixture for a mocked ClientSession."""
     # Mock async methods needed
     mock = AsyncMock(spec=ClientSession)
-    mock.list_tools = AsyncMock(return_value=[]) # Default to empty list
+    mock.list_tools = AsyncMock(return_value=[])  # Default to empty list
     # Corrected type: CallToolResult, added missing 'type' field for TextContent
-    mock.call_tool = AsyncMock(return_value=types.CallToolResult(content=[types.TextContent(type="text", text="mock result")]))
+    mock.call_tool = AsyncMock(
+        return_value=types.CallToolResult(
+            content=[types.TextContent(type="text", text="mock result")]
+        )
+    )
     return mock
+
 
 @pytest.fixture
 def tool_manager(
-    mock_message_router: MagicMock,
-    mock_root_manager: MagicMock
+    mock_message_router: MagicMock, mock_root_manager: MagicMock
 ) -> ToolManager:
     """Fixture to provide a clean ToolManager instance with mocked dependencies."""
     return ToolManager(
-        message_router=mock_message_router,
-        root_manager=mock_root_manager
+        message_router=mock_message_router, root_manager=mock_root_manager
     )
+
 
 @pytest.fixture
 def sample_client_config() -> ClientConfig:
@@ -61,22 +64,20 @@ def sample_client_config() -> ClientConfig:
         roots=[RootConfig(name="root_t", uri="file:///tools/", capabilities=[])],
     )
 
+
 @pytest.fixture
 def sample_tool() -> types.Tool:
     """Fixture for a sample Tool."""
     # Define arguments using inputSchema (JSON Schema format)
     input_schema = {
         "type": "object",
-        "properties": {
-            "arg1": {"type": "string", "description": "The first argument"}
-        },
-        "required": ["arg1"]
+        "properties": {"arg1": {"type": "string", "description": "The first argument"}},
+        "required": ["arg1"],
     }
     return types.Tool(
-        name="tool1",
-        description="Sample tool one",
-        inputSchema=input_schema
+        name="tool1", description="Sample tool one", inputSchema=input_schema
     )
+
 
 # Removed local sample_agent_config fixture
 # Use minimal_agent_config from tests.fixtures.agent_fixtures instead
@@ -84,14 +85,15 @@ def sample_tool() -> types.Tool:
 
 # --- Test Cases ---
 
+
 def test_tool_manager_init(
     tool_manager: ToolManager,
     mock_message_router: MagicMock,
-    mock_root_manager: MagicMock
+    mock_root_manager: MagicMock,
 ):
     """Test initial state of the ToolManager."""
     assert tool_manager._tools == {}
-    assert tool_manager._clients == {} # Corrected attribute name
+    assert tool_manager._clients == {}  # Corrected attribute name
     assert tool_manager._message_router == mock_message_router
     assert tool_manager._root_manager == mock_root_manager
 
@@ -104,11 +106,12 @@ async def test_register_client(
     client_id = "client_T_reg"
     # register_client is not async
     tool_manager.register_client(client_id, mock_client_session)
-    assert client_id in tool_manager._clients # Corrected attribute name
+    assert client_id in tool_manager._clients  # Corrected attribute name
     assert tool_manager._clients[client_id] == mock_client_session
 
 
 # --- Tests for register_tool ---
+
 
 async def test_register_tool_success(
     tool_manager: ToolManager,
@@ -138,9 +141,13 @@ async def test_register_tool_success(
     assert tool_manager._tools[tool_name] == sample_tool
     assert tool_name in tool_manager._tool_metadata
     assert tool_manager._tool_metadata[tool_name]["client_id"] == client_id
-    assert tool_manager._tool_metadata[tool_name]["description"] == sample_tool.description
+    assert (
+        tool_manager._tool_metadata[tool_name]["description"] == sample_tool.description
+    )
     # Check that metadata stored the inputSchema
-    assert tool_manager._tool_metadata[tool_name]["parameters"] == sample_tool.inputSchema
+    assert (
+        tool_manager._tool_metadata[tool_name]["parameters"] == sample_tool.inputSchema
+    )
 
     # Check calls to dependencies
     mock_filtering_manager.is_registration_allowed.assert_called_once_with(
@@ -196,7 +203,7 @@ async def test_register_tool_with_input_schema(
     schema_tool = types.Tool(
         name=tool_name,
         description="Tool with inputSchema",
-        inputSchema=input_schema # Use inputSchema field
+        inputSchema=input_schema,  # Use inputSchema field
     )
 
     mock_filtering_manager.is_registration_allowed.return_value = True
@@ -224,6 +231,7 @@ async def test_register_tool_with_input_schema(
 
 # --- Tests for discover_client_tools ---
 
+
 async def test_discover_client_tools_success(
     tool_manager: ToolManager,
     mock_client_session: MagicMock,
@@ -232,13 +240,19 @@ async def test_discover_client_tools_success(
     """Test discovering tools from a client session successfully."""
     client_id = "client_discover"
     # Provide a default empty inputSchema for tool2
-    tool2 = types.Tool(name="tool2", description="Second tool", inputSchema={"type": "object", "properties": {}})
+    tool2 = types.Tool(
+        name="tool2",
+        description="Second tool",
+        inputSchema={"type": "object", "properties": {}},
+    )
     # Mock the list_tools response - assuming it returns an object with a 'tools' attribute
     mock_response = MagicMock()
     mock_response.tools = [sample_tool, tool2]
     mock_client_session.list_tools = AsyncMock(return_value=mock_response)
 
-    discovered = await tool_manager.discover_client_tools(client_id, mock_client_session)
+    discovered = await tool_manager.discover_client_tools(
+        client_id, mock_client_session
+    )
 
     assert discovered == [sample_tool, tool2]
     mock_client_session.list_tools.assert_called_once()
@@ -255,11 +269,16 @@ async def test_discover_client_tools_unexpected_format(
     mock_client_session.list_tools = AsyncMock(return_value={"wrong": "format"})
 
     caplog.set_level("WARNING")
-    discovered = await tool_manager.discover_client_tools(client_id, mock_client_session)
+    discovered = await tool_manager.discover_client_tools(
+        client_id, mock_client_session
+    )
 
     assert discovered == []
     mock_client_session.list_tools.assert_called_once()
-    assert f"Unexpected response format from list_tools for client {client_id}" in caplog.text
+    assert (
+        f"Unexpected response format from list_tools for client {client_id}"
+        in caplog.text
+    )
 
 
 async def test_discover_client_tools_exception(
@@ -268,7 +287,9 @@ async def test_discover_client_tools_exception(
 ):
     """Test discovery when list_tools raises an exception."""
     client_id = "client_exception"
-    mock_client_session.list_tools = AsyncMock(side_effect=RuntimeError("Connection failed"))
+    mock_client_session.list_tools = AsyncMock(
+        side_effect=RuntimeError("Connection failed")
+    )
 
     with pytest.raises(RuntimeError, match="Connection failed"):
         await tool_manager.discover_client_tools(client_id, mock_client_session)
@@ -277,6 +298,7 @@ async def test_discover_client_tools_exception(
 
 
 # --- Tests for execute_tool ---
+
 
 async def test_execute_tool_success_unique_client(
     tool_manager: ToolManager,
@@ -293,8 +315,12 @@ async def test_execute_tool_success_unique_client(
     # Setup mocks
     tool_manager.register_client(client_id, mock_client_session)
     mock_message_router.get_clients_for_tool = AsyncMock(return_value=[client_id])
-    mock_root_manager.validate_access = AsyncMock() # Mock the async method
-    mock_client_session.call_tool = AsyncMock(return_value=types.CallToolResult(content=[types.TextContent(type="text", text="Success!")]))
+    mock_root_manager.validate_access = AsyncMock()  # Mock the async method
+    mock_client_session.call_tool = AsyncMock(
+        return_value=types.CallToolResult(
+            content=[types.TextContent(type="text", text="Success!")]
+        )
+    )
 
     result = await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments)
 
@@ -319,9 +345,15 @@ async def test_execute_tool_success_specific_client(
     # Setup mocks
     tool_manager.register_client(client_id, mock_client_session)
     # Router needs to confirm this client provides the tool
-    mock_message_router.get_clients_for_tool = AsyncMock(return_value=[client_id, "other_client"])
+    mock_message_router.get_clients_for_tool = AsyncMock(
+        return_value=[client_id, "other_client"]
+    )
     mock_root_manager.validate_access = AsyncMock()
-    mock_client_session.call_tool = AsyncMock(return_value=types.CallToolResult(content=[types.TextContent(type="text", text="Specific Success!")]))
+    mock_client_session.call_tool = AsyncMock(
+        return_value=types.CallToolResult(
+            content=[types.TextContent(type="text", text="Specific Success!")]
+        )
+    )
 
     result = await tool_manager.execute_tool(
         tool_name=tool_name, arguments=arguments, client_name=client_id
@@ -341,9 +373,13 @@ async def test_execute_tool_fail_not_found(
     """Test execution failure when the tool is not found on any client."""
     tool_name = "unknown_tool"
     arguments = {}
-    mock_message_router.get_clients_for_tool = AsyncMock(return_value=[]) # No clients provide it
+    mock_message_router.get_clients_for_tool = AsyncMock(
+        return_value=[]
+    )  # No clients provide it
 
-    with pytest.raises(ValueError, match=f"Tool '{tool_name}' not found on any registered client."):
+    with pytest.raises(
+        ValueError, match=f"Tool '{tool_name}' not found on any registered client."
+    ):
         await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments)
 
     mock_message_router.get_clients_for_tool.assert_called_once_with(tool_name)
@@ -360,7 +396,9 @@ async def test_execute_tool_fail_ambiguous(
     mock_message_router.get_clients_for_tool = AsyncMock(return_value=providing_clients)
 
     expected_error_msg = f"Tool '{tool_name}' is ambiguous; found on multiple clients: {providing_clients}. Specify a client_name."
-    with pytest.raises(ValueError, match=re.escape(expected_error_msg)): # Escape the error message
+    with pytest.raises(
+        ValueError, match=re.escape(expected_error_msg)
+    ):  # Escape the error message
         await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments)
 
     mock_message_router.get_clients_for_tool.assert_called_once_with(tool_name)
@@ -375,14 +413,18 @@ async def test_execute_tool_fail_specific_client_not_registered(
     client_name = "unregistered_client"
     # No need to mock router, check happens before
 
-    with pytest.raises(ValueError, match=f"Specified client '{client_name}' is not registered."):
-        await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments, client_name=client_name)
+    with pytest.raises(
+        ValueError, match=f"Specified client '{client_name}' is not registered."
+    ):
+        await tool_manager.execute_tool(
+            tool_name=tool_name, arguments=arguments, client_name=client_name
+        )
 
 
 async def test_execute_tool_fail_specific_client_does_not_provide(
     tool_manager: ToolManager,
     mock_message_router: MagicMock,
-    mock_client_session: MagicMock, # Need a registered client
+    mock_client_session: MagicMock,  # Need a registered client
 ):
     """Test execution failure when the specified client doesn't provide the tool."""
     client_id = "client_T_noprovide"
@@ -392,8 +434,13 @@ async def test_execute_tool_fail_specific_client_does_not_provide(
     # Mock router to return other clients, but not this one
     mock_message_router.get_clients_for_tool = AsyncMock(return_value=["other_client"])
 
-    with pytest.raises(ValueError, match=f"Specified client '{client_id}' does not provide tool '{tool_name}'."):
-        await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments, client_name=client_id)
+    with pytest.raises(
+        ValueError,
+        match=f"Specified client '{client_id}' does not provide tool '{tool_name}'.",
+    ):
+        await tool_manager.execute_tool(
+            tool_name=tool_name, arguments=arguments, client_name=client_id
+        )
 
     mock_message_router.get_clients_for_tool.assert_called_once_with(tool_name)
 
@@ -414,14 +461,16 @@ async def test_execute_tool_fail_root_validation(
     tool_manager.register_client(client_id, mock_client_session)
     mock_message_router.get_clients_for_tool = AsyncMock(return_value=[client_id])
     # Mock root manager to raise validation error
-    mock_root_manager.validate_access = AsyncMock(side_effect=ValueError("Access Denied"))
+    mock_root_manager.validate_access = AsyncMock(
+        side_effect=ValueError("Access Denied")
+    )
 
     with pytest.raises(ValueError, match="Access Denied"):
         await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments)
 
     mock_message_router.get_clients_for_tool.assert_called_once_with(tool_name)
     mock_root_manager.validate_access.assert_called_once_with(client_id=client_id)
-    mock_client_session.call_tool.assert_not_called() # Should fail before calling tool
+    mock_client_session.call_tool.assert_not_called()  # Should fail before calling tool
 
 
 async def test_execute_tool_fail_call_tool_exception(
@@ -441,7 +490,9 @@ async def test_execute_tool_fail_call_tool_exception(
     mock_message_router.get_clients_for_tool = AsyncMock(return_value=[client_id])
     mock_root_manager.validate_access = AsyncMock()
     # Mock call_tool to raise an error
-    mock_client_session.call_tool = AsyncMock(side_effect=ConnectionError("Network Error"))
+    mock_client_session.call_tool = AsyncMock(
+        side_effect=ConnectionError("Network Error")
+    )
 
     with pytest.raises(ConnectionError, match="Network Error"):
         await tool_manager.execute_tool(tool_name=tool_name, arguments=arguments)
@@ -470,8 +521,7 @@ async def test_execute_tool_fail_call_tool_returns_error(
     mock_root_manager.validate_access = AsyncMock()
     # Mock call_tool to return an error CallToolResult
     error_result = types.CallToolResult(
-        isError=True,
-        content=[types.TextContent(type="text", text=error_message)]
+        isError=True, content=[types.TextContent(type="text", text=error_message)]
     )
     mock_client_session.call_tool = AsyncMock(return_value=error_result)
 
@@ -484,6 +534,7 @@ async def test_execute_tool_fail_call_tool_returns_error(
 
 
 # --- Tests for get_tool / has_tool ---
+
 
 async def test_get_tool_and_has_tool(
     tool_manager: ToolManager,
@@ -519,12 +570,15 @@ async def test_get_tool_and_has_tool(
 
 # --- Tests for format_tools_for_llm ---
 
+
 # Helper function to register multiple tools for testing formatting
 async def _register_test_tools(
     tool_manager: ToolManager,
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
-    tools_to_register: List[Dict[str, Any]], # Expects dicts with tool, client_id, client_config
+    tools_to_register: List[
+        Dict[str, Any]
+    ],  # Expects dicts with tool, client_id, client_config
 ):
     for item in tools_to_register:
         await tool_manager.register_tool(
@@ -535,24 +589,43 @@ async def _register_test_tools(
             filtering_manager=mock_filtering_manager,
         )
 
+
 # Define some tools and configs for reuse in formatting tests
-tool_A1 = types.Tool(name="tool_A1", description="Tool 1 from Client A", inputSchema={"type": "object", "properties": {"p1": {"type": "string"}}})
-tool_A2 = types.Tool(name="tool_A2", description="Tool 2 from Client A", inputSchema={"type": "object", "properties": {}})
-tool_B1 = types.Tool(name="tool_B1", description="Tool 1 from Client B", inputSchema={"type": "object", "properties": {"q1": {"type": "integer"}}})
-config_A = ClientConfig(client_id="clientA", server_path="path/A", capabilities=["tools"], roots=[])
-config_B = ClientConfig(client_id="clientB", server_path="path/B", capabilities=["tools"], roots=[])
+tool_A1 = types.Tool(
+    name="tool_A1",
+    description="Tool 1 from Client A",
+    inputSchema={"type": "object", "properties": {"p1": {"type": "string"}}},
+)
+tool_A2 = types.Tool(
+    name="tool_A2",
+    description="Tool 2 from Client A",
+    inputSchema={"type": "object", "properties": {}},
+)
+tool_B1 = types.Tool(
+    name="tool_B1",
+    description="Tool 1 from Client B",
+    inputSchema={"type": "object", "properties": {"q1": {"type": "integer"}}},
+)
+config_A = ClientConfig(
+    client_id="clientA", server_path="path/A", capabilities=["tools"], roots=[]
+)
+config_B = ClientConfig(
+    client_id="clientB", server_path="path/B", capabilities=["tools"], roots=[]
+)
+
 
 async def test_format_tools_for_llm_no_tools(
     tool_manager: ToolManager,
     mock_filtering_manager: MagicMock,
-    minimal_agent_config: AgentConfig, # Use shared fixture
+    minimal_agent_config: AgentConfig,  # Use shared fixture
 ):
     """Test formatting when no tools are registered."""
     formatted = tool_manager.format_tools_for_llm(
         filtering_manager=mock_filtering_manager,
-        agent_config=minimal_agent_config # Use shared fixture
+        agent_config=minimal_agent_config,  # Use shared fixture
     )
     assert formatted == []
+
 
 async def test_format_tools_for_llm_basic(
     tool_manager: ToolManager,
@@ -560,13 +633,20 @@ async def test_format_tools_for_llm_basic(
     mock_filtering_manager: MagicMock,
 ):
     """Test basic formatting with multiple tools, no agent filtering."""
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
+        ],
+    )
 
     # No agent config means no filtering applied by default in this mock setup
-    formatted = tool_manager.format_tools_for_llm(filtering_manager=mock_filtering_manager)
+    formatted = tool_manager.format_tools_for_llm(
+        filtering_manager=mock_filtering_manager
+    )
 
     assert len(formatted) == 2
     # Check structure of one tool
@@ -583,28 +663,35 @@ async def test_format_tools_for_llm_basic(
         "input_schema": tool_B1.inputSchema,
     }
 
+
 async def test_format_tools_for_llm_filter_client_ids(
     tool_manager: ToolManager,
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
 ):
     """Test formatting tools filtered by agent_config.client_ids."""
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
+        ],
+    )
 
     # Agent config allowing only clientA
     agent_config_client_a = AgentConfig(name="agent_a", client_ids=["clientA"])
 
     # Configure mock filtering manager to simulate client filtering
     original_filter = mock_filtering_manager.filter_clients_for_request
-    mock_filtering_manager.filter_clients_for_request = MagicMock(return_value=["clientA"])
+    mock_filtering_manager.filter_clients_for_request = MagicMock(
+        return_value=["clientA"]
+    )
 
     formatted = tool_manager.format_tools_for_llm(
-        filtering_manager=mock_filtering_manager,
-        agent_config=agent_config_client_a
+        filtering_manager=mock_filtering_manager, agent_config=agent_config_client_a
     )
 
     # Restore mock
@@ -624,38 +711,52 @@ async def test_format_tools_for_llm_filter_exclude_components(
     mock_filtering_manager: MagicMock,
 ):
     """Test formatting tools filtered by agent_config.exclude_components."""
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_A1, "client_id": "clientA", "client_config": config_A}, # To be excluded
-        {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {
+                "tool": tool_A1,
+                "client_id": "clientA",
+                "client_config": config_A,
+            },  # To be excluded
+            {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
+        ],
+    )
 
     # Agent config excluding tool_A1
-    agent_config_exclude_a1 = AgentConfig(name="agent_exclude", exclude_components=["tool_A1"])
+    agent_config_exclude_a1 = AgentConfig(
+        name="agent_exclude", exclude_components=["tool_A1"]
+    )
 
     # --- Mock FilteringManager ---
     # 1. Mock client filtering: Since this agent_config doesn't restrict clients,
     #    filter_clients_for_request should return all clients providing tools.
     original_client_filter = mock_filtering_manager.filter_clients_for_request
-    mock_filtering_manager.filter_clients_for_request = MagicMock(return_value=["clientA", "clientB"])
+    mock_filtering_manager.filter_clients_for_request = MagicMock(
+        return_value=["clientA", "clientB"]
+    )
 
     # 2. Mock component exclusion
     original_component_filter = mock_filtering_manager.filter_component_list
+
     def exclude_side_effect(components, config):
         excluded = config.exclude_components or []
         return [c for c in components if c.get("name") not in excluded]
+
     # Assign side_effect directly to the existing mock attribute
     mock_filtering_manager.filter_component_list.side_effect = exclude_side_effect
 
     # --- Execute ---
     formatted = tool_manager.format_tools_for_llm(
-        filtering_manager=mock_filtering_manager,
-        agent_config=agent_config_exclude_a1
+        filtering_manager=mock_filtering_manager, agent_config=agent_config_exclude_a1
     )
 
     # --- Restore mocks ---
     mock_filtering_manager.filter_clients_for_request = original_client_filter
-    mock_filtering_manager.filter_component_list.side_effect = None # Reset side effect
+    mock_filtering_manager.filter_component_list.side_effect = None  # Reset side effect
 
     # --- Assert ---
     assert len(formatted) == 2
@@ -669,33 +770,55 @@ async def test_format_tools_for_llm_filter_both(
     mock_filtering_manager: MagicMock,
 ):
     """Test formatting tools filtered by both client_ids and exclude_components."""
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_A1, "client_id": "clientA", "client_config": config_A}, # Allowed client, but excluded component
-        {"tool": tool_A2, "client_id": "clientA", "client_config": config_A}, # Allowed client, allowed component
-        {"tool": tool_B1, "client_id": "clientB", "client_config": config_B}, # Disallowed client
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {
+                "tool": tool_A1,
+                "client_id": "clientA",
+                "client_config": config_A,
+            },  # Allowed client, but excluded component
+            {
+                "tool": tool_A2,
+                "client_id": "clientA",
+                "client_config": config_A,
+            },  # Allowed client, allowed component
+            {
+                "tool": tool_B1,
+                "client_id": "clientB",
+                "client_config": config_B,
+            },  # Disallowed client
+        ],
+    )
 
     # Agent config allowing clientA but excluding tool_A1
-    agent_config_complex = AgentConfig(name="agent_complex", client_ids=["clientA"], exclude_components=["tool_A1"])
+    agent_config_complex = AgentConfig(
+        name="agent_complex", client_ids=["clientA"], exclude_components=["tool_A1"]
+    )
 
     # Configure mocks for both filtering steps
-    mock_filtering_manager.filter_clients_for_request = MagicMock(return_value=["clientA"])
+    mock_filtering_manager.filter_clients_for_request = MagicMock(
+        return_value=["clientA"]
+    )
+
     def exclude_side_effect(components, config):
         # Corrected indentation within the function
         excluded = config.exclude_components or []
         # Important: filter_component_list receives list of dicts from list_tools
         return [c for c in components if c.get("name") not in excluded]
+
     # Assign side_effect directly to the existing mock attribute
     mock_filtering_manager.filter_component_list.side_effect = exclude_side_effect
 
     # Corrected indentation for subsequent lines
     formatted = tool_manager.format_tools_for_llm(
-        filtering_manager=mock_filtering_manager,
-        agent_config=agent_config_complex
+        filtering_manager=mock_filtering_manager, agent_config=agent_config_complex
     )
 
     # Restore mock side_effect
-    mock_filtering_manager.filter_component_list.side_effect = None # Reset side effect
+    mock_filtering_manager.filter_component_list.side_effect = None  # Reset side effect
 
     assert len(formatted) == 1
     assert formatted[0]["name"] == "tool_A2"
@@ -709,16 +832,21 @@ async def test_format_tools_for_llm_filter_tool_names_arg(
     mock_filtering_manager: MagicMock,
 ):
     """Test formatting tools filtered by the tool_names argument."""
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
-        {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {"tool": tool_A1, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_A2, "client_id": "clientA", "client_config": config_A},
+            {"tool": tool_B1, "client_id": "clientB", "client_config": config_B},
+        ],
+    )
 
     # Request only tool_A1 and tool_B1 (even though A2 is available)
     formatted = tool_manager.format_tools_for_llm(
         filtering_manager=mock_filtering_manager,
-        tool_names=["tool_A1", "tool_B1"] # Specify names
+        tool_names=["tool_A1", "tool_B1"],  # Specify names
     )
 
     assert len(formatted) == 2
@@ -736,21 +864,38 @@ async def test_format_tools_for_llm_ensure_schema_type(
     tool_no_type = types.Tool(
         name="no_type_tool",
         description="Tool schema missing type",
-        inputSchema={"properties": {"p1": {"type": "string"}}} # Missing top-level type
+        inputSchema={
+            "properties": {"p1": {"type": "string"}}
+        },  # Missing top-level type
     )
-    await _register_test_tools(tool_manager, mock_message_router, mock_filtering_manager, [
-        {"tool": tool_no_type, "client_id": sample_client_config.client_id, "client_config": sample_client_config},
-    ])
+    await _register_test_tools(
+        tool_manager,
+        mock_message_router,
+        mock_filtering_manager,
+        [
+            {
+                "tool": tool_no_type,
+                "client_id": sample_client_config.client_id,
+                "client_config": sample_client_config,
+            },
+        ],
+    )
 
-    formatted = tool_manager.format_tools_for_llm(filtering_manager=mock_filtering_manager)
+    formatted = tool_manager.format_tools_for_llm(
+        filtering_manager=mock_filtering_manager
+    )
 
     assert len(formatted) == 1
     assert formatted[0]["name"] == "no_type_tool"
     # Verify 'type': 'object' was added
-    assert formatted[0]["input_schema"] == {"type": "object", "properties": {"p1": {"type": "string"}}}
+    assert formatted[0]["input_schema"] == {
+        "type": "object",
+        "properties": {"p1": {"type": "string"}},
+    }
 
 
 # --- Tests for format_tool_result ---
+
 
 def test_format_tool_result_string(tool_manager: ToolManager):
     """Test formatting a simple string result."""
@@ -758,14 +903,16 @@ def test_format_tool_result_string(tool_manager: ToolManager):
     formatted = tool_manager.format_tool_result(result)
     assert formatted == "Simple success"
 
+
 def test_format_tool_result_list_text_content(tool_manager: ToolManager):
     """Test formatting a list of TextContent objects."""
     result = [
         types.TextContent(type="text", text="Part 1."),
-        types.TextContent(type="text", text="Part 2.")
+        types.TextContent(type="text", text="Part 2."),
     ]
     formatted = tool_manager.format_tool_result(result)
     assert formatted == "Part 1.\nPart 2."
+
 
 def test_format_tool_result_other_types(tool_manager: ToolManager):
     """Test formatting other types falls back to str()."""
@@ -776,6 +923,7 @@ def test_format_tool_result_other_types(tool_manager: ToolManager):
 
 
 # --- Tests for create_tool_result_blocks ---
+
 
 def test_create_tool_result_blocks_string(tool_manager: ToolManager):
     """Test creating result blocks from a simple string."""
@@ -789,12 +937,13 @@ def test_create_tool_result_blocks_string(tool_manager: ToolManager):
     }
     assert blocks == expected
 
+
 def test_create_tool_result_blocks_list_text_content(tool_manager: ToolManager):
     """Test creating result blocks from a list of TextContent."""
     tool_use_id = "toolu_456"
     result = [
         types.TextContent(type="text", text="First part."),
-        types.TextContent(type="text", text="Second part.")
+        types.TextContent(type="text", text="Second part."),
     ]
     blocks = tool_manager.create_tool_result_blocks(tool_use_id, result)
     expected = {
@@ -802,10 +951,11 @@ def test_create_tool_result_blocks_list_text_content(tool_manager: ToolManager):
         "tool_use_id": tool_use_id,
         "content": [
             {"type": "text", "text": "First part."},
-            {"type": "text", "text": "Second part."}
+            {"type": "text", "text": "Second part."},
         ],
     }
     assert blocks == expected
+
 
 def test_create_tool_result_blocks_other_types(tool_manager: ToolManager):
     """Test creating result blocks from other types (fallback to str)."""
@@ -821,6 +971,7 @@ def test_create_tool_result_blocks_other_types(tool_manager: ToolManager):
 
 
 # --- Test for shutdown ---
+
 
 async def test_shutdown(
     tool_manager: ToolManager,

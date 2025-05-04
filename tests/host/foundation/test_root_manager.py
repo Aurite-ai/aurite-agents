@@ -3,7 +3,6 @@ Unit tests for the RootManager.
 """
 
 import pytest
-from unittest.mock import AsyncMock
 
 # Import the class to test and dependent models
 from src.host.foundation.roots import RootManager
@@ -15,6 +14,7 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def root_manager() -> RootManager:
     """Fixture to provide a clean RootManager instance for each test."""
@@ -22,6 +22,7 @@ def root_manager() -> RootManager:
 
 
 # --- Test Cases ---
+
 
 async def test_root_manager_init(root_manager: RootManager):
     """Test initial state of the RootManager."""
@@ -33,7 +34,9 @@ async def test_register_roots_single_client(root_manager: RootManager):
     client_id = "client_A"
     roots_config = [
         RootConfig(uri="file:///path/to/dir1", name="Dir1", capabilities=["read"]),
-        RootConfig(uri="http://example.com", name="Example", capabilities=["read", "write"]),
+        RootConfig(
+            uri="http://example.com", name="Example", capabilities=["read", "write"]
+        ),
     ]
 
     await root_manager.register_roots(client_id, roots_config)
@@ -102,11 +105,11 @@ async def test_shutdown(root_manager: RootManager):
     client_id = "client_E"
     roots_config = [RootConfig(uri="file:///E", name="E", capabilities=[])]
     await root_manager.register_roots(client_id, roots_config)
-    assert root_manager._client_roots # Ensure not empty before shutdown
+    assert root_manager._client_roots  # Ensure not empty before shutdown
 
     await root_manager.shutdown()
 
-    assert not root_manager._client_roots # Should be empty after shutdown
+    assert not root_manager._client_roots  # Should be empty after shutdown
 
 
 # TODO: Add tests for validate_access (requires mocking urlparse or careful URI setup)
