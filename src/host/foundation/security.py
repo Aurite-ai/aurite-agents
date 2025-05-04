@@ -33,11 +33,13 @@ except ImportError:
 # Local imports
 from ..models import GCPSecretConfig  # Assuming models.py is one level up
 
-# Patterns for sensitive data detection
+# Patterns for sensitive data detection (Improved)
 SENSITIVE_PATTERNS = {
-    "database_url": r"(?:mysql|postgresql|postgres)(?:\+\w+)?://[^:]+:[^@]+@[^/]+/\w+",
-    "password": r"password['\"]?\s*[:=]\s*['\"]([^'\"]+)['\"]",
-    "api_key": r"(?:api[_\-]?key|token)['\"]?\s*[:=]\s*['\"]([^'\"]+)['\"]",
+    "database_url": r"(?:mysql|postgresql|postgres)(?:\+\w+)?://[^:]+:([^@]+)@[^/]+/\w+", # Capture group 1 is password
+    # Matches 'password' followed by optional space/quote, separator (:/=), optional space/quote, value (non-whitespace or quoted)
+    "password": r"(password\s*['\"]?\s*[:=]\s*['\"]?)([^'\s\"]+)(['\"]?)", # Capture group 1 is prefix, group 2 is value
+    # Matches 'api_key', 'token', or 'API Key' followed by optional space/quote, separator (:/=), optional space/quote, value (non-whitespace or quoted)
+    "api_key": r"((?:api[_\-]?key|token|API\sKey)\s*['\"]?\s*[:=]\s*['\"]?)([^'\s\"]+)(['\"]?)", # Capture group 1 is prefix, group 2 is value
 }
 
 
@@ -242,19 +244,43 @@ class SecurityManager:
 
     def mask_sensitive_data(self, data: str) -> str:
         """
-        Mask sensitive data like passwords in strings
+        Mask sensitive data like passwords, API keys, and tokens in strings.
         """
-        # For database URLs, mask the password
-        if re.search(SENSITIVE_PATTERNS["database_url"], data):
-            return re.sub(r"://([^:]+):([^@]+)@", r"://\1:*****@", data)
+        masked_data = data
 
-        # For other patterns, just mask appropriately
-        for pattern in SENSITIVE_PATTERNS.values():
-            data = re.sub(
-                pattern, lambda m: m.group(0).replace(m.group(1), "*****"), data
-            )
+        # Mask database URL passwords first
+        # Reconstruct the string, replacing group 1 content with *****
+        # Ensure group 1 exists before trying to replace
+        def db_replacer(m):
+            if m.group(1): # Check if password group was captured
+                 # Replace the part of the full match that corresponds to group 1
+                 start, end = m.span(1)
+                 return m.group(0)[:start-m.start(0)] + '*****' + m.group(0)[end-m.start(0):]
+            return m.group(0) # Return original match if no password captured
 
-        return data
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["database_url"],
+            db_replacer,
+            masked_data
+        )
+
+        # Mask other password patterns (case-insensitive)
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["password"],
+            lambda m: f"{m.group(1)}*****{m.group(3)}",
+            masked_data,
+            flags=re.IGNORECASE # Add ignorecase flag
+        )
+
+        # Mask API key/token patterns (case-insensitive)
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["api_key"],
+            lambda m: f"{m.group(1)}*****{m.group(3)}",
+            masked_data,
+            flags=re.IGNORECASE # Add ignorecase flag
+        )
+
+        return masked_data
 
     async def resolve_gcp_secrets(
         self, secrets_config: List[GCPSecretConfig]

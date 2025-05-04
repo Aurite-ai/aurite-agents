@@ -241,5 +241,42 @@ async def test_resolve_access_token_for_expired_credential(security_manager: Sec
     assert resolved_value is None
 
 
-# TODO: Add tests for mask_sensitive_data
+# --- Data Masking Tests ---
+
+@pytest.mark.parametrize(
+    "input_data, expected_output",
+    [
+        # Database URLs
+        (
+            "Connecting to postgresql://user:password123@host:5432/db",
+            "Connecting to postgresql://user:*****@host:5432/db",
+        ),
+        (
+            "mysql+pymysql://root:root_pass@127.0.0.1/mydb",
+            "mysql+pymysql://root:*****@127.0.0.1/mydb",
+        ),
+        ("No password here postgres://user@host/db", "No password here postgres://user@host/db"),
+        # Password patterns
+        ("User password = 'secret_pass'", "User password = '*****'"),
+        ('Set "password": "another_one"', 'Set "password": "*****"'),
+        ("password: very_secure", "password: *****"),
+        ("No real password", "No real password"),
+        # API Key/Token patterns
+        ("API Key: 'sk-abcdef12345'", "API Key: '*****'"),
+        ('Use token = "ghp_tokenstring"', 'Use token = "*****"'),
+        ("api_key=mykey", "api_key=*****"),
+        ("Authorization: Bearer my_long_token", "Authorization: Bearer my_long_token"), # Should not match simple token=
+        # Combinations
+        (
+            "Config: db=postgresql://u:p@h/d, api_key='key'",
+            "Config: db=postgresql://u:*****@h/d, api_key='*****'",
+        ),
+    ],
+)
+def test_mask_sensitive_data(security_manager: SecurityManager, input_data: str, expected_output: str):
+    """Test masking various sensitive data patterns."""
+    masked_data = security_manager.mask_sensitive_data(input_data)
+    assert masked_data == expected_output
+
+
 # TODO: Add tests for resolve_gcp_secrets (mocking GCP client)
