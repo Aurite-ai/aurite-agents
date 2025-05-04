@@ -1,7 +1,5 @@
 import pytest
 
-# Mark all tests in this module as belonging to the Orchestration layer
-pytestmark = pytest.mark.orchestration
 from unittest.mock import MagicMock
 from src.host.resources.tools import ToolManager, RootManager, MessageRouter, types
 from src.host.filtering import FilteringManager  # Added import
