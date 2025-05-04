@@ -4,14 +4,12 @@ Integration tests for the ExecutionFacade.
 
 import pytest
 import os
-from typing import Any, Dict
 
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
 from src.host_manager import HostManager  # For host_manager fixture
-from src.execution.facade import ExecutionFacade
 
 # Test Cases
 
@@ -21,7 +19,7 @@ async def test_facade_run_agent(host_manager: HostManager):
     Test Case 4.2: Verify ExecutionFacade.run_agent executes a basic agent.
     Requires ANTHROPIC_API_KEY.
     """
-    print(f"\n--- Running Test: test_facade_run_agent ---")
+    print("\n--- Running Test: test_facade_run_agent ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
 
@@ -65,7 +63,7 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
     Test Case 4.3: Verify ExecutionFacade.run_simple_workflow executes a workflow.
     Requires ANTHROPIC_API_KEY.
     """
-    print(f"\n--- Running Test: test_facade_run_simple_workflow ---")
+    print("\n--- Running Test: test_facade_run_simple_workflow ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
 
@@ -109,7 +107,7 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     Test Case 4.4: Verify ExecutionFacade.run_custom_workflow executes and passes facade.
     Requires ANTHROPIC_API_KEY.
     """
-    print(f"\n--- Running Test: test_facade_run_custom_workflow ---")
+    print("\n--- Running Test: test_facade_run_custom_workflow ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
 
@@ -152,7 +150,7 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
     """
     Test Case 4.5a: Verify facade handles non-existent agent name gracefully.
     """
-    print(f"\n--- Running Test: test_facade_run_agent_not_found ---")
+    print("\n--- Running Test: test_facade_run_agent_not_found ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
     agent_name = "NonExistentAgent"
@@ -189,7 +187,7 @@ async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
     """
     Test Case 4.5b: Verify facade handles non-existent simple workflow name gracefully.
     """
-    print(f"\n--- Running Test: test_facade_run_simple_workflow_not_found ---")
+    print("\n--- Running Test: test_facade_run_simple_workflow_not_found ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
     workflow_name = "NonExistentSimpleWorkflow"
@@ -231,7 +229,7 @@ async def test_facade_run_custom_workflow_not_found(host_manager: HostManager):
     """
     Test Case 4.5c: Verify facade handles non-existent custom workflow name gracefully.
     """
-    print(f"\n--- Running Test: test_facade_run_custom_workflow_not_found ---")
+    print("\n--- Running Test: test_facade_run_custom_workflow_not_found ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
     facade = host_manager.execution
     workflow_name = "NonExistentCustomWorkflow"

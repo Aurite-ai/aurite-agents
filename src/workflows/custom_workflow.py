@@ -11,7 +11,6 @@ from typing import Any, TYPE_CHECKING
 from ..host.models import CustomWorkflowConfig
 
 # MCPHost is still needed for the __init__ method
-from ..host.host import MCPHost
 from ..config import PROJECT_ROOT_DIR  # Import project root for path validation
 
 # Type hint for ExecutionFacade

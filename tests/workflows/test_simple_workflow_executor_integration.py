@@ -16,11 +16,9 @@ Mocks are avoided for core components (Executor, Agent, Host).
 """
 
 import pytest
-from typing import Dict
 
 # Assuming models and executors are importable
 from src.host.models import WorkflowConfig, AgentConfig
-from src.host.host import MCPHost
 from src.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Placeholder configurations - replace with actual fixture/data later if needed
@@ -44,7 +42,7 @@ async def test_simple_executor_init(
     """
     Test Case 1: Verify SimpleWorkflowExecutor initializes correctly.
     """
-    print(f"\n--- Running Test: test_simple_executor_init ---")
+    print("\n--- Running Test: test_simple_executor_init ---")
     host_instance = host_manager.host  # Get host from manager
     assert host_instance is not None, "Host instance not found in HostManager"
     print(f"Host instance type: {type(host_instance)}")
@@ -78,7 +76,7 @@ async def test_simple_executor_basic_execution(host_manager: HostManager):
     Uses agents defined in the testing_config.json loaded by the host_manager fixture.
     Requires ANTHROPIC_API_KEY to be set in the environment.
     """
-    print(f"\n--- Running Test: test_simple_executor_basic_execution ---")
+    print("\n--- Running Test: test_simple_executor_basic_execution ---")
     host_instance = host_manager.host
     assert host_instance is not None, "Host instance not found in HostManager"
 
@@ -144,7 +142,7 @@ async def test_simple_executor_agent_not_found(host_manager: HostManager):
     """
     Test Case 3: Verify execution fails gracefully when an agent in steps is not found.
     """
-    print(f"\n--- Running Test: test_simple_executor_agent_not_found ---")
+    print("\n--- Running Test: test_simple_executor_agent_not_found ---")
     host_instance = host_manager.host
     assert host_instance is not None, "Host instance not found in HostManager"
 

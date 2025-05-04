@@ -7,7 +7,6 @@ import pytest
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
 
-from pathlib import Path
 import logging  # Add logging import
 
 """
@@ -17,12 +16,9 @@ custom workflow classes, interacting with a real MCPHost.
 
 import pytest
 import os  # Import os for environment variable check
-from pathlib import Path
-import logging  # Add logging import
 
 # Assuming models and executors are importable
 from src.host.models import CustomWorkflowConfig
-from src.host.host import MCPHost
 from src.workflows.custom_workflow import CustomWorkflowExecutor
 from src.host_manager import HostManager  # For host_manager fixture
 from src.config import PROJECT_ROOT_DIR
@@ -50,7 +46,7 @@ async def test_custom_executor_init(host_manager: HostManager):
     """
     Test Case 1: Verify CustomWorkflowExecutor initializes correctly.
     """
-    print(f"\n--- Running Test: test_custom_executor_init ---")
+    print("\n--- Running Test: test_custom_executor_init ---")
     host_instance = host_manager.host
     assert host_instance is not None, "Host instance not found in HostManager"
 
@@ -87,7 +83,7 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
     Test Case 2: Verify basic execution of a custom workflow via the executor.
     Requires ANTHROPIC_API_KEY for the agent called within the example workflow.
     """
-    print(f"\n--- Running Test: test_custom_executor_basic_execution ---")
+    print("\n--- Running Test: test_custom_executor_basic_execution ---")
     assert host_manager.execution is not None, (
         "ExecutionFacade not initialized in HostManager"
     )

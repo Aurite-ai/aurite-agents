@@ -10,7 +10,7 @@ import os
 import sys
 
 import typer
-from typing import Callable, Coroutine, Any, Tuple, Dict  # Added imports
+from typing import Callable, Coroutine, Any  # Added imports
 
 # Import models needed for request bodies, even if commands aren't fully implemented
 import json
@@ -115,7 +115,7 @@ def run_async_with_cli_error_handling(
             f"API request failed with status {e.response.status_code}. Check previous logs for response details."
         )
         raise typer.Exit(code=1)
-    except httpx.ConnectError as e:
+    except httpx.ConnectError:
         # Connection failed (already logged in async_func)
         logger.error(f"Failed to connect to the API server at {state['api_base_url']}.")
         raise typer.Exit(code=1)

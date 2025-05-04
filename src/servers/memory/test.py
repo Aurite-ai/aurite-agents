@@ -1,6 +1,5 @@
 import os
 
-from urllib.parse import unquote_plus
 from mem0 import MemoryClient
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv

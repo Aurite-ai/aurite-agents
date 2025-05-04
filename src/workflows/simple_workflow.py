@@ -3,7 +3,7 @@ Executor for Simple Sequential Workflows.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Relative imports assuming this file is in src/workflows/
 from ..host.models import WorkflowConfig, AgentConfig
