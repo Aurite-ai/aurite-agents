@@ -262,6 +262,10 @@ class MCPHost:
             )  # Keep error as ERROR
             raise
 
+    def is_client_registered(self, client_id: str) -> bool:
+        """Checks if a client with the given ID is registered."""
+        return client_id in self._clients
+
     async def get_prompt(
         self,
         prompt_name: str,

@@ -244,11 +244,11 @@ class HostManager:
             logger.error(f"Agent name '{agent_config.name}' already registered.")
             raise ValueError(f"Agent name '{agent_config.name}' already registered.")
 
-        # Validate client_ids exist
+        # Validate client_ids exist using the new host method
         if agent_config.client_ids:
-            # Accessing host._clients directly might be fragile
             for client_id in agent_config.client_ids:
-                if client_id not in self.host._clients:
+                # Use the new public method on the host instance
+                if not self.host.is_client_registered(client_id):
                     logger.error(
                         f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found."
                     )

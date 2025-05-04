@@ -17,30 +17,19 @@ from src.host.host import MCPHost
 from anthropic.types import Message # For mocking LLM response
 import anthropic # Import the library for exception types
 
+# Import shared fixtures
+from tests.fixtures.agent_fixtures import minimal_agent_config
+from tests.mocks.mock_anthropic import mock_anthropic_client
+from tests.mocks.mock_mcp_host import mock_mcp_host # Import shared host mock
+
 # --- Fixtures ---
 
-@pytest.fixture
-def mock_mcp_host() -> AsyncMock:
-    """Provides a mock MCPHost instance."""
-    host = AsyncMock(spec=MCPHost)
-    # Default return value should be an empty list, matching the expected type
-    host.get_formatted_tools = AsyncMock(return_value=[])
-    host.execute_tool = AsyncMock() # Will be configured per test
-    return host
+# Removed local mock_mcp_host fixture - using shared one
+# Removed local minimal_agent_config fixture - using shared one
+# Removed local mock_anthropic_client fixture - using shared one
 
 @pytest.fixture
-def minimal_agent_config() -> AgentConfig:
-    """Provides a minimal AgentConfig."""
-    # AgentConfig no longer requires a nested HostConfig.
-    # The host context is provided during execution.
-    return AgentConfig(
-        name="UnitTestAgent",
-        model="claude-3-haiku-20240307", # Use a valid model name
-        # host=host_cfg # Removed - Not part of AgentConfig model anymore
-    )
-
-@pytest.fixture
-def agent(minimal_agent_config: AgentConfig) -> Agent:
+def agent(minimal_agent_config: AgentConfig) -> Agent: # Now uses shared fixture
     """Provides an Agent instance initialized with minimal config."""
     return Agent(config=minimal_agent_config)
 
@@ -51,7 +40,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_no_tool_use(
-        self, agent: Agent, mock_mcp_host: AsyncMock
+        self, agent: Agent, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test successful agent execution when the LLM response does not request tool use.
@@ -62,7 +51,7 @@ class TestAgentUnit:
         mock_llm_response = MagicMock(spec=Message)
         mock_llm_response.content = [MagicMock(type="text", text="Hello back!")]
         mock_llm_response.stop_reason = "end_turn"
-        # Mock the internal _make_llm_call method
+        # Mock the internal _make_llm_call method directly
         agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
 
         # Execute the agent
@@ -74,7 +63,8 @@ class TestAgentUnit:
         print(f"Execution Result: {result}")
 
         # Assertions
-        agent._make_llm_call.assert_awaited_once() # Check LLM call happened
+        # Check the call on the mocked internal method
+        agent._make_llm_call.assert_awaited_once()
         mock_mcp_host.get_formatted_tools.assert_awaited_once() # Check tools were fetched
         mock_mcp_host.execute_tool.assert_not_awaited() # Ensure no tool execution was attempted
 
@@ -101,7 +91,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_with_tool_use(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig
+        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test successful agent execution with a single tool use request.
@@ -154,7 +144,7 @@ class TestAgentUnit:
         print(f"Execution Result: {result}")
 
         # --- Assertions ---
-        # LLM called twice
+        # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
         # Tools fetched once (at the start)
         mock_mcp_host.get_formatted_tools.assert_awaited_once()
@@ -202,7 +192,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_success_with_multiple_tool_uses(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig
+        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test successful agent execution with multiple tool use requests in one turn.
@@ -241,7 +231,7 @@ class TestAgentUnit:
         mock_llm_response_2.content = [MagicMock(type="text", text="Okay, used both tools.")]
         mock_llm_response_2.stop_reason = "end_turn"
 
-        # Mock the internal _make_llm_call method
+        # Mock the internal _make_llm_call method to return responses sequentially
         agent._make_llm_call = AsyncMock(side_effect=[mock_llm_response_1, mock_llm_response_2])
 
         # --- Mock Host Tool Execution ---
@@ -279,6 +269,7 @@ class TestAgentUnit:
         print(f"Execution Result: {result}")
 
         # --- Assertions ---
+        # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
         mock_mcp_host.get_formatted_tools.assert_awaited_once()
         # Tool executed twice
@@ -323,7 +314,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_tool_execution_error(
-        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig
+        self, agent: Agent, mock_mcp_host: AsyncMock, minimal_agent_config: AgentConfig, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test agent execution when a requested tool fails during execution.
@@ -353,7 +344,7 @@ class TestAgentUnit:
         mock_llm_response_2.content = [MagicMock(type="text", text="Okay, the tool failed.")]
         mock_llm_response_2.stop_reason = "end_turn"
 
-        # Mock the internal _make_llm_call method
+        # Mock the internal _make_llm_call method to return responses sequentially
         agent._make_llm_call = AsyncMock(side_effect=[mock_llm_response_1, mock_llm_response_2])
 
         # --- Mock Host Tool Execution (to raise error) ---
@@ -374,6 +365,7 @@ class TestAgentUnit:
         print(f"Execution Result: {result}")
 
         # --- Assertions ---
+        # Check the call count on the mocked internal method
         assert agent._make_llm_call.await_count == 2
         mock_mcp_host.get_formatted_tools.assert_awaited_once()
         # Tool execution attempted once
@@ -414,7 +406,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_filtering_passed_to_host(
-        self, mock_mcp_host: AsyncMock
+        self, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test that agent filtering parameters are correctly passed to
@@ -435,10 +427,12 @@ class TestAgentUnit:
         mock_llm_response = MagicMock(spec=Message)
         mock_llm_response.content = [MagicMock(type="text", text="Checking filtering...")]
         mock_llm_response.stop_reason = "end_turn"
+        # Mock the internal _make_llm_call method directly
         agent_with_filtering._make_llm_call = AsyncMock(return_value=mock_llm_response)
 
         # Mock get_formatted_tools on the host instance (return value doesn't matter)
-        mock_mcp_host.get_formatted_tools = AsyncMock(return_value=[])
+        # Note: get_formatted_tools is now mocked via the mock_mcp_host fixture itself
+        # mock_mcp_host.get_formatted_tools = AsyncMock(return_value=[]) # No longer needed here
 
         # Execute the agent
         await agent_with_filtering.execute_agent(
@@ -457,7 +451,7 @@ class TestAgentUnit:
 
     @pytest.mark.asyncio
     async def test_execute_agent_llm_call_failure(
-        self, agent: Agent, mock_mcp_host: AsyncMock
+        self, agent: Agent, mock_mcp_host: AsyncMock, mock_anthropic_client: MagicMock # Add mock client fixture
     ):
         """
         Test agent execution when the _make_llm_call method raises an exception.
@@ -479,6 +473,7 @@ class TestAgentUnit:
         print(f"Execution Result: {result}")
 
         # Assertions
+        # Check the call on the mocked internal method
         agent._make_llm_call.assert_awaited_once() # LLM call was attempted
         mock_mcp_host.get_formatted_tools.assert_awaited_once() # Tools were still fetched
         mock_mcp_host.execute_tool.assert_not_awaited() # Tool execution should not happen

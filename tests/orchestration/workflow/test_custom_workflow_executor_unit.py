@@ -15,18 +15,12 @@ from src.workflows.custom_workflow import CustomWorkflowExecutor
 from src.host.models import CustomWorkflowConfig
 from src.execution.facade import ExecutionFacade # Needed for type hint
 
+# Import shared fixtures
+from tests.fixtures.workflow_fixtures import sample_custom_workflow_config
+
 # --- Fixtures ---
 
-@pytest.fixture
-def sample_custom_workflow_config() -> CustomWorkflowConfig:
-    """Provides a sample custom workflow configuration."""
-    # Use dummy paths/names as we'll mock the import/instantiation
-    return CustomWorkflowConfig(
-        name="TestCustomWorkflow",
-        module_path=Path("dummy/path/to/workflow.py"),
-        class_name="MyCustomWorkflow",
-        description="A test custom workflow"
-    )
+# Removed local sample_custom_workflow_config - using shared fixture
 
 # --- Test Class ---
 

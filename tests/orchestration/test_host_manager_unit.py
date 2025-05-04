@@ -62,7 +62,11 @@ class TestHostManagerAgentRegistration:
         manager = unit_test_host_manager
         agent_config = AgentConfig(name="NewAgent", client_ids=["existing_client_1"])
 
+        # No patching needed, mock host's is_client_registered defaults to True
         await manager.register_agent(agent_config)
+
+        # Verify the check was made using the new method
+        manager.host.is_client_registered.assert_called_once_with("existing_client_1")
 
         assert "NewAgent" in manager.agent_configs
         assert manager.agent_configs["NewAgent"] == agent_config
@@ -100,11 +104,16 @@ class TestHostManagerAgentRegistration:
             name="AgentInvalidClient", client_ids=["non_existent_client"]
         )
 
+        # Configure the mock host to indicate the client is not registered
+        manager.host.is_client_registered.return_value = False
+
         with pytest.raises(
             ValueError, match="Client ID 'non_existent_client' not found"
         ):
             await manager.register_agent(agent_config)
 
+        # Verify the check was made
+        manager.host.is_client_registered.assert_called_once_with("non_existent_client")
         assert "AgentInvalidClient" not in manager.agent_configs
 
     # @pytest.mark.asyncio # Removed
@@ -130,7 +139,14 @@ class TestHostManagerAgentRegistration:
             client_ids=["existing_client_1", "existing_client_2"],
         )
 
+        # No patching needed, mock host's is_client_registered defaults to True
         await manager.register_agent(agent_config)
+
+        # Verify the check was made using the new method for both clients
+        manager.host.is_client_registered.assert_has_calls([
+            call("existing_client_1"),
+            call("existing_client_2"),
+        ], any_order=True)
 
         assert "AgentValidClients" in manager.agent_configs
         assert manager.agent_configs["AgentValidClients"] == agent_config
@@ -537,11 +553,21 @@ class TestHostManagerRegisterFromConfigHelpers:
             "HelperAgentBadClient": agent_config_bad_client,
         }
 
-        # We need register_agent to be callable, mock it if needed, but the helper calls it directly
-        # Let's spy on it instead to check calls
-        with patch.object(
-            manager, "register_agent", wraps=manager.register_agent
-        ) as spy_register_agent:
+        # Define a side effect for the __contains__ patch
+        def contains_side_effect(client_id):
+            if client_id == "existing_client_1":
+                return True
+            elif client_id == "non_existent":
+                return False
+            else:
+                # Default for any other unexpected client ID, though shouldn't happen here
+                return False
+
+        # Configure the mock host's is_client_registered method for this test
+        manager.host.is_client_registered.side_effect = contains_side_effect
+
+        # Spy on the real register_agent to check calls
+        with patch.object(manager, "register_agent", wraps=manager.register_agent) as spy_register_agent:
             reg_a, skip_a, err_a = await manager._register_agents_from_config(
                 agents_to_register
             )
@@ -552,7 +578,10 @@ class TestHostManagerRegisterFromConfigHelpers:
             assert (
                 skip_a == 2
             )  # HelperAgentDup (duplicate name), HelperAgentBadClient (bad client)
-            assert len(err_a) == 0  # Errors are handled via skips based on ValueError
+            # Errors from register_agent (like duplicate name or bad client ID) are caught
+            # by the helper and logged/skipped, not raised directly.
+            # The ValueError from register_agent for bad client ID should now be caught.
+            assert len(err_a) == 0, f"Expected 0 errors logged by helper, got: {err_a}"
 
             assert "HelperAgent1" in manager.agent_configs
             assert "HelperAgent2" in manager.agent_configs

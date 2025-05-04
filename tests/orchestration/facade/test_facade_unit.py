@@ -3,7 +3,7 @@ Unit tests for the ExecutionFacade.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, MagicMock # Add MagicMock import
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
@@ -543,3 +543,75 @@ class TestExecutionFacadeUnit:
 
 
     # TODO: Add tests for _execute_component itself (more complex, lower priority?)
+
+
+    # --- Tests for _execute_component ---
+
+    @pytest.mark.asyncio
+    async def test_execute_component_success_internal(
+        self, execution_facade: ExecutionFacade, mock_host_manager: Mock
+    ):
+        """
+        Test the internal logic of _execute_component for a successful execution.
+        This test does NOT mock _execute_component itself.
+        Uses Agent execution as the example pathway.
+        """
+        print("\\n--- Running Test: test_execute_component_success_internal ---")
+        component_name = "TestAgent"
+        component_type = "Agent"
+        initial_input = "Test message"
+        expected_result = {"status": "completed", "final_response": "Mocked agent response"}
+
+        # --- Mock dependencies ---
+        # 1. Config Lookup: Mock the config_lookup function passed by run_agent
+        mock_config = MagicMock(spec=AgentConfig)
+        mock_config_lookup = Mock(return_value=mock_config)
+
+        # 2. Executor Setup: Mock the executor_setup function passed by run_agent
+        mock_agent_instance = AsyncMock(spec=Agent)
+        mock_executor_setup = Mock(return_value=mock_agent_instance)
+
+        # 3. Execution Function: Mock the execution_func passed by run_agent
+        #    This represents the agent's execute_agent method
+        mock_execution_func = AsyncMock(return_value=expected_result)
+
+        # 4. Error Structure Factory: Mock the error factory
+        mock_error_factory = Mock() # Not expected to be called
+
+        # --- Call the internal method ---
+        # We need to provide the arguments as they would be passed by run_agent
+        result = await execution_facade._execute_component(
+            component_type=component_type,
+            component_name=component_name,
+            config_lookup=mock_config_lookup,
+            executor_setup=mock_executor_setup,
+            execution_func=mock_execution_func,
+            error_structure_factory=mock_error_factory,
+            # Pass through specific args needed by the execution_func (execute_agent)
+            host_instance=mock_host_manager.host,
+            user_message=initial_input,
+        )
+        print(f"Execution Result: {result}")
+
+        # --- Assertions ---
+        # 1. Config lookup was called
+        mock_config_lookup.assert_called_once_with(component_name)
+
+        # 2. Executor setup was called with the found config
+        mock_executor_setup.assert_called_once_with(mock_config)
+
+        # 3. Execution function was called with the instance and specific args
+        mock_execution_func.assert_awaited_once_with(
+            instance=mock_agent_instance,
+            host_instance=mock_host_manager.host,
+            user_message=initial_input,
+        )
+
+        # 4. Error factory was NOT called
+        mock_error_factory.assert_not_called()
+
+        # 5. Final result is correct
+        assert result == expected_result
+        print("Assertions passed.")
+
+        print("--- Test Finished: test_execute_component_success_internal ---")

@@ -15,29 +15,24 @@ from src.host.host import MCPHost
 from src.agents.agent import Agent # Needed for mocking
 from anthropic.types import Message # Added Message
 
+# Import shared fixtures
+from tests.fixtures.workflow_fixtures import sample_workflow_config
+from tests.mocks.mock_mcp_host import mock_mcp_host # Import shared host mock
+
 # --- Fixtures ---
 
-@pytest.fixture
-def mock_mcp_host() -> AsyncMock:
-    """Provides a mock MCPHost instance."""
-    return AsyncMock(spec=MCPHost)
+# Removed local mock_mcp_host fixture - using shared one
 
 @pytest.fixture
 def sample_agent_configs() -> dict[str, AgentConfig]:
     """Provides sample agent configurations."""
+    # Keeping this local as it's specific to the executor's input needs
     return {
         "Agent1": AgentConfig(name="Agent1", model="model-a"),
         "Agent2": AgentConfig(name="Agent2", model="model-b"),
     }
 
-@pytest.fixture
-def sample_workflow_config() -> WorkflowConfig:
-    """Provides a sample workflow configuration."""
-    return WorkflowConfig(
-        name="TestSimpleWorkflow",
-        steps=["Agent1", "Agent2"],
-        description="A test workflow"
-    )
+# Removed local sample_workflow_config - using shared fixture
 
 # --- Test Class ---
 
