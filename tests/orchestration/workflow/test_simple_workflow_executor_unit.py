@@ -31,7 +31,7 @@ def sample_agent_configs() -> dict[str, AgentConfig]:
     }
 
 
-# Removed local sample_workflow_config - using shared fixture
+# Removed local sample_workflow_config definition if it existed
 
 # --- Test Class ---
 

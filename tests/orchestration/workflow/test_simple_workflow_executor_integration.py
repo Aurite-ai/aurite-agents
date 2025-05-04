@@ -27,18 +27,17 @@ SAMPLE_AGENT_CONFIGS: Dict[str, AgentConfig] = {
     "Agent2": AgentConfig(name="Agent2", model="claude-3-haiku-20240307"),
 }
 
-SAMPLE_WORKFLOW_CONFIG = WorkflowConfig(
-    name="TestSimpleWorkflow", steps=["Agent1", "Agent2"]
-)
-
+# SAMPLE_WORKFLOW_CONFIG constant removed - using fixture now
 
 from src.host_manager import HostManager  # Import HostManager
+# Import the shared fixture
 
 
 # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
 async def test_simple_executor_init(
     host_manager: HostManager,
-):  # Use host_manager fixture
+    sample_workflow_config: WorkflowConfig,  # Add fixture argument
+):
     """
     Test Case 1: Verify SimpleWorkflowExecutor initializes correctly.
     """
@@ -47,17 +46,17 @@ async def test_simple_executor_init(
     assert host_instance is not None, "Host instance not found in HostManager"
     print(f"Host instance type: {type(host_instance)}")
     print(f"Agent configs: {SAMPLE_AGENT_CONFIGS}")
-    print(f"Workflow config: {SAMPLE_WORKFLOW_CONFIG}")
+    print(f"Workflow config: {sample_workflow_config}")  # Use fixture
 
     try:
         executor = SimpleWorkflowExecutor(
-            config=SAMPLE_WORKFLOW_CONFIG,
+            config=sample_workflow_config,  # Use fixture
             agent_configs=SAMPLE_AGENT_CONFIGS,
             host_instance=host_instance,  # Pass the retrieved host instance
         )
         print(f"Executor initialized: {executor}")
         assert executor is not None
-        assert executor.config == SAMPLE_WORKFLOW_CONFIG
+        assert executor.config == sample_workflow_config  # Use fixture
         assert executor._agent_configs == SAMPLE_AGENT_CONFIGS
         assert executor._host == host_instance
         print("Assertions passed.")
