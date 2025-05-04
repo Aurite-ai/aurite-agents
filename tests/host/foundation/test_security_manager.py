@@ -8,8 +8,9 @@ import base64
 import time # Add missing import
 from unittest.mock import patch, MagicMock
 
-# Import the class to test
+# Import the class to test and dependent models
 from src.host.foundation.security import SecurityManager, Fernet
+from src.host.models import GCPSecretConfig # Import the model
 
 # Mark tests as host_unit
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio] # Add anyio marker
@@ -284,10 +285,13 @@ def test_mask_sensitive_data(security_manager: SecurityManager, input_data: str,
 # Mock GCP Secret Manager types if the library isn't installed
 try:
     from google.cloud import secretmanager
+    # Import the actual types needed
+    from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse, AccessSecretVersionRequest, SecretPayload as ActualSecretPayload
     from google.api_core import exceptions as gcp_exceptions
-    SecretPayload = secretmanager.AccessSecretVersionResponse().payload
+    SecretPayload = ActualSecretPayload # Assign the correct type
 except ImportError:
     # Create dummy types if google.cloud.secretmanager is not available
+    # (Keep the existing dummy types as fallback)
     class MockGcpException(Exception):
         pass
     class MockNotFound(MockGcpException):
@@ -323,11 +327,13 @@ def mock_gcp_secret_client():
     def mock_access_secret_version(request):
         secret_name = request.name
         if secret_name == "projects/p/secrets/secret1/versions/latest":
+            # Use the correctly assigned SecretPayload type/class
             payload = SecretPayload(data=b"value1")
-            return secretmanager.AccessSecretVersionResponse(payload=payload)
+            return AccessSecretVersionResponse(payload=payload) # Use imported type
         elif secret_name == "projects/p/secrets/secret2/versions/latest":
+            # Use the correctly assigned SecretPayload type/class
             payload = SecretPayload(data=b"value2_!@#")
-            return secretmanager.AccessSecretVersionResponse(payload=payload)
+            return AccessSecretVersionResponse(payload=payload) # Use imported type
         elif secret_name == "projects/p/secrets/notfound/versions/latest":
             raise gcp_exceptions.NotFound("Secret not found")
         elif secret_name == "projects/p/secrets/denied/versions/latest":
@@ -345,22 +351,23 @@ def security_manager_with_mock_gcp(mock_gcp_secret_client) -> SecurityManager:
     # Patch the client *before* initializing SecurityManager
     with patch(
         "src.host.foundation.security.secretmanager.SecretManagerServiceClient",
-        return_value=mock_gcp_secret_client,
+            return_value=mock_gcp_secret_client,
     ):
-         # Ensure the library itself is considered imported for the check in __init__
-         with patch("src.host.foundation.security.secretmanager", mock_gcp_secret_client):
-              manager = SecurityManager()
-              # Verify the mock client was assigned
-              assert manager._gcp_secret_client == mock_gcp_secret_client
-              return manager
+         # We only need to patch the ServiceClient class, not the module variable
+         # The 'if secretmanager:' check in __init__ will use the actual imported module
+         manager = SecurityManager()
+         # Verify the mock client was assigned inside the try block
+         assert manager._gcp_secret_client == mock_gcp_secret_client
+         return manager # Correct indentation
 
 
 async def test_resolve_gcp_secrets_success(security_manager_with_mock_gcp: SecurityManager):
     """Test resolving multiple GCP secrets successfully."""
     manager = security_manager_with_mock_gcp
+    # Ensure these are GCPSecretConfig objects (already corrected in previous step, verify)
     secrets_config = [
-        {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "ENV_VAR_1"},
-        {"secret_id": "projects/p/secrets/secret2/versions/latest", "env_var_name": "ENV_VAR_2"},
+        GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="ENV_VAR_1"),
+        GCPSecretConfig(secret_id="projects/p/secrets/secret2/versions/latest", env_var_name="ENV_VAR_2"),
     ]
     resolved = await manager.resolve_gcp_secrets(secrets_config)
 
@@ -374,10 +381,11 @@ async def test_resolve_gcp_secrets_success(security_manager_with_mock_gcp: Secur
 async def test_resolve_gcp_secrets_partial_failure(security_manager_with_mock_gcp: SecurityManager):
     """Test resolving secrets with some failures (NotFound, PermissionDenied)."""
     manager = security_manager_with_mock_gcp
+    # Ensure these are GCPSecretConfig objects (already corrected in previous step, verify)
     secrets_config = [
-        {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "GOOD_SECRET"},
-        {"secret_id": "projects/p/secrets/notfound/versions/latest", "env_var_name": "BAD_SECRET_1"},
-        {"secret_id": "projects/p/secrets/denied/versions/latest", "env_var_name": "BAD_SECRET_2"},
+        GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="GOOD_SECRET"),
+        GCPSecretConfig(secret_id="projects/p/secrets/notfound/versions/latest", env_var_name="BAD_SECRET_1"),
+        GCPSecretConfig(secret_id="projects/p/secrets/denied/versions/latest", env_var_name="BAD_SECRET_2"),
     ]
     resolved = await manager.resolve_gcp_secrets(secrets_config)
 
@@ -405,8 +413,9 @@ async def test_resolve_gcp_secrets_no_client():
         manager = SecurityManager()
         assert manager._gcp_secret_client is None
 
+        # Create instance of GCPSecretConfig
         secrets_config = [
-             {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "ENV_VAR_1"},
+             GCPSecretConfig(secret_id="projects/p/secrets/secret1/versions/latest", env_var_name="ENV_VAR_1"),
         ]
         resolved = await manager.resolve_gcp_secrets(secrets_config)
         assert resolved == {} # Should return empty dict if client is unavailable
