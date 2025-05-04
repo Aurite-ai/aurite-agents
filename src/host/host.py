@@ -214,6 +214,7 @@ class MCPHost:
                 discovered_tools = await self._tool_manager.discover_client_tools(
                     client_id=config.client_id, client_session=session
                 )
+                # --- Removed detailed logging ---
                 for tool in discovered_tools:  # Iterate directly over the list
                     # Pass FilteringManager and ClientConfig to allow manager to check exclusion
                     registered = await self._tool_manager.register_tool(
@@ -223,6 +224,7 @@ class MCPHost:
                         client_config=config,  # Pass the whole config
                         filtering_manager=self._filtering_manager,  # Pass the manager
                     )
+                    # --- Removed detailed logging ---
                     if registered:
                         tool_names.append(tool.name)
 
