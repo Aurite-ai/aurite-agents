@@ -9,6 +9,7 @@ import logging
 import base64
 import hashlib
 import time
+import warnings # Add import
 from typing import Dict, Optional, Any, List  # Added List
 from dataclasses import dataclass
 
@@ -108,26 +109,52 @@ class SecurityManager:
         )
         return key_str
 
-    def _setup_cipher(self, key: str) -> Fernet:
-        """Set up encryption cipher from key"""
-        # Handle string or bytes key
+    def _setup_cipher(self, key: str | bytes) -> Fernet: # Allow bytes input too
+        """
+        Set up encryption cipher from key.
+        Fernet expects a urlsafe-base64-encoded 32-byte key.
+        """
+        key_bytes_for_fernet: bytes
+
         if isinstance(key, str):
             try:
-                key_bytes = base64.urlsafe_b64decode(key.encode("ascii"))
-            except Exception:
-                # If not a valid base64 key, derive a key from the string
-                salt = b"aurite-mcp-salt"  # Not for security, just consistency
+                # Check if the string is valid base64 *without* decoding yet
+                # This will raise an exception if not valid base64
+                decoded_bytes_check = base64.urlsafe_b64decode(key.encode("ascii"))
+                # If it is valid base64, Fernet wants it encoded as bytes
+                key_bytes_for_fernet = key.encode("ascii")
+                # Verify length after potential decode (Fernet does this internally, but good practice)
+                if len(decoded_bytes_check) != 32:
+                     raise ValueError("Provided base64 key must decode to 32 bytes.")
+
+            except Exception: # Includes binascii.Error and potentially others
+                # If not a valid base64 string, derive a key
+                logger.info("Encryption key is not valid base64, deriving key from string.")
+                salt = b"aurite-mcp-salt"  # Consistent salt
                 kdf = PBKDF2HMAC(
                     algorithm=hashes.SHA256(),
-                    length=32,
+                    length=32, # Fernet keys are 32 bytes raw
                     salt=salt,
-                    iterations=100000,
+                    iterations=100000, # Standard recommendation
                 )
-                key_bytes = base64.urlsafe_b64encode(kdf.derive(key.encode("utf-8")))
+                # Derive the raw 32 bytes
+                derived_key_raw = kdf.derive(key.encode("utf-8"))
+                # Fernet needs the base64 encoded version of the raw key
+                key_bytes_for_fernet = base64.urlsafe_b64encode(derived_key_raw)
+        elif isinstance(key, bytes):
+             # Assume bytes are already urlsafe-base64-encoded
+             key_bytes_for_fernet = key
+             # Verify length after potential decode
+             try:
+                 if len(base64.urlsafe_b64decode(key_bytes_for_fernet)) != 32:
+                     raise ValueError("Provided key bytes must decode to 32 bytes.")
+             except Exception as e:
+                 raise ValueError(f"Provided key bytes are not valid urlsafe-base64: {e}")
         else:
-            key_bytes = key
+            raise TypeError("Encryption key must be a string or bytes.")
 
-        return Fernet(key_bytes)
+        # Fernet constructor handles the final base64 decoding
+        return Fernet(key_bytes_for_fernet)
 
     # register_server_permissions method removed.
 
@@ -170,7 +197,9 @@ class SecurityManager:
 
         # Check expiry
         if cred.expiry and cred.expiry < time.time():
-            logger.warning(f"Credential {cred_id} has expired")
+            warn_msg = f"Credential {cred_id} has expired"
+            logger.warning(warn_msg)
+            warnings.warn(warn_msg, UserWarning) # Raise UserWarning
             return None
 
         # Decrypt

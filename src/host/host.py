@@ -21,11 +21,10 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager, MessageRouter
-from .filtering import FilteringManager  # Added import
-from .models import (  # Import WorkflowConfig
+from .filtering import FilteringManager
+from .models import (
     AgentConfig,
     ClientConfig,
-    # Removed CustomWorkflowConfig
     HostConfig,
 )
 
