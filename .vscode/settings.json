@@ -30,5 +30,6 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "[dockerfile]": {
     "editor.formatOnSave": false
-  }
+  },
+  "editor.formatOnSave": false
 }
