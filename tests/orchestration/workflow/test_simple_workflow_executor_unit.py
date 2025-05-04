@@ -181,15 +181,36 @@ class TestSimpleWorkflowExecutorUnit:
         mock_agent_instance_1 = AsyncMock(spec=Agent)
         mock_agent_instance_1.execute_agent = AsyncMock(return_value=agent1_result)
 
-        with patch('src.workflows.simple_workflow.Agent', return_value=mock_agent_instance_1) as mock_agent_class:
+        # --- Mock Agent Instantiation and Execution for preceding steps ---
+        agent1_output_text = "Result from Agent1"
+        mock_agent1_message = MagicMock(spec=Message)
+        mock_agent1_message.content = [MagicMock(type="text", text=agent1_output_text)]
+        agent1_result = {"final_response": mock_agent1_message}
+        mock_agent_instance_1 = AsyncMock(spec=Agent)
+        mock_agent_instance_1.execute_agent = AsyncMock(return_value=agent1_result)
+
+        agent2_output_text = "Result from Agent2" # Need output for step 2 as well
+        mock_agent2_message = MagicMock(spec=Message)
+        mock_agent2_message.content = [MagicMock(type="text", text=agent2_output_text)]
+        agent2_result = {"final_response": mock_agent2_message}
+        mock_agent_instance_2 = AsyncMock(spec=Agent)
+        mock_agent_instance_2.execute_agent = AsyncMock(return_value=agent2_result)
+
+        # Patch Agent class to return mocks for Agent1 and Agent2
+        with patch('src.workflows.simple_workflow.Agent', side_effect=[mock_agent_instance_1, mock_agent_instance_2]) as mock_agent_class:
              result = await executor.execute(initial_input=initial_input)
 
         print(f"Execution Result: {result}")
 
         # --- Assertions ---
-        # Agent should only be instantiated once (for Agent1)
-        mock_agent_class.assert_called_once_with(config=sample_agent_configs["Agent1"])
+        # Agent should be instantiated twice (for Agent1 & Agent2) before the KeyError
+        assert mock_agent_class.call_count == 2
+        mock_agent_class.assert_has_calls([
+            call(config=sample_agent_configs["Agent1"]),
+            call(config=sample_agent_configs["Agent2"]),
+        ])
         mock_agent_instance_1.execute_agent.assert_awaited_once()
+        mock_agent_instance_2.execute_agent.assert_awaited_once()
 
         # Check the final result structure for failure
         assert result["status"] == "failed"
@@ -248,8 +269,9 @@ class TestSimpleWorkflowExecutorUnit:
             assert result["status"] == "failed"
             assert result["final_message"] is None
             assert result["error"] is not None
-            assert "Agent 'Agent1' (step 1)" in result["error"] # Check step info
-            assert str(agent_execution_error) in result["error"] # Check original error message
+            # Check the exact error message constructed by the executor
+            expected_error_msg = f"Unexpected error during agent 'Agent1' (step 1) execution within workflow '{sample_workflow_config.name}': {agent_execution_error}"
+            assert result["error"] == expected_error_msg
 
             print("Assertions passed.")
 
