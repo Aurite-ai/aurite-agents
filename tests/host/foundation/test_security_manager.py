@@ -279,4 +279,134 @@ def test_mask_sensitive_data(security_manager: SecurityManager, input_data: str,
     assert masked_data == expected_output
 
 
-# TODO: Add tests for resolve_gcp_secrets (mocking GCP client)
+# --- GCP Secret Resolution Tests ---
+
+# Mock GCP Secret Manager types if the library isn't installed
+try:
+    from google.cloud import secretmanager
+    from google.api_core import exceptions as gcp_exceptions
+    SecretPayload = secretmanager.AccessSecretVersionResponse().payload
+except ImportError:
+    # Create dummy types if google.cloud.secretmanager is not available
+    class MockGcpException(Exception):
+        pass
+    class MockNotFound(MockGcpException):
+        pass
+    class MockPermissionDenied(MockGcpException):
+        pass
+    gcp_exceptions = MagicMock()
+    gcp_exceptions.NotFound = MockNotFound
+    gcp_exceptions.PermissionDenied = MockPermissionDenied
+
+    class MockSecretPayload:
+        def __init__(self, data: bytes):
+            self.data = data
+    SecretPayload = MockSecretPayload
+
+    class MockAccessSecretVersionResponse:
+        def __init__(self, payload: MockSecretPayload):
+            self.payload = payload
+    secretmanager = MagicMock()
+    secretmanager.AccessSecretVersionResponse = MockAccessSecretVersionResponse
+    secretmanager.AccessSecretVersionRequest = MagicMock()
+
+
+@pytest.fixture
+def mock_gcp_secret_client():
+    """Fixture for a mocked GCP Secret Manager client."""
+    if not secretmanager: # If original import failed
+         pytest.skip("google-cloud-secret-manager not installed, skipping GCP tests.")
+
+    mock_client = MagicMock(spec=secretmanager.SecretManagerServiceClient)
+
+    # Define behavior for access_secret_version
+    def mock_access_secret_version(request):
+        secret_name = request.name
+        if secret_name == "projects/p/secrets/secret1/versions/latest":
+            payload = SecretPayload(data=b"value1")
+            return secretmanager.AccessSecretVersionResponse(payload=payload)
+        elif secret_name == "projects/p/secrets/secret2/versions/latest":
+            payload = SecretPayload(data=b"value2_!@#")
+            return secretmanager.AccessSecretVersionResponse(payload=payload)
+        elif secret_name == "projects/p/secrets/notfound/versions/latest":
+            raise gcp_exceptions.NotFound("Secret not found")
+        elif secret_name == "projects/p/secrets/denied/versions/latest":
+            raise gcp_exceptions.PermissionDenied("Permission denied")
+        else:
+            raise ValueError(f"Unexpected secret name in mock: {secret_name}")
+
+    mock_client.access_secret_version.side_effect = mock_access_secret_version
+    return mock_client
+
+
+@pytest.fixture
+def security_manager_with_mock_gcp(mock_gcp_secret_client) -> SecurityManager:
+    """Fixture for SecurityManager with mocked GCP client."""
+    # Patch the client *before* initializing SecurityManager
+    with patch(
+        "src.host.foundation.security.secretmanager.SecretManagerServiceClient",
+        return_value=mock_gcp_secret_client,
+    ):
+         # Ensure the library itself is considered imported for the check in __init__
+         with patch("src.host.foundation.security.secretmanager", mock_gcp_secret_client):
+              manager = SecurityManager()
+              # Verify the mock client was assigned
+              assert manager._gcp_secret_client == mock_gcp_secret_client
+              return manager
+
+
+async def test_resolve_gcp_secrets_success(security_manager_with_mock_gcp: SecurityManager):
+    """Test resolving multiple GCP secrets successfully."""
+    manager = security_manager_with_mock_gcp
+    secrets_config = [
+        {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "ENV_VAR_1"},
+        {"secret_id": "projects/p/secrets/secret2/versions/latest", "env_var_name": "ENV_VAR_2"},
+    ]
+    resolved = await manager.resolve_gcp_secrets(secrets_config)
+
+    assert resolved == {
+        "ENV_VAR_1": "value1",
+        "ENV_VAR_2": "value2_!@#",
+    }
+    assert manager._gcp_secret_client.access_secret_version.call_count == 2
+
+
+async def test_resolve_gcp_secrets_partial_failure(security_manager_with_mock_gcp: SecurityManager):
+    """Test resolving secrets with some failures (NotFound, PermissionDenied)."""
+    manager = security_manager_with_mock_gcp
+    secrets_config = [
+        {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "GOOD_SECRET"},
+        {"secret_id": "projects/p/secrets/notfound/versions/latest", "env_var_name": "BAD_SECRET_1"},
+        {"secret_id": "projects/p/secrets/denied/versions/latest", "env_var_name": "BAD_SECRET_2"},
+    ]
+    resolved = await manager.resolve_gcp_secrets(secrets_config)
+
+    # Only the good secret should be resolved
+    assert resolved == {
+        "GOOD_SECRET": "value1",
+    }
+    # Check that the client was called for all three secrets
+    assert manager._gcp_secret_client.access_secret_version.call_count == 3
+
+
+async def test_resolve_gcp_secrets_empty_config(security_manager_with_mock_gcp: SecurityManager):
+    """Test resolving with an empty secrets config list."""
+    manager = security_manager_with_mock_gcp
+    resolved = await manager.resolve_gcp_secrets([])
+    assert resolved == {}
+    manager._gcp_secret_client.access_secret_version.assert_not_called()
+
+
+async def test_resolve_gcp_secrets_no_client():
+    """Test resolving secrets when the GCP client could not be initialized."""
+    # Patch the import check and client init to simulate failure
+    with patch("src.host.foundation.security.secretmanager", None), \
+         patch("src.host.foundation.security.gcp_exceptions", None):
+        manager = SecurityManager()
+        assert manager._gcp_secret_client is None
+
+        secrets_config = [
+             {"secret_id": "projects/p/secrets/secret1/versions/latest", "env_var_name": "ENV_VAR_1"},
+        ]
+        resolved = await manager.resolve_gcp_secrets(secrets_config)
+        assert resolved == {} # Should return empty dict if client is unavailable
