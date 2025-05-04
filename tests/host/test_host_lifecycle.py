@@ -33,17 +33,7 @@ def minimal_host_config() -> HostConfig:
         ]
     )
 
-@pytest.fixture
-def mock_managers():
-    """Provides mocked instances of all managers."""
-    return {
-        "security": AsyncMock(spec=SecurityManager),
-        "root": AsyncMock(spec=RootManager),
-        "message_router": AsyncMock(spec=MessageRouter),
-        "prompt": AsyncMock(spec=PromptManager),
-        "resource": AsyncMock(spec=ResourceManager),
-        "tool": AsyncMock(spec=ToolManager),
-    }
+# Removed unused mock_managers fixture
 
 @pytest.fixture
 def mock_client_session() -> MagicMock:

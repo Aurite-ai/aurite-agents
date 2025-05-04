@@ -9,12 +9,17 @@ from typing import List, Dict, Any
 
 # Import the class to test and dependencies/models
 from src.host.resources.tools import ToolManager
+# Import foundation classes for type hinting shared fixtures
 from src.host.foundation.routing import MessageRouter
 from src.host.foundation.roots import RootManager
 from src.host.filtering import FilteringManager
+# Import models
 from src.host.models import ClientConfig, RootConfig, AgentConfig
+# Import shared fixtures
+from tests.fixtures.agent_fixtures import minimal_agent_config # Import specific fixture
+# Import mcp types and session for mocking
 import mcp.types as types
-from mcp.client.session import ClientSession # For mocking
+from mcp.client.session import ClientSession
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
@@ -22,25 +27,8 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 
 # --- Fixtures ---
 
-@pytest.fixture
-def mock_message_router() -> MagicMock:
-    """Fixture for a mocked MessageRouter."""
-    return AsyncMock(spec=MessageRouter)
-
-@pytest.fixture
-def mock_filtering_manager() -> MagicMock:
-    """Fixture for a mocked FilteringManager."""
-    mock = MagicMock(spec=FilteringManager)
-    mock.is_registration_allowed.return_value = True # Default to allowed
-    mock.filter_component_list.side_effect = lambda tools, config: tools # Pass through by default
-    return mock
-
-@pytest.fixture
-def mock_root_manager() -> MagicMock:
-    """Fixture for a mocked RootManager."""
-    mock = MagicMock(spec=RootManager)
-    mock.validate_access.return_value = True # Default to allowed
-    return mock
+# Removed local mock_message_router, mock_filtering_manager, mock_root_manager fixtures
+# They are now imported from tests.fixtures.host_fixtures
 
 @pytest.fixture
 def mock_client_session() -> MagicMock:
@@ -90,10 +78,8 @@ def sample_tool() -> types.Tool:
         inputSchema=input_schema
     )
 
-@pytest.fixture
-def sample_agent_config() -> AgentConfig:
-    """Fixture for a basic AgentConfig."""
-    return AgentConfig(name="test_agent")
+# Removed local sample_agent_config fixture
+# Use minimal_agent_config from tests.fixtures.agent_fixtures instead
 
 
 # --- Test Cases ---
@@ -559,12 +545,12 @@ config_B = ClientConfig(client_id="clientB", server_path="path/B", capabilities=
 async def test_format_tools_for_llm_no_tools(
     tool_manager: ToolManager,
     mock_filtering_manager: MagicMock,
-    sample_agent_config: AgentConfig,
+    minimal_agent_config: AgentConfig, # Use shared fixture
 ):
     """Test formatting when no tools are registered."""
     formatted = tool_manager.format_tools_for_llm(
         filtering_manager=mock_filtering_manager,
-        agent_config=sample_agent_config
+        agent_config=minimal_agent_config # Use shared fixture
     )
     assert formatted == []
 

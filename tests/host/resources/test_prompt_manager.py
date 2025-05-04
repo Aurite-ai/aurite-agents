@@ -7,10 +7,13 @@ from unittest.mock import MagicMock, AsyncMock, call
 
 # Import the class to test and dependencies/models
 from src.host.resources.prompts import PromptManager
+# Import foundation classes for type hinting shared fixtures
 from src.host.foundation.routing import MessageRouter
 from src.host.filtering import FilteringManager
+# Import models
 from src.host.models import ClientConfig
-import mcp.types as types # Import mcp types
+# Import mcp types
+import mcp.types as types
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
@@ -18,18 +21,8 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 
 # --- Fixtures ---
 
-@pytest.fixture
-def mock_message_router() -> MagicMock:
-    """Fixture for a mocked MessageRouter."""
-    return AsyncMock(spec=MessageRouter) # Use AsyncMock for async methods
-
-@pytest.fixture
-def mock_filtering_manager() -> MagicMock:
-    """Fixture for a mocked FilteringManager."""
-    # Mock the method used during registration
-    mock = MagicMock(spec=FilteringManager)
-    mock.is_registration_allowed.return_value = True # Default to allowed
-    return mock
+# Removed local mock_message_router and mock_filtering_manager fixtures
+# They are now imported from tests.fixtures.host_fixtures
 
 @pytest.fixture
 def prompt_manager(mock_message_router: MagicMock) -> PromptManager:

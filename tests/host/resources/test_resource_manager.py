@@ -8,11 +8,14 @@ from typing import List # Added List import
 
 # Import the class to test and dependencies/models
 from src.host.resources.resources import ResourceManager
+# Import foundation classes for type hinting shared fixtures
 from src.host.foundation.routing import MessageRouter
 from src.host.foundation.roots import RootManager
 from src.host.filtering import FilteringManager
+# Import models
 from src.host.models import ClientConfig, RootConfig
-import mcp.types as types # Import mcp types
+# Import mcp types
+import mcp.types as types
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
@@ -20,24 +23,8 @@ pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
 
 # --- Fixtures ---
 
-@pytest.fixture
-def mock_message_router() -> MagicMock:
-    """Fixture for a mocked MessageRouter."""
-    return AsyncMock(spec=MessageRouter)
-
-@pytest.fixture
-def mock_filtering_manager() -> MagicMock:
-    """Fixture for a mocked FilteringManager."""
-    mock = MagicMock(spec=FilteringManager)
-    mock.is_registration_allowed.return_value = True # Default to allowed
-    return mock
-
-@pytest.fixture
-def mock_root_manager() -> MagicMock:
-    """Fixture for a mocked RootManager."""
-    mock = MagicMock(spec=RootManager)
-    mock.validate_access.return_value = True # Default to allowed
-    return mock
+# Removed local mock_message_router, mock_filtering_manager, mock_root_manager fixtures
+# They are now imported from tests.fixtures.host_fixtures
 
 @pytest.fixture
 def resource_manager(
