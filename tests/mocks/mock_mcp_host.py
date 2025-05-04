@@ -4,7 +4,7 @@ Reusable mocks for the MCPHost system, primarily for unit testing dependents.
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from typing import Dict, Any
+from typing import Dict
 
 # Import the class we are mocking to ensure the mock spec matches
 from src.host.host import MCPHost

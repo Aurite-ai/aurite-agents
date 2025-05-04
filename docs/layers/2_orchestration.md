@@ -104,9 +104,9 @@ This layer orchestrates the core agentic capabilities of the framework.
 
 | Functionality                                      | Relevant File(s)                              | Existing Test File(s) / Status                                                                                                                                                                                                                         |
 | :------------------------------------------------- | :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **HostManager: Initialization**                    | `host_manager.py`                             | `tests/host/test_host_manager.py::TestHostManagerInitialization::test_host_manager_initialization_success` (Integration via `host_manager` fixture). Checks counts based on `testing_config.json` + `prompt_validation_config.json`. Needs unit tests. |
-| **HostManager: Dynamic Registration (Individual)** | `host_manager.py`                             | No dedicated tests calling `register_client/agent/workflow` directly. Partially covered by API tests.                                                                                                                                                  |
-| **HostManager: `register_config_file`**            | `host_manager.py`                             | `tests/host/test_host_manager.py::TestHostManagerDynamicRegistration::test_register_config_file_success` (Integration via `host_manager` fixture, uses `testing_dynamic_config.json`). Checks counts and handles duplicates.                           |
+| **HostManager: Initialization**                    | `host_manager.py`                             | `tests/orchestration/test_host_manager.py::TestHostManagerInitialization::test_host_manager_initialization_success` (Integration via `host_manager` fixture). Checks counts based on `testing_config.json` + `prompt_validation_config.json`. Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). |
+| **HostManager: Dynamic Registration (Individual)** | `host_manager.py`                             | Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). Integration tests using `host_manager` fixture could be added if needed, but lower priority. Partially covered by API tests.                                                  |
+| **HostManager: `register_config_file`**            | `host_manager.py`                             | `tests/orchestration/test_host_manager.py::TestHostManagerDynamicRegistration::test_register_config_file_success` (Integration via `host_manager` fixture, uses `testing_dynamic_config.json`). Checks counts and handles duplicates. Unit tests implemented (`tests/orchestration/test_host_manager_unit.py`). |
 | **ExecutionFacade: `run_agent`**                   | `facade.py`, `agent.py`                       | `tests/execution/test_facade_integration.py::test_facade_run_agent` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                               |
 | **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py` | `tests/execution/test_facade_integration.py::test_facade_run_simple_workflow` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                     |
 | **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`             | `tests/execution/test_facade_integration.py::test_facade_run_custom_workflow` (Integration via `host_manager`). Needs unit tests for facade logic.                                                                                                     |
@@ -131,16 +131,26 @@ This layer orchestrates the core agentic capabilities of the framework.
         *   `tests/orchestration/test_filtering.py`
     *   **To Move & Mark:**
         *   `tests/host/test_tool_filtering.py` -> `tests/orchestration/test_tool_filtering.py`
-        *   `tests/agents/test_agent.py` -> `tests/orchestration/test_agent.py`
-    *   **Next Action:** Apply marker to remaining moved files, then move `test_agent.py` and mark it. Finally, run `pytest -m orchestration` and ensure all refactored tests pass (expect `test_agent.py` might need adjustments or skipping initially).
+        *   `tests/agents/test_agent.py` -> `tests/orchestration/agent/test_agent.py`
+    *   **Description:** All relevant existing tests from `tests/execution/`, `tests/workflows/`, `tests/host/`, and `tests/agents/` have been moved to `tests/orchestration/` (or subdirs), marked with `@pytest.mark.orchestration`, and confirmed to be passing under `pytest -m orchestration`. This includes:
+        *   `tests/orchestration/config/test_config_loading.py`
+        *   `tests/orchestration/facade/test_facade_integration.py`
+        *   `tests/orchestration/workflow/test_simple_workflow_executor_integration.py`
+        *   `tests/orchestration/workflow/test_custom_workflow_executor_integration.py`
+        *   `tests/orchestration/test_host_manager.py`
+        *   `tests/orchestration/test_filtering.py`
+        *   `tests/orchestration/test_tool_filtering.py`
+        *   `tests/orchestration/agent/test_agent.py` (Note: Renamed from `test_agent.py` and moved)
 3.  **Implement Missing Unit Tests:**
-    *   `HostManager`: Unit test `register_agent`, `register_workflow`, `register_custom_workflow` methods (mocking `self.host` and checking internal dictionaries). Unit test `_register_*_from_config` helpers.
-    *   `ExecutionFacade`: Unit test `_execute_component` helper logic (mocking dependencies like `config_lookup`, `executor_setup`, `execution_func`).
-    *   `Agent`: Unit test `execute_agent` loop logic, mocking `_make_llm_call` and `host_instance.execute_tool` to simulate different LLM responses (tool use, no tool use, errors). **Crucially, add unit tests specifically verifying the `client_ids` and `exclude_components` filtering logic when `host_instance.get_formatted_tools` is called.**
-    *   `SimpleWorkflowExecutor`: Unit test `execute` method logic, mocking `Agent` instantiation and `execute_agent` calls. Test edge cases (empty steps, agent errors).
-    *   `CustomWorkflowExecutor`: Unit test `execute` method, mocking `importlib`, file system interactions (`Path.exists`), and the dynamically loaded class/method. Test error conditions (file not found, class not found, method not async, etc.).
+    *   **Status:** HostManager unit tests completed (`tests/orchestration/test_host_manager_unit.py`). Mock MCP Host implemented (`tests/mocks/mock_mcp_host.py`).
+    *   **Next:**
+        *   `ExecutionFacade`: Unit test `_execute_component` helper logic (mocking dependencies like `config_lookup`, `executor_setup`, `execution_func`). Create `tests/orchestration/facade/test_facade_unit.py`.
+        *   `Agent`: Unit test `execute_agent` loop logic, mocking `_make_llm_call` and `host_instance.execute_tool` (using `mock_mcp_host`) to simulate different LLM responses (tool use, no tool use, errors). **Crucially, add unit tests specifically verifying the `client_ids` and `exclude_components` filtering logic when `host_instance.get_formatted_tools` is called.** Create `tests/orchestration/agent/test_agent_unit.py`.
+        *   `SimpleWorkflowExecutor`: Unit test `execute` method logic, mocking `Agent` instantiation and `execute_agent` calls. Test edge cases (empty steps, agent errors). Create `tests/orchestration/workflow/test_simple_workflow_executor_unit.py`.
+        *   `CustomWorkflowExecutor`: Unit test `execute` method, mocking `importlib`, file system interactions (`Path.exists`), and the dynamically loaded class/method. Test error conditions (file not found, class not found, method not async, etc.). Create `tests/orchestration/workflow/test_custom_workflow_executor_unit.py`.
 4.  **Implement Missing Integration Tests:**
-    *   `HostManager`: Add integration tests for individual dynamic registration methods (`register_client`, `register_agent`, etc.) using the `host_manager` fixture to verify state changes.
+    *   **Status:** HostManager integration tests are considered sufficient via `test_host_manager.py` which covers initialization and `register_config_file`. Individual registration method integration tests are lower priority compared to executor/agent tests.
+    *   **Next:** Focus on ensuring robust integration tests for the Facade and Executors (already partially covered but may need enhancement in step 5). Consider adding integration tests for `ExecutionFacade` error handling scenarios not covered by `test_facade_integration.py`.
 5.  **Update & Enhance Existing Tests:**
-    *   Update `tests/orchestration/test_agent.py` (formerly `tests/agents/test_agent.py`) to correctly test agent execution *with* the current filtering mechanisms, potentially adding new test cases using the `agent_config_filtered` fixture.
+    *   Update `tests/orchestration/agent/test_agent.py` (formerly `tests/agents/test_agent.py`) to correctly test agent execution *with* the current filtering mechanisms, potentially adding new test cases using the `agent_config_filtered` fixture.
     *   Review integration tests (`test_facade_integration`, `test_*_workflow_executor_integration`, `test_host_manager`) to ensure they cover key success and failure paths in the orchestration flow.

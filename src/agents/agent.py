@@ -174,15 +174,15 @@ class Agent:
         )  # Log truncated prompt
 
         # Prepare Tools (Using Host's get_formatted_tools, which applies agent filtering)
-        tools_data = host_instance.get_formatted_tools(agent_config=self.config)
+        tools_data = await host_instance.get_formatted_tools(agent_config=self.config) # Added await
         logger.debug(  # Already DEBUG
-            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}"
+            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}" # This expects tools_data to be a list of dicts
         )
 
         # Initialize Message History - Renumbered step
         # TODO: Implement history loading/management if include_history is True
         messages: List[MessageParam] = [{"role": "user", "content": user_message}]
-        conversation_history = []  # Store full request/response cycles
+        conversation_history = [{"role": "user", "content": user_message}] # Add initial user message to history
 
         # Execute Conversation Loop - Renumbered step
         final_response = None

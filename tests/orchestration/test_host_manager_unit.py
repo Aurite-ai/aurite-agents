@@ -3,7 +3,7 @@ Unit tests for the HostManager class, focusing on registration logic.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch, call
+from unittest.mock import MagicMock, patch, call
 from pathlib import Path
 
 # Mark all tests in this module as belonging to the Orchestration layer and unit tests
@@ -18,12 +18,9 @@ from src.host.models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     ClientConfig,
-    CustomWorkflowConfig,
-    ClientConfig,
 )
 
 # Import the shared mock fixture
-from tests.mocks.mock_mcp_host import mock_mcp_host
 
 # --- Fixtures ---
 
@@ -710,7 +707,7 @@ class TestHostManagerRegisterFromConfigHelpers:
         mock_path_exists.side_effect = [
             True,  # For path_1_res (HelperCWF1)
             True,  # For path_2_res (HelperCWF2)
-            False, # For path_bad_res (HelperCWFBadPath)
+            False,  # For path_bad_res (HelperCWFBadPath)
         ]
 
         # --- Execute the helper method (calls real register_custom_workflow) ---
@@ -748,4 +745,4 @@ class TestHostManagerRegisterFromConfigHelpers:
         # can be complex due to instance vs class method patching.
         # The core logic is verified by the reg_cw/skip_cw counts and the
         # final state of custom_workflow_configs. Removing detailed call checks.
-        mock_project_root_dir_obj.resolve.assert_called() # Still useful to check PROJECT_ROOT_DIR.resolve() was used.
+        mock_project_root_dir_obj.resolve.assert_called()  # Still useful to check PROJECT_ROOT_DIR.resolve() was used.
