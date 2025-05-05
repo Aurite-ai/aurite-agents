@@ -14,9 +14,8 @@ if TYPE_CHECKING:
     from ..workflows.simple_workflow import (
         SimpleWorkflowExecutor,
     )  # Import for type hint
-    from ..workflows.custom_workflow import (
-        CustomWorkflowExecutor,
-    )  # Import for type hint
+    from ..workflows.custom_workflow import CustomWorkflowExecutor
+    from ..storage.db_manager import StorageManager # Import StorageManager for type hint
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
@@ -35,16 +34,18 @@ class ExecutionFacade:
     A facade that simplifies the execution of different component types
     (Agents, Simple Workflows, Custom Workflows) managed by the HostManager.
 
-    It uses the appropriate executor for each component type.
+    It uses the appropriate executor for each component type and passes
+    the StorageManager if available.
     """
 
-    def __init__(self, host_manager: "HostManager"):
+    def __init__(self, host_manager: "HostManager", storage_manager: Optional["StorageManager"] = None):
         """
         Initializes the ExecutionFacade.
 
         Args:
             host_manager: The initialized HostManager instance containing
                           configurations and the MCPHost instance.
+            storage_manager: An optional initialized StorageManager instance for persistence.
         """
         if not host_manager:
             raise ValueError("HostManager instance is required.")
@@ -52,8 +53,9 @@ class ExecutionFacade:
             raise ValueError("HostManager must be initialized with an active MCPHost.")
 
         self._manager = host_manager
-        self._host: "MCPHost" = host_manager.host  # Store direct ref to host
-        logger.debug("ExecutionFacade initialized.")  # INFO -> DEBUG
+        self._host: "MCPHost" = host_manager.host
+        self._storage_manager = storage_manager # Store storage manager instance
+        logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     # --- Private Execution Helper ---
 
@@ -176,12 +178,14 @@ class ExecutionFacade:
             component_type="Agent",
             component_name=agent_name,
             config_lookup=lambda name: self._manager.agent_configs[name],
+            # Pass storage_manager to execute_agent, not Agent constructor
             executor_setup=lambda config: Agent(config=config),
             execution_func=lambda instance, **kwargs: instance.execute_agent(**kwargs),
             error_structure_factory=error_factory,
             # Execution kwargs:
             user_message=user_message,
             host_instance=self._host,
+            storage_manager=self._storage_manager, # Pass storage manager here
             system_prompt=system_prompt,
         )
 
@@ -202,10 +206,12 @@ class ExecutionFacade:
             component_type="Simple Workflow",
             component_name=workflow_name,
             config_lookup=lambda name: self._manager.workflow_configs[name],
+            # Pass storage_manager to SimpleWorkflowExecutor if it needs it (currently doesn't)
             executor_setup=lambda config: SimpleWorkflowExecutor(
                 config=config,
                 agent_configs=self._manager.agent_configs,
                 host_instance=self._host,
+                # storage_manager=self._storage_manager # Add if needed later for workflow history
             ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
             error_structure_factory=error_factory,
@@ -224,7 +230,11 @@ class ExecutionFacade:
             component_type="Custom Workflow",
             component_name=workflow_name,
             config_lookup=lambda name: self._manager.custom_workflow_configs[name],
-            executor_setup=lambda config: CustomWorkflowExecutor(config=config),
+            # Pass storage_manager to CustomWorkflowExecutor if it needs it
+            executor_setup=lambda config: CustomWorkflowExecutor(
+                config=config,
+                # storage_manager=self._storage_manager # Add if needed later
+                ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
             error_structure_factory=error_factory,
             # Execution kwargs:

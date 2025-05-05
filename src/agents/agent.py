@@ -5,12 +5,16 @@ Core Agent implementation for interacting with MCP Hosts and executing tasks.
 import os
 import logging
 import anthropic  # Keep for types if needed
-from anthropic import AsyncAnthropic  # Import the async client
-from anthropic.types import MessageParam, ToolUseBlock
-from typing import Dict, Any, Optional, List
+from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam, ToolUseBlock, Message
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
 from ..host.models import AgentConfig
-from ..host.host import MCPHost  # Import MCPHost for type hinting
+from ..host.host import MCPHost
+
+# Import StorageManager for type hinting only if needed
+if TYPE_CHECKING:
+    from ..storage.db_manager import StorageManager
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +119,8 @@ class Agent:
         self,
         user_message: str,
         host_instance: MCPHost,
+        storage_manager: Optional["StorageManager"] = None, # Added storage_manager
         system_prompt: Optional[str] = None,
-        # filter_client_ids parameter removed, filtering now handled via self.config
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
@@ -185,11 +189,28 @@ class Agent:
         )
 
         # Initialize Message History - Renumbered step
-        # TODO: Implement history loading/management if include_history is True
-        messages: List[MessageParam] = [{"role": "user", "content": user_message}]
-        conversation_history = [
-            {"role": "user", "content": user_message}
-        ]  # Add initial user message to history
+        messages: List[MessageParam] = []
+        conversation_history: List[Dict[str, Any]] = [] # Use Dict for internal history tracking
+
+        # --- History Loading ---
+        if self.config.include_history and storage_manager:
+            try:
+                # Load history from DB (returns list in MessageParam format)
+                loaded_history_params = await storage_manager.load_history(agent_name=self.config.name)
+                if loaded_history_params:
+                    messages.extend(loaded_history_params)
+                    # Also add to internal history tracker (needs conversion if format differs)
+                    # Assuming load_history returns [{'role': 'user'|'assistant', 'content': [...]}, ...]
+                    conversation_history.extend(loaded_history_params)
+                    logger.info(f"Loaded {len(loaded_history_params)} history turns for agent '{self.config.name}'.")
+            except Exception as e:
+                logger.error(f"Failed to load history for agent '{self.config.name}': {e}", exc_info=True)
+                # Continue execution without history if loading fails
+
+        # Add current user message
+        current_user_message_param: MessageParam = {"role": "user", "content": user_message}
+        messages.append(current_user_message_param)
+        conversation_history.append(current_user_message_param) # Add to internal tracker too
 
         # Execute Conversation Loop - Renumbered step
         final_response = None
@@ -230,11 +251,10 @@ class Agent:
                     "tool_uses": [],
                 }
 
-            # Store assistant response in history
-            # Ensure content is serializable if needed later
-            conversation_history.append(
-                {"role": "assistant", "content": response.content}
-            )
+            # Store assistant response in history (both formats)
+            assistant_response_param: MessageParam = {"role": "assistant", "content": response.content}
+            messages.append(assistant_response_param) # Add raw response content for next LLM call
+            conversation_history.append(assistant_response_param) # Add to internal tracker
 
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
@@ -273,31 +293,35 @@ class Agent:
                             arguments=tool_use.input,
                             agent_config=self.config,
                         )
-                        logger.debug(  # INFO -> DEBUG
+                        logger.debug(
                             f"Tool '{tool_use.name}' executed successfully (agent filters applied)."
                         )
+                        # Create result block *after* successful execution
                         tool_result_block = (
                             host_instance.tools.create_tool_result_blocks(
                                 tool_use.id, tool_result_content
                             )
                         )
                         tool_results_for_next_turn.append(tool_result_block)
-
                     except Exception as e:
-                        # Create an error result block using the same format
-                        logger.error(f"Error executing tool {tool_use.name}: {e}")
+                        # Create an error result block if execution fails
+                        logger.error(f"Error executing tool {tool_use.name}: {e}", exc_info=True) # Add exc_info
                         error_content = (
                             f"Error executing tool '{tool_use.name}': {str(e)}"
                         )
-                        # Format error message using the standard method (no is_error flag)
+                        # Format error message using the standard method
                         tool_result_block = (
                             host_instance.tools.create_tool_result_blocks(
-                                tool_use.id, error_content
+                                tool_use.id, error_content # Pass error string as content
                             )
                         )
                         tool_results_for_next_turn.append(tool_result_block)
+                    # --- End of try...except for tool execution ---
+                # --- End of if block.type == "tool_use" ---
+            # --- End of for block in response.content loop ---
 
             # Ensure we actually processed tool calls if stop_reason was tool_use
+            # This check should be *outside* the loop iterating through content blocks
             if not has_tool_calls:
                 logger.warning(
                     "LLM stop_reason was 'tool_use' but no tool_use blocks found in content. Breaking loop."
@@ -338,13 +362,29 @@ class Agent:
                 response  # Assign the last response before loop termination
             )
 
+        # --- History Saving ---
+        if self.config.include_history and storage_manager:
+            try:
+                # Save the complete conversation history
+                await storage_manager.save_full_history(
+                    agent_name=self.config.name,
+                    conversation=conversation_history # Pass the internal tracker
+                )
+                logger.info(f"Saved {len(conversation_history)} history turns for agent '{self.config.name}'.")
+            except Exception as e:
+                logger.error(f"Failed to save history for agent '{self.config.name}': {e}", exc_info=True)
+                # Log error but don't fail the overall execution result
+
         # Return Results - Renumbered step
         logger.info(
             f"Agent '{self.config.name or 'Unnamed'}' execution finished."
-        )  # Keep final success as INFO
+        )
+        # Return the final LLM response object directly if available
+        final_llm_response: Optional[Message] = final_response
+
         return {
-            "conversation": conversation_history,
-            "final_response": final_response,  # Could be None if loop aborted early or error
-            "tool_uses": tool_uses_in_last_turn,  # Return tool uses from the *last* assistant turn that had them
+            "conversation": conversation_history, # Return the tracked history
+            "final_response": final_llm_response,
+            "tool_uses": tool_uses_in_last_turn,
+            "error": None # Explicitly return None for error on success
         }
-        # --- End of Step 3 Implementation ---
