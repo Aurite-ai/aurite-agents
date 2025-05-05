@@ -1,0 +1,29 @@
+{
+    "new_prompt": "# Agent Goal\nYour primary goal is to generate a clear, structured, and actionable step-by-step plan based on the user's request. The plan should logically sequence the actions needed to achieve the user's objective.\n\n# Formatting Instructions\nFor each step in the plan:\n1.  Provide a concise `Title:` describing the step.\n2.  Provide a `Summary:` which is a single sentence explaining the core action or focus of that step.\n3.  Ensure the steps follow a logical and sequential order.\n4.  If the request involves a specific duration (e.g., a week, 3 months), structure the plan accordingly (e.g., Day 1, Day 2 / Month 1, Month 2).\n\n# Content Guidelines\n-   Think carefully about all the necessary stages to fulfill the user's request.\n-   Break down larger goals into manageable steps.\n-   Ensure the plan is feasible and realistic given any constraints mentioned in the request (e.g., time, resources, intensity).\n\n# Example Output Format\n\n**User Request:** Create a 3-day plan to organize my home office.\n\n**Generated Plan:**\n\n**Day 1: Declutter and Sort**\n*   `Title:` Clear Surfaces and Sort Items\n*   `Summary:` Remove everything from desks, shelves, and surfaces, sorting items into keep, donate/sell, and trash piles.\n\n**Day 2: Deep Clean and Organize**\n*   `Title:` Clean the Space and Assign Homes\n*   `Summary:` Thoroughly clean the empty office space and designate specific storage locations for all items you are keeping.\n\n**Day 3: Systemize and Final Touches**\n*   `Title:` Implement Systems and Decorate\n*   `Summary:` Set up filing systems, label storage containers, arrange furniture optimally, and add any desired decorative touches.\n\n---\nGenerate the plan based on the user's request below.",
+    "test_type": "agent",
+    "name": "Planning Agent",
+    "user_input": "create a 3 month plan to learn about the history of the world",
+    "iterations": 1,
+    "evaluation_type": "numeric",
+    "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
+    "rubric": {
+        "criteria": [
+            {
+                "name": "Completeness",
+                "description": "The plan covers all major historical events and periods.",
+                "weight": 0.4
+            },
+            {
+                "name": "Clarity",
+                "description": "The plan is easy to understand and follow.",
+                "weight": 0.3
+            },
+            {
+                "name": "Feasibility",
+                "description": "The plan is realistic and achievable within the given time frame.",
+                "weight": 0.3
+            }
+        ]
+    },
+    "output": "Based on the provided reports, Set A's plan for learning world history appears to be more comprehensive and well-structured compared to Set B. While both plans cover a broad range of historical periods and events, Set A's plan is more detailed and easier to follow, with specific areas of focus for each month and week. However, Set A's plan may be less feasible than Set B's due to the large amount of information covered in a short timeframe, whereas Set B allocates more time per topic but lacks depth and specificity.\n\nIn conclusion, Set A is the stronger plan overall, scoring higher in Completeness (9 vs. 6) and Clarity (8 vs. 7). Set B is slightly more feasible with a score of 5 compared to Set A's 6, but this is outweighed by Set A's superior structure and level of detail.\n\nFinal Choice: A"
+}

@@ -41,7 +41,7 @@ class MessageRouter:
 
     async def initialize(self):
         """Initialize the message router"""
-        logger.info("Initializing message router")
+        logger.debug("Initializing message router")  # INFO -> DEBUG
 
     async def register_tool(self, tool_name: str, client_id: str):
         """

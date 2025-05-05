@@ -6,7 +6,6 @@ from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 
 
-
 load_dotenv()
 
 mcp = FastMCP("memory")
@@ -15,7 +14,8 @@ os.environ["OPENAI_API_KEY"] = os.getenv("MEM0_API_KEY")
 
 m = MemoryClient(api_key=os.getenv("MEM0_API_KEY"))
 
-app_id="ebsFWnezbMcIyXRag"
+app_id = "ebsFWnezbMcIyXRag"
+
 
 @mcp.tool()
 def add_memories(memory_str: str, user_id: str, prompt: str | None = None) -> str:

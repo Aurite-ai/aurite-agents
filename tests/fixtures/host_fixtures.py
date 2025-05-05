@@ -11,7 +11,7 @@ from unittest.mock import Mock, AsyncMock
 from src.host.models import HostConfig
 from src.host.host import MCPHost
 from src.host_manager import HostManager  # Import HostManager
-from src.host.resources import ToolManager, PromptManager
+from src.host.resources import ToolManager, PromptManager  # Added ResourceManager
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
 
@@ -31,6 +31,28 @@ def mock_mcp_host() -> Mock:
     host.tools = Mock(spec=ToolManager)
     host.prompts = Mock(spec=PromptManager)
     # Mock the methods that will be called by Agent.execute
+
+    # Mock the method Agent actually calls
+    host.get_formatted_tools = Mock(return_value=[])  # Return empty list by default
+
+    # Mock the execute_tool method directly on the host mock
+    host.execute_tool = AsyncMock(
+        return_value={"result": "Mock tool executed successfully"}
+    )
+
+    # Mock the create_tool_result_blocks method on the tools manager mock
+    host.tools.create_tool_result_blocks = Mock(
+        return_value=[  # Ensure this returns a list of blocks
+            {
+                "type": "tool_result",
+                "tool_use_id": "mock_id",
+                "content": [{"type": "text", "text": "Mock tool result"}],
+            }
+        ]
+    )
+
+    # Keep the old mock for format_tools_for_llm in case other tests use it,
+    # but the primary one Agent uses is get_formatted_tools
     host.tools.format_tools_for_llm = Mock(
         return_value=[
             {
@@ -41,20 +63,19 @@ def mock_mcp_host() -> Mock:
             }
         ]
     )
-    host.tools.execute_tool = AsyncMock(
-        return_value={"result": "Mock tool executed successfully"}
-    )  # Must be AsyncMock
-    host.tools.create_tool_result_blocks = Mock(
-        return_value={
-            "type": "tool_result",
-            "tool_use_id": "mock_id",
-            "content": [{"type": "text", "text": "Mock tool result"}],
-        }
-    )
+    # host.tools.execute_tool = AsyncMock(...) # Removed, moved to host mock
+    # host.tools.create_tool_result_blocks = Mock(...) # Already defined above on host.tools
+
     return host
 
 
-@pytest.fixture(scope="class")  # Use standard pytest fixture decorator
+# --- Shared Mock Manager Fixtures ---
+# (Moved to tests/host/conftest.py)
+
+# --- Integration Fixture ---
+
+
+@pytest.fixture(scope="module")  # Changed scope to module
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
@@ -105,9 +126,21 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     # Teardown: Shutdown the manager (which shuts down the host)
     try:
         await manager.shutdown()
+    except RuntimeError as e:
+        # Catch and log the specific "Event loop is closed" error during teardown
+        if "Event loop is closed" in str(e):
+            print(
+                f"\n[WARN] Suppressed known teardown error in host_manager fixture: {e}"
+            )
+        else:
+            # Re-raise other RuntimeErrors
+            print(
+                f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}"
+            )
+            raise  # Re-raise unexpected RuntimeErrors
     except Exception as shutdown_e:
-        # Log or handle teardown errors if necessary, but don't fail the test run here
-        print(f"Error during HostManager shutdown in fixture: {shutdown_e}")
+        # Log or handle other teardown errors if necessary
+        print(f"\n[ERROR] Error during HostManager shutdown in fixture: {shutdown_e}")
 
 
 # Note: The old real_host_and_manager fixture is removed as host_manager replaces it.

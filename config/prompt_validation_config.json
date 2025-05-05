@@ -1,0 +1,58 @@
+{
+    "name": "Prompt Validation Config",
+    "agents": [
+      {
+        "name": "Quality Assurance Agent",
+        "system_prompt": "",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.1",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      },
+      {
+        "name": "Aggregation Agent",
+        "system_prompt": "You are a Quality Assurance Agent. Your task is to aggregate multiple reports from a coworker into a single report. Give your report output as a three sentence summary of the analysis, with an overall assessment at the bottom (Very Bad, Poor, Average, Good, Excellent).",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.1",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      },
+      {
+        "name": "A/B Agent",
+        "system_prompt": "You are a Quality Assurance Agent. Your task is to evaluate two sets of reports, A and B. It is your job to determine which set performed better based on these reports. Give your output as a three sentence summary with your analysis, and your final choice (A or B) at the bottom.",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.1",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      },
+      {
+        "name": "Prompt Editor Agent",
+        "system_prompt": "You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of assessments of its performance. You will analyze the existing system prompt and output an improved version which will address any failings noted in the assessment. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. IMPORTANT: Return only the new system prompt, with no other text before or after.",
+        "client_ids": [],
+        "model": "claude-3-opus-20240229",
+        "temperature": "0.3",
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": "True"
+      }
+    ],
+    "custom_workflows": [
+      {
+        "name": "Prompt Validation Workflow",
+        "module_path": "src/prompt_validation/prompt_validation_workflow.py",
+        "class_name": "PromptValidationWorkflow"
+      },
+      {
+        "name": "A/B Testing Workflow",
+        "module_path": "src/prompt_validation/ab_testing_workflow.py",
+        "class_name": "ABTestingWorkflow"
+      }
+    ]
+  }
+  

@@ -128,9 +128,12 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                 ):  # Check for None explicitly, empty string might be valid
                     logger.error("Missing 'user_message' in data for execute agent.")
                     return
-                result = await manager.execute_agent(name, user_message)
+                # Use the ExecutionFacade via the manager
+                result = await manager.execution.run_agent(
+                    agent_name=name, user_message=user_message
+                )
                 logger.info(
-                    f"Executed agent '{name}'. Result status (if applicable): {result.get('status', 'N/A')}"
+                    f"Executed agent '{name}'. Result status (if applicable): {result.get('final_response', {}).get('stop_reason', 'N/A') if result else 'N/A'}"  # Log stop reason if available
                 )
                 # Optionally publish result back to Redis
             elif component_type == "workflow":
@@ -140,9 +143,12 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                         "Missing 'initial_user_message' in data for execute workflow."
                     )
                     return
-                result = await manager.execute_workflow(name, initial_message)
+                # Use the ExecutionFacade via the manager
+                result = await manager.execution.run_simple_workflow(
+                    workflow_name=name, initial_input=initial_message
+                )
                 logger.info(
-                    f"Executed workflow '{name}'. Status: {result.get('status')}"
+                    f"Executed workflow '{name}'. Status: {result.get('status', 'N/A')}"  # Keep existing status log
                 )
                 # Optionally publish result back to Redis
             elif component_type == "custom_workflow":
@@ -152,9 +158,20 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                         "Missing 'initial_input' in data for execute custom_workflow."
                     )
                     return
-                result = await manager.execute_custom_workflow(name, initial_input)
-                logger.info(f"Executed custom workflow '{name}'.")
-                # Optionally publish result back to Redis
+                # Use the ExecutionFacade via the manager
+                result = await manager.execution.run_custom_workflow(
+                    workflow_name=name, initial_input=initial_input
+                )
+                # Log based on whether the facade returned an error structure or the direct result
+                if isinstance(result, dict) and result.get("status") == "failed":
+                    logger.info(
+                        f"Executed custom workflow '{name}'. Status: failed. Error: {result.get('error')}"
+                    )
+                else:
+                    logger.info(
+                        f"Executed custom workflow '{name}'. Status: completed."
+                    )  # Result itself might be complex
+                # Optionally publish result back to Redis (logic remains the same)
             else:
                 logger.error(
                     f"Unsupported component_type for execute action: {component_type}"

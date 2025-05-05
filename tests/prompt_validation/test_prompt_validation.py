@@ -8,37 +8,27 @@ import pytest
 pytestmark = pytest.mark.anyio
 
 from src.host_manager import HostManager
-from src.host.models import (
-    CustomWorkflowConfig,
-)
 from src.config import PROJECT_ROOT_DIR  # Import project root
 
-class TestPromptValidation:
 
+class TestPromptValidation:
     @pytest.mark.timeout(300)
     async def test_workflow_prompt_validation(self, request, host_manager: HostManager):
-        
         # edit the path based on command line args
         config_file = request.config.getoption("--config")
-        
+
         if config_file:
             testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{config_file}"
         else:
             pytest.skip("No json config specified. Use --config=[filename]")
-        
-        await host_manager.register_custom_workflow(CustomWorkflowConfig(
-            name="Prompt Validation Workflow",
-            module_path="tests/prompt_validation/prompt_validation_workflow.py",
-            class_name="PromptValidationWorkflow"
-        ))
-        
+
+        # moved to host_manager initialize()
+        # await host_manager.register_config_file("config/prompt_validation_config.json")
+
         result = await host_manager.execute_custom_workflow(
-            workflow_name="Prompt Validation Workflow", 
-            initial_input={
-                "host_manager": host_manager,
-                "config_path": testing_config_path
-            }
+            workflow_name="Prompt Validation Workflow",
+            initial_input={"config_path": testing_config_path},
         )
-        
+
         assert "status" in result
         assert result["status"] == "success"

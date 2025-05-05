@@ -76,6 +76,10 @@ class AgentConfig(BaseModel):
     client_ids: Optional[List[str]] = None
     # Agent-specific LLM parameters (override host/defaults if provided)
     system_prompt: Optional[str] = None
+    schema: Optional[dict] = Field(
+        None,
+        description="JSON schema for validating agent-specific configurations",
+    )
     model: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
@@ -87,6 +91,10 @@ class AgentConfig(BaseModel):
     exclude_components: Optional[List[str]] = Field(
         None,
         description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
+    )
+    evaluation: Optional[str] = Field(
+        None,
+        description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
 
 

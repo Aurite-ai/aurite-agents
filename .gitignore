@@ -136,7 +136,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
+.roorules*
+.roo/**
 logs
 npm-debug.log*
 **/node_modules/**
@@ -177,3 +178,4 @@ playwright/.cache/
 docs/plans/completed/**
 src/packaged_servers/plans/*
 docs/learning/
+config/testing/*_output.json

@@ -1,8 +1,9 @@
 {
-    "type": "agent",
-    "id": "Planning Agent",
-    "input": "create a 3 month plan to learn about the history of the world",
-    "iterations": 2,
+    "test_type": "agent",
+    "name": "Planning Agent",
+    "user_input": "create a 3 month plan to learn about the history of the world",
+    "iterations": 1,
+    "threshold": 9,
     "evaluation_type": "numeric",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
     "rubric": {
@@ -23,13 +24,5 @@
                 "weight": 0.3
             }
         ]
-    },
-    "output": {
-        "criteria_results": {
-            "Completeness": 8.5,
-            "Clarity": 8.5,
-            "Feasibility": 7.0
-        },
-        "weighted_score": 8.05
     }
 }

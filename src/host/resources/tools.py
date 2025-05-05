@@ -61,7 +61,7 @@ class ToolManager:
 
     async def initialize(self):
         """Initialize the tool manager"""
-        logger.info("Initializing tool manager")
+        logger.debug("Initializing tool manager")  # INFO -> DEBUG
         # No initialization needed beyond the constructor at this point
 
     def register_client(self, client_id: str, client_session):

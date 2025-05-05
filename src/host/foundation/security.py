@@ -9,6 +9,7 @@ import logging
 import base64
 import hashlib
 import time
+import warnings  # Add import
 from typing import Dict, Optional, Any, List  # Added List
 from dataclasses import dataclass
 
@@ -32,11 +33,13 @@ except ImportError:
 # Local imports
 from ..models import GCPSecretConfig  # Assuming models.py is one level up
 
-# Patterns for sensitive data detection
+# Patterns for sensitive data detection (Improved)
 SENSITIVE_PATTERNS = {
-    "database_url": r"(?:mysql|postgresql|postgres)(?:\+\w+)?://[^:]+:[^@]+@[^/]+/\w+",
-    "password": r"password['\"]?\s*[:=]\s*['\"]([^'\"]+)['\"]",
-    "api_key": r"(?:api[_\-]?key|token)['\"]?\s*[:=]\s*['\"]([^'\"]+)['\"]",
+    "database_url": r"(?:mysql|postgresql|postgres)(?:\+\w+)?://[^:]+:([^@]+)@[^/]+/\w+",  # Capture group 1 is password
+    # Matches 'password' followed by optional space/quote, separator (:/=), optional space/quote, value (non-whitespace or quoted)
+    "password": r"(password\s*['\"]?\s*[:=]\s*['\"]?)([^'\s\"]+)(['\"]?)",  # Capture group 1 is prefix, group 2 is value
+    # Matches 'api_key', 'token', or 'API Key' followed by optional space/quote, separator (:/=), optional space/quote, value (non-whitespace or quoted)
+    "api_key": r"((?:api[_\-]?key|token|API\sKey)\s*['\"]?\s*[:=]\s*['\"]?)([^'\s\"]+)(['\"]?)",  # Capture group 1 is prefix, group 2 is value
 }
 
 
@@ -79,7 +82,7 @@ class SecurityManager:
         if secretmanager:  # Check if import succeeded
             try:
                 self._gcp_secret_client = secretmanager.SecretManagerServiceClient()
-                logger.info(
+                logger.debug(  # INFO -> DEBUG
                     "GCP Secret Manager client initialized successfully via ADC."
                 )
             except Exception as e:
@@ -96,7 +99,7 @@ class SecurityManager:
 
     async def initialize(self):
         """Initialize the security manager"""
-        logger.info("Initializing security manager")
+        logger.debug("Initializing security manager")  # INFO -> DEBUG
         # Load credentials from secure storage if available
 
     def _generate_encryption_key(self) -> str:
@@ -108,26 +111,56 @@ class SecurityManager:
         )
         return key_str
 
-    def _setup_cipher(self, key: str) -> Fernet:
-        """Set up encryption cipher from key"""
-        # Handle string or bytes key
+    def _setup_cipher(self, key: str | bytes) -> Fernet:  # Allow bytes input too
+        """
+        Set up encryption cipher from key.
+        Fernet expects a urlsafe-base64-encoded 32-byte key.
+        """
+        key_bytes_for_fernet: bytes
+
         if isinstance(key, str):
             try:
-                key_bytes = base64.urlsafe_b64decode(key.encode("ascii"))
-            except Exception:
-                # If not a valid base64 key, derive a key from the string
-                salt = b"aurite-mcp-salt"  # Not for security, just consistency
+                # Check if the string is valid base64 *without* decoding yet
+                # This will raise an exception if not valid base64
+                decoded_bytes_check = base64.urlsafe_b64decode(key.encode("ascii"))
+                # If it is valid base64, Fernet wants it encoded as bytes
+                key_bytes_for_fernet = key.encode("ascii")
+                # Verify length after potential decode (Fernet does this internally, but good practice)
+                if len(decoded_bytes_check) != 32:
+                    raise ValueError("Provided base64 key must decode to 32 bytes.")
+
+            except Exception:  # Includes binascii.Error and potentially others
+                # If not a valid base64 string, derive a key
+                logger.info(
+                    "Encryption key is not valid base64, deriving key from string."
+                )
+                salt = b"aurite-mcp-salt"  # Consistent salt
                 kdf = PBKDF2HMAC(
                     algorithm=hashes.SHA256(),
-                    length=32,
+                    length=32,  # Fernet keys are 32 bytes raw
                     salt=salt,
-                    iterations=100000,
+                    iterations=100000,  # Standard recommendation
                 )
-                key_bytes = base64.urlsafe_b64encode(kdf.derive(key.encode("utf-8")))
+                # Derive the raw 32 bytes
+                derived_key_raw = kdf.derive(key.encode("utf-8"))
+                # Fernet needs the base64 encoded version of the raw key
+                key_bytes_for_fernet = base64.urlsafe_b64encode(derived_key_raw)
+        elif isinstance(key, bytes):
+            # Assume bytes are already urlsafe-base64-encoded
+            key_bytes_for_fernet = key
+            # Verify length after potential decode
+            try:
+                if len(base64.urlsafe_b64decode(key_bytes_for_fernet)) != 32:
+                    raise ValueError("Provided key bytes must decode to 32 bytes.")
+            except Exception as e:
+                raise ValueError(
+                    f"Provided key bytes are not valid urlsafe-base64: {e}"
+                )
         else:
-            key_bytes = key
+            raise TypeError("Encryption key must be a string or bytes.")
 
-        return Fernet(key_bytes)
+        # Fernet constructor handles the final base64 decoding
+        return Fernet(key_bytes_for_fernet)
 
     # register_server_permissions method removed.
 
@@ -170,7 +203,9 @@ class SecurityManager:
 
         # Check expiry
         if cred.expiry and cred.expiry < time.time():
-            logger.warning(f"Credential {cred_id} has expired")
+            warn_msg = f"Credential {cred_id} has expired"
+            logger.warning(warn_msg)
+            warnings.warn(warn_msg, UserWarning)  # Raise UserWarning
             return None
 
         # Decrypt
@@ -213,19 +248,45 @@ class SecurityManager:
 
     def mask_sensitive_data(self, data: str) -> str:
         """
-        Mask sensitive data like passwords in strings
+        Mask sensitive data like passwords, API keys, and tokens in strings.
         """
-        # For database URLs, mask the password
-        if re.search(SENSITIVE_PATTERNS["database_url"], data):
-            return re.sub(r"://([^:]+):([^@]+)@", r"://\1:*****@", data)
+        masked_data = data
 
-        # For other patterns, just mask appropriately
-        for pattern in SENSITIVE_PATTERNS.values():
-            data = re.sub(
-                pattern, lambda m: m.group(0).replace(m.group(1), "*****"), data
-            )
+        # Mask database URL passwords first
+        # Reconstruct the string, replacing group 1 content with *****
+        # Ensure group 1 exists before trying to replace
+        def db_replacer(m):
+            if m.group(1):  # Check if password group was captured
+                # Replace the part of the full match that corresponds to group 1
+                start, end = m.span(1)
+                return (
+                    m.group(0)[: start - m.start(0)]
+                    + "*****"
+                    + m.group(0)[end - m.start(0) :]
+                )
+            return m.group(0)  # Return original match if no password captured
 
-        return data
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["database_url"], db_replacer, masked_data
+        )
+
+        # Mask other password patterns (case-insensitive)
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["password"],
+            lambda m: f"{m.group(1)}*****{m.group(3)}",
+            masked_data,
+            flags=re.IGNORECASE,  # Add ignorecase flag
+        )
+
+        # Mask API key/token patterns (case-insensitive)
+        masked_data = re.sub(
+            SENSITIVE_PATTERNS["api_key"],
+            lambda m: f"{m.group(1)}*****{m.group(3)}",
+            masked_data,
+            flags=re.IGNORECASE,  # Add ignorecase flag
+        )
+
+        return masked_data
 
     async def resolve_gcp_secrets(
         self, secrets_config: List[GCPSecretConfig]
