@@ -1,7 +1,7 @@
 ## Config Parameters
 Updated as of 5/2/2025
 
-
+# Required
 - test_type
   - "agent" or "workflow" or "custom_workflow"
   - The type of object being tested
@@ -11,12 +11,13 @@ Updated as of 5/2/2025
 - user_input
   - str or list[str]
   - The input to be used as the initial user input. If a list of strings, it will run it with each separately
+- testing_prompt
+  - str
+  - The prompt to be passed to the evaluation agent. This should describe what the expected output should look like.
+# Optional
 - iterations
   - int, default 1
   - The total number of iterations to do when running the agent/workflow
-- testing_prompt
-  - str
-  - The prompt to be passed to the evaluation agent
 - rubric
   - dict, optional, example below
   - The rubric to use when evaluating the agent. Expects weight if evaluation_type is numeric, otherwise weight is optional

@@ -27,7 +27,7 @@ class ValidationConfig(BaseModel):
     test_type: str = Field(..., description="The type of object being tested", pattern="^(agent|workflow|custom_workflow)$")
     name: str = Field(..., description="The name of the object being tested. Should match the name in config file")
     user_input: str | list[str] = Field(..., description="The input to be used as the initial user input. If a list of strings, it will run it with each separately")
-    iterations: int = Field(default=1, description="The total number of iterations to do when running the agent/workflow")
+    iterations: int = Field(default=1, description="The total number of iterations to do when running the agent/workflow", ge=1)
     testing_prompt: str = Field(..., description="The prompt to be passed to the evaluation agent")
     rubric: ValidationRubric | None = Field(None, description="The rubric to use when evaluating the agent")
     evaluation_type: str = Field(default="default", description="If the output should be a score from 0-10 (numeric), or semantic (default)", pattern="^(numeric|default)$")
