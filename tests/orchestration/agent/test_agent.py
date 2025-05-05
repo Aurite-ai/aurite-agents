@@ -95,7 +95,7 @@ class TestAgentE2E:
         # Cannot easily assert on call_args for real LLM call, but we can check the result structure
         # TODO: Add assertion here if we can intercept/log the args passed to agent.execute's LLM call
 
-        assert "error" not in result  # Should not have an error key if successful
+        assert result.get("error") is None # Check that the error value is None on success
         assert (
             len(result["tool_uses"]) == 0
         )  # No tool use expected for "Briefly say hello."
