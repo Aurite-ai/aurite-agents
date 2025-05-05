@@ -1,7 +1,7 @@
-## Config Parameters
-Updated as of 5/2/2025
+# Config Parameters
+Updated as of 5/5/2025
 
-# Required
+## Required
 - test_type
   - "agent" or "workflow" or "custom_workflow"
   - The type of object being tested
@@ -14,7 +14,7 @@ Updated as of 5/2/2025
 - testing_prompt
   - str
   - The prompt to be passed to the evaluation agent. This should describe what the expected output should look like.
-# Optional
+## Optional
 - iterations
   - int, default 1
   - The total number of iterations to do when running the agent/workflow
