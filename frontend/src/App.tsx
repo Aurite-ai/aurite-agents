@@ -27,9 +27,9 @@ const TabButton = ({ label, isActive, onClick }: { label: string; isActive: bool
 // Remove the placeholder ExecuteTab function definition
 // Remove the placeholder StatusTab function definition
 // Add placeholders for future tabs if needed
-// const ConfigTab = () => <div className="p-4">Config Management Placeholder</div>;
+import ConfigTab from './components/ConfigTab'; // Import the new component
 
-type TabId = 'register' | 'execute' | 'status'; // Add future tab IDs here e.g. | 'config'
+type TabId = 'register' | 'execute' | 'status' | 'config'; // Add 'config'
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('register'); // Default tab
@@ -42,8 +42,8 @@ function App() {
         return <ExecuteTab />;
       case 'status':
         return <StatusTab />;
-      // case 'config':
-      //   return <ConfigTab />;
+      case 'config':
+        return <ConfigTab />;
       default:
         return null;
     }
@@ -70,6 +70,11 @@ function App() {
             label="Status"
             isActive={activeTab === 'status'}
             onClick={() => setActiveTab('status')}
+          />
+          <TabButton
+            label="Config Files"
+            isActive={activeTab === 'config'}
+            onClick={() => setActiveTab('config')}
           />
           {/* Add buttons for future tabs here */}
           {/* <TabButton

@@ -255,5 +255,174 @@ def test_upload_config_unauthorized(api_client: TestClient):
     assert response.status_code == 401
 
 
-# TODO: Add tests for PUT /configs/{component_type}/{filename}
-# TODO: Add tests for DELETE /configs/{component_type}/{filename}
+# --- Tests for PUT /configs/{component_type}/{filename} ---
+
+def test_update_config_success(api_client: TestClient):
+    """Tests successfully updating an existing config file."""
+    component_type = "agents"
+    filename = "test_update_agent.json"
+    initial_content = {"name": "Update Agent", "model": "initial-model"}
+    updated_content = {"name": "Update Agent", "model": "updated-model", "temperature": 0.8}
+    payload = {"content": updated_content}
+
+    # Create the initial file
+    test_file_path = setup_test_config_file(component_type, filename, initial_content)
+
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.put(f"/configs/{component_type}/{filename}", json=payload, headers=headers)
+
+    assert response.status_code == 200 # Expect OK for update
+    assert response.json() == {"status": "success", "filename": filename, "component_type": component_type}
+
+    # Verify file was updated
+    assert test_file_path.exists()
+    with open(test_file_path, 'r') as f:
+        written_content = json.load(f)
+    assert written_content == updated_content
+
+    cleanup_test_config_file(test_file_path)
+
+def test_update_config_not_found(api_client: TestClient):
+    """Tests attempting to update a config file that does not exist."""
+    component_type = "clients"
+    filename = "non_existent_client_for_update.json"
+    payload = {"content": {"client_id": "update-fail"}}
+
+    target_file = PROJECT_ROOT / f"config/{component_type}" / filename
+    if target_file.exists():
+        target_file.unlink() # Ensure it doesn't exist
+
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.put(f"/configs/{component_type}/{filename}", json=payload, headers=headers)
+
+    assert response.status_code == 404
+    assert "not found for update" in response.json()["detail"].lower()
+
+def test_update_config_invalid_type(api_client: TestClient):
+    """Tests updating a config file with an invalid component type."""
+    component_type = "invalid_type"
+    filename = "test_update_invalid.json"
+    payload = {"content": {"key": "value"}}
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.put(f"/configs/{component_type}/{filename}", json=payload, headers=headers)
+    assert response.status_code == 400
+    assert "invalid component type" in response.json()["detail"].lower()
+
+@pytest.mark.parametrize(
+    "invalid_filename, expected_status, expected_detail_part",
+    [
+        ("../secrets.json", 405, "method not allowed"), # PUT likely also fails routing
+        ("test.txt", 400, "must end with .json"),
+        ("folder/file.json", 400, "invalid filename (contains path separators)"),
+    ]
+)
+def test_update_config_invalid_filename(
+    api_client: TestClient,
+    invalid_filename: str,
+    expected_status: int,
+    expected_detail_part: str
+):
+    """Tests updating a config file with an invalid filename."""
+    component_type = "workflows"
+    payload = {"content": {"key": "value"}}
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.put(f"/configs/{component_type}/{invalid_filename}", json=payload, headers=headers)
+    assert response.status_code == expected_status
+    assert expected_detail_part in response.json()["detail"].lower()
+
+def test_update_config_invalid_content(api_client: TestClient):
+    """Tests updating a config file with invalid content."""
+    component_type = "agents"
+    filename = "test_update_bad_content.json"
+    initial_content = {"name": "Bad Content Agent"}
+    test_file_path = setup_test_config_file(component_type, filename, initial_content)
+
+    bad_payload = {"content": "not a dictionary"}
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.put(f"/configs/{component_type}/{filename}", json=bad_payload, headers=headers)
+    assert response.status_code == 422 # Pydantic validation error
+
+    cleanup_test_config_file(test_file_path)
+
+def test_update_config_unauthorized(api_client: TestClient):
+    """Tests updating a config file without API key."""
+    payload = {"content": {"key": "value"}}
+    response = api_client.put("/configs/agents/agent_to_update.json", json=payload, headers={}) # No auth header
+    assert response.status_code == 401
+
+
+# --- Tests for DELETE /configs/{component_type}/{filename} ---
+
+def test_delete_config_success(api_client: TestClient):
+    """Tests successfully deleting an existing config file."""
+    component_type = "workflows"
+    filename = "test_delete_workflow.json"
+    content = {"name": "Delete Me", "steps": ["stepX"]}
+
+    # Create the file to be deleted
+    test_file_path = setup_test_config_file(component_type, filename, content)
+    assert test_file_path.exists() # Verify it exists before delete
+
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.delete(f"/configs/{component_type}/{filename}", headers=headers)
+
+    assert response.status_code == 200 # Expect OK for successful delete
+    response_data = response.json()
+    assert response_data["status"] == "success"
+    assert response_data["filename"] == filename
+    assert "deleted successfully" in response_data["message"].lower()
+
+    # Verify file no longer exists
+    assert not test_file_path.exists()
+
+    # No cleanup needed as the file is deleted by the test target
+
+def test_delete_config_not_found(api_client: TestClient):
+    """Tests attempting to delete a config file that does not exist."""
+    component_type = "agents"
+    filename = "non_existent_agent_for_delete.json"
+
+    target_file = PROJECT_ROOT / f"config/{component_type}" / filename
+    if target_file.exists():
+        target_file.unlink() # Ensure it doesn't exist
+
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.delete(f"/configs/{component_type}/{filename}", headers=headers)
+
+    assert response.status_code == 404
+    assert "not found for deletion" in response.json()["detail"].lower()
+
+def test_delete_config_invalid_type(api_client: TestClient):
+    """Tests deleting a config file with an invalid component type."""
+    component_type = "invalid_type"
+    filename = "test_delete_invalid.json"
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.delete(f"/configs/{component_type}/{filename}", headers=headers)
+    assert response.status_code == 400
+    assert "invalid component type" in response.json()["detail"].lower()
+
+@pytest.mark.parametrize(
+    "invalid_filename, expected_status, expected_detail_part",
+    [
+        ("../secrets.json", 405, "method not allowed"), # DELETE likely also fails routing
+        ("test.txt", 400, "must end with .json"),
+        ("folder/file.json", 400, "invalid filename (contains path separators)"),
+    ]
+)
+def test_delete_config_invalid_filename(
+    api_client: TestClient,
+    invalid_filename: str,
+    expected_status: int,
+    expected_detail_part: str
+):
+    """Tests deleting a config file with an invalid filename."""
+    component_type = "clients"
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.delete(f"/configs/{component_type}/{invalid_filename}", headers=headers)
+    assert response.status_code == expected_status
+    assert expected_detail_part in response.json()["detail"].lower()
+
+def test_delete_config_unauthorized(api_client: TestClient):
+    """Tests deleting a config file without API key."""
+    response = api_client.delete("/configs/agents/agent_to_delete.json", headers={}) # No auth header
+    assert response.status_code == 401

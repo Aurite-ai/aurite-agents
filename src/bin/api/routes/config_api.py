@@ -158,4 +158,71 @@ async def upload_config_file(
         raise HTTPException(status_code=500, detail=f"Failed to upload configuration file: {str(e)}")
 
 
-# Add PUT, DELETE endpoints here later...
+@router.put("/{component_type}/{filename:path}", status_code=200, dependencies=[Depends(get_api_key)])
+async def update_config_file(
+    component_type: str,
+    filename: str,
+    config_data: ConfigContent,
+):
+    """Updates an existing specific JSON configuration file."""
+    logger.info(f"Request received to update config file: {component_type}/{filename}")
+    try:
+        file_path = get_validated_config_path(component_type, filename)
+        logger.debug(f"Updating content at validated path: {file_path}")
+
+        # Ensure the file exists before updating
+        if not file_path.is_file():
+            logger.warning(f"Config file not found for update at path: {file_path}")
+            raise HTTPException(status_code=404, detail="Configuration file not found for update.")
+
+        # Write the new content (pretty-printed JSON)
+        try:
+            json_string = json.dumps(config_data.content, indent=4)
+            file_path.write_text(json_string)
+            logger.info(f"Successfully updated config file: {file_path}")
+            return {"status": "success", "filename": filename, "component_type": component_type}
+        except TypeError as json_err:
+            logger.error(f"Error serializing provided content to JSON for {file_path}: {json_err}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON content provided: {str(json_err)}")
+        except IOError as io_err:
+            logger.error(f"Error writing config file {file_path}: {io_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to write configuration file: {str(io_err)}")
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error updating config file '{component_type}/{filename}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update configuration file: {str(e)}")
+
+
+@router.delete("/{component_type}/{filename:path}", status_code=200, dependencies=[Depends(get_api_key)])
+async def delete_config_file(
+    component_type: str,
+    filename: str,
+):
+    """Deletes a specific JSON configuration file."""
+    logger.info(f"Request received to delete config file: {component_type}/{filename}")
+    try:
+        file_path = get_validated_config_path(component_type, filename)
+        logger.debug(f"Attempting to delete file at validated path: {file_path}")
+
+        # Ensure the file exists before deleting
+        if not file_path.is_file():
+            logger.warning(f"Config file not found for deletion at path: {file_path}")
+            raise HTTPException(status_code=404, detail="Configuration file not found for deletion.")
+
+        # Delete the file
+        try:
+            file_path.unlink() # Use unlink() from pathlib
+            logger.info(f"Successfully deleted config file: {file_path}")
+            return {"status": "success", "filename": filename, "component_type": component_type, "message": "File deleted successfully."}
+        except OSError as os_err:
+            logger.error(f"Error deleting config file {file_path}: {os_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to delete configuration file: {str(os_err)}")
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPExceptions (like 400 from validation, 404 from check)
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error deleting config file '{component_type}/{filename}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete configuration file: {str(e)}")
