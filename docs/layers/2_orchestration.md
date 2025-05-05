@@ -5,26 +5,29 @@
 
 ## 1. Overview
 
-The Orchestration Layer serves as the central coordination hub of the Aurite MCP framework. Its primary purpose is to manage the lifecycle and configuration of agentic components (Agents, Simple Workflows, Custom Workflows) and provide a unified interface for their execution. It bridges the high-level application entrypoints (API, CLI, Worker) with the lower-level MCP Host (Layer 3) interactions.
+The Orchestration Layer serves as the central coordination hub of the Aurite MCP framework. Its primary purpose is to manage the lifecycle and configuration of agentic components (Agents, Simple Workflows, Custom Workflows) and provide a unified interface for their execution. It bridges the high-level application entrypoints (API, CLI, Worker) with the lower-level MCP Host (Layer 3) and the optional Storage Layer.
 
 Key responsibilities include:
-*   Loading and managing configurations for the host, clients, agents, and workflows.
-*   Initializing and managing the lifecycle of the underlying `MCPHost`.
-*   Handling dynamic registration of clients, agents, and workflows.
+*   Loading and managing configurations for the host, clients, agents, and workflows from files.
+*   Initializing and managing the lifecycle of the underlying `MCPHost` and the optional `StorageManager`.
+*   Handling dynamic registration of clients, agents, and workflows, optionally syncing these configurations to a database via the `StorageManager`.
 *   Providing a consistent facade (`ExecutionFacade`) for triggering the execution of any configured agentic component.
-*   Instantiating and managing the execution flow within different component types (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`), which act as an intermediate layer (sometimes informally called Layer 2.5) translating Facade requests into interactions with the `MCPHost` (Layer 3).
+*   Instantiating and managing the execution flow within different component types (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`), which act as an intermediate layer (sometimes informally called Layer 2.5) translating Facade requests into interactions with the `MCPHost` (Layer 3) and passing the `StorageManager` to Agents for history persistence.
 
 ## 2. Relevant Files
 
-| File Path                          | Primary Class(es)        | Core Responsibility                                       |
-| :--------------------------------- | :----------------------- | :-------------------------------------------------------- |
-| `src/host_manager.py`              | `HostManager`            | Overall lifecycle, configuration management, registration |
-| `src/config.py`                    | `ServerConfig`, utils    | Server config loading, Host/Agent/Workflow config parsing |
-| `src/host/models.py`               | Config Models            | Pydantic models for all configurations                    |
-| `src/execution/facade.py`          | `ExecutionFacade`        | Unified execution interface for components                |
-| `src/agents/agent.py`              | `Agent`                  | Core LLM interaction loop, tool use, filtering            |
-| `src/workflows/simple_workflow.py` | `SimpleWorkflowExecutor` | Executes sequential agent steps                           |
-| `src/workflows/custom_workflow.py` | `CustomWorkflowExecutor` | Dynamically loads and executes custom Python workflows    |
+| File Path                          | Primary Class(es)        | Core Responsibility                                            | Notes                                                                 |
+| :--------------------------------- | :----------------------- | :------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| `src/host_manager.py`              | `HostManager`            | Overall lifecycle, config mgmt, registration, DB sync (opt.) | Orchestrates Host, Storage (opt.), Facade                             |
+| `src/config.py`                    | `ServerConfig`, utils    | Server config loading, Host/Agent/Workflow config parsing      | Handles JSON loading and path resolution                              |
+| `src/host/models.py`               | Config Models            | Pydantic models for all configurations                         | Defines structure for JSON configs                                    |
+| `src/execution/facade.py`          | `ExecutionFacade`        | Unified execution interface for components                     | Delegates to executors, passes StorageManager to Agent                |
+| `src/agents/agent.py`              | `Agent`                  | Core LLM interaction loop, tool use, filtering, history (opt.) | Interacts with Host and Storage (opt.)                                |
+| `src/workflows/simple_workflow.py` | `SimpleWorkflowExecutor` | Executes sequential agent steps                                | Uses Facade/Agent instances                                           |
+| `src/workflows/custom_workflow.py` | `CustomWorkflowExecutor` | Dynamically loads and executes custom Python workflows         | Uses Facade instance                                                  |
+| `src/storage/db_manager.py`        | `StorageManager`         | Handles DB interactions (config sync, history load/save)       | Optional component, initialized by HostManager                        |
+| `src/storage/db_connection.py`     | utils                    | Creates SQLAlchemy engine based on env vars                    | Used by HostManager to create engine for StorageManager               |
+| `src/storage/db_models.py`         | SQLAlchemy Models        | Defines database table structures                              | Used by StorageManager and Alembic (for migrations, not shown here) |
 
 ## 3. Functionality
 
@@ -32,48 +35,59 @@ This layer orchestrates the core agentic capabilities of the framework.
 
 **3.1. Multi-File Interactions & Core Flows:**
 
-*   **Initialization:** The `HostManager` is typically instantiated by an entrypoint (like `api.py`). During its `initialize()` method, it uses `config.py`'s `load_host_config_from_json` to parse configurations (`models.py`) from a file. It then initializes the `MCPHost` (Layer 3) and subsequently the `ExecutionFacade`.
-*   **Registration:** The `HostManager` provides methods (`register_client`, `register_agent`, etc., and `register_config_file`) to dynamically add new configurations after initialization. These methods update the manager's internal dictionaries (`agent_configs`, etc.).
-*   **Execution:** Entrypoints interact with the `HostManager.execution` attribute (which holds the `ExecutionFacade` instance). The `ExecutionFacade` provides `run_agent`, `run_simple_workflow`, and `run_custom_workflow` methods.
-    *   The `ExecutionFacade` looks up the relevant configuration from the `HostManager`'s dictionaries.
-    *   It then instantiates the appropriate executor (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`).
-    *   It calls the `execute` (or `execute_agent`) method on the instantiated object.
-    *   For `CustomWorkflowExecutor`, the facade passes *itself* (`self`) to the custom workflow's `execute_workflow` method, enabling composition.
-    *   For `SimpleWorkflowExecutor`, the facade passes the necessary `AgentConfig` dictionary and the `MCPHost` instance.
-    *   For `Agent`, the facade passes the `MCPHost` instance and execution parameters.
-*   **Configuration Loading:** `config.py` handles the parsing and validation of JSON configuration files into Pydantic models defined in `models.py`, resolving relative paths for servers and custom workflows.
+*   **Initialization:** The `HostManager` is instantiated by an entrypoint. During `initialize()`:
+    *   It optionally creates a database engine (`db_connection.py`) and initializes the `StorageManager` (`db_manager.py`) if `AURITE_ENABLE_DB=true`.
+    *   It loads configurations (`config.py`, `models.py`).
+    *   It initializes the database schema via `StorageManager` if enabled.
+    *   It initializes the `MCPHost` (Layer 3).
+    *   It optionally syncs loaded configurations to the database via `StorageManager`.
+    *   It initializes the `ExecutionFacade`, passing itself and the optional `StorageManager`.
+*   **Registration:** The `HostManager` provides methods (`register_client`, `register_agent`, etc., `register_config_file`) for dynamic registration. These update in-memory configs and optionally sync changes to the database via `StorageManager`.
+*   **Execution:** Entrypoints use `HostManager.execution` (`ExecutionFacade`).
+    *   `ExecutionFacade` looks up configs from `HostManager`.
+    *   It instantiates the appropriate executor (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`).
+    *   It calls the execution method (`execute_agent`, `execute`).
+    *   Crucially, when calling `Agent.execute_agent`, the `ExecutionFacade` passes the `StorageManager` instance (if available) from the `HostManager`.
+    *   The `Agent` checks its `include_history` config flag and uses the passed `StorageManager` to load/save conversation history if both are true/available.
+*   **Configuration Loading:** `config.py` handles parsing/validation of JSON configs into Pydantic models (`models.py`), resolving paths.
+*   **Shutdown:** `HostManager.shutdown` shuts down the `MCPHost` and disposes of the database engine if it was created.
 
 **3.2. Individual File Functionality:**
 
 *   **`host_manager.py` (`HostManager`):**
-    *   Manages the lifecycle (`initialize`, `shutdown`) of the `MCPHost`.
-    *   Holds dictionaries of loaded/registered configurations (`agent_configs`, `workflow_configs`, `custom_workflow_configs`).
-    *   Provides public methods for dynamic registration of components.
+    *   Manages the lifecycle (`initialize`, `shutdown`) of `MCPHost` and optional `StorageManager`.
+    *   Initializes `StorageManager` based on `AURITE_ENABLE_DB` env var.
+    *   Holds in-memory dictionaries of loaded/registered configurations.
+    *   Provides public methods for dynamic registration, optionally syncing to DB via `StorageManager`.
     *   Instantiates and holds the `ExecutionFacade`.
 *   **`config.py`:**
-    *   `ServerConfig`: Loads server-level settings (port, API key, etc.) from environment variables.
-    *   `load_host_config_from_json`: Parses the main JSON config, validates structure using models from `models.py`, resolves paths relative to the project root, and returns structured config objects/dictionaries.
+    *   `ServerConfig`: Loads server-level settings.
+    *   `load_host_config_from_json`: Parses main JSON config, validates structure, resolves paths.
 *   **`host/models.py`:**
-    *   Defines Pydantic models (`HostConfig`, `ClientConfig`, `AgentConfig`, `WorkflowConfig`, `CustomWorkflowConfig`, etc.) ensuring type safety and validation for all configuration structures.
+    *   Defines Pydantic models for all configurations, including `AgentConfig.include_history`.
 *   **`execution/facade.py` (`ExecutionFacade`):**
-    *   Provides a clean, unified API (`run_agent`, `run_simple_workflow`, `run_custom_workflow`) abstracting away the specific executor details.
-    *   References the `HostManager` to access current configurations and the `MCPHost`.
-    *   Handles the instantiation of the correct executor/agent based on the requested component type.
-    *   Contains shared logic (`_execute_component`) for the execution flow (config lookup, instantiation, execution call, error handling).
+    *   Provides unified API (`run_agent`, `run_simple_workflow`, `run_custom_workflow`).
+    *   References `HostManager` for configs, `MCPHost`, and `StorageManager`.
+    *   Instantiates appropriate executors.
+    *   Passes `StorageManager` instance to `Agent.execute_agent`.
 *   **`agents/agent.py` (`Agent`):**
-    *   Manages the core interaction loop with the LLM (Anthropic API).
-    *   Handles `tool_use` requests from the LLM by calling `MCPHost.execute_tool`.
-    *   Applies agent-specific filtering (`client_ids`, `exclude_components`) when requesting tools from the `MCPHost`.
-    *   Configures LLM parameters (model, temperature, system prompt).
+    *   Manages core LLM interaction loop.
+    *   Handles `tool_use` via `MCPHost`.
+    *   Applies filtering via `MCPHost`.
+    *   If `config.include_history` is true and a `StorageManager` is provided during `execute_agent`, loads previous history before the first LLM call and saves the full history after execution completes.
 *   **`workflows/simple_workflow.py` (`SimpleWorkflowExecutor`):**
-    *   Takes a `WorkflowConfig` and executes the defined sequence of agents.
-    *   Retrieves `AgentConfig` for each step.
-    *   Instantiates and executes each `Agent` sequentially, passing the output of one step as the input to the next.
+    *   Executes a sequence of agents defined in `WorkflowConfig`.
+    *   Uses `ExecutionFacade` (indirectly via `Agent` instantiation) to run each agent step.
 *   **`workflows/custom_workflow.py` (`CustomWorkflowExecutor`):**
-    *   Takes a `CustomWorkflowConfig`.
-    *   Dynamically imports the Python module specified in the config.
-    *   Instantiates the specified class from the module.
-    *   Calls the required `async def execute_workflow(self, initial_input: Any, executor: "ExecutionFacade")` method on the instance, passing the `ExecutionFacade` instance (`executor`) to enable the custom workflow to call back into the facade for executing other agents or workflows if needed (composition).
+    *   Dynamically loads and executes a Python class defined in `CustomWorkflowConfig`.
+    *   Passes the `ExecutionFacade` instance to the custom workflow's `execute_workflow` method.
+*   **`storage/db_manager.py` (`StorageManager`):**
+    *   Provides methods to interact with the database (sync configs, load/save history).
+    *   Uses SQLAlchemy sessions managed internally.
+*   **`storage/db_connection.py`:**
+    *   `create_db_engine`: Factory function to create a SQLAlchemy engine based on `AURITE_DB_*` environment variables.
+*   **`storage/db_models.py`:**
+    *   Defines SQLAlchemy ORM models mapping to database tables (e.g., `AgentConfigDB`, `ConversationHistoryDB`).
 
 ## 4. Testing
 
@@ -92,45 +106,42 @@ This layer orchestrates the core agentic capabilities of the framework.
     *   Sets the `anyio_backend` fixture to `"asyncio"` globally. Note: While most tests use `pytestmark = pytest.mark.anyio` at the module level, this global setting might be relevant for potential future tests or fixtures.
     *   Provides a `parse_json_result` utility fixture.
 *   **`tests/fixtures/host_fixtures.py`:**
-    *   `host_manager`: A crucial **function-scoped** integration fixture. It initializes a `HostManager` instance using `config/testing_config.json`, which in turn initializes a real `MCPHost` and connects to the dummy MCP servers defined in that config (`weather_server`, `planning_server`, `address_server`). It handles setup and teardown, including suppressing known `RuntimeError: Event loop is closed` errors during teardown (a workaround for `anyio`/`asyncio` interaction issues with `AsyncExitStack`). Provides a realistic environment for testing orchestration logic.
-    *   `mock_mcp_host`: Provides a `unittest.mock.Mock` object mimicking `MCPHost`, useful for unit tests needing isolation from real host interactions.
-    *   `mock_host_config`: Provides a basic `HostConfig` mock.
-*   **`tests/fixtures/agent_fixtures.py`:** Provides various `AgentConfig` instances for testing different agent setups (minimal, filtered, specific LLM params).
-*   **`tests/fixtures/custom_workflows/example_workflow.py`:** A simple custom workflow implementation used for testing the `CustomWorkflowExecutor` and facade integration via the `host_manager` fixture.
-*   **`tests/fixtures/servers/`:** Contains dummy MCP server implementations (like `weather_mcp_server.py`, `planning_server.py`) used by the `host_manager` fixture during integration tests.
-*   **`pytestmark = pytest.mark.anyio`:** Used at the module level in relevant test files (`test_host_manager.py`, `test_simple_workflow_executor_integration.py`, etc.) to ensure tests run correctly with the async fixtures and `anyio`.
+    *   `host_manager`: Integration fixture initializing `HostManager` with `testing_config.json`, including `MCPHost` and dummy servers. **Note:** This fixture likely needs updating if tests require the DB to be enabled/disabled explicitly, potentially by parameterizing it or creating separate fixtures. Currently, it relies on the environment state (`AURITE_ENABLE_DB`).
+    *   `mock_mcp_host`: Mock `MCPHost` for unit tests.
+*   **`tests/fixtures/agent_fixtures.py`:** Provides various `AgentConfig` instances.
+*   **`tests/fixtures/custom_workflows/example_workflow.py`:** Example custom workflow for integration tests.
+*   **`tests/fixtures/servers/`:** Dummy MCP servers for integration tests.
+*   **`tests/storage/conftest.py` (or similar):** Likely contains fixtures like `db_session` for managing test database sessions (if following standard patterns).
+*   **`pytestmark = pytest.mark.anyio`:** Used in relevant test modules for async testing.
 
 **4.C. Testing Coverage (Updated Assessment):**
 
-| Functionality                                      | Relevant File(s)                              | Existing Test File(s) / Status                                                                                                                                                                                                                         |
-| :------------------------------------------------- | :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **HostManager: Initialization**                    | `host_manager.py`                             | `tests/orchestration/test_host_manager.py` (Integration), `tests/orchestration/test_host_manager_unit.py` (Unit). **Coverage: Good.** |
-| **HostManager: Dynamic Registration (Individual)** | `host_manager.py`                             | `tests/orchestration/test_host_manager_unit.py` (Unit). Integration tests lower priority. **Coverage: Sufficient.** |
-| **HostManager: `register_config_file`**            | `host_manager.py`                             | `tests/orchestration/test_host_manager.py` (Integration), `tests/orchestration/test_host_manager_unit.py` (Unit). **Coverage: Good.** |
-| **ExecutionFacade: `run_agent`**                   | `facade.py`, `agent.py`                       | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
-| **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py` | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
-| **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`             | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
-| **ExecutionFacade: Error Handling**                | `facade.py`                                   | `tests/orchestration/facade/test_facade_integration.py` (Integration - Not Found), `tests/orchestration/facade/test_facade_unit.py` (Unit - Not Found, Setup Error, Exec Error). **Coverage: Good.** |
-| **Agent: Execution Loop & Tool Use**               | `agent.py`                                    | `tests/orchestration/agent/test_agent.py` (E2E, requires API key). Implicitly tested via Facade/Workflow tests. Needs unit tests mocking LLM/tools (`tests/orchestration/agent/test_agent_unit.py`). |
-| **Agent: Filtering (`client_ids`, `exclude`)**     | `agent.py`, `host.py` (filtering logic)       | `tests/orchestration/test_filtering.py`, `tests/orchestration/test_tool_filtering.py`. Good coverage exists. Needs specific unit tests in `test_agent_unit.py`. |
-| **SimpleWorkflowExecutor: Sequential Execution**   | `simple_workflow.py`                          | `tests/orchestration/workflow/test_simple_workflow_executor_integration.py` (Integration). Needs unit tests (`tests/orchestration/workflow/test_simple_workflow_executor_unit.py`). |
-| **CustomWorkflowExecutor: Dynamic Loading/Exec**   | `custom_workflow.py`                          | `tests/orchestration/workflow/test_custom_workflow_executor_integration.py` (Integration). Needs unit tests (`tests/orchestration/workflow/test_custom_workflow_executor_unit.py`). |
-| **Config Loading & Validation**                    | `config.py`, `models.py`                      | `tests/orchestration/config/test_config_loading.py`. **Coverage: Good.** |
+| Functionality                                      | Relevant File(s)                                      | Existing Test File(s) / Status                                                                                                                                                                                                                         |
+| :------------------------------------------------- | :---------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **HostManager: Initialization (No DB)**            | `host_manager.py`                                     | `tests/orchestration/test_host_manager_unit.py` (Unit). Integration covered by `host_manager` fixture (when DB disabled). **Coverage: Good.** |
+| **HostManager: Initialization (With DB)**          | `host_manager.py`, `db_manager.py`, `db_connection.py` | `tests/orchestration/test_host_manager.py` (Integration - implicitly tests DB init if env var set). Needs specific unit tests mocking DB (`test_host_manager_unit.py`). **Coverage: Needs Improvement (Unit).** |
+| **HostManager: Dynamic Registration (No DB)**      | `host_manager.py`                                     | `tests/orchestration/test_host_manager_unit.py` (Unit). **Coverage: Sufficient.** |
+| **HostManager: Dynamic Registration (With DB)**    | `host_manager.py`, `db_manager.py`                    | `tests/orchestration/test_host_manager.py` (Integration - implicitly tests DB sync if env var set). Needs specific unit tests mocking DB (`test_host_manager_unit.py`). **Coverage: Needs Improvement (Unit).** |
+| **HostManager: `register_config_file` (With DB)**  | `host_manager.py`, `db_manager.py`                    | `tests/orchestration/test_host_manager.py` (Integration - implicitly tests DB sync if env var set). Needs specific unit tests mocking DB (`test_host_manager_unit.py`). **Coverage: Needs Improvement (Unit).** |
+| **ExecutionFacade: `run_agent` (No History)**      | `facade.py`, `agent.py`                               | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: `run_agent` (With History)**    | `facade.py`, `agent.py`, `db_manager.py`              | `tests/orchestration/facade/test_facade_integration.py` (Integration - implicitly tests if DB enabled). Needs specific unit tests mocking DB (`test_facade_unit.py`). **Coverage: Needs Improvement (Unit).** |
+| **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py`         | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`                     | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
+| **ExecutionFacade: Error Handling**                | `facade.py`                                           | `tests/orchestration/facade/test_facade_integration.py` (Integration - Not Found), `tests/orchestration/facade/test_facade_unit.py` (Unit - Not Found, Setup Error, Exec Error). **Coverage: Good.** |
+| **Agent: Execution Loop & Tool Use**               | `agent.py`                                            | `tests/orchestration/agent/test_agent.py` (E2E), `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks LLM/Host). **Coverage: Good.** |
+| **Agent: History Load/Save**                       | `agent.py`, `db_manager.py`                           | `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks StorageManager). **Coverage: Good (Unit).** Integration depends on Facade tests. |
+| **Agent: Filtering (`client_ids`, `exclude`)**     | `agent.py`, `host.py` (filtering logic)               | `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks Host). **Coverage: Good (Unit).** Integration depends on Facade/E2E tests. |
+| **SimpleWorkflowExecutor: Sequential Execution**   | `simple_workflow.py`                                  | `tests/orchestration/workflow/test_simple_workflow_executor_integration.py` (Integration), `tests/orchestration/workflow/test_simple_workflow_executor_unit.py` (Unit). **Coverage: Good.** |
+| **CustomWorkflowExecutor: Dynamic Loading/Exec**   | `custom_workflow.py`                                  | `tests/orchestration/workflow/test_custom_workflow_executor_integration.py` (Integration), `tests/orchestration/workflow/test_custom_workflow_executor_unit.py` (Unit). **Coverage: Good.** |
+| **Config Loading & Validation**                    | `config.py`, `models.py`                              | `tests/orchestration/config/test_config_loading.py`. **Coverage: Good.** |
+| **StorageManager: DB Init & Sync**                 | `db_manager.py`, `db_connection.py`, `db_models.py`   | `tests/storage/test_db_manager.py`. **Coverage: Good (Unit).** Integration tested implicitly via HostManager tests. |
+| **StorageManager: History Load/Save**              | `db_manager.py`, `db_connection.py`, `db_models.py`   | `tests/storage/test_db_manager.py`. **Coverage: Good (Unit).** Integration tested implicitly via Agent/Facade tests. |
 
 **4.D. Remaining Testing Steps:**
 
-1.  **Implement Agent Unit Tests (`tests/orchestration/agent/test_agent_unit.py`):**
-    *   Focus on `execute_agent` loop logic.
-    *   Mock `_make_llm_call` and `host_instance.execute_tool` (using `mock_mcp_host`) to simulate various LLM responses (tool use, no tool use, errors).
-    *   **Crucially, add unit tests specifically verifying the `client_ids` and `exclude_components` filtering logic when `host_instance.get_formatted_tools` is called.**
-2.  **Implement SimpleWorkflowExecutor Unit Tests (`tests/orchestration/workflow/test_simple_workflow_executor_unit.py`):**
-    *   Focus on the `execute` method's sequential logic.
-    *   Mock `Agent` instantiation and `execute_agent` calls.
-    *   Test edge cases (empty steps, agent errors during a step).
-3.  **Implement CustomWorkflowExecutor Unit Tests (`tests/orchestration/workflow/test_custom_workflow_executor_unit.py`):**
-    *   Focus on the `execute` method's dynamic loading and execution.
-    *   Mock `importlib`, file system interactions (`Path.exists`), and the dynamically loaded class/method (`execute_workflow`).
-    *   Test error conditions (module not found, class not found, `execute_workflow` method missing or not async, errors within the custom workflow).
-4.  **Enhance Existing Integration/E2E Tests:**
-    *   Review `tests/orchestration/agent/test_agent.py` (E2E) to ensure it adequately covers agent execution with filtering, potentially adding cases using `agent_config_filtered`.
-    *   Review integration tests (`test_facade_integration`, `test_*_workflow_executor_integration`, `test_host_manager`) to ensure they cover key success and failure paths in the *orchestrated* flow (interactions between Facade, Executors, and Host). Consider adding specific integration tests for Facade error handling if gaps are identified.
+1.  **Enhance HostManager Unit Tests (`tests/orchestration/test_host_manager_unit.py`):**
+    *   Add specific tests for initialization and registration logic when `StorageManager` is mocked (both enabled and disabled scenarios). Verify `sync_*` methods are called appropriately.
+2.  **Enhance ExecutionFacade Unit Tests (`tests/orchestration/facade/test_facade_unit.py`):**
+    *   Add tests verifying that the `StorageManager` instance is correctly passed to `Agent.execute_agent` when the facade is initialized with one.
+3.  **Review Integration Tests:**
+    *   Ensure `tests/orchestration/test_host_manager.py` and `tests/orchestration/facade/test_facade_integration.py` adequately cover scenarios where the database *is* enabled (requires setting `AURITE_ENABLE_DB=true` in the test environment or parameterizing fixtures). This implicitly tests the integration between `HostManager`, `Facade`, `Agent`, and `StorageManager`.
