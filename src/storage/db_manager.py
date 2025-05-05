@@ -221,25 +221,31 @@ class StorageManager:
     # NOTE: Making these synchronous for now as SQLAlchemy session operations
     # within the context manager are typically synchronous. If async driver (e.g., asyncpg)
     # and async sessions are used later, these would need `async def`.
-    def load_history(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def load_history(self, agent_name: str, session_id: Optional[str], limit: int = 50) -> List[Dict[str, Any]]:
         """
-        Loads recent conversation history for a specific agent.
+        Loads recent conversation history for a specific agent and session.
         Returns history in the format expected by Anthropic API messages:
         List[{'role': str, 'content': List[Dict[str, Any]]}]
         """
         if not self._engine: return []
+        if not session_id:
+            logger.warning(f"Attempted to load history for agent '{agent_name}' without a session_id. Returning empty list.")
+            return []
 
-        logger.debug(f"Loading history for agent '{agent_name}' (limit: {limit})")
+        logger.debug(f"Loading history for agent '{agent_name}', session '{session_id}' (limit: {limit})")
         history_params: List[Dict[str, Any]] = []
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
                 try:
-                    # Query AgentHistoryDB, filter by agent_name, order by timestamp ascending
+                    # Query AgentHistoryDB, filter by agent_name AND session_id, order by timestamp ascending
                     # Order ascending so the list is in chronological order for the LLM
                     history_records = (
                         db.query(AgentHistoryDB)
-                        .filter(AgentHistoryDB.agent_name == agent_name)
+                        .filter(
+                            AgentHistoryDB.agent_name == agent_name,
+                            AgentHistoryDB.session_id == session_id # Added session_id filter
+                        )
                         .order_by(AgentHistoryDB.timestamp.asc())
                         # Consider if limit should be applied here or after fetching all?
                         # Applying limit here is more efficient for large histories.
@@ -279,10 +285,10 @@ class StorageManager:
                     if len(history_params) > limit > 0:
                          history_params = history_params[-limit:] # Slice to get the last N items
 
-                    logger.debug(f"Loaded {len(history_params)} history turns for agent '{agent_name}'.")
+                    logger.debug(f"Loaded {len(history_params)} history turns for agent '{agent_name}', session '{session_id}'.")
 
                 except Exception as e:
-                    logger.error(f"Failed to load history for agent '{agent_name}': {e}", exc_info=True)
+                    logger.error(f"Failed to load history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
                     # Return empty list on error
                     return []
             else:
@@ -291,28 +297,34 @@ class StorageManager:
 
         return history_params
 
-    def save_full_history(self, agent_name: str, conversation: List[Dict[str, Any]]):
+    def save_full_history(self, agent_name: str, session_id: Optional[str], conversation: List[Dict[str, Any]]):
         """
-        Saves the entire conversation history for an agent.
-        Clears previous history for the agent before saving the new one.
+        Saves the entire conversation history for a specific agent and session.
+        Clears previous history for that specific agent/session before saving the new one.
         """
         if not self._engine: return
+        if not session_id:
+            logger.warning(f"Attempted to save history for agent '{agent_name}' without a session_id. Skipping save.")
+            return
 
         # Filter out any potential None values in conversation list defensively
         valid_conversation = [turn for turn in conversation if turn is not None]
         if not valid_conversation:
-             logger.warning(f"Attempted to save empty or invalid history for agent '{agent_name}'. Skipping.")
-             return # Corrected indentation
+             logger.warning(f"Attempted to save empty or invalid history for agent '{agent_name}', session '{session_id}'. Skipping.")
+             return
 
-        logger.debug(f"Saving full history for agent '{agent_name}' ({len(valid_conversation)} turns)")
+        logger.debug(f"Saving full history for agent '{agent_name}', session '{session_id}' ({len(valid_conversation)} turns)")
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
                 try:
-                    # Delete existing history for this agent first
-                    delete_stmt = AgentHistoryDB.__table__.delete().where(AgentHistoryDB.agent_name == agent_name)
+                    # Delete existing history for this agent and session first
+                    delete_stmt = AgentHistoryDB.__table__.delete().where(
+                        AgentHistoryDB.agent_name == agent_name,
+                        AgentHistoryDB.session_id == session_id # Added session_id filter
+                    )
                     db.execute(delete_stmt)
-                    logger.debug(f"Cleared previous history for agent '{agent_name}'.")
+                    logger.debug(f"Cleared previous history for agent '{agent_name}', session '{session_id}'.")
 
                     # Add new history turns
                     new_history_records = []
@@ -328,6 +340,7 @@ class StorageManager:
                         new_history_records.append(
                             AgentHistoryDB(
                                 agent_name=agent_name,
+                                session_id=session_id, # Added session_id
                                 role=role,
                                 content_json=content_to_save # Correctly map to content_json column
                             )
@@ -335,11 +348,11 @@ class StorageManager:
 
                     if new_history_records:
                         db.add_all(new_history_records)
-                        logger.debug(f"Added {len(new_history_records)} new history turns for agent '{agent_name}'.")
+                        logger.debug(f"Added {len(new_history_records)} new history turns for agent '{agent_name}', session '{session_id}'.")
 
                     # Commit happens automatically via context manager
                 except Exception as e:
-                    logger.error(f"Failed to save history for agent '{agent_name}': {e}", exc_info=True)
+                    logger.error(f"Failed to save history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
                     # Rollback happens automatically via context manager
             else:
                  logger.error("Failed to get DB session for saving history.")

@@ -14,10 +14,10 @@ It provides three core components:
 *   **MCP Host:** The infrastructure layer connecting to and managing MCP servers.
 *   **Host Manager:** The orchestration layer managing the Host, Agents, and Workflows.
 *   **MCP Server/Client:** An external process implementing the MCP protocol to provide specific capabilities (e.g., a weather tool server, a planning tool server). The Host connects to these servers, referring to them as clients.
-*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information. Can optionally persist conversation history using the Storage Manager.
-*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially via the `ExecutionFacade`.
-*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic. Its `execute_workflow` method now receives an `ExecutionFacade` instance to call other components (Agents, Simple Workflows, other Custom Workflows).
-*   **Storage Manager (`src/storage/db_manager.py`):** Handles database interactions, including persisting agent configurations and conversation history if enabled.
+*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information. Can optionally persist conversation history using the Storage Manager (requires `session_id` during execution).
+*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially via the `ExecutionFacade`. (Note: Session history is not automatically propagated to agents within a simple workflow currently).
+*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic. Its `execute_workflow` method receives an `ExecutionFacade` instance and an optional `session_id`. If calling agents that use history, the `session_id` must be passed along.
+*   **Storage Manager (`src/storage/db_manager.py`):** Handles database interactions, including persisting agent configurations and conversation history (keyed by `agent_name` and `session_id`) if enabled.
 
 ## Architecture
 

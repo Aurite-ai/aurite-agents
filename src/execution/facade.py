@@ -162,7 +162,7 @@ class ExecutionFacade:
     # --- Public Execution Methods ---
 
     async def run_agent(
-        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None
+        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None, session_id: Optional[str] = None # Added session_id
     ) -> Dict[str, Any]:
         """Executes a configured agent by name using the helper."""
 
@@ -187,6 +187,7 @@ class ExecutionFacade:
             host_instance=self._host,
             storage_manager=self._storage_manager, # Pass storage manager here
             system_prompt=system_prompt,
+            session_id=session_id, # Pass session_id here
         )
 
     async def run_simple_workflow(
@@ -219,7 +220,7 @@ class ExecutionFacade:
             initial_input=initial_input,
         )
 
-    async def run_custom_workflow(self, workflow_name: str, initial_input: Any) -> Any:
+    async def run_custom_workflow(self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None) -> Any: # Added session_id
         """Executes a configured custom workflow by name using the helper."""
 
         def error_factory(name: str, msg: str) -> Dict[str, Any]:
@@ -240,4 +241,5 @@ class ExecutionFacade:
             # Execution kwargs:
             initial_input=initial_input,
             executor=self,  # Pass the facade itself to the custom workflow
+            session_id=session_id, # Pass session_id here
         )

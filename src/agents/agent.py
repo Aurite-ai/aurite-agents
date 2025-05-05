@@ -146,6 +146,7 @@ class Agent:
         host_instance: MCPHost,
         storage_manager: Optional["StorageManager"] = None, # Added storage_manager
         system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None, # Added session_id
     ) -> Dict[str, Any]:
         """
         Executes a standard agent task based on the user message, using the
@@ -219,18 +220,23 @@ class Agent:
 
         # --- History Loading ---
         if self.config.include_history and storage_manager:
-            try:
-                # Load history from DB (returns list in MessageParam format)
-                # REMOVED await - load_history is synchronous
-                loaded_history_params = storage_manager.load_history(agent_name=self.config.name)
-                if loaded_history_params:
-                    messages.extend(loaded_history_params)
-                    # Also add to internal history tracker (needs conversion if format differs)
-                    # Assuming load_history returns [{'role': 'user'|'assistant', 'content': [...]}, ...]
-                    conversation_history.extend(loaded_history_params)
-                    logger.info(f"Loaded {len(loaded_history_params)} history turns for agent '{self.config.name}'.")
-            except Exception as e:
-                logger.error(f"Failed to load history for agent '{self.config.name}': {e}", exc_info=True)
+            if session_id: # Only load if session_id is provided
+                try:
+                    # Load history from DB (returns list in MessageParam format)
+                    loaded_history_params = storage_manager.load_history(
+                        agent_name=self.config.name,
+                        session_id=session_id # Pass session_id
+                    )
+                    if loaded_history_params:
+                        messages.extend(loaded_history_params)
+                        # Also add to internal history tracker
+                        conversation_history.extend(loaded_history_params)
+                        logger.info(f"Loaded {len(loaded_history_params)} history turns for agent '{self.config.name}', session '{session_id}'.")
+                except Exception as e:
+                    logger.error(f"Failed to load history for agent '{self.config.name}', session '{session_id}': {e}", exc_info=True)
+                    # Continue execution without history if loading fails
+            else:
+                logger.warning(f"History enabled for agent '{self.config.name}' but no session_id provided. History will not be loaded.")
                 # Continue execution without history if loading fails
 
         # Add current user message
@@ -389,13 +395,14 @@ class Agent:
 
         # --- History Saving ---
         if self.config.include_history and storage_manager:
-            try:
-                # Convert conversation history to a serializable format first
-                serializable_history = []
-                for message in conversation_history:
-                    # Ensure message is a dict before processing
-                    if isinstance(message, dict):
-                        raw_content = message.get('content')
+            if session_id: # Only save if session_id is provided
+                try:
+                    # Convert conversation history to a serializable format first
+                    serializable_history = []
+                    for message in conversation_history: # Indent this loop correctly
+                        # Ensure message is a dict before processing
+                        if isinstance(message, dict):
+                            raw_content = message.get('content')
                         # Serialize complex blocks first
                         serializable_content = _serialize_content_blocks(raw_content)
 
@@ -415,16 +422,19 @@ class Agent:
                         # Log if a message isn't in the expected format
                         logger.warning(f"Skipping non-dict message in history for agent '{self.config.name}': {type(message)}")
 
-                # Save the SERIALIZED conversation history (save_full_history is sync)
-                storage_manager.save_full_history(
-                    agent_name=self.config.name,
-                    conversation=serializable_history # Pass the serialized version
-                )
-                logger.info(f"Saved {len(serializable_history)} history turns for agent '{self.config.name}'.")
-            except Exception as e:
-                # Log error but don't fail the overall execution result
-                logger.error(f"Failed to save history for agent '{self.config.name}': {e}", exc_info=True)
-                # Log error but don't fail the overall execution result
+                    # Save the SERIALIZED conversation history (save_full_history is sync)
+                    storage_manager.save_full_history(
+                        agent_name=self.config.name,
+                        session_id=session_id, # Pass session_id
+                        conversation=serializable_history # Pass the serialized version
+                    )
+                    logger.info(f"Saved {len(serializable_history)} history turns for agent '{self.config.name}', session '{session_id}'.")
+                except Exception as e:
+                    # Log error but don't fail the overall execution result
+                    logger.error(f"Failed to save history for agent '{self.config.name}', session '{session_id}': {e}", exc_info=True)
+                    # Log error but don't fail the overall execution result # Removed redundant comment
+            else: # This else corresponds to 'if session_id:'
+                 logger.warning(f"History enabled for agent '{self.config.name}' but no session_id provided. History will not be saved.")
 
         # Return Results - Renumbered step
         logger.info(

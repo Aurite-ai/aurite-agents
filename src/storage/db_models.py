@@ -80,8 +80,9 @@ class AgentHistoryDB(Base):
     __tablename__ = 'agent_history'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # Index agent_name and timestamp for efficient history retrieval
+    # Index agent_name, session_id, and timestamp for efficient history retrieval
     agent_name = Column(String, index=True, nullable=False)
+    session_id = Column(String, index=True, nullable=False) # Added session_id
     timestamp = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
     # Store role ('user' or 'assistant')
     role = Column(String, nullable=False)
@@ -90,11 +91,11 @@ class AgentHistoryDB(Base):
     # Column name will default to attribute name
     content_json = Column(JSON, nullable=False)
 
-    # Add index for faster lookup by agent and time
-    __table_args__ = (Index('ix_agent_history_agent_timestamp', "agent_name", "timestamp"), )
+    # Add index for faster lookup by agent, session, and time
+    __table_args__ = (Index('ix_agent_history_agent_session_timestamp', "agent_name", "session_id", "timestamp"), )
 
     def __repr__(self):
-        return f"<AgentHistoryDB(id={self.id}, agent_name='{self.agent_name}', role='{self.role}', timestamp='{self.timestamp}')>"
+        return f"<AgentHistoryDB(id={self.id}, agent_name='{self.agent_name}', session_id='{self.session_id}', role='{self.role}', timestamp='{self.timestamp}')>"
 
 # You can add helper functions here if needed, e.g., to convert
 # Pydantic models to DB models or vice-versa, although this logic

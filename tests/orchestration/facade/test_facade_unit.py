@@ -53,6 +53,7 @@ class TestExecutionFacadeUnit:
         print("\n--- Running Test: test_run_agent_success ---")
         agent_name = "TestAgent"
         initial_input = "Hello Agent"
+        session_id = "unit_test_session_agent" # Define session ID
         expected_result = {"status": "completed", "final_response": "Agent Response"}
 
         # Mock the internal _execute_component method for this unit test
@@ -62,6 +63,7 @@ class TestExecutionFacadeUnit:
         result = await execution_facade.run_agent(
             agent_name=agent_name,
             user_message=initial_input,
+            session_id=session_id, # Pass session ID
         )
 
         print(f"Execution Result: {result}")
@@ -84,6 +86,7 @@ class TestExecutionFacadeUnit:
         # Check args specific to the executor type that are passed through
         assert call_kwargs.get("host_instance") == mock_host_manager.host
         assert call_kwargs.get("user_message") == initial_input  # Agent specific arg
+        assert call_kwargs.get("session_id") == session_id # Verify session_id passed
 
         # Check the final result
         assert result == expected_result
@@ -151,6 +154,7 @@ class TestExecutionFacadeUnit:
         print("\n--- Running Test: test_run_custom_workflow_success ---")
         workflow_name = "TestCustomWorkflow"
         initial_input = {"data": "start"}
+        session_id = "unit_test_session_custom" # Define session ID
         expected_result = {"status": "completed", "result": "Custom Done"}
 
         # Mock the internal _execute_component method
@@ -160,6 +164,7 @@ class TestExecutionFacadeUnit:
         result = await execution_facade.run_custom_workflow(
             workflow_name=workflow_name,
             initial_input=initial_input,
+            session_id=session_id, # Pass session ID
         )
 
         print(f"Execution Result: {result}")
@@ -182,6 +187,7 @@ class TestExecutionFacadeUnit:
         assert (
             call_kwargs.get("executor") == execution_facade
         )  # CustomWorkflow specific arg
+        assert call_kwargs.get("session_id") == session_id # Verify session_id passed
 
         # Check the final result
         assert result == expected_result
@@ -585,6 +591,7 @@ class TestExecutionFacadeUnit:
         component_name = "TestAgent"
         component_type = "Agent"
         initial_input = "Test message"
+        session_id = "internal_test_session" # Define session ID
         expected_result = {
             "status": "completed",
             "final_response": "Mocked agent response",
@@ -618,6 +625,7 @@ class TestExecutionFacadeUnit:
             # Pass through specific args needed by the execution_func (execute_agent)
             host_instance=mock_host_manager.host,
             user_message=initial_input,
+            session_id=session_id, # Pass session_id
         )
         print(f"Execution Result: {result}")
 
@@ -637,6 +645,7 @@ class TestExecutionFacadeUnit:
         # Check the other arguments passed via **kwargs
         assert keyword_args.get("host_instance") == mock_host_manager.host
         assert keyword_args.get("user_message") == initial_input
+        assert keyword_args.get("session_id") == session_id # Verify session_id
 
         # 4. Error factory was NOT called
         mock_error_factory.assert_not_called()

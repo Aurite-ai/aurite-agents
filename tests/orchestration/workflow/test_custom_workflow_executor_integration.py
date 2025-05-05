@@ -8,6 +8,7 @@ import pytest
 pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
 import logging  # Add logging import
+import uuid # Add uuid import
 
 """
 These tests verify the executor's ability to dynamically load and execute
@@ -96,8 +97,10 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
         description="Test workflow for execution",
     )
     initial_input = {"city": "Paris"}  # Example input for the workflow
+    session_id = f"test_cwf_exec_session_{uuid.uuid4()}" # Generate unique session ID
     print(f"Workflow Config: {workflow_config}")
     print(f"Initial Input: {initial_input}")
+    print(f"Session ID: {session_id}")
 
     # Requires ANTHROPIC_API_KEY for the agent called within the custom workflow
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -112,10 +115,11 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
         )
         print(f"Executor initialized: {executor}")
 
-        # Execute using the facade's host instance and passing the facade itself
+        # Execute using the facade's host instance and passing the facade itself and session_id
         result = await executor.execute(
             initial_input=initial_input,
             executor=facade,  # Pass the facade instance
+            session_id=session_id # Pass session_id
         )
         print(f"Execution Result: {result}")
 

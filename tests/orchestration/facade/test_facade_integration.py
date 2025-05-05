@@ -3,10 +3,8 @@ Integration tests for the ExecutionFacade.
 """
 
 import pytest
-
-# Mark all tests in this module as belonging to the Orchestration layer
-pytestmark = pytest.mark.orchestration
 import os
+import uuid # Add uuid import
 
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
@@ -28,6 +26,7 @@ async def test_facade_run_agent(host_manager: HostManager):
 
     agent_name = "Weather Agent"  # Agent defined in testing_config.json
     user_message = "What's the weather in Boston?"
+    session_id = f"test_agent_session_{uuid.uuid4()}" # Generate unique session ID
 
     assert agent_name in host_manager.agent_configs, (
         f"'{agent_name}' not found for test setup."
@@ -37,7 +36,7 @@ async def test_facade_run_agent(host_manager: HostManager):
 
     try:
         result = await facade.run_agent(
-            agent_name=agent_name, user_message=user_message
+            agent_name=agent_name, user_message=user_message, session_id=session_id # Pass session_id
         )
         print(f"Facade run_agent Result: {result}")
 
@@ -116,6 +115,7 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     # Use the custom workflow defined in testing_config.json
     workflow_name = "ExampleCustom"
     initial_input = {"city": "Tokyo"}
+    session_id = f"test_custom_session_{uuid.uuid4()}" # Generate unique session ID
 
     assert workflow_name in host_manager.custom_workflow_configs, (
         f"'{workflow_name}' not found for test setup."
@@ -125,7 +125,7 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
 
     try:
         result = await facade.run_custom_workflow(
-            workflow_name=workflow_name, initial_input=initial_input
+            workflow_name=workflow_name, initial_input=initial_input, session_id=session_id # Pass session_id
         )
         print(f"Facade run_custom_workflow Result: {result}")
 

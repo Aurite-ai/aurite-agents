@@ -212,24 +212,37 @@ def test_sync_all_configs(setup_test_db, storage_manager_instance: StorageManage
 # --- History Tests ---
 
 def test_save_and_load_history_empty(setup_test_db, storage_manager_instance: StorageManager):
-    """Test loading history when none exists."""
+    """Test loading history when none exists for a specific session."""
     manager = storage_manager_instance
-    history = manager.load_history("HistoryAgent1")
+    agent_name = "HistoryAgent1"
+    session_id = "session_empty"
+    # Test loading with session_id when no history exists
+    history = manager.load_history(agent_name, session_id)
     assert history == []
+    # Test loading without session_id (should return empty and log warning)
+    history_no_session = manager.load_history(agent_name, None)
+    assert history_no_session == []
+
 
 def test_save_and_load_history_basic(setup_test_db, storage_manager_instance: StorageManager):
-    """Test saving and loading a simple conversation."""
+    """Test saving and loading a simple conversation for a specific session."""
     manager = storage_manager_instance
     agent_name = "HistoryAgent2"
+    session_id = "session_basic"
     conversation = [
         {"role": "user", "content": [{"type": "text", "text": "Hello"}]},
         {"role": "assistant", "content": [{"type": "text", "text": "Hi there!"}]},
     ]
 
-    manager.save_full_history(agent_name, conversation)
+    # Test saving without session_id (should do nothing and log warning)
+    manager.save_full_history(agent_name, None, conversation)
+    assert manager.load_history(agent_name, session_id) == [] # Verify nothing was saved
 
-    # Load back and verify
-    loaded_history = manager.load_history(agent_name)
+    # Save with session_id
+    manager.save_full_history(agent_name, session_id, conversation)
+
+    # Load back and verify for the correct session
+    loaded_history = manager.load_history(agent_name, session_id)
     assert len(loaded_history) == 2
     assert loaded_history[0]["role"] == "user"
     assert loaded_history[0]["content"] == [{"type": "text", "text": "Hello"}]
@@ -237,47 +250,78 @@ def test_save_and_load_history_basic(setup_test_db, storage_manager_instance: St
     assert loaded_history[1]["content"] == [{"type": "text", "text": "Hi there!"}]
 
 def test_save_full_history_clears_previous(setup_test_db, storage_manager_instance: StorageManager):
-    """Test that save_full_history replaces existing history."""
+    """Test that save_full_history replaces existing history for a specific session."""
     manager = storage_manager_instance
     agent_name = "HistoryAgent3"
+    session_id = "session_clear"
     conv1 = [{"role": "user", "content": [{"type": "text", "text": "First"}]}]
     conv2 = [{"role": "user", "content": [{"type": "text", "text": "Second"}]}]
 
-    manager.save_full_history(agent_name, conv1)
-    history1 = manager.load_history(agent_name)
+    manager.save_full_history(agent_name, session_id, conv1)
+    history1 = manager.load_history(agent_name, session_id)
     assert len(history1) == 1
     assert history1[0]["content"][0]["text"] == "First"
 
-    manager.save_full_history(agent_name, conv2)
-    history2 = manager.load_history(agent_name)
+    manager.save_full_history(agent_name, session_id, conv2) # Save again for the same session
+    history2 = manager.load_history(agent_name, session_id)
     assert len(history2) == 1 # Should only contain conv2
     assert history2[0]["content"][0]["text"] == "Second"
 
 def test_load_history_limit(setup_test_db, storage_manager_instance: StorageManager):
-    """Test the limit parameter for loading history."""
+    """Test the limit parameter for loading history for a specific session."""
     manager = storage_manager_instance
     agent_name = "HistoryAgent4"
+    session_id = "session_limit"
     conversation = [
         {"role": "user", "content": [{"type": "text", "text": "Turn 1"}]},
         {"role": "assistant", "content": [{"type": "text", "text": "Turn 2"}]},
         {"role": "user", "content": [{"type": "text", "text": "Turn 3"}]},
         {"role": "assistant", "content": [{"type": "text", "text": "Turn 4"}]},
     ]
-    manager.save_full_history(agent_name, conversation)
+    manager.save_full_history(agent_name, session_id, conversation)
 
-    # Load last 2 turns
-    loaded_history = manager.load_history(agent_name, limit=2)
+    # Load last 2 turns for this session
+    loaded_history = manager.load_history(agent_name, session_id, limit=2)
     assert len(loaded_history) == 2
     assert loaded_history[0]["content"][0]["text"] == "Turn 3" # Should be the last N turns
     assert loaded_history[1]["content"][0]["text"] == "Turn 4"
 
-    # Load last 5 turns (more than available)
-    loaded_history_more = manager.load_history(agent_name, limit=5)
+    # Load last 5 turns (more than available) for this session
+    loaded_history_more = manager.load_history(agent_name, session_id, limit=5)
     assert len(loaded_history_more) == 4 # Returns all available
 
-    # Load with limit 0 (should return all?) - Check behavior
-    loaded_history_zero = manager.load_history(agent_name, limit=0)
+    # Load with limit 0 (should return all?) for this session
+    loaded_history_zero = manager.load_history(agent_name, session_id, limit=0)
     assert len(loaded_history_zero) == 4 # Limit 0 or less means no limit
+
+def test_history_session_isolation(setup_test_db, storage_manager_instance: StorageManager):
+    """Test that history is isolated between different sessions for the same agent."""
+    manager = storage_manager_instance
+    agent_name = "HistoryAgent5"
+    session_id_1 = "session_iso_1"
+    session_id_2 = "session_iso_2"
+
+    conv1 = [{"role": "user", "content": [{"type": "text", "text": "Session 1 Msg"}]}]
+    conv2 = [{"role": "user", "content": [{"type": "text", "text": "Session 2 Msg"}]}]
+
+    # Save history for session 1
+    manager.save_full_history(agent_name, session_id_1, conv1)
+    # Save history for session 2
+    manager.save_full_history(agent_name, session_id_2, conv2)
+
+    # Load history for session 1
+    history1 = manager.load_history(agent_name, session_id_1)
+    assert len(history1) == 1
+    assert history1[0]["content"][0]["text"] == "Session 1 Msg"
+
+    # Load history for session 2
+    history2 = manager.load_history(agent_name, session_id_2)
+    assert len(history2) == 1
+    assert history2[0]["content"][0]["text"] == "Session 2 Msg"
+
+    # Verify loading non-existent session returns empty
+    history_other = manager.load_history(agent_name, "session_other")
+    assert history_other == []
 
 # TODO: Add tests for edge cases (e.g., invalid conversation format for saving)
 # TODO: Add tests for error handling during DB operations (might require mocking session)

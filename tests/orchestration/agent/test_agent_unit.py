@@ -607,6 +607,7 @@ class TestAgentUnit:
         """
         print("\n--- Running Test: test_execute_agent_history_enabled_loads_and_saves ---")
         user_message = "Third message"
+        session_id = "test_session_123" # Define a session ID for the test
         # Create agent config with history enabled
         history_agent_config = AgentConfig(
             name="HistoryAgent",
@@ -637,11 +638,15 @@ class TestAgentUnit:
             user_message=user_message,
             host_instance=mock_mcp_host,
             storage_manager=mock_storage, # Pass the mock
+            session_id=session_id, # Pass the session ID
         )
 
         # --- Assertions ---
         # 1. History Loading
-        mock_storage.load_history.assert_called_once_with(agent_name=history_agent_config.name)
+        mock_storage.load_history.assert_called_once_with(
+            agent_name=history_agent_config.name,
+            session_id=session_id # Verify session_id was passed
+        )
 
         # 2. LLM Call includes history
         mock_llm_call.assert_awaited_once() # Assert the call happened
@@ -662,11 +667,13 @@ class TestAgentUnit:
 
         # 3. History Saving
         mock_storage.save_full_history.assert_called_once()
-        save_call_args, save_call_kwargs = mock_storage.save_full_history.call_args
-        saved_agent_name = save_call_kwargs.get("agent_name")
+        # Check keyword arguments passed to the mock
+        save_call_kwargs = mock_storage.save_full_history.call_args.kwargs
+        assert save_call_kwargs.get("agent_name") == history_agent_config.name
+        assert save_call_kwargs.get("session_id") == session_id # Verify session_id was passed
         saved_conversation = save_call_kwargs.get("conversation")
 
-        assert saved_agent_name == history_agent_config.name
+        # Assertions on saved conversation content remain the same
         assert len(saved_conversation) == 4 # History (2) + Current User (1) + Final Assistant (1)
         # Verify the content was serialized correctly (using the helper implicitly)
         assert saved_conversation[0] == mock_loaded_history[0]
@@ -700,6 +707,7 @@ class TestAgentUnit:
         """
         print("\n--- Running Test: test_execute_agent_history_disabled ---")
         user_message = "No history please"
+        session_id = "test_session_disabled" # Define session ID even though it shouldn't be used
         # Agent fixture uses minimal_agent_config where include_history is default (False)
 
         # Mock StorageManager (methods should NOT be called)
@@ -717,6 +725,7 @@ class TestAgentUnit:
             user_message=user_message,
             host_instance=mock_mcp_host,
             storage_manager=mock_storage, # Pass the mock
+            session_id=session_id, # Pass session ID (agent should ignore it)
         )
 
         # --- Assertions ---
@@ -765,6 +774,7 @@ class TestAgentUnit:
         """
         print("\n--- Running Test: test_execute_agent_history_enabled_no_storage_manager ---")
         user_message = "History enabled, but no storage"
+        session_id = "test_session_no_storage" # Define session ID
         # Create agent config with history enabled
         history_agent_config = AgentConfig(
             name="HistoryAgentNoStorage",
@@ -785,6 +795,7 @@ class TestAgentUnit:
             user_message=user_message,
             host_instance=mock_mcp_host,
             storage_manager=None, # Explicitly pass None
+            session_id=session_id, # Pass session ID (agent should log warning but proceed)
         )
 
         # --- Assertions ---
