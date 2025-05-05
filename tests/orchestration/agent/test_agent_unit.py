@@ -3,17 +3,19 @@ Unit tests for the Agent class.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import Mock, AsyncMock, MagicMock, patch # Import patch
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 
 # Imports from the project
-from src.agents.agent import Agent
-from src.host.models import AgentConfig  # Add RootConfig for dummy data
-from anthropic.types import Message  # For mocking LLM response
-import anthropic  # Import the library for exception types
+from unittest.mock import call # Import call for checking multiple args
+from src.agents.agent import Agent, _serialize_content_blocks # Import helper too
+from src.host.models import AgentConfig
+from src.storage.db_manager import StorageManager # Import for type hint/mocking
+from anthropic.types import Message, TextBlock # For mocking LLM response
+import anthropic # Import the library for exception types
 
 # Import shared fixtures
 
@@ -587,3 +589,222 @@ class TestAgentUnit:
 
         print("Assertions passed.")
         print("--- Test Finished: test_execute_agent_llm_call_failure ---")
+
+
+    # --- History Tests ---
+
+    @pytest.mark.asyncio
+    @patch('src.agents.agent.Agent._make_llm_call', new_callable=AsyncMock) # Patch the method
+    async def test_execute_agent_history_enabled_loads_and_saves(
+        self,
+        mock_llm_call: AsyncMock, # Mock is passed as first arg
+        mock_mcp_host: AsyncMock,
+        # mock_anthropic_client is no longer needed directly as we patch _make_llm_call
+    ):
+        """
+        Test that history is loaded and saved when include_history=True
+        and a storage_manager is provided.
+        """
+        print("\n--- Running Test: test_execute_agent_history_enabled_loads_and_saves ---")
+        user_message = "Third message"
+        # Create agent config with history enabled
+        history_agent_config = AgentConfig(
+            name="HistoryAgent",
+            model="claude-3-haiku-20240307",
+            include_history=True,
+        )
+        agent_with_history = Agent(config=history_agent_config)
+
+        # Mock StorageManager
+        mock_storage = MagicMock(spec=StorageManager)
+        # Define mock history to be loaded (already serialized format)
+        mock_loaded_history = [
+            {"role": "user", "content": [{"type": "text", "text": "First message"}]},
+            {"role": "assistant", "content": [{"type": "text", "text": "Second message"}]},
+        ]
+        mock_storage.load_history.return_value = mock_loaded_history
+        # save_full_history doesn't need a return value for the mock
+
+        # Mock LLM response
+        mock_llm_response = MagicMock(spec=Message)
+        mock_llm_response.content = [MagicMock(type="text", text="Fourth message")]
+        mock_llm_response.stop_reason = "end_turn"
+        # Configure the patched mock's return value
+        mock_llm_call.return_value = mock_llm_response
+
+        # Execute the agent, passing the mock storage manager
+        result = await agent_with_history.execute_agent(
+            user_message=user_message,
+            host_instance=mock_mcp_host,
+            storage_manager=mock_storage, # Pass the mock
+        )
+
+        # --- Assertions ---
+        # 1. History Loading
+        mock_storage.load_history.assert_called_once_with(agent_name=history_agent_config.name)
+
+        # 2. LLM Call includes history
+        mock_llm_call.assert_awaited_once() # Assert the call happened
+        # Get the arguments captured by the mock (which might reflect post-call state)
+        actual_call_kwargs = mock_llm_call.await_args.kwargs
+        actual_messages_arg = actual_call_kwargs.get('messages', [])
+        # Assert based on what *should have been* passed at call time
+        assert len(actual_messages_arg) >= 3 # Should have at least history + user msg
+        # Check the messages that *should* have been sent
+        assert actual_messages_arg[0] == mock_loaded_history[0] # Check first history item
+        assert actual_messages_arg[1] == mock_loaded_history[1] # Check second history item
+        # The user message should be the third item *at the time of the call*
+        assert actual_messages_arg[2]["role"] == "user"
+        assert actual_messages_arg[2]["content"] == user_message
+        # Also check other key args were passed correctly
+        assert actual_call_kwargs.get('model') == history_agent_config.model
+        assert actual_call_kwargs.get('system_prompt') == (history_agent_config.system_prompt or "You are a helpful assistant.")
+
+        # 3. History Saving
+        mock_storage.save_full_history.assert_called_once()
+        save_call_args, save_call_kwargs = mock_storage.save_full_history.call_args
+        saved_agent_name = save_call_kwargs.get("agent_name")
+        saved_conversation = save_call_kwargs.get("conversation")
+
+        assert saved_agent_name == history_agent_config.name
+        assert len(saved_conversation) == 4 # History (2) + Current User (1) + Final Assistant (1)
+        # Verify the content was serialized correctly (using the helper implicitly)
+        assert saved_conversation[0] == mock_loaded_history[0]
+        assert saved_conversation[1] == mock_loaded_history[1]
+        assert saved_conversation[2]["role"] == "user"
+        # User message content should be serialized (wrapped in list/dict)
+        assert saved_conversation[2]["content"] == [{"type": "text", "text": user_message}]
+        # Check only the role of the final assistant message in the saved history
+        assert saved_conversation[3]["role"] == "assistant"
+        # Avoid asserting the exact content structure of the serialized mock, as it's fragile
+
+        # 4. Final Result Structure (optional, but good practice)
+        assert result["error"] is None
+        assert result["final_response"] == mock_llm_response
+
+        print("Assertions passed.")
+        print("--- Test Finished: test_execute_agent_history_enabled_loads_and_saves ---")
+
+
+    @pytest.mark.asyncio
+    @patch('src.agents.agent.Agent._make_llm_call', new_callable=AsyncMock) # Patch the method
+    async def test_execute_agent_history_disabled(
+        self,
+        mock_llm_call: AsyncMock, # Mock is passed as first arg
+        agent: Agent, # Uses minimal_agent_config (history defaults to None/False)
+        mock_mcp_host: AsyncMock,
+        # mock_anthropic_client no longer needed
+    ):
+        """
+        Test that history is NOT loaded or saved when include_history=False.
+        """
+        print("\n--- Running Test: test_execute_agent_history_disabled ---")
+        user_message = "No history please"
+        # Agent fixture uses minimal_agent_config where include_history is default (False)
+
+        # Mock StorageManager (methods should NOT be called)
+        mock_storage = MagicMock(spec=StorageManager)
+
+        # Mock LLM response
+        mock_llm_response = MagicMock(spec=Message)
+        mock_llm_response.content = [MagicMock(type="text", text="Okay, no history.")]
+        mock_llm_response.stop_reason = "end_turn"
+        # Configure the patched mock
+        mock_llm_call.return_value = mock_llm_response
+
+        # Execute the agent, passing the mock storage manager
+        result = await agent.execute_agent(
+            user_message=user_message,
+            host_instance=mock_mcp_host,
+            storage_manager=mock_storage, # Pass the mock
+        )
+
+        # --- Assertions ---
+        # 1. History Loading NOT called
+        mock_storage.load_history.assert_not_called()
+
+        # 2. LLM Call does NOT include history
+        mock_llm_call.assert_awaited_once() # Assert the call happened
+        # Get the arguments captured by the mock
+        actual_call_kwargs = mock_llm_call.await_args.kwargs
+        actual_messages_arg = actual_call_kwargs.get('messages', [])
+        # Assert based on what *should have been* passed at call time
+        assert len(actual_messages_arg) >= 1 # Should have at least user msg
+        # The user message should be the first item *at the time of the call*
+        assert actual_messages_arg[0]["role"] == "user"
+        assert actual_messages_arg[0]["content"] == user_message
+        # Check other key args, accounting for fallbacks in execute_agent
+        expected_model = agent.config.model or "claude-3-opus-20240229"
+        expected_system_prompt = agent.config.system_prompt or "You are a helpful assistant."
+        assert actual_call_kwargs.get('model') == expected_model
+        assert actual_call_kwargs.get('system_prompt') == expected_system_prompt
+
+
+        # 3. History Saving NOT called
+        mock_storage.save_full_history.assert_not_called()
+
+        # 4. Final Result Structure
+        assert result["error"] is None
+        assert result["final_response"] == mock_llm_response
+
+        print("Assertions passed.")
+        print("--- Test Finished: test_execute_agent_history_disabled ---")
+
+
+    @pytest.mark.asyncio
+    @patch('src.agents.agent.Agent._make_llm_call', new_callable=AsyncMock) # Patch the method
+    async def test_execute_agent_history_enabled_no_storage_manager(
+        self,
+        mock_llm_call: AsyncMock, # Mock is passed as first arg
+        mock_mcp_host: AsyncMock,
+        # mock_anthropic_client no longer needed
+    ):
+        """
+        Test that execution proceeds without error when include_history=True
+        but no storage_manager is provided.
+        """
+        print("\n--- Running Test: test_execute_agent_history_enabled_no_storage_manager ---")
+        user_message = "History enabled, but no storage"
+        # Create agent config with history enabled
+        history_agent_config = AgentConfig(
+            name="HistoryAgentNoStorage",
+            model="claude-3-haiku-20240307",
+            include_history=True, # History is enabled
+        )
+        agent_with_history = Agent(config=history_agent_config)
+
+        # Mock LLM response
+        mock_llm_response = MagicMock(spec=Message)
+        mock_llm_response.content = [MagicMock(type="text", text="Okay")]
+        mock_llm_response.stop_reason = "end_turn"
+        # Configure the patched mock
+        mock_llm_call.return_value = mock_llm_response
+
+        # Execute the agent, passing storage_manager=None
+        result = await agent_with_history.execute_agent(
+            user_message=user_message,
+            host_instance=mock_mcp_host,
+            storage_manager=None, # Explicitly pass None
+        )
+
+        # --- Assertions ---
+        # 1. LLM Call does NOT include history (as it couldn't be loaded)
+        mock_llm_call.assert_awaited_once() # Assert the call happened
+        # Get the arguments captured by the mock
+        actual_call_kwargs = mock_llm_call.await_args.kwargs
+        actual_messages_arg = actual_call_kwargs.get('messages', [])
+        # Assert based on what *should have been* passed at call time
+        assert len(actual_messages_arg) >= 1 # Should have at least user msg
+        # The user message should be the first item *at the time of the call*
+        assert actual_messages_arg[0]["role"] == "user"
+        assert actual_messages_arg[0]["content"] == user_message
+        # Check other key args
+        assert actual_call_kwargs.get('model') == history_agent_config.model
+        assert actual_call_kwargs.get('system_prompt') == (agent_with_history.config.system_prompt or "You are a helpful assistant.")
+
+        # 2. Final Result Structure
+        assert result["error"] is None
+        assert result["final_response"] == mock_llm_response
+
+        print("Assertions passed.")
+        print("--- Test Finished: test_execute_agent_history_enabled_no_storage_manager ---")

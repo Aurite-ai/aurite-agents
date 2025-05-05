@@ -395,10 +395,21 @@ class Agent:
                 for message in conversation_history:
                     # Ensure message is a dict before processing
                     if isinstance(message, dict):
-                        serializable_content = _serialize_content_blocks(message.get('content'))
+                        raw_content = message.get('content')
+                        # Serialize complex blocks first
+                        serializable_content = _serialize_content_blocks(raw_content)
+
+                        # Ensure simple string content is also wrapped in the standard format for consistency
+                        if isinstance(serializable_content, str):
+                             serializable_content = [{"type": "text", "text": serializable_content}]
+                        elif not isinstance(serializable_content, list):
+                             # If serialization resulted in something unexpected (not list or str), log and wrap as error
+                             logger.warning(f"Unexpected serialized content type {type(serializable_content)} for agent '{self.config.name}'. Wrapping as error.")
+                             serializable_content = [{"type": "text", "text": f"[Serialization Error: {str(serializable_content)}]"}]
+
                         serializable_history.append({
                             "role": message.get("role"),
-                            "content": serializable_content
+                            "content": serializable_content # Use the potentially wrapped content
                         })
                     else:
                         # Log if a message isn't in the expected format
