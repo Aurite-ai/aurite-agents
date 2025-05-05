@@ -696,10 +696,10 @@ class TestExecutionFacadeUnit:
 
         # 2. Executor setup was NOT called (No mock to assert on)
         # 3. Execution function was NOT called (No mock to assert on)
-        # 4. Error factory WAS called with correct keyword arguments
+        # 4. Error factory WAS called with correct positional arguments
+        expected_error_msg = f"{component_type} '{component_name}' not found (lookup returned None)."
         mock_error_factory.assert_called_once_with(
-            error_message=f"{component_type} '{component_name}' not found (lookup returned None).",  # Match the new error message
-            details=None,
+            component_name, expected_error_msg
         )
         # 5. Final result is the error structure
         assert result == expected_error
@@ -758,10 +758,10 @@ class TestExecutionFacadeUnit:
         mock_executor_setup.assert_called_once_with(mock_config)
         # 3. Execution function was NOT called
         mock_execution_func.assert_not_awaited()
-        # 4. Error factory WAS called with correct keyword arguments
+        # 4. Error factory WAS called with correct positional arguments
+        expected_error_msg = f"Initialization error for {component_type} '{component_name}': {setup_error}"
         mock_error_factory.assert_called_once_with(
-            error_message=f"Failed to instantiate {component_type}.",
-            details=str(setup_error),
+            component_name, expected_error_msg
         )
         # 5. Final result is the error structure
         assert result == expected_error

@@ -18,12 +18,21 @@ from tests.fixtures.agent_fixtures import (
     agent_config_filtered,  # noqa: F401 - Add this fixture
     agent_config_with_llm_params,  # noqa: F401
     # agent_config_with_mock_host, # This was correctly removed
+    # sample_agent_configs, # noqa: F401 - Removed, defined locally in test file
 )
 from tests.fixtures.host_fixtures import (
     mock_host_config,  # noqa: F401
     mock_mcp_host,  # noqa: F401
     host_manager,  # noqa: F401 - Import the new fixture
 )
+# Import workflow fixtures
+from tests.fixtures.workflow_fixtures import ( # noqa: F401
+    sample_workflow_config,
+    # sample_agent_configs, # Moved to agent_fixtures import
+    sample_custom_workflow_config,
+)
+# Import mock fixtures
+from tests.mocks.mock_anthropic import mock_anthropic_client # noqa: F401
 # Import weather server fixture explicitly if needed globally, otherwise tests import directly
 # from tests.fixtures.servers.weather_mcp_server import weather_mcp_server_fixture # noqa: F401
 
@@ -58,7 +67,6 @@ def pytest_configure(config):
 
 def pytest_unconfigure(config):
     """Clean up after all tests have run."""
-    logger.info("Tearing down test environment")
     # Cleanup can be expanded as needed
 
 

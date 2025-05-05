@@ -31,6 +31,28 @@ def mock_mcp_host() -> Mock:
     host.tools = Mock(spec=ToolManager)
     host.prompts = Mock(spec=PromptManager)
     # Mock the methods that will be called by Agent.execute
+
+    # Mock the method Agent actually calls
+    host.get_formatted_tools = Mock(return_value=[]) # Return empty list by default
+
+    # Mock the execute_tool method directly on the host mock
+    host.execute_tool = AsyncMock(
+        return_value={"result": "Mock tool executed successfully"}
+    )
+
+    # Mock the create_tool_result_blocks method on the tools manager mock
+    host.tools.create_tool_result_blocks = Mock(
+        return_value=[ # Ensure this returns a list of blocks
+            {
+                "type": "tool_result",
+                "tool_use_id": "mock_id",
+                "content": [{"type": "text", "text": "Mock tool result"}],
+            }
+        ]
+    )
+
+    # Keep the old mock for format_tools_for_llm in case other tests use it,
+    # but the primary one Agent uses is get_formatted_tools
     host.tools.format_tools_for_llm = Mock(
         return_value=[
             {
@@ -41,16 +63,9 @@ def mock_mcp_host() -> Mock:
             }
         ]
     )
-    host.tools.execute_tool = AsyncMock(
-        return_value={"result": "Mock tool executed successfully"}
-    )  # Must be AsyncMock
-    host.tools.create_tool_result_blocks = Mock(
-        return_value={
-            "type": "tool_result",
-            "tool_use_id": "mock_id",
-            "content": [{"type": "text", "text": "Mock tool result"}],
-        }
-    )
+    # host.tools.execute_tool = AsyncMock(...) # Removed, moved to host mock
+    # host.tools.create_tool_result_blocks = Mock(...) # Already defined above on host.tools
+
     return host
 
 
@@ -60,7 +75,7 @@ def mock_mcp_host() -> Mock:
 # --- Integration Fixture ---
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module") # Changed scope to module
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
