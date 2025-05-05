@@ -40,7 +40,7 @@ class ValidationConfig(BaseModel):
         ...,
         description="The name of the object being tested. Should match the name in config file",
     )
-    user_input: str | list[str] = Field(
+    user_input: str | list[str] | dict | list[dict] = Field(
         ...,
         description="The input to be used as the initial user input. If a list of strings, it will run it with each separately",
     )
@@ -120,10 +120,10 @@ async def run_iterations(
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
 
-    # convert to list[str] if given input is a single string
+    # convert to list if given input is a single string/dict
     test_input = (
         [testing_config.user_input]
-        if type(testing_config.user_input) is str
+        if type(testing_config.user_input) is not list
         else testing_config.user_input
     )
 
