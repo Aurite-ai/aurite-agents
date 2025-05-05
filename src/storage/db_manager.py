@@ -4,11 +4,12 @@ Provides the StorageManager class to interact with the database
 for persisting configurations and agent history.
 """
 
-import json # Added import
+import json
 import logging
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from datetime import datetime
+from sqlalchemy.engine import Engine # Import Engine for type hint
 
 # Assuming models are accessible from here
 from ..host.models import (
@@ -18,7 +19,8 @@ from ..host.models import (
 )
 
 # Import DB connection utilities and models
-from .db_connection import get_db_session, get_engine
+# Use the new factory function name and the modified get_db_session
+from .db_connection import get_db_session, create_db_engine
 from .db_models import Base, AgentConfigDB, WorkflowConfigDB, CustomWorkflowConfigDB, AgentHistoryDB
 
 logger = logging.getLogger(__name__)
@@ -29,15 +31,25 @@ class StorageManager:
     and agent conversation history.
     """
 
-    def __init__(self):
-        """Initializes the StorageManager."""
-        # Engine and session factory are managed globally in db_connection
-        # We might store the engine locally if needed, but primarily use get_db_session
-        self._engine = get_engine()
-        if not self._engine:
-            logger.warning("StorageManager initialized, but DB engine is not available. Persistence will be disabled.")
+    def __init__(self, engine: Optional[Engine] = None):
+        """
+        Initializes the StorageManager.
+
+        Args:
+            engine: An optional SQLAlchemy Engine instance. If None, attempts
+                    to create a default engine using environment variables.
+        """
+        if engine:
+            self._engine = engine
+            logger.info(f"StorageManager initialized with provided engine: {self._engine.url}")
         else:
-            logger.info("StorageManager initialized with available DB engine.")
+            # Attempt to create default engine if none provided
+            logger.info("No engine provided to StorageManager, attempting to create default engine.")
+            self._engine = create_db_engine() # Use the factory function
+
+        if not self._engine:
+            logger.warning("StorageManager initialized, but DB engine is not available (either not provided or creation failed). Persistence will be disabled.")
+        # No else needed, create_db_engine logs success if it returns an engine
 
     def init_db(self):
         """
@@ -132,7 +144,8 @@ class StorageManager:
     def sync_agent_config(self, config: AgentConfig):
         """Saves or updates an AgentConfig in the database."""
         if not self._engine: return # Do nothing if DB is not configured
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, AgentConfigDB, config)
@@ -143,7 +156,8 @@ class StorageManager:
     def sync_workflow_config(self, config: WorkflowConfig):
         """Saves or updates a WorkflowConfig in the database."""
         if not self._engine: return
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, WorkflowConfigDB, config)
@@ -153,7 +167,8 @@ class StorageManager:
     def sync_custom_workflow_config(self, config: CustomWorkflowConfig):
         """Saves or updates a CustomWorkflowConfig in the database."""
         if not self._engine: return
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, CustomWorkflowConfigDB, config)
@@ -172,7 +187,8 @@ class StorageManager:
             return
 
         logger.info("Syncing all loaded configurations to database...")
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if not db:
                 logger.error("Failed to get DB session for config sync.")
                 return # Cannot proceed without a session
@@ -215,10 +231,11 @@ class StorageManager:
 
         logger.debug(f"Loading history for agent '{agent_name}' (limit: {limit})")
         history_params: List[Dict[str, Any]] = []
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if db:
                 try:
-                    # Query AgentHistoryDB, filter by agent_name, order by timestamp ascending, limit
+                    # Query AgentHistoryDB, filter by agent_name, order by timestamp ascending
                     # Order ascending so the list is in chronological order for the LLM
                     history_records = (
                         db.query(AgentHistoryDB)
@@ -280,10 +297,11 @@ class StorageManager:
         valid_conversation = [turn for turn in conversation if turn is not None]
         if not valid_conversation:
              logger.warning(f"Attempted to save empty or invalid history for agent '{agent_name}'. Skipping.")
-             return
+             return # Corrected indentation
 
         logger.debug(f"Saving full history for agent '{agent_name}' ({len(valid_conversation)} turns)")
-        with get_db_session() as db:
+        # Pass the engine to get_db_session
+        with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     # Delete existing history for this agent first

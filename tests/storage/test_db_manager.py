@@ -16,7 +16,8 @@ from unittest.mock import patch, MagicMock
 from src.host.models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
 from src.storage.db_manager import StorageManager
 from src.storage.db_models import Base, AgentConfigDB, WorkflowConfigDB, CustomWorkflowConfigDB, AgentHistoryDB
-from src.storage.db_connection import get_engine, get_db_session, _engine, _SessionFactory
+# Import only what's needed now: get_db_session and the new create_db_engine
+from src.storage.db_connection import get_db_session, create_db_engine
 
 # Use pytest-asyncio for async tests if needed, but manager methods are sync for now
 # pytestmark = pytest.mark.anyio
@@ -34,51 +35,42 @@ def setup_test_db():
     It patches the db_connection module's globals and functions to force
     the use of the in-memory SQLite database.
     """
-    # Declare upfront that we are modifying the module's globals
-    global _engine, _SessionFactory
+    # No need for globals or complex patching now with DI
 
-    # Store original values
-    original_engine = _engine
-    original_session_factory = _SessionFactory
+    # Create an engine specifically for this test function
+    engine = sqlalchemy.create_engine(TEST_DB_URL)
+    assert engine is not None, "Failed to create test engine"
+    assert str(engine.url) == TEST_DB_URL
 
-    # Ensure module globals are reset for this test run
-    _engine = None
-    _SessionFactory = None
-
-    # Patch environment for the DB connection logic
+    # Patch environment just to ensure StorageManager attempts connection if needed
+    # (though storage_manager_instance fixture will provide the engine directly)
     with patch.dict(os.environ, {"AURITE_ENABLE_DB": "true"}):
-        # Patch create_engine directly where it's called by get_engine
-        # to force SQLite usage for this fixture.
-        with patch('sqlalchemy.create_engine', return_value=sqlalchemy.create_engine(TEST_DB_URL)) as mock_create_engine:
-
-            # Now, get the engine (which should use the patched create_engine)
-            engine = get_engine() # This call should now use the mocked create_engine
-            assert engine is not None, "Failed to create test engine using patched create_engine"
-            # Verify the engine URL is indeed SQLite
-            assert str(engine.url) == TEST_DB_URL, f"Engine URL mismatch: expected {TEST_DB_URL}, got {engine.url}"
-
-            # Create tables for the SQLite engine
+        # Create tables for the SQLite engine
             try:
                 Base.metadata.create_all(bind=engine)
                 print("\nIn-memory SQLite DB tables created.")
                 yield engine # Yield the engine for potential use, or just yield None
             finally:
-                # Teardown: Drop tables and reset globals to original state
+                # Teardown: Drop tables
                 print("\nTearing down in-memory SQLite DB...")
                 if engine: # Check if engine was created before trying to drop
                     Base.metadata.drop_all(bind=engine)
-                # Restore original module globals
-                _engine = original_engine
-                _SessionFactory = original_session_factory
                 print("In-memory SQLite DB teardown complete.")
 
 
 @pytest.fixture
-def storage_manager_instance() -> StorageManager:
-    """Provides a StorageManager instance connected to the test DB."""
-    # The setup_test_db fixture ensures the engine is ready
-    manager = StorageManager()
-    assert manager._engine is not None, "StorageManager failed to get test engine"
+def storage_manager_instance(setup_test_db) -> StorageManager: # Depend on setup_test_db fixture
+    """
+    Provides a StorageManager instance connected to the test DB engine
+    yielded by the setup_test_db fixture.
+    """
+    test_engine = setup_test_db # Get the engine yielded by the fixture
+    assert test_engine is not None, "setup_test_db fixture did not yield a valid engine"
+    # Pass the specific test engine to the manager
+    manager = StorageManager(engine=test_engine)
+    assert manager._engine is test_engine, "StorageManager did not use the provided engine"
+    # Also need to adapt get_db_session calls within tests or ensure the fixture provides a working session mechanism
+    # For now, let's assume get_db_session will work with the injected engine
     return manager
 
 # --- Test Cases ---
@@ -90,32 +82,28 @@ def storage_manager_instance() -> StorageManager:
 def test_storage_manager_init_no_db(monkeypatch):
     """Test StorageManager init when DB is disabled."""
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")
-    # Force reset of globals so they are re-evaluated by get_engine
-    global _engine, _SessionFactory
-    # Reset globals *before* instantiation within the patch
-    global _engine, _SessionFactory
-    _engine = None
-    _SessionFactory = None
+    # No globals to reset
 
-    # Patch the get_engine used by StorageManager's init
-    with patch('src.storage.db_manager.get_engine', return_value=None):
-        manager = StorageManager()
+    # Instantiate StorageManager without an engine. Since AURITE_ENABLE_DB is false,
+    # HostManager wouldn't normally call create_db_engine. To simulate this for
+    # direct StorageManager instantiation, patch create_db_engine *where it's called*.
+    with patch('src.storage.db_manager.create_db_engine', return_value=None) as mock_create:
+        manager = StorageManager() # Should now use the mocked create_db_engine
         assert manager._engine is None
+        mock_create.assert_called_once() # Verify it was called by __init__
     # Also test init_db doesn't raise error (it checks self._engine)
     manager.init_db() # Should log error but not fail test
 
 def test_storage_manager_init_db_error(monkeypatch):
     """Test StorageManager init when DB URL is invalid."""
     monkeypatch.setenv("AURITE_ENABLE_DB", "true")
-    # Patch get_database_url to return None simulating missing env vars
-    # Reset globals *before* instantiation within the patch
-    global _engine, _SessionFactory
-    _engine = None
-    _SessionFactory = None
+    # No globals to reset
 
-    # Patch the get_engine used by StorageManager's init
-    with patch('src.storage.db_manager.get_engine', return_value=None):
-        manager = StorageManager()
+    # Patch get_database_url used by create_db_engine
+    with patch('src.storage.db_connection.get_database_url', return_value=None):
+        # Instantiate StorageManager without an engine; its internal call to
+        # create_db_engine will call the patched get_database_url and return None.
+        manager = StorageManager() # Should call create_db_engine internally
         assert manager._engine is None
         # init_db should not raise error, just log
         manager.init_db() # Should log error but not fail test
@@ -131,8 +119,8 @@ def test_sync_agent_config_create(setup_test_db, storage_manager_instance: Stora
 
     manager.sync_agent_config(agent_conf)
 
-    # Verify in DB
-    with get_db_session() as db:
+    # Verify in DB using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         db_record = db.get(AgentConfigDB, "TestAgent1")
         assert db_record is not None
@@ -147,8 +135,8 @@ def test_sync_agent_config_update(setup_test_db, storage_manager_instance: Stora
     agent_conf1 = AgentConfig(name="TestAgent2", model="model-v1", temperature=0.5)
     manager.sync_agent_config(agent_conf1)
 
-    # Verify initial state
-    with get_db_session() as db:
+    # Verify initial state using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         db_record1 = db.get(AgentConfigDB, "TestAgent2")
         assert db_record1 is not None
@@ -159,8 +147,8 @@ def test_sync_agent_config_update(setup_test_db, storage_manager_instance: Stora
     agent_conf2 = AgentConfig(name="TestAgent2", model="model-v2", temperature=0.8, include_history=True)
     manager.sync_agent_config(agent_conf2)
 
-    # Verify updated state
-    with get_db_session() as db:
+    # Verify updated state using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         # Re-fetch the record in the new session
         db_record2 = db.get(AgentConfigDB, "TestAgent2")
@@ -175,12 +163,14 @@ def test_sync_workflow_config(setup_test_db, storage_manager_instance: StorageMa
     wf_conf = WorkflowConfig(name="TestWF1", steps=["Agent1", "Agent2"], description="My WF")
     manager.sync_workflow_config(wf_conf)
 
-    with get_db_session() as db:
+    # Verify using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         db_record = db.get(WorkflowConfigDB, "TestWF1")
         assert db_record is not None
         assert db_record.name == "TestWF1"
-        assert db_record.steps == ["Agent1", "Agent2"] # Check JSONB list storage
+        # Assert against the correct attribute name
+        assert db_record.steps_json == ["Agent1", "Agent2"]
         assert db_record.description == "My WF"
 
 def test_sync_custom_workflow_config(setup_test_db, storage_manager_instance: StorageManager):
@@ -190,7 +180,8 @@ def test_sync_custom_workflow_config(setup_test_db, storage_manager_instance: St
     cwf_conf = CustomWorkflowConfig(name="TestCWF1", module_path=Path("path/to/workflow.py"), class_name="MyWorkflow")
     manager.sync_custom_workflow_config(cwf_conf)
 
-    with get_db_session() as db:
+    # Verify using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         db_record = db.get(CustomWorkflowConfigDB, "TestCWF1")
         assert db_record is not None
@@ -207,7 +198,8 @@ def test_sync_all_configs(setup_test_db, storage_manager_instance: StorageManage
 
     manager.sync_all_configs(agents, workflows, custom_workflows)
 
-    with get_db_session() as db:
+    # Verify using the engine from the fixture
+    with get_db_session(engine=setup_test_db) as db:
         assert db is not None
         assert db.get(AgentConfigDB, "AgentA") is not None
         assert db.get(AgentConfigDB, "AgentB") is not None

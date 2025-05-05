@@ -22,20 +22,14 @@ from .config import PROJECT_ROOT_DIR
 
 # Import the new facade
 from .execution.facade import ExecutionFacade
+# Import StorageManager and engine factory unconditionally
+from .storage.db_manager import StorageManager
+from .storage.db_connection import create_db_engine # Import engine factory
 
-# Setup logger for this module *before* conditional import that might use it
+# Setup logger for this module
 logger = logging.getLogger(__name__)
 
-# Import StorageManager if DB persistence is enabled
-try:
-    # Use a conditional import based on the flag or handle potential ImportError
-    if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
-        from .storage.db_manager import StorageManager
-    else:
-        StorageManager = None # Define as None if DB is not enabled
-except ImportError:
-    logger.warning("Storage module not found or AURITE_ENABLE_DB not set to true. Database persistence disabled.")
-    StorageManager = None # Ensure StorageManager is None if import fails
+# Removed conditional import block for StorageManager
 
 
 class HostManager:
@@ -72,19 +66,27 @@ class HostManager:
         self.agent_configs: Dict[str, "AgentConfig"] = {}
         self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
         self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
-        self.storage_manager: Optional["StorageManager"] = None # Added storage manager attribute
+        self.storage_manager: Optional["StorageManager"] = None # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
+        self._db_engine = None # Store engine if created
 
-        # Instantiate StorageManager if enabled
-        if StorageManager: # Check if the class was imported successfully
-            try:
-                self.storage_manager = StorageManager()
-                # Engine availability check happens within StorageManager.__init__
-            except Exception as e:
-                logger.error(f"Failed to instantiate StorageManager: {e}", exc_info=True)
-                self.storage_manager = None # Ensure it's None if instantiation fails
+        # Instantiate StorageManager if DB is enabled
+        if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
+            logger.info("Database persistence enabled. Attempting to initialize StorageManager.")
+            # Create the engine here and pass it
+            self._db_engine = create_db_engine()
+            if self._db_engine:
+                try:
+                    # Pass the created engine to the StorageManager
+                    self.storage_manager = StorageManager(engine=self._db_engine)
+                except Exception as e:
+                    logger.error(f"Failed to instantiate StorageManager with engine: {e}", exc_info=True)
+                    self.storage_manager = None # Ensure it's None if instantiation fails
+            else:
+                # Engine creation failed (logged in create_db_engine)
+                self.storage_manager = None
         else:
-             logger.info("Database persistence is disabled (AURITE_ENABLE_DB is not 'true' or storage module failed to import).")
+             logger.info("Database persistence is disabled (AURITE_ENABLE_DB is not 'true').")
 
 
         logger.debug(
@@ -217,6 +219,15 @@ class HostManager:
         self.agent_configs.clear()
         self.workflow_configs.clear()
         self.custom_workflow_configs.clear()
+        # Dispose the engine if it was created
+        if self._db_engine:
+            try:
+                self._db_engine.dispose()
+                logger.info("Disposed managed database engine.")
+            except Exception as e:
+                logger.error(f"Error disposing database engine: {e}", exc_info=True)
+        self._db_engine = None
+        self.storage_manager = None # Clear storage manager too
         logger.info("HostManager internal state cleared.")
         logger.info("HostManager shutdown complete.")
 
