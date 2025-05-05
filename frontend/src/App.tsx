@@ -1,35 +1,99 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import StatusTab from './components/StatusTab'; // Import the real component
+import RegisterTab from './components/RegisterTab'; // Import the real component
+import ExecuteTab from './components/ExecuteTab'; // Import the real component
+
+// Placeholder components (we'll create these properly later)
+const Header = () => (
+  <header className="bg-gray-800 text-white p-4 text-center">
+    <h1 className="text-xl font-bold">Aurite MCP - Agent Framework</h1>
+    <p>API Management Interface</p>
+  </header>
+);
+
+const TabButton = ({ label, isActive, onClick }: { label: string; isActive: boolean; onClick: () => void }) => (
+  <button
+    className={`flex-1 py-3 px-4 text-white text-sm font-medium transition-colors duration-200 ease-in-out ${
+      isActive ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+    }`}
+    onClick={onClick}
+  >
+    {label}
+  </button>
+);
+
+// Placeholder Tab Content Components
+// Remove the placeholder RegisterTab function definition
+// Remove the placeholder ExecuteTab function definition
+// Remove the placeholder StatusTab function definition
+// Add placeholders for future tabs if needed
+// const ConfigTab = () => <div className="p-4">Config Management Placeholder</div>;
+
+type TabId = 'register' | 'execute' | 'status'; // Add future tab IDs here e.g. | 'config'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [activeTab, setActiveTab] = useState<TabId>('register'); // Default tab
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'register':
+        return <RegisterTab />;
+      case 'execute':
+        return <ExecuteTab />;
+      case 'status':
+        return <StatusTab />;
+      // case 'config':
+      //   return <ConfigTab />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      <div className="max-w-4xl mx-auto bg-white shadow-md rounded-b-lg overflow-hidden">
+        <Header />
+
+        {/* Tab Navigation */}
+        <nav className="flex bg-gray-700">
+          <TabButton
+            label="Register"
+            isActive={activeTab === 'register'}
+            onClick={() => setActiveTab('register')}
+          />
+          <TabButton
+            label="Execute"
+            isActive={activeTab === 'execute'}
+            onClick={() => setActiveTab('execute')}
+          />
+          <TabButton
+            label="Status"
+            isActive={activeTab === 'status'}
+            onClick={() => setActiveTab('status')}
+          />
+          {/* Add buttons for future tabs here */}
+          {/* <TabButton
+            label="Config"
+            isActive={activeTab === 'config'}
+            onClick={() => setActiveTab('config')}
+          /> */}
+        </nav>
+
+        {/* Tab Content Area */}
+        <main>
+          {renderTabContent()}
+        </main>
+
+        {/* Result Area (Placeholder - might move into specific tabs later) */}
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
+          <h3 className="text-lg font-semibold mb-2">Result</h3>
+          <pre id="result-display" className="bg-gray-200 p-3 rounded text-sm overflow-x-auto">
+            No result yet.
+          </pre>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
