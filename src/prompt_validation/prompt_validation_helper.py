@@ -6,7 +6,10 @@ from google import genai
 from pydantic import BaseModel, Field
 from src.host import MCPHost
 from src.agents import Agent
-
+from typing import TYPE_CHECKING
+# Type hint for ExecutionFacade to avoid circular import
+if TYPE_CHECKING:
+    from src.execution.facade import ExecutionFacade
 
 class ValidationCriteria(BaseModel):
     name: str
@@ -98,14 +101,14 @@ class ValidationConfig(BaseModel):
 
 
 async def run_iterations(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     override_system_prompt: str | None = None,
 ) -> (list, list):
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         testing_config: The ValidationConfig
         override_system_prompt: Optional, test_type "agent" only. A system prompt to use instead of the tested agent's system prompt
 
@@ -126,7 +129,7 @@ async def run_iterations(
 
     tasks = [
         _run_single_iteration(
-            host_instance, testing_config, t_in, prompts, i, override_system_prompt
+            executor, testing_config, t_in, prompts, i, override_system_prompt
         )
         for i in range(num_iterations)
         for t_in in test_input
@@ -139,7 +142,7 @@ async def run_iterations(
 
 
 async def evaluate_results(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     results: list,
     agent_responses: list,
@@ -147,7 +150,7 @@ async def evaluate_results(
     """Evaluate the prompt validation results
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         testing_config: The ValidationConfig
         results: The results list from run_iterations()
         agent_responses: The list of full agent responses from run_iterations()
@@ -203,10 +206,9 @@ async def evaluate_results(
 
 
 async def evaluate_results_ab(
-    host_instance: MCPHost, testing_config: ValidationConfig, results: dict
+    executor: "ExecutionFacade", testing_config: ValidationConfig, results: dict
 ):
-    ab_output = await call_agent(
-        host_instance=host_instance,
+    ab_output = await executor.run_agent(
         agent_name="A/B Agent",
         user_message=json.dumps(results),
     )
@@ -217,12 +219,12 @@ async def evaluate_results_ab(
 
 
 async def improve_prompt(
-    host_instance: MCPHost, model: str, results: list, current_prompt: str
+    executor: "ExecutionFacade", model: str, results: list, current_prompt: str
 ) -> str:
     """Improve the system prompt of an agent based on the evaluation results
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         model: "claude" or "gemini", the model to use when improving the prompt
         results: The results list from run_iterations()
         current_prompt: The existing system prompt to improve
@@ -240,8 +242,7 @@ async def improve_prompt(
                 f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
             )
 
-            new_prompt_output = await call_agent(
-                host_instance=host_instance,
+            new_prompt_output = await executor.run_agent(
                 agent_name="Prompt Editor Agent",
                 user_message=user_message,
             )
@@ -361,44 +362,6 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
         result["errors"] = errors
     return result
 
-
-async def call_agent(
-    host_instance: MCPHost,
-    agent_name: str,
-    user_message: str,
-    system_prompt: str | None = None,
-):
-    """Calls an agent using the MCP host, returns its full output"""
-
-    agent_config = host_instance.get_agent_config(agent_name)
-    agent_config.evaluation = None  # override evaluation to None to prevent loops
-    agent = Agent(config=agent_config)
-
-    agent_result = await agent.execute_agent(
-        user_message=user_message,
-        host_instance=host_instance,
-        system_prompt=system_prompt,
-    )
-
-    return agent_result
-
-
-async def call_workflow(
-    host_instance: MCPHost, workflow_name: str, initial_user_message: str
-):
-    """Calls a workflow using the MCP host, returns its full output"""
-    # TODO, waiting for calling workflows from host to be implemented
-    pass
-
-
-async def call_custom_workflow(
-    host_instance: MCPHost, workflow_name: str, initial_input
-):
-    """Calls a custom workflow using dynamic import, returns its full output"""
-    # TODO, waiting for calling custom workflows from host to be implemented
-    pass
-
-
 def generate_config(
     agent_name: str, user_input: str, testing_prompt: str
 ) -> ValidationConfig:
@@ -478,7 +441,7 @@ def _clean_thinking_output(output: str) -> str:
 
 
 async def _get_agent_result(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     test_input,
     override_system_prompt: str | None = None,
@@ -489,8 +452,7 @@ async def _get_agent_result(
                 f"Invalid type {testing_config.test_type}, overriding system prompt only works with agents"
             )
         else:
-            full_output = await call_agent(
-                host_instance=host_instance,
+            full_output = await executor.run_agent(
                 agent_name=testing_config.name,
                 user_message=test_input,
                 system_prompt=override_system_prompt,
@@ -499,20 +461,17 @@ async def _get_agent_result(
         # call the agent/workflow being tested
         match testing_config.test_type:
             case "agent":
-                full_output = await call_agent(
-                    host_instance=host_instance,
+                full_output = await executor.run_agent(
                     agent_name=testing_config.name,
                     user_message=test_input,
                 )
             case "workflow":
-                full_output = await call_workflow(
-                    host_instance=host_instance,
+                full_output = await executor.run_simple_workflow(
                     workflow_name=testing_config.name,
-                    initial_user_message=test_input,
+                    initial_input=test_input,
                 )
             case "custom_workflow":
-                full_output = await call_custom_workflow(
-                    host_instance=host_instance,
+                full_output = await executor.run_custom_workflow(
                     workflow_name=testing_config.name,
                     initial_input=test_input,
                 )
@@ -532,7 +491,7 @@ async def _get_agent_result(
 
 
 async def _run_single_iteration(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     test_input,
     prompts,
@@ -542,13 +501,12 @@ async def _run_single_iteration(
     logging.info(f"Prompt Validation: Iteration {i + 1}")
 
     output, full_output = await _get_agent_result(
-        host_instance, testing_config, test_input, override_system_prompt
+        executor, testing_config, test_input, override_system_prompt
     )
 
     if testing_config.analysis:
         # analyze the agent/workflow output, overriding system prompt
-        analysis_output = await call_agent(
-            host_instance=host_instance,
+        analysis_output = await executor.run_agent(
             agent_name="Quality Assurance Agent",
             user_message=f"Input:{test_input}\n\nOutput:{output}",
             system_prompt=prompts["qa_system_prompt"],
