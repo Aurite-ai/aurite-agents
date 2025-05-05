@@ -18,6 +18,31 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# --- Helper Function for Serialization ---
+def _serialize_content_blocks(content: Any) -> Any:
+    """Recursively converts Anthropic content blocks into JSON-serializable dicts."""
+    if isinstance(content, list):
+        # Process each item in the list
+        return [_serialize_content_blocks(item) for item in content]
+    elif isinstance(content, dict):
+        # Recursively process dictionary values
+        return {k: _serialize_content_blocks(v) for k, v in content.items()}
+    elif hasattr(content, 'model_dump') and callable(content.model_dump):
+        # Use Pydantic's model_dump for TextBlock, ToolUseBlock, etc.
+        try:
+            # model_dump typically returns a dict suitable for JSON
+            return content.model_dump(mode='json')
+        except Exception as e:
+            logger.warning(f"Could not serialize object of type {type(content)} using model_dump: {e}. Falling back to string representation.")
+            return str(content) # Fallback if model_dump fails
+    # Handle primitive types that are already JSON-serializable
+    elif isinstance(content, (str, int, float, bool, type(None))):
+        return content
+    else:
+        # Fallback for any other unknown types
+        logger.warning(f"Attempting to serialize unknown type {type(content)}. Using string representation.")
+        return str(content)
+
 
 class Agent:
     """
@@ -196,7 +221,8 @@ class Agent:
         if self.config.include_history and storage_manager:
             try:
                 # Load history from DB (returns list in MessageParam format)
-                loaded_history_params = await storage_manager.load_history(agent_name=self.config.name)
+                # REMOVED await - load_history is synchronous
+                loaded_history_params = storage_manager.load_history(agent_name=self.config.name)
                 if loaded_history_params:
                     messages.extend(loaded_history_params)
                     # Also add to internal history tracker (needs conversion if format differs)
@@ -331,9 +357,8 @@ class Agent:
 
             # Prepare messages for the next iteration
             if tool_results_for_next_turn:
-                messages.append(
-                    {"role": "assistant", "content": response.content}
-                )  # Add assistant request
+                # DO NOT re-append the assistant message here. It was already added.
+                # Just append the user message containing the tool results.
                 messages.append(
                     {"role": "user", "content": tool_results_for_next_turn}
                 )  # Add tool results
@@ -365,13 +390,28 @@ class Agent:
         # --- History Saving ---
         if self.config.include_history and storage_manager:
             try:
-                # Save the complete conversation history
-                await storage_manager.save_full_history(
+                # Convert conversation history to a serializable format first
+                serializable_history = []
+                for message in conversation_history:
+                    # Ensure message is a dict before processing
+                    if isinstance(message, dict):
+                        serializable_content = _serialize_content_blocks(message.get('content'))
+                        serializable_history.append({
+                            "role": message.get("role"),
+                            "content": serializable_content
+                        })
+                    else:
+                        # Log if a message isn't in the expected format
+                        logger.warning(f"Skipping non-dict message in history for agent '{self.config.name}': {type(message)}")
+
+                # Save the SERIALIZED conversation history (save_full_history is sync)
+                storage_manager.save_full_history(
                     agent_name=self.config.name,
-                    conversation=conversation_history # Pass the internal tracker
+                    conversation=serializable_history # Pass the serialized version
                 )
-                logger.info(f"Saved {len(conversation_history)} history turns for agent '{self.config.name}'.")
+                logger.info(f"Saved {len(serializable_history)} history turns for agent '{self.config.name}'.")
             except Exception as e:
+                # Log error but don't fail the overall execution result
                 logger.error(f"Failed to save history for agent '{self.config.name}': {e}", exc_info=True)
                 # Log error but don't fail the overall execution result
 

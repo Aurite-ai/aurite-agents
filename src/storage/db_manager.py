@@ -253,21 +253,26 @@ class StorageManager:
                     for record in history_records:
                         # Ensure content is loaded correctly from the correct column
                         content_data = record.content_json # Read from content_json column
+                        parsed_content = None
                         if isinstance(content_data, str):
-                             # Attempt to parse if SQLite stored it as a string
+                             # Attempt to parse if stored as a JSON string
                              try:
-                                 content_data = json.loads(content_data) # Parse string
+                                 parsed_content = json.loads(content_data) # Parse string
                              except json.JSONDecodeError:
-                                 logger.error(f"Failed to parse content JSON string for history record ID {record.id}", exc_info=True)
-                                 content_data = [{"type": "text", "text": "[Error loading content]"}]
+                                 # If parsing fails, assume it was a raw string user input
+                                 logger.warning(f"Failed to parse content_json for history ID {record.id} as JSON. Assuming raw string content.")
+                                 # Format the raw string into the expected structure
+                                 parsed_content = [{"type": "text", "text": content_data}]
                         elif content_data is None:
                              logger.warning(f"History record ID {record.id} has null content_json.")
-                             content_data = [{"type": "text", "text": "[Missing content]"}]
-                        # If content_data is already a list/dict (from native JSON type), use it directly
+                             parsed_content = [{"type": "text", "text": "[Missing content]"}]
+                        else:
+                             # If content_data is already a list/dict (from native JSON type), use it directly
+                             parsed_content = content_data
 
                         history_params.append({
                             "role": record.role,
-                            "content": content_data # Use the processed content_data
+                            "content": parsed_content # Use the processed content
                         })
 
                     # If we wanted only the last N turns:
