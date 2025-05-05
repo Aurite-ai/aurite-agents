@@ -148,15 +148,11 @@
           "raw": "{\n    \"initial_user_message\": \"Check weather in SF and save plan.\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/workflows/Example%20workflow%20using%20weather%20and%20planning%20servers/execute",
+          "raw": "{{base_url}}/workflows/main/execute",
           "host": ["{{base_url}}"],
-          "path": [
-            "workflows",
-            "Example%20workflow%20using%20weather%20and%20planning%20servers",
-            "execute"
-          ]
+          "path": ["workflows", "main", "execute"]
         },
-        "description": "Executes the example simple workflow defined in the config."
+        "description": "Executes the 'main' simple workflow defined in the config."
       },
       "response": [],
       "event": [
@@ -199,7 +195,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"initial_input\": \"Run the example custom workflow for London\"\n}"
+          "raw": "{\n    \"initial_input\": {\"city\": \"London\"}\n}"
         },
         "url": {
           "raw": "{{base_url}}/custom_workflows/ExampleCustom/execute",
@@ -220,11 +216,12 @@
               "",
               "pm.test(\"Response indicates completed status and has result\", function () {",
               "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData.status).to.eql('completed');",
-              "    pm.expect(jsonData.error).to.be.null;",
-              "    pm.expect(jsonData.result).to.exist;",
-              "    // Add more specific result checks if needed",
-              "    pm.expect(jsonData.result.status).to.eql('success');",
+              "    // Check top-level status is 'completed'",
+              "    pm.expect(jsonData.status, 'Top-level status should be completed').to.eql('completed');",
+              "    pm.expect(jsonData.error, 'Top-level error should be null').to.be.null;",
+              "    pm.expect(jsonData.result, 'Result object should exist').to.exist;",
+              "    // Check the status within the nested result object",
+              "    pm.expect(jsonData.result.result.status, 'Inner result status should be success').to.eql('success');",
               "});"
             ],
             "type": "text/javascript",

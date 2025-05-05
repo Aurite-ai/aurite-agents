@@ -67,7 +67,7 @@ ENV PYTHONPATH=/app \
     ENV=development \
     CACHE_DIR=/app/cache \
     HOST_CONFIG_PATH=/app/config/deployment_testing.json \
-    LOG_LEVEL=DEBUG
+    LOG_LEVEL=INFO
 
 # Expose the correct port (default 8000 for the API)
 EXPOSE 8000

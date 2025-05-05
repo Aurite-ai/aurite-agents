@@ -29,14 +29,35 @@
   "agents": [
     {
       "name": "Weather Agent",
-      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
       "client_ids": ["weather_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["current_time"]
+      "exclude_components": ["current_time"],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "weather_summary": {
+            "type": "string",
+            "description": "A summary of the current weather"
+          },
+          "temperature": {
+            "type": "number",
+            "description": "The temperature in degrees"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of recommendations based on the weather"
+          }
+        },
+        "required": ["weather_summary", "temperature", "recommendations"]
+      }
     },
     {
       "name": "Weather Planning Agent",
@@ -60,7 +81,7 @@
     },
     {
       "name": "Weather Planning Workflow Step 2",
-      "system_prompt": "You have been provided with weather information for San Francisco in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. \\n\\nCRITICAL: \\n1. ONLY use the 'save_plan' tool. Do NOT use any other tools (like weather_lookup or current_time).\\n2. If the user message does NOT contain clear weather information (temperature, condition), respond with the text 'Cannot create plan, weather data missing.' and do NOT attempt to use any tools.",
+      "system_prompt": "You have been provided with weather information for San Francisco in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. \\n\\nCRITICAL: \\n1. ONLY use the 'save_plan' tool. Do NOT use any other tools (like weather_lookup or current_time).\\n2. When calling 'save_plan', ensure the 'tags' argument is provided as a JSON list of strings (e.g., [\"weather\", \"clothing\", \"san francisco\"]).\\n3. If the user message does NOT contain clear weather information (temperature, condition), respond with the text 'Cannot create plan, weather data missing.' and do NOT attempt to use any tools.",
       "client_ids": ["planning_server"],
       "model": "claude-3-opus-20240229",
       "temperature": "0.7",

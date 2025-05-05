@@ -21,13 +21,11 @@ import mcp.types as types
 
 # Foundation layer
 from .foundation import SecurityManager, RootManager, MessageRouter
-from .filtering import FilteringManager  # Added import
-from .models import (  # Import WorkflowConfig
+from .filtering import FilteringManager
+from .models import (
     AgentConfig,
     ClientConfig,
-    # Removed CustomWorkflowConfig
     HostConfig,
-    WorkflowConfig,
 )
 
 
@@ -49,7 +47,7 @@ class MCPHost:
         self,
         config: HostConfig,
         agent_configs: Optional[Dict[str, AgentConfig]] = None,
-        workflow_configs: Optional[Dict[str, WorkflowConfig]] = None,
+        # Removed workflow_configs parameter
         # Removed custom_workflow_configs parameter
         encryption_key: Optional[str] = None,
     ):
@@ -77,7 +75,7 @@ class MCPHost:
         # State management
         self._config = config
         self._agent_configs = agent_configs or {}
-        self._workflow_configs = workflow_configs or {}
+        # Removed self._workflow_configs initialization
         # Removed self._custom_workflow_configs initialization
         self._clients: Dict[str, ClientSession] = {}
         self._exit_stack = AsyncExitStack()
@@ -89,21 +87,21 @@ class MCPHost:
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
-        logger.info("Initializing MCP Host...")
+        logger.info("Initializing MCP Host...")  # Keep high-level start as INFO
 
         # Initialize subsystems in layer order
 
         # Layer 1: Foundation layer
-        logger.info("Initializing foundation layer...")
+        logger.debug("Initializing foundation layer...")  # INFO -> DEBUG
         await self._security_manager.initialize()
         await self._root_manager.initialize()
 
         # Layer 2: Communication layer
-        logger.info("Initializing communication layer...")
+        logger.debug("Initializing communication layer...")  # INFO -> DEBUG
         await self._message_router.initialize()
 
         # Layer 3: Resource management layer
-        logger.info("Initializing resource management layer...")
+        logger.debug("Initializing resource management layer...")  # INFO -> DEBUG
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._tool_manager.initialize()
@@ -112,11 +110,11 @@ class MCPHost:
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
 
-        logger.info("MCP Host initialization complete")
+        logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
-        logger.info(f"Initializing client: {config.client_id}")
+        logger.debug(f"Initializing client: {config.client_id}")  # INFO -> DEBUG
 
         try:
             # Resolve GCP secrets if configured
@@ -139,14 +137,15 @@ class MCPHost:
                             f"Injecting {len(resolved_env_vars)} secrets into environment for client: {config.client_id}"
                         )
                         # Optional: Log the keys being injected for debugging (DO NOT log values)
-                        logger.debug(
-                            f"Injecting env vars: {list(resolved_env_vars.keys())}"
-                        )
+                        # Log keys at DEBUG level only if needed
+                        # logger.debug(
+                        #     f"Injecting env vars: {list(resolved_env_vars.keys())}"
+                        # )
                 except Exception as e:
                     # Log error but allow host to continue initialization without injected secrets
                     logger.error(
                         f"Failed to resolve or inject GCP secrets for client {config.client_id}: {e}. Proceeding without injected secrets."
-                    )
+                    )  # Keep error as ERROR
 
             # Setup transport with potentially updated environment
             server_params = StdioServerParameters(
@@ -215,6 +214,7 @@ class MCPHost:
                 discovered_tools = await self._tool_manager.discover_client_tools(
                     client_id=config.client_id, client_session=session
                 )
+                # --- Removed detailed logging ---
                 for tool in discovered_tools:  # Iterate directly over the list
                     # Pass FilteringManager and ClientConfig to allow manager to check exclusion
                     registered = await self._tool_manager.register_tool(
@@ -224,6 +224,7 @@ class MCPHost:
                         client_config=config,  # Pass the whole config
                         filtering_manager=self._filtering_manager,  # Pass the manager
                     )
+                    # --- Removed detailed logging ---
                     if registered:
                         tool_names.append(tool.name)
 
@@ -254,11 +255,17 @@ class MCPHost:
             logger.info(
                 f"Client '{config.client_id}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
-            )
+            )  # Keep client summary as INFO
 
         except Exception as e:
-            logger.error(f"Failed to initialize client {config.client_id}: {e}")
+            logger.error(
+                f"Failed to initialize client {config.client_id}: {e}"
+            )  # Keep error as ERROR
             raise
+
+    def is_client_registered(self, client_id: str) -> bool:
+        """Checks if a client with the given ID is registered."""
+        return client_id in self._clients
 
     async def get_prompt(
         self,
@@ -415,26 +422,7 @@ class MCPHost:
             raise KeyError(f"Agent configuration not found for name: {agent_name}")
         return self._agent_configs[agent_name]
 
-    def get_workflow_config(self, workflow_name: str) -> WorkflowConfig:
-        """
-        Retrieves the configuration for a specific workflow by name.
-
-        Args:
-            workflow_name: The name of the workflow whose configuration is needed.
-
-        Returns:
-            The WorkflowConfig object for the specified workflow.
-
-        Raises:
-            KeyError: If no workflow with the given name is found.
-        """
-        if workflow_name not in self._workflow_configs:
-            logger.error(f"Workflow configuration not found for name: {workflow_name}")
-            raise KeyError(
-                f"Workflow configuration not found for name: {workflow_name}"
-            )
-        return self._workflow_configs[workflow_name]
-
+    # Removed get_workflow_config method
     # Removed get_custom_workflow_config method
     # Removed execute_custom_workflow method
 
@@ -772,9 +760,9 @@ class MCPHost:
         logger.info("Closing client connections via AsyncExitStack...")
         await self._exit_stack.aclose()
 
-        # Clear stored agent and workflow configs
+        # Clear stored agent configs
         self._agent_configs.clear()
-        self._workflow_configs.clear()
+        # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 
         logger.info("MCP Host shutdown complete")

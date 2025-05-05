@@ -3,9 +3,9 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 """
 
 import logging
-import os
+import os  # Added for environment variable check
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, List, Tuple, Set
 
 # Assuming this file is in src/, use relative imports
 from .config import load_host_config_from_json
@@ -15,16 +15,22 @@ from .host.models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     ClientConfig,
-)  # Added ClientConfig
-from src.prompt_validation.prompt_validation_helper import load_config
+)
 
 # Imports needed for execution methods
-from .agents.agent import Agent
-from .config import PROJECT_ROOT_DIR  # Import project root for path validation
-import importlib
-import inspect
+from .config import PROJECT_ROOT_DIR
 
+# Import the new facade
+from .execution.facade import ExecutionFacade
+
+# Import StorageManager and engine factory unconditionally
+from .storage.db_manager import StorageManager
+from .storage.db_connection import create_db_engine  # Import engine factory
+
+# Setup logger for this module
 logger = logging.getLogger(__name__)
+
+# Removed conditional import block for StorageManager
 
 
 class HostManager:
@@ -61,8 +67,40 @@ class HostManager:
         self.agent_configs: Dict[str, "AgentConfig"] = {}
         self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
         self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
+        self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
+        self.execution: Optional[ExecutionFacade] = None
+        self._db_engine = None  # Store engine if created
 
-        logger.info(f"HostManager initialized with config path: {self.config_path}")
+        # Instantiate StorageManager if DB is enabled
+        if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
+            logger.info(
+                "Database persistence enabled. Attempting to initialize StorageManager."
+            )
+            # Create the engine here and pass it
+            self._db_engine = create_db_engine()
+            if self._db_engine:
+                try:
+                    # Pass the created engine to the StorageManager
+                    self.storage_manager = StorageManager(engine=self._db_engine)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to instantiate StorageManager with engine: {e}",
+                        exc_info=True,
+                    )
+                    self.storage_manager = (
+                        None  # Ensure it's None if instantiation fails
+                    )
+            else:
+                # Engine creation failed (logged in create_db_engine)
+                self.storage_manager = None
+        else:
+            logger.info(
+                "Database persistence is disabled (AURITE_ENABLE_DB is not 'true')."
+            )
+
+        logger.debug(
+            f"HostManager initialized with config path: {self.config_path}"
+        )  # INFO -> DEBUG
 
     # --- Lifecycle Methods ---
 
@@ -73,7 +111,9 @@ class HostManager:
         Raises:
             RuntimeError: If configuration loading or host initialization fails.
         """
-        logger.info(f"Initializing HostManager with config: {self.config_path}...")
+        logger.debug(
+            f"Initializing HostManager with config: {self.config_path}..."
+        )  # INFO -> DEBUG
         try:
             # 1. Load all configurations
             (
@@ -87,27 +127,48 @@ class HostManager:
             self.agent_configs = agent_configs_dict
             self.workflow_configs = workflow_configs_dict
             self.custom_workflow_configs = custom_workflow_configs_dict
-            logger.info("Configurations loaded successfully.")
+            logger.debug("Configurations loaded successfully.")
+
+            # 1.5 Initialize DB Schema if storage manager exists
+            if self.storage_manager:
+                self.storage_manager.init_db()  # Synchronous call for schema creation
 
             # 2. Instantiate MCPHost
-            # Note: MCPHost still takes agent/workflow configs for its internal lookups
             self.host = MCPHost(
                 config=host_config,
                 agent_configs=self.agent_configs,
-                workflow_configs=self.workflow_configs,
+                # Removed workflow_configs argument
                 # encryption_key could be passed from a secure source if needed
             )
-            logger.info("MCPHost instance created.")
+            logger.debug("MCPHost instance created.")  # INFO -> DEBUG
 
             # 3. Initialize MCPHost (connects to clients, etc.)
             await self.host.initialize()
             logger.info("MCPHost initialized successfully.")
-            
-            # Also load the prompt validation config
-            await self.register_config_file("config/prompt_validation_config.json")
-            logger.info("Prompt Validation Config loaded.")
 
-            logger.info("HostManager initialization complete.")
+            # 2.5 Sync initial configs to DB if storage manager exists
+            if self.storage_manager:
+                # Assuming sync_all_configs is synchronous for now
+                # If it becomes async, add await here.
+                self.storage_manager.sync_all_configs(
+                    agents=self.agent_configs,
+                    workflows=self.workflow_configs,
+                    custom_workflows=self.custom_workflow_configs,
+                )
+
+            # 3. Load additional configs (e.g., prompt validation)
+            # This will also sync the loaded configs if DB is enabled via register_* methods
+            await self.register_config_file("config/prompt_validation_config.json")
+
+            # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
+            self.execution = ExecutionFacade(
+                host_manager=self,
+                storage_manager=self.storage_manager,  # Pass storage manager
+            )
+
+            logger.info(
+                "HostManager initialization complete."
+            )  # Keep this high-level INFO
 
         except FileNotFoundError as e:
             logger.error(f"Configuration file not found: {self.config_path} - {e}")
@@ -167,6 +228,15 @@ class HostManager:
         self.agent_configs.clear()
         self.workflow_configs.clear()
         self.custom_workflow_configs.clear()
+        # Dispose the engine if it was created
+        if self._db_engine:
+            try:
+                self._db_engine.dispose()
+                logger.info("Disposed managed database engine.")
+            except Exception as e:
+                logger.error(f"Error disposing database engine: {e}", exc_info=True)
+        self._db_engine = None
+        self.storage_manager = None  # Clear storage manager too
         logger.info("HostManager internal state cleared.")
         logger.info("HostManager shutdown complete.")
 
@@ -183,7 +253,7 @@ class HostManager:
             ValueError: If the HostManager is not initialized, or if the client ID already exists.
             Exception: Propagates exceptions from the underlying MCPHost client initialization.
         """
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register client: {client_config.client_id}"
         )
         if not self.host:
@@ -222,7 +292,9 @@ class HostManager:
             ValueError: If the HostManager is not initialized, the agent name already exists,
                         or if any specified client_id is not found.
         """
-        logger.info(f"Attempting to dynamically register agent: {agent_config.name}")
+        logger.debug(
+            f"Attempting to dynamically register agent: {agent_config.name}"
+        )  # INFO -> DEBUG
         if not self.host:
             logger.error("HostManager is not initialized. Cannot register agent.")
             raise ValueError("HostManager is not initialized.")
@@ -231,11 +303,11 @@ class HostManager:
             logger.error(f"Agent name '{agent_config.name}' already registered.")
             raise ValueError(f"Agent name '{agent_config.name}' already registered.")
 
-        # Validate client_ids exist
+        # Validate client_ids exist using the new host method
         if agent_config.client_ids:
-            # Accessing host._clients directly might be fragile
             for client_id in agent_config.client_ids:
-                if client_id not in self.host._clients:
+                # Use the new public method on the host instance
+                if not self.host.is_client_registered(client_id):
                     logger.error(
                         f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found."
                     )
@@ -243,9 +315,22 @@ class HostManager:
                         f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
                     )
 
-        # Add the agent config
+        # Add the agent config to memory
         self.agent_configs[agent_config.name] = agent_config
-        logger.info(f"Agent '{agent_config.name}' registered successfully.")
+        logger.info(f"Agent '{agent_config.name}' registered successfully (in memory).")
+
+        # Sync to DB if enabled
+        if self.storage_manager:
+            try:
+                # Assuming sync_agent_config is synchronous
+                self.storage_manager.sync_agent_config(agent_config)
+                logger.info(f"Agent '{agent_config.name}' synced to database.")
+            except Exception as e:
+                # Log error but don't fail registration, as it's in memory
+                logger.error(
+                    f"Failed to sync agent '{agent_config.name}' to database: {e}",
+                    exc_info=True,
+                )
 
     async def register_workflow(self, workflow_config: "WorkflowConfig"):
         """
@@ -258,7 +343,7 @@ class HostManager:
             ValueError: If the HostManager is not initialized, the workflow name already exists,
                         or if any agent name in the steps is not found.
         """
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register workflow: {workflow_config.name}"
         )
         if not self.host:
@@ -282,9 +367,23 @@ class HostManager:
                         f"Agent '{agent_name}' not found for workflow '{workflow_config.name}'."
                     )
 
-        # Add the workflow config
+        # Add the workflow config to memory
         self.workflow_configs[workflow_config.name] = workflow_config
-        logger.info(f"Workflow '{workflow_config.name}' registered successfully.")
+        logger.info(
+            f"Workflow '{workflow_config.name}' registered successfully (in memory)."
+        )
+
+        # Sync to DB if enabled
+        if self.storage_manager:
+            try:
+                # Assuming sync_workflow_config is synchronous
+                self.storage_manager.sync_workflow_config(workflow_config)
+                logger.info(f"Workflow '{workflow_config.name}' synced to database.")
+            except Exception as e:
+                logger.error(
+                    f"Failed to sync workflow '{workflow_config.name}' to database: {e}",
+                    exc_info=True,
+                )
 
     async def register_custom_workflow(
         self, custom_workflow_config: "CustomWorkflowConfig"
@@ -299,7 +398,7 @@ class HostManager:
             ValueError: If the HostManager is not initialized, the custom workflow name already exists,
                         or the module_path is invalid
         """
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register workflow: {custom_workflow_config.name}"
         )
         if not self.host:
@@ -327,13 +426,163 @@ class HostManager:
             logger.error(f"Custom workflow module file not found: {module_path}")
             raise ValueError(f"Custom workflow module file not found: {module_path}")
 
-        # Add the workflow config
+        # Add the workflow config to memory
         self.custom_workflow_configs[custom_workflow_config.name] = (
             custom_workflow_config
         )
         logger.info(
-            f"Custom Workflow '{custom_workflow_config.name}' registered successfully."
+            f"Custom Workflow '{custom_workflow_config.name}' registered successfully (in memory)."
         )
+
+        # Sync to DB if enabled
+        if self.storage_manager:
+            try:
+                # Assuming sync_custom_workflow_config is synchronous
+                self.storage_manager.sync_custom_workflow_config(custom_workflow_config)
+                logger.info(
+                    f"Custom Workflow '{custom_workflow_config.name}' synced to database."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to sync custom workflow '{custom_workflow_config.name}' to database: {e}",
+                    exc_info=True,
+                )
+
+    # --- Private Registration Helpers ---
+
+    async def _register_clients_from_config(
+        self, clients: List[ClientConfig]
+    ) -> Tuple[int, int, List[str]]:
+        """Registers clients from a loaded list, returning counts and errors."""
+        registered_count = 0
+        skipped_count = 0
+        error_list = []
+        logger.debug(f"Registering {len(clients)} clients...")  # INFO -> DEBUG
+        for client_config in clients:
+            try:
+                # Assuming self.host is guaranteed to be initialized here
+                await self.host.register_client(client_config)
+                registered_count += 1
+                logger.debug(
+                    f"Successfully registered client: {client_config.client_id}"
+                )
+            except ValueError as e:  # Catch duplicate client IDs
+                logger.warning(
+                    f"Skipping client registration for '{client_config.client_id}': {e}"
+                )
+                skipped_count += 1
+            except Exception as e:
+                err_msg = f"Failed to register client '{client_config.client_id}': {e}"
+                logger.error(err_msg, exc_info=True)
+                error_list.append(err_msg)
+                skipped_count += 1  # Count as skipped due to error
+        return registered_count, skipped_count, error_list
+
+    async def _register_agents_from_config(
+        self, agents: Dict[str, AgentConfig]
+    ) -> Tuple[int, int, List[str]]:
+        """Registers agents from a loaded dict, returning counts and errors."""
+        registered_count = 0
+        skipped_count = 0
+        error_list = []
+        logger.debug(f"Registering {len(agents)} agents...")  # INFO -> DEBUG
+        for agent_name, agent_config in agents.items():
+            try:
+                await self.register_agent(
+                    agent_config
+                )  # Uses internal check for host init
+                registered_count += 1
+                logger.debug(f"Successfully registered agent: {agent_name}")
+            except ValueError as e:  # Catch duplicates or invalid client IDs
+                logger.warning(f"Skipping agent registration for '{agent_name}': {e}")
+                skipped_count += 1
+            except Exception as e:  # Catch unexpected errors
+                err_msg = f"Failed to register agent '{agent_name}': {e}"
+                logger.error(err_msg, exc_info=True)
+                error_list.append(err_msg)
+                skipped_count += 1
+        return registered_count, skipped_count, error_list
+
+    async def _register_workflows_from_config(
+        self,
+        workflows: Dict[str, WorkflowConfig],
+        available_agents: Set[str],  # Pass the set of available agent names
+    ) -> Tuple[int, int, List[str]]:
+        """Validates and registers simple workflows, returning counts and errors."""
+        registered_count = 0
+        skipped_count = 0
+        error_list = []
+        valid_workflows_to_register = {}
+        logger.debug(
+            f"Validating {len(workflows)} simple workflows..."
+        )  # INFO -> DEBUG
+
+        # First, validate agent references
+        for workflow_name, workflow_config in workflows.items():
+            is_valid = True
+            if workflow_config.steps:
+                for step_agent_name in workflow_config.steps:
+                    if step_agent_name not in available_agents:
+                        err_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}'. Agent not found in existing or newly loaded configurations."
+                        logger.error(err_msg)
+                        error_list.append(err_msg)
+                        skipped_count += 1
+                        is_valid = False
+                        break  # No need to check other steps
+            if is_valid:
+                valid_workflows_to_register[workflow_name] = workflow_config
+
+        # Now register the valid ones
+        logger.debug(  # INFO -> DEBUG
+            f"Registering {len(valid_workflows_to_register)} valid simple workflows..."
+        )
+        for workflow_name, workflow_config in valid_workflows_to_register.items():
+            try:
+                await self.register_workflow(
+                    workflow_config
+                )  # Uses internal check for host init
+                registered_count += 1
+                logger.debug(f"Successfully registered workflow: {workflow_name}")
+            except ValueError as e:  # Catch duplicates
+                logger.warning(
+                    f"Skipping workflow registration for '{workflow_name}': {e}"
+                )
+                skipped_count += 1
+            except Exception as e:  # Catch unexpected errors
+                err_msg = f"Failed to register workflow '{workflow_name}': {e}"
+                logger.error(err_msg, exc_info=True)
+                error_list.append(err_msg)
+                skipped_count += 1
+        return registered_count, skipped_count, error_list
+
+    async def _register_custom_workflows_from_config(
+        self, custom_workflows: Dict[str, CustomWorkflowConfig]
+    ) -> Tuple[int, int, List[str]]:
+        """Registers custom workflows from a loaded dict, returning counts and errors."""
+        registered_count = 0
+        skipped_count = 0
+        error_list = []
+        logger.debug(
+            f"Registering {len(custom_workflows)} custom workflows..."
+        )  # INFO -> DEBUG
+        for cwf_name, cwf_config in custom_workflows.items():
+            try:
+                await self.register_custom_workflow(
+                    cwf_config
+                )  # Uses internal check for host init
+                registered_count += 1
+                logger.debug(f"Successfully registered custom workflow: {cwf_name}")
+            except ValueError as e:  # Catch duplicates or invalid paths
+                logger.warning(
+                    f"Skipping custom workflow registration for '{cwf_name}': {e}"
+                )
+                skipped_count += 1
+            except Exception as e:  # Catch unexpected errors
+                err_msg = f"Failed to register custom workflow '{cwf_name}': {e}"
+                logger.error(err_msg, exc_info=True)
+                error_list.append(err_msg)
+                skipped_count += 1
+        return registered_count, skipped_count, error_list
 
     async def register_config_file(self, file_path: Path):
         """
@@ -348,7 +597,7 @@ class HostManager:
             FileNotFoundError: If the specified file_path does not exist.
             RuntimeError: If there's an error parsing the config file or during registration.
         """
-        logger.info(
+        logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register components from file: {file_path}"
         )
         if not self.host:
@@ -368,19 +617,19 @@ class HostManager:
             logger.error(f"Configuration file not found at path: {file_path}")
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
-        registered_counts = {
+        all_registered_counts = {
             "clients": 0,
             "agents": 0,
             "workflows": 0,
             "custom_workflows": 0,
         }
-        skipped_counts = {
+        all_skipped_counts = {
             "clients": 0,
             "agents": 0,
             "workflows": 0,
             "custom_workflows": 0,
         }
-        error_messages = []
+        all_error_messages = []
 
         try:
             # 1. Load all configurations from the specified file
@@ -390,119 +639,53 @@ class HostManager:
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
             ) = load_host_config_from_json(file_path)
-            logger.info(f"Successfully loaded configurations from {file_path}.")
+            logger.debug(
+                f"Successfully loaded configurations from {file_path}."
+            )  # INFO -> DEBUG
 
-            # 2. Register Clients
-            logger.info(f"Registering {len(host_config.clients)} clients...")
-            for client_config in host_config.clients:
-                try:
-                    await self.host.register_client(client_config)
-                    registered_counts["clients"] += 1
-                    logger.debug(
-                        f"Successfully registered client: {client_config.client_id}"
-                    )
-                except ValueError as e:  # Catch duplicate client IDs
-                    logger.warning(
-                        f"Skipping client registration for '{client_config.client_id}': {e}"
-                    )
-                    skipped_counts["clients"] += 1
-                except Exception as e:
-                    err_msg = (
-                        f"Failed to register client '{client_config.client_id}': {e}"
-                    )
-                    logger.error(err_msg, exc_info=True)
-                    error_messages.append(err_msg)
-                    skipped_counts["clients"] += 1  # Count as skipped due to error
-
-            # 3. Register Agents
-            logger.info(f"Registering {len(agent_configs_dict)} agents...")
-            for agent_name, agent_config in agent_configs_dict.items():
-                try:
-                    await self.register_agent(agent_config)
-                    registered_counts["agents"] += 1
-                    logger.debug(f"Successfully registered agent: {agent_name}")
-                except ValueError as e:  # Catch duplicates or invalid client IDs
-                    logger.warning(
-                        f"Skipping agent registration for '{agent_name}': {e}"
-                    )
-                    skipped_counts["agents"] += 1
-                except Exception as e:  # Catch unexpected errors
-                    err_msg = f"Failed to register agent '{agent_name}': {e}"
-                    logger.error(err_msg, exc_info=True)
-                    error_messages.append(err_msg)
-                    skipped_counts["agents"] += 1
-
-            # 4. Validate and Register Workflows
-            logger.info(
-                f"Validating and registering {len(workflow_configs_dict)} workflows..."
+            # 2. Register Clients using helper
+            reg_c, skip_c, err_c = await self._register_clients_from_config(
+                host_config.clients
             )
-            # Create a combined view of existing and newly loaded agents for validation
-            available_agent_names = set(self.agent_configs.keys()) | set(
-                agent_configs_dict.keys()
+            all_registered_counts["clients"] = reg_c
+            all_skipped_counts["clients"] = skip_c
+            all_error_messages.extend(err_c)
+
+            # 3. Register Agents using helper
+            reg_a, skip_a, err_a = await self._register_agents_from_config(
+                agent_configs_dict
             )
-            valid_workflows_to_register = {}
+            all_registered_counts["agents"] = reg_a
+            all_skipped_counts["agents"] = skip_a
+            all_error_messages.extend(err_a)
 
-            for workflow_name, workflow_config in workflow_configs_dict.items():
-                is_valid = True
-                if workflow_config.steps:
-                    for step_agent_name in workflow_config.steps:
-                        if step_agent_name not in available_agent_names:
-                            err_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}'. Agent not found in existing or newly loaded configurations."
-                            logger.error(err_msg)
-                            error_messages.append(err_msg)
-                            skipped_counts["workflows"] += 1
-                            is_valid = False
-                            break  # No need to check other steps for this workflow
-                if is_valid:
-                    valid_workflows_to_register[workflow_name] = workflow_config
-
-            # Now register only the valid workflows
-            for workflow_name, workflow_config in valid_workflows_to_register.items():
-                try:
-                    # Use the existing register_workflow which checks for duplicates in self.workflow_configs
-                    await self.register_workflow(workflow_config)
-                    registered_counts["workflows"] += 1
-                    logger.debug(f"Successfully registered workflow: {workflow_name}")
-                except ValueError as e:  # Catch duplicates or invalid agent names
-                    logger.warning(
-                        f"Skipping workflow registration for '{workflow_name}': {e}"
-                    )
-                    skipped_counts["workflows"] += 1
-                except Exception as e:  # Catch unexpected errors
-                    err_msg = f"Failed to register workflow '{workflow_name}': {e}"
-                    logger.error(err_msg, exc_info=True)
-                    error_messages.append(err_msg)
-                    skipped_counts["workflows"] += 1
-
-            # 5. Register Custom Workflows
-            logger.info(
-                f"Registering {len(custom_workflow_configs_dict)} custom workflows..."
+            # 4. Register Workflows using helper
+            # Need the combined set of agent names for validation
+            available_agent_names = set(
+                self.agent_configs.keys()
+            )  # Already registered + newly registered
+            reg_w, skip_w, err_w = await self._register_workflows_from_config(
+                workflow_configs_dict, available_agent_names
             )
-            for cwf_name, cwf_config in custom_workflow_configs_dict.items():
-                try:
-                    await self.register_custom_workflow(cwf_config)
-                    registered_counts["custom_workflows"] += 1
-                    logger.debug(f"Successfully registered custom workflow: {cwf_name}")
-                except ValueError as e:  # Catch duplicates or invalid paths
-                    logger.warning(
-                        f"Skipping custom workflow registration for '{cwf_name}': {e}"
-                    )
-                    skipped_counts["custom_workflows"] += 1
-                except Exception as e:  # Catch unexpected errors
-                    err_msg = f"Failed to register custom workflow '{cwf_name}': {e}"
-                    logger.error(err_msg, exc_info=True)
-                    error_messages.append(err_msg)
-                    skipped_counts["custom_workflows"] += 1
+            all_registered_counts["workflows"] = reg_w
+            all_skipped_counts["workflows"] = skip_w
+            all_error_messages.extend(err_w)
+
+            # 5. Register Custom Workflows using helper
+            reg_cw, skip_cw, err_cw = await self._register_custom_workflows_from_config(
+                custom_workflow_configs_dict
+            )
+            all_registered_counts["custom_workflows"] = reg_cw
+            all_skipped_counts["custom_workflows"] = skip_cw
+            all_error_messages.extend(err_cw)
 
             # Log summary
             summary_msg = (
                 f"Finished processing config file '{file_path}'. "
-                f"Registered: {registered_counts}. Skipped: {skipped_counts}."
+                f"Registered: {all_registered_counts}. Skipped: {all_skipped_counts}."
             )
-            if error_messages:
-                summary_msg += (
-                    f" Encountered {len(error_messages)} errors during registration."
-                )
+            if all_error_messages:
+                summary_msg += f" Encountered {len(all_error_messages)} errors during registration."
                 logger.error(summary_msg)
                 # Optionally re-raise a generic error if any individual errors occurred
                 # raise RuntimeError(f"Errors occurred during dynamic registration from {file_path}. See logs for details.")
@@ -526,387 +709,8 @@ class HostManager:
             ) from e
 
     # --- Execution Methods ---
-
-    async def execute_agent(
-        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Executes a configured agent by name.
-
-        Args:
-            agent_name: The name of the agent to execute (must match a key in loaded agent_configs).
-            user_message: The user's input message for the agent.
-
-        Returns:
-            A dictionary containing the agent's execution result (e.g., conversation, final response).
-
-        Raises:
-            ValueError: If the HostManager is not initialized (host is None).
-            KeyError: If the specified agent_name is not found in the configuration.
-            Exception: Propagates exceptions from Agent instantiation or execution.
-        """
-        logger.info(f"Executing agent: {agent_name}")
-
-        if not self.host:
-            logger.error("HostManager is not initialized. Cannot execute agent.")
-            raise ValueError("HostManager is not initialized.")
-
-        try:
-            # 1. Retrieve AgentConfig
-            agent_config = self.agent_configs[agent_name]
-            logger.debug(f"Found AgentConfig for '{agent_name}'")
-
-            # 2. Instantiate Agent
-            # Agent initialization might raise errors (e.g., missing API key)
-            agent = Agent(config=agent_config)
-            logger.debug(f"Instantiated Agent '{agent_name}'")
-
-            # 3. Determine if prompt evaluation should happen
-            if agent_config.evaluation:
-                logger.debug(f"Using evaluation for '{agent_name}'")
-                
-                # determine if path to config or simple prompt. fill in default values if simple prompt
-                testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{agent_config.evaluation}"
-                if os.path.exists(testing_config_path):
-                    # valid path, run as normal
-                    # overwrite input in config with actual user input
-                    testing_config = load_config(testing_config_path)
-                    testing_config.user_input = user_message
-                    
-                    workflow_result = await self.execute_custom_workflow(
-                        workflow_name="Prompt Validation Workflow", 
-                        initial_input={
-                            "validation_config": testing_config
-                        }
-                    )
-                    result = workflow_result.get("agent_responses")[-1]
-                else:
-                    # invalid path, it is system prompt
-                    workflow_result = await self.execute_custom_workflow(
-                        workflow_name="Prompt Validation Workflow", 
-                        initial_input={
-                            "testing_prompt": agent_config.evaluation,
-                            "user_input": user_message,
-                            "agent_name": agent_name
-                        }
-                    )
-                    result = workflow_result.get("agent_responses")[-1]
-                
-            else:
-                # 4. Execute the agent as normal
-                if system_prompt:
-                    logger.debug(f"Using system prompt for '{agent_name}': {system_prompt}")
-                    result = await agent.execute_agent(
-                        user_message=user_message,
-                        host_instance=self.host,
-                        system_prompt=system_prompt,
-                    )
-                else:
-                    result = await agent.execute_agent(
-                        user_message=user_message,
-                        host_instance=self.host,
-                    )
-            logger.info(f"Agent '{agent_name}' execution finished.")
-            return result
-
-        except KeyError:
-            logger.error(f"Agent configuration not found for name: {agent_name}")
-            raise  # Re-raise KeyError for the caller (e.g., API endpoint) to handle
-        except Exception as e:
-            logger.error(
-                f"Error during agent '{agent_name}' execution in HostManager: {e}",
-                exc_info=True,
-            )
-            # Re-raise other exceptions (from Agent init or execute)
-            raise
-
-    async def execute_workflow(
-        self, workflow_name: str, initial_user_message: str
-    ) -> Dict[str, Any]:
-        """
-        Executes a configured simple workflow (sequence of agents) by name.
-
-        Args:
-            workflow_name: The name of the workflow to execute.
-            initial_user_message: The initial input message for the first agent in the sequence.
-
-        Returns:
-            A dictionary containing the final status, the final message from the last agent,
-            and any error message encountered.
-
-        Raises:
-            ValueError: If the HostManager is not initialized (host is None).
-            KeyError: If the specified workflow_name or an agent within the workflow is not found.
-            Exception: Propagates exceptions from underlying agent executions.
-        """
-        logger.info(f"Executing simple workflow: {workflow_name}")
-
-        if not self.host:
-            logger.error("HostManager is not initialized. Cannot execute workflow.")
-            raise ValueError("HostManager is not initialized.")
-
-        current_message = initial_user_message
-        final_status = "failed"  # Default status
-        error_message = None
-
-        try:
-            # 1. Retrieve WorkflowConfig
-            workflow_config = self.workflow_configs[workflow_name]
-            logger.debug(
-                f"Found WorkflowConfig for '{workflow_name}' with steps: {workflow_config.steps}"
-            )
-
-            if not workflow_config.steps:
-                logger.warning(f"Workflow '{workflow_name}' has no steps to execute.")
-                return {
-                    "workflow_name": workflow_name,
-                    "status": "completed_empty",
-                    "final_message": current_message,
-                    "error": None,
-                }
-
-            # 2. Loop through steps (agents)
-            for i, agent_name in enumerate(workflow_config.steps):
-                step_num = i + 1
-                logger.info(
-                    f"Executing workflow '{workflow_name}' step {step_num}: Agent '{agent_name}'"
-                )
-
-                # Call self.execute_agent for the current step
-                # This already handles agent config lookup, instantiation, and execution
-                # It will raise KeyError if agent_name is not found in self.agent_configs
-                try:
-                    result = await self.execute_agent(
-                        agent_name=agent_name, user_message=current_message
-                    )
-
-                    # Error Handling for Agent Execution within the workflow
-                    if result.get("error"):
-                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {result['error']}"
-                        logger.error(error_message)
-                        break  # Stop workflow execution
-
-                    if (
-                        not result.get("final_response")
-                        or not result["final_response"].content
-                    ):
-                        error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response."
-                        logger.error(error_message)
-                        break  # Stop workflow execution
-
-                    # Output Extraction (Basic: first text block)
-                    try:
-                        # Find the first text block in the content list
-                        text_content = next(
-                            (
-                                block.text
-                                for block in result["final_response"].content
-                                if block.type == "text"
-                            ),
-                            None,
-                        )
-                        if text_content is None:
-                            error_message = f"Agent '{agent_name}' (step {step_num}) response content has no text block."
-                            logger.error(error_message)
-                            break  # Stop workflow execution
-                        current_message = (
-                            text_content  # Update message for the next step
-                        )
-                        logger.debug(
-                            f"Step {step_num}: Output message: '{current_message[:100]}...'"
-                        )
-                    except (AttributeError, IndexError, TypeError) as e:
-                        error_message = f"Error extracting text from agent '{agent_name}' (step {step_num}) response: {e}"
-                        logger.error(error_message, exc_info=True)
-                        break  # Stop workflow execution
-
-                except KeyError:
-                    # This occurs if self.execute_agent raises KeyError for the agent_name
-                    error_message = f"Configuration error: Agent '{agent_name}' (step {step_num}) not found."
-                    logger.error(error_message)
-                    # Re-raise here so the outer try/except catches it for consistent workflow failure reporting
-                    raise
-                except Exception as agent_exec_e:
-                    # Catch other unexpected errors from self.execute_agent
-                    error_message = f"Unexpected error during agent '{agent_name}' (step {step_num}) execution: {agent_exec_e}"
-                    logger.error(error_message, exc_info=True)
-                    break  # Stop workflow execution
-
-            # 3. Determine final status
-            if error_message is None:
-                final_status = "completed"
-                logger.info(f"Workflow '{workflow_name}' completed successfully.")
-
-        except KeyError:
-            # Catches KeyError if workflow_name itself is not found, or if re-raised from agent lookup
-            logger.error(
-                f"Workflow configuration or agent within workflow '{workflow_name}' not found."
-            )
-            # Re-raise for the caller (API endpoint) to handle as 404 or 500
-            raise
-        except Exception as e:
-            # Catch any other unexpected errors during workflow orchestration
-            logger.error(
-                f"Unexpected error during workflow '{workflow_name}' execution: {e}",
-                exc_info=True,
-            )
-            error_message = (
-                error_message
-                or f"Internal server error during workflow execution: {str(e)}"
-            )
-            # Don't re-raise here, return the failure status in the dictionary
-
-        # 4. Return final result
-        return {
-            "workflow_name": workflow_name,
-            "status": final_status,
-            "final_message": current_message if final_status == "completed" else None,
-            "error": error_message,
-        }
-
-    async def execute_custom_workflow(
-        self, workflow_name: str, initial_input: Any
-    ) -> Any:
-        """
-        Executes a configured custom Python workflow by name.
-
-        Args:
-            workflow_name: The name of the custom workflow to execute.
-            initial_input: The input data to pass to the workflow's execute method.
-
-        Returns:
-            The result returned by the custom workflow's execute_workflow method.
-
-        Raises:
-            ValueError: If the HostManager is not initialized (host is None).
-            KeyError: If the workflow_name is not found in the configuration.
-            FileNotFoundError: If the configured module path does not exist.
-            PermissionError: If the module path is outside the project directory.
-            ImportError: If the module cannot be imported.
-            AttributeError: If the specified class or 'execute_workflow' method is not found.
-            TypeError: If the 'execute_workflow' method is not async or class instantiation fails.
-            RuntimeError: Wraps exceptions raised during the workflow's execution.
-        """
-        logger.info(f"Executing custom workflow: {workflow_name}")
-
-        if not self.host:
-            logger.error(
-                "HostManager is not initialized. Cannot execute custom workflow."
-            )
-            raise ValueError("HostManager is not initialized.")
-
-        try:
-            # 1. Get Config
-            config = self.custom_workflow_configs[workflow_name]
-            module_path = config.module_path
-            class_name = config.class_name
-            logger.debug(
-                f"Found CustomWorkflowConfig for '{workflow_name}': path={module_path}, class={class_name}"
-            )
-
-            # 2. Security Check (Basic): Ensure path is within project
-            # Use PROJECT_ROOT_DIR imported from config
-            if not str(module_path.resolve()).startswith(
-                str(PROJECT_ROOT_DIR.resolve())
-            ):
-                logger.error(
-                    f"Custom workflow path '{module_path}' is outside the project directory {PROJECT_ROOT_DIR}. Aborting."
-                )
-                raise PermissionError(
-                    "Custom workflow path is outside the project directory."
-                )
-
-            if not module_path.exists():
-                logger.error(f"Custom workflow module file not found: {module_path}")
-                raise FileNotFoundError(
-                    f"Custom workflow module file not found: {module_path}"
-                )
-
-            # 3. Dynamic Import
-            spec = importlib.util.spec_from_file_location(module_path.stem, module_path)
-            if spec is None or spec.loader is None:
-                # Raise ImportError directly if spec creation fails
-                raise ImportError(f"Could not create module spec for {module_path}")
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            logger.debug(f"Dynamically imported module: {module_path}")
-
-            # 4. Get Class
-            WorkflowClass = getattr(module, class_name, None)
-            if WorkflowClass is None:
-                logger.error(f"Class '{class_name}' not found in module {module_path}")
-                raise AttributeError(
-                    f"Class '{class_name}' not found in module {module_path}"
-                )
-
-            # 5. Instantiate
-            try:
-                workflow_instance = WorkflowClass()
-                logger.debug(f"Instantiated workflow class '{class_name}'")
-            except Exception as init_err:
-                logger.error(
-                    f"Error instantiating workflow class '{class_name}' from {module_path}: {init_err}",
-                    exc_info=True,
-                )
-                # Use TypeError consistent with original manager, though RuntimeError might also fit
-                raise TypeError(
-                    f"Failed to instantiate workflow class '{class_name}': {init_err}"
-                ) from init_err
-
-            # 6. Check for execute_workflow method
-            execute_method_name = "execute_workflow"
-            if not hasattr(workflow_instance, execute_method_name) or not callable(
-                getattr(workflow_instance, execute_method_name)
-            ):
-                logger.error(
-                    f"Method '{execute_method_name}' not found or not callable in class '{class_name}' from {module_path}"
-                )
-                raise AttributeError(
-                    f"Method '{execute_method_name}' not found or not callable in class '{class_name}'"
-                )
-
-            execute_method = getattr(workflow_instance, execute_method_name)
-
-            # 7. Execute (check if async)
-            if not inspect.iscoroutinefunction(execute_method):
-                logger.error(
-                    f"Method '{execute_method_name}' in class '{class_name}' from {module_path} must be async."
-                )
-                raise TypeError(f"Method '{execute_method_name}' must be async.")
-
-            logger.debug(
-                f"Calling '{execute_method_name}' on instance of '{class_name}'"
-            )
-            result = await execute_method(
-                initial_input=initial_input, host_instance=self.host
-            )
-
-            logger.info(
-                f"Custom workflow '{workflow_name}' execution finished successfully."
-            )
-            return result
-
-        except (
-            KeyError,
-            FileNotFoundError,
-            ImportError,
-            AttributeError,
-            PermissionError,
-            TypeError,
-        ) as e:
-            # Catch specific setup/loading errors and re-raise
-            logger.error(
-                f"Error setting up or loading custom workflow '{workflow_name}': {e}",
-                exc_info=True,
-            )
-            raise e
-        except Exception as e:
-            # Catch errors *during* the workflow's own execution
-            logger.error(
-                f"Exception raised within custom workflow '{workflow_name}': {e}",
-                exc_info=True,
-            )
-            # Wrap internal workflow errors in a RuntimeError
-            raise RuntimeError(
-                f"Exception during custom workflow '{workflow_name}' execution: {e}"
-            ) from e
+    # NOTE: The original execute_* methods are removed.
+    # Execution is now handled by self.execution (ExecutionFacade instance).
+    # Entrypoints (API, CLI, Worker) will need to be updated to call
+    # self.execution.run_agent(), self.execution.run_simple_workflow(), etc.
+    # (The actual method definitions below are removed by this change)

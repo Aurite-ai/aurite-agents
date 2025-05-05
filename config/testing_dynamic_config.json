@@ -46,7 +46,7 @@
   "custom_workflows": [
     {
       "name": "SecondExampleCustom",
-      "module_path": "tests/prompt_validation/prompt_validation_workflow.py",
+      "module_path": "src/prompt_validation/prompt_validation_workflow.py",
       "class_name": "PromptValidationWorkflow",
       "description": "An example custom workflow for testing."
     }

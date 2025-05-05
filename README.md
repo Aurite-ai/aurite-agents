@@ -14,9 +14,10 @@ It provides three core components:
 *   **MCP Host:** The infrastructure layer connecting to and managing MCP servers.
 *   **Host Manager:** The orchestration layer managing the Host, Agents, and Workflows.
 *   **MCP Server/Client:** An external process implementing the MCP protocol to provide specific capabilities (e.g., a weather tool server, a planning tool server). The Host connects to these servers, referring to them as clients.
-*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information to accomplish tasks.
-*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially by the `HostManager`.
-*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic with access to the `HostManager` and `MCPHost`.
+*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information. Can optionally persist conversation history using the Storage Manager (requires `session_id` during execution).
+*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially via the `ExecutionFacade`. (Note: Session history is not automatically propagated to agents within a simple workflow currently).
+*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic. Its `execute_workflow` method receives an `ExecutionFacade` instance and an optional `session_id`. If calling agents that use history, the `session_id` must be passed along.
+*   **Storage Manager (`src/storage/db_manager.py`):** Handles database interactions, including persisting agent configurations and conversation history (keyed by `agent_name` and `session_id`) if enabled.
 
 ## Architecture
 
@@ -42,12 +43,32 @@ The framework follows a layered architecture:
 | |-------------------------------------------------------------| |
 | | Purpose:                                                    | |
 | | - Load Host JSON Config                                     | |
-| | - Init/Shutdown MCP Host                                    | |
-| | - Register/Execute Agents, Simple/Custom Workflows          | |
-| | - Dynamic Registration                                      | |
+| | - Init/Shutdown MCP Host & Storage Manager (optional)       | |
+| | - Holds Agent/Workflow Configs                              | |
+| | - Dynamic Registration & DB Sync (optional)                 | |
+| | - Owns ExecutionFacade                                      | |
 | +-------------------------------------------------------------+ |
 |                       |                                         |
 |                       v                                         |
++-----------------------+-----------------------------------------+
+                        |
+                        v
++-----------------------+-----------------------------------------+
+| Layer 2.5: Execution Facade & Executors                       |
+| +-------------------------------------------------------------+ |
+| | ExecutionFacade (execution/facade.py)                       | |
+| |-------------------------------------------------------------| |
+| | Purpose: Unified interface (run_agent, run_simple_workflow, | |
+| |          run_custom_workflow) for execution.                | |
+| | Delegates to specific Executors.                            | |
+| | Passes Storage Manager to Agent execution if available.     | |
+| +-------------------------------------------------------------+ |
+| | Agent (agents/agent.py) - Executes itself                   | |
+| | SimpleWorkflowExecutor (workflows/simple_workflow.py)       | |
+| | CustomWorkflowExecutor (workflows/custom_workflow.py)       | |
+| +-------------------------------------------------------------+ |
+|                       |                                         |
+|                       v (Uses MCP Host & Storage Manager)       |
 +-----------------------+-----------------------------------------+
                         |
                         v
@@ -82,8 +103,9 @@ The framework follows a layered architecture:
 
 *   **Layer 4: External Capabilities:** MCP Servers providing tools/prompts/resources.
 *   **Layer 3: Host Infrastructure:** The `MCPHost` manages connections and low-level MCP interactions.
-*   **Layer 2: Orchestration:** The `HostManager` loads configuration and orchestrates the Host, Agents, and Workflows.
-*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces for interacting with the `HostManager`.
+*   **Layer 2.5: Execution Facade & Executors:** The `ExecutionFacade` provides a unified interface for running components, delegating to specific executors (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`). It also passes the `StorageManager` instance (if available) to the `Agent` during execution.
+*   **Layer 2: Orchestration:** The `HostManager` loads configuration, manages the `MCPHost` and optional `StorageManager` lifecycle, handles dynamic registration (syncing to DB if enabled), and owns the `ExecutionFacade`.
+*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces interact with the `HostManager` (and through it, the `ExecutionFacade`).
 
 For more details, see `docs/architecture_overview.md` and `docs/framework_overview.md`.
 
@@ -93,11 +115,13 @@ The framework uses Pydantic models for configuration (`src/host/models.py`):
 
 *   **`HostConfig`**: Defines the host name and a list of `ClientConfig` objects.
 *   **`ClientConfig`**: Defines settings for connecting to a specific MCP server, including its path, capabilities, roots, optional GCP secrets, and global component exclusions (`exclude`).
-*   **`AgentConfig`**: Defines settings for an `Agent` instance, including LLM parameters (model, temperature, etc.) and filtering rules (`client_ids`, `exclude_components`).
+*   **`AgentConfig`**: Defines settings for an `Agent` instance, including LLM parameters (model, temperature, etc.), filtering rules (`client_ids`, `exclude_components`), and an optional `include_history` flag (boolean) to enable conversation history persistence via the database.
 *   **`WorkflowConfig`**: Defines a simple workflow as a named sequence of agent names (`steps`).
 *   **`CustomWorkflowConfig`**: Defines a custom workflow by pointing to its Python module path and class name.
 
 Configuration for the entire system (Host, Clients, Agents, Workflows) is loaded from a single JSON file specified by the `HOST_CONFIG_PATH` environment variable. The `HostManager` uses `src/config.py` to parse this file during initialization. See `config/testing_config.json` for an example structure.
+
+Database persistence for agent configurations and conversation history can be enabled by setting the `AURITE_ENABLE_DB=true` environment variable and configuring the database connection via other `AURITE_DB_*` variables (see `src/storage/db_connection.py`).
 
 ## Installation
 
@@ -131,6 +155,9 @@ Runs a FastAPI application providing HTTP endpoints for executing and dynamicall
     *   `HOST_CONFIG_PATH`: Path to the desired host configuration JSON file (e.g., `config/agents/testing_config.json`).
     *   `ANTHROPIC_API_KEY`: Required by the `Agent` class for LLM calls.
     *   `AURITE_MCP_ENCRYPTION_KEY` (Optional): For the `SecurityManager`. If not set, a temporary one will be generated.
+    *   `AURITE_ENABLE_DB` (Optional): Set to `true` to enable database persistence. Defaults to `false`.
+    *   `AURITE_DB_URL` (Required if DB enabled): Full database connection URL (e.g., `postgresql+psycopg2://user:pass@host:port/dbname`).
+    *   Other `AURITE_DB_*` variables (Optional): For specific database connection parameters if not using `AURITE_DB_URL`.
 2.  **Run the server:**
     ```bash
     python -m src.bin.api
@@ -165,6 +192,7 @@ Listens to a Redis stream for tasks (registration or execution requests).
 2.  **Set Environment Variables:**
     *   `HOST_CONFIG_PATH`: Path to the host configuration JSON file.
     *   `ANTHROPIC_API_KEY` (if needed by components).
+    *   `AURITE_ENABLE_DB` and `AURITE_DB_*` variables (if database persistence is desired).
     *   `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_STREAM_NAME` (defaults are provided in `src/config.py` but can be overridden via `.env`).
 3.  **Run the worker:**
     ```bash
@@ -184,6 +212,7 @@ See `docs/testing_strategy.md` and `tests/README.md` for detailed instructions o
     *   `src/host/`: Implementation of the MCP Host system (`host.py`) and its managers.
     *   `src/agents/`: Implementation of the Agent framework (`agent.py`).
     *   `src/host_manager.py`: Orchestration layer managing Host, Agents, and Workflows.
+    *   `src/storage/`: Database connection, models, and management (`db_connection.py`, `db_models.py`, `db_manager.py`).
     *   `src/packaged_servers/`: Example and pre-built MCP server implementations.
     *   `src/config.py`: Configuration loading utilities.
     *   `src/bin/`: Entrypoint scripts (API, CLI, Worker).
