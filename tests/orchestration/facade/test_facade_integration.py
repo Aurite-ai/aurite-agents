@@ -5,7 +5,7 @@ Integration tests for the ExecutionFacade.
 import pytest
 import os
 import uuid  # Add uuid import
-import json # Add json import
+import json  # Add json import
 
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
@@ -56,17 +56,32 @@ async def test_facade_run_agent(host_manager: HostManager):
         final_content_blocks = result["final_response"].content
         assert isinstance(final_content_blocks, list) and len(final_content_blocks) > 0
         # Assuming the JSON is in the first text block
-        first_text_block = next((block for block in final_content_blocks if hasattr(block, 'type') and block.type == 'text'), None)
-        assert first_text_block is not None, "No text block found in final response content"
-        assert hasattr(first_text_block, 'text'), "Text block missing 'text' attribute"
+        first_text_block = next(
+            (
+                block
+                for block in final_content_blocks
+                if hasattr(block, "type") and block.type == "text"
+            ),
+            None,
+        )
+        assert first_text_block is not None, (
+            "No text block found in final response content"
+        )
+        assert hasattr(first_text_block, "text"), "Text block missing 'text' attribute"
         json_text = first_text_block.text
         try:
             parsed_json = json.loads(json_text)
             # Basic check for expected keys in the JSON response based on the schema
-            assert "weather_summary" in parsed_json, "JSON response missing 'weather_summary'"
+            assert "weather_summary" in parsed_json, (
+                "JSON response missing 'weather_summary'"
+            )
             assert "temperature" in parsed_json, "JSON response missing 'temperature'"
-            assert "recommendations" in parsed_json, "JSON response missing 'recommendations'"
-            assert isinstance(parsed_json["recommendations"], list), "'recommendations' should be a list"
+            assert "recommendations" in parsed_json, (
+                "JSON response missing 'recommendations'"
+            )
+            assert isinstance(parsed_json["recommendations"], list), (
+                "'recommendations' should be a list"
+            )
         except json.JSONDecodeError:
             pytest.fail(f"Final response text block was not valid JSON: {json_text}")
 
@@ -195,14 +210,22 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
         )
         # Check the nested agent result text is valid JSON
         agent_json_text = custom_result["agent_result_text"]
-        try: # Correct indentation for try block
+        try:  # Correct indentation for try block
             agent_parsed_json = json.loads(agent_json_text)
             # Basic check for expected keys in the nested JSON response
-            assert "weather_summary" in agent_parsed_json, "Nested JSON response missing 'weather_summary'"
-            assert "temperature" in agent_parsed_json, "Nested JSON response missing 'temperature'"
-            assert "recommendations" in agent_parsed_json, "Nested JSON response missing 'recommendations'"
-        except json.JSONDecodeError: # Correct indentation for except block
-             pytest.fail(f"Nested agent_result_text was not valid JSON: {agent_json_text}")
+            assert "weather_summary" in agent_parsed_json, (
+                "Nested JSON response missing 'weather_summary'"
+            )
+            assert "temperature" in agent_parsed_json, (
+                "Nested JSON response missing 'temperature'"
+            )
+            assert "recommendations" in agent_parsed_json, (
+                "Nested JSON response missing 'recommendations'"
+            )
+        except json.JSONDecodeError:  # Correct indentation for except block
+            pytest.fail(
+                f"Nested agent_result_text was not valid JSON: {agent_json_text}"
+            )
 
         print("Assertions passed.")
 

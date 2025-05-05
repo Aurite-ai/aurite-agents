@@ -1,5 +1,4 @@
 import pytest
-import os
 from fastapi.testclient import TestClient
 
 # Import the FastAPI app instance from your API module
@@ -42,7 +41,10 @@ def test_api_status_unauthorized():
         # The API key middleware should return 401 if key is missing
         assert response.status_code == 401
         # Detail message might vary slightly based on FastAPI/middleware version
-        assert "api key required in x-api-key header" in response.json().get("detail", "").lower()
+        assert (
+            "api key required in x-api-key header"
+            in response.json().get("detail", "").lower()
+        )
 
 
 def test_api_status_authorized(monkeypatch):
@@ -66,6 +68,7 @@ def test_api_status_authorized(monkeypatch):
     # Clear lru_cache for get_server_config to ensure it re-reads env vars
     # This is crucial if TestClient runs in the same process and imports happened before monkeypatch
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
     # Also clear cache for HostManager's config loading if it uses caching
     # (Assuming it might, although current code doesn't show it explicitly)
@@ -94,15 +97,18 @@ def test_execute_agent_success(monkeypatch):
     monkeypatch.setenv("API_KEY", test_api_key)
     monkeypatch.setenv("HOST_CONFIG_PATH", test_config_path)
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key") # Required by Agent
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")  # Required by Agent
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
         payload = {"user_message": user_message}
-        response = client.post(f"/agents/{agent_name}/execute", headers=headers, json=payload)
+        response = client.post(
+            f"/agents/{agent_name}/execute", headers=headers, json=payload
+        )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -128,16 +134,21 @@ def test_execute_simple_workflow_success(monkeypatch):
     monkeypatch.setenv("API_KEY", test_api_key)
     monkeypatch.setenv("HOST_CONFIG_PATH", test_config_path)
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key") # Required by agents in workflow
+    monkeypatch.setenv(
+        "ANTHROPIC_API_KEY", "dummy_anthropic_key"
+    )  # Required by agents in workflow
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
         # Ensure the payload key matches the API endpoint model (ExecuteWorkflowRequest)
         payload = {"initial_user_message": initial_message}
-        response = client.post(f"/workflows/{workflow_name}/execute", headers=headers, json=payload)
+        response = client.post(
+            f"/workflows/{workflow_name}/execute", headers=headers, json=payload
+        )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -149,11 +160,16 @@ def test_execute_simple_workflow_success(monkeypatch):
         # Check for 'failed' status, as the underlying agent call fails due to the dummy key,
         # and the SimpleWorkflowExecutor propagates this failure.
         assert response_data["status"] == "failed"
-        assert "final_message" in response_data # Final message might be None or contain error info depending on executor
+        assert (
+            "final_message" in response_data
+        )  # Final message might be None or contain error info depending on executor
         # Check that the error field contains the expected error from the failed agent step
         assert "error" in response_data
         assert response_data["error"] is not None
-        assert "Agent 'Weather Planning Workflow Step 1' (step 1) failed" in response_data["error"]
+        assert (
+            "Agent 'Weather Planning Workflow Step 1' (step 1) failed"
+            in response_data["error"]
+        )
         assert "Anthropic API call failed" in response_data["error"]
 
 
@@ -164,7 +180,7 @@ def test_execute_custom_workflow_success(monkeypatch):
     test_api_key = "test_integration_api_key"
     test_config_path = "config/testing_config.json"
     workflow_name = "ExampleCustom"  # Custom workflow defined in testing_config.json
-    initial_input = {"city": "London"} # Example input for the workflow
+    initial_input = {"city": "London"}  # Example input for the workflow
 
     monkeypatch.setenv("API_KEY", test_api_key)
     monkeypatch.setenv("HOST_CONFIG_PATH", test_config_path)
@@ -173,13 +189,16 @@ def test_execute_custom_workflow_success(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
         # Payload structure for custom workflows
         payload = {"initial_input": initial_input}
-        response = client.post(f"/custom_workflows/{workflow_name}/execute", headers=headers, json=payload)
+        response = client.post(
+            f"/custom_workflows/{workflow_name}/execute", headers=headers, json=payload
+        )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -201,12 +220,13 @@ def test_execute_custom_workflow_success(monkeypatch):
 
 # --- Registration Endpoint Tests ---
 
+
 def test_register_client_success(monkeypatch):
     """
     Tests successful dynamic registration of a new client.
     """
-    test_api_key = "test_registration_api_key" # Use a different key if desired
-    test_config_path = "config/testing_config.json" # Base config
+    test_api_key = "test_registration_api_key"  # Use a different key if desired
+    test_config_path = "config/testing_config.json"  # Base config
     client_id_to_register = "dynamic_weather_client"
     # Ensure the server path is valid relative to the project root
     server_path = "tests/fixtures/servers/weather_mcp_server.py"
@@ -217,6 +237,7 @@ def test_register_client_success(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     # Client config payload
@@ -228,16 +249,21 @@ def test_register_client_success(monkeypatch):
         "timeout": 10.0,
         "routing_weight": 0.5,
         "exclude": None,
-        "gcp_secrets": None, # Explicitly None if not used
+        "gcp_secrets": None,  # Explicitly None if not used
     }
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
-        response = client.post("/clients/register", headers=headers, json=client_payload)
+        response = client.post(
+            "/clients/register", headers=headers, json=client_payload
+        )
 
-        assert response.status_code == 201 # Created
+        assert response.status_code == 201  # Created
         response_data = response.json()
-        assert response_data == {"status": "success", "client_id": client_id_to_register}
+        assert response_data == {
+            "status": "success",
+            "client_id": client_id_to_register,
+        }
 
         # Optional: Verify the client is actually usable via another endpoint if needed,
         # though that might belong in more complex E2E tests.
@@ -259,26 +285,35 @@ def test_register_client_duplicate(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     client_payload = {
         "client_id": client_id_to_register,
         "server_path": server_path,
-        "roots": [], "capabilities": ["tools"], "timeout": 10.0,
-        "routing_weight": 0.5, "exclude": None, "gcp_secrets": None,
+        "roots": [],
+        "capabilities": ["tools"],
+        "timeout": 10.0,
+        "routing_weight": 0.5,
+        "exclude": None,
+        "gcp_secrets": None,
     }
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
 
         # First registration (should succeed)
-        response1 = client.post("/clients/register", headers=headers, json=client_payload)
+        response1 = client.post(
+            "/clients/register", headers=headers, json=client_payload
+        )
         assert response1.status_code == 201
 
         # Second registration attempt with the same client_id
-        response2 = client.post("/clients/register", headers=headers, json=client_payload)
+        response2 = client.post(
+            "/clients/register", headers=headers, json=client_payload
+        )
 
-        assert response2.status_code == 409 # Conflict
+        assert response2.status_code == 409  # Conflict
         response_data = response2.json()
         assert "detail" in response_data
         assert "already registered" in response_data["detail"].lower()
@@ -289,7 +324,7 @@ def test_register_agent_success(monkeypatch):
     Tests successful dynamic registration of a new agent.
     """
     test_api_key = "test_registration_api_key"
-    test_config_path = "config/testing_config.json" # Base config
+    test_config_path = "config/testing_config.json"  # Base config
     agent_name_to_register = "Dynamic Test Agent"
 
     monkeypatch.setenv("API_KEY", test_api_key)
@@ -298,12 +333,16 @@ def test_register_agent_success(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     # Agent config payload - references clients from testing_config.json
     agent_payload = {
         "name": agent_name_to_register,
-        "client_ids": ["weather_server", "planning_server"], # Assumes these exist in base config
+        "client_ids": [
+            "weather_server",
+            "planning_server",
+        ],  # Assumes these exist in base config
         "system_prompt": "You are a dynamically registered test agent.",
         "model": "claude-3-haiku-20240307",
         "temperature": 0.7,
@@ -317,9 +356,12 @@ def test_register_agent_success(monkeypatch):
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
         response = client.post("/agents/register", headers=headers, json=agent_payload)
 
-        assert response.status_code == 201 # Created
+        assert response.status_code == 201  # Created
         response_data = response.json()
-        assert response_data == {"status": "success", "agent_name": agent_name_to_register}
+        assert response_data == {
+            "status": "success",
+            "agent_name": agent_name_to_register,
+        }
 
 
 def test_register_agent_duplicate_name(monkeypatch):
@@ -337,6 +379,7 @@ def test_register_agent_duplicate_name(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     agent_payload = {
@@ -353,10 +396,12 @@ def test_register_agent_duplicate_name(monkeypatch):
         assert response1.status_code == 201
 
         # Second registration attempt with the same name
-        agent_payload["system_prompt"] = "Second registration attempt." # Modify slightly
+        agent_payload["system_prompt"] = (
+            "Second registration attempt."  # Modify slightly
+        )
         response2 = client.post("/agents/register", headers=headers, json=agent_payload)
 
-        assert response2.status_code == 409 # Conflict
+        assert response2.status_code == 409  # Conflict
         response_data = response2.json()
         assert "detail" in response_data
         assert "already registered" in response_data["detail"].lower()
@@ -378,11 +423,12 @@ def test_register_agent_invalid_client_id(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     agent_payload = {
         "name": agent_name_to_register,
-        "client_ids": [invalid_client_id], # Reference the invalid client
+        "client_ids": [invalid_client_id],  # Reference the invalid client
         "system_prompt": "This registration should fail.",
     }
 
@@ -390,7 +436,7 @@ def test_register_agent_invalid_client_id(monkeypatch):
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
         response = client.post("/agents/register", headers=headers, json=agent_payload)
 
-        assert response.status_code == 400 # Bad Request
+        assert response.status_code == 400  # Bad Request
         response_data = response.json()
         assert "detail" in response_data
         assert "not found for agent" in response_data["detail"].lower()
@@ -402,7 +448,7 @@ def test_register_workflow_success(monkeypatch):
     Tests successful dynamic registration of a new simple workflow.
     """
     test_api_key = "test_registration_api_key"
-    test_config_path = "config/testing_config.json" # Base config
+    test_config_path = "config/testing_config.json"  # Base config
     workflow_name_to_register = "Dynamic Test Workflow"
 
     monkeypatch.setenv("API_KEY", test_api_key)
@@ -411,22 +457,31 @@ def test_register_workflow_success(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     # Workflow config payload - references agents from testing_config.json
     workflow_payload = {
         "name": workflow_name_to_register,
-        "steps": ["Weather Agent", "Planning Agent"], # Assumes these exist in base config
+        "steps": [
+            "Weather Agent",
+            "Planning Agent",
+        ],  # Assumes these exist in base config
         "description": "A dynamically registered test workflow.",
     }
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
-        response = client.post("/workflows/register", headers=headers, json=workflow_payload)
+        response = client.post(
+            "/workflows/register", headers=headers, json=workflow_payload
+        )
 
-        assert response.status_code == 201 # Created
+        assert response.status_code == 201  # Created
         response_data = response.json()
-        assert response_data == {"status": "success", "workflow_name": workflow_name_to_register}
+        assert response_data == {
+            "status": "success",
+            "workflow_name": workflow_name_to_register,
+        }
 
 
 def test_register_workflow_duplicate_name(monkeypatch):
@@ -444,6 +499,7 @@ def test_register_workflow_duplicate_name(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     workflow_payload = {
@@ -456,14 +512,20 @@ def test_register_workflow_duplicate_name(monkeypatch):
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
 
         # First registration (should succeed)
-        response1 = client.post("/workflows/register", headers=headers, json=workflow_payload)
+        response1 = client.post(
+            "/workflows/register", headers=headers, json=workflow_payload
+        )
         assert response1.status_code == 201
 
         # Second registration attempt with the same name
-        workflow_payload["description"] = "Second registration attempt." # Modify slightly
-        response2 = client.post("/workflows/register", headers=headers, json=workflow_payload)
+        workflow_payload["description"] = (
+            "Second registration attempt."  # Modify slightly
+        )
+        response2 = client.post(
+            "/workflows/register", headers=headers, json=workflow_payload
+        )
 
-        assert response2.status_code == 409 # Conflict
+        assert response2.status_code == 409  # Conflict
         response_data = response2.json()
         assert "detail" in response_data
         assert "already registered" in response_data["detail"].lower()
@@ -485,19 +547,22 @@ def test_register_workflow_invalid_agent_name(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
 
     from src.bin.api import get_server_config
+
     get_server_config.cache_clear()
 
     workflow_payload = {
         "name": workflow_name_to_register,
-        "steps": [invalid_agent_name], # Reference the invalid agent
+        "steps": [invalid_agent_name],  # Reference the invalid agent
         "description": "This registration should fail.",
     }
 
     with TestClient(app) as client:
         headers = {"X-API-Key": test_api_key, "Content-Type": "application/json"}
-        response = client.post("/workflows/register", headers=headers, json=workflow_payload)
+        response = client.post(
+            "/workflows/register", headers=headers, json=workflow_payload
+        )
 
-        assert response.status_code == 400 # Bad Request
+        assert response.status_code == 400  # Bad Request
         response_data = response.json()
         assert "detail" in response_data
         assert "not found for workflow" in response_data["detail"].lower()

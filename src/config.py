@@ -163,14 +163,15 @@ def _load_agent_configs(
             )
             max_iterations = (
                 int(agent_data["max_iterations"])
-                if "max_iterations" in agent_data and agent_data["max_iterations"] is not None
+                if "max_iterations" in agent_data
+                and agent_data["max_iterations"] is not None
                 else None
             )
             include_history_str = agent_data.get("include_history")
             include_history = (
                 include_history_str.lower() == "true"
                 if isinstance(include_history_str, str)
-                else include_history_str # Pydantic will validate if it's a bool
+                else include_history_str  # Pydantic will validate if it's a bool
             )
             evaluation = (
                 str(agent_data["evaluation"]) if "evaluation" in agent_data else None
@@ -207,14 +208,14 @@ def _load_agent_configs(
                 f"Agent configuration validation failed for '{agent_name}': {agent_val_err}"
             ) from agent_val_err
         except KeyError as key_err:
-             logger.error(
+            logger.error(
                 f"Missing required key for agent '{agent_name}' in {config_path}: {key_err}"
             )
-             raise RuntimeError(
+            raise RuntimeError(
                 f"Missing required key for agent '{agent_name}': {key_err}"
             ) from key_err
 
-    return agent_configs_dict # Moved return outside the loop
+    return agent_configs_dict  # Moved return outside the loop
 
 
 def _load_workflow_configs(
