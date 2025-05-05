@@ -149,34 +149,39 @@ def _load_agent_configs(
             raise RuntimeError(f"Agent definition missing 'name' in {config_path}")
 
         try:
-            # Convert string bools/numbers if necessary
+            # Extract and potentially convert parameters
+            schema = agent_data.get("schema")
             temperature = (
                 float(agent_data["temperature"])
-                if "temperature" in agent_data
+                if "temperature" in agent_data and agent_data["temperature"] is not None
                 else None
             )
             max_tokens = (
-                int(agent_data["max_tokens"]) if "max_tokens" in agent_data else None
+                int(agent_data["max_tokens"])
+                if "max_tokens" in agent_data and agent_data["max_tokens"] is not None
+                else None
             )
             max_iterations = (
                 int(agent_data["max_iterations"])
-                if "max_iterations" in agent_data
+                if "max_iterations" in agent_data and agent_data["max_iterations"] is not None
                 else None
             )
             include_history_str = agent_data.get("include_history")
             include_history = (
                 include_history_str.lower() == "true"
                 if isinstance(include_history_str, str)
-                else include_history_str
+                else include_history_str # Pydantic will validate if it's a bool
             )
             evaluation = (
                 str(agent_data["evaluation"]) if "evaluation" in agent_data else None
             )
 
+            # Create and validate AgentConfig
             agent_config = AgentConfig(
                 name=agent_name,
                 client_ids=agent_data.get("client_ids"),
                 system_prompt=agent_data.get("system_prompt"),
+                schema=schema,
                 model=agent_data.get("model"),
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -186,6 +191,7 @@ def _load_agent_configs(
                 evaluation=evaluation,
             )
             agent_configs_dict[agent_name] = agent_config
+
         except (ValueError, TypeError) as conv_err:
             logger.error(
                 f"Error converting agent parameter for '{agent_name}' in {config_path}: {conv_err}"
@@ -200,7 +206,15 @@ def _load_agent_configs(
             raise RuntimeError(
                 f"Agent configuration validation failed for '{agent_name}': {agent_val_err}"
             ) from agent_val_err
-    return agent_configs_dict
+        except KeyError as key_err:
+             logger.error(
+                f"Missing required key for agent '{agent_name}' in {config_path}: {key_err}"
+            )
+             raise RuntimeError(
+                f"Missing required key for agent '{agent_name}': {key_err}"
+            ) from key_err
+
+    return agent_configs_dict # Moved return outside the loop
 
 
 def _load_workflow_configs(

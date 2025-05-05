@@ -89,7 +89,6 @@ class Agent:
 
     async def _make_llm_call(
         self,
-        # client: anthropic.Anthropic, # Removed client parameter
         messages: List[MessageParam],
         system_prompt: Optional[str],
         tools: Optional[List[Dict]],  # Anthropic tool format
@@ -117,6 +116,18 @@ class Agent:
         """
         logger.debug(f"Making LLM call to model '{model}'")
         try:
+            # Add schema to system prompt if available
+            final_system_prompt = system_prompt
+            if self.config.schema:
+                import json
+                schema_str = json.dumps(self.config.schema, indent=2)
+                final_system_prompt = f"""{system_prompt}
+
+Your response must be valid JSON matching this schema:
+{schema_str}
+
+Remember to format your response as a valid JSON object."""
+
             # Construct arguments, omitting None values for system and tools
             api_args = {
                 "model": model,
@@ -124,9 +135,8 @@ class Agent:
                 "temperature": temperature,
                 "messages": messages,
             }
-            if system_prompt:
-                api_args["system"] = system_prompt
-            # Only include tools if the list is not empty
+            if final_system_prompt:
+                api_args["system"] = final_system_prompt
             if tools:
                 api_args["tools"] = tools
                 logger.debug(f"Including {len(tools)} tools in API call.")
@@ -174,7 +184,6 @@ class Agent:
         Raises:
             ValueError: If host_instance is not provided.
             TypeError: If host_instance is not an instance of MCPHost.
-            # ValueError: If Anthropic API key is not found. # Removed as key checked in __init__
         """
         # --- Start of standard agent execution logic ---
         logger.debug(  # Already DEBUG
@@ -282,7 +291,6 @@ class Agent:
             # Make API call using the helper method
             try:
                 response = await self._make_llm_call(
-                    # client=client, # Removed, uses self.anthropic_client now
                     messages=messages,
                     system_prompt=system_prompt,
                     tools=tools_data,
@@ -290,11 +298,7 @@ class Agent:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-                # Logger message for success is now inside _make_llm_call
             except Exception as e:
-                # Logger message for failure is now inside _make_llm_call
-                # Decide how to handle API errors - re-raise, return error message?
-                # For now, let's return an error structure.
                 return {
                     "conversation": conversation_history,
                     "final_response": None,
@@ -316,7 +320,54 @@ class Agent:
 
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
-                # If the LLM didn't request tools, this is the final response.
+                # Get the text content from the last block
+                text_content = next((block.text for block in response.content if block.type == "text"), None)
+                if not text_content:
+                    logger.warning("No text content found in response")
+                    messages.append({
+                        "role": "user",
+                        "content": "You must provide your response as a valid JSON object."
+                    })
+                    continue
+
+                # For final response, ALWAYS try to parse as JSON if schema is provided
+                if self.config.schema:
+                    import json
+                    from jsonschema import validate
+
+                    # First try to parse JSON
+                    try:
+                        json_content = json.loads(text_content)
+                    except json.JSONDecodeError:
+                        # If not valid JSON, force Claude to fix it
+                        logger.warning("Response was not valid JSON")
+                        messages.append({
+                            "role": "user",
+                            "content": f"""Your response MUST be a single JSON object with no additional text or explanation.
+The JSON must match this schema exactly:
+
+{json.dumps(self.config.schema, indent=2)}
+
+Format your entire response as valid JSON."""
+                        })
+                        continue
+
+                    # Then try to validate schema
+                    try:
+                        validate(instance=json_content, schema=self.config.schema)
+                        logger.debug("Response validated successfully against schema")
+                    except Exception as e:
+                        logger.warning(f"Schema validation failed: {e}")
+                        messages.append({
+                            "role": "user",
+                            "content": f"""Your response must be a valid JSON object matching this schema:
+{json.dumps(self.config.schema, indent=2)}
+
+The error was: {str(e)}
+Try again with just the JSON object."""
+                        })
+                        continue
+
                 final_response = response
                 logger.debug(  # Already DEBUG
                     f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."
