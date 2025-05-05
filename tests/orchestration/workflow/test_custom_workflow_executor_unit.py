@@ -56,7 +56,7 @@ class TestCustomWorkflowExecutorUnit:
         """
         print("\n--- Running Test: test_custom_executor_execute_success ---")
         initial_input = {"start": "data"}
-        session_id = "custom_unit_session_1" # Define session ID
+        session_id = "custom_unit_session_1"  # Define session ID
         expected_result = {"final_status": "custom_completed"}
         mock_facade = Mock(spec=ExecutionFacade)  # Facade is passed to execute_workflow
 
@@ -99,7 +99,9 @@ class TestCustomWorkflowExecutorUnit:
                 # --- Execute the workflow ---
                 # Pass the mock facade instance and session_id
                 result = await executor.execute(
-                    initial_input=initial_input, executor=mock_facade, session_id=session_id
+                    initial_input=initial_input,
+                    executor=mock_facade,
+                    session_id=session_id,
                 )
 
                 print(f"Execution Result: {result}")
@@ -119,7 +121,7 @@ class TestCustomWorkflowExecutorUnit:
                 mock_workflow_instance.execute_workflow.assert_awaited_once_with(
                     initial_input=initial_input,
                     executor=mock_facade,  # Check facade was passed
-                    session_id=session_id, # Check session_id was passed
+                    session_id=session_id,  # Check session_id was passed
                 )
 
                 # Check final result
@@ -204,7 +206,7 @@ class TestCustomWorkflowExecutorUnit:
         """Test execution fails when the execute_workflow method raises an exception."""
         print("\n--- Running Test: test_custom_executor_execute_workflow_error ---")
         initial_input = {"start": "data"}
-        session_id = "custom_unit_session_err" # Define session ID
+        session_id = "custom_unit_session_err"  # Define session ID
         mock_facade = Mock(spec=ExecutionFacade)
         execution_error = ValueError("Error inside custom workflow logic")
 
@@ -233,21 +235,21 @@ class TestCustomWorkflowExecutorUnit:
                 # Assert that RuntimeError is raised (wrapping the original error)
                 with pytest.raises(RuntimeError) as excinfo:
                     await executor.execute(
-                        initial_input=initial_input, executor=mock_facade, session_id=session_id
+                        initial_input=initial_input,
+                        executor=mock_facade,
+                        session_id=session_id,
                     )
 
                 # Assertions on the exception
                 mock_workflow_instance.execute_workflow.assert_awaited_once()  # Ensure it was called
                 assert "Exception during custom workflow" in str(excinfo.value)
                 assert sample_custom_workflow_config.name in str(excinfo.value)
-                assert str(execution_error) in str(
-                    excinfo.value
-                )
+                assert str(execution_error) in str(excinfo.value)
                 # Verify the call that caused the error included session_id
                 mock_workflow_instance.execute_workflow.assert_awaited_once_with(
                     initial_input=initial_input,
                     executor=mock_facade,
-                    session_id=session_id
+                    session_id=session_id,
                 )
                 print(f"Caught expected exception: {excinfo.value}")
 

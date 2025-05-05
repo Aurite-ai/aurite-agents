@@ -8,7 +8,7 @@ import pytest
 pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
 import logging  # Add logging import
-import uuid # Add uuid import
+import uuid  # Add uuid import
 
 """
 These tests verify the executor's ability to dynamically load and execute
@@ -97,7 +97,7 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
         description="Test workflow for execution",
     )
     initial_input = {"city": "Paris"}  # Example input for the workflow
-    session_id = f"test_cwf_exec_session_{uuid.uuid4()}" # Generate unique session ID
+    session_id = f"test_cwf_exec_session_{uuid.uuid4()}"  # Generate unique session ID
     print(f"Workflow Config: {workflow_config}")
     print(f"Initial Input: {initial_input}")
     print(f"Session ID: {session_id}")
@@ -106,7 +106,7 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
-    result = None # Initialize result to None
+    result = None  # Initialize result to None
     try:
         # Instantiate the executor
         executor = CustomWorkflowExecutor(
@@ -119,7 +119,7 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
         result = await executor.execute(
             initial_input=initial_input,
             executor=facade,  # Pass the facade instance
-            session_id=session_id # Pass session_id
+            session_id=session_id,  # Pass session_id
         )
         print(f"Execution Result: {result}")
 
@@ -135,8 +135,12 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
             print("Workflow reported failure, checking for expected API error...")
             assert outer_error is not None
             assert "Anthropic API call failed" in outer_error
-            assert "unexpected `tool_use_id` found in `tool_result` blocks" in outer_error
-            print("Failure was due to expected history pollution API error. Test considered PASSED.")
+            assert (
+                "unexpected `tool_use_id` found in `tool_result` blocks" in outer_error
+            )
+            print(
+                "Failure was due to expected history pollution API error. Test considered PASSED."
+            )
         elif outer_status == "completed":
             # If it completed, check the successful output structure
             print("Workflow reported completion, checking success structure...")
@@ -148,16 +152,22 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
             assert "agent_result_text" in inner_result
             assert isinstance(inner_result["agent_result_text"], str)
             assert len(inner_result["agent_result_text"]) > 0
-            assert "Paris" in inner_result["agent_result_text"]  # Check if city was used
+            assert (
+                "Paris" in inner_result["agent_result_text"]
+            )  # Check if city was used
             print("Success assertions passed.")
         else:
             # Unexpected status
-            pytest.fail(f"Unexpected outer status '{outer_status}' received. Result: {result}")
+            pytest.fail(
+                f"Unexpected outer status '{outer_status}' received. Result: {result}"
+            )
 
     except Exception as e:
         print(f"Error during execution: {e}")
         # Add result to failure message for context
-        pytest.fail(f"CustomWorkflowExecutor execution failed unexpectedly: {e}. Result: {result}")
+        pytest.fail(
+            f"CustomWorkflowExecutor execution failed unexpectedly: {e}. Result: {result}"
+        )
 
     print("--- Test Finished: test_custom_executor_basic_execution ---")
 

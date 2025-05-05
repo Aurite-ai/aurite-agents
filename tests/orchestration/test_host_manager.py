@@ -32,7 +32,9 @@ class TestHostManagerInitialization:
     """Tests related to HostManager initialization."""
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
-    @pytest.mark.xfail(reason="Known 'Event loop is closed' error during host_manager fixture teardown")
+    @pytest.mark.xfail(
+        reason="Known 'Event loop is closed' error during host_manager fixture teardown"
+    )
     async def test_host_manager_initialization_success(self, host_manager: HostManager):
         """
         Verify that the host_manager fixture successfully initializes the
@@ -193,7 +195,9 @@ from pathlib import Path  # Add Path import
 class TestHostManagerDynamicRegistration:
     """Tests for dynamically registering components via config file."""
 
-    @pytest.mark.xfail(reason="Known 'Event loop is closed' error during host_manager fixture teardown")
+    @pytest.mark.xfail(
+        reason="Known 'Event loop is closed' error during host_manager fixture teardown"
+    )
     async def test_register_config_file_success(self, host_manager: HostManager):
         """
         Verify that register_config_file correctly loads and registers components

@@ -1,6 +1,6 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
-from typing import Any, Optional # Added Optional
+from typing import Any, Optional  # Added Optional
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
@@ -21,7 +21,10 @@ class ExampleCustomWorkflow:
     """
 
     async def execute_workflow(
-        self, initial_input: Any, executor: "ExecutionFacade", session_id: Optional[str] = None # Added session_id
+        self,
+        initial_input: Any,
+        executor: "ExecutionFacade",
+        session_id: Optional[str] = None,  # Added session_id
     ) -> Any:
         """
         Executes the example workflow using the provided facade.
@@ -50,7 +53,9 @@ class ExampleCustomWorkflow:
 
             # Use the executor to run the agent, passing the session_id
             agent_result = await executor.run_agent(
-                agent_name=agent_name, user_message=user_message, session_id=session_id # Pass session_id
+                agent_name=agent_name,
+                user_message=user_message,
+                session_id=session_id,  # Pass session_id
             )
             logger.info(
                 f"Agent result received (type: {type(agent_result)}): {agent_result}"

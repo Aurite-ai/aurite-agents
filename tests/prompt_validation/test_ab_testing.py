@@ -13,7 +13,9 @@ from src.config import PROJECT_ROOT_DIR  # Import project root
 
 class TestABTesting:
     @pytest.mark.timeout(300)
-    @pytest.mark.xfail(reason="Known 'Event loop is closed' error during host_manager fixture teardown")
+    @pytest.mark.xfail(
+        reason="Known 'Event loop is closed' error during host_manager fixture teardown"
+    )
     async def test_workflow_ab_testing(self, request, host_manager: HostManager):
         # edit the path based on command line args
         config_file = request.config.getoption("--config")

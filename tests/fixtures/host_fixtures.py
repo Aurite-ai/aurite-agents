@@ -33,7 +33,7 @@ def mock_mcp_host() -> Mock:
     # Mock the methods that will be called by Agent.execute
 
     # Mock the method Agent actually calls
-    host.get_formatted_tools = Mock(return_value=[]) # Return empty list by default
+    host.get_formatted_tools = Mock(return_value=[])  # Return empty list by default
 
     # Mock the execute_tool method directly on the host mock
     host.execute_tool = AsyncMock(
@@ -42,7 +42,7 @@ def mock_mcp_host() -> Mock:
 
     # Mock the create_tool_result_blocks method on the tools manager mock
     host.tools.create_tool_result_blocks = Mock(
-        return_value=[ # Ensure this returns a list of blocks
+        return_value=[  # Ensure this returns a list of blocks
             {
                 "type": "tool_result",
                 "tool_use_id": "mock_id",
@@ -75,7 +75,7 @@ def mock_mcp_host() -> Mock:
 # --- Integration Fixture ---
 
 
-@pytest.fixture(scope="module") # Changed scope to module
+@pytest.fixture(scope="module")  # Changed scope to module
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on

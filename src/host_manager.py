@@ -3,7 +3,7 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 """
 
 import logging
-import os # Added for environment variable check
+import os  # Added for environment variable check
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Set
 
@@ -22,9 +22,10 @@ from .config import PROJECT_ROOT_DIR
 
 # Import the new facade
 from .execution.facade import ExecutionFacade
+
 # Import StorageManager and engine factory unconditionally
 from .storage.db_manager import StorageManager
-from .storage.db_connection import create_db_engine # Import engine factory
+from .storage.db_connection import create_db_engine  # Import engine factory
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
@@ -66,13 +67,15 @@ class HostManager:
         self.agent_configs: Dict[str, "AgentConfig"] = {}
         self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
         self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
-        self.storage_manager: Optional["StorageManager"] = None # Initialize as None
+        self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
-        self._db_engine = None # Store engine if created
+        self._db_engine = None  # Store engine if created
 
         # Instantiate StorageManager if DB is enabled
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
-            logger.info("Database persistence enabled. Attempting to initialize StorageManager.")
+            logger.info(
+                "Database persistence enabled. Attempting to initialize StorageManager."
+            )
             # Create the engine here and pass it
             self._db_engine = create_db_engine()
             if self._db_engine:
@@ -80,14 +83,20 @@ class HostManager:
                     # Pass the created engine to the StorageManager
                     self.storage_manager = StorageManager(engine=self._db_engine)
                 except Exception as e:
-                    logger.error(f"Failed to instantiate StorageManager with engine: {e}", exc_info=True)
-                    self.storage_manager = None # Ensure it's None if instantiation fails
+                    logger.error(
+                        f"Failed to instantiate StorageManager with engine: {e}",
+                        exc_info=True,
+                    )
+                    self.storage_manager = (
+                        None  # Ensure it's None if instantiation fails
+                    )
             else:
                 # Engine creation failed (logged in create_db_engine)
                 self.storage_manager = None
         else:
-             logger.info("Database persistence is disabled (AURITE_ENABLE_DB is not 'true').")
-
+            logger.info(
+                "Database persistence is disabled (AURITE_ENABLE_DB is not 'true')."
+            )
 
         logger.debug(
             f"HostManager initialized with config path: {self.config_path}"
@@ -122,7 +131,7 @@ class HostManager:
 
             # 1.5 Initialize DB Schema if storage manager exists
             if self.storage_manager:
-                self.storage_manager.init_db() # Synchronous call for schema creation
+                self.storage_manager.init_db()  # Synchronous call for schema creation
 
             # 2. Instantiate MCPHost
             self.host = MCPHost(
@@ -139,13 +148,13 @@ class HostManager:
 
             # 2.5 Sync initial configs to DB if storage manager exists
             if self.storage_manager:
-                 # Assuming sync_all_configs is synchronous for now
-                 # If it becomes async, add await here.
-                 self.storage_manager.sync_all_configs(
-                     agents=self.agent_configs,
-                     workflows=self.workflow_configs,
-                     custom_workflows=self.custom_workflow_configs
-                 )
+                # Assuming sync_all_configs is synchronous for now
+                # If it becomes async, add await here.
+                self.storage_manager.sync_all_configs(
+                    agents=self.agent_configs,
+                    workflows=self.workflow_configs,
+                    custom_workflows=self.custom_workflow_configs,
+                )
 
             # 3. Load additional configs (e.g., prompt validation)
             # This will also sync the loaded configs if DB is enabled via register_* methods
@@ -154,7 +163,7 @@ class HostManager:
             # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
             self.execution = ExecutionFacade(
                 host_manager=self,
-                storage_manager=self.storage_manager # Pass storage manager
+                storage_manager=self.storage_manager,  # Pass storage manager
             )
 
             logger.info(
@@ -227,7 +236,7 @@ class HostManager:
             except Exception as e:
                 logger.error(f"Error disposing database engine: {e}", exc_info=True)
         self._db_engine = None
-        self.storage_manager = None # Clear storage manager too
+        self.storage_manager = None  # Clear storage manager too
         logger.info("HostManager internal state cleared.")
         logger.info("HostManager shutdown complete.")
 
@@ -318,8 +327,10 @@ class HostManager:
                 logger.info(f"Agent '{agent_config.name}' synced to database.")
             except Exception as e:
                 # Log error but don't fail registration, as it's in memory
-                logger.error(f"Failed to sync agent '{agent_config.name}' to database: {e}", exc_info=True)
-
+                logger.error(
+                    f"Failed to sync agent '{agent_config.name}' to database: {e}",
+                    exc_info=True,
+                )
 
     async def register_workflow(self, workflow_config: "WorkflowConfig"):
         """
@@ -358,7 +369,9 @@ class HostManager:
 
         # Add the workflow config to memory
         self.workflow_configs[workflow_config.name] = workflow_config
-        logger.info(f"Workflow '{workflow_config.name}' registered successfully (in memory).")
+        logger.info(
+            f"Workflow '{workflow_config.name}' registered successfully (in memory)."
+        )
 
         # Sync to DB if enabled
         if self.storage_manager:
@@ -367,8 +380,10 @@ class HostManager:
                 self.storage_manager.sync_workflow_config(workflow_config)
                 logger.info(f"Workflow '{workflow_config.name}' synced to database.")
             except Exception as e:
-                logger.error(f"Failed to sync workflow '{workflow_config.name}' to database: {e}", exc_info=True)
-
+                logger.error(
+                    f"Failed to sync workflow '{workflow_config.name}' to database: {e}",
+                    exc_info=True,
+                )
 
     async def register_custom_workflow(
         self, custom_workflow_config: "CustomWorkflowConfig"
@@ -412,7 +427,9 @@ class HostManager:
             raise ValueError(f"Custom workflow module file not found: {module_path}")
 
         # Add the workflow config to memory
-        self.custom_workflow_configs[custom_workflow_config.name] = custom_workflow_config
+        self.custom_workflow_configs[custom_workflow_config.name] = (
+            custom_workflow_config
+        )
         logger.info(
             f"Custom Workflow '{custom_workflow_config.name}' registered successfully (in memory)."
         )
@@ -422,10 +439,14 @@ class HostManager:
             try:
                 # Assuming sync_custom_workflow_config is synchronous
                 self.storage_manager.sync_custom_workflow_config(custom_workflow_config)
-                logger.info(f"Custom Workflow '{custom_workflow_config.name}' synced to database.")
+                logger.info(
+                    f"Custom Workflow '{custom_workflow_config.name}' synced to database."
+                )
             except Exception as e:
-                logger.error(f"Failed to sync custom workflow '{custom_workflow_config.name}' to database: {e}", exc_info=True)
-
+                logger.error(
+                    f"Failed to sync custom workflow '{custom_workflow_config.name}' to database: {e}",
+                    exc_info=True,
+                )
 
     # --- Private Registration Helpers ---
 

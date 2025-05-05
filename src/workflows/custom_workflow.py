@@ -5,7 +5,7 @@ Executor for Custom Python-based Workflows.
 import logging
 import importlib.util
 import inspect
-from typing import Any, TYPE_CHECKING, Optional # Added Optional
+from typing import Any, TYPE_CHECKING, Optional  # Added Optional
 
 # Relative imports assuming this file is in src/workflows/
 from ..host.models import CustomWorkflowConfig
@@ -45,7 +45,12 @@ class CustomWorkflowExecutor:
         )
 
     # Changed signature to accept executor (ExecutionFacade) and session_id
-    async def execute(self, initial_input: Any, executor: "ExecutionFacade", session_id: Optional[str] = None) -> Any: # Added session_id
+    async def execute(
+        self,
+        initial_input: Any,
+        executor: "ExecutionFacade",
+        session_id: Optional[str] = None,
+    ) -> Any:  # Added session_id
         """
         Dynamically loads and executes the configured custom workflow.
 
@@ -170,7 +175,9 @@ class CustomWorkflowExecutor:
             )
             # Pass the ExecutionFacade instance as the 'executor' argument and session_id
             result = await execute_method(
-                initial_input=initial_input, executor=executor, session_id=session_id # Pass session_id
+                initial_input=initial_input,
+                executor=executor,
+                session_id=session_id,  # Pass session_id
             )
 
             logger.info(  # Keep final success as INFO

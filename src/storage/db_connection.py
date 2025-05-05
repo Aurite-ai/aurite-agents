@@ -34,7 +34,9 @@ def get_database_url() -> Optional[str]:
         return None
 
     # Using psycopg2 driver for PostgreSQL
-    return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    return (
+        f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    )
 
 
 # Renamed to indicate it's a factory creating a *new* engine instance
@@ -50,15 +52,18 @@ def create_db_engine() -> Optional[Engine]:
 
     try:
         # TODO: Add pool configuration options if needed (pool_size, max_overflow)
-        engine = create_engine(db_url, echo=False) # Set echo=True for debugging SQL
+        engine = create_engine(db_url, echo=False)  # Set echo=True for debugging SQL
         logger.info(f"SQLAlchemy engine created for {engine.url}.")
         return engine
     except Exception as e:
-        logger.error(f"Failed to create SQLAlchemy engine for URL {db_url}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to create SQLAlchemy engine for URL {db_url}: {e}", exc_info=True
+        )
         return None
 
 
 # Removed get_engine() singleton function
+
 
 # Renamed to indicate it's a factory creating a *new* session factory
 def create_session_factory(engine: Engine) -> sessionmaker[Session]:
@@ -73,8 +78,11 @@ def create_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 # Removed get_session_factory() singleton function
 
+
 @contextmanager
-def get_db_session(engine: Optional[Engine]) -> Generator[Optional[Session], None, None]:
+def get_db_session(
+    engine: Optional[Engine],
+) -> Generator[Optional[Session], None, None]:
     """
     Provides a transactional database session context using the provided engine.
     If engine is None, yields None.
@@ -89,7 +97,10 @@ def get_db_session(engine: Optional[Engine]) -> Generator[Optional[Session], Non
         SessionFactory = create_session_factory(engine)
         session: Session = SessionFactory()
     except Exception as e:
-        logger.error(f"Failed to create session factory or session for engine {engine.url}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to create session factory or session for engine {engine.url}: {e}",
+            exc_info=True,
+        )
         yield None
         return
 
@@ -101,10 +112,11 @@ def get_db_session(engine: Optional[Engine]) -> Generator[Optional[Session], Non
         logger.error(f"Database session error: {e}", exc_info=True)
         session.rollback()
         logger.warning("Database session rolled back due to error.")
-        raise # Re-raise the exception after rollback
+        raise  # Re-raise the exception after rollback
     finally:
         session.close()
         logger.debug("Database session closed.")
+
 
 # Example usage (primarily for db_manager.py):
 # with get_db_session() as db:

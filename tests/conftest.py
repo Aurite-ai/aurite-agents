@@ -25,14 +25,16 @@ from tests.fixtures.host_fixtures import (
     mock_mcp_host,  # noqa: F401
     host_manager,  # noqa: F401 - Import the new fixture
 )
+
 # Import workflow fixtures
-from tests.fixtures.workflow_fixtures import ( # noqa: F401
+from tests.fixtures.workflow_fixtures import (  # noqa: F401
     sample_workflow_config,
     # sample_agent_configs, # Moved to agent_fixtures import
     sample_custom_workflow_config,
 )
+
 # Import mock fixtures
-from tests.mocks.mock_anthropic import mock_anthropic_client # noqa: F401
+from tests.mocks.mock_anthropic import mock_anthropic_client  # noqa: F401
 # Import weather server fixture explicitly if needed globally, otherwise tests import directly
 # from tests.fixtures.servers.weather_mcp_server import weather_mcp_server_fixture # noqa: F401
 

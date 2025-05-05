@@ -4,7 +4,7 @@ Integration tests for the ExecutionFacade.
 
 import pytest
 import os
-import uuid # Add uuid import
+import uuid  # Add uuid import
 
 # Mark all tests in this module to be run by the anyio plugin
 pytestmark = pytest.mark.anyio
@@ -26,7 +26,7 @@ async def test_facade_run_agent(host_manager: HostManager):
 
     agent_name = "Weather Agent"  # Agent defined in testing_config.json
     user_message = "What's the weather in Boston?"
-    session_id = f"test_agent_session_{uuid.uuid4()}" # Generate unique session ID
+    session_id = f"test_agent_session_{uuid.uuid4()}"  # Generate unique session ID
 
     assert agent_name in host_manager.agent_configs, (
         f"'{agent_name}' not found for test setup."
@@ -36,7 +36,9 @@ async def test_facade_run_agent(host_manager: HostManager):
 
     try:
         result = await facade.run_agent(
-            agent_name=agent_name, user_message=user_message, session_id=session_id # Pass session_id
+            agent_name=agent_name,
+            user_message=user_message,
+            session_id=session_id,  # Pass session_id
         )
         print(f"Facade run_agent Result: {result}")
 
@@ -70,7 +72,7 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
     facade = host_manager.execution
 
     # Use the workflow defined in testing_config.json
-    workflow_name = "main" # Correct name from testing_config.json
+    workflow_name = "main"  # Correct name from testing_config.json
     initial_message = "Check weather in Chicago and make a plan."
 
     assert workflow_name in host_manager.workflow_configs, (
@@ -90,9 +92,11 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
         assert isinstance(result, dict)
         assert result.get("status") == "completed"
         assert result.get("error") is None
-        assert result.get("final_message") is not None # Check that a final message exists
-        assert isinstance(result.get("final_message"), str) # Check type
-        assert len(result.get("final_message", "")) > 0 # Check it's not empty
+        assert (
+            result.get("final_message") is not None
+        )  # Check that a final message exists
+        assert isinstance(result.get("final_message"), str)  # Check type
+        assert len(result.get("final_message", "")) > 0  # Check it's not empty
 
         print("Assertions passed.")
 
@@ -115,7 +119,7 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     # Use the custom workflow defined in testing_config.json
     workflow_name = "ExampleCustom"
     initial_input = {"city": "Tokyo"}
-    session_id = f"test_custom_session_{uuid.uuid4()}" # Generate unique session ID
+    session_id = f"test_custom_session_{uuid.uuid4()}"  # Generate unique session ID
 
     assert workflow_name in host_manager.custom_workflow_configs, (
         f"'{workflow_name}' not found for test setup."
@@ -125,7 +129,9 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
 
     try:
         result = await facade.run_custom_workflow(
-            workflow_name=workflow_name, initial_input=initial_input, session_id=session_id # Pass session_id
+            workflow_name=workflow_name,
+            initial_input=initial_input,
+            session_id=session_id,  # Pass session_id
         )
         print(f"Facade run_custom_workflow Result: {result}")
 
@@ -134,30 +140,54 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
         assert isinstance(result, dict)
 
         # 1. Check Facade's outer structure
-        assert result.get("status") == "completed", f"Expected facade status 'completed', got '{result.get('status')}'"
-        assert result.get("error") is None, f"Expected facade error to be None, got '{result.get('error')}'"
-        assert "result" in result, "Facade result missing 'result' key for custom workflow output"
+        assert result.get("status") == "completed", (
+            f"Expected facade status 'completed', got '{result.get('status')}'"
+        )
+        assert result.get("error") is None, (
+            f"Expected facade error to be None, got '{result.get('error')}'"
+        )
+        assert "result" in result, (
+            "Facade result missing 'result' key for custom workflow output"
+        )
 
         # 2. Check the nested result from the custom workflow itself
-        custom_result = result.get("result", {}) # Default to empty dict if 'result' key is missing
-        assert isinstance(custom_result, dict), f"Expected nested result to be a dict, got {type(custom_result)}"
+        custom_result = result.get(
+            "result", {}
+        )  # Default to empty dict if 'result' key is missing
+        assert isinstance(custom_result, dict), (
+            f"Expected nested result to be a dict, got {type(custom_result)}"
+        )
 
         # Check the structure returned by the example custom workflow (inner layer)
-        assert custom_result.get("status") == "success", f"Expected inner status 'success', got '{custom_result.get('status')}'"
+        assert custom_result.get("status") == "success", (
+            f"Expected inner status 'success', got '{custom_result.get('status')}'"
+        )
         # Check the fields specific to the example_workflow.py return structure
         assert "message" in custom_result, "Inner result missing 'message' key"
-        assert "input_received" in custom_result, "Inner result missing 'input_received' key"
-        assert custom_result.get("input_received") == initial_input, f"Expected input_received '{initial_input}', got '{custom_result.get('input_received')}'"
-        assert "agent_result_text" in custom_result, "Inner result missing 'agent_result_text' key"
-        assert isinstance(custom_result["agent_result_text"], str), f"Expected agent_result_text to be a string, got {type(custom_result.get('agent_result_text'))}"
-        assert "Tokyo" in custom_result["agent_result_text"], "Expected 'Tokyo' in agent_result_text"
+        assert "input_received" in custom_result, (
+            "Inner result missing 'input_received' key"
+        )
+        assert custom_result.get("input_received") == initial_input, (
+            f"Expected input_received '{initial_input}', got '{custom_result.get('input_received')}'"
+        )
+        assert "agent_result_text" in custom_result, (
+            "Inner result missing 'agent_result_text' key"
+        )
+        assert isinstance(custom_result["agent_result_text"], str), (
+            f"Expected agent_result_text to be a string, got {type(custom_result.get('agent_result_text'))}"
+        )
+        assert "Tokyo" in custom_result["agent_result_text"], (
+            "Expected 'Tokyo' in agent_result_text"
+        )
 
         print("Assertions passed.")
 
     except Exception as e:
         print(f"Error during facade.run_custom_workflow execution: {e}")
         # Include the actual result in the failure message for better debugging
-        pytest.fail(f"facade.run_custom_workflow execution failed: {e}. Result: {result}")
+        pytest.fail(
+            f"facade.run_custom_workflow execution failed: {e}. Result: {result}"
+        )
 
     print("--- Test Finished: test_facade_run_custom_workflow ---")
 
@@ -199,7 +229,9 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_agent_not_found ---")
 
 
-@pytest.mark.xfail(reason="Known 'Event loop is closed' error during host_manager fixture teardown")
+@pytest.mark.xfail(
+    reason="Known 'Event loop is closed' error during host_manager fixture teardown"
+)
 async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
     """
     Test Case 4.5b: Verify facade handles non-existent simple workflow name gracefully.

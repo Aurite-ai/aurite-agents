@@ -15,7 +15,9 @@ if TYPE_CHECKING:
         SimpleWorkflowExecutor,
     )  # Import for type hint
     from ..workflows.custom_workflow import CustomWorkflowExecutor
-    from ..storage.db_manager import StorageManager # Import StorageManager for type hint
+    from ..storage.db_manager import (
+        StorageManager,
+    )  # Import StorageManager for type hint
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
@@ -38,7 +40,11 @@ class ExecutionFacade:
     the StorageManager if available.
     """
 
-    def __init__(self, host_manager: "HostManager", storage_manager: Optional["StorageManager"] = None):
+    def __init__(
+        self,
+        host_manager: "HostManager",
+        storage_manager: Optional["StorageManager"] = None,
+    ):
         """
         Initializes the ExecutionFacade.
 
@@ -54,8 +60,10 @@ class ExecutionFacade:
 
         self._manager = host_manager
         self._host: "MCPHost" = host_manager.host
-        self._storage_manager = storage_manager # Store storage manager instance
-        logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
+        self._storage_manager = storage_manager  # Store storage manager instance
+        logger.debug(
+            f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'})."
+        )
 
     # --- Private Execution Helper ---
 
@@ -162,7 +170,11 @@ class ExecutionFacade:
     # --- Public Execution Methods ---
 
     async def run_agent(
-        self, agent_name: str, user_message: str, system_prompt: Optional[str] = None, session_id: Optional[str] = None # Added session_id
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,  # Added session_id
     ) -> Dict[str, Any]:
         """Executes a configured agent by name using the helper."""
 
@@ -185,9 +197,9 @@ class ExecutionFacade:
             # Execution kwargs:
             user_message=user_message,
             host_instance=self._host,
-            storage_manager=self._storage_manager, # Pass storage manager here
+            storage_manager=self._storage_manager,  # Pass storage manager here
             system_prompt=system_prompt,
-            session_id=session_id, # Pass session_id here
+            session_id=session_id,  # Pass session_id here
         )
 
     async def run_simple_workflow(
@@ -220,7 +232,9 @@ class ExecutionFacade:
             initial_input=initial_input,
         )
 
-    async def run_custom_workflow(self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None) -> Any: # Added session_id
+    async def run_custom_workflow(
+        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+    ) -> Any:  # Added session_id
         """Executes a configured custom workflow by name using the helper."""
 
         def error_factory(name: str, msg: str) -> Dict[str, Any]:
@@ -235,11 +249,11 @@ class ExecutionFacade:
             executor_setup=lambda config: CustomWorkflowExecutor(
                 config=config,
                 # storage_manager=self._storage_manager # Add if needed later
-                ),
+            ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
             error_structure_factory=error_factory,
             # Execution kwargs:
             initial_input=initial_input,
             executor=self,  # Pass the facade itself to the custom workflow
-            session_id=session_id, # Pass session_id here
+            session_id=session_id,  # Pass session_id here
         )

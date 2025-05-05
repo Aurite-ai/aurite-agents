@@ -8,8 +8,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-from datetime import datetime
-from sqlalchemy.engine import Engine # Import Engine for type hint
+from sqlalchemy.engine import Engine  # Import Engine for type hint
 
 # Assuming models are accessible from here
 from ..host.models import (
@@ -21,9 +20,16 @@ from ..host.models import (
 # Import DB connection utilities and models
 # Use the new factory function name and the modified get_db_session
 from .db_connection import get_db_session, create_db_engine
-from .db_models import Base, AgentConfigDB, WorkflowConfigDB, CustomWorkflowConfigDB, AgentHistoryDB
+from .db_models import (
+    Base,
+    AgentConfigDB,
+    WorkflowConfigDB,
+    CustomWorkflowConfigDB,
+    AgentHistoryDB,
+)
 
 logger = logging.getLogger(__name__)
+
 
 class StorageManager:
     """
@@ -41,14 +47,20 @@ class StorageManager:
         """
         if engine:
             self._engine = engine
-            logger.info(f"StorageManager initialized with provided engine: {self._engine.url}")
+            logger.info(
+                f"StorageManager initialized with provided engine: {self._engine.url}"
+            )
         else:
             # Attempt to create default engine if none provided
-            logger.info("No engine provided to StorageManager, attempting to create default engine.")
-            self._engine = create_db_engine() # Use the factory function
+            logger.info(
+                "No engine provided to StorageManager, attempting to create default engine."
+            )
+            self._engine = create_db_engine()  # Use the factory function
 
         if not self._engine:
-            logger.warning("StorageManager initialized, but DB engine is not available (either not provided or creation failed). Persistence will be disabled.")
+            logger.warning(
+                "StorageManager initialized, but DB engine is not available (either not provided or creation failed). Persistence will be disabled."
+            )
         # No else needed, create_db_engine logs success if it returns an engine
 
     def init_db(self):
@@ -71,7 +83,7 @@ class StorageManager:
 
     # --- Configuration Sync Methods ---
 
-    def _sync_config(self, db_session, db_model_cls, pydantic_config, pk_field='name'):
+    def _sync_config(self, db_session, db_model_cls, pydantic_config, pk_field="name"):
         """Generic helper to sync a single Pydantic config to a DB model."""
         pk_value = getattr(pydantic_config, pk_field)
         db_record = db_session.get(db_model_cls, pk_value)
@@ -83,13 +95,13 @@ class StorageManager:
             "client_ids": "client_ids_json",
             "exclude_components": "exclude_components_json",
             "steps": "steps_json",
-            "content": "content_json", # Added mapping for history content
+            "content": "content_json",  # Added mapping for history content
             # Add other mappings here if needed in the future
         }
 
         for db_col_name, model_field in db_model_cls.__table__.columns.items():
             # Skip primary key and timestamp fields managed by DB/SQLAlchemy
-            if model_field.primary_key or db_col_name in ['created_at', 'last_updated']:
+            if model_field.primary_key or db_col_name in ["created_at", "last_updated"]:
                 continue
 
             # Determine the corresponding Pydantic field name
@@ -98,7 +110,7 @@ class StorageManager:
             for p_name, db_name in field_map.items():
                 if db_name == db_col_name:
                     pydantic_field_name = p_name
-                    break # Found the mapping
+                    break  # Found the mapping
 
             # Get value from Pydantic config using the determined field name
             pydantic_value = getattr(pydantic_config, pydantic_field_name, None)
@@ -109,7 +121,7 @@ class StorageManager:
                 data_to_save[db_col_name] = str(pydantic_value)
             elif isinstance(pydantic_value, (list, dict)):
                 # Check if the DB column is intended for JSON
-                if db_col_name.endswith('_json'):
+                if db_col_name.endswith("_json"):
                     # Store list/dict directly using the DB column name
                     data_to_save[db_col_name] = pydantic_value
                 else:
@@ -119,21 +131,25 @@ class StorageManager:
                         f"to non-JSON DB column '{db_col_name}' for {db_model_cls.__name__} '{pk_value}'. Skipping."
                     )
             elif pydantic_value is not None:
-                 # Store other types directly using the DB column name
-                 data_to_save[db_col_name] = pydantic_value
+                # Store other types directly using the DB column name
+                data_to_save[db_col_name] = pydantic_value
             # If pydantic_value is None, we don't add it to data_to_save,
             # allowing DB defaults or existing values (on update) to persist.
 
         # Now, apply the prepared data_to_save to the DB record
         if db_record:
             # Update existing record
-            logger.debug(f"Updating existing {db_model_cls.__name__} record for '{pk_value}'")
+            logger.debug(
+                f"Updating existing {db_model_cls.__name__} record for '{pk_value}'"
+            )
             for key, value in data_to_save.items():
                 setattr(db_record, key, value)
             # last_updated is handled by onupdate=datetime.utcnow
         else:
             # Create new record
-            logger.debug(f"Creating new {db_model_cls.__name__} record for '{pk_value}'")
+            logger.debug(
+                f"Creating new {db_model_cls.__name__} record for '{pk_value}'"
+            )
             # Add the primary key value for creation
             data_to_save[pk_field] = pk_value
             # Create instance using the prepared data
@@ -143,43 +159,55 @@ class StorageManager:
 
     def sync_agent_config(self, config: AgentConfig):
         """Saves or updates an AgentConfig in the database."""
-        if not self._engine: return # Do nothing if DB is not configured
+        if not self._engine:
+            return  # Do nothing if DB is not configured
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, AgentConfigDB, config)
                 except Exception as e:
-                    logger.error(f"Failed to sync AgentConfig '{config.name}': {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to sync AgentConfig '{config.name}': {e}",
+                        exc_info=True,
+                    )
                     # Exception is caught and rolled back by get_db_session
 
     def sync_workflow_config(self, config: WorkflowConfig):
         """Saves or updates a WorkflowConfig in the database."""
-        if not self._engine: return
+        if not self._engine:
+            return
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, WorkflowConfigDB, config)
                 except Exception as e:
-                    logger.error(f"Failed to sync WorkflowConfig '{config.name}': {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to sync WorkflowConfig '{config.name}': {e}",
+                        exc_info=True,
+                    )
 
     def sync_custom_workflow_config(self, config: CustomWorkflowConfig):
         """Saves or updates a CustomWorkflowConfig in the database."""
-        if not self._engine: return
+        if not self._engine:
+            return
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
                 try:
                     self._sync_config(db, CustomWorkflowConfigDB, config)
                 except Exception as e:
-                    logger.error(f"Failed to sync CustomWorkflowConfig '{config.name}': {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to sync CustomWorkflowConfig '{config.name}': {e}",
+                        exc_info=True,
+                    )
 
     def sync_all_configs(
         self,
         agents: Dict[str, AgentConfig],
         workflows: Dict[str, WorkflowConfig],
-        custom_workflows: Dict[str, CustomWorkflowConfig]
+        custom_workflows: Dict[str, CustomWorkflowConfig],
     ):
         """Syncs all provided configurations to the database in a single transaction."""
         if not self._engine:
@@ -191,7 +219,7 @@ class StorageManager:
         with get_db_session(engine=self._engine) as db:
             if not db:
                 logger.error("Failed to get DB session for config sync.")
-                return # Cannot proceed without a session
+                return  # Cannot proceed without a session
 
             try:
                 # Sync Agents
@@ -221,18 +249,25 @@ class StorageManager:
     # NOTE: Making these synchronous for now as SQLAlchemy session operations
     # within the context manager are typically synchronous. If async driver (e.g., asyncpg)
     # and async sessions are used later, these would need `async def`.
-    def load_history(self, agent_name: str, session_id: Optional[str], limit: int = 50) -> List[Dict[str, Any]]:
+    def load_history(
+        self, agent_name: str, session_id: Optional[str], limit: int = 50
+    ) -> List[Dict[str, Any]]:
         """
         Loads recent conversation history for a specific agent and session.
         Returns history in the format expected by Anthropic API messages:
         List[{'role': str, 'content': List[Dict[str, Any]]}]
         """
-        if not self._engine: return []
+        if not self._engine:
+            return []
         if not session_id:
-            logger.warning(f"Attempted to load history for agent '{agent_name}' without a session_id. Returning empty list.")
+            logger.warning(
+                f"Attempted to load history for agent '{agent_name}' without a session_id. Returning empty list."
+            )
             return []
 
-        logger.debug(f"Loading history for agent '{agent_name}', session '{session_id}' (limit: {limit})")
+        logger.debug(
+            f"Loading history for agent '{agent_name}', session '{session_id}' (limit: {limit})"
+        )
         history_params: List[Dict[str, Any]] = []
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
@@ -244,76 +279,110 @@ class StorageManager:
                         db.query(AgentHistoryDB)
                         .filter(
                             AgentHistoryDB.agent_name == agent_name,
-                            AgentHistoryDB.session_id == session_id # Added session_id filter
+                            AgentHistoryDB.session_id
+                            == session_id,  # Added session_id filter
                         )
                         .order_by(AgentHistoryDB.timestamp.asc())
                         # Consider if limit should be applied here or after fetching all?
                         # Applying limit here is more efficient for large histories.
                         # If we need the *most recent* N turns, order by desc() and limit().
                         # Let's assume we want the start of the conversation up to N turns for now.
-                        #.limit(limit) # Revisit if we need *last* N turns
+                        # .limit(limit) # Revisit if we need *last* N turns
                         .all()
                     )
 
                     # Convert results to the required format
                     for record in history_records:
                         # Ensure content is loaded correctly from the correct column
-                        content_data = record.content_json # Read from content_json column
+                        content_data = (
+                            record.content_json
+                        )  # Read from content_json column
                         parsed_content = None
                         if isinstance(content_data, str):
-                             # Attempt to parse if stored as a JSON string
-                             try:
-                                 parsed_content = json.loads(content_data) # Parse string
-                             except json.JSONDecodeError:
-                                 # If parsing fails, assume it was a raw string user input
-                                 logger.warning(f"Failed to parse content_json for history ID {record.id} as JSON. Assuming raw string content.")
-                                 # Format the raw string into the expected structure
-                                 parsed_content = [{"type": "text", "text": content_data}]
+                            # Attempt to parse if stored as a JSON string
+                            try:
+                                parsed_content = json.loads(
+                                    content_data
+                                )  # Parse string
+                            except json.JSONDecodeError:
+                                # If parsing fails, assume it was a raw string user input
+                                logger.warning(
+                                    f"Failed to parse content_json for history ID {record.id} as JSON. Assuming raw string content."
+                                )
+                                # Format the raw string into the expected structure
+                                parsed_content = [
+                                    {"type": "text", "text": content_data}
+                                ]
                         elif content_data is None:
-                             logger.warning(f"History record ID {record.id} has null content_json.")
-                             parsed_content = [{"type": "text", "text": "[Missing content]"}]
+                            logger.warning(
+                                f"History record ID {record.id} has null content_json."
+                            )
+                            parsed_content = [
+                                {"type": "text", "text": "[Missing content]"}
+                            ]
                         else:
-                             # If content_data is already a list/dict (from native JSON type), use it directly
-                             parsed_content = content_data
+                            # If content_data is already a list/dict (from native JSON type), use it directly
+                            parsed_content = content_data
 
-                        history_params.append({
-                            "role": record.role,
-                            "content": parsed_content # Use the processed content
-                        })
+                        history_params.append(
+                            {
+                                "role": record.role,
+                                "content": parsed_content,  # Use the processed content
+                            }
+                        )
 
                     # If we wanted only the last N turns:
                     if len(history_params) > limit > 0:
-                         history_params = history_params[-limit:] # Slice to get the last N items
+                        history_params = history_params[
+                            -limit:
+                        ]  # Slice to get the last N items
 
-                    logger.debug(f"Loaded {len(history_params)} history turns for agent '{agent_name}', session '{session_id}'.")
+                    logger.debug(
+                        f"Loaded {len(history_params)} history turns for agent '{agent_name}', session '{session_id}'."
+                    )
 
                 except Exception as e:
-                    logger.error(f"Failed to load history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to load history for agent '{agent_name}', session '{session_id}': {e}",
+                        exc_info=True,
+                    )
                     # Return empty list on error
                     return []
             else:
-                 logger.error("Failed to get DB session for loading history.")
-                 return [] # Return empty list if session fails
+                logger.error("Failed to get DB session for loading history.")
+                return []  # Return empty list if session fails
 
         return history_params
 
-    def save_full_history(self, agent_name: str, session_id: Optional[str], conversation: List[Dict[str, Any]]):
+    def save_full_history(
+        self,
+        agent_name: str,
+        session_id: Optional[str],
+        conversation: List[Dict[str, Any]],
+    ):
         """
         Saves the entire conversation history for a specific agent and session.
         Clears previous history for that specific agent/session before saving the new one.
         """
-        if not self._engine: return
+        if not self._engine:
+            return
         if not session_id:
-            logger.warning(f"Attempted to save history for agent '{agent_name}' without a session_id. Skipping save.")
+            logger.warning(
+                f"Attempted to save history for agent '{agent_name}' without a session_id. Skipping save."
+            )
             return
 
         # Filter out any potential None values in conversation list defensively
         valid_conversation = [turn for turn in conversation if turn is not None]
         if not valid_conversation:
-             logger.warning(f"Attempted to save empty or invalid history for agent '{agent_name}', session '{session_id}'. Skipping.")
-             return
+            logger.warning(
+                f"Attempted to save empty or invalid history for agent '{agent_name}', session '{session_id}'. Skipping."
+            )
+            return
 
-        logger.debug(f"Saving full history for agent '{agent_name}', session '{session_id}' ({len(valid_conversation)} turns)")
+        logger.debug(
+            f"Saving full history for agent '{agent_name}', session '{session_id}' ({len(valid_conversation)} turns)"
+        )
         # Pass the engine to get_db_session
         with get_db_session(engine=self._engine) as db:
             if db:
@@ -321,10 +390,13 @@ class StorageManager:
                     # Delete existing history for this agent and session first
                     delete_stmt = AgentHistoryDB.__table__.delete().where(
                         AgentHistoryDB.agent_name == agent_name,
-                        AgentHistoryDB.session_id == session_id # Added session_id filter
+                        AgentHistoryDB.session_id
+                        == session_id,  # Added session_id filter
                     )
                     db.execute(delete_stmt)
-                    logger.debug(f"Cleared previous history for agent '{agent_name}', session '{session_id}'.")
+                    logger.debug(
+                        f"Cleared previous history for agent '{agent_name}', session '{session_id}'."
+                    )
 
                     # Add new history turns
                     new_history_records = []
@@ -334,25 +406,32 @@ class StorageManager:
                         role = turn.get("role")
 
                         if not role or content_to_save is None:
-                             logger.warning(f"Skipping history turn with missing role or content for agent '{agent_name}': {turn}")
-                             continue
+                            logger.warning(
+                                f"Skipping history turn with missing role or content for agent '{agent_name}': {turn}"
+                            )
+                            continue
 
                         new_history_records.append(
                             AgentHistoryDB(
                                 agent_name=agent_name,
-                                session_id=session_id, # Added session_id
+                                session_id=session_id,  # Added session_id
                                 role=role,
-                                content_json=content_to_save # Correctly map to content_json column
+                                content_json=content_to_save,  # Correctly map to content_json column
                             )
                         )
 
                     if new_history_records:
                         db.add_all(new_history_records)
-                        logger.debug(f"Added {len(new_history_records)} new history turns for agent '{agent_name}', session '{session_id}'.")
+                        logger.debug(
+                            f"Added {len(new_history_records)} new history turns for agent '{agent_name}', session '{session_id}'."
+                        )
 
                     # Commit happens automatically via context manager
                 except Exception as e:
-                    logger.error(f"Failed to save history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
+                        exc_info=True,
+                    )
                     # Rollback happens automatically via context manager
             else:
-                 logger.error("Failed to get DB session for saving history.")
+                logger.error("Failed to get DB session for saving history.")
