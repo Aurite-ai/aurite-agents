@@ -54,10 +54,10 @@
     "editor.formatOnSave": false
   },
   "[css]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "bradlc.vscode-tailwindcss",
     "editor.formatOnSave": false
   },
   "[dockerfile]": { // Keep existing specific settings
     "editor.formatOnSave": false
-  }
+  },
 }

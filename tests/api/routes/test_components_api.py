@@ -4,11 +4,12 @@ from fastapi.testclient import TestClient
 # Marker for API integration tests, specifically for component routes
 pytestmark = [
     pytest.mark.api_integration,
-    pytest.mark.components_api, # Add a specific marker if desired
+    pytest.mark.components_api,  # Add a specific marker if desired
     pytest.mark.anyio,
 ]
 
 # --- Test Functions (Moved from test_api_integration.py) ---
+
 
 def test_execute_agent_success(api_client: TestClient):
     """
@@ -21,7 +22,9 @@ def test_execute_agent_success(api_client: TestClient):
     payload = {"user_message": user_message}
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post(f"/agents/{agent_name}/execute", json=payload, headers=headers)
+    response = api_client.post(
+        f"/agents/{agent_name}/execute", json=payload, headers=headers
+    )
 
     assert response.status_code == 200
     response_data = response.json()
@@ -47,7 +50,9 @@ def test_execute_simple_workflow_success(api_client: TestClient):
     payload = {"initial_user_message": initial_message}
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post(f"/workflows/{workflow_name}/execute", json=payload, headers=headers)
+    response = api_client.post(
+        f"/workflows/{workflow_name}/execute", json=payload, headers=headers
+    )
 
     assert response.status_code == 200
     response_data = response.json()
@@ -84,7 +89,9 @@ def test_execute_custom_workflow_success(api_client: TestClient):
     payload = {"initial_input": initial_input}
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post(f"/custom_workflows/{workflow_name}/execute", json=payload, headers=headers)
+    response = api_client.post(
+        f"/custom_workflows/{workflow_name}/execute", json=payload, headers=headers
+    )
 
     assert response.status_code == 200
     response_data = response.json()
@@ -130,7 +137,9 @@ def test_register_client_success(api_client: TestClient):
 
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post("/clients/register", json=client_payload, headers=headers)
+    response = api_client.post(
+        "/clients/register", json=client_payload, headers=headers
+    )
 
     assert response.status_code == 201  # Created
     response_data = response.json()
@@ -166,11 +175,15 @@ def test_register_client_duplicate(api_client: TestClient):
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
     # First registration (should succeed)
-    response1 = api_client.post("/clients/register", json=client_payload, headers=headers)
+    response1 = api_client.post(
+        "/clients/register", json=client_payload, headers=headers
+    )
     assert response1.status_code == 201
 
     # Second registration attempt with the same client_id
-    response2 = api_client.post("/clients/register", json=client_payload, headers=headers)
+    response2 = api_client.post(
+        "/clients/register", json=client_payload, headers=headers
+    )
 
     assert response2.status_code == 409  # Conflict
     response_data = response2.json()
@@ -234,9 +247,7 @@ def test_register_agent_duplicate_name(api_client: TestClient):
     assert response1.status_code == 201
 
     # Second registration attempt with the same name
-    agent_payload["system_prompt"] = (
-        "Second registration attempt."  # Modify slightly
-    )
+    agent_payload["system_prompt"] = "Second registration attempt."  # Modify slightly
     response2 = api_client.post("/agents/register", json=agent_payload, headers=headers)
 
     assert response2.status_code == 409  # Conflict
@@ -290,7 +301,9 @@ def test_register_workflow_success(api_client: TestClient):
 
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post("/workflows/register", json=workflow_payload, headers=headers)
+    response = api_client.post(
+        "/workflows/register", json=workflow_payload, headers=headers
+    )
 
     assert response.status_code == 201  # Created
     response_data = response.json()
@@ -317,14 +330,16 @@ def test_register_workflow_duplicate_name(api_client: TestClient):
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
     # First registration (should succeed)
-    response1 = api_client.post("/workflows/register", json=workflow_payload, headers=headers)
+    response1 = api_client.post(
+        "/workflows/register", json=workflow_payload, headers=headers
+    )
     assert response1.status_code == 201
 
     # Second registration attempt with the same name
-    workflow_payload["description"] = (
-        "Second registration attempt."  # Modify slightly
+    workflow_payload["description"] = "Second registration attempt."  # Modify slightly
+    response2 = api_client.post(
+        "/workflows/register", json=workflow_payload, headers=headers
     )
-    response2 = api_client.post("/workflows/register", json=workflow_payload, headers=headers)
 
     assert response2.status_code == 409  # Conflict
     response_data = response2.json()
@@ -349,7 +364,9 @@ def test_register_workflow_invalid_agent_name(api_client: TestClient):
 
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post("/workflows/register", json=workflow_payload, headers=headers)
+    response = api_client.post(
+        "/workflows/register", json=workflow_payload, headers=headers
+    )
 
     assert response.status_code == 400  # Bad Request
     response_data = response.json()

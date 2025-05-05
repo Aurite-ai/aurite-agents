@@ -2,6 +2,7 @@ import { useState } from 'react';
 import StatusTab from './components/StatusTab'; // Import the real component
 import RegisterTab from './components/RegisterTab'; // Import the real component
 import ExecuteTab from './components/ExecuteTab'; // Import the real component
+import ConfigTab from './components/ConfigTab'; // Import the new component
 
 // Placeholder components (we'll create these properly later)
 const Header = () => (
@@ -27,7 +28,6 @@ const TabButton = ({ label, isActive, onClick }: { label: string; isActive: bool
 // Remove the placeholder ExecuteTab function definition
 // Remove the placeholder StatusTab function definition
 // Add placeholders for future tabs if needed
-import ConfigTab from './components/ConfigTab'; // Import the new component
 
 type TabId = 'register' | 'execute' | 'status' | 'config'; // Add 'config'
 

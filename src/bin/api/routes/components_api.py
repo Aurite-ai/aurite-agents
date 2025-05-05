@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Security, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
@@ -16,29 +16,37 @@ from ....host.models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    tags=["Component Management"], # Tag for OpenAPI docs
-    dependencies=[Depends(get_api_key)] # Apply auth to all routes in this router
+    tags=["Component Management"],  # Tag for OpenAPI docs
+    dependencies=[Depends(get_api_key)],  # Apply auth to all routes in this router
 )
+
 
 # --- Request/Response Models (Moved from api.py) ---
 class ExecuteAgentRequest(BaseModel):
     """Request body for executing a named agent."""
+
     user_message: str
     system_prompt: Optional[str] = None
 
+
 class ExecuteWorkflowRequest(BaseModel):
     """Request body for executing a named workflow."""
+
     initial_user_message: str
+
 
 class ExecuteWorkflowResponse(BaseModel):
     """Response body for workflow execution."""
+
     workflow_name: str
     status: str  # e.g., "completed", "failed"
     final_message: Optional[str] = None
     error: Optional[str] = None
 
+
 class ExecuteCustomWorkflowRequest(BaseModel):
     initial_input: Any  # Allow flexible input
+
 
 class ExecuteCustomWorkflowResponse(BaseModel):
     workflow_name: str
@@ -48,6 +56,7 @@ class ExecuteCustomWorkflowResponse(BaseModel):
 
 
 # --- Execution Endpoints (Moved from api.py) ---
+
 
 @router.post("/agents/{agent_name}/execute")
 async def execute_agent_endpoint(
@@ -69,7 +78,10 @@ async def execute_agent_endpoint(
     logger.info(f"Agent '{agent_name}' execution finished successfully via manager.")
     return result
 
-@router.post("/workflows/{workflow_name}/execute", response_model=ExecuteWorkflowResponse)
+
+@router.post(
+    "/workflows/{workflow_name}/execute", response_model=ExecuteWorkflowResponse
+)
 async def execute_workflow_endpoint(
     workflow_name: str,
     request_body: ExecuteWorkflowRequest,
@@ -93,6 +105,7 @@ async def execute_workflow_endpoint(
         return ExecuteWorkflowResponse(**result)
     else:
         return ExecuteWorkflowResponse(**result)
+
 
 @router.post(
     "/custom_workflows/{workflow_name}/execute",
@@ -125,7 +138,9 @@ async def execute_custom_workflow_endpoint(
             workflow_name=workflow_name, status="completed", result=result
         )
 
+
 # --- Registration Endpoints (Moved from api.py) ---
+
 
 @router.post("/clients/register", status_code=201)
 async def register_client_endpoint(
@@ -138,6 +153,7 @@ async def register_client_endpoint(
     await manager.register_client(client_config)
     return {"status": "success", "client_id": client_config.client_id}
 
+
 @router.post("/agents/register", status_code=201)
 async def register_agent_endpoint(
     agent_config: AgentConfig,
@@ -148,6 +164,7 @@ async def register_agent_endpoint(
     logger.info(f"Received request to register agent: {agent_config.name}")
     await manager.register_agent(agent_config)
     return {"status": "success", "agent_name": agent_config.name}
+
 
 @router.post("/workflows/register", status_code=201)
 async def register_workflow_endpoint(

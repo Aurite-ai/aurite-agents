@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import the FastAPI app instance from its new location
-from src.bin.api.api import app
 
 # Marker for API integration tests
 pytestmark = [
@@ -12,6 +11,7 @@ pytestmark = [
 
 
 # --- Test Functions ---
+
 
 # Use the api_client fixture which handles setup and provides the TestClient instance
 def test_api_health_check(api_client: TestClient):
@@ -29,7 +29,9 @@ def test_api_status_unauthorized(api_client: TestClient):
     Expects a 401 Unauthorized response.
     """
     # The fixture sets a default API key, so we need to make a request without it
-    headers_without_auth = {k: v for k, v in api_client.headers.items() if k.lower() != 'x-api-key'}
+    headers_without_auth = {
+        k: v for k, v in api_client.headers.items() if k.lower() != "x-api-key"
+    }
     response = api_client.get("/status", headers=headers_without_auth)
     # The API key middleware should return 401 if key is missing
     assert response.status_code == 401
