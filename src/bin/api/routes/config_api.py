@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel # Add this import
 
 # Import dependencies from the new location (relative to parent of routes' parent)
 from ...dependencies import get_api_key, PROJECT_ROOT
@@ -38,10 +39,12 @@ def get_validated_config_path(component_type: str, filename: str | None = None) 
 
     if filename:
         # Validate filename
-        if ".." in filename or "/" in filename or "\\" in filename:
-             raise HTTPException(status_code=400, detail="Invalid filename.")
+        # Removed explicit ".." check - rely on resolve() and startswith() check below for security.
+        # Keep checks for explicit path separators within the filename itself.
+        if "/" in filename or "\\" in filename:
+             raise HTTPException(status_code=400, detail="Invalid filename (contains path separators).")
         if not filename.endswith(".json"):
-            raise HTTPException(status_code=400, detail="Filename must end with .json")
+            raise HTTPException(status_code=400, detail="Filename must end with .json.")
 
         full_path = (base_dir / filename).resolve()
 
@@ -78,10 +81,10 @@ async def list_config_files(
         raise HTTPException(status_code=500, detail=f"Failed to list configuration files: {str(e)}")
 
 
-@router.get("/{component_type}/{filename}", dependencies=[Depends(get_api_key)])
+@router.get("/{component_type}/{filename:path}", dependencies=[Depends(get_api_key)])
 async def get_config_file(
     component_type: str,
-    filename: str,
+    filename: str, # filename will now contain the full path segment
     # api_key: str = Depends(get_api_key), # Dependency moved to router level if preferred
 ):
     """Gets the content of a specific JSON configuration file."""
@@ -108,4 +111,51 @@ async def get_config_file(
         logger.error(f"Error reading config file '{component_type}/{filename}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to read configuration file: {str(e)}")
 
-# Add POST, PUT, DELETE endpoints here later...
+
+# --- Pydantic Model for Upload ---
+class ConfigContent(BaseModel):
+    """Model for the JSON content being uploaded."""
+    content: dict # Expecting a dictionary for the JSON content
+
+@router.post("/{component_type}/{filename:path}", status_code=201, dependencies=[Depends(get_api_key)])
+async def upload_config_file(
+    component_type: str,
+    filename: str, # filename will now contain the full path segment
+    config_data: ConfigContent,
+    # api_key: str = Depends(get_api_key), # Applied at router level
+):
+    """Creates or overwrites a specific JSON configuration file."""
+    logger.info(f"Request received to upload config file: {component_type}/{filename}")
+    try:
+        file_path = get_validated_config_path(component_type, filename)
+        logger.debug(f"Writing content to validated path: {file_path}")
+
+        # Basic validation: Ensure filename matches expected pattern if needed
+        # (get_validated_config_path already checks for .json and path traversal)
+
+        # Check if file already exists (optional, could return 409 Conflict if needed)
+        # if file_path.exists():
+        #     logger.warning(f"Config file {file_path} already exists. Overwriting.")
+            # raise HTTPException(status_code=409, detail="Configuration file already exists.")
+
+        # Write the content (pretty-printed JSON)
+        try:
+            json_string = json.dumps(config_data.content, indent=4)
+            file_path.write_text(json_string)
+            logger.info(f"Successfully wrote config file: {file_path}")
+            return {"status": "success", "filename": filename, "component_type": component_type}
+        except TypeError as json_err:
+            logger.error(f"Error serializing provided content to JSON for {file_path}: {json_err}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON content provided: {str(json_err)}")
+        except IOError as io_err:
+            logger.error(f"Error writing config file {file_path}: {io_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to write configuration file: {str(io_err)}")
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error uploading config file '{component_type}/{filename}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to upload configuration file: {str(e)}")
+
+
+# Add PUT, DELETE endpoints here later...
