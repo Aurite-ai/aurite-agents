@@ -120,6 +120,7 @@ class Agent:
             final_system_prompt = system_prompt
             if self.config.schema:
                 import json
+
                 schema_str = json.dumps(self.config.schema, indent=2)
                 final_system_prompt = f"""{system_prompt}
 
@@ -321,13 +322,18 @@ Remember to format your response as a valid JSON object."""
             # Check stop reason FIRST
             if response.stop_reason != "tool_use":
                 # Get the text content from the last block
-                text_content = next((block.text for block in response.content if block.type == "text"), None)
+                text_content = next(
+                    (block.text for block in response.content if block.type == "text"),
+                    None,
+                )
                 if not text_content:
                     logger.warning("No text content found in response")
-                    messages.append({
-                        "role": "user",
-                        "content": "You must provide your response as a valid JSON object."
-                    })
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": "You must provide your response as a valid JSON object.",
+                        }
+                    )
                     continue
 
                 # For final response, ALWAYS try to parse as JSON if schema is provided
@@ -341,15 +347,17 @@ Remember to format your response as a valid JSON object."""
                     except json.JSONDecodeError:
                         # If not valid JSON, force Claude to fix it
                         logger.warning("Response was not valid JSON")
-                        messages.append({
-                            "role": "user",
-                            "content": f"""Your response MUST be a single JSON object with no additional text or explanation.
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": f"""Your response MUST be a single JSON object with no additional text or explanation.
 The JSON must match this schema exactly:
 
 {json.dumps(self.config.schema, indent=2)}
 
-Format your entire response as valid JSON."""
-                        })
+Format your entire response as valid JSON.""",
+                            }
+                        )
                         continue
 
                     # Then try to validate schema
@@ -358,14 +366,16 @@ Format your entire response as valid JSON."""
                         logger.debug("Response validated successfully against schema")
                     except Exception as e:
                         logger.warning(f"Schema validation failed: {e}")
-                        messages.append({
-                            "role": "user",
-                            "content": f"""Your response must be a valid JSON object matching this schema:
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": f"""Your response must be a valid JSON object matching this schema:
 {json.dumps(self.config.schema, indent=2)}
 
 The error was: {str(e)}
-Try again with just the JSON object."""
-                        })
+Try again with just the JSON object.""",
+                            }
+                        )
                         continue
 
                 final_response = response
