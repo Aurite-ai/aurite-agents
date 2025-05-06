@@ -23,7 +23,8 @@ router = APIRouter(
 CONFIG_DIRS = {
     "agents": Path("config/agents"),
     "clients": Path("config/clients"),
-    "workflows": Path("config/workflows"),
+    "simple_workflows": Path("config/workflows"), # Maps to the existing 'workflows' directory
+    "custom_workflows": Path("config/custom_workflows"), # New mapping
 }
 
 

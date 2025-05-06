@@ -27,11 +27,12 @@ const ComponentSidebar: React.FC<ComponentSidebarProps> = ({
         <button
           key={component.id}
           onClick={() => onSelectComponent(component.id)}
-          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-dracula-pink
+          // Added bg-transparent to ensure no default button background interferes
+          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-dracula-pink bg-transparent
             ${
               selectedComponent === component.id
-                ? 'bg-dracula-purple text-dracula-foreground'
-                : 'text-dracula-foreground hover:bg-dracula-current-line hover:text-dracula-foreground'
+                ? 'bg-dracula-purple text-dracula-foreground' // Selected: purple background, foreground text
+                : 'text-dracula-foreground hover:bg-dracula-current-line hover:text-dracula-foreground' // Not selected: transparent bg, foreground text, hover with current-line bg
             }
           `}
         >

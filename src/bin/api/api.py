@@ -276,40 +276,6 @@ app.mount(
     name="frontend-assets",
 )
 
-
-# Catch-all route to serve index.html for client-side routing
-# IMPORTANT: This must come AFTER all other API routes
-@app.get("/{full_path:path}", include_in_schema=False)
-async def serve_react_app(full_path: str):  # Parameter name doesn't matter much here
-    # Check if the requested path looks like a file extension common in frontend builds
-    # This is a basic check to avoid serving index.html for potential API-like paths
-    # that weren't explicitly defined. Adjust extensions as needed.
-    if "." in full_path and full_path.split(".")[-1] in [
-        "js",
-        "css",
-        "html",
-        "ico",
-        "png",
-        "jpg",
-        "svg",
-        "woff2",
-        "woff",
-        "ttf",
-    ]:
-        # If it looks like a file request that wasn't caught by /assets mount, return 404
-        # This prevents serving index.html for potentially missing asset files.
-        # Alternatively, you could try serving from PROJECT_ROOT / "frontend/dist" / full_path
-        # but the /assets mount should handle most cases.
-        raise HTTPException(status_code=404, detail="Static file not found in assets")
-
-    # For all other paths, serve the main index.html file
-    index_path = PROJECT_ROOT / "frontend/dist/index.html"
-    if not index_path.is_file():
-        logger.error(f"Frontend build index.html not found at: {index_path}")
-        raise HTTPException(status_code=500, detail="Frontend build not found.")
-    return FileResponse(index_path)
-
-
 # --- Config File CRUD Endpoints (Moved to routes/config_api.py) ---
 
 

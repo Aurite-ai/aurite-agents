@@ -3,9 +3,11 @@ import TopNavbar from './TopNavbar';
 import ActionTabs from './ActionTabs';
 import ComponentSidebar from './ComponentSidebar';
 import useUIStore from '../../store/uiStore'; // Adjust path as needed
-import ConfigureAgentsView from '../../features/configure/views/ConfigureAgentsView'; // Import the specific view
+// Import the general ConfigListView instead of the specific ConfigureAgentsView
+import ConfigListView from '../../features/configure/views/ConfigListView';
+import ExecuteView from '../../features/execute/views/ExecuteView'; // Import ExecuteView
 
-const Layout: React.FC = () => { // Removed children from props
+const Layout: React.FC = () => {
   const {
     selectedAction,
     selectedComponent,
@@ -33,11 +35,13 @@ const Layout: React.FC = () => { // Removed children from props
   );
 
   function renderDynamicContent() {
-    if (selectedAction === 'configure' && selectedComponent === 'agents') {
-      return <ConfigureAgentsView />;
+    if (selectedAction === 'configure') {
+      return <ConfigListView />; // ConfigListView will use selectedComponent from the store
+    }
+    if (selectedAction === 'execute') {
+      return <ExecuteView />;
     }
     // Add more conditions here for other views as they are created
-    // e.g., if (selectedAction === 'execute' && selectedComponent === 'clients') { ... }
 
     // Default placeholder content if no specific view matches
     return (

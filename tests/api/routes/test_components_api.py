@@ -373,3 +373,76 @@ def test_register_workflow_invalid_agent_name(api_client: TestClient):
     assert "detail" in response_data
     assert "not found for workflow" in response_data["detail"].lower()
     assert invalid_agent_name in response_data["detail"]
+
+
+# --- Listing Registered Components Endpoint Tests ---
+
+def test_list_registered_agents_success(api_client: TestClient):
+    """Tests successfully listing registered agents."""
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.get("/components/agents", headers=headers)
+    assert response.status_code == 200
+    agent_names = response.json()
+    assert isinstance(agent_names, list)
+    # Check for agents defined in testing_config.json
+    expected_agents = [
+        "Weather Agent",
+        "Weather Planning Agent",
+        "Weather Planning Workflow Step 1",
+        "Weather Planning Workflow Step 2",
+        "Filtering Test Agent",
+        "Planning Agent",
+        "Mapping Agent"
+    ]
+    for agent_name in expected_agents:
+        assert agent_name in agent_names
+    assert len(agent_names) >= len(expected_agents) # Could be more if dynamically registered
+
+def test_list_registered_agents_unauthorized(api_client: TestClient):
+    """Tests listing registered agents without API key."""
+    response = api_client.get("/components/agents") # No headers
+    assert response.status_code == 401
+
+
+def test_list_registered_simple_workflows_success(api_client: TestClient):
+    """Tests successfully listing registered simple workflows."""
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.get("/components/workflows", headers=headers)
+    assert response.status_code == 200
+    workflow_names = response.json()
+    assert isinstance(workflow_names, list)
+    expected_workflows = ["main"]
+    for wf_name in expected_workflows:
+        assert wf_name in workflow_names
+    assert len(workflow_names) >= len(expected_workflows)
+
+def test_list_registered_simple_workflows_unauthorized(api_client: TestClient):
+    """Tests listing registered simple workflows without API key."""
+    response = api_client.get("/components/workflows") # No headers
+    assert response.status_code == 401
+
+
+def test_list_registered_custom_workflows_success(api_client: TestClient):
+    """Tests successfully listing registered custom workflows."""
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.get("/components/custom_workflows", headers=headers)
+    assert response.status_code == 200
+    custom_workflow_names = response.json()
+    assert isinstance(custom_workflow_names, list)
+    expected_custom_workflows = ["ExampleCustom"]
+    for cwf_name in expected_custom_workflows:
+        assert cwf_name in custom_workflow_names
+    assert len(custom_workflow_names) >= len(expected_custom_workflows)
+
+def test_list_registered_custom_workflows_unauthorized(api_client: TestClient):
+    """Tests listing registered custom workflows without API key."""
+    response = api_client.get("/components/custom_workflows") # No headers
+    assert response.status_code == 401
+
+# To test empty lists, we would need a HostManager fixture that loads an empty config
+# or a config with no components of a specific type. For now, these tests assume
+# testing_config.json provides at least one of each.
+# If HostManager is cleared and re-initialized by api_client fixture per test,
+# we could potentially have a test that registers nothing then calls these.
+# However, the current fixture setup loads testing_config.json by default.
+# The endpoints themselves return [] if manager.*_configs is empty, which is implicitly tested.

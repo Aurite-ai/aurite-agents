@@ -22,11 +22,13 @@ const ActionTabs: React.FC<ActionTabsProps> = ({ selectedAction, onSelectAction 
           <button
             key={action.id}
             onClick={() => onSelectAction(action.id)}
-            className={`py-3 px-6 font-medium text-sm border-b-2 transition-colors duration-150 ease-in-out focus:outline-none focus:border-dracula-pink
+            // Added bg-transparent to ensure no default button background interferes
+            // Added a subtle background for the selected tab for better visual distinction
+            className={`py-3 px-6 font-medium text-sm border-b-2 transition-colors duration-150 ease-in-out focus:outline-none focus:border-dracula-pink bg-transparent
               ${
                 selectedAction === action.id
-                  ? 'border-dracula-pink text-dracula-pink'
-                  : 'border-transparent text-dracula-comment hover:text-dracula-foreground hover:border-dracula-comment'
+                  ? 'border-dracula-pink text-dracula-pink bg-dracula-current-line bg-opacity-50' // Selected: pink border, pink text, subtle bg
+                  : 'border-transparent text-dracula-comment hover:text-dracula-foreground hover:border-dracula-comment' // Not selected: transparent border, comment text
               }
             `}
           >

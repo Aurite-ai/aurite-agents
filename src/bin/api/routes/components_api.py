@@ -11,7 +11,9 @@ from ....host.models import (
     ClientConfig,
     AgentConfig,
     WorkflowConfig,
+    CustomWorkflowConfig, # Added for consistency, though not directly used in new endpoints
 )
+from typing import List # Added for response model
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +178,27 @@ async def register_workflow_endpoint(
     logger.info(f"Received request to register workflow: {workflow_config.name}")
     await manager.register_workflow(workflow_config)
     return {"status": "success", "workflow_name": workflow_config.name}
+
+
+# --- Listing Endpoints for Registered Components ---
+
+@router.get("/components/agents", response_model=List[str])
+async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
+    """Lists the names of all currently registered agents."""
+    if not manager or not manager.agent_configs:
+        return []
+    return list(manager.agent_configs.keys())
+
+@router.get("/components/workflows", response_model=List[str])
+async def list_registered_simple_workflows(manager: HostManager = Depends(get_host_manager)):
+    """Lists the names of all currently registered simple workflows."""
+    if not manager or not manager.workflow_configs:
+        return []
+    return list(manager.workflow_configs.keys())
+
+@router.get("/components/custom_workflows", response_model=List[str])
+async def list_registered_custom_workflows(manager: HostManager = Depends(get_host_manager)):
+    """Lists the names of all currently registered custom workflows."""
+    if not manager or not manager.custom_workflow_configs:
+        return []
+    return list(manager.custom_workflow_configs.keys())

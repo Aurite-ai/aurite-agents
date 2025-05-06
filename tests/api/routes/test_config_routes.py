@@ -16,9 +16,17 @@ pytestmark = [
 
 
 # Helper function to set up config directories/files for testing
+from src.bin.api.routes.config_api import CONFIG_DIRS as API_CONFIG_DIRS # Import the actual mapping
+
 def setup_test_config_file(component_type: str, filename: str, content: dict):
     """Creates a dummy config file in the actual project structure for testing GET/DELETE."""
-    target_dir = PROJECT_ROOT / f"config/{component_type}"
+    # Use the actual directory path from the API's CONFIG_DIRS mapping
+    if component_type not in API_CONFIG_DIRS:
+        raise ValueError(f"Invalid component_type '{component_type}' not found in API_CONFIG_DIRS for test setup.")
+
+    actual_dir_name = API_CONFIG_DIRS[component_type] # This is a Path relative to PROJECT_ROOT/config
+    target_dir = PROJECT_ROOT / actual_dir_name # API_CONFIG_DIRS already has "config/" prefix in its values
+
     target_dir.mkdir(parents=True, exist_ok=True)
     target_file = target_dir / filename
     with open(target_file, "w") as f:
@@ -45,7 +53,7 @@ def cleanup_test_config_file(file_path: Path):
 # --- Tests for GET /configs/{component_type} ---
 
 
-@pytest.mark.parametrize("component_type", ["agents", "clients", "workflows"])
+@pytest.mark.parametrize("component_type", ["agents", "clients", "simple_workflows", "custom_workflows"])
 def test_list_configs_success(api_client: TestClient, component_type: str):
     """Tests successfully listing config files for valid types."""
     # Ensure at least one file exists for the test

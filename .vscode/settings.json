@@ -27,6 +27,9 @@
     "pyproject.toml": "justfile",
     "README.md": "usage_guide.md, LICENSE, CHANGELOG.md"
   },
+  "files.associations": {
+  "*.css": "tailwindcss"
+},
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "editor.formatOnSave": false, // Ensure this is false globally
   "[typescript]": {
@@ -54,7 +57,7 @@
     "editor.formatOnSave": false
   },
   "[css]": {
-    "editor.defaultFormatter": "bradlc.vscode-tailwindcss",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": false
   },
   "[dockerfile]": { // Keep existing specific settings

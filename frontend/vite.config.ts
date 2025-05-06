@@ -1,6 +1,8 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from 'tailwindcss'; // Import tailwindcss for v3
+import autoprefixer from 'autoprefixer'; // Import autoprefixer
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -27,5 +29,13 @@ export default defineConfig({
       //   changeOrigin: true,
       // }
     }
-  }
+  },
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss,    // Use tailwindcss directly for v3
+        autoprefixer,       // Use the imported autoprefixer plugin
+      ],
+    },
+  },
 })
