@@ -1,9 +1,16 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.ts', // or './setupTests.ts' if at root of frontend/
+    css: true, // if you want to process CSS during tests
+  },
   server: {
     proxy: {
       // Proxy API requests (adjust the path prefix if necessary)

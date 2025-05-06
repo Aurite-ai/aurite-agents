@@ -10,7 +10,7 @@ from src.bin.dependencies import PROJECT_ROOT
 # Marker for API integration tests
 pytestmark = [
     pytest.mark.api_integration,
-    pytest.mark.config_api,  # Add specific marker
+    pytest.mark.config_api,
     pytest.mark.anyio,
 ]
 
