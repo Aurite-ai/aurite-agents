@@ -23,12 +23,12 @@ const ApiKeyModal: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-neutral-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-semibold mb-6 text-center text-neutral-100">Enter API Key</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-dracula-background bg-opacity-75 backdrop-blur-sm">
+      <div className="bg-dracula-current-line p-8 rounded-lg shadow-xl w-full max-w-md border border-dracula-comment">
+        <h2 className="text-2xl font-semibold mb-6 text-center text-dracula-foreground">Enter API Key</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="apiKey" className="block text-sm font-medium text-neutral-300 mb-1">
+            <label htmlFor="apiKey" className="block text-sm font-medium text-dracula-foreground mb-1">
               API Key
             </label>
             <input
@@ -36,7 +36,7 @@ const ApiKeyModal: React.FC = () => {
               id="apiKey"
               value={localApiKey}
               onChange={(e) => setLocalApiKey(e.target.value)}
-              className="w-full px-4 py-2 border border-neutral-600 rounded-md bg-neutral-700 text-neutral-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-2 border border-dracula-comment rounded-md bg-dracula-background text-dracula-foreground placeholder-dracula-comment focus:ring-2 focus:ring-dracula-pink focus:border-dracula-pink outline-none"
               placeholder="Enter your API key"
               required
               disabled={isLoading}
@@ -44,20 +44,20 @@ const ApiKeyModal: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-700 bg-opacity-50 text-red-100 border border-red-700 rounded-md text-sm">
+            <div className="mb-4 p-3 bg-dracula-red bg-opacity-80 text-dracula-foreground border border-dracula-red rounded-md text-sm">
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out disabled:opacity-50"
+            className="w-full bg-dracula-pink hover:bg-opacity-80 text-dracula-background font-semibold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-dracula-purple focus:ring-opacity-50 transition duration-150 ease-in-out disabled:opacity-50 disabled:bg-dracula-comment"
             disabled={isLoading}
           >
             {isLoading ? 'Validating...' : 'Submit'}
           </button>
         </form>
-        <p className="mt-4 text-xs text-neutral-400 text-center">
+        <p className="mt-4 text-xs text-dracula-comment text-center">
           The API key will be stored in session storage.
         </p>
       </div>
