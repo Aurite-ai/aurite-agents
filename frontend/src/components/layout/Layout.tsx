@@ -1,6 +1,6 @@
 import React from 'react';
-import TopNavbar from './TopNavbar';
-import ActionTabs from './ActionTabs';
+import Header from './Header'; // Changed from TopNavbar to Header
+// import ActionTabs from './ActionTabs'; // Removed ActionTabs import
 import ComponentSidebar from './ComponentSidebar';
 import useUIStore from '../../store/uiStore'; // Adjust path as needed
 // Import the general ConfigListView instead of the specific ConfigureAgentsView
@@ -17,11 +17,8 @@ const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-dracula-background text-dracula-foreground">
-      <TopNavbar />
-      <ActionTabs
-        selectedAction={selectedAction}
-        onSelectAction={setSelectedAction}
-      />
+      <Header /> {/* Use the new Header component */}
+      {/* ActionTabs component removed from here */}
       <div className="flex flex-1 overflow-hidden">
         <ComponentSidebar
           selectedComponent={selectedComponent}

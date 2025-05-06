@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import TopNavbar from './TopNavbar';
+
+import TopNavbar from './Header';
 
 describe('TopNavbar', () => {
   it('should render the title "Aurite AI Studio"', () => {
