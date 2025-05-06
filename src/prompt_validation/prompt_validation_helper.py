@@ -2,10 +2,9 @@ import json
 import yaml
 import asyncio
 import logging
+import os
 from google import genai
 from pydantic import BaseModel, Field
-from src.host import MCPHost
-from src.agents import Agent
 from typing import TYPE_CHECKING
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -280,7 +279,7 @@ def load_config(testing_config_path: str) -> ValidationConfig:
         A ValidationConfig object
     """
 
-    if not testing_config_path.exists():
+    if not os.path.exists(testing_config_path):
         raise FileNotFoundError(
             f"Testing config file not found at {testing_config_path}"
         )

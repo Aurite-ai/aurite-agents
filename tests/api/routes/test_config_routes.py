@@ -45,7 +45,7 @@ def cleanup_test_config_file(file_path: Path):
 # --- Tests for GET /configs/{component_type} ---
 
 
-@pytest.mark.parametrize("component_type", ["agents", "clients", "workflows"])
+@pytest.mark.parametrize("component_type", ["agents", "clients", "workflows", "testing"])
 def test_list_configs_success(api_client: TestClient, component_type: str):
     """Tests successfully listing config files for valid types."""
     # Ensure at least one file exists for the test

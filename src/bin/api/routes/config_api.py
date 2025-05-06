@@ -24,6 +24,7 @@ CONFIG_DIRS = {
     "agents": Path("config/agents"),
     "clients": Path("config/clients"),
     "workflows": Path("config/workflows"),
+    "testing": Path("config/testing"),
 }
 
 
