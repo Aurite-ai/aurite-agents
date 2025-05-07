@@ -2,11 +2,15 @@ import json
 import yaml
 import asyncio
 import logging
+import os
 from google import genai
 from pydantic import BaseModel, Field
-from src.host import MCPHost
-from src.agents import Agent
+from typing import TYPE_CHECKING
+# Type hint for ExecutionFacade to avoid circular import
+if TYPE_CHECKING:
+    from src.execution.facade import ExecutionFacade
 
+logger = logging.getLogger(__name__)
 
 class ValidationCriteria(BaseModel):
     name: str
@@ -37,19 +41,22 @@ class ValidationConfig(BaseModel):
         ...,
         description="The name of the object being tested. Should match the name in config file",
     )
-    user_input: str | list[str] = Field(
+    user_input: str | list[str] | dict | list[dict] = Field(
         ...,
         description="The input to be used as the initial user input. If a list of strings, it will run it with each separately",
     )
     iterations: int = Field(
         default=1,
         description="The total number of iterations to do when running the agent/workflow",
+        ge=1,
     )
     testing_prompt: str = Field(
-        ..., description="The prompt to be passed to the evaluation agent"
+        ...,
+        description="The prompt to be passed to the evaluation agent",
     )
     rubric: ValidationRubric | None = Field(
-        None, description="The rubric to use when evaluating the agent"
+        None,
+        description="The rubric to use when evaluating the agent",
     )
     evaluation_type: str = Field(
         default="default",
@@ -57,7 +64,7 @@ class ValidationConfig(BaseModel):
         pattern="^(numeric|default)$",
     )
     threshold: float | None = Field(
-        None,
+        default=None,
         description="The expected score threshold for the numeric evaluation_type",
         ge=0,
         le=10,
@@ -67,7 +74,9 @@ class ValidationConfig(BaseModel):
         description="If the process should retry if it fails to pass the threshold score",
     )
     max_retries: int = Field(
-        default=0, description="The maximum retries, after the initial run", ge=0
+        default=0,
+        description="The maximum retries, after the initial run",
+        ge=0,
     )
     edit_prompt: bool = Field(
         default=False,
@@ -79,28 +88,28 @@ class ValidationConfig(BaseModel):
         pattern="^(gemini|claude)$",
     )
     new_prompt: str | None = Field(
-        None,
+        default=None,
         description="For A/B Testing. The new prompt to try and compare to the original prompt",
     )
     expected_tools: list[ExpectedToolCall] = Field(
-        [],
+        default=[],
         description="A list of tool calls expected to occur, ignored if test_type is not agent",
     )
     analysis: bool = Field(
-        True,
+        default=True,
         description="If analysis should be performed on the agent output. Set to false for cases where you only want to check tool calls",
     )
 
 
 async def run_iterations(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     override_system_prompt: str | None = None,
 ) -> (list, list):
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         testing_config: The ValidationConfig
         override_system_prompt: Optional, test_type "agent" only. A system prompt to use instead of the tested agent's system prompt
 
@@ -112,16 +121,16 @@ async def run_iterations(
     if type(num_iterations) is not int or num_iterations < 1:
         raise ValueError("iterations must be a positive integer")
 
-    # convert to list[str] if given input is a single string
+    # convert to list if given input is a single string/dict
     test_input = (
         [testing_config.user_input]
-        if type(testing_config.user_input) is str
+        if type(testing_config.user_input) is not list
         else testing_config.user_input
     )
 
     tasks = [
         _run_single_iteration(
-            host_instance, testing_config, t_in, prompts, i, override_system_prompt
+            executor, testing_config, t_in, prompts, i, override_system_prompt
         )
         for i in range(num_iterations)
         for t_in in test_input
@@ -134,7 +143,7 @@ async def run_iterations(
 
 
 async def evaluate_results(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     results: list,
     agent_responses: list,
@@ -142,7 +151,7 @@ async def evaluate_results(
     """Evaluate the prompt validation results
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         testing_config: The ValidationConfig
         results: The results list from run_iterations()
         agent_responses: The list of full agent responses from run_iterations()
@@ -198,10 +207,9 @@ async def evaluate_results(
 
 
 async def evaluate_results_ab(
-    host_instance: MCPHost, testing_config: ValidationConfig, results: dict
+    executor: "ExecutionFacade", testing_config: ValidationConfig, results: dict
 ):
-    ab_output = await call_agent(
-        host_instance=host_instance,
+    ab_output = await executor.run_agent(
         agent_name="A/B Agent",
         user_message=json.dumps(results),
     )
@@ -212,12 +220,12 @@ async def evaluate_results_ab(
 
 
 async def improve_prompt(
-    host_instance: MCPHost, model: str, results: list, current_prompt: str
+    executor: "ExecutionFacade", model: str, results: list, current_prompt: str
 ) -> str:
     """Improve the system prompt of an agent based on the evaluation results
 
     Args:
-        host_instance: The MCPHost
+        executor: The ExecutionFacade
         model: "claude" or "gemini", the model to use when improving the prompt
         results: The results list from run_iterations()
         current_prompt: The existing system prompt to improve
@@ -235,8 +243,7 @@ async def improve_prompt(
                 f"""System Prompt: {current_prompt}\n\nAssessment:{results}"""
             )
 
-            new_prompt_output = await call_agent(
-                host_instance=host_instance,
+            new_prompt_output = await executor.run_agent(
                 agent_name="Prompt Editor Agent",
                 user_message=user_message,
             )
@@ -274,7 +281,7 @@ def load_config(testing_config_path: str) -> ValidationConfig:
         A ValidationConfig object
     """
 
-    if not testing_config_path.exists():
+    if not os.path.exists(testing_config_path):
         raise FileNotFoundError(
             f"Testing config file not found at {testing_config_path}"
         )
@@ -356,44 +363,6 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
         result["errors"] = errors
     return result
 
-
-async def call_agent(
-    host_instance: MCPHost,
-    agent_name: str,
-    user_message: str,
-    system_prompt: str | None = None,
-):
-    """Calls an agent using the MCP host, returns its full output"""
-
-    agent_config = host_instance.get_agent_config(agent_name)
-    agent_config.evaluation = None  # override evaluation to None to prevent loops
-    agent = Agent(config=agent_config)
-
-    agent_result = await agent.execute_agent(
-        user_message=user_message,
-        host_instance=host_instance,
-        system_prompt=system_prompt,
-    )
-
-    return agent_result
-
-
-async def call_workflow(
-    host_instance: MCPHost, workflow_name: str, initial_user_message: str
-):
-    """Calls a workflow using the MCP host, returns its full output"""
-    # TODO, waiting for calling workflows from host to be implemented
-    pass
-
-
-async def call_custom_workflow(
-    host_instance: MCPHost, workflow_name: str, initial_input
-):
-    """Calls a custom workflow using dynamic import, returns its full output"""
-    # TODO, waiting for calling custom workflows from host to be implemented
-    pass
-
-
 def generate_config(
     agent_name: str, user_input: str, testing_prompt: str
 ) -> ValidationConfig:
@@ -473,19 +442,18 @@ def _clean_thinking_output(output: str) -> str:
 
 
 async def _get_agent_result(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     test_input,
     override_system_prompt: str | None = None,
-) -> str:
+) -> tuple:  # Corrected return type annotation
     if override_system_prompt:
         if testing_config.test_type != "agent":
             raise ValueError(
                 f"Invalid type {testing_config.test_type}, overriding system prompt only works with agents"
             )
         else:
-            full_output = await call_agent(
-                host_instance=host_instance,
+            full_output = await executor.run_agent(
                 agent_name=testing_config.name,
                 user_message=test_input,
                 system_prompt=override_system_prompt,
@@ -494,20 +462,29 @@ async def _get_agent_result(
         # call the agent/workflow being tested
         match testing_config.test_type:
             case "agent":
-                full_output = await call_agent(
-                    host_instance=host_instance,
+                full_output = await executor.run_agent(
                     agent_name=testing_config.name,
                     user_message=test_input,
                 )
+                # ---- START DEBUG LOGGING ----
+                if testing_config.name == "Planning Agent":
+                    logger.info(f"DEBUG: Planning Agent full_output type: {type(full_output)}")
+                    logger.info(f"DEBUG: Planning Agent full_output content: {full_output}")
+                    try:
+                        # Attempt to dump as JSON if it's a Pydantic model
+                        logger.info(f"DEBUG: Planning Agent full_output model_dump_json: {full_output.model_dump_json(indent=2)}")
+                    except AttributeError:
+                        logger.info("DEBUG: Planning Agent full_output is not a Pydantic model or model_dump_json failed.")
+                    except Exception as e:
+                        logger.info(f"DEBUG: Error during model_dump_json for Planning Agent full_output: {e}")
+                # ---- END DEBUG LOGGING ----
             case "workflow":
-                full_output = await call_workflow(
-                    host_instance=host_instance,
+                full_output = await executor.run_simple_workflow(
                     workflow_name=testing_config.name,
-                    initial_user_message=test_input,
+                    initial_input=test_input,
                 )
             case "custom_workflow":
-                full_output = await call_custom_workflow(
-                    host_instance=host_instance,
+                full_output = await executor.run_custom_workflow(
                     workflow_name=testing_config.name,
                     initial_input=test_input,
                 )
@@ -516,18 +493,42 @@ async def _get_agent_result(
 
     if testing_config.test_type == "agent":
         # get text output for agents
-        output = full_output.get("final_response").content[0].text
+        final_response_dict = full_output.get("final_response")
+        output = ""  # Default to empty string
+
+        if final_response_dict and isinstance(final_response_dict, dict):
+            content_list = final_response_dict.get("content")
+            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+                first_block = content_list[0]
+                if isinstance(first_block, dict) and first_block.get("type") == "text":
+                    output = first_block.get("text", "")  # Default to empty string if 'text' key is missing
+                else:
+                    logger.warning(
+                        f"First content block in final_response is not a text block or not a dict: {first_block}"
+                    )
+                    # Attempt to stringify, or provide a more specific error/placeholder
+                    output = str(first_block) if first_block is not None else ""
+            else:
+                logger.warning(
+                    f"final_response content is empty, not a list, or not found: {content_list}"
+                )
+        else:
+            logger.warning(
+                f"final_response is None, not a dict, or not found in agent output: {final_response_dict}"
+            )
     else:
-        # for workflows
+        # for workflows, output is expected to be the full_output directly
+        # (assuming workflows return simpler, directly serializable structures or are handled differently)
         output = full_output
 
     logging.info(f"Agent result: {output}")
 
+    # Ensure the function still returns both output and full_output as a tuple
     return output, full_output
 
 
 async def _run_single_iteration(
-    host_instance: MCPHost,
+    executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     test_input,
     prompts,
@@ -537,23 +538,45 @@ async def _run_single_iteration(
     logging.info(f"Prompt Validation: Iteration {i + 1}")
 
     output, full_output = await _get_agent_result(
-        host_instance, testing_config, test_input, override_system_prompt
+        executor, testing_config, test_input, override_system_prompt
     )
 
     if testing_config.analysis:
         # analyze the agent/workflow output, overriding system prompt
-        analysis_output = await call_agent(
-            host_instance=host_instance,
+        analysis_output = await executor.run_agent(
             agent_name="Quality Assurance Agent",
             user_message=f"Input:{test_input}\n\nOutput:{output}",
             system_prompt=prompts["qa_system_prompt"],
         )
-        analysis_output = analysis_output.get("final_response").content[0].text
 
-        logging.info(f"Analysis result {i + 1}: {analysis_output}")
+        # Extract text from the Quality Assurance Agent's response
+        analysis_final_response_dict = analysis_output.get("final_response")
+        analysis_text_output = "" # Default to empty string
+
+        if analysis_final_response_dict and isinstance(analysis_final_response_dict, dict):
+            content_list = analysis_final_response_dict.get("content")
+            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+                first_block = content_list[0]
+                if isinstance(first_block, dict) and first_block.get("type") == "text":
+                    analysis_text_output = first_block.get("text", "")
+                else:
+                    logger.warning(
+                        f"QA Agent: First content block in final_response is not a text block or not a dict: {first_block}"
+                    )
+                    analysis_text_output = str(first_block) if first_block is not None else ""
+            else:
+                logger.warning(
+                    f"QA Agent: final_response content is empty, not a list, or not found: {content_list}"
+                )
+        else:
+            logger.warning(
+                f"QA Agent: final_response is None, not a dict, or not found in agent output: {analysis_final_response_dict}"
+            )
+
+        logging.info(f"Analysis result {i + 1}: {analysis_text_output}")
 
         try:
-            analysis_json = json.loads(_clean_thinking_output(analysis_output))
+            analysis_json = json.loads(_clean_thinking_output(analysis_text_output))
         except Exception as e:
             raise ValueError(f"Error converting agent output to json: {e}")
     else:

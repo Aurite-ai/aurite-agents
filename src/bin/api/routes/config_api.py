@@ -25,6 +25,7 @@ CONFIG_DIRS = {
     "clients": Path("config/clients"),
     "simple_workflows": Path("config/workflows"), # Maps to the existing 'workflows' directory
     "custom_workflows": Path("config/custom_workflows"), # New mapping
+    "testing": Path("config/testing"),
 }
 
 

@@ -548,12 +548,40 @@ Try again with just the JSON object.""",
 
         # Return Results - Renumbered step
         logger.info(f"Agent '{self.config.name or 'Unnamed'}' execution finished.")
-        # Return the final LLM response object directly if available
-        final_llm_response: Optional[Message] = final_response
+
+        # Prepare conversation history for return by serializing content blocks
+        return_conversation_history = []
+        for m_param in conversation_history:
+            # Ensure m_param is a dict and has 'content' and 'role' keys
+            if isinstance(m_param, dict):
+                processed_content = _serialize_content_blocks(m_param.get("content"))
+                return_conversation_history.append(
+                    {"role": m_param.get("role"), "content": processed_content}
+                )
+            else:
+                # Log and skip if message is not in expected dict format
+                logger.warning(f"Skipping non-dict message in conversation_history for return: {type(m_param)}")
+                # Optionally, append a placeholder or the original item if safe
+                # For now, we'll just skip to avoid potential downstream errors
+                # return_conversation_history.append(m_param) # Or some error representation
+
+        # Prepare final_response for return by serializing the Message object
+        return_final_response = None
+        if final_response:  # final_response is the Message object
+            try:
+                # _serialize_content_blocks will call model_dump() on the Message Pydantic model
+                return_final_response = _serialize_content_blocks(final_response)
+            except Exception as e:
+                logger.error(f"Failed to serialize final_llm_response for return: {e}", exc_info=True)
+                # Fallback to an error structure or string representation if needed
+                return_final_response = {"error": f"Serialization of final_response failed: {str(e)}"}
+
+        final_llm_response: Optional[Message] = final_response # This line seems redundant now, but keeping for type hint clarity if needed elsewhere.
+                                                              # The actual returned value is return_final_response.
 
         return {
-            "conversation": conversation_history,  # Return the tracked history
-            "final_response": final_llm_response,
-            "tool_uses": tool_uses_in_last_turn,
-            "error": None,  # Explicitly return None for error on success
+            "conversation": return_conversation_history,  # Return the fully serialized history
+            "final_response": return_final_response,      # Return the fully serialized final response (or None/error dict)
+            "tool_uses": tool_uses_in_last_turn,          # This is already List[Dict], should be fine
+            "error": None,                                # This refers to agent execution error, not serialization error
         }
