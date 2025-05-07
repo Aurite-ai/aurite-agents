@@ -111,27 +111,35 @@ class AgentTurnProcessor:
         # 2. Process LLM Response
         final_assistant_response: Optional[AgentOutputMessage] = None
         tool_results_for_next_turn: Optional[List[MessageParam]] = None
-        is_final_turn = True  # Assume final unless tool use occurs
+        is_final_turn = False  # Default to False, set True only on valid final response
 
         if llm_response.stop_reason == "tool_use":
-            is_final_turn = False
+            # Process tool calls if requested
             tool_results_for_next_turn = await self._process_tool_calls(llm_response)
             # _process_tool_calls also populates self._tool_uses_this_turn
+            # is_final_turn remains False
+            final_assistant_response = None  # No final response this turn
+            logger.debug("Processed tool use request.")
+
         else:
+            # Stop reason is likely 'end_turn' or similar - handle as potential final response
+            logger.debug(
+                f"Processing potential final response (stop_reason: {llm_response.stop_reason})."
+            )
             # Handle final response, including schema validation
-            # This might return the original response, or None if validation fails and needs retry
-            final_assistant_response = self._handle_final_response(llm_response)
-            if final_assistant_response is None:
-                # Indicate that the loop should continue for schema correction
+            validated_response = self._handle_final_response(llm_response)
+
+            if validated_response is not None:
+                # Schema validation passed (or no schema) - this IS the final turn
+                final_assistant_response = validated_response
+                is_final_turn = True
+                logger.debug("Valid final response received.")
+            else:
+                # Schema validation failed - not the final turn, signal retry needed
+                final_assistant_response = None  # No valid final response
                 is_final_turn = False
-                # We need a way to signal the Agent to send a correction message.
-                # For now, returning None, None, False might be interpretable by the Agent.
-                # Or, this method could return a specific "retry_needed" state.
-                # Let's refine this: _handle_final_response should return the message to send next if retry needed.
-                # For simplicity now, let's assume _handle_final_response returns the validated response or raises an error handled by Agent.
-                # Let's stick to the original plan: _handle_final_response returns the validated response or None if retry needed by Agent.
-                # The Agent loop will need modification to handle the None case by sending a correction message.
-                logger.warning("Schema validation failed. Agent needs to handle retry.")
+                logger.warning("Schema validation failed. Signaling retry.")
+                # ConversationManager loop will handle sending correction message
 
         logger.debug(f"Turn processed. Is final turn: {is_final_turn}")
         return final_assistant_response, tool_results_for_next_turn, is_final_turn

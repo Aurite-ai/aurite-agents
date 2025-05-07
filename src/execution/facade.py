@@ -27,11 +27,11 @@ if TYPE_CHECKING:
     from ..storage.db_manager import StorageManager
 
     # Import LLM client base class and models for type hinting and instantiation logic
-    from ..llm.base_client import BaseLLM
     from ..host.models import AgentConfig  # Import config models
 
-# Import Agent at runtime for instantiation
+# Import Agent and ConversationManager at runtime for instantiation
 from ..agents.agent import Agent
+from ..agents.conversation_manager import ConversationManager
 
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import AgentExecutionResult
@@ -334,19 +334,30 @@ class ExecutionFacade:
                     )
                     # Continue without history on load failure
 
-            # Add the current user message
-            initial_messages_for_agent.append({"role": "user", "content": user_message})
-
-            # 5. Execute Agent
-            logger.info(f"Facade: Executing Agent '{agent_name}'...")
-            agent_result: AgentExecutionResult = await agent_instance.execute_agent(
-                initial_messages=initial_messages_for_agent,
-                host_instance=self._host,
-                system_prompt=system_prompt,  # Pass override
+            # Add the current user message, formatted correctly as content block list
+            initial_messages_for_agent.append(
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
-            logger.info(f"Facade: Agent '{agent_name}' execution finished.")
 
-            # 6. Save History (if enabled and successful)
+            # 5. Instantiate Conversation Manager
+            conversation_manager = ConversationManager(
+                agent=agent_instance,
+                host_instance=self._host,
+                initial_messages=initial_messages_for_agent,
+                system_prompt_override=system_prompt,  # Pass override
+            )
+            logger.debug(
+                f"Facade: Instantiated ConversationManager for agent '{agent_name}'"
+            )
+
+            # 6. Execute Conversation
+            logger.info(f"Facade: Running conversation for Agent '{agent_name}'...")
+            agent_result: AgentExecutionResult = (
+                await conversation_manager.run_conversation()
+            )
+            logger.info(f"Facade: Agent '{agent_name}' conversation finished.")
+
+            # 7. Save History (if enabled and successful)
             save_history = (
                 agent_config.include_history
                 and self._storage_manager
@@ -377,7 +388,7 @@ class ExecutionFacade:
                         exc_info=True,
                     )
 
-            # 7. Return Result (as dict)
+            # 8. Return Result (as dict)
             return agent_result.model_dump(mode="json")
 
         except KeyError as e:

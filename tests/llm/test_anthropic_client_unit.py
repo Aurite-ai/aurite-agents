@@ -8,8 +8,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from anthropic import (
     AsyncAnthropic,
-    APIConnectionError,
-    RateLimitError,
 )  # Added RateLimitError
 from anthropic.types import (
     Message as AnthropicSDKMessage,
@@ -254,8 +252,35 @@ class TestAnthropicLLMUnit:
         assert result_message.role == "assistant"
         assert result_message.content[0].text == '{"key": "value"}'
 
-    # Error handling tests removed as per user request.
     # Add more tests here for other scenarios if needed
+
+    # --- Additional Tests ---
+
+    def test_initialization_sets_defaults(self):
+        """Tests that default values are set correctly during initialization if not provided."""
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+            assert llm_client.temperature == 0.7  # Default from base_client
+            assert llm_client.max_tokens == 4096  # Default from base_client
+            assert (
+                llm_client.system_prompt == "You are a helpful assistant."
+            )  # Default from base_client
+
+    def test_initialization_overrides_defaults(self):
+        """Tests that provided values override defaults during initialization."""
+        temp = 0.9
+        tokens = 1024
+        prompt = "You are a test bot."
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name=TEST_MODEL_NAME,
+                temperature=temp,
+                max_tokens=tokens,
+                system_prompt=prompt,
+            )
+            assert llm_client.temperature == temp
+            assert llm_client.max_tokens == tokens
+            assert llm_client.system_prompt == prompt
 
     @pytest.mark.anyio
     async def test_create_message_with_system_prompt_override(self):

@@ -18,7 +18,7 @@ from ...agents.agent_models import (
 
 # Import Anthropic specific types and client
 from anthropic import AsyncAnthropic, APIConnectionError, RateLimitError
-from anthropic._types import NotGiven, NOT_GIVEN  # Import NotGiven
+from anthropic._types import NOT_GIVEN  # Import NotGiven
 from anthropic.types import (
     Message as AnthropicMessage,
     TextBlock as AnthropicTextBlock,

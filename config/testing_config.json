@@ -36,28 +36,7 @@
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["current_time"],
-      "schema": {
-        "type": "object",
-        "properties": {
-          "weather_summary": {
-            "type": "string",
-            "description": "A summary of the current weather"
-          },
-          "temperature": {
-            "type": "number",
-            "description": "The temperature in degrees"
-          },
-          "recommendations": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of recommendations based on the weather"
-          }
-        },
-        "required": ["weather_summary", "temperature", "recommendations"]
-      }
+      "exclude_components": ["current_time"]
     },
     {
       "name": "Weather Planning Agent",

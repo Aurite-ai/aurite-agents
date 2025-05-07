@@ -1,914 +1,538 @@
 """
-Unit tests for the Agent class.
+Unit tests for the Agent class, focusing on orchestration logic.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Import patch
+from unittest.mock import MagicMock, AsyncMock, patch
+from typing import List
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-
 # Imports from the project
-from src.agents.agent import Agent  # Import helper too
+from src.agents.agent import Agent
+from src.agents.agent_models import (
+    AgentExecutionResult,
+    AgentOutputMessage,
+    AgentOutputContentBlock,
+)
 from src.host.models import AgentConfig
-from src.storage.db_manager import StorageManager  # Import for type hint/mocking
-from anthropic.types import Message  # For mocking LLM response
-import anthropic  # Import the library for exception types
-
-# Import the new result model
-from src.agents.models import AgentExecutionResult
-
-# Import shared fixtures
+from src.llm.base_client import BaseLLM
+from src.host.host import MCPHost
+from anthropic.types import MessageParam
 
 # --- Fixtures ---
 
-# Removed local mock_mcp_host fixture - using shared one
-# Removed local minimal_agent_config fixture - using shared one
-# Removed local mock_anthropic_client fixture - using shared one
+
+@pytest.fixture
+def mock_agent_config() -> AgentConfig:
+    """Provides a basic mock AgentConfig."""
+    return AgentConfig(
+        name="UnitTestAgent",
+        llm_config_id="test_llm",
+        max_iterations=5,  # Set a default max iterations for tests
+    )
 
 
 @pytest.fixture
-def agent(minimal_agent_config: AgentConfig) -> Agent:  # Now uses shared fixture
-    """Provides an Agent instance initialized with minimal config."""
-    return Agent(config=minimal_agent_config)
+def mock_llm_client() -> MagicMock:
+    """Provides a mock BaseLLM client."""
+    return MagicMock(spec=BaseLLM)
+
+
+@pytest.fixture
+def mock_mcp_host() -> MagicMock:
+    """Provides a mock MCPHost instance."""
+    mock_host = MagicMock(spec=MCPHost)
+    # Configure get_formatted_tools to return an empty list by default
+    mock_host.get_formatted_tools.return_value = []
+    return mock_host
+
+
+@pytest.fixture
+def agent_instance(mock_agent_config: AgentConfig, mock_llm_client: MagicMock) -> Agent:
+    """Provides an Agent instance initialized with mock config and LLM client."""
+    return Agent(config=mock_agent_config, llm_client=mock_llm_client)
+
+
+@pytest.fixture
+def initial_messages() -> List[MessageParam]:
+    """Provides a basic list of initial messages (user message)."""
+    return [{"role": "user", "content": [{"type": "text", "text": "Hello Agent"}]}]
 
 
 # --- Test Class ---
 
 
 class TestAgentUnit:
-    """Unit tests for the Agent class."""
+    """Unit tests for the Agent class orchestration logic."""
 
-    @pytest.mark.asyncio
-    async def test_execute_agent_success_no_tool_use(
+    @pytest.mark.anyio
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Patch the class
+    async def test_execute_agent_single_turn_no_tool(
         self,
-        agent: Agent,
-        mock_mcp_host: AsyncMock,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
+        MockAgentTurnProcessor: MagicMock,  # The patched class
+        agent_instance: Agent,
+        mock_mcp_host: MagicMock,
+        initial_messages: List[MessageParam],
+        mock_agent_config: AgentConfig,  # Get config for assertions
+        mock_llm_client: MagicMock,  # Get LLM client for assertions
     ):
         """
-        Test successful agent execution when the LLM response does not request tool use.
+        Tests execute_agent for a single turn with a final response (no tools).
+        Verifies AgentTurnProcessor is called correctly and the loop terminates.
         """
-        print("\n--- Running Test: test_execute_agent_success_no_tool_use ---")
-        user_message = "Hello, world!"
-        user_message = "Hello, world!"
-        user_message = "Hello, world!"
-        # Mock the content block first
-        mock_content_block_dict = {"type": "text", "text": "Hello back!"}
-        mock_content_block_obj = MagicMock()
-        # Configure the content block's mock .model_dump() to return the dict
-        mock_content_block_obj.model_dump.return_value = mock_content_block_dict
-        # Set attributes directly if they might be accessed before model_dump (less likely now)
-        mock_content_block_obj.type = "text"
-        mock_content_block_obj.text = "Hello back!"
-
-        # Mock the LLM response object (e.g., anthropic.types.Message)
-        # This is what _make_llm_call returns BEFORE serialization
-        mock_llm_message_obj = MagicMock(spec=Message)
-        # Set the .content attribute using the configured content block mock
-        mock_llm_message_obj.content = [mock_content_block_obj]
-        mock_llm_message_obj.stop_reason = "end_turn" # Also set stop_reason directly if accessed
-
-        # Define the structure _serialize_content_blocks would create from the *message* object
-        # This is used for the final AgentExecutionResult validation
-        mock_serialized_llm_response = {
-            "id": "msg_mock123", # Example ID
-            "type": "message",
-            "role": "assistant",
-            "content": [{"type": "text", "text": "Hello back!"}], # Serialized content block
-            "model": "mock_model",
-            "stop_reason": "end_turn",
-            "usage": {"input_tokens": 10, "output_tokens": 10},
-        }
-        # Configure the mock Message object's model_dump to return the serialized dict
-        # This simulates how _serialize_content_blocks works
-        mock_llm_message_obj.model_dump.return_value = mock_serialized_llm_response
-
-        # Mock the internal _make_llm_call method to return the mock Message object
-        agent._make_llm_call = AsyncMock(return_value=mock_llm_message_obj)
-
-        # Execute the agent
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
+        # --- Arrange ---
+        # Mock the final response the TurnProcessor should return
+        mock_final_assistant_response = AgentOutputMessage(
+            id="llm_msg_final",
+            role="assistant",
+            model="test_model",
+            content=[AgentOutputContentBlock(type="text", text="Final answer.")],
+            stop_reason="end_turn",
+            usage={"input_tokens": 10, "output_tokens": 5},
         )
 
-        print(f"Execution Result: {result}")
+        # Configure the mock TurnProcessor instance that will be created
+        mock_turn_processor_instance = MockAgentTurnProcessor.return_value
+        # process_turn should be an async mock
+        mock_turn_processor_instance.process_turn = AsyncMock(
+            return_value=(
+                mock_final_assistant_response,  # turn_final_response
+                None,  # turn_tool_results_params
+                True,  # is_final_turn
+            )
+        )
+        # Configure other methods if needed (e.g., if Agent calls them directly)
+        mock_turn_processor_instance.get_last_llm_response.return_value = (
+            mock_final_assistant_response
+        )
+        mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
 
-        # Assertions
-        # Check the call on the mocked internal method
-        agent._make_llm_call.assert_awaited_once()
-        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
-        mock_mcp_host.execute_tool.assert_not_awaited()  # Ensure no tool execution was attempted
+        # --- Act ---
+        result: AgentExecutionResult = await agent_instance.execute_agent(
+            initial_messages=initial_messages,
+            host_instance=mock_mcp_host,
+            system_prompt=None,  # Use default from config
+        )
 
+        # --- Assert ---
+        # 1. MCPHost setup called
+        mock_mcp_host.get_formatted_tools.assert_called_once_with(
+            agent_config=mock_agent_config
+        )
+
+        # 2. AgentTurnProcessor instantiated correctly in the loop (once)
+        MockAgentTurnProcessor.assert_called_once_with(
+            config=mock_agent_config,
+            llm_client=mock_llm_client,
+            host_instance=mock_mcp_host,
+            current_messages=initial_messages,  # Initial call uses initial_messages
+            tools_data=[],  # Based on mock_mcp_host.get_formatted_tools
+            effective_system_prompt="You are a helpful assistant.",  # Default from config/agent logic
+        )
+
+        # 3. process_turn called on the instance
+        mock_turn_processor_instance.process_turn.assert_awaited_once()
+
+        # 4. Result object checks
         assert isinstance(result, AgentExecutionResult)
-        assert not result.has_error # Check error property
-        assert len(result.conversation) == 2  # User message + Assistant response
+        assert result.error is None
+        assert result.final_response == mock_final_assistant_response
+        assert result.tool_uses_in_final_turn == []
+
+        # 5. Conversation history check
+        assert (
+            len(result.conversation) == 2
+        )  # Initial user message + final assistant message
+        # Check initial user message (make sure it was serialized correctly)
         assert result.conversation[0].role == "user"
-        # Content is now a list of AgentOutputContentBlock
-        assert len(result.conversation[0].content) == 1
         assert result.conversation[0].content[0].type == "text"
-        assert result.conversation[0].content[0].text == user_message
-        assert result.conversation[1].role == "assistant"
-        # Check the structure of the assistant's content in history (should match serialized structure)
-        assistant_content = result.conversation[1].content
-        assert isinstance(assistant_content, list)
-        assert len(assistant_content) == 1
-        assert assistant_content[0].type == "text"
-        assert assistant_content[0].text == "Hello back!"
-        # We can also check other fields if needed, e.g., assistant_content[0].id if it existed
+        assert result.conversation[0].content[0].text == "Hello Agent"
+        # Check final assistant message
+        assert result.conversation[1] == mock_final_assistant_response
 
-        assert result.final_response is not None
-        assert result.final_response.role == "assistant"
-        assert result.primary_text == "Hello back!" # Use helper property
-        assert len(result.tool_uses_in_final_turn) == 0 # Check renamed attribute
-
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_success_no_tool_use ---")
-
-    @pytest.mark.asyncio
-    async def test_execute_agent_success_with_tool_use(
+    @pytest.mark.anyio
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Patch the class
+    async def test_execute_agent_multi_turn_with_tool(
         self,
-        agent: Agent,
-        mock_mcp_host: AsyncMock,
-        minimal_agent_config: AgentConfig,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
+        MockAgentTurnProcessor: MagicMock,  # The patched class
+        agent_instance: Agent,
+        mock_mcp_host: MagicMock,
+        initial_messages: List[MessageParam],  # User: "Hello Agent"
+        mock_agent_config: AgentConfig,
+        mock_llm_client: MagicMock,
     ):
         """
-        Test successful agent execution with a single tool use request.
+        Tests execute_agent for a two-turn execution involving a tool call.
+        Turn 1: LLM requests tool use.
+        Turn 2: LLM gives final response after getting tool result.
         """
-        print("\n--- Running Test: test_execute_agent_success_with_tool_use ---")
-        user_message = "Use the echo tool to say 'testing'."
-        tool_name = "echo_tool"
-        tool_input = {"text": "testing"}
-        tool_id = "tool_abc123"
-        tool_result_content = "Tool Result: testing"
-        # --- Mock LLM Response 1 (Requesting Tool Use) ---
-        # Mock the tool use content block
-        mock_tool_use_block_dict = {"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input}
-        mock_tool_use_block_obj = MagicMock()
-        mock_tool_use_block_obj.model_dump.return_value = mock_tool_use_block_dict
-        mock_tool_use_block_obj.type = "tool_use" # Set attributes for direct access if needed
-        mock_tool_use_block_obj.id = tool_id
-        mock_tool_use_block_obj.name = tool_name
-        mock_tool_use_block_obj.input = tool_input
+        # --- Arrange ---
+        tool_name = "test_tool"
+        tool_use_id = "tool_123"
+        tool_input = {"query": "test"}
+        tool_result_content_str = "{'result': 'tool success'}"  # Example result
 
-        # Mock the first Message object
-        mock_llm_message_obj_1 = MagicMock(spec=Message)
-        mock_llm_message_obj_1.content = [mock_tool_use_block_obj] # Use the configured mock block
-        mock_llm_message_obj_1.stop_reason = "tool_use"
-        # Configure its model_dump
-        mock_llm_message_obj_1.model_dump.return_value = {
-            "id": "msg_mock_tool", "type": "message", "role": "assistant",
-            "content": [mock_tool_use_block_dict], # Use the serialized block dict
-            "model": "mock_model", "stop_reason": "tool_use", "usage": {"input_tokens": 10, "output_tokens": 10}
-        }
-
-        # --- Mock LLM Response 2 (Final Text Response after Tool Result) ---
-         # Mock the text content block
-        mock_text_block_dict = {"type": "text", "text": "Okay, I echoed it."}
-        mock_text_block_obj = MagicMock()
-        mock_text_block_obj.model_dump.return_value = mock_text_block_dict
-        mock_text_block_obj.type = "text"
-        mock_text_block_obj.text = "Okay, I echoed it."
-
-        # Mock the second Message object
-        mock_llm_message_obj_2 = MagicMock(spec=Message)
-        mock_llm_message_obj_2.content = [mock_text_block_obj] # Use the configured mock block
-        mock_llm_message_obj_2.stop_reason = "end_turn"
-         # Configure its model_dump
-        mock_llm_message_obj_2.model_dump.return_value = {
-            "id": "msg_mock_final", "type": "message", "role": "assistant",
-            "content": [mock_text_block_dict], # Use the serialized block dict
-            "model": "mock_model", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 10}
-        }
-
-        # Mock the internal _make_llm_call method to return the mock Message objects sequentially
-        agent._make_llm_call = AsyncMock(
-            side_effect=[mock_llm_message_obj_1, mock_llm_message_obj_2]
+        # --- Mock Turn 1: Tool Use Request ---
+        mock_assistant_response_turn1 = AgentOutputMessage(
+            id="llm_msg_tool_req",
+            role="assistant",
+            model="test_model",
+            content=[
+                AgentOutputContentBlock(
+                    type="tool_use", id=tool_use_id, name=tool_name, input=tool_input
+                )
+            ],
+            stop_reason="tool_use",
+            usage={"input_tokens": 10, "output_tokens": 10},
         )
-
-        # --- Mock Host Tool Execution ---
-        # Mock the execute_tool method on the host instance
-        mock_mcp_host.execute_tool = AsyncMock(return_value=tool_result_content)
-        # Mock the create_tool_result_blocks method (needs to be on host.tools)
-        # We need a mock 'tools' attribute on the host mock first
-        mock_mcp_host.tools = Mock()
-        # Define the content of the block
-        mock_tool_result_block_content = {
-            "type": "tool_result",
-            "tool_use_id": tool_id,
-            "content": tool_result_content,
-        }
-        # Mock create_tool_result_blocks to return a list containing the block content
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(
-            return_value=[mock_tool_result_block_content]
-        )
-
-        # --- Execute the agent ---
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
-        )
-
-        print(f"Execution Result: {result}")
-
-        # --- Assertions ---
-        # Check the call count on the mocked internal method
-        assert agent._make_llm_call.await_count == 2
-        # Tools fetched once (at the start)
-        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
-        # Tool executed once
-        mock_mcp_host.execute_tool.assert_awaited_once_with(
-            tool_name=tool_name,
-            arguments=tool_input,
-            agent_config=minimal_agent_config,  # Ensure config is passed for filtering
-        )
-        # Tool result block created once
-        mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
-            tool_id, tool_result_content
-        )
-
-        assert isinstance(result, AgentExecutionResult)
-        assert not result.has_error
-
-        # Conversation history check
-        assert (
-            len(result.conversation) == 4
-        )  # user -> assistant (tool) -> user (result) -> assistant (final)
-        # 1. Initial User Message
-        assert result.conversation[0].role == "user"
-        assert result.conversation[0].content[0].text == user_message
-        # 2. Assistant Tool Request
-        assert result.conversation[1].role == "assistant"
-        assert result.conversation[1].content[0].type == "tool_use"
-        assert result.conversation[1].content[0].id == tool_id
-        assert result.conversation[1].content[0].name == tool_name
-        # 3. User Tool Result (Content is a list containing the list returned by create_tool_result_blocks)
-        assert result.conversation[2].role == "user"
-        # The content block itself should now be validated
-        assert result.conversation[2].content[0].type == "tool_result"
-        assert result.conversation[2].content[0].tool_use_id == tool_id
-        # Assuming the serialized tool result content is just text here
-        assert result.conversation[2].content[0].text == tool_result_content
-        # 4. Final Assistant Response
-        assert result.conversation[3].role == "assistant"
-        assert result.conversation[3].content[0].text == "Okay, I echoed it."
-
-        # Final response check
-        assert result.primary_text == "Okay, I echoed it."
-
-        # Tool uses check (should reflect the *last* turn that had tool use)
-        # Note: The key in AgentExecutionResult is 'tool_uses_in_final_turn'
-        assert len(result.tool_uses_in_final_turn) == 1
-        assert result.tool_uses_in_final_turn[0]["id"] == tool_id
-        assert result.tool_uses_in_final_turn[0]["name"] == tool_name
-        assert result.tool_uses_in_final_turn[0]["input"] == tool_input
-
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_success_with_tool_use ---")
-
-    @pytest.mark.asyncio
-    async def test_execute_agent_success_with_multiple_tool_uses(
-        self,
-        agent: Agent,
-        mock_mcp_host: AsyncMock,
-        minimal_agent_config: AgentConfig,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
-    ):
-        """
-        Test successful agent execution with multiple tool use requests in one turn.
-        """
-        print(
-            "\n--- Running Test: test_execute_agent_success_with_multiple_tool_uses ---"
-        )
-        user_message = "Use tool1 with 'A' and tool2 with 'B'."
-        tool1_name = "tool1"
-        tool1_input = {"param": "A"}
-        tool1_id = "tool_111"
-        tool1_result_content = "Result A"
-        tool2_name = "tool2"
-        tool2_input = {"param": "B"}
-        tool2_id = "tool_222"
-        tool2_result_content = "Result B"
-
-        # --- Mock LLM Response 1 (Requesting Multiple Tools) ---
-        # Configure mocks to return the string name when .name is accessed
-        mock_tool_use_block_1 = MagicMock()
-        mock_tool_use_block_1.type = "tool_use"
-        mock_tool_use_block_1.id = tool1_id
-        mock_tool_use_block_1.name = tool1_name  # Set the return value for .name
-        mock_tool_use_block_1.input = tool1_input
-
-        mock_tool_use_block_2 = MagicMock()
-        mock_tool_use_block_2.type = "tool_use"
-        mock_tool_use_block_2.id = tool2_id
-        mock_tool_use_block_2.name = tool2_name  # Set the return value for .name
-        mock_tool_use_block_2.input = tool2_input
-
-        mock_llm_response_1 = MagicMock(spec=Message)
-        mock_llm_response_1.content = [
-            mock_tool_use_block_1,
-            mock_tool_use_block_2,
-        ]  # Two tool uses
-        mock_llm_response_1.stop_reason = "tool_use"
-
-        # --- Mock LLM Response 2 (Final Text Response after Tool Results) ---
-        mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [
-            MagicMock(type="text", text="Okay, used both tools.")
-        ]
-        mock_llm_response_2.stop_reason = "end_turn"
-
-        # Mock the internal _make_llm_call method to return responses sequentially
-        agent._make_llm_call = AsyncMock(
-            side_effect=[mock_llm_response_1, mock_llm_response_2]
-        )
-
-        # --- Mock Host Tool Execution ---
-        # Mock execute_tool to return different results based on tool name
-        async def mock_execute_tool_multi(*args, **kwargs):
-            if kwargs.get("tool_name") == tool1_name:
-                return tool1_result_content
-            elif kwargs.get("tool_name") == tool2_name:
-                return tool2_result_content
-            else:
-                raise ValueError("Unexpected tool name in mock")
-
-        mock_mcp_host.execute_tool = AsyncMock(side_effect=mock_execute_tool_multi)
-
-        # Mock create_tool_result_blocks
-        mock_mcp_host.tools = Mock()
-        mock_tool1_result_block_content = {
-            "type": "tool_result",
-            "tool_use_id": tool1_id,
-            "content": tool1_result_content,
-        }
-        mock_tool2_result_block_content = {
-            "type": "tool_result",
-            "tool_use_id": tool2_id,
-            "content": tool2_result_content,
-        }
-
-        # Mock create_tool_result_blocks to return the correct block based on tool_id
-        def mock_create_results(*args, **kwargs):
-            tool_use_id = args[0]  # First positional arg is tool_use_id
-            if tool_use_id == tool1_id:
-                return [mock_tool1_result_block_content]
-            elif tool_use_id == tool2_id:
-                return [mock_tool2_result_block_content]
-            else:
-                raise ValueError("Unexpected tool_id in mock")
-
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(
-            side_effect=mock_create_results
-        )
-
-        # --- Execute the agent ---
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
-        )
-
-        print(f"Execution Result: {result}")
-
-        # --- Assertions ---
-        # Check the call count on the mocked internal method
-        assert agent._make_llm_call.await_count == 2
-        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
-        # Tool executed twice
-        assert mock_mcp_host.execute_tool.await_count == 2
-        mock_mcp_host.execute_tool.assert_any_await(
-            tool_name=tool1_name,
-            arguments=tool1_input,
-            agent_config=minimal_agent_config,
-        )
-        mock_mcp_host.execute_tool.assert_any_await(
-            tool_name=tool2_name,
-            arguments=tool2_input,
-            agent_config=minimal_agent_config,
-        )
-        # Tool result block created twice
-        assert mock_mcp_host.tools.create_tool_result_blocks.call_count == 2
-        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(
-            tool1_id, tool1_result_content
-        )
-        mock_mcp_host.tools.create_tool_result_blocks.assert_any_call(
-            tool2_id, tool2_result_content
-        )
-
-        assert isinstance(result, AgentExecutionResult)
-        assert not result.has_error
-
-        # Conversation history check
-        assert (
-            len(result.conversation) == 4
-        )  # user -> assistant (tools) -> user (results) -> assistant (final)
-        assert result.conversation[0].role == "user"
-        assert result.conversation[0].content[0].text == user_message
-        assert result.conversation[1].role == "assistant"
-        assert len(result.conversation[1].content) == 2 # Two tool use blocks
-        assert result.conversation[1].content[0].type == "tool_use"
-        assert result.conversation[1].content[1].type == "tool_use"
-        # Check the user message containing tool results (order might vary, check content)
-        assert result.conversation[2].role == "user"
-        user_tool_results_content = result.conversation[2].content
-        assert isinstance(user_tool_results_content, list)
-        assert (
-            len(user_tool_results_content) == 2
-        )  # Should contain results for both tools
-        # Check if both expected result blocks are present (order doesn't matter)
-        assert any(block.type == "tool_result" and block.tool_use_id == tool1_id and block.text == tool1_result_content for block in user_tool_results_content)
-        assert any(block.type == "tool_result" and block.tool_use_id == tool2_id and block.text == tool2_result_content for block in user_tool_results_content)
-        assert result.conversation[3].role == "assistant"
-        assert result.conversation[3].content[0].text == "Okay, used both tools."
-
-        # Final response check
-        assert result.primary_text == "Okay, used both tools."
-
-        # Tool uses check (should contain both tools from the first assistant turn)
-        assert len(result.tool_uses_in_final_turn) == 2
-        # Check presence of both tool uses (order might vary)
-        assert any(
-            tu["id"] == tool1_id and tu["name"] == tool1_name
-            for tu in result.tool_uses_in_final_turn
-        )
-        assert any(
-            tu["id"] == tool2_id and tu["name"] == tool2_name
-            for tu in result.tool_uses_in_final_turn
-        )
-
-        print("Assertions passed.")
-        print(
-            "--- Test Finished: test_execute_agent_success_with_multiple_tool_uses ---"
-        )
-
-    @pytest.mark.asyncio
-    async def test_execute_agent_tool_execution_error(
-        self,
-        agent: Agent,
-        mock_mcp_host: AsyncMock,
-        minimal_agent_config: AgentConfig,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
-    ):
-        """
-        Test agent execution when a requested tool fails during execution.
-        The agent should send an error message back to the LLM.
-        """
-        print("\n--- Running Test: test_execute_agent_tool_execution_error ---")
-        user_message = "Use the failing tool."
-        tool_name = "failing_tool"
-        tool_input = {"data": "irrelevant"}
-        tool_id = "tool_fail123"
-        tool_execution_error = ValueError("Tool exploded!")
-        error_content_string = (
-            f"Error executing tool '{tool_name}': {str(tool_execution_error)}"
-        )
-
-        # --- Mock LLM Response 1 (Requesting Tool Use) ---
-        mock_tool_use_block = MagicMock()
-        mock_tool_use_block.type = "tool_use"
-        mock_tool_use_block.id = tool_id
-        mock_tool_use_block.name = tool_name
-        mock_tool_use_block.input = tool_input
-
-        mock_llm_response_1 = MagicMock(spec=Message)
-        mock_llm_response_1.content = [mock_tool_use_block]
-        mock_llm_response_1.stop_reason = "tool_use"
-
-        # --- Mock LLM Response 2 (Final Text Response after Error Result) ---
-        mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [
-            MagicMock(type="text", text="Okay, the tool failed.")
-        ]
-        mock_llm_response_2.stop_reason = "end_turn"
-
-        # Mock the internal _make_llm_call method to return responses sequentially
-        agent._make_llm_call = AsyncMock(
-            side_effect=[mock_llm_response_1, mock_llm_response_2]
-        )
-
-        # --- Mock Host Tool Execution (to raise error) ---
-        mock_mcp_host.execute_tool = AsyncMock(side_effect=tool_execution_error)
-
-        # Mock create_tool_result_blocks to return the error block
-        mock_mcp_host.tools = Mock()
-        mock_error_result_block_content = {
-            "type": "tool_result",
-            "tool_use_id": tool_id,
-            "content": error_content_string,
-        }
-        # We expect create_tool_result_blocks to be called with the error string
-        mock_mcp_host.tools.create_tool_result_blocks = Mock(
-            return_value=[mock_error_result_block_content]
-        )
-
-        # --- Execute the agent ---
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
-        )
-
-        print(f"Execution Result: {result}")
-
-        # --- Assertions ---
-        # Check the call count on the mocked internal method
-        assert agent._make_llm_call.await_count == 2
-        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
-        # Tool execution attempted once
-        mock_mcp_host.execute_tool.assert_awaited_once_with(
-            tool_name=tool_name, arguments=tool_input, agent_config=minimal_agent_config
-        )
-        # Tool result block created once (with the error message)
-        mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
-            tool_id,
-            tool_id,
-            error_content_string,  # Verify it was called with the error string
-        )
-
-        assert isinstance(result, AgentExecutionResult)
-        assert not result.has_error # Agent execution itself didn't error, just the tool
-
-        # Conversation history check
-        assert (
-            len(result.conversation) == 4
-        )  # user -> assistant (tool) -> user (error result) -> assistant (final)
-        assert result.conversation[0].role == "user"
-        assert result.conversation[0].content[0].text == user_message
-        assert result.conversation[1].role == "assistant"
-        assert result.conversation[1].content[0].type == "tool_use"
-        assert result.conversation[1].content[0].id == tool_id
-        # Check the user message containing the error tool result
-        assert result.conversation[2].role == "user"
-        assert result.conversation[2].content[0].type == "tool_result"
-        assert result.conversation[2].content[0].tool_use_id == tool_id
-        assert result.conversation[2].content[0].text == error_content_string # Error message is text
-        assert result.conversation[3].role == "assistant"
-        assert result.conversation[3].content[0].text == "Okay, the tool failed."
-
-        # Final response check
-        assert result.primary_text == "Okay, the tool failed."
-
-        # Tool uses check (should contain the failed tool use)
-        assert len(result.tool_uses_in_final_turn) == 1
-        assert result.tool_uses_in_final_turn[0]["id"] == tool_id
-        assert result.tool_uses_in_final_turn[0]["name"] == tool_name
-
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_tool_execution_error ---")
-
-    @pytest.mark.asyncio
-    async def test_execute_agent_filtering_passed_to_host(
-        self,
-        mock_mcp_host: AsyncMock,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
-    ):
-        """
-        Test that agent filtering parameters are correctly passed to
-        host_instance.get_formatted_tools.
-        """
-        print("\n--- Running Test: test_execute_agent_filtering_passed_to_host ---")
-        user_message = "Does filtering work?"
-        # Create a specific agent config with filtering
-        filtering_agent_config = AgentConfig(
-            name="FilteringAgent",
-            model="claude-3-haiku-20240307",
-            client_ids=["client1", "client2"],
-            exclude_components=["excluded_tool", "excluded_prompt"],
-        )
-        agent_with_filtering = Agent(config=filtering_agent_config)
-
-        # Mock the LLM response (no tool use needed for this test)
-        mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [
-            MagicMock(type="text", text="Checking filtering...")
-        ]
-        mock_llm_response.stop_reason = "end_turn"
-        # Mock the internal _make_llm_call method directly
-        agent_with_filtering._make_llm_call = AsyncMock(return_value=mock_llm_response)
-
-        # Mock get_formatted_tools on the host instance (return value doesn't matter)
-        # Note: get_formatted_tools is now mocked via the mock_mcp_host fixture itself
-        # mock_mcp_host.get_formatted_tools = AsyncMock(return_value=[]) # No longer needed here
-
-        # Execute the agent
-        await agent_with_filtering.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
-        )
-
-        # --- Assertions ---
-        # Verify get_formatted_tools was called exactly once with the correct agent_config
-        mock_mcp_host.get_formatted_tools.assert_called_once_with(  # Use synchronous assertion
-            agent_config=filtering_agent_config
-        )
-
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_filtering_passed_to_host ---")
-
-    @pytest.mark.asyncio
-    async def test_execute_agent_llm_call_failure(
-        self,
-        agent: Agent,
-        mock_mcp_host: AsyncMock,
-        mock_anthropic_client: MagicMock,  # Add mock client fixture
-    ):
-        """
-        Test agent execution when the _make_llm_call method raises an exception.
-        """
-        print("\n--- Running Test: test_execute_agent_llm_call_failure ---")
-        user_message = "This will fail."
-        # Instantiate the error, providing a mock for the required 'request' argument
-        llm_error = anthropic.APIConnectionError(request=Mock())
-
-        # Mock the internal _make_llm_call method to raise an error
-        agent._make_llm_call = AsyncMock(side_effect=llm_error)
-
-        # Execute the agent
-        result = await agent.execute_agent(
-            user_message=user_message,
-            host_instance=mock_mcp_host,
-        )
-
-        print(f"Execution Result: {result}")
-
-        # Assertions
-        # Check the call on the mocked internal method
-        agent._make_llm_call.assert_awaited_once()  # LLM call was attempted
-        mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
-        mock_mcp_host.execute_tool.assert_not_awaited()  # Tool execution should not happen
-
-        # Check the returned error structure
-        assert "error" in result
-        assert result["error"] == f"Anthropic API call failed: {str(llm_error)}"
-        assert result["final_response"] is None
-        assert "conversation" in result
-        # History should contain only the initial user message before the error
-        assert len(result["conversation"]) == 1
-        assert result["conversation"][0]["role"] == "user"
-        assert result["conversation"][0]["content"] == user_message
-        assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 0
-
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_llm_call_failure ---")
-
-    # --- History Tests ---
-
-    @pytest.mark.asyncio
-    @patch(
-        "src.agents.agent.Agent._make_llm_call", new_callable=AsyncMock
-    )  # Patch the method
-    async def test_execute_agent_history_enabled_loads_and_saves(
-        self,
-        mock_llm_call: AsyncMock,  # Mock is passed as first arg
-        mock_mcp_host: AsyncMock,
-        # mock_anthropic_client is no longer needed directly as we patch _make_llm_call
-    ):
-        """
-        Test that history is loaded and saved when include_history=True
-        and a storage_manager is provided.
-        """
-        print(
-            "\n--- Running Test: test_execute_agent_history_enabled_loads_and_saves ---"
-        )
-        user_message = "Third message"
-        session_id = "test_session_123"  # Define a session ID for the test
-        # Create agent config with history enabled
-        history_agent_config = AgentConfig(
-            name="HistoryAgent",
-            model="claude-3-haiku-20240307",
-            include_history=True,
-        )
-        agent_with_history = Agent(config=history_agent_config)
-
-        # Mock StorageManager
-        mock_storage = MagicMock(spec=StorageManager)
-        # Define mock history to be loaded (already serialized format)
-        mock_loaded_history = [
-            {"role": "user", "content": [{"type": "text", "text": "First message"}]},
+        # Tool results prepared by AgentTurnProcessor (mocked return value)
+        mock_tool_results_params_turn1: List[MessageParam] = [
             {
-                "role": "assistant",
-                "content": [{"type": "text", "text": "Second message"}],
-            },
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": tool_result_content_str,
+            }
         ]
-        mock_storage.load_history.return_value = mock_loaded_history
-        # save_full_history doesn't need a return value for the mock
 
-        # Mock LLM response
-        mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [MagicMock(type="text", text="Fourth message")]
-        mock_llm_response.stop_reason = "end_turn"
-        # Configure the patched mock's return value
-        mock_llm_call.return_value = mock_llm_response
+        # --- Mock Turn 2: Final Response ---
+        mock_final_assistant_response_turn2 = AgentOutputMessage(
+            id="llm_msg_final_tool",
+            role="assistant",
+            model="test_model",
+            content=[
+                AgentOutputContentBlock(type="text", text="Tool used successfully.")
+            ],
+            stop_reason="end_turn",
+            usage={"input_tokens": 20, "output_tokens": 5},
+        )
 
-        # Execute the agent, passing the mock storage manager
-        result = await agent_with_history.execute_agent(
-            user_message=user_message,
+        # Configure the mock TurnProcessor instance return values for sequential calls
+        mock_turn_processor_instance = MockAgentTurnProcessor.return_value
+        mock_turn_processor_instance.process_turn.side_effect = [
+            # Turn 1 result: (final_response, tool_results, is_final)
+            (None, mock_tool_results_params_turn1, False),
+            # Turn 2 result:
+            (mock_final_assistant_response_turn2, None, True),
+        ]
+        # Configure get_last_llm_response for each turn
+        mock_turn_processor_instance.get_last_llm_response.side_effect = [
+            mock_assistant_response_turn1,
+            mock_final_assistant_response_turn2,
+        ]
+        # Configure get_tool_uses_this_turn for each turn
+        mock_turn_processor_instance.get_tool_uses_this_turn.side_effect = [
+            [
+                {"id": tool_use_id, "name": tool_name, "input": tool_input}
+            ],  # Tool use in turn 1
+            [],  # No tool use in turn 2
+        ]
+
+        # --- Act ---
+        result: AgentExecutionResult = await agent_instance.execute_agent(
+            initial_messages=initial_messages,
             host_instance=mock_mcp_host,
-            storage_manager=mock_storage,  # Pass the mock
-            session_id=session_id,  # Pass the session ID
+            system_prompt=None,
         )
 
-        # --- Assertions ---
-        # 1. History Loading
-        mock_storage.load_history.assert_called_once_with(
-            agent_name=history_agent_config.name,
-            session_id=session_id,  # Verify session_id was passed
+        # --- Assert ---
+        # 1. MCPHost setup called once
+        mock_mcp_host.get_formatted_tools.assert_called_once_with(
+            agent_config=mock_agent_config
         )
 
-        # 2. LLM Call includes history
-        mock_llm_call.assert_awaited_once()  # Assert the call happened
-        # Get the arguments captured by the mock (which might reflect post-call state)
-        actual_call_kwargs = mock_llm_call.await_args.kwargs
-        actual_messages_arg = actual_call_kwargs.get("messages", [])
-        # Assert based on what *should have been* passed at call time
-        assert len(actual_messages_arg) >= 3  # Should have at least history + user msg
-        # Check the messages that *should* have been sent
-        assert (
-            actual_messages_arg[0] == mock_loaded_history[0]
-        )  # Check first history item
-        assert (
-            actual_messages_arg[1] == mock_loaded_history[1]
-        )  # Check second history item
-        # The user message should be the third item *at the time of the call*
-        assert actual_messages_arg[2]["role"] == "user"
-        assert actual_messages_arg[2]["content"] == user_message
-        # Also check other key args were passed correctly
-        assert actual_call_kwargs.get("model") == history_agent_config.model
-        assert actual_call_kwargs.get("system_prompt") == (
-            history_agent_config.system_prompt or "You are a helpful assistant."
-        )
+        # 2. AgentTurnProcessor instantiated twice
+        assert MockAgentTurnProcessor.call_count == 2
 
-        # 3. History Saving
-        mock_storage.save_full_history.assert_called_once()
-        # Check keyword arguments passed to the mock
-        save_call_kwargs = mock_storage.save_full_history.call_args.kwargs
-        assert save_call_kwargs.get("agent_name") == history_agent_config.name
+        # 3. Check arguments for each instantiation
+        call_args_list = MockAgentTurnProcessor.call_args_list
+        # Call 1 Args
+        call1_kwargs = call_args_list[0].kwargs
+        assert call1_kwargs["config"] == mock_agent_config
+        assert call1_kwargs["llm_client"] == mock_llm_client
+        assert call1_kwargs["host_instance"] == mock_mcp_host
         assert (
-            save_call_kwargs.get("session_id") == session_id
-        )  # Verify session_id was passed
-        saved_conversation = save_call_kwargs.get("conversation")
+            call1_kwargs["current_messages"] == initial_messages
+        )  # First call uses initial
+        assert call1_kwargs["tools_data"] == []
+        assert call1_kwargs["effective_system_prompt"] == "You are a helpful assistant."
 
-        # Assertions on saved conversation content remain the same
-        assert (
-            len(saved_conversation) == 4
-        )  # History (2) + Current User (1) + Final Assistant (1)
-        # Verify the content was serialized correctly (using the helper implicitly)
-        assert saved_conversation[0] == mock_loaded_history[0]
-        assert saved_conversation[1] == mock_loaded_history[1]
-        assert saved_conversation[2]["role"] == "user"
-        # User message content should be serialized (wrapped in list/dict)
-        assert saved_conversation[2]["content"] == [
-            {"type": "text", "text": user_message}
+        # Call 2 Args - Construct expected messages list after turn 1
+        expected_messages_turn2 = [
+            initial_messages[0],  # Original user message
+            mock_assistant_response_turn1.model_dump(
+                mode="json"
+            ),  # Assistant tool request (serialized)
+            {
+                "role": "user",
+                "content": mock_tool_results_params_turn1,
+            },  # User tool result
         ]
-        # Check only the role of the final assistant message in the saved history
-        assert saved_conversation[3]["role"] == "assistant"
-        # Avoid asserting the exact content structure of the serialized mock, as it's fragile
+        call2_kwargs = call_args_list[1].kwargs
+        assert call2_kwargs["config"] == mock_agent_config
+        assert call2_kwargs["llm_client"] == mock_llm_client
+        assert call2_kwargs["host_instance"] == mock_mcp_host
+        # Compare messages carefully
+        actual_messages_turn2 = call2_kwargs["current_messages"]
+        assert len(actual_messages_turn2) == 3
+        # Check User Message (Turn 1)
+        assert actual_messages_turn2[0] == expected_messages_turn2[0]
+        # Check Assistant Message (Turn 1 - Tool Request) - This is the MessageParam format
+        # Construct it manually like Agent.execute_agent does
+        expected_assistant_msg_param_turn1 = {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": tool_use_id,
+                    "name": tool_name,
+                    "input": tool_input,
+                }
+            ],
+        }
+        assert actual_messages_turn2[1] == expected_assistant_msg_param_turn1
+        # Check User Message (Turn 2 - Tool Result)
+        assert actual_messages_turn2[2] == expected_messages_turn2[2]
 
-        # 4. Final Result Structure (optional, but good practice)
-        assert result["error"] is None
-        assert result["final_response"] == mock_llm_response
+        assert call2_kwargs["tools_data"] == []
+        assert call2_kwargs["effective_system_prompt"] == "You are a helpful assistant."
 
-        print("Assertions passed.")
-        print(
-            "--- Test Finished: test_execute_agent_history_enabled_loads_and_saves ---"
-        )
+        # 4. process_turn called twice on the instance(s)
+        assert mock_turn_processor_instance.process_turn.await_count == 2
 
-    @pytest.mark.asyncio
-    @patch(
-        "src.agents.agent.Agent._make_llm_call", new_callable=AsyncMock
-    )  # Patch the method
-    async def test_execute_agent_history_disabled(
+        # 5. Result object checks
+        assert isinstance(result, AgentExecutionResult)
+        assert result.error is None
+        assert result.final_response == mock_final_assistant_response_turn2
+        # Tool uses should reflect the *last* turn where tools were used (turn 1)
+        assert result.tool_uses_in_final_turn == [
+            {"id": tool_use_id, "name": tool_name, "input": tool_input}
+        ]
+
+        # 6. Conversation history check
+        assert (
+            len(result.conversation) == 4
+        )  # user -> assistant(tool) -> user(result) -> assistant(final)
+        assert result.conversation[0].role == "user"
+        assert (
+            result.conversation[1] == mock_assistant_response_turn1
+        )  # Check assistant turn 1
+        assert result.conversation[2].role == "user"  # Check user turn 2 (tool result)
+        # Check the content of the user message containing the tool result
+        assert len(result.conversation[2].content) == 1
+        tool_result_block = result.conversation[2].content[0]
+        assert isinstance(tool_result_block, AgentOutputContentBlock)
+        assert tool_result_block.type == "tool_result"
+        assert tool_result_block.tool_use_id == tool_use_id
+        # The raw content is stored in model_extra due to extra='allow'
+        assert tool_result_block.model_extra is not None
+        assert tool_result_block.model_extra.get("content") == tool_result_content_str
+
+        assert (
+            result.conversation[3] == mock_final_assistant_response_turn2
+        )  # Check assistant turn 2
+
+    @pytest.mark.anyio
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Patch the class
+    async def test_execute_agent_max_iterations_reached(
         self,
-        mock_llm_call: AsyncMock,  # Mock is passed as first arg
-        agent: Agent,  # Uses minimal_agent_config (history defaults to None/False)
-        mock_mcp_host: AsyncMock,
-        # mock_anthropic_client no longer needed
+        MockAgentTurnProcessor: MagicMock,  # The patched class
+        agent_instance: Agent,
+        mock_mcp_host: MagicMock,
+        initial_messages: List[MessageParam],
+        mock_agent_config: AgentConfig,  # Use fixture, will check max_iterations
+        mock_llm_client: MagicMock,
     ):
         """
-        Test that history is NOT loaded or saved when include_history=False.
+        Tests that the agent execution loop terminates after reaching max_iterations.
         """
-        print("\n--- Running Test: test_execute_agent_history_disabled ---")
-        user_message = "No history please"
-        session_id = "test_session_disabled"  # Define session ID even though it shouldn't be used
-        # Agent fixture uses minimal_agent_config where include_history is default (False)
+        # --- Arrange ---
+        max_iters = 3  # Set a low number for testing
+        mock_agent_config.max_iterations = max_iters
 
-        # Mock StorageManager (methods should NOT be called)
-        mock_storage = MagicMock(spec=StorageManager)
+        # Mock the TurnProcessor to always return a non-final state (e.g., tool use)
+        # to force the loop to continue until max_iterations
+        mock_assistant_response_loop = AgentOutputMessage(
+            id="llm_msg_loop",
+            role="assistant",
+            model="test_model",
+            content=[AgentOutputContentBlock(type="text", text="Looping...")],
+            stop_reason="end_turn",  # Even if stop is end_turn, mock is_final=False
+            usage={"input_tokens": 5, "output_tokens": 5},
+        )
 
-        # Mock LLM response
-        mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [MagicMock(type="text", text="Okay, no history.")]
-        mock_llm_response.stop_reason = "end_turn"
-        # Configure the patched mock
-        mock_llm_call.return_value = mock_llm_response
+        # Configure the mock TurnProcessor instance
+        mock_turn_processor_instance = MockAgentTurnProcessor.return_value
+        # Always return is_final=False to prevent loop breaking early
+        mock_turn_processor_instance.process_turn = AsyncMock(
+            return_value=(
+                mock_assistant_response_loop,  # Return a response object
+                None,  # No tool results needed for this mock
+                False,  # IMPORTANT: Never signal final turn
+            )
+        )
+        # Configure other methods
+        mock_turn_processor_instance.get_last_llm_response.return_value = (
+            mock_assistant_response_loop
+        )
+        mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
 
-        # Execute the agent, passing the mock storage manager
-        result = await agent.execute_agent(
-            user_message=user_message,
+        # --- Act ---
+        result: AgentExecutionResult = await agent_instance.execute_agent(
+            initial_messages=initial_messages,
             host_instance=mock_mcp_host,
-            storage_manager=mock_storage,  # Pass the mock
-            session_id=session_id,  # Pass session ID (agent should ignore it)
+            system_prompt=None,
         )
 
-        # --- Assertions ---
-        # 1. History Loading NOT called
-        mock_storage.load_history.assert_not_called()
+        # --- Assert ---
+        # 1. AgentTurnProcessor instantiated max_iterations times
+        assert MockAgentTurnProcessor.call_count == max_iters
 
-        # 2. LLM Call does NOT include history
-        mock_llm_call.assert_awaited_once()  # Assert the call happened
-        # Get the arguments captured by the mock
-        actual_call_kwargs = mock_llm_call.await_args.kwargs
-        actual_messages_arg = actual_call_kwargs.get("messages", [])
-        # Assert based on what *should have been* passed at call time
-        assert len(actual_messages_arg) >= 1  # Should have at least user msg
-        # The user message should be the first item *at the time of the call*
-        assert actual_messages_arg[0]["role"] == "user"
-        assert actual_messages_arg[0]["content"] == user_message
-        # Check other key args, accounting for fallbacks in execute_agent
-        expected_model = agent.config.model or "claude-3-opus-20240229"
-        expected_system_prompt = (
-            agent.config.system_prompt or "You are a helpful assistant."
-        )
-        assert actual_call_kwargs.get("model") == expected_model
-        assert actual_call_kwargs.get("system_prompt") == expected_system_prompt
+        # 2. process_turn called max_iterations times
+        assert mock_turn_processor_instance.process_turn.await_count == max_iters
 
-        # 3. History Saving NOT called
-        mock_storage.save_full_history.assert_not_called()
+        # 3. Result object checks
+        assert isinstance(result, AgentExecutionResult)
+        assert result.error is None  # Should not error, just stop
+        # The final_response should be the last assistant message generated
+        assert result.final_response == mock_assistant_response_loop
+        assert result.tool_uses_in_final_turn == []
 
-        # 4. Final Result Structure
-        assert result["error"] is None
-        assert result["final_response"] == mock_llm_response
+        # 4. Conversation history check (user + assistant * max_iters)
+        assert len(result.conversation) == 1 + max_iters
+        assert result.conversation[0].role == "user"
+        for i in range(max_iters):
+            assert result.conversation[i + 1] == mock_assistant_response_loop
 
-        print("Assertions passed.")
-        print("--- Test Finished: test_execute_agent_history_disabled ---")
-
-    @pytest.mark.asyncio
-    @patch(
-        "src.agents.agent.Agent._make_llm_call", new_callable=AsyncMock
-    )  # Patch the method
-    async def test_execute_agent_history_enabled_no_storage_manager(
+    @pytest.mark.anyio
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Patch the class
+    async def test_execute_agent_schema_correction_loop(
         self,
-        mock_llm_call: AsyncMock,  # Mock is passed as first arg
-        mock_mcp_host: AsyncMock,
-        # mock_anthropic_client no longer needed
+        MockAgentTurnProcessor: MagicMock,  # The patched class
+        agent_instance: Agent,
+        mock_mcp_host: MagicMock,
+        initial_messages: List[MessageParam],  # User: "Hello Agent"
+        mock_agent_config: AgentConfig,  # Use fixture, but will modify it
+        mock_llm_client: MagicMock,
     ):
         """
-        Test that execution proceeds without error when include_history=True
-        but no storage_manager is provided.
+        Tests execute_agent handles the schema correction loop.
+        Turn 1: LLM returns invalid JSON, TurnProcessor signals failure.
+        Turn 2: Agent sends correction message, LLM returns valid JSON.
         """
-        print(
-            "\n--- Running Test: test_execute_agent_history_enabled_no_storage_manager ---"
-        )
-        user_message = "History enabled, but no storage"
-        session_id = "test_session_no_storage"  # Define session ID
-        # Create agent config with history enabled
-        history_agent_config = AgentConfig(
-            name="HistoryAgentNoStorage",
-            model="claude-3-haiku-20240307",
-            include_history=True,  # History is enabled
-        )
-        agent_with_history = Agent(config=history_agent_config)
+        # --- Arrange ---
+        # Add a schema to the agent config for this test
+        test_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        mock_agent_config.config_validation_schema = test_schema
+        invalid_json_text = '{"wrong_key": "needs correction"}'
+        valid_json_text = '{"key": "corrected value"}'
 
-        # Mock LLM response
-        mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [MagicMock(type="text", text="Okay")]
-        mock_llm_response.stop_reason = "end_turn"
-        # Configure the patched mock
-        mock_llm_call.return_value = mock_llm_response
+        # --- Mock Turn 1: Invalid Schema Response ---
+        mock_assistant_response_turn1 = AgentOutputMessage(
+            id="llm_msg_invalid_schema",
+            role="assistant",
+            model="test_model",
+            content=[AgentOutputContentBlock(type="text", text=invalid_json_text)],
+            stop_reason="end_turn",  # LLM thought it was done, but schema failed
+            usage={"input_tokens": 10, "output_tokens": 10},
+        )
 
-        # Execute the agent, passing storage_manager=None
-        result = await agent_with_history.execute_agent(
-            user_message=user_message,
+        # --- Mock Turn 2: Valid Schema Response ---
+        mock_final_assistant_response_turn2 = AgentOutputMessage(
+            id="llm_msg_valid_schema",
+            role="assistant",
+            model="test_model",
+            content=[AgentOutputContentBlock(type="text", text=valid_json_text)],
+            stop_reason="end_turn",
+            usage={
+                "input_tokens": 50,
+                "output_tokens": 8,
+            },  # More tokens due to correction msg
+        )
+
+        # Configure the mock TurnProcessor instance return values for sequential calls
+        mock_turn_processor_instance = MockAgentTurnProcessor.return_value
+        mock_turn_processor_instance.process_turn.side_effect = [
+            # Turn 1 result: Schema validation fails (final_response=None, is_final=False)
+            (None, None, False),
+            # Turn 2 result: Schema validation succeeds
+            (mock_final_assistant_response_turn2, None, True),
+        ]
+        # Configure get_last_llm_response for each turn
+        mock_turn_processor_instance.get_last_llm_response.side_effect = [
+            mock_assistant_response_turn1,  # Return the invalid one first
+            mock_final_assistant_response_turn2,
+        ]
+        # Configure get_tool_uses_this_turn (no tools used)
+        mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
+
+        # --- Act ---
+        result: AgentExecutionResult = await agent_instance.execute_agent(
+            initial_messages=initial_messages,
             host_instance=mock_mcp_host,
-            storage_manager=None,  # Explicitly pass None
-            session_id=session_id,  # Pass session ID (agent should log warning but proceed)
+            system_prompt=None,
         )
 
-        # --- Assertions ---
-        # 1. LLM Call does NOT include history (as it couldn't be loaded)
-        mock_llm_call.assert_awaited_once()  # Assert the call happened
-        # Get the arguments captured by the mock
-        actual_call_kwargs = mock_llm_call.await_args.kwargs
-        actual_messages_arg = actual_call_kwargs.get("messages", [])
-        # Assert based on what *should have been* passed at call time
-        assert len(actual_messages_arg) >= 1  # Should have at least user msg
-        # The user message should be the first item *at the time of the call*
-        assert actual_messages_arg[0]["role"] == "user"
-        assert actual_messages_arg[0]["content"] == user_message
-        # Check other key args
-        assert actual_call_kwargs.get("model") == history_agent_config.model
-        assert actual_call_kwargs.get("system_prompt") == (
-            agent_with_history.config.system_prompt or "You are a helpful assistant."
+        # --- Assert ---
+        # 1. MCPHost setup called once
+        mock_mcp_host.get_formatted_tools.assert_called_once_with(
+            agent_config=mock_agent_config
         )
 
-        # 2. Final Result Structure
-        assert result["error"] is None
-        assert result["final_response"] == mock_llm_response
+        # 2. AgentTurnProcessor instantiated twice
+        assert MockAgentTurnProcessor.call_count == 2
 
-        print("Assertions passed.")
-        print(
-            "--- Test Finished: test_execute_agent_history_enabled_no_storage_manager ---"
+        # 3. Check arguments for each instantiation
+        call_args_list = MockAgentTurnProcessor.call_args_list
+        # Call 1 Args (Initial messages)
+        call1_kwargs = call_args_list[0].kwargs
+        assert call1_kwargs["current_messages"] == initial_messages
+
+        # Call 2 Args (Should include initial user, invalid assistant, and correction user message)
+        call2_kwargs = call_args_list[1].kwargs
+        actual_messages_turn2 = call2_kwargs["current_messages"]
+        assert len(actual_messages_turn2) == 3
+        assert actual_messages_turn2[0]["role"] == "user"  # Initial user
+        assert (
+            actual_messages_turn2[1]["role"] == "assistant"
+        )  # Invalid assistant response
+        assert actual_messages_turn2[1]["content"][0]["text"] == invalid_json_text
+        assert actual_messages_turn2[2]["role"] == "user"  # Correction message
+        # Check the text content within the first block of the correction message
+        assert len(actual_messages_turn2[2]["content"]) == 1
+        assert actual_messages_turn2[2]["content"][0]["type"] == "text"
+        assert (
+            "must be a valid JSON object matching this schema"
+            in actual_messages_turn2[2]["content"][0]["text"]
         )
+
+        # 4. process_turn called twice on the instance(s)
+        assert mock_turn_processor_instance.process_turn.await_count == 2
+
+        # 5. Result object checks
+        assert isinstance(result, AgentExecutionResult)
+        assert result.error is None
+        assert (
+            result.final_response == mock_final_assistant_response_turn2
+        )  # Should be the corrected one
+        assert result.tool_uses_in_final_turn == []
+
+        # 6. Conversation history check (user -> assistant(invalid) -> user(correction) -> assistant(valid))
+        assert len(result.conversation) == 4
+        assert result.conversation[0].role == "user"
+        assert (
+            result.conversation[1] == mock_assistant_response_turn1
+        )  # Invalid response is logged
+        assert result.conversation[2].role == "user"  # Correction message
+        assert (
+            "must be a valid JSON object matching this schema"
+            in result.conversation[2].content[0].text
+        )
+        assert (
+            result.conversation[3] == mock_final_assistant_response_turn2
+        )  # Valid final response

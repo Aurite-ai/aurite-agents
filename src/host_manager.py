@@ -525,7 +525,7 @@ class HostManager:
                     raise RuntimeError(
                         "Host is not initialized, cannot register client."
                     )
-            except ValueError as e:  # Catch duplicate client IDs
+            except ValueError:  # Catch duplicate client IDs
                 logger.warning(
                     f"Successfully registered client: {client_config.client_id}"
                 )
@@ -680,13 +680,14 @@ class HostManager:
             logger.error(f"Configuration file not found at path: {file_path}")
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
-            all_registered_counts = {
-                "clients": 0,
-                "agents": 0,
-                "workflows": 0,
-                "custom_workflows": 0,
-                "llm_configs": 0,  # Added for LLM configs
-            }
+        # Initialize counters and error list *before* the try block
+        all_registered_counts = {
+            "clients": 0,
+            "agents": 0,
+            "workflows": 0,
+            "custom_workflows": 0,
+            "llm_configs": 0,
+        }
         all_skipped_counts = {
             "clients": 0,
             "agents": 0,
@@ -798,7 +799,19 @@ class HostManager:
                 f"Unexpected error during registration from {file_path}: {e}"
             ) from e
 
-    # --- Execution Methods ---
+    # --- Configuration Access Methods ---
+
+    def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
+        """Retrieves the configuration for a specific agent by name."""
+        return self.agent_configs.get(agent_name)
+
+    def get_llm_config(self, llm_config_id: str) -> Optional[LLMConfig]:
+        """Retrieves the configuration for a specific LLM config by ID."""
+        return self.llm_configs.get(llm_config_id)
+
+    # Add getters for workflow_configs and custom_workflow_configs if needed later
+
+    # --- Execution Methods --- # Comment remains relevant as a section separator
     # NOTE: The original execute_* methods are removed.
     # Execution is now handled by self.execution (ExecutionFacade instance).
     # Entrypoints (API, CLI, Worker) will need to be updated to call
