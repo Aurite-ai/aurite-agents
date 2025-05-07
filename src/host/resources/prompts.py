@@ -120,7 +120,7 @@ class PromptManager:
         if client_id:
             return list(self._prompts.get(client_id, {}).values())
 
-        all_prompts = []
+        all_prompts: List[types.Prompt] = []
         for client_prompts in self._prompts.values():
             all_prompts.extend(client_prompts.values())
         # Ensure unique prompts if the same one is registered by multiple clients?

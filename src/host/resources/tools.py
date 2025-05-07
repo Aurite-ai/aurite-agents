@@ -8,7 +8,7 @@ This module provides a ToolManager class that handles:
 4. Integration with agent frameworks
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 import logging
 # import asyncio # No longer needed after removing _active_requests
 
@@ -389,13 +389,18 @@ class ToolManager:
         allowed_clients = None
         if agent_config:
             # Get all client IDs that have registered *any* tool
-            clients_with_tools = {
-                meta.get("client_id")
-                for meta in all_tools_metadata
-                if meta.get("client_id")
-            }
+            # Ensure clients_with_tools_str_set is Set[str]
+            clients_with_tools_str_set: Set[str] = set()
+            for meta_item in all_tools_metadata:
+                client_id_val = meta_item.get("client_id")
+                if client_id_val is not None:
+                    # We expect client_id_val to be a string or stringifiable to a non-empty string
+                    s_client_id = str(client_id_val)
+                    if s_client_id: # Ensure it's a non-empty string after conversion
+                        clients_with_tools_str_set.add(s_client_id)
+
             allowed_clients = filtering_manager.filter_clients_for_request(
-                list(clients_with_tools), agent_config
+                list(clients_with_tools_str_set), agent_config
             )
 
         # 3. Filter tools based on allowed clients

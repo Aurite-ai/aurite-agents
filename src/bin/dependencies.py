@@ -28,7 +28,7 @@ def get_server_config() -> ServerConfig:
     Uses lru_cache to load only once.
     """
     try:
-        config = ServerConfig()
+        config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
         logger.info("Server configuration loaded successfully.")
         logging.getLogger().setLevel(config.LOG_LEVEL.upper())
         return config

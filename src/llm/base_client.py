@@ -1,6 +1,7 @@
 """
 LLM Client Abstraction for interacting with different LLM providers.
 """
+
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
@@ -8,6 +9,7 @@ from typing import List, Optional, Dict, Any
 
 # Import our standardized output models from the agents module
 from ..agents.agent_models import AgentOutputMessage
+
 # Import Anthropic specific types and client
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
+
 
 class BaseLLM(ABC):
     """Abstract Base Class for LLM clients."""
@@ -36,19 +39,27 @@ class BaseLLM(ABC):
             system_prompt: The default system prompt. Uses default if None.
         """
         self.model_name = model_name
-        self.temperature = temperature if temperature is not None else DEFAULT_TEMPERATURE
+        self.temperature = (
+            temperature if temperature is not None else DEFAULT_TEMPERATURE
+        )
         self.max_tokens = max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS
-        self.system_prompt = system_prompt if system_prompt is not None else DEFAULT_SYSTEM_PROMPT
+        self.system_prompt = (
+            system_prompt if system_prompt is not None else DEFAULT_SYSTEM_PROMPT
+        )
         logger.debug(f"BaseLLM initialized for model: {self.model_name}")
 
     @abstractmethod
     async def create_message(
         self,
-        messages: List[Dict[str, Any]], # Expects standardized message format [{'role': str, 'content': List[Dict]}]
-        tools: Optional[List[Dict[str, Any]]], # Expects standardized tool format
-        system_prompt_override: Optional[str] = None, # Allow overriding the default/configured system prompt
-        schema: Optional[Dict[str, Any]] = None # Pass schema for potential injection
-    ) -> AgentOutputMessage: # Returns our standardized message model
+        messages: List[
+            Dict[str, Any]
+        ],  # Expects standardized message format [{'role': str, 'content': List[Dict]}]
+        tools: Optional[List[Dict[str, Any]]],  # Expects standardized tool format
+        system_prompt_override: Optional[
+            str
+        ] = None,  # Allow overriding the default/configured system prompt
+        schema: Optional[Dict[str, Any]] = None,  # Pass schema for potential injection
+    ) -> AgentOutputMessage:  # Returns our standardized message model
         """
         Sends messages to the LLM and returns a standardized response message.
 

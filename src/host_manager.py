@@ -15,6 +15,7 @@ from .host.models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     ClientConfig,
+    LLMConfig,  # Added LLMConfig
 )
 
 # Imports needed for execution methods
@@ -67,6 +68,7 @@ class HostManager:
         self.agent_configs: Dict[str, "AgentConfig"] = {}
         self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
         self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
+        self.llm_configs: Dict[str, "LLMConfig"] = {}  # Added for LLM configs
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
         self._db_engine = None  # Store engine if created
@@ -121,12 +123,14 @@ class HostManager:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Added llm_configs_dict
             ) = load_host_config_from_json(self.config_path)
 
             # Store configs internally
             self.agent_configs = agent_configs_dict
             self.workflow_configs = workflow_configs_dict
             self.custom_workflow_configs = custom_workflow_configs_dict
+            self.llm_configs = llm_configs_dict  # Store LLM configs
             logger.debug("Configurations loaded successfully.")
 
             # 1.5 Initialize DB Schema if storage manager exists
@@ -154,11 +158,14 @@ class HostManager:
                     agents=self.agent_configs,
                     workflows=self.workflow_configs,
                     custom_workflows=self.custom_workflow_configs,
+                    llm_configs=self.llm_configs,  # Pass LLM configs to sync
                 )
 
             # 3. Load additional configs (e.g., prompt validation)
             # This will also sync the loaded configs if DB is enabled via register_* methods
-            await self.register_config_file("config/prompt_validation_config.json")
+            await self.register_config_file(
+                Path("config/prompt_validation_config.json")
+            )  # Wrap str in Path()
 
             # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
             self.execution = ExecutionFacade(
@@ -228,6 +235,7 @@ class HostManager:
         self.agent_configs.clear()
         self.workflow_configs.clear()
         self.custom_workflow_configs.clear()
+        self.llm_configs.clear()  # Clear LLM configs
         # Dispose the engine if it was created
         if self._db_engine:
             try:
@@ -299,6 +307,11 @@ class HostManager:
             logger.error("HostManager is not initialized. Cannot register agent.")
             raise ValueError("HostManager is not initialized.")
 
+        # Ensure agent has a name before registering
+        if not agent_config.name:
+            logger.error("Attempted to register an agent config with no name.")
+            raise ValueError("Agent configuration must have a 'name'.")
+
         if agent_config.name in self.agent_configs:
             logger.error(f"Agent name '{agent_config.name}' already registered.")
             raise ValueError(f"Agent name '{agent_config.name}' already registered.")
@@ -329,6 +342,46 @@ class HostManager:
                 # Log error but don't fail registration, as it's in memory
                 logger.error(
                     f"Failed to sync agent '{agent_config.name}' to database: {e}",
+                    exc_info=True,
+                )
+
+    async def register_llm_config(self, llm_config: "LLMConfig"):
+        """
+        Dynamically registers a new LLM configuration.
+
+        Args:
+            llm_config: The configuration for the LLM to register.
+
+        Raises:
+            ValueError: If the HostManager is not initialized or the llm_id already exists.
+        """
+        logger.debug(
+            f"Attempting to dynamically register LLM config: {llm_config.llm_id}"
+        )
+        if not self.host:  # Check self.host, implies manager is initialized
+            logger.error("HostManager is not initialized. Cannot register LLM config.")
+            raise ValueError("HostManager is not initialized.")
+
+        if llm_config.llm_id in self.llm_configs:
+            logger.error(f"LLM config ID '{llm_config.llm_id}' already registered.")
+            raise ValueError(f"LLM config ID '{llm_config.llm_id}' already registered.")
+
+        # Add the LLM config to memory
+        self.llm_configs[llm_config.llm_id] = llm_config
+        logger.info(
+            f"LLM config '{llm_config.llm_id}' registered successfully (in memory)."
+        )
+
+        # Sync to DB if enabled
+        if self.storage_manager:
+            try:
+                self.storage_manager.sync_llm_config(
+                    llm_config
+                )  # Assumes method exists
+                logger.info(f"LLM config '{llm_config.llm_id}' synced to database.")
+            except Exception as e:
+                logger.error(
+                    f"Failed to sync LLM config '{llm_config.llm_id}' to database: {e}",
                     exc_info=True,
                 )
 
@@ -460,10 +513,20 @@ class HostManager:
         logger.debug(f"Registering {len(clients)} clients...")  # INFO -> DEBUG
         for client_config in clients:
             try:
-                # Assuming self.host is guaranteed to be initialized here
-                await self.host.register_client(client_config)
-                registered_count += 1
-                logger.debug(
+                # Add explicit check for self.host before calling its method
+                if self.host:
+                    await self.host.register_client(client_config)
+                    registered_count += 1
+                    logger.debug(
+                        f"Successfully registered client: {client_config.client_id}"
+                    )
+                else:
+                    # This case should ideally not be reached if called after successful init, but handle defensively
+                    raise RuntimeError(
+                        "Host is not initialized, cannot register client."
+                    )
+            except ValueError as e:  # Catch duplicate client IDs
+                logger.warning(
                     f"Successfully registered client: {client_config.client_id}"
                 )
             except ValueError as e:  # Catch duplicate client IDs
@@ -617,17 +680,19 @@ class HostManager:
             logger.error(f"Configuration file not found at path: {file_path}")
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
-        all_registered_counts = {
-            "clients": 0,
-            "agents": 0,
-            "workflows": 0,
-            "custom_workflows": 0,
-        }
+            all_registered_counts = {
+                "clients": 0,
+                "agents": 0,
+                "workflows": 0,
+                "custom_workflows": 0,
+                "llm_configs": 0,  # Added for LLM configs
+            }
         all_skipped_counts = {
             "clients": 0,
             "agents": 0,
             "workflows": 0,
             "custom_workflows": 0,
+            "llm_configs": 0,  # Added for LLM configs
         }
         all_error_messages = []
 
@@ -638,6 +703,7 @@ class HostManager:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Added llm_configs_dict
             ) = load_host_config_from_json(file_path)
             logger.debug(
                 f"Successfully loaded configurations from {file_path}."
@@ -678,6 +744,30 @@ class HostManager:
             all_registered_counts["custom_workflows"] = reg_cw
             all_skipped_counts["custom_workflows"] = skip_cw
             all_error_messages.extend(err_cw)
+
+            # 6. Register LLM Configs using a new helper (to be created)
+            # Placeholder for the new helper call
+            # reg_lc, skip_lc, err_lc = await self._register_llm_configs_from_config(llm_configs_dict)
+            # all_registered_counts["llm_configs"] = reg_lc
+            # all_skipped_counts["llm_configs"] = skip_lc
+            # all_error_messages.extend(err_lc)
+            # For now, let's manually iterate and register, then create helper later if complex
+            registered_lc, skipped_lc, error_lc_list = 0, 0, []
+            for llm_id, llm_conf in llm_configs_dict.items():
+                try:
+                    await self.register_llm_config(llm_conf)
+                    registered_lc += 1
+                except ValueError as e:  # Duplicate
+                    skipped_lc += 1
+                    logger.warning(
+                        f"Skipping LLM Config registration for '{llm_id}': {e}"
+                    )
+                except Exception as e:
+                    error_lc_list.append(f"LLM Config '{llm_id}': {e}")
+                    skipped_lc += 1
+            all_registered_counts["llm_configs"] = registered_lc
+            all_skipped_counts["llm_configs"] = skipped_lc
+            all_error_messages.extend(error_lc_list)
 
             # Log summary
             summary_msg = (

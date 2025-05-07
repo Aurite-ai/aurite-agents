@@ -1,10 +1,11 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
 from pydantic import BaseModel
 
 from src.config import PROJECT_ROOT_DIR
+
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
 from ....host_manager import HostManager
@@ -20,21 +21,26 @@ router = APIRouter(
 
 # --- Request/Response Models ---
 
+
 class ExecuteCustomWorkflowResponse(BaseModel):
     workflow_name: str
     status: str  # e.g., "completed", "failed"
     result: Optional[Any] = None  # Allow flexible output
     error: Optional[str] = None
 
+
 class PromptValidationFileRequest(BaseModel):
     config_file: str
-    
+
+
 class PromptValidationSimpleRequest(BaseModel):
     agent_name: str
     user_input: str
     testing_prompt: str
 
+
 # --- Execution Endpoints ---
+
 
 @router.post(
     "/prompt_validation/file",
@@ -46,9 +52,17 @@ async def execute_prompt_validation_file(
 ):
     """Executes the prompt validation workflow from a config file."""
     logger.info("Received request to execute prompt validation workflow")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_custom_workflow(
         workflow_name="Prompt Validation Workflow",
-        initial_input={"config_path": PROJECT_ROOT_DIR / f"config/testing/{request_body.config_file}"},
+        initial_input={
+            "config_path": PROJECT_ROOT_DIR
+            / f"config/testing/{request_body.config_file}"
+        },
     )
     logger.info("Prompt Validation Workflow executed successfully via manager.")
     if isinstance(result, dict) and result.get("status") == "failed":
@@ -62,9 +76,12 @@ async def execute_prompt_validation_file(
         )
     else:
         return ExecuteCustomWorkflowResponse(
-            workflow_name="Prompt Validation Workflow", status="completed", result=result
+            workflow_name="Prompt Validation Workflow",
+            status="completed",
+            result=result,
         )
-        
+
+
 @router.post(
     "/prompt_validation/simple",
     response_model=ExecuteCustomWorkflowResponse,
@@ -75,10 +92,15 @@ async def execute_prompt_validation_simple(
 ):
     """Executes the prompt validation workflow with simplified input."""
     logger.info("Received request to execute prompt validation workflow")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_custom_workflow(
         workflow_name="Prompt Validation Workflow",
         initial_input={
-            "agent_name": request_body.agent_name, 
+            "agent_name": request_body.agent_name,
             "user_input": request_body.user_input,
             "testing_prompt": request_body.testing_prompt,
         },
@@ -95,5 +117,7 @@ async def execute_prompt_validation_simple(
         )
     else:
         return ExecuteCustomWorkflowResponse(
-            workflow_name="Prompt Validation Workflow", status="completed", result=result
+            workflow_name="Prompt Validation Workflow",
+            status="completed",
+            result=result,
         )

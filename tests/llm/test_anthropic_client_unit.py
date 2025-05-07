@@ -1,0 +1,308 @@
+"""
+Unit tests for the AnthropicLLM client.
+"""
+
+import pytest
+import os
+from unittest.mock import patch, MagicMock, AsyncMock
+
+from anthropic import (
+    AsyncAnthropic,
+    APIConnectionError,
+    RateLimitError,
+)  # Added RateLimitError
+from anthropic.types import (
+    Message as AnthropicSDKMessage,
+    TextBlock,
+    ToolUseBlock,
+    Usage,
+)
+
+from src.llm.providers.anthropic_client import AnthropicLLM
+from src.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
+
+# Basic model name for tests
+TEST_MODEL_NAME = "claude-test-model"
+TEST_API_KEY = "test_anthropic_api_key"
+
+
+@pytest.mark.unit
+class TestAnthropicLLMUnit:
+    """
+    Unit tests for the AnthropicLLM client.
+    """
+
+    def test_initialization_with_env_var(self):
+        """
+        Tests successful initialization when ANTHROPIC_API_KEY is set in environment variables.
+        """
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            try:
+                llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+                assert llm_client is not None
+                assert llm_client.model_name == TEST_MODEL_NAME
+                assert isinstance(llm_client.anthropic_sdk_client, AsyncAnthropic)
+                # Check if the API key was passed to the underlying client
+                # The AsyncAnthropic client stores the api_key in _auth_headers or similar,
+                # but direct access might be brittle. For now, successful instantiation implies key usage.
+                # A more robust check would involve mocking AsyncAnthropic's __init__ if possible.
+                # Attempting to access 'api_key' as suggested by the error.
+                # Note: This still relies on internal details of the AsyncAnthropic client.
+                assert llm_client.anthropic_sdk_client.api_key == TEST_API_KEY
+            except ValueError:
+                pytest.fail("AnthropicLLM initialization failed with env var set.")
+            except Exception as e:
+                pytest.fail(f"An unexpected error occurred during initialization: {e}")
+
+    def test_initialization_with_direct_api_key(self):
+        """
+        Tests successful initialization when api_key is passed directly.
+        """
+        # Ensure env var is not set or different to confirm direct key is used
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "other_key"}, clear=True):
+            try:
+                llm_client = AnthropicLLM(
+                    model_name=TEST_MODEL_NAME, api_key=TEST_API_KEY
+                )
+                assert llm_client is not None
+                assert isinstance(llm_client.anthropic_sdk_client, AsyncAnthropic)
+                assert llm_client.anthropic_sdk_client.api_key == TEST_API_KEY
+            except ValueError:
+                pytest.fail("AnthropicLLM initialization failed with direct API key.")
+            except Exception as e:
+                pytest.fail(f"An unexpected error occurred during initialization: {e}")
+
+    def test_initialization_no_api_key_raises_value_error(self):
+        """
+        Tests that ValueError is raised if no API key is provided (neither direct nor env var).
+        """
+        with patch.dict(os.environ, {}, clear=True):  # Clear relevant env vars
+            with pytest.raises(ValueError) as excinfo:
+                AnthropicLLM(model_name=TEST_MODEL_NAME)
+            assert "Anthropic API key is required" in str(excinfo.value)
+
+    @pytest.mark.anyio
+    async def test_create_message_simple_text_response(self):
+        """
+        Tests the create_message method for a simple text response from Anthropic.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test123",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[TextBlock(type="text", text="Hello, world!")],
+            stop_reason="end_turn",
+            stop_sequence=None,
+            usage=Usage(input_tokens=10, output_tokens=20),
+        )
+        # Create a mock for the 'messages' attribute first
+        mock_messages_api = MagicMock()
+        # Assign the AsyncMock for 'create' to the 'messages' mock
+        mock_messages_api.create = AsyncMock(return_value=mock_sdk_response)
+        # Assign the 'messages' mock to the main SDK client mock
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client  # Inject mock
+
+        messages_input = [{"role": "user", "content": [{"type": "text", "text": "Hi"}]}]
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=None
+        )
+
+        mock_anthropic_sdk_client.messages.create.assert_called_once()
+        call_args = mock_anthropic_sdk_client.messages.create.call_args
+        assert call_args.kwargs["model"] == TEST_MODEL_NAME
+        assert call_args.kwargs["messages"] == messages_input
+        assert call_args.kwargs["max_tokens"] is not None  # Default or configured
+
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id == "msg_test123"
+        assert result_message.role == "assistant"
+        assert result_message.model == TEST_MODEL_NAME
+        assert len(result_message.content) == 1
+        assert result_message.content[0].type == "text"
+        assert result_message.content[0].text == "Hello, world!"
+        assert result_message.stop_reason == "end_turn"
+        assert result_message.usage == {"input_tokens": 10, "output_tokens": 20}
+
+    @pytest.mark.anyio
+    async def test_create_message_with_tool_use(self):
+        """
+        Tests the create_message method when the LLM response includes a tool use request.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        tool_input = {"location": "London", "unit": "celsius"}
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test_tool",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[
+                ToolUseBlock(
+                    type="tool_use", id="tool_abc", name="get_weather", input=tool_input
+                )
+            ],
+            stop_reason="tool_use",
+            stop_sequence=None,
+            usage=Usage(input_tokens=50, output_tokens=30),
+        )
+        mock_messages_api = MagicMock()
+        mock_messages_api.create = AsyncMock(return_value=mock_sdk_response)
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        messages_input = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": "Weather in London?"}],
+            }
+        ]
+        tools_input = [
+            {
+                "name": "get_weather",
+                "description": "Get the weather",
+                "input_schema": {"type": "object", "properties": {}},
+            }
+        ]
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=tools_input
+        )
+
+        mock_anthropic_sdk_client.messages.create.assert_called_once()
+        call_args = mock_anthropic_sdk_client.messages.create.call_args
+        assert call_args.kwargs["tools"] == tools_input  # Verify tools were passed
+
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id == "msg_test_tool"
+        assert result_message.role == "assistant"
+        assert result_message.stop_reason == "tool_use"
+        assert len(result_message.content) == 1
+        content_block = result_message.content[0]
+        assert isinstance(content_block, AgentOutputContentBlock)
+        assert content_block.type == "tool_use"
+        assert content_block.id == "tool_abc"
+        assert content_block.name == "get_weather"
+        assert content_block.input == tool_input
+        assert result_message.usage == {"input_tokens": 50, "output_tokens": 30}
+
+    @pytest.mark.anyio
+    async def test_create_message_with_schema_injection(self):
+        """
+        Tests that the JSON schema is correctly injected into the system prompt.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test_schema",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[
+                TextBlock(type="text", text='{"key": "value"}')
+            ],  # Mock JSON response
+            stop_reason="end_turn",
+            stop_sequence=None,
+            usage=Usage(input_tokens=20, output_tokens=10),
+        )
+        mock_messages_api = MagicMock()
+        # Use AsyncMock for the create method
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name=TEST_MODEL_NAME, system_prompt="Base prompt."
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        messages_input = [
+            {"role": "user", "content": [{"type": "text", "text": "Give me JSON"}]}
+        ]
+        test_schema = {"type": "object", "properties": {"key": {"type": "string"}}}
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=None, schema=test_schema
+        )
+
+        # Assert that the mock was called
+        mock_create_method.assert_called_once()
+        call_args = mock_create_method.call_args
+
+        # Assert schema injection in system prompt
+        system_prompt_arg = call_args.kwargs.get("system")
+        assert system_prompt_arg is not None
+        assert "Base prompt." in system_prompt_arg  # Original prompt
+        assert (
+            "Your response must be valid JSON matching this schema:"
+            in system_prompt_arg
+        )
+        assert '"type": "object"' in system_prompt_arg  # Part of the schema
+        assert '"key": {' in system_prompt_arg  # Part of the schema
+
+        # Assert basic response structure
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id == "msg_test_schema"
+        assert result_message.role == "assistant"
+        assert result_message.content[0].text == '{"key": "value"}'
+
+    # Error handling tests removed as per user request.
+    # Add more tests here for other scenarios if needed
+
+    @pytest.mark.anyio
+    async def test_create_message_with_system_prompt_override(self):
+        """
+        Tests that providing system_prompt_override uses it instead of the default.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test_override",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[TextBlock(type="text", text="Override successful.")],
+            stop_reason="end_turn",
+            stop_sequence=None,
+            usage=Usage(input_tokens=5, output_tokens=5),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        default_prompt = "This is the default system prompt."
+        override_prompt = "This is the OVERRIDE system prompt."
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name=TEST_MODEL_NAME, system_prompt=default_prompt
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        messages_input = [
+            {"role": "user", "content": [{"type": "text", "text": "Check prompt"}]}
+        ]
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=None, system_prompt_override=override_prompt
+        )
+
+        mock_create_method.assert_called_once()
+        call_args = mock_create_method.call_args
+
+        system_prompt_arg = call_args.kwargs.get("system")
+        assert system_prompt_arg is not None
+        assert system_prompt_arg == override_prompt
+        assert system_prompt_arg != default_prompt
+
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id == "msg_test_override"
+        assert result_message.content[0].text == "Override successful."

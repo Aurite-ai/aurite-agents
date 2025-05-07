@@ -9,7 +9,7 @@ This module provides:
 """
 
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional  # Added Any
 from pathlib import Path
 from pydantic import BaseModel, Field  # Added Field
 
@@ -53,12 +53,14 @@ class ClientConfig(BaseModel):
         description="List of GCP secrets to resolve and inject into the server environment",
     )
 
+
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
     clients: List[ClientConfig]
     name: Optional[str] = None
     description: Optional[str] = None
+
 
 class WorkflowConfig(BaseModel):
     """
@@ -72,26 +74,38 @@ class WorkflowConfig(BaseModel):
 
 # --- LLM Configuration ---
 
+
 class LLMConfig(BaseModel):
     """Configuration for a specific LLM setup."""
+
     llm_id: str = Field(description="Unique identifier for this LLM configuration.")
-    provider: str = Field(default="anthropic", description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').")
+    provider: str = Field(
+        default="anthropic",
+        description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').",
+    )
     model_name: str = Field(description="The specific model name for the provider.")
 
     # Common LLM parameters
-    temperature: Optional[float] = Field(None, description="Default sampling temperature.")
-    max_tokens: Optional[int] = Field(None, description="Default maximum tokens to generate.")
-    default_system_prompt: Optional[str] = Field(None, description="A default system prompt for this LLM configuration.")
+    temperature: Optional[float] = Field(
+        None, description="Default sampling temperature."
+    )
+    max_tokens: Optional[int] = Field(
+        None, description="Default maximum tokens to generate."
+    )
+    default_system_prompt: Optional[str] = Field(
+        None, description="A default system prompt for this LLM configuration."
+    )
 
     # Provider-specific settings (Example - adjust as needed)
     # api_key_env_var: Optional[str] = Field(None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).")
     # credentials_path: Optional[Path] = Field(None, description="Path to credentials file for some providers.")
 
     class Config:
-        extra = 'allow' # Allow provider-specific fields not explicitly defined
+        extra = "allow"  # Allow provider-specific fields not explicitly defined
 
 
 # --- Agent Configuration ---
+
 
 class AgentConfig(BaseModel):
     """
@@ -108,17 +122,25 @@ class AgentConfig(BaseModel):
     # List of client IDs this agent is allowed to use (for host filtering)
     client_ids: Optional[List[str]] = None
     # --- LLM Selection ---
-    llm_config_id: Optional[str] = Field(None, description="ID of the LLMConfig to use for this agent.")
+    llm_config_id: Optional[str] = Field(
+        None, description="ID of the LLMConfig to use for this agent."
+    )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
     system_prompt: Optional[str] = None
-    schema: Optional[dict] = Field(
+    config_validation_schema: Optional[dict[str, Any]] = Field(  # Renamed again
         None,
         description="JSON schema for validating agent-specific configurations",
     )
-    model: Optional[str] = Field(None, description="Overrides model_name from LLMConfig if specified.")
-    temperature: Optional[float] = Field(None, description="Overrides temperature from LLMConfig if specified.")
-    max_tokens: Optional[int] = Field(None, description="Overrides max_tokens from LLMConfig if specified.")
+    model: Optional[str] = Field(
+        None, description="Overrides model_name from LLMConfig if specified."
+    )
+    temperature: Optional[float] = Field(
+        None, description="Overrides temperature from LLMConfig if specified."
+    )
+    max_tokens: Optional[int] = Field(
+        None, description="Overrides max_tokens from LLMConfig if specified."
+    )
     # --- Agent Behavior ---
     max_iterations: Optional[int] = None  # Max conversation turns before stopping
     include_history: Optional[bool] = (
@@ -135,6 +157,7 @@ class AgentConfig(BaseModel):
         None,
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
+
 
 class CustomWorkflowConfig(BaseModel):
     """

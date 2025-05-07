@@ -95,7 +95,7 @@ class ResourceManager:
         if client_id:
             return list(self._resources.get(client_id, {}).values())
 
-        all_resources = []
+        all_resources: List[types.Resource] = []
         for client_resources in self._resources.values():
             all_resources.extend(client_resources.values())
         return all_resources

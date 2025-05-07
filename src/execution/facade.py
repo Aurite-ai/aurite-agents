@@ -4,7 +4,16 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING, Callable, Coroutine, List # Added List
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    TYPE_CHECKING,
+    Callable,
+    Coroutine,
+    List,
+    cast,
+)  # Added cast
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -16,14 +25,17 @@ if TYPE_CHECKING:
     )  # Import for type hint
     from ..workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
+
     # Import LLM client base class and models for type hinting and instantiation logic
     from ..llm.base_client import BaseLLM
-    from ..host.models import AgentConfig # Import config models
+    from ..host.models import AgentConfig  # Import config models
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
+
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import AgentExecutionResult
+
 # Import MessageParam for constructing initial messages
 from anthropic.types import MessageParam
 
@@ -32,6 +44,11 @@ from ..workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Import CustomWorkflowExecutor at runtime
 from ..workflows.custom_workflow import CustomWorkflowExecutor
+
+# Import default LLM client for SimpleWorkflowExecutor instantiation
+from ..llm.providers.anthropic_client import (
+    AnthropicLLM,
+)  # TODO: Refactor LLM client resolution
 
 logger = logging.getLogger(__name__)
 
@@ -180,13 +197,15 @@ class ExecutionFacade:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> Dict[str, Any]: # Return type is Dict for API compatibility, AgentExecutionResult internally
+    ) -> Dict[
+        str, Any
+    ]:  # Return type is Dict for API compatibility, AgentExecutionResult internally
         """
         Executes a configured agent by name, handling history loading/saving if configured.
         """
         agent_config: Optional[AgentConfig] = None
-        agent_instance: Optional[Agent] = None
-        llm_client_instance: Optional[BaseLLM] = None # Added for LLM client
+        # agent_instance: Optional[Agent] = None # Will be created after LLM client
+        # llm_client_instance: Optional[BaseLLM] = None # Will be created after param resolution
 
         def error_factory(name: str, msg: str) -> Dict[str, Any]:
             # Return structure matching AgentExecutionResult fields for consistency
@@ -195,7 +214,7 @@ class ExecutionFacade:
                 final_response=None,
                 tool_uses_in_final_turn=[],
                 error=msg,
-            ).model_dump(mode="json") # Return as dict
+            ).model_dump(mode="json")  # Return as dict
 
         try:
             # 1. Get Agent Configuration
@@ -204,44 +223,115 @@ class ExecutionFacade:
                 raise KeyError(f"Agent configuration '{agent_name}' not found.")
             logger.debug(f"Facade: Found AgentConfig for '{agent_name}'")
 
-            # 2. Resolve and Instantiate LLM Client (Placeholder - needs proper implementation)
-            # TODO: Implement robust LLM client resolution based on agent_config.llm_config_id
-            #       This likely involves getting LLMConfig from HostManager and using a factory.
-            # Example placeholder logic:
+            # 2. Resolve LLM Parameters
+            effective_model_name: Optional[str] = None
+            effective_temperature: Optional[float] = None
+            effective_max_tokens: Optional[int] = None
+            effective_system_prompt: Optional[str] = (
+                None  # This will be for the LLM client itself
+            )
+
+            # 2.a. LLMConfig Lookup (Base values)
             if agent_config.llm_config_id:
-                 # llm_config = self._manager.llm_configs.get(agent_config.llm_config_id) # Assuming HostManager holds LLMConfigs
-                 # if not llm_config: raise ValueError(f"LLMConfig '{agent_config.llm_config_id}' not found.")
-                 # llm_client_instance = get_llm_client(llm_config) # Assuming a factory function
-                 logger.warning(f"LLM Client resolution for llm_config_id '{agent_config.llm_config_id}' not fully implemented yet.")
-                 # Fallback to default Anthropic for now if resolution fails
-                 from ..llm.client import AnthropicLLM # Temporary direct import
-                 llm_client_instance = AnthropicLLM(model_name=agent_config.model or "claude-3-haiku-20240307") # Use agent's model override or default
-            else:
-                 # Default to Anthropic if no llm_config_id specified
-                 from ..llm.client import AnthropicLLM # Temporary direct import
-                 llm_client_instance = AnthropicLLM(model_name=agent_config.model or "claude-3-haiku-20240307") # Use agent's model override or default
+                llm_config = self._manager.llm_configs.get(agent_config.llm_config_id)
+                if llm_config:
+                    logger.debug(
+                        f"Facade: Applying base LLMConfig '{agent_config.llm_config_id}' for agent '{agent_name}'."
+                    )
+                    effective_model_name = llm_config.model_name
+                    effective_temperature = llm_config.temperature
+                    effective_max_tokens = llm_config.max_tokens
+                    effective_system_prompt = llm_config.default_system_prompt
+                else:
+                    logger.warning(
+                        f"Facade: LLMConfig ID '{agent_config.llm_config_id}' specified for agent '{agent_name}' not found. "
+                        "Proceeding with AgentConfig-specific LLM parameters or defaults."
+                    )
 
-            if not llm_client_instance:
-                 raise ValueError("Failed to instantiate LLM client for agent.")
+            # 2.b. AgentConfig Overrides (Agent-specific values override LLMConfig)
+            if agent_config.model is not None:
+                effective_model_name = agent_config.model
+                logger.debug(
+                    f"Facade: AgentConfig overrides model_name to '{effective_model_name}'."
+                )
+            if agent_config.temperature is not None:
+                effective_temperature = agent_config.temperature
+                logger.debug(
+                    f"Facade: AgentConfig overrides temperature to '{effective_temperature}'."
+                )
+            if agent_config.max_tokens is not None:
+                effective_max_tokens = agent_config.max_tokens
+                logger.debug(
+                    f"Facade: AgentConfig overrides max_tokens to '{effective_max_tokens}'."
+                )
 
-            logger.debug(f"Facade: Instantiated LLM Client: {type(llm_client_instance).__name__}")
+            # System prompt resolution:
+            # 1. `system_prompt` argument to `run_agent` (highest precedence for this specific run)
+            # 2. `agent_config.system_prompt` (agent's own specific default)
+            # 3. `effective_system_prompt` from `LLMConfig` (if `llm_config_id` was used)
+            # 4. Fallback to LLM client's internal default (e.g., "You are a helpful assistant.")
+            # The `Agent` class itself also has a final fallback if its `system_prompt` argument is None.
+            # For the LLM client instantiation, we prioritize agent_config.system_prompt over llm_config.default_system_prompt
+            # The `system_prompt` argument to `run_agent` is passed directly to `agent.execute_agent`, which handles it.
+            # So, for `effective_system_prompt` for the LLM client, we use agent_config's if available, else LLMConfig's.
+            if agent_config.system_prompt is not None:
+                effective_system_prompt = (
+                    agent_config.system_prompt
+                )  # For LLM client default
+                logger.debug(
+                    "Facade: AgentConfig provides default system prompt for LLM client."
+                )
 
+            # Ensure a model name is available, fallback to a default if absolutely necessary
+            if not effective_model_name:
+                effective_model_name = "claude-3-haiku-20240307"  # Hardcoded fallback
+                logger.warning(
+                    f"Facade: No model name resolved for agent '{agent_name}', defaulting to '{effective_model_name}'."
+                )
 
-            # 3. Instantiate Agent (passing the LLM client)
+            # 3. Instantiate LLM Client with resolved parameters
+            # Using the class-level import of AnthropicLLM
+            llm_client_instance = AnthropicLLM(
+                model_name=effective_model_name,
+                temperature=effective_temperature,  # Let AnthropicLLM handle None with its defaults
+                max_tokens=effective_max_tokens,  # Let AnthropicLLM handle None with its defaults
+                system_prompt=effective_system_prompt,  # Pass resolved default system prompt to client
+            )
+            logger.debug(
+                f"Facade: Instantiated LLM Client '{type(llm_client_instance).__name__}' with model '{effective_model_name}', "
+                f"temp: {effective_temperature}, max_tokens: {effective_max_tokens}."
+            )
+
+            # 4. Instantiate Agent (passing the LLM client)
             agent_instance = Agent(config=agent_config, llm_client=llm_client_instance)
             logger.debug(f"Facade: Instantiated Agent '{agent_name}'")
 
-            # 4. Prepare Initial Messages (Load History + User Message)
+            # 5. Prepare Initial Messages (Load History + User Message)
             initial_messages_for_agent: List[MessageParam] = []
-            load_history = agent_config.include_history and self._storage_manager and session_id
-            if load_history:
+            load_history = (
+                agent_config.include_history and self._storage_manager and session_id
+            )
+            if (
+                load_history and self._storage_manager
+            ):  # Added check for self._storage_manager
                 try:
-                    loaded_history = self._storage_manager.load_history(agent_name, session_id)
+                    loaded_history = self._storage_manager.load_history(
+                        agent_name, session_id
+                    )
                     if loaded_history:
-                        initial_messages_for_agent.extend(loaded_history)
-                        logger.info(f"Facade: Loaded {len(loaded_history)} history turns for agent '{agent_name}', session '{session_id}'.")
+                        # Cast each dict to MessageParam before extending
+                        typed_history = [
+                            cast(MessageParam, item) for item in loaded_history
+                        ]
+                        initial_messages_for_agent.extend(typed_history)
+                        logger.info(
+                            f"Facade: Loaded {len(loaded_history)} history turns for agent '{agent_name}', session '{session_id}'."
+                        )
                 except Exception as e:
-                    logger.error(f"Facade: Failed to load history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
+                    logger.error(
+                        f"Facade: Failed to load history for agent '{agent_name}', session '{session_id}': {e}",
+                        exc_info=True,
+                    )
                     # Continue without history on load failure
 
             # Add the current user message
@@ -252,26 +342,40 @@ class ExecutionFacade:
             agent_result: AgentExecutionResult = await agent_instance.execute_agent(
                 initial_messages=initial_messages_for_agent,
                 host_instance=self._host,
-                system_prompt=system_prompt, # Pass override
+                system_prompt=system_prompt,  # Pass override
             )
             logger.info(f"Facade: Agent '{agent_name}' execution finished.")
 
             # 6. Save History (if enabled and successful)
-            save_history = agent_config.include_history and self._storage_manager and session_id and not agent_result.has_error
-            if save_history:
+            save_history = (
+                agent_config.include_history
+                and self._storage_manager
+                and session_id
+                and not agent_result.has_error
+            )
+            if (
+                save_history and self._storage_manager
+            ):  # Added check for self._storage_manager
                 try:
                     # AgentExecutionResult.conversation is List[AgentOutputMessage]
                     # Convert to List[Dict] for storage
-                    serializable_conversation = [msg.model_dump(mode="json") for msg in agent_result.conversation]
+                    serializable_conversation = [
+                        msg.model_dump(mode="json") for msg in agent_result.conversation
+                    ]
                     self._storage_manager.save_full_history(
                         agent_name=agent_name,
                         session_id=session_id,
                         conversation=serializable_conversation,
                     )
-                    logger.info(f"Facade: Saved {len(serializable_conversation)} history turns for agent '{agent_name}', session '{session_id}'.")
+                    logger.info(
+                        f"Facade: Saved {len(serializable_conversation)} history turns for agent '{agent_name}', session '{session_id}'."
+                    )
                 except Exception as e:
                     # Log error but don't fail the overall result
-                    logger.error(f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}': {e}", exc_info=True)
+                    logger.error(
+                        f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
+                        exc_info=True,
+                    )
 
             # 7. Return Result (as dict)
             return agent_result.model_dump(mode="json")
@@ -280,16 +384,15 @@ class ExecutionFacade:
             error_msg = f"Configuration error: {str(e)}"
             logger.error(f"Facade: {error_msg}")
             return error_factory(agent_name, error_msg)
-        except ValueError as e: # Catch LLM client init errors, etc.
-             error_msg = f"Initialization error for Agent '{agent_name}': {str(e)}"
-             logger.error(f"Facade: {error_msg}", exc_info=True)
-             return error_factory(agent_name, error_msg)
+        except ValueError as e:  # Catch LLM client init errors, etc.
+            error_msg = f"Initialization error for Agent '{agent_name}': {str(e)}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            return error_factory(agent_name, error_msg)
         except Exception as e:
             # Catch unexpected errors during setup or execution within the facade logic
             error_msg = f"Unexpected error running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             return error_factory(agent_name, error_msg)
-
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
@@ -309,10 +412,15 @@ class ExecutionFacade:
             component_name=workflow_name,
             config_lookup=lambda name: self._manager.workflow_configs[name],
             # Pass storage_manager to SimpleWorkflowExecutor if it needs it (currently doesn't)
+            # Pass storage_manager to SimpleWorkflowExecutor if it needs it (currently doesn't)
+            # TODO: Resolve LLM client properly instead of using default Anthropic
             executor_setup=lambda config: SimpleWorkflowExecutor(
                 config=config,
                 agent_configs=self._manager.agent_configs,
                 host_instance=self._host,
+                llm_client=AnthropicLLM(
+                    model_name="claude-3-haiku-20240307"
+                ),  # Provide default LLM client
                 # storage_manager=self._storage_manager # Add if needed later for workflow history
             ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),

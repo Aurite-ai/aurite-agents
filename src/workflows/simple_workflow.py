@@ -3,12 +3,17 @@ Executor for Simple Sequential Workflows.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
 
 # Relative imports assuming this file is in src/workflows/
 from ..host.models import WorkflowConfig, AgentConfig
 from ..host.host import MCPHost
 from ..agents.agent import Agent
+from ..agents.agent_models import AgentExecutionResult  # Import for type hint
+
+# Import LLM client for type hinting only
+if TYPE_CHECKING:
+    from ..llm.base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,7 @@ class SimpleWorkflowExecutor:
         config: WorkflowConfig,
         agent_configs: Dict[str, AgentConfig],
         host_instance: MCPHost,
+        llm_client: "BaseLLM",  # Added llm_client parameter
     ):
         """
         Initializes the SimpleWorkflowExecutor.
@@ -43,6 +49,7 @@ class SimpleWorkflowExecutor:
         self.config = config
         self._agent_configs = agent_configs
         self._host = host_instance
+        self._llm_client = llm_client  # Store llm_client
         logger.debug(
             f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}"
         )
@@ -99,40 +106,35 @@ class SimpleWorkflowExecutor:
                         f"Step {step_num}: Found AgentConfig for '{agent_name}'"
                     )
 
-                    # 2. Instantiate Agent
-                    agent = Agent(config=agent_config)
+                    # 2. Instantiate Agent (Pass llm_client)
+                    agent = Agent(config=agent_config, llm_client=self._llm_client)
                     logger.debug(f"Step {step_num}: Instantiated Agent '{agent_name}'")
 
-                    # 3. Execute the agent step
+                    # 3. Execute the agent step (Pass initial_messages correctly)
                     # Note: We pass the host instance stored in the executor
-                    result = await agent.execute_agent(
-                        user_message=current_message, host_instance=self._host
+                    result: AgentExecutionResult = await agent.execute_agent(
+                        initial_messages=[{"role": "user", "content": current_message}],
+                        host_instance=self._host,
                     )
 
-                    # 4. Process Agent Result
-                    if result.get("error"):
-                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {result['error']}"
+                    # 4. Process Agent Result (Use attribute access)
+                    if result.error:
+                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {result.error}"
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    if (
-                        not result.get("final_response")
-                        or not result["final_response"].content
-                    ):
+                    if not result.final_response or not result.final_response.content:
                         error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response."
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    # 5. Extract Output for Next Step (Handle potential missing text/content)
+                    # 5. Extract Output for Next Step (Use attribute access)
                     try:
-                        if (
-                            result.get("final_response")
-                            and result["final_response"].content
-                        ):
+                        if result.final_response and result.final_response.content:
                             text_content = next(
                                 (
                                     block.text
-                                    for block in result["final_response"].content
+                                    for block in result.final_response.content  # Use attribute access
                                     if block.type == "text"
                                 ),
                                 None,

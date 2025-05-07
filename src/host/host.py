@@ -174,20 +174,22 @@ class MCPHost:
                         roots=types.RootsCapability(listChanged=True)
                         if "roots" in config.capabilities
                         else None,
-                        sampling={} if "sampling" in config.capabilities else None,
+                        sampling=types.SamplingCapability()  # Instantiate capability object
+                        if "sampling" in config.capabilities
+                        else None,
                         experimental={},
-                        prompts={} if "prompts" in config.capabilities else None,
-                        resources={} if "resources" in config.capabilities else None,
+                        # Removed prompts and resources as they are not ClientCapabilities
                     ),
                 ),
             )
-            await session.send_request(init_request, types.InitializeResult)
+            await session.send_request(init_request, types.InitializeResult)  # type: ignore[arg-type]
 
             # Send initialized notification
             init_notification = types.InitializedNotification(
-                method="notifications/initialized", params={}
+                method="notifications/initialized",
+                params=None,  # Pass None instead of {}
             )
-            await session.send_notification(init_notification)
+            await session.send_notification(init_notification)  # type: ignore[arg-type]
 
             # Register roots
             if "roots" in config.capabilities:

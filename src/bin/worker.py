@@ -36,7 +36,7 @@ logger = logging.getLogger("aurite_worker")
 def get_server_config() -> ServerConfig:
     """Loads server configuration using pydantic-settings."""
     try:
-        config = ServerConfig()
+        config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
         logger.info("Server configuration loaded successfully.")
         logging.getLogger().setLevel(config.LOG_LEVEL.upper())
         logger.setLevel(config.LOG_LEVEL.upper())
@@ -98,17 +98,17 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                 else:
                     logger.error("Client config data missing 'server_path'.")
                     return
-                config = ClientConfig(**data)
-                await manager.register_client(config)
-                logger.info(f"Registered client: {config.client_id}")
+                client_config = ClientConfig(**data)  # Use specific var name
+                await manager.register_client(client_config)
+                logger.info(f"Registered client: {client_config.client_id}")
             elif component_type == "agent":
-                config = AgentConfig(**data)
-                await manager.register_agent(config)
-                logger.info(f"Registered agent: {config.name}")
+                agent_config = AgentConfig(**data)  # Use specific var name
+                await manager.register_agent(agent_config)
+                logger.info(f"Registered agent: {agent_config.name}")
             elif component_type == "workflow":
-                config = WorkflowConfig(**data)
-                await manager.register_workflow(config)
-                logger.info(f"Registered workflow: {config.name}")
+                workflow_config = WorkflowConfig(**data)  # Use specific var name
+                await manager.register_workflow(workflow_config)
+                logger.info(f"Registered workflow: {workflow_config.name}")
             else:
                 logger.error(
                     f"Unsupported component_type for register action: {component_type}"
@@ -121,6 +121,13 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                 logger.error("Missing 'name' in data for execute action.")
                 return
 
+            # Add check for execution facade before using it
+            if not manager.execution:
+                logger.error(
+                    "ExecutionFacade not available on HostManager. Cannot execute."
+                )
+                return
+
             if component_type == "agent":
                 user_message = data.get("user_message")
                 if (
@@ -129,7 +136,7 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                     logger.error("Missing 'user_message' in data for execute agent.")
                     return
                 # Use the ExecutionFacade via the manager
-                result = await manager.execution.run_agent(
+                result = await manager.execution.run_agent(  # Now safe to call
                     agent_name=name, user_message=user_message
                 )
                 logger.info(
@@ -144,8 +151,10 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                     )
                     return
                 # Use the ExecutionFacade via the manager
-                result = await manager.execution.run_simple_workflow(
-                    workflow_name=name, initial_input=initial_message
+                result = (
+                    await manager.execution.run_simple_workflow(  # Now safe to call
+                        workflow_name=name, initial_input=initial_message
+                    )
                 )
                 logger.info(
                     f"Executed workflow '{name}'. Status: {result.get('status', 'N/A')}"  # Keep existing status log
@@ -159,8 +168,10 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
                     )
                     return
                 # Use the ExecutionFacade via the manager
-                result = await manager.execution.run_custom_workflow(
-                    workflow_name=name, initial_input=initial_input
+                result = (
+                    await manager.execution.run_custom_workflow(  # Now safe to call
+                        workflow_name=name, initial_input=initial_input
+                    )
                 )
                 # Log based on whether the facade returned an error structure or the direct result
                 if isinstance(result, dict) and result.get("status") == "failed":

@@ -20,6 +20,7 @@ from .host.models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     GCPSecretConfig,
+    LLMConfig,  # Added LLMConfig
 )
 
 logger = logging.getLogger(__name__)
@@ -182,7 +183,7 @@ def _load_agent_configs(
                 name=agent_name,
                 client_ids=agent_data.get("client_ids"),
                 system_prompt=agent_data.get("system_prompt"),
-                schema=schema,
+                config_validation_schema=schema,  # Use renamed field
                 model=agent_data.get("model"),
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -190,6 +191,7 @@ def _load_agent_configs(
                 include_history=include_history,
                 exclude_components=agent_data.get("exclude_components"),
                 evaluation=evaluation,
+                llm_config_id=agent_data.get("llm_config_id"),  # Add missing field
             )
             agent_configs_dict[agent_name] = agent_config
 
@@ -216,6 +218,72 @@ def _load_agent_configs(
             ) from key_err
 
     return agent_configs_dict  # Moved return outside the loop
+
+
+def _load_llm_configs(
+    config_data: Dict[str, Any], config_path: Path
+) -> Dict[str, LLMConfig]:
+    """Loads and validates LLM configurations from the raw config data."""
+    llm_configs_dict: Dict[str, LLMConfig] = {}
+    for llm_data in config_data.get(
+        "llm_configs", []
+    ):  # Assuming "llm_configs" is the key in JSON
+        llm_id = llm_data.get("llm_id")
+        if not llm_id:
+            logger.error(f"LLMConfig definition missing 'llm_id' in {config_path}")
+            raise RuntimeError(
+                f"LLMConfig definition missing 'llm_id' in {config_path}"
+            )
+
+        try:
+            # Extract and potentially convert parameters
+            temperature = (
+                float(llm_data["temperature"])
+                if "temperature" in llm_data and llm_data["temperature"] is not None
+                else None
+            )
+            max_tokens = (
+                int(llm_data["max_tokens"])
+                if "max_tokens" in llm_data and llm_data["max_tokens"] is not None
+                else None
+            )
+
+            llm_config_obj = LLMConfig(
+                llm_id=llm_id,
+                provider=llm_data.get("provider", "anthropic"),  # Default provider
+                model_name=llm_data.get("model_name"),
+                temperature=temperature,
+                max_tokens=max_tokens,
+                default_system_prompt=llm_data.get("default_system_prompt"),
+                # Allow extra fields via **llm_data if LLMConfig.Config.extra = 'allow'
+                **{
+                    k: v for k, v in llm_data.items() if k not in LLMConfig.model_fields
+                },
+            )
+            llm_configs_dict[llm_id] = llm_config_obj
+
+        except (ValueError, TypeError) as conv_err:
+            logger.error(
+                f"Error converting LLMConfig parameter for '{llm_id}' in {config_path}: {conv_err}"
+            )
+            raise RuntimeError(
+                f"Invalid parameter type for LLMConfig '{llm_id}': {conv_err}"
+            ) from conv_err
+        except ValidationError as llm_val_err:
+            logger.error(
+                f"LLMConfig validation failed for '{llm_id}' in {config_path}: {llm_val_err}"
+            )
+            raise RuntimeError(
+                f"LLMConfig validation failed for '{llm_id}': {llm_val_err}"
+            ) from llm_val_err
+        except KeyError as key_err:
+            logger.error(
+                f"Missing required key for LLMConfig '{llm_id}' in {config_path}: {key_err}"
+            )
+            raise RuntimeError(
+                f"Missing required key for LLMConfig '{llm_id}': {key_err}"
+            ) from key_err
+    return llm_configs_dict
 
 
 def _load_workflow_configs(
@@ -317,9 +385,10 @@ def load_host_config_from_json(
     Dict[str, AgentConfig],
     Dict[str, WorkflowConfig],
     Dict[str, CustomWorkflowConfig],
+    Dict[str, LLMConfig],  # Added LLMConfig dict
 ]:
     """
-    Loads MCP Host, Agent, Workflow, and Custom Workflow configurations from a JSON file,
+    Loads MCP Host, Agent, Workflow, Custom Workflow, and LLM configurations from a JSON file,
     validates them, and resolves relative paths using helper functions.
 
     Args:
@@ -351,11 +420,15 @@ def load_host_config_from_json(
     try:
         # Load components using helper functions
         client_configs = _load_client_configs(config_data, config_path)
+        client_configs = _load_client_configs(config_data, config_path)
         agent_configs_dict = _load_agent_configs(config_data, config_path)
         workflow_configs_dict = _load_workflow_configs(config_data, config_path)
         custom_workflow_configs_dict = _load_custom_workflow_configs(
             config_data, config_path
         )
+        llm_configs_dict = _load_llm_configs(
+            config_data, config_path
+        )  # Load LLM configs
 
         # Create the HostConfig Pydantic model
         host_pydantic_config = HostConfig(
@@ -380,6 +453,7 @@ def load_host_config_from_json(
             agent_configs_dict,
             workflow_configs_dict,
             custom_workflow_configs_dict,
+            llm_configs_dict,  # Return LLM configs
         )
 
     except ValidationError as e:

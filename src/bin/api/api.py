@@ -375,7 +375,7 @@ def start():
         workers=config.WORKERS,
         log_level=config.LOG_LEVEL.lower(),  # Uvicorn expects lowercase log level
         reload=False,  # Typically False for production/running directly
-    )
+    )  # type: ignore[union-attr] # Ignore likely false positive on config.HOST/PORT
 
 
 if __name__ == "__main__":

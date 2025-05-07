@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
 from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
@@ -10,9 +10,9 @@ from ....host_manager import HostManager
 from ....host.models import (
     ClientConfig,
     AgentConfig,
-    WorkflowConfig, # Added for consistency, though not directly used in new endpoints
+    WorkflowConfig,  # Added for consistency, though not directly used in new endpoints
 )
-from typing import List # Added for response model
+from typing import List  # Added for response model
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,11 @@ async def execute_agent_endpoint(
     Executes a configured agent by name using the HostManager.
     """
     logger.info(f"Received request to execute agent: {agent_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     # Use the ExecutionFacade via the manager
     result = await manager.execution.run_agent(
         agent_name=agent_name,
@@ -93,6 +98,11 @@ async def execute_workflow_endpoint(
     Executes a configured simple workflow by name using the HostManager.
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_simple_workflow(
         workflow_name=workflow_name,
         initial_input=request_body.initial_user_message,
@@ -120,6 +130,11 @@ async def execute_custom_workflow_endpoint(
 ):
     """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_custom_workflow(
         workflow_name=workflow_name,
         initial_input=request_body.initial_input,
@@ -181,6 +196,7 @@ async def register_workflow_endpoint(
 
 # --- Listing Endpoints for Registered Components ---
 
+
 @router.get("/components/agents", response_model=List[str])
 async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
     """Lists the names of all currently registered agents."""
@@ -188,15 +204,21 @@ async def list_registered_agents(manager: HostManager = Depends(get_host_manager
         return []
     return list(manager.agent_configs.keys())
 
+
 @router.get("/components/workflows", response_model=List[str])
-async def list_registered_simple_workflows(manager: HostManager = Depends(get_host_manager)):
+async def list_registered_simple_workflows(
+    manager: HostManager = Depends(get_host_manager),
+):
     """Lists the names of all currently registered simple workflows."""
     if not manager or not manager.workflow_configs:
         return []
     return list(manager.workflow_configs.keys())
 
+
 @router.get("/components/custom_workflows", response_model=List[str])
-async def list_registered_custom_workflows(manager: HostManager = Depends(get_host_manager)):
+async def list_registered_custom_workflows(
+    manager: HostManager = Depends(get_host_manager),
+):
     """Lists the names of all currently registered custom workflows."""
     if not manager or not manager.custom_workflow_configs:
         return []

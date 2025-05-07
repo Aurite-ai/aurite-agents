@@ -8,17 +8,26 @@ from typing import List, Optional, Dict, Any
 
 # Import Pydantic validation error
 from pydantic import ValidationError
+from typing import cast  # Added cast
 
 # Import our standardized output models from the agents module
-from ..agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
+from ...agents.agent_models import (
+    AgentOutputMessage,
+    AgentOutputContentBlock,
+)  # Corrected path
 
 # Import Anthropic specific types and client
 from anthropic import AsyncAnthropic, APIConnectionError, RateLimitError
+from anthropic._types import NotGiven, NOT_GIVEN  # Import NotGiven
 from anthropic.types import (
     Message as AnthropicMessage,
     TextBlock as AnthropicTextBlock,
     ToolUseBlock as AnthropicToolUseBlock,
+    MessageParam,  # Added
+    ToolParam,  # Added
 )
+from typing import Iterable  # Added
+
 # Import the base LLM class
 from ..base_client import BaseLLM
 
@@ -130,16 +139,37 @@ Remember to format your response as a valid JSON object."""
         if effective_system_prompt:
             api_args["system"] = effective_system_prompt
         if tools:
-            api_args["tools"] = tools
+            # api_args["tools"] = tools # Removed packing into dict
             logger.debug(f"Including {len(tools)} tools in Anthropic API call.")
         else:
             logger.debug("No tools included in Anthropic API call.")
+            tools = None  # Ensure tools is None if not provided
 
         logger.debug(f"Making Anthropic API call to model '{self.model_name}'")
         try:
-            # Make the actual API call
+            # Prepare arguments, ensuring correct types and filtering None
+            # Use default if max_tokens is None
+            current_max_tokens = self.max_tokens or DEFAULT_MAX_TOKENS
+            # Cast messages and tools to expected Iterable types
+            typed_messages = cast(Iterable[MessageParam], messages)
+            typed_tools = cast(Optional[Iterable[ToolParam]], tools)
+
+            # Make the actual API call with direct keyword arguments, filtering Nones
             anthropic_response: AnthropicMessage = (
-                await self.anthropic_sdk_client.messages.create(**api_args)
+                await self.anthropic_sdk_client.messages.create(
+                    model=self.model_name,
+                    max_tokens=current_max_tokens,
+                    messages=typed_messages,
+                    system=effective_system_prompt
+                    if effective_system_prompt is not None
+                    else NOT_GIVEN,
+                    tools=typed_tools if typed_tools is not None else NOT_GIVEN,
+                    temperature=self.temperature
+                    if self.temperature is not None
+                    else NOT_GIVEN,
+                    # Add other optional params directly here if needed, e.g.:
+                    # top_k=self.top_k if self.top_k is not None else NOT_GIVEN,
+                )
             )
             logger.debug(
                 f"Anthropic API response received (stop_reason: {anthropic_response.stop_reason}, role: {anthropic_response.role})"
