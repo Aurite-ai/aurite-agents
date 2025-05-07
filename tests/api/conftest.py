@@ -27,7 +27,7 @@ def api_client(monkeypatch):
     monkeypatch.setenv("API_KEY", test_api_key)
     monkeypatch.setenv("HOST_CONFIG_PATH", test_config_path)
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")  # Default to DB disabled
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key_fixture")  # Dummy key
+    # monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key_fixture")  # Dummy key
 
     # Add any other environment variables required by your application during testing
     # monkeypatch.setenv("SOME_OTHER_VAR", "some_value")

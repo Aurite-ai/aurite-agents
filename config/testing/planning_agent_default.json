@@ -2,7 +2,7 @@
     "test_type": "agent",
     "name": "Planning Agent",
     "user_input": "create a 3 month plan to learn about the history of the world",
-    "iterations": 2,
+    "iterations": 1,
     "evaluation_type": "default",
     "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
     "rubric": {

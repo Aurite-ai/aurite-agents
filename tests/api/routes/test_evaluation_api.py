@@ -10,7 +10,7 @@ pytestmark = [
 
 
 
-def test_execute_prompt_validaiton_file_success(api_client: TestClient):
+def test_execute_prompt_validation_file_success(api_client: TestClient):
     """
     Tests successful execution of prompt validation using a config file
     """
@@ -28,13 +28,7 @@ def test_execute_prompt_validaiton_file_success(api_client: TestClient):
     assert "workflow_name" in response_data
     assert response_data["workflow_name"] == "Prompt Validation"
     assert "status" in response_data
-    # Expect 'failed' status because the internal agent call fails, and the API endpoint logic
-    # correctly reports this failure at the top level based on the facade's return.
-    assert response_data["status"] == "failed"
-    # The 'result' field is likely None when the top-level status is 'failed'.
+    assert response_data["status"] == "success"
     assert "result" in response_data
-    # Check that the top-level error field contains the relevant error message propagated by the API endpoint.
-    assert "error" in response_data
-    assert response_data["error"] is not None
-    # The specific error message comes from the agent failure within the custom workflow
-    assert "Anthropic API call failed" in response_data["error"]
+    assert "status" in response_data["result"]
+    assert response_data["result"]["status"] == "success"
