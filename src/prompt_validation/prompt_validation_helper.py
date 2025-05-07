@@ -403,7 +403,7 @@ def _prepare_prompts(testing_config: ValidationConfig):
         )
 
     qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config.name} based on a given input.
-    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a pass or fail grade based on the system prompt.
+    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a grade based on the system prompt.
     Here is the system prompt provided: "{testing_config.testing_prompt}"
     {f"You have also been provided a rubric containing criteria to use in your evaluation: {testing_config.rubric.model_dump_json()}" if testing_config.rubric else ""}
 
@@ -412,10 +412,51 @@ def _prepare_prompts(testing_config: ValidationConfig):
         "grade": {type_prompts[evaluation_type]}
     }}
     """
+    
+    match evaluation_type:
+        case "default":
+            grade_schema = {
+                "type": "string",
+                "description": "The final PASS or FAIL grade",
+                "enum": ["PASS", "FAIL"]
+            }
+        case "numeric":
+            if testing_config.rubric:
+                grade_schema = {
+                    "type": "object",
+                    "properties": {},
+                    "required": [criteria.name for criteria in testing_config.rubric.criteria],
+                }
+                for criteria in testing_config.rubric.criteria:
+                    grade_schema["properties"][criteria.name] = {
+                        "type": "number",
+                        "description": criteria.description,
+                        "minimum": 0,
+                        "maximum": 10,
+                    }
+            else:
+                raise ValueError("Rubric not found when evaluation type is numeric")
+        case _:
+            raise ValueError(f"Evaluation type not recognized: {evaluation_type}")
+    
+    qa_schema = {
+        "type": "object",
+        "properties": {
+          "analysis": {
+            "type": "string",
+            "description": "Your analysis of the performace"
+          },
+          "grade": grade_schema,
+        },
+        "required": ["analysis", "grade"]
+    }
+    
+    logging.info(f"debug: qa_schema = {json.dumps(qa_schema, indent=2)}")
 
     return {
         "type_prompts": type_prompts,
         "qa_system_prompt": qa_system_prompt,
+        "qa_schema": qa_schema,
     }
 
 
