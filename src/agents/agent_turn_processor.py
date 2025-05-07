@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class ConversationTurnProcessor:
+class AgentTurnProcessor:
     """
     Handles the logic for a single turn of interaction within the Agent's
     execution loop, including LLM calls, response parsing, schema validation,

@@ -16,7 +16,7 @@ from ..host.host import MCPHost
 # Import the new models
 from .models import AgentExecutionResult, AgentOutputMessage
 # Import the new turn processor
-from .turn_processor import ConversationTurnProcessor
+from .turn_processor import AgentTurnProcessor
 
 # Import StorageManager for type hinting only if needed
 if TYPE_CHECKING:
@@ -166,7 +166,7 @@ class Agent:
             logger.debug(f"Conversation loop iteration {current_iteration}")
 
             # Instantiate and run the turn processor
-            turn_processor = ConversationTurnProcessor(
+            turn_processor = AgentTurnProcessor(
                 config=self.config,
                 llm_client=self.llm,
                 host_instance=host_instance,

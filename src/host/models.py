@@ -1,5 +1,6 @@
 """
 Configuration classes and utilities for MCP Host and clients.
+These models define the structure of the configuration files used to set up the MCP environment, including client and root configurations, as well as LLM and agent settings.
 
 This module provides:
 1. Configuration models for Host, Client, and Root settings
@@ -52,51 +53,12 @@ class ClientConfig(BaseModel):
         description="List of GCP secrets to resolve and inject into the server environment",
     )
 
-
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
     clients: List[ClientConfig]
-    name: Optional[str]
-
-
-class AgentConfig(BaseModel):
-    """
-    Configuration for an Agent instance.
-
-    Defines agent-specific settings and links to the host configuration
-    that provides the necessary MCP clients and capabilities.
-    """
-
-    # Optional name for the agent instance
     name: Optional[str] = None
-    # Link to the Host configuration defining available clients/capabilities
-    # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
-    # List of client IDs this agent is allowed to use (for host filtering)
-    client_ids: Optional[List[str]] = None
-    # Agent-specific LLM parameters (override host/defaults if provided)
-    system_prompt: Optional[str] = None
-    schema: Optional[dict] = Field(
-        None,
-        description="JSON schema for validating agent-specific configurations",
-    )
-    model: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    max_iterations: Optional[int] = None  # Max conversation turns before stopping
-    include_history: Optional[bool] = (
-        None  # Whether to include the conversation history, or just the latest message
-    )
-    # List of component names (tool, prompt, resource) to specifically exclude for this agent
-    exclude_components: Optional[List[str]] = Field(
-        None,
-        description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
-    )
-    evaluation: Optional[str] = Field(
-        None,
-        description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
-    )
-
+    description: Optional[str] = None
 
 class WorkflowConfig(BaseModel):
     """
@@ -173,17 +135,6 @@ class AgentConfig(BaseModel):
         None,
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
-
-
-class WorkflowConfig(BaseModel):
-    """
-    Configuration for a simple, sequential agent workflow.
-    """
-
-    name: str
-    steps: List[str]  # List of agent names (must match keys in loaded AgentConfig dict)
-    description: Optional[str] = None
-
 
 class CustomWorkflowConfig(BaseModel):
     """
