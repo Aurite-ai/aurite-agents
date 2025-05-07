@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.execution.facade import ExecutionFacade
 
+logger = logging.getLogger(__name__)
+
 class ValidationCriteria(BaseModel):
     name: str
     description: str
@@ -444,7 +446,7 @@ async def _get_agent_result(
     testing_config: ValidationConfig,
     test_input,
     override_system_prompt: str | None = None,
-) -> str:
+) -> tuple:  # Corrected return type annotation
     if override_system_prompt:
         if testing_config.test_type != "agent":
             raise ValueError(
@@ -464,6 +466,18 @@ async def _get_agent_result(
                     agent_name=testing_config.name,
                     user_message=test_input,
                 )
+                # ---- START DEBUG LOGGING ----
+                if testing_config.name == "Planning Agent":
+                    logger.info(f"DEBUG: Planning Agent full_output type: {type(full_output)}")
+                    logger.info(f"DEBUG: Planning Agent full_output content: {full_output}")
+                    try:
+                        # Attempt to dump as JSON if it's a Pydantic model
+                        logger.info(f"DEBUG: Planning Agent full_output model_dump_json: {full_output.model_dump_json(indent=2)}")
+                    except AttributeError:
+                        logger.info("DEBUG: Planning Agent full_output is not a Pydantic model or model_dump_json failed.")
+                    except Exception as e:
+                        logger.info(f"DEBUG: Error during model_dump_json for Planning Agent full_output: {e}")
+                # ---- END DEBUG LOGGING ----
             case "workflow":
                 full_output = await executor.run_simple_workflow(
                     workflow_name=testing_config.name,
@@ -479,13 +493,37 @@ async def _get_agent_result(
 
     if testing_config.test_type == "agent":
         # get text output for agents
-        output = full_output.get("final_response").content[0].text
+        final_response_dict = full_output.get("final_response")
+        output = ""  # Default to empty string
+
+        if final_response_dict and isinstance(final_response_dict, dict):
+            content_list = final_response_dict.get("content")
+            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+                first_block = content_list[0]
+                if isinstance(first_block, dict) and first_block.get("type") == "text":
+                    output = first_block.get("text", "")  # Default to empty string if 'text' key is missing
+                else:
+                    logger.warning(
+                        f"First content block in final_response is not a text block or not a dict: {first_block}"
+                    )
+                    # Attempt to stringify, or provide a more specific error/placeholder
+                    output = str(first_block) if first_block is not None else ""
+            else:
+                logger.warning(
+                    f"final_response content is empty, not a list, or not found: {content_list}"
+                )
+        else:
+            logger.warning(
+                f"final_response is None, not a dict, or not found in agent output: {final_response_dict}"
+            )
     else:
-        # for workflows
+        # for workflows, output is expected to be the full_output directly
+        # (assuming workflows return simpler, directly serializable structures or are handled differently)
         output = full_output
 
     logging.info(f"Agent result: {output}")
 
+    # Ensure the function still returns both output and full_output as a tuple
     return output, full_output
 
 
@@ -510,12 +548,35 @@ async def _run_single_iteration(
             user_message=f"Input:{test_input}\n\nOutput:{output}",
             system_prompt=prompts["qa_system_prompt"],
         )
-        analysis_output = analysis_output.get("final_response").content[0].text
 
-        logging.info(f"Analysis result {i + 1}: {analysis_output}")
+        # Extract text from the Quality Assurance Agent's response
+        analysis_final_response_dict = analysis_output.get("final_response")
+        analysis_text_output = "" # Default to empty string
+
+        if analysis_final_response_dict and isinstance(analysis_final_response_dict, dict):
+            content_list = analysis_final_response_dict.get("content")
+            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+                first_block = content_list[0]
+                if isinstance(first_block, dict) and first_block.get("type") == "text":
+                    analysis_text_output = first_block.get("text", "")
+                else:
+                    logger.warning(
+                        f"QA Agent: First content block in final_response is not a text block or not a dict: {first_block}"
+                    )
+                    analysis_text_output = str(first_block) if first_block is not None else ""
+            else:
+                logger.warning(
+                    f"QA Agent: final_response content is empty, not a list, or not found: {content_list}"
+                )
+        else:
+            logger.warning(
+                f"QA Agent: final_response is None, not a dict, or not found in agent output: {analysis_final_response_dict}"
+            )
+
+        logging.info(f"Analysis result {i + 1}: {analysis_text_output}")
 
         try:
-            analysis_json = json.loads(_clean_thinking_output(analysis_output))
+            analysis_json = json.loads(_clean_thinking_output(analysis_text_output))
         except Exception as e:
             raise ValueError(f"Error converting agent output to json: {e}")
     else:
