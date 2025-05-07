@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 # Import Pydantic validation error
 
 # Import our standardized output models from the agents module
-from ..agents.models import AgentOutputMessage
+from ..agents.agent_models import AgentOutputMessage
 # Import Anthropic specific types and client
 logger = logging.getLogger(__name__)
 

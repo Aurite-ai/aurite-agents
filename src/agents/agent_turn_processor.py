@@ -9,13 +9,13 @@ from jsonschema import validate, ValidationError as JsonSchemaValidationError
 
 # Import necessary types
 from anthropic.types import MessageParam
-from .models import AgentOutputMessage
+from .agent_models import AgentOutputMessage
 from ..host.host import MCPHost
 from ..host.models import AgentConfig
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:
-    from ..llm.client import BaseLLM
+    from ..llm.base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 

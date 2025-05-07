@@ -17,13 +17,13 @@ if TYPE_CHECKING:
     from ..workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
     # Import LLM client base class and models for type hinting and instantiation logic
-    from ..llm.client import BaseLLM
+    from ..llm.base_client import BaseLLM
     from ..host.models import AgentConfig # Import config models
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
 # Import AgentExecutionResult for type hinting the result
-from ..agents.models import AgentExecutionResult
+from ..agents.agent_models import AgentExecutionResult
 # Import MessageParam for constructing initial messages
 from anthropic.types import MessageParam
 

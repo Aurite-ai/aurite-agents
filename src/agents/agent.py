@@ -14,14 +14,14 @@ from pydantic import ValidationError # Import for validation error handling
 from ..host.models import AgentConfig
 from ..host.host import MCPHost
 # Import the new models
-from .models import AgentExecutionResult, AgentOutputMessage
+from .agent_models import AgentExecutionResult, AgentOutputMessage
 # Import the new turn processor
 from .turn_processor import AgentTurnProcessor
 
 # Import StorageManager for type hinting only if needed
 if TYPE_CHECKING:
     # Import the LLM base class for type hinting
-    from ..llm.client import BaseLLM
+    from ..llm.base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 

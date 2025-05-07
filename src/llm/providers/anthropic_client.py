@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import ValidationError
 
 # Import our standardized output models from the agents module
-from ..agents.models import AgentOutputMessage, AgentOutputContentBlock
+from ..agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
 
 # Import Anthropic specific types and client
 from anthropic import AsyncAnthropic, APIConnectionError, RateLimitError
@@ -20,7 +20,7 @@ from anthropic.types import (
     ToolUseBlock as AnthropicToolUseBlock,
 )
 # Import the base LLM class
-from ..client import BaseLLM
+from ..base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 
