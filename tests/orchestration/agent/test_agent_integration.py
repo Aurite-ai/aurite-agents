@@ -146,19 +146,23 @@ class TestAgentIntegration:
             assert conversation[1]["role"] == "assistant"
             assert conversation[1]["content"][0]["type"] == "tool_use"
             assert conversation[2]["role"] == "user"  # Tool result message
-            assert conversation[2]["content"][0]["type"] == "tool_result"
-            assert conversation[2]["content"][0]["tool_use_id"] == tool_use_id
-            # Check the actual result from the mock weather server via MCPHost
-            # The content of the tool_result block is a list containing a text block dict
-            tool_result_content_list = conversation[2]["content"][0].get("content", [])
-            assert isinstance(tool_result_content_list, list)
-            assert len(tool_result_content_list) > 0
-            assert tool_result_content_list[0].get("type") == "text"
-            tool_result_text = tool_result_content_list[0].get("text", "")
+            # Check how the user message with tool result is serialized in history
             assert (
-                "Weather for London:"
-                in tool_result_text  # Match actual mock server output format
-            )
+                conversation[2]["content"][0]["type"] == "tool_result"
+            )  # Should be tool_result
+            assert (
+                conversation[2]["content"][0]["tool_use_id"] == tool_use_id
+            )  # tool_use_id should be present
+            # Check the actual result text from the mock weather server via MCPHost
+            # The content of the tool_result block is a list containing text blocks
+            tool_result_inner_content = conversation[2]["content"][0].get("content", [])
+            assert isinstance(tool_result_inner_content, list)
+            assert len(tool_result_inner_content) > 0
+            assert tool_result_inner_content[0].get("type") == "text"
+            tool_result_text = tool_result_inner_content[0].get("text", "")
+            assert (
+                "Weather for London:" in tool_result_text
+            )  # Match actual mock server output format
             assert (
                 "Temperature: 15" in tool_result_text  # Keep this check
             )  # Check within the text content

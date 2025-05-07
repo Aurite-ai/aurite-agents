@@ -78,5 +78,172 @@ class TestAnthropicLLMIntegration:
             or "greeting" in result_message.content[0].text.lower()
         )
 
-    # TODO: Add integration test for tool use call
-    # TODO: Add integration test for schema enforcement call (if applicable/testable)
+    @pytest.mark.anyio
+    async def test_anthropic_client_tool_use_call(self):
+        """
+        Tests an API call that should result in a tool_use stop reason.
+        """
+        # --- Arrange ---
+        llm_client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+
+        # Define a simple tool for the LLM to potentially use
+        tools_input: List[Dict[str, Any]] = [
+            {
+                "name": "get_weather",
+                "description": "Get the current weather in a given location.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        }
+                    },
+                    "required": ["location"],
+                },
+            }
+        ]
+
+        # A message that is likely to trigger the tool use
+        messages_input: List[MessageParam] = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "What's the weather like in London? Please use a tool if you have one for this.",
+                    }
+                ],
+            }
+        ]
+
+        # --- Act ---
+        try:
+            result_message: AgentOutputMessage = await llm_client.create_message(
+                messages=messages_input,  # type: ignore[arg-type]
+                tools=tools_input,
+            )
+        except Exception as e:
+            pytest.fail(f"Anthropic API call with tool use failed unexpectedly: {e}")
+
+        # --- Assert ---
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id is not None
+        assert result_message.role == "assistant"
+        assert result_message.model == TEST_INTEGRATION_MODEL
+        assert result_message.stop_reason == "tool_use"  # Key assertion for this test
+        assert result_message.usage is not None
+        assert result_message.usage.get("input_tokens", 0) > 0
+        assert (
+            result_message.usage.get("output_tokens", 0) > 0
+        )  # LLM still generates tokens for the tool_use block
+
+        assert isinstance(result_message.content, list)
+        assert len(result_message.content) > 0
+
+        # Expecting at least one tool_use block
+        tool_use_block_found = False
+        for block in result_message.content:
+            if block.type == "tool_use":
+                tool_use_block_found = True
+                assert block.id is not None
+                assert block.name == "get_weather"  # Or whatever tool it decided to use
+                assert block.input is not None
+                assert (
+                    "location" in block.input
+                )  # Check if the required input is present
+                # We can't be certain about the exact input value chosen by the LLM,
+                # but we can check if it's a string.
+                assert isinstance(block.input["location"], str)
+                break
+        assert tool_use_block_found, "No tool_use block found in the response content."
+
+    @pytest.mark.anyio
+    async def test_anthropic_client_schema_enforcement_call(self):
+        """
+        Tests an API call with a JSON schema to guide the response.
+        Note: This test verifies the schema is sent and the LLM attempts to use it.
+              Exact output adherence can vary with LLM behavior.
+        """
+        # --- Arrange ---
+        llm_client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+
+        # Define a simple schema for the LLM
+        test_schema: Dict[str, Any] = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The name of a person."},
+                "age": {"type": "integer", "description": "The age of the person."},
+                "city": {"type": "string", "description": "The city they live in."},
+            },
+            "required": ["name", "age"],
+        }
+
+        # A message prompting for a JSON response matching the schema
+        messages_input: List[MessageParam] = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Please provide information about a fictional character named Alex, who is 30 years old and lives in New York. Format your response as JSON according to the provided schema.",
+                    }
+                ],
+            }
+        ]
+
+        # --- Act ---
+        try:
+            result_message: AgentOutputMessage = await llm_client.create_message(
+                messages=messages_input,  # type: ignore[arg-type]
+                tools=None,
+                schema=test_schema,  # Pass the schema here
+            )
+        except Exception as e:
+            pytest.fail(
+                f"Anthropic API call with schema enforcement failed unexpectedly: {e}"
+            )
+
+        # --- Assert ---
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.id is not None
+        assert result_message.role == "assistant"
+        assert result_message.model == TEST_INTEGRATION_MODEL
+        # Stop reason might be 'end_turn' or potentially 'tool_use' if the LLM gets confused,
+        # but for schema, 'end_turn' is more likely if it successfully generates JSON.
+        assert result_message.stop_reason == "end_turn"
+        assert result_message.usage is not None
+        assert result_message.usage.get("input_tokens", 0) > 0
+        assert result_message.usage.get("output_tokens", 0) > 0
+
+        assert isinstance(result_message.content, list)
+        assert len(result_message.content) > 0
+        assert result_message.content[0].type == "text"
+        assert result_message.content[0].text is not None
+
+        # Attempt to parse the JSON response and validate its structure (basic check)
+        try:
+            import json
+
+            response_json = json.loads(result_message.content[0].text)
+            assert isinstance(response_json, dict)
+            # Check for some expected keys based on the schema and prompt
+            assert "name" in response_json
+            assert "age" in response_json
+            # 'city' is not strictly required by schema but likely included by prompt
+            # assert "city" in response_json
+
+            # Optionally, more rigorous schema validation if a library like jsonschema is available
+            # from jsonschema import validate
+            # validate(instance=response_json, schema=test_schema)
+            # For this integration test, just checking key presence is often sufficient
+            # as full schema validation is more of a unit test for the schema itself.
+
+        except json.JSONDecodeError:
+            pytest.fail(
+                f"Response content was not valid JSON: {result_message.content[0].text}"
+            )
+        except AssertionError as ae:
+            pytest.fail(
+                f"JSON response did not meet basic structure expectations: {ae}. Response: {result_message.content[0].text}"
+            )
