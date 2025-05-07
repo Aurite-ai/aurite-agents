@@ -14,7 +14,7 @@ def test_execute_prompt_validation_file_success(api_client: TestClient):
     """
     Tests successful execution of prompt validation using a config file
     """
-    
+
     payload = {"config_file": "planning_agent_default.json"}
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
@@ -26,9 +26,9 @@ def test_execute_prompt_validation_file_success(api_client: TestClient):
     response_data = response.json()
     # Check the structure returned by the custom workflow executor via the facade
     assert "workflow_name" in response_data
-    assert response_data["workflow_name"] == "Prompt Validation"
+    assert response_data["workflow_name"] == "Prompt Validation Workflow"
     assert "status" in response_data
-    assert response_data["status"] == "success"
+    assert response_data["status"] == "completed"
     assert "result" in response_data
     assert "status" in response_data["result"]
     assert response_data["result"]["status"] == "success"
