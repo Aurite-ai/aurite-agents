@@ -1,3 +1,8 @@
 {
-    "test": "data test"
+    "name": "Example workflow using weather and planning servers",
+    "steps": [
+        "Weather Planning Workflow Step 1",
+        "Weather Planning Workflow Step 2"
+    ],
+    "description": "Example workflow to test simple workflow execution using agents."
 }

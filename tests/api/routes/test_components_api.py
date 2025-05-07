@@ -29,13 +29,12 @@ def test_execute_agent_success(api_client: TestClient):
     assert response.status_code == 200
     response_data = response.json()
     # Check for the presence of the expected output structure from Agent execution
-    # In this integration test, the underlying LLM call is expected to fail due to the dummy key.
-    # The agent should handle this and return a structure indicating failure, often with final_response=None.
+    # With a real API key, the LLM call is expected to succeed.
     assert "final_response" in response_data
-    assert response_data["final_response"] is None
-    # We can also check if an error message is present, if the agent returns one
-    assert "error" in response_data
-    assert "Anthropic API call failed" in response_data["error"]
+    assert response_data["final_response"] is not None  # Expecting a response
+    assert isinstance(response_data["final_response"], str) # Expecting a string response
+    # Error should be None or not present if the call is successful
+    assert response_data.get("error") is None
 
 
 def test_execute_simple_workflow_success(api_client: TestClient):
@@ -60,21 +59,13 @@ def test_execute_simple_workflow_success(api_client: TestClient):
     assert "workflow_name" in response_data
     assert response_data["workflow_name"] == workflow_name
     assert "status" in response_data
-    # Even if underlying agents fail LLM calls, the workflow itself might complete.
-    # Check for 'failed' status, as the underlying agent call fails due to the dummy key,
-    # and the SimpleWorkflowExecutor propagates this failure.
-    assert response_data["status"] == "failed"
-    assert (
-        "final_message" in response_data
-    )  # Final message might be None or contain error info depending on executor
-    # Check that the error field contains the expected error from the failed agent step
-    assert "error" in response_data
-    assert response_data["error"] is not None
-    assert (
-        "Agent 'Weather Planning Workflow Step 1' (step 1) failed"
-        in response_data["error"]
-    )
-    assert "Anthropic API call failed" in response_data["error"]
+    # With a real API key, the workflow and its underlying agent calls are expected to succeed.
+    assert response_data["status"] == "completed"  # Or "success" depending on your SimpleWorkflowExecutor
+    assert "final_message" in response_data
+    assert response_data["final_message"] is not None # Expecting a final message
+    assert isinstance(response_data["final_message"], str)
+    # Error should be None or not present if the workflow is successful
+    assert response_data.get("error") is None
 
 
 def test_execute_custom_workflow_success(api_client: TestClient):
@@ -99,16 +90,12 @@ def test_execute_custom_workflow_success(api_client: TestClient):
     assert "workflow_name" in response_data
     assert response_data["workflow_name"] == workflow_name
     assert "status" in response_data
-    # Expect 'failed' status because the internal agent call fails, and the API endpoint logic
-    # correctly reports this failure at the top level based on the facade's return.
-    assert response_data["status"] == "failed"
-    # The 'result' field is likely None when the top-level status is 'failed'.
+    # With a real API key, the custom workflow and its internal agent calls are expected to succeed.
+    assert response_data["status"] == "completed" # Or "success" depending on your CustomWorkflowExecutor
     assert "result" in response_data
-    # Check that the top-level error field contains the relevant error message propagated by the API endpoint.
-    assert "error" in response_data
-    assert response_data["error"] is not None
-    # The specific error message comes from the agent failure within the custom workflow
-    assert "Anthropic API call failed" in response_data["error"]
+    assert response_data["result"] is not None  # Expecting a result
+    # Error should be None or not present if the custom workflow is successful
+    assert response_data.get("error") is None
 
 
 # --- Registration Endpoint Tests ---

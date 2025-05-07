@@ -1,4 +1,5 @@
 import pytest
+import os  # Added for os.getenv
 from fastapi.testclient import TestClient
 
 # Import the FastAPI app instance from its new location
@@ -27,7 +28,15 @@ def api_client(monkeypatch):
     monkeypatch.setenv("API_KEY", test_api_key)
     monkeypatch.setenv("HOST_CONFIG_PATH", test_config_path)
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")  # Default to DB disabled
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key_fixture")  # Dummy key
+
+    # Get the real Anthropic API key from the environment
+    real_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not real_anthropic_api_key:
+        pytest.skip(
+            "ANTHROPIC_API_KEY environment variable not set. "
+            "Skipping tests that require a real Anthropic key."
+        )
+    monkeypatch.setenv("ANTHROPIC_API_KEY", real_anthropic_api_key)
 
     # Add any other environment variables required by your application during testing
     # monkeypatch.setenv("SOME_OTHER_VAR", "some_value")
