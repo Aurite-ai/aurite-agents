@@ -306,3 +306,88 @@ class TestAnthropicLLMUnit:
         assert isinstance(result_message, AgentOutputMessage)
         assert result_message.id == "msg_test_override"
         assert result_message.content[0].text == "Override successful."
+
+    @pytest.mark.anyio
+    async def test_create_message_propagates_max_tokens_stop_reason(self):
+        """
+        Tests that a 'max_tokens' stop_reason from the SDK is correctly
+        propagated to the AgentOutputMessage.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test_max_tokens_prop",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[
+                TextBlock(type="text", text="Some truncated text.")
+            ],  # Content doesn't matter for this test
+            stop_reason="max_tokens",  # This is the key part to test
+            stop_sequence=None,
+            usage=Usage(input_tokens=10, output_tokens=50),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        messages_input = [
+            {"role": "user", "content": [{"type": "text", "text": "A user message."}]}
+        ]
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=None
+        )
+
+        mock_create_method.assert_called_once()
+
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.stop_reason == "max_tokens"  # Verify correct propagation
+
+    @pytest.mark.anyio
+    async def test_create_message_propagates_stop_sequence(self):
+        """
+        Tests that a 'stop_sequence' from the SDK is correctly
+        propagated to the AgentOutputMessage.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        stop_seq = "\nHuman:"
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_test_stop_seq",
+            type="message",
+            role="assistant",
+            model=TEST_MODEL_NAME,
+            content=[TextBlock(type="text", text="Response stopped by sequence.")],
+            stop_reason="stop_sequence",
+            stop_sequence=stop_seq,  # This is the key part to test
+            usage=Usage(input_tokens=15, output_tokens=25),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        messages_input = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": "Another user query."}],
+            }
+        ]
+
+        result_message: AgentOutputMessage = await llm_client.create_message(
+            messages=messages_input, tools=None
+        )
+
+        mock_create_method.assert_called_once()
+
+        assert isinstance(result_message, AgentOutputMessage)
+        assert result_message.stop_reason == "stop_sequence"
+        assert result_message.stop_sequence == stop_seq  # Verify correct propagation
