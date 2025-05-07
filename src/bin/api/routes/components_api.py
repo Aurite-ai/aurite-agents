@@ -10,8 +10,7 @@ from ....host_manager import HostManager
 from ....host.models import (
     ClientConfig,
     AgentConfig,
-    WorkflowConfig,
-    CustomWorkflowConfig, # Added for consistency, though not directly used in new endpoints
+    WorkflowConfig, # Added for consistency, though not directly used in new endpoints
 )
 from typing import List # Added for response model
 

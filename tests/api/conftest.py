@@ -1,5 +1,4 @@
 import pytest
-import os  # Added for os.getenv
 from fastapi.testclient import TestClient
 
 # Import the FastAPI app instance from its new location

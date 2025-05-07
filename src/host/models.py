@@ -108,6 +108,83 @@ class WorkflowConfig(BaseModel):
     description: Optional[str] = None
 
 
+# --- LLM Configuration ---
+
+class LLMConfig(BaseModel):
+    """Configuration for a specific LLM setup."""
+    llm_id: str = Field(description="Unique identifier for this LLM configuration.")
+    provider: str = Field(default="anthropic", description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').")
+    model_name: str = Field(description="The specific model name for the provider.")
+
+    # Common LLM parameters
+    temperature: Optional[float] = Field(None, description="Default sampling temperature.")
+    max_tokens: Optional[int] = Field(None, description="Default maximum tokens to generate.")
+    default_system_prompt: Optional[str] = Field(None, description="A default system prompt for this LLM configuration.")
+
+    # Provider-specific settings (Example - adjust as needed)
+    # api_key_env_var: Optional[str] = Field(None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).")
+    # credentials_path: Optional[Path] = Field(None, description="Path to credentials file for some providers.")
+
+    class Config:
+        extra = 'allow' # Allow provider-specific fields not explicitly defined
+
+
+# --- Agent Configuration ---
+
+class AgentConfig(BaseModel):
+    """
+    Configuration for an Agent instance.
+
+    Defines agent-specific settings and links to the host configuration
+    that provides the necessary MCP clients and capabilities.
+    """
+
+    # Optional name for the agent instance
+    name: Optional[str] = None
+    # Link to the Host configuration defining available clients/capabilities
+    # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
+    # List of client IDs this agent is allowed to use (for host filtering)
+    client_ids: Optional[List[str]] = None
+    # --- LLM Selection ---
+    llm_config_id: Optional[str] = Field(None, description="ID of the LLMConfig to use for this agent.")
+    # --- LLM Overrides (Optional) ---
+    # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
+    system_prompt: Optional[str] = None
+    schema: Optional[dict] = Field(
+        None,
+        description="JSON schema for validating agent-specific configurations",
+    )
+    model: Optional[str] = Field(None, description="Overrides model_name from LLMConfig if specified.")
+    temperature: Optional[float] = Field(None, description="Overrides temperature from LLMConfig if specified.")
+    max_tokens: Optional[int] = Field(None, description="Overrides max_tokens from LLMConfig if specified.")
+    # --- Agent Behavior ---
+    max_iterations: Optional[int] = None  # Max conversation turns before stopping
+    include_history: Optional[bool] = (
+        None  # Whether to include the conversation history, or just the latest message
+    )
+    # --- Component Filtering ---
+    # List of component names (tool, prompt, resource) to specifically exclude for this agent
+    exclude_components: Optional[List[str]] = Field(
+        None,
+        description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
+    )
+    # --- Evaluation (Experimental/Specific Use Cases) ---
+    evaluation: Optional[str] = Field(
+        None,
+        description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
+    )
+
+
+class WorkflowConfig(BaseModel):
+    """
+    Configuration for a simple, sequential agent workflow.
+    """
+
+    name: str
+    steps: List[str]  # List of agent names (must match keys in loaded AgentConfig dict)
+    description: Optional[str] = None
+
+
 class CustomWorkflowConfig(BaseModel):
     """
     Configuration for a custom Python-based workflow.

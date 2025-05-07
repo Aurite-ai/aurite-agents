@@ -16,6 +16,9 @@ from src.storage.db_manager import StorageManager  # Import for type hint/mockin
 from anthropic.types import Message  # For mocking LLM response
 import anthropic  # Import the library for exception types
 
+# Import the new result model
+from src.agents.models import AgentExecutionResult
+
 # Import shared fixtures
 
 # --- Fixtures ---
@@ -49,12 +52,41 @@ class TestAgentUnit:
         """
         print("\n--- Running Test: test_execute_agent_success_no_tool_use ---")
         user_message = "Hello, world!"
-        # Mock the LLM response (no tool use requested)
-        mock_llm_response = MagicMock(spec=Message)
-        mock_llm_response.content = [MagicMock(type="text", text="Hello back!")]
-        mock_llm_response.stop_reason = "end_turn"
-        # Mock the internal _make_llm_call method directly
-        agent._make_llm_call = AsyncMock(return_value=mock_llm_response)
+        user_message = "Hello, world!"
+        user_message = "Hello, world!"
+        # Mock the content block first
+        mock_content_block_dict = {"type": "text", "text": "Hello back!"}
+        mock_content_block_obj = MagicMock()
+        # Configure the content block's mock .model_dump() to return the dict
+        mock_content_block_obj.model_dump.return_value = mock_content_block_dict
+        # Set attributes directly if they might be accessed before model_dump (less likely now)
+        mock_content_block_obj.type = "text"
+        mock_content_block_obj.text = "Hello back!"
+
+        # Mock the LLM response object (e.g., anthropic.types.Message)
+        # This is what _make_llm_call returns BEFORE serialization
+        mock_llm_message_obj = MagicMock(spec=Message)
+        # Set the .content attribute using the configured content block mock
+        mock_llm_message_obj.content = [mock_content_block_obj]
+        mock_llm_message_obj.stop_reason = "end_turn" # Also set stop_reason directly if accessed
+
+        # Define the structure _serialize_content_blocks would create from the *message* object
+        # This is used for the final AgentExecutionResult validation
+        mock_serialized_llm_response = {
+            "id": "msg_mock123", # Example ID
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hello back!"}], # Serialized content block
+            "model": "mock_model",
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 10, "output_tokens": 10},
+        }
+        # Configure the mock Message object's model_dump to return the serialized dict
+        # This simulates how _serialize_content_blocks works
+        mock_llm_message_obj.model_dump.return_value = mock_serialized_llm_response
+
+        # Mock the internal _make_llm_call method to return the mock Message object
+        agent._make_llm_call = AsyncMock(return_value=mock_llm_message_obj)
 
         # Execute the agent
         result = await agent.execute_agent(
@@ -70,25 +102,27 @@ class TestAgentUnit:
         mock_mcp_host.get_formatted_tools.assert_called_once()  # Use synchronous assertion
         mock_mcp_host.execute_tool.assert_not_awaited()  # Ensure no tool execution was attempted
 
-        assert "conversation" in result
-        assert len(result["conversation"]) == 2  # User message + Assistant response
-        assert result["conversation"][0]["role"] == "user"
-        assert result["conversation"][0]["content"] == user_message
-        assert result["conversation"][1]["role"] == "assistant"
-        # Check the structure of the assistant's content in history
-        assistant_content = result["conversation"][1]["content"]
+        assert isinstance(result, AgentExecutionResult)
+        assert not result.has_error # Check error property
+        assert len(result.conversation) == 2  # User message + Assistant response
+        assert result.conversation[0].role == "user"
+        # Content is now a list of AgentOutputContentBlock
+        assert len(result.conversation[0].content) == 1
+        assert result.conversation[0].content[0].type == "text"
+        assert result.conversation[0].content[0].text == user_message
+        assert result.conversation[1].role == "assistant"
+        # Check the structure of the assistant's content in history (should match serialized structure)
+        assistant_content = result.conversation[1].content
         assert isinstance(assistant_content, list)
         assert len(assistant_content) == 1
         assert assistant_content[0].type == "text"
         assert assistant_content[0].text == "Hello back!"
+        # We can also check other fields if needed, e.g., assistant_content[0].id if it existed
 
-        assert "final_response" in result
-        assert (
-            result["final_response"] == mock_llm_response
-        )  # Should return the raw response object
-
-        assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 0  # No tool use expected
+        assert result.final_response is not None
+        assert result.final_response.role == "assistant"
+        assert result.primary_text == "Hello back!" # Use helper property
+        assert len(result.tool_uses_in_final_turn) == 0 # Check renamed attribute
 
         print("Assertions passed.")
         print("--- Test Finished: test_execute_agent_success_no_tool_use ---")
@@ -110,29 +144,49 @@ class TestAgentUnit:
         tool_input = {"text": "testing"}
         tool_id = "tool_abc123"
         tool_result_content = "Tool Result: testing"
-
         # --- Mock LLM Response 1 (Requesting Tool Use) ---
-        mock_tool_use_block = MagicMock()
-        mock_tool_use_block.type = "tool_use"
-        mock_tool_use_block.id = tool_id
-        mock_tool_use_block.name = tool_name
-        mock_tool_use_block.input = tool_input
+        # Mock the tool use content block
+        mock_tool_use_block_dict = {"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input}
+        mock_tool_use_block_obj = MagicMock()
+        mock_tool_use_block_obj.model_dump.return_value = mock_tool_use_block_dict
+        mock_tool_use_block_obj.type = "tool_use" # Set attributes for direct access if needed
+        mock_tool_use_block_obj.id = tool_id
+        mock_tool_use_block_obj.name = tool_name
+        mock_tool_use_block_obj.input = tool_input
 
-        mock_llm_response_1 = MagicMock(spec=Message)
-        # Content includes the tool use block
-        mock_llm_response_1.content = [mock_tool_use_block]
-        mock_llm_response_1.stop_reason = "tool_use"
+        # Mock the first Message object
+        mock_llm_message_obj_1 = MagicMock(spec=Message)
+        mock_llm_message_obj_1.content = [mock_tool_use_block_obj] # Use the configured mock block
+        mock_llm_message_obj_1.stop_reason = "tool_use"
+        # Configure its model_dump
+        mock_llm_message_obj_1.model_dump.return_value = {
+            "id": "msg_mock_tool", "type": "message", "role": "assistant",
+            "content": [mock_tool_use_block_dict], # Use the serialized block dict
+            "model": "mock_model", "stop_reason": "tool_use", "usage": {"input_tokens": 10, "output_tokens": 10}
+        }
 
         # --- Mock LLM Response 2 (Final Text Response after Tool Result) ---
-        mock_llm_response_2 = MagicMock(spec=Message)
-        mock_llm_response_2.content = [
-            MagicMock(type="text", text="Okay, I echoed it.")
-        ]
-        mock_llm_response_2.stop_reason = "end_turn"
+         # Mock the text content block
+        mock_text_block_dict = {"type": "text", "text": "Okay, I echoed it."}
+        mock_text_block_obj = MagicMock()
+        mock_text_block_obj.model_dump.return_value = mock_text_block_dict
+        mock_text_block_obj.type = "text"
+        mock_text_block_obj.text = "Okay, I echoed it."
 
-        # Mock the internal _make_llm_call method to return responses sequentially
+        # Mock the second Message object
+        mock_llm_message_obj_2 = MagicMock(spec=Message)
+        mock_llm_message_obj_2.content = [mock_text_block_obj] # Use the configured mock block
+        mock_llm_message_obj_2.stop_reason = "end_turn"
+         # Configure its model_dump
+        mock_llm_message_obj_2.model_dump.return_value = {
+            "id": "msg_mock_final", "type": "message", "role": "assistant",
+            "content": [mock_text_block_dict], # Use the serialized block dict
+            "model": "mock_model", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 10}
+        }
+
+        # Mock the internal _make_llm_call method to return the mock Message objects sequentially
         agent._make_llm_call = AsyncMock(
-            side_effect=[mock_llm_response_1, mock_llm_response_2]
+            side_effect=[mock_llm_message_obj_1, mock_llm_message_obj_2]
         )
 
         # --- Mock Host Tool Execution ---
@@ -176,36 +230,41 @@ class TestAgentUnit:
             tool_id, tool_result_content
         )
 
+        assert isinstance(result, AgentExecutionResult)
+        assert not result.has_error
+
         # Conversation history check
-        assert "conversation" in result
         assert (
-            len(result["conversation"]) == 4
+            len(result.conversation) == 4
         )  # user -> assistant (tool) -> user (result) -> assistant (final)
         # 1. Initial User Message
-        assert result["conversation"][0]["role"] == "user"
-        assert result["conversation"][0]["content"] == user_message
+        assert result.conversation[0].role == "user"
+        assert result.conversation[0].content[0].text == user_message
         # 2. Assistant Tool Request
-        assert result["conversation"][1]["role"] == "assistant"
-        assert result["conversation"][1]["content"] == mock_llm_response_1.content
+        assert result.conversation[1].role == "assistant"
+        assert result.conversation[1].content[0].type == "tool_use"
+        assert result.conversation[1].content[0].id == tool_id
+        assert result.conversation[1].content[0].name == tool_name
         # 3. User Tool Result (Content is a list containing the list returned by create_tool_result_blocks)
-        assert result["conversation"][2]["role"] == "user"
-        assert result["conversation"][2]["content"] == [
-            [mock_tool_result_block_content]
-        ]  # Expect list of lists
+        assert result.conversation[2].role == "user"
+        # The content block itself should now be validated
+        assert result.conversation[2].content[0].type == "tool_result"
+        assert result.conversation[2].content[0].tool_use_id == tool_id
+        # Assuming the serialized tool result content is just text here
+        assert result.conversation[2].content[0].text == tool_result_content
         # 4. Final Assistant Response
-        assert result["conversation"][3]["role"] == "assistant"
-        assert result["conversation"][3]["content"] == mock_llm_response_2.content
+        assert result.conversation[3].role == "assistant"
+        assert result.conversation[3].content[0].text == "Okay, I echoed it."
 
         # Final response check
-        assert "final_response" in result
-        assert result["final_response"] == mock_llm_response_2
+        assert result.primary_text == "Okay, I echoed it."
 
         # Tool uses check (should reflect the *last* turn that had tool use)
-        assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 1
-        assert result["tool_uses"][0]["id"] == tool_id
-        assert result["tool_uses"][0]["name"] == tool_name
-        assert result["tool_uses"][0]["input"] == tool_input
+        # Note: The key in AgentExecutionResult is 'tool_uses_in_final_turn'
+        assert len(result.tool_uses_in_final_turn) == 1
+        assert result.tool_uses_in_final_turn[0]["id"] == tool_id
+        assert result.tool_uses_in_final_turn[0]["name"] == tool_name
+        assert result.tool_uses_in_final_turn[0]["input"] == tool_input
 
         print("Assertions passed.")
         print("--- Test Finished: test_execute_agent_success_with_tool_use ---")
@@ -339,42 +398,45 @@ class TestAgentUnit:
             tool2_id, tool2_result_content
         )
 
+        assert isinstance(result, AgentExecutionResult)
+        assert not result.has_error
+
         # Conversation history check
-        assert "conversation" in result
         assert (
-            len(result["conversation"]) == 4
+            len(result.conversation) == 4
         )  # user -> assistant (tools) -> user (results) -> assistant (final)
-        assert result["conversation"][0]["role"] == "user"
-        assert result["conversation"][1]["role"] == "assistant"
-        assert result["conversation"][1]["content"] == mock_llm_response_1.content
+        assert result.conversation[0].role == "user"
+        assert result.conversation[0].content[0].text == user_message
+        assert result.conversation[1].role == "assistant"
+        assert len(result.conversation[1].content) == 2 # Two tool use blocks
+        assert result.conversation[1].content[0].type == "tool_use"
+        assert result.conversation[1].content[1].type == "tool_use"
         # Check the user message containing tool results (order might vary, check content)
-        assert result["conversation"][2]["role"] == "user"
-        user_tool_results_content = result["conversation"][2]["content"]
+        assert result.conversation[2].role == "user"
+        user_tool_results_content = result.conversation[2].content
         assert isinstance(user_tool_results_content, list)
         assert (
             len(user_tool_results_content) == 2
         )  # Should contain results for both tools
         # Check if both expected result blocks are present (order doesn't matter)
-        assert [mock_tool1_result_block_content] in user_tool_results_content
-        assert [mock_tool2_result_block_content] in user_tool_results_content
-        assert result["conversation"][3]["role"] == "assistant"
-        assert result["conversation"][3]["content"] == mock_llm_response_2.content
+        assert any(block.type == "tool_result" and block.tool_use_id == tool1_id and block.text == tool1_result_content for block in user_tool_results_content)
+        assert any(block.type == "tool_result" and block.tool_use_id == tool2_id and block.text == tool2_result_content for block in user_tool_results_content)
+        assert result.conversation[3].role == "assistant"
+        assert result.conversation[3].content[0].text == "Okay, used both tools."
 
         # Final response check
-        assert "final_response" in result
-        assert result["final_response"] == mock_llm_response_2
+        assert result.primary_text == "Okay, used both tools."
 
         # Tool uses check (should contain both tools from the first assistant turn)
-        assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 2
+        assert len(result.tool_uses_in_final_turn) == 2
         # Check presence of both tool uses (order might vary)
         assert any(
             tu["id"] == tool1_id and tu["name"] == tool1_name
-            for tu in result["tool_uses"]
+            for tu in result.tool_uses_in_final_turn
         )
         assert any(
             tu["id"] == tool2_id and tu["name"] == tool2_name
-            for tu in result["tool_uses"]
+            for tu in result.tool_uses_in_final_turn
         )
 
         print("Assertions passed.")
@@ -461,34 +523,37 @@ class TestAgentUnit:
         # Tool result block created once (with the error message)
         mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
             tool_id,
+            tool_id,
             error_content_string,  # Verify it was called with the error string
         )
 
+        assert isinstance(result, AgentExecutionResult)
+        assert not result.has_error # Agent execution itself didn't error, just the tool
+
         # Conversation history check
-        assert "conversation" in result
         assert (
-            len(result["conversation"]) == 4
+            len(result.conversation) == 4
         )  # user -> assistant (tool) -> user (error result) -> assistant (final)
-        assert result["conversation"][0]["role"] == "user"
-        assert result["conversation"][1]["role"] == "assistant"
-        assert result["conversation"][1]["content"] == mock_llm_response_1.content
+        assert result.conversation[0].role == "user"
+        assert result.conversation[0].content[0].text == user_message
+        assert result.conversation[1].role == "assistant"
+        assert result.conversation[1].content[0].type == "tool_use"
+        assert result.conversation[1].content[0].id == tool_id
         # Check the user message containing the error tool result
-        assert result["conversation"][2]["role"] == "user"
-        assert result["conversation"][2]["content"] == [
-            [mock_error_result_block_content]
-        ]  # List of lists
-        assert result["conversation"][3]["role"] == "assistant"
-        assert result["conversation"][3]["content"] == mock_llm_response_2.content
+        assert result.conversation[2].role == "user"
+        assert result.conversation[2].content[0].type == "tool_result"
+        assert result.conversation[2].content[0].tool_use_id == tool_id
+        assert result.conversation[2].content[0].text == error_content_string # Error message is text
+        assert result.conversation[3].role == "assistant"
+        assert result.conversation[3].content[0].text == "Okay, the tool failed."
 
         # Final response check
-        assert "final_response" in result
-        assert result["final_response"] == mock_llm_response_2
+        assert result.primary_text == "Okay, the tool failed."
 
         # Tool uses check (should contain the failed tool use)
-        assert "tool_uses" in result
-        assert len(result["tool_uses"]) == 1
-        assert result["tool_uses"][0]["id"] == tool_id
-        assert result["tool_uses"][0]["name"] == tool_name
+        assert len(result.tool_uses_in_final_turn) == 1
+        assert result.tool_uses_in_final_turn[0]["id"] == tool_id
+        assert result.tool_uses_in_final_turn[0]["name"] == tool_name
 
         print("Assertions passed.")
         print("--- Test Finished: test_execute_agent_tool_execution_error ---")
