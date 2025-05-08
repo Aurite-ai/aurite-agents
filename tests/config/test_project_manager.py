@@ -1,0 +1,322 @@
+import pytest
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from src.config.project_manager import ProjectManager
+from src.config.component_manager import ComponentManager
+from src.config.config_models import (
+    ProjectConfig,
+    ClientConfig,
+    AgentConfig,
+    LLMConfig,
+    WorkflowConfig,
+    CustomWorkflowConfig,
+)
+from src.config import PROJECT_ROOT_DIR
+
+# Fixtures from tests.fixtures.config_fixtures
+from ..fixtures.config_fixtures import (
+    VALID_PROJECT_CONFIG_INLINE_DEFS,
+    VALID_PROJECT_CONFIG_WITH_REFS,
+    VALID_CLIENT_CONFIG_DATA_MINIMAL,
+    VALID_AGENT_CONFIG_DATA,
+    VALID_LLM_CONFIG_DATA,
+    VALID_SIMPLE_WORKFLOW_CONFIG_DATA,
+    VALID_CUSTOM_WORKFLOW_CONFIG_DATA,
+)
+
+
+@pytest.fixture
+def mock_component_manager() -> MagicMock:
+    """Provides a MagicMock for ComponentManager."""
+    mock_cm = MagicMock(spec=ComponentManager)
+
+    # Setup mock return values for get_component_config based on VALID_PROJECT_CONFIG_WITH_REFS
+    # and the individual component fixtures.
+    # This assumes the IDs in VALID_PROJECT_CONFIG_WITH_REFS match the IDs in these fixtures.
+
+    client1_data = VALID_CLIENT_CONFIG_DATA_MINIMAL.copy()
+    client1_model = ClientConfig(
+        **client1_data
+    )  # Paths will be strings here, CM would resolve them
+
+    # Agent data needs its llm_config_id and client_ids to be valid if we were fully resolving
+    # For this mock, we just need to return an AgentConfig instance.
+    agent_data = VALID_AGENT_CONFIG_DATA.copy()
+    agent_model = AgentConfig(**agent_data)
+
+    llm_data = VALID_LLM_CONFIG_DATA.copy()
+    llm_model = LLMConfig(**llm_data)
+
+    simple_wf_data = VALID_SIMPLE_WORKFLOW_CONFIG_DATA.copy()
+    simple_wf_model = WorkflowConfig(**simple_wf_data)
+
+    custom_wf_data = VALID_CUSTOM_WORKFLOW_CONFIG_DATA.copy()
+    # Resolve path for CustomWorkflowConfig as ProjectManager would expect it from ComponentManager
+    custom_wf_path_resolved = (
+        PROJECT_ROOT_DIR / custom_wf_data["module_path"]
+    ).resolve()
+    custom_wf_data_resolved = custom_wf_data.copy()
+    custom_wf_data_resolved["module_path"] = custom_wf_path_resolved
+    custom_wf_model = CustomWorkflowConfig(**custom_wf_data_resolved)
+
+    def get_component_side_effect(component_type, component_id):
+        if component_type == "clients":
+            if component_id == client1_model.client_id:  # "test_client_min"
+                # Simulate path resolution that ComponentManager would do
+                resolved_client_data = client1_data.copy()
+                resolved_client_data["server_path"] = (
+                    PROJECT_ROOT_DIR / client1_data["server_path"]
+                ).resolve()
+                return ClientConfig(**resolved_client_data)
+            # Add more clients if VALID_PROJECT_CONFIG_WITH_REFS refers to them by ID
+            elif component_id == "test_client_full":  # from fixture name
+                # Create a dummy ClientConfig for test_client_full for simplicity
+                return ClientConfig(
+                    client_id="test_client_full",
+                    server_path=Path("/dummy/path.py"),
+                    capabilities=[],
+                    roots=[],
+                )
+
+        elif (
+            component_type == "agents" and component_id == agent_model.name
+        ):  # "test_agent_fixture"
+            return agent_model
+        elif (
+            component_type == "llm_configs" and component_id == llm_model.llm_id
+        ):  # "test_llm_fixture"
+            return llm_model
+        elif (
+            component_type == "simple_workflows"
+            and component_id == simple_wf_model.name
+        ):  # "test_simple_workflow_fixture"
+            return simple_wf_model
+        elif (
+            component_type == "custom_workflows"
+            and component_id == custom_wf_model.name
+        ):  # "test_custom_workflow_fixture"
+            return custom_wf_model
+        return None
+
+    mock_cm.get_component_config.side_effect = get_component_side_effect
+    return mock_cm
+
+
+@pytest.fixture
+def project_manager(mock_component_manager: MagicMock) -> ProjectManager:
+    """Provides a ProjectManager instance initialized with a mocked ComponentManager."""
+    return ProjectManager(component_manager=mock_component_manager)
+
+
+def test_create_project_file_success(project_manager: ProjectManager, tmp_path: Path):
+    """Test successful creation of a project file."""
+    project_file_path = tmp_path / "test_project.json"
+    content = {"name": "MyTestProject", "description": "A test."}
+
+    result = project_manager.create_project_file(project_file_path, content)
+    assert result is True
+    assert project_file_path.is_file()
+    with open(project_file_path, "r") as f:
+        data_on_disk = json.load(f)
+    assert data_on_disk == content
+
+
+def test_create_project_file_already_exists_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test FileExistsError when creating a project file that already exists."""
+    project_file_path = tmp_path / "test_project_exists.json"
+    content = {"name": "MyExistingProject"}
+
+    project_manager.create_project_file(project_file_path, content)  # Create first time
+
+    with pytest.raises(FileExistsError):
+        project_manager.create_project_file(project_file_path, content, overwrite=False)
+
+
+def test_create_project_file_overwrite_success(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test overwriting an existing project file successfully."""
+    project_file_path = tmp_path / "test_project_overwrite.json"
+    initial_content = {"name": "InitialProject", "version": 1}
+    updated_content = {"name": "UpdatedProject", "version": 2}
+
+    project_manager.create_project_file(project_file_path, initial_content)
+
+    result = project_manager.create_project_file(
+        project_file_path, updated_content, overwrite=True
+    )
+    assert result is True
+    with open(project_file_path, "r") as f:
+        data_on_disk = json.load(f)
+    assert data_on_disk == updated_content
+
+
+def test_load_project_with_inline_definitions(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test loading a project with inline component definitions."""
+    project_data = VALID_PROJECT_CONFIG_INLINE_DEFS.copy()
+    project_file = tmp_path / "inline_project.json"
+    with open(project_file, "w") as f:
+        json.dump(project_data, f)
+
+    # Mock ComponentManager to return None for any ID lookups,
+    # forcing ProjectManager to rely on inline defs.
+    project_manager.component_manager.get_component_config.return_value = None
+
+    loaded_project_config = project_manager.load_project(project_file)
+
+    assert isinstance(loaded_project_config, ProjectConfig)
+    assert loaded_project_config.name == project_data["name"]
+    assert len(loaded_project_config.clients) == len(project_data["clients"])
+    assert loaded_project_config.clients["client1"].client_id == "client1"
+    # Check path resolution for an inline client
+    inline_client_path_str = project_data["clients"][0][
+        "server_path"
+    ]  # "dummy_server1.py"
+    expected_resolved_path = (PROJECT_ROOT_DIR / inline_client_path_str).resolve()
+    assert (
+        loaded_project_config.clients["client1"].server_path == expected_resolved_path
+    )
+
+    assert len(loaded_project_config.agent_configs) == len(project_data["agents"])
+    assert loaded_project_config.agent_configs["Agent1"].name == "Agent1"
+
+
+def test_load_project_with_references(
+    project_manager: ProjectManager, tmp_path: Path, mock_component_manager: MagicMock
+):
+    """Test loading a project that references component files via ComponentManager."""
+    project_data = VALID_PROJECT_CONFIG_WITH_REFS.copy()
+    project_file = tmp_path / "ref_project.json"
+    with open(project_file, "w") as f:
+        json.dump(project_data, f)
+
+    # The project_manager fixture is already using mock_component_manager with side_effect
+    loaded_project_config = project_manager.load_project(project_file)
+
+    assert isinstance(loaded_project_config, ProjectConfig)
+    assert loaded_project_config.name == project_data["name"]
+
+    # Check clients (test_client_min, test_client_full)
+    assert len(loaded_project_config.clients) == 2
+    assert "test_client_min" in loaded_project_config.clients
+    assert (
+        loaded_project_config.clients["test_client_min"].client_id == "test_client_min"
+    )
+    # Verify path resolution for referenced client (done by mock_component_manager's side_effect)
+    client1_fixture_data = VALID_CLIENT_CONFIG_DATA_MINIMAL
+    expected_client1_path = (
+        PROJECT_ROOT_DIR / client1_fixture_data["server_path"]
+    ).resolve()
+    assert (
+        loaded_project_config.clients["test_client_min"].server_path
+        == expected_client1_path
+    )
+
+    assert (
+        "test_client_full" in loaded_project_config.clients
+    )  # Mocked to return a simple ClientConfig
+
+    # Check agents
+    assert len(loaded_project_config.agent_configs) == 1
+    assert "test_agent_fixture" in loaded_project_config.agent_configs
+    assert (
+        loaded_project_config.agent_configs["test_agent_fixture"].name
+        == "test_agent_fixture"
+    )
+
+    # Check LLMs
+    assert len(loaded_project_config.llm_configs) == 1
+    assert "test_llm_fixture" in loaded_project_config.llm_configs
+
+    # Check simple workflows
+    assert len(loaded_project_config.simple_workflow_configs) == 1
+    assert (
+        "test_simple_workflow_fixture" in loaded_project_config.simple_workflow_configs
+    )
+
+    # Check custom workflows
+    assert len(loaded_project_config.custom_workflow_configs) == 1
+    assert (
+        "test_custom_workflow_fixture" in loaded_project_config.custom_workflow_configs
+    )
+    custom_wf_model_in_proj = loaded_project_config.custom_workflow_configs[
+        "test_custom_workflow_fixture"
+    ]
+    expected_custom_wf_path = (
+        PROJECT_ROOT_DIR / VALID_CUSTOM_WORKFLOW_CONFIG_DATA["module_path"]
+    ).resolve()
+    assert custom_wf_model_in_proj.module_path == expected_custom_wf_path
+
+
+def test_load_project_missing_reference_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test error when a referenced component ID is not found by ComponentManager."""
+    project_data = {
+        "name": "ProjectWithMissingRef",
+        "clients": ["non_existent_client_id"],
+    }
+    project_file = tmp_path / "missing_ref_project.json"
+    with open(project_file, "w") as f:
+        json.dump(project_data, f)
+
+    # Configure mock CM to return None for this specific ID
+    project_manager.component_manager.get_component_config.side_effect = (
+        lambda type, id: None if id == "non_existent_client_id" else MagicMock()
+    )
+
+    with pytest.raises(
+        ValueError, match="Client component ID 'non_existent_client_id' not found"
+    ):
+        project_manager.load_project(project_file)
+
+
+def test_load_project_inline_def_validation_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test error when an inline component definition fails Pydantic validation."""
+    project_data = {
+        "name": "ProjectWithInvalidInline",
+        "llm_configs": [
+            {
+                "llm_id": "bad_llm",
+                "temperature": "not-a-float",
+            }  # Invalid temperature type
+        ],
+    }
+    project_file = tmp_path / "invalid_inline_project.json"
+    with open(project_file, "w") as f:
+        json.dump(project_data, f)
+
+    # No need to mock CM here as the error is in inline validation by ProjectManager
+    with pytest.raises(
+        ValueError, match="Invalid inline LLMConfig definition"
+    ):  # ProjectManager wraps Pydantic error
+        project_manager.load_project(project_file)
+
+
+def test_load_project_file_not_found_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test FileNotFoundError when project file doesn't exist."""
+    non_existent_file = tmp_path / "this_file_does_not_exist.json"
+    with pytest.raises(FileNotFoundError):
+        project_manager.load_project(non_existent_file)
+
+
+def test_load_project_invalid_json_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test RuntimeError when project file contains invalid JSON."""
+    invalid_json_file = tmp_path / "invalid.json"
+    with open(invalid_json_file, "w") as f:
+        f.write("{'name': 'bad json, quotes not double'}")  # Invalid JSON
+
+    with pytest.raises(RuntimeError, match="Error parsing project configuration file"):
+        project_manager.load_project(invalid_json_file)

@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Set
 
 # Assuming this file is in src/, use relative imports
-from .config import load_host_config_from_json
 from .host.host import MCPHost
 from .config.config_models import (  # Updated import path
     AgentConfig,
@@ -33,8 +32,9 @@ logger = logging.getLogger(__name__)
 
 # Removed conditional import block for StorageManager
 
-# Import the new ConfigManager and ProjectConfig
-from .config.config_manager import ConfigManager
+# Import the new managers and ProjectConfig
+from .config.component_manager import ComponentManager
+from .config.project_manager import ProjectManager
 from .config.config_models import ProjectConfig
 
 
@@ -76,7 +76,11 @@ class HostManager:
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
         self._db_engine = None  # Store engine if created
-        self.config_manager = ConfigManager()  # Instantiate ConfigManager
+        # Instantiate ComponentManager first, as ProjectManager needs it
+        self.component_manager = ComponentManager()
+        self.project_manager = ProjectManager(
+            self.component_manager
+        )  # Pass component manager
         self.current_project: Optional[ProjectConfig] = None  # To store loaded project
 
         # Instantiate StorageManager if DB is enabled
@@ -120,27 +124,20 @@ class HostManager:
             RuntimeError: If configuration loading or host initialization fails.
         """
         logger.debug(
-            f"Initializing HostManager with project config: {self.config_path}..."  # Updated log message
+            f"Initializing HostManager with project config: {self.config_path}..."
         )
         try:
-            # 1. Load Project Configuration using ConfigManager
-            self.current_project = self.config_manager.load_project(self.config_path)
-            if not self.current_project:
-                # load_project should raise error if file not found or parsing fails
-                # This check is a safeguard in case it returns None unexpectedly
-                raise RuntimeError(
-                    f"ConfigManager failed to load project from {self.config_path}"
-                )
+            # 1. Load Project Configuration using ProjectManager
+            self.current_project = self.project_manager.load_project(self.config_path)
+            # load_project raises FileNotFoundError or RuntimeError on failure
 
             # Store component configs from the loaded project
             self.agent_configs = self.current_project.agent_configs
-            self.workflow_configs = (
-                self.current_project.simple_workflow_configs
-            )  # Use renamed field from ProjectConfig
+            self.workflow_configs = self.current_project.simple_workflow_configs
             self.custom_workflow_configs = self.current_project.custom_workflow_configs
             self.llm_configs = self.current_project.llm_configs
             logger.debug(
-                f"Project '{self.current_project.name}' loaded successfully via ConfigManager."
+                f"Project '{self.current_project.name}' loaded successfully via ProjectManager."
             )
 
             # 1.5 Initialize DB Schema if storage manager exists
@@ -183,11 +180,7 @@ class HostManager:
                     llm_configs=self.llm_configs,  # Pass LLM configs to sync
                 )
 
-            # 3. Load additional configs (e.g., prompt validation)
-            # This will also sync the loaded configs if DB is enabled via register_* methods
-            await self.register_config_file(
-                Path("config/prompt_validation_config.json")
-            )  # Wrap str in Path()
+            # Step 3 (Load additional configs) is removed as project loading handles all necessary configs now.
 
             # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
             self.execution = ExecutionFacade(
@@ -664,158 +657,6 @@ class HostManager:
                 error_list.append(err_msg)
                 skipped_count += 1
         return registered_count, skipped_count, error_list
-
-    async def register_config_file(self, file_path: Path):
-        """
-        Dynamically loads and registers all components (clients, agents, workflows, custom workflows)
-        from a specified JSON configuration file path.
-
-        Args:
-            file_path: The Path object pointing to the JSON configuration file.
-
-        Raises:
-            ValueError: If the HostManager is not initialized.
-            FileNotFoundError: If the specified file_path does not exist.
-            RuntimeError: If there's an error parsing the config file or during registration.
-        """
-        logger.debug(  # INFO -> DEBUG
-            f"Attempting to dynamically register components from file: {file_path}"
-        )
-        if not self.host:
-            logger.error("HostManager is not initialized. Cannot register from file.")
-            raise ValueError("HostManager is not initialized.")
-
-        if not isinstance(file_path, Path):
-            file_path = Path(file_path)
-
-        if not file_path.is_absolute():
-            logger.warning(
-                f"Provided file path is not absolute: {file_path}. Resolving relative to CWD."
-            )
-            file_path = file_path.resolve()
-
-        if not file_path.is_file():
-            logger.error(f"Configuration file not found at path: {file_path}")
-            raise FileNotFoundError(f"Configuration file not found: {file_path}")
-
-        # Initialize counters and error list *before* the try block
-        all_registered_counts = {
-            "clients": 0,
-            "agents": 0,
-            "workflows": 0,
-            "custom_workflows": 0,
-            "llm_configs": 0,
-        }
-        all_skipped_counts = {
-            "clients": 0,
-            "agents": 0,
-            "workflows": 0,
-            "custom_workflows": 0,
-            "llm_configs": 0,  # Added for LLM configs
-        }
-        all_error_messages = []
-
-        try:
-            # 1. Load all configurations from the specified file
-            (
-                host_config,
-                agent_configs_dict,
-                workflow_configs_dict,
-                custom_workflow_configs_dict,
-                llm_configs_dict,  # Added llm_configs_dict
-            ) = load_host_config_from_json(file_path)
-            logger.debug(
-                f"Successfully loaded configurations from {file_path}."
-            )  # INFO -> DEBUG
-
-            # 2. Register Clients using helper
-            reg_c, skip_c, err_c = await self._register_clients_from_config(
-                host_config.clients
-            )
-            all_registered_counts["clients"] = reg_c
-            all_skipped_counts["clients"] = skip_c
-            all_error_messages.extend(err_c)
-
-            # 3. Register Agents using helper
-            reg_a, skip_a, err_a = await self._register_agents_from_config(
-                agent_configs_dict
-            )
-            all_registered_counts["agents"] = reg_a
-            all_skipped_counts["agents"] = skip_a
-            all_error_messages.extend(err_a)
-
-            # 4. Register Workflows using helper
-            # Need the combined set of agent names for validation
-            available_agent_names = set(
-                self.agent_configs.keys()
-            )  # Already registered + newly registered
-            reg_w, skip_w, err_w = await self._register_workflows_from_config(
-                workflow_configs_dict, available_agent_names
-            )
-            all_registered_counts["workflows"] = reg_w
-            all_skipped_counts["workflows"] = skip_w
-            all_error_messages.extend(err_w)
-
-            # 5. Register Custom Workflows using helper
-            reg_cw, skip_cw, err_cw = await self._register_custom_workflows_from_config(
-                custom_workflow_configs_dict
-            )
-            all_registered_counts["custom_workflows"] = reg_cw
-            all_skipped_counts["custom_workflows"] = skip_cw
-            all_error_messages.extend(err_cw)
-
-            # 6. Register LLM Configs using a new helper (to be created)
-            # Placeholder for the new helper call
-            # reg_lc, skip_lc, err_lc = await self._register_llm_configs_from_config(llm_configs_dict)
-            # all_registered_counts["llm_configs"] = reg_lc
-            # all_skipped_counts["llm_configs"] = skip_lc
-            # all_error_messages.extend(err_lc)
-            # For now, let's manually iterate and register, then create helper later if complex
-            registered_lc, skipped_lc, error_lc_list = 0, 0, []
-            for llm_id, llm_conf in llm_configs_dict.items():
-                try:
-                    await self.register_llm_config(llm_conf)
-                    registered_lc += 1
-                except ValueError as e:  # Duplicate
-                    skipped_lc += 1
-                    logger.warning(
-                        f"Skipping LLM Config registration for '{llm_id}': {e}"
-                    )
-                except Exception as e:
-                    error_lc_list.append(f"LLM Config '{llm_id}': {e}")
-                    skipped_lc += 1
-            all_registered_counts["llm_configs"] = registered_lc
-            all_skipped_counts["llm_configs"] = skipped_lc
-            all_error_messages.extend(error_lc_list)
-
-            # Log summary
-            summary_msg = (
-                f"Finished processing config file '{file_path}'. "
-                f"Registered: {all_registered_counts}. Skipped: {all_skipped_counts}."
-            )
-            if all_error_messages:
-                summary_msg += f" Encountered {len(all_error_messages)} errors during registration."
-                logger.error(summary_msg)
-                # Optionally re-raise a generic error if any individual errors occurred
-                # raise RuntimeError(f"Errors occurred during dynamic registration from {file_path}. See logs for details.")
-            else:
-                logger.info(summary_msg)
-
-        except (FileNotFoundError, RuntimeError, ValueError) as e:
-            # Catch errors from load_host_config_from_json or initial checks
-            logger.error(
-                f"Error processing config file {file_path}: {e}", exc_info=True
-            )
-            raise  # Re-raise the original exception
-        except Exception as e:
-            # Catch any other unexpected errors during the process
-            logger.error(
-                f"Unexpected error during registration from file {file_path}: {e}",
-                exc_info=True,
-            )
-            raise RuntimeError(
-                f"Unexpected error during registration from {file_path}: {e}"
-            ) from e
 
     # --- Configuration Access Methods ---
 

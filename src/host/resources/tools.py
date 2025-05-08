@@ -17,7 +17,7 @@ import mcp.types as types
 # Import from lower layers for dependencies
 from ..foundation import RootManager, MessageRouter
 from ..filtering import FilteringManager  # Added import
-from ..models import ClientConfig, AgentConfig  # Added imports
+from src.config.config_models import ClientConfig, AgentConfig  # Added imports
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +396,7 @@ class ToolManager:
                 if client_id_val is not None:
                     # We expect client_id_val to be a string or stringifiable to a non-empty string
                     s_client_id = str(client_id_val)
-                    if s_client_id: # Ensure it's a non-empty string after conversion
+                    if s_client_id:  # Ensure it's a non-empty string after conversion
                         clients_with_tools_str_set.add(s_client_id)
 
             allowed_clients = filtering_manager.filter_clients_for_request(

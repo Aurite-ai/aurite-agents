@@ -8,7 +8,7 @@ import mcp.types as types
 
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
-from ..models import ClientConfig
+from src.config.config_models import ClientConfig
 from ..foundation import MessageRouter  # Import MessageRouter
 
 logger = logging.getLogger(__name__)

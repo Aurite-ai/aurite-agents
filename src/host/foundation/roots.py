@@ -7,7 +7,7 @@ import logging
 from urllib.parse import urlparse
 
 # Import the Pydantic model
-from ..models import RootConfig  # Renamed config.py to models.py
+from src.config.config_models import RootConfig  # Renamed config.py to models.py
 
 logger = logging.getLogger(__name__)
 

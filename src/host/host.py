@@ -22,7 +22,7 @@ import mcp.types as types
 # Foundation layer
 from .foundation import SecurityManager, RootManager, MessageRouter
 from .filtering import FilteringManager
-from .models import (
+from src.config.config_models import (
     AgentConfig,
     ClientConfig,
     HostConfig,

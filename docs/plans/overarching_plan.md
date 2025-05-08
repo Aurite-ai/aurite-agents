@@ -4,14 +4,14 @@
 
 *   **Refactor Agent and LLM Systems:** Streamline Agent class structure and improve flexibility in LLM configuration and usage.
 *   **Revamp Configuration Management:** Introduce a robust system for managing "Projects" and re-usable "Component" configurations, addressing current limitations in referencing and unregistering configurations.
-*   **Centralize Configuration Logic:** Create a dedicated `ConfigManager` to handle loading, parsing, and providing access to project and component configurations, decluttering `HostManager` and API routes.
+*   **Centralize Configuration Logic:** Create dedicated managers (`ComponentManager`, `ProjectManager`) to handle loading, parsing, validation, CRUD, and providing access to component and project configurations, decluttering `HostManager` and API routes.
 
 ## 2. Proposed Implementation Order & Phasing
 
 The tasks are interconnected, especially around configuration. Here's a suggested phased approach:
 
 **Phase 1: Core Configuration System Refactor (Primarily Task 3)**
-*Goal: Establish the new `ConfigManager` and `ProjectConfig` model as the foundation for how configurations are loaded and accessed.*
+*Goal: Establish the new `ComponentManager`, `ProjectManager`, and `ProjectConfig` model as the foundation for how configurations are loaded and accessed.*
 
 **Phase 2: Agent & LLM Class Refinements (Task 1)**
 *Goal: Refactor agent classes and LLM client handling, leveraging the new configuration system where appropriate.*
@@ -25,74 +25,53 @@ The tasks are interconnected, especially around configuration. Here's a suggeste
 
 ### Phase 1: Core Configuration System Refactor (Task 3 Focus)
 
-This phase focuses on creating the new `ConfigManager` and related structures. This will provide a solid base for subsequent changes.
+This phase focuses on creating the new `ComponentManager`, `ProjectManager`, and related structures. This will provide a solid base for subsequent changes.
 
-**3.1. Create `src/config/` Directory and Relocate Core Config Files:**
-    *   **Action:** Create the new directory `src/config/`.
-    *   **Action:** Move `src/host/models.py` to `src/config/config_models.py`.
-        *   *Note:* Update all imports across the project that reference `src.config.config_models`.
-    *   **Action:** Move `src/config.py` to `src/config/config.py`.
-        *   *Consideration:* The current `src/config.py` contains `ServerConfig` (loaded from environment variables) and `load_host_config_from_json` with its helpers.
-        *   The `load_host_config_from_json` logic and its private helpers (e.g., `_load_client_configs`, `_load_agent_configs`) will be heavily refactored into the new `ConfigManager`.
-        *   `ServerConfig` (for HOST, PORT, API_KEY etc.) might remain in `src/config/config.py` or be moved to a more specific `src/server_settings.py` if `src/config/config.py` becomes purely about the `ConfigManager`'s own operational config (if any). For now, assume `ServerConfig` stays, and `load_host_config_from_json` parts are moved/reused by `ConfigManager`.
+**3.1. Establish New Config Structure:**
+    *   **Action:** Create the new directory `src/config/`. (Done)
+    *   **Action:** Move `src/host/models.py` to `src/config/config_models.py`. (Done)
+    *   **Action:** Update all imports across the project that reference `src.config.config_models`. (Done by user)
+    *   **Action:** Move `ServerConfig` and `PROJECT_ROOT_DIR` from `src/config.py` to `src/config/__init__.py`. (Done)
+    *   **Action:** Delete the now empty `src/config.py` file. (Done by user)
 
 **3.2. Define `ProjectConfig` Model:**
     *   **File:** `src/config/config_models.py`
-    *   **Action:** Create the new `ProjectConfig` Pydantic model.
-    *   **Structure:**
-        ```python
-        class ProjectConfig(BaseModel):
-            name: str
-            description: Optional[str] = None
-            clients: Dict[str, ClientConfig] = {} # Maps client_id to ClientConfig
-            llm_configs: Dict[str, LLMConfig] = {} # Maps llm_id to LLMConfig
-            agent_configs: Dict[str, AgentConfig] = {} # Maps agent_name to AgentConfig
-            simple_workflow_configs: Dict[str, WorkflowConfig] = {} # Maps workflow_name to WorkflowConfig
-            custom_workflow_configs: Dict[str, CustomWorkflowConfig] = {} # Maps workflow_name to CustomWorkflowConfig
-            # Add counters if they are truly part of the static project definition
-            # If they are runtime counts, they might belong elsewhere (e.g., HostManager runtime state)
-            # initial_agent_count: Optional[int] = None # Example
-        ```
-        *   *Note:* This `ProjectConfig` will effectively replace/expand the role of the current `HostConfig` for defining a whole project setup. The existing `HostConfig` might be simplified or deprecated if `ProjectConfig` covers all its aspects plus more.
+    *   **Action:** Create the new `ProjectConfig` Pydantic model. (Done)
+    *   **Structure:** Includes `name`, `description`, and dictionaries for resolved `ClientConfig`, `LLMConfig`, `AgentConfig`, `WorkflowConfig`, `CustomWorkflowConfig`.
 
-**3.3. Implement `ConfigManager` (`src/config/config_manager.py`):**
-    *   **File:** `src/config/config_manager.py`
-    *   **Action:** Create the `ConfigManager` class.
+**3.3. Implement `ComponentManager` (`src/config/component_manager.py`):**
+    *   **File:** `src/config/component_manager.py`
+    *   **Action:** Create the `ComponentManager` class. (Done)
     *   **Responsibilities:**
-        *   **Initialization (`__init__`):**
-            *   Scan predefined "component" directories (e.g., `config/agents/`, `config/llms/`, `config/clients/`) upon instantiation.
-            *   Load all component JSON files found (e.g., `weather_agent.json`).
-            *   Parse them into their respective Pydantic models (`AgentConfig`, `LLMConfig`, etc.).
-            *   Store these component configurations in internal dictionaries, keyed by their ID/name (e.g., `self.component_agents: Dict[str, AgentConfig]`).
-        *   **Method: `load_project(project_config_file_path: Path) -> ProjectConfig`:**
-            *   Takes the path to a "project" configuration file (e.g., `config/projects/my_main_project.json`).
-            *   Reads and parses this project file.
-            *   The project file can contain:
-                1.  Directly defined configurations (clients, agents, LLMs, etc.).
-                2.  References to component configurations by ID (e.g., `"agent_ids": ["Weather Agent"]` or `"llm_config_ids": ["claude_default"]`).
-            *   For referenced components, it looks them up in its internal storage (populated during `__init__`).
-            *   Constructs and returns a fully resolved `ProjectConfig` object, with all configurations (either directly defined or resolved from components) populated.
-        *   **CRUD methods for component JSON files:**
-            *   Adapt logic from `src/bin/api/routes/config_api.py` for listing, getting, creating, updating, deleting individual component JSON files (e.g., `get_agent_component_config(name)`, `save_llm_component_config(llm_config_model)`). These methods will operate on the files in `config/agents/`, `config/llms/` etc.
-            *   Ensure these methods also update the `ConfigManager`'s internal in-memory store of components if a file is changed.
+        *   **Initialization (`__init__`):** Scan component directories (`config/agents/`, etc.), load/parse/validate/store component JSONs in memory (e.g., `self.agents`). (Done)
+        *   **Accessor Methods:** Provide methods to get loaded components by ID/name (e.g., `get_agent(name)`). (Done)
+        *   **Listing Methods:** Provide methods to list loaded components or component filenames. (Done)
+        *   **CRUD Methods:** Implement methods (`save_component_config`, `delete_component_config`) to manage component JSON files on disk and update the in-memory store. (Done)
 
-**3.4. Refactor `HostManager` to Use `ConfigManager`:**
+**3.4. Implement `ProjectManager` (`src/config/project_manager.py`):**
+    *   **File:** `src/config/project_manager.py`
+    *   **Action:** Create the `ProjectManager` class. (Done)
+    *   **Responsibilities:**
+        *   **Initialization (`__init__`):** Takes a `ComponentManager` instance. (Done)
+        *   **Method: `load_project(project_config_file_path: Path) -> ProjectConfig`:** Reads a project file, resolves component ID references using `ComponentManager`, validates inline definitions, merges them, and returns a fully resolved `ProjectConfig` object. (Done)
+
+**3.5. Refactor `HostManager` to Use `ProjectManager`:**
     *   **File:** `src/host_manager.py`
     *   **Action:**
-        *   In `HostManager.__init__`, instantiate `ConfigManager`.
+        *   In `HostManager.__init__`, instantiate `ComponentManager` and `ProjectManager`. (Done)
         *   In `HostManager.initialize()`:
-            *   Call `self.config_manager.load_project(self.config_path)` to get the `ProjectConfig`.
-            *   Store the returned `ProjectConfig` (e.g., `self.current_project: ProjectConfig`).
-            *   Use `self.current_project.clients` to initialize `MCPHost`.
-            *   Populate `self.agent_configs`, `self.llm_configs`, etc., from `self.current_project`.
-        *   Remove direct JSON loading logic from `HostManager` (now handled by `ConfigManager`).
-        *   Update methods like `get_agent_config`, `get_llm_config` to fetch from `self.current_project` (or directly from `self.agent_configs` which are sourced from `self.current_project`).
-        *   Registration methods (`register_agent`, etc.) in `HostManager` might now primarily update the *in-memory* `self.current_project` and potentially call `ConfigManager` if dynamic changes should also persist to component files (this needs clarification - are dynamic registrations project-specific runtime changes or edits to underlying component files?).
+            *   Call `self.project_manager.load_project(self.config_path)` to get the `ProjectConfig`. (Done)
+            *   Store the returned `ProjectConfig` as `self.current_project`. (Done)
+            *   Populate `self.agent_configs`, `self.llm_configs`, etc., from `self.current_project`. (Done)
+            *   Construct `HostConfig` for `MCPHost` initialization using data from `self.current_project`. (Done)
+        *   Remove direct JSON loading logic and the obsolete `register_config_file` method/helpers from `HostManager`. (Done)
+        *   Update methods like `get_agent_config`, `get_llm_config` to fetch from the dictionaries populated from `self.current_project`. (Done - confirmed no change needed as they already read from instance dicts).
+        *   Review dynamic registration methods (`register_agent`, etc.) - For Phase 1, they will remain runtime-only updates to `HostManager`'s dictionaries.
 
-**3.5. Refactor Config API Routes (`src/bin/api/routes/config_api.py`):**
+**3.6. Refactor Config API Routes (`src/bin/api/routes/config_api.py`):**
     *   **Action:**
-        *   Update API routes to use methods from the new `ConfigManager` for CRUD operations on *component* configuration files.
-        *   The route for loading/switching a "project" (if it exists or is planned) would still call a method on `HostManager` (e.g., `HostManager.load_new_project(project_name)`), which in turn uses `ConfigManager` and handles client shutdowns/reinitializations.
+        *   Update API routes to use methods from the new `ComponentManager` for CRUD operations on *component* configuration files (list, get, save, delete).
+        *   Ensure API routes can access the `ComponentManager` instance (likely via dependency injection, potentially through `HostManager`).
 
 ---
 
@@ -100,18 +79,39 @@ This phase focuses on creating the new `ConfigManager` and related structures. T
 
 With the core configuration system in place, refactoring Agents and LLMs becomes cleaner.
 
-**3.6. Improve `LLMConfig` Handling in LLM Clients (Task 1.2):**
-    *   **Files:** `src/llm/base_client.py`, `src/llm/providers/anthropic_client.py` (and any other provider clients).
-    *   **Action:**
-        *   Modify `BaseLLM.__init__` and provider-specific `__init__` methods:
-            *   They should initialize with sensible default parameters (model, temp, etc.) rather than requiring a specific `LLMConfig` at instantiation.
-            *   They might take a reference to the `ConfigManager` or expect `LLMConfig` objects to be passed in per call.
-        *   Modify `BaseLLM.create_message` (and its implementations):
-            *   Add an optional `llm_config_id: Optional[str] = None` parameter.
-            *   If `llm_config_id` is provided, the method should:
-                1.  Fetch the corresponding `LLMConfig` object (e.g., from `HostManager.current_project.llm_configs` or via `ConfigManager`).
-                2.  Use the parameters from this fetched `LLMConfig` for the API call (e.g., model name, temperature, system prompt). These would override any defaults set during client initialization for this specific call.
-            *   If `llm_config_id` is not provided, use the client's default parameters or parameters passed directly to `create_message` (like `system_prompt_override`).
+**3.7. Improve `LLMConfig` Handling in LLM Clients (Task 1.2):**
+    *   **Files:** `src/llm/base_client.py`, `src/llm/providers/anthropic_client.py` (and others).
+    *   **Action:** Modify `BaseLLM` and provider `__init__` to use defaults. Modify `create_message` to accept an optional `llm_config_id` and use the corresponding `LLMConfig` (fetched via `ComponentManager` or from `HostManager.current_project`) to override defaults for that call.
+
+**3.8. Merge Agent Class Files (Task 1.1):**
+    *   **Files:** `src/agents/agent.py`, `src/agents/conversation_manager.py`.
+    *   **Action:** Merge `ConversationManager` logic into a renamed `Agent` class in `src/agents/agent.py`. Delete `conversation_manager.py`. Update imports.
+
+**3.9. Review and Refactor (New) Agent Class Logic (Task 1.3):**
+    *   **File:** `src/agents/agent.py` (newly merged).
+    *   **Action:** Review conversation history management (`self.messages`, `self.conversation_history`) for clarity and correctness, ensuring `AgentConfig.include_history` is handled.
+
+---
+
+### Phase 3: Advanced Configuration Features & Client Lifecycle Management (Task 2 Focus)
+
+Builds upon the `ComponentManager` and `ProjectManager` to implement full project/component functionality and client management.
+
+**3.10. Client Lifecycle Management (Task 2.2):**
+    *   **Action: Create `ClientManager`:** (`src/host/foundation/clients.py`) Responsible for starting, stopping, and tracking client subprocesses.
+    *   **Action: Refactor `MCPHost` (`src/host/host.py`):** Delegate client process management to `ClientManager`. Add `client_shutdown(id)` and `shutdown_all_clients()` methods.
+    *   **Action: Implement Configuration Reset in `HostManager`:** Add `reset_host()` or `unload_project()` method to call `host.shutdown_all_clients()` and clear `current_project` state. Update the "load project" API route (if any) to use this.
+
+## 4. Key Considerations & Open Questions
+
+*   **LLMClient Instantiation with `LLMConfig`:** Confirmed plan: `create_message` takes `llm_config_id`, client looks it up (likely via `HostManager.current_project.llm_configs`).
+*   **Dynamic Registration Persistence:** Confirmed plan for Phase 1: Dynamic registrations (`register_agent` etc. in `HostManager`) are runtime-only updates to the *current project's* in-memory config dictionaries (`self.agent_configs`, etc.). They do *not* modify component files via `ComponentManager` in this phase.
+*   **`HostConfig` vs. `ProjectConfig`:** Confirmed plan: `ProjectConfig` is the primary definition. `HostManager` constructs a temporary `HostConfig` instance from `ProjectConfig` data solely for `MCPHost` initialization.
+*   **Error Handling for Missing Components:** Confirmed plan: `ProjectManager._resolve_components` raises a `ValueError` if a referenced component ID is not found in `ComponentManager`.
+*   **Client Re-initialization:** Confirmed plan: When switching projects (Phase 3), `HostManager` will need to call `host.shutdown_all_clients()`, load the new project via `ProjectManager`, and then re-initialize `MCPHost` (or relevant parts) with the new project's client configurations.
+*   **Location of `ServerConfig`:** Confirmed plan: Moved to `src/config/__init__.py`. `src/config/config.py` deleted.
+
+---
     *   **Agent Interaction:**
         *   When an `Agent` (via `AgentTurnProcessor`) calls `llm.create_message()`, it will pass its `agent_config.llm_config_id` if present.
 

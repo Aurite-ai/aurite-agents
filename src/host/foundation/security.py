@@ -36,7 +36,9 @@ except ImportError:
     )
 
 # Local imports
-from ..models import GCPSecretConfig  # Assuming models.py is one level up
+from src.config.config_models import (
+    GCPSecretConfig,
+)  # Assuming models.py is one level up
 
 # Patterns for sensitive data detection (Improved)
 SENSITIVE_PATTERNS = {
