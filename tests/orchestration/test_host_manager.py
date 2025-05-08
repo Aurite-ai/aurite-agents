@@ -7,7 +7,6 @@ import pytest
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
-import os  # Add import for environment variable check
 
 # Assuming tests run from project root
 from src.host_manager import HostManager

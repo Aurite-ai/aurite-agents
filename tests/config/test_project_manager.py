@@ -1,7 +1,7 @@
 import pytest
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.config.project_manager import ProjectManager
 from src.config.component_manager import ComponentManager

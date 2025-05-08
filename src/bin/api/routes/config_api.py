@@ -1,6 +1,4 @@
 import logging
-import json
-from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status

@@ -1,7 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, ANY
-from pydantic import ValidationError
+from unittest.mock import MagicMock
 
 # Import the FastAPI app instance and dependencies
 from src.bin.api.api import app

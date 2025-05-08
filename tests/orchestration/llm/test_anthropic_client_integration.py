@@ -10,7 +10,6 @@ import pytest
 import os
 from typing import List, Dict, Any
 
-import json  # Added for schema test parsing
 
 # Imports from the project
 from src.llm.providers.anthropic_client import AnthropicLLM

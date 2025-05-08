@@ -1,12 +1,10 @@
 import pytest
 import json
 from pathlib import Path
-from pydantic import ValidationError
 
 from src.config.component_manager import (
     ComponentManager,
     COMPONENT_TYPES_DIRS,
-    COMPONENT_META,
 )
 from src.config.config_models import (
     ClientConfig,

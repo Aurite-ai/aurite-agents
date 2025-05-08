@@ -6,12 +6,9 @@ import pytest
 from unittest.mock import (
     Mock,
     AsyncMock,
-    patch,
-    MagicMock,
 )  # Ensure patch and MagicMock are here
 import json
 import logging  # Added logging import
-from pathlib import Path
 
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
@@ -19,8 +16,6 @@ from pathlib import Path
 # Import necessary models
 from src.config.config_models import (
     HostConfig,
-    ProjectConfig,
-    ClientConfig,
 )  # Ensure ProjectConfig and ClientConfig are here
 from src.host.host import MCPHost
 from src.host_manager import HostManager
