@@ -32,22 +32,36 @@ TEST_INTEGRATION_MODEL = "claude-3-haiku-20240307"
 # --- Test Class ---
 
 
+@pytest.mark.llm_integration  # Apply marker to the class as well
 class TestAnthropicLLMIntegration:
     """Integration tests for AnthropicLLM."""
 
+    @pytest.fixture(scope="class")
+    async def llm_client(self):
+        """Class-scoped fixture to create and properly close the LLM client."""
+        client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+        yield client
+        # Teardown: close the client after all tests in the class run
+        if hasattr(client, "anthropic_sdk_client") and hasattr(
+            client.anthropic_sdk_client, "aclose"
+        ):
+            await client.anthropic_sdk_client.aclose()
+
     @pytest.mark.anyio
-    async def test_anthropic_client_simple_api_call(self):
+    async def test_anthropic_client_simple_api_call(
+        self, llm_client: AnthropicLLM
+    ):  # Use fixture
         """
         Tests a basic successful API call using the AnthropicLLM client.
         """
         # --- Arrange ---
-        llm_client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+        # llm_client is now provided by the fixture
 
         messages_input: List[MessageParam] = [
             {"role": "user", "content": [{"type": "text", "text": "Hello Claude!"}]}
         ]
 
-        # --- Act ---
+        # --- Act & Assert ---
         try:
             result_message: AgentOutputMessage = await llm_client.create_message(
                 messages=messages_input,  # type: ignore[arg-type] # Ignore list[dict] vs list[MessageParam]
@@ -55,6 +69,7 @@ class TestAnthropicLLMIntegration:
             )
         except Exception as e:
             pytest.fail(f"Anthropic API call failed unexpectedly: {e}")
+        # finally block removed as cleanup is handled by the fixture
 
         # --- Assert ---
         assert isinstance(result_message, AgentOutputMessage)
@@ -79,12 +94,14 @@ class TestAnthropicLLMIntegration:
         )
 
     @pytest.mark.anyio
-    async def test_anthropic_client_tool_use_call(self):
+    async def test_anthropic_client_tool_use_call(
+        self, llm_client: AnthropicLLM
+    ):  # Use fixture
         """
         Tests an API call that should result in a tool_use stop reason.
         """
         # --- Arrange ---
-        llm_client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+        # llm_client is now provided by the fixture
 
         # Define a simple tool for the LLM to potentially use
         tools_input: List[Dict[str, Any]] = [
@@ -117,7 +134,7 @@ class TestAnthropicLLMIntegration:
             }
         ]
 
-        # --- Act ---
+        # --- Act & Assert ---
         try:
             result_message: AgentOutputMessage = await llm_client.create_message(
                 messages=messages_input,  # type: ignore[arg-type]
@@ -125,6 +142,7 @@ class TestAnthropicLLMIntegration:
             )
         except Exception as e:
             pytest.fail(f"Anthropic API call with tool use failed unexpectedly: {e}")
+        # finally block removed as cleanup is handled by the fixture
 
         # --- Assert ---
         assert isinstance(result_message, AgentOutputMessage)
@@ -159,14 +177,16 @@ class TestAnthropicLLMIntegration:
         assert tool_use_block_found, "No tool_use block found in the response content."
 
     @pytest.mark.anyio
-    async def test_anthropic_client_schema_enforcement_call(self):
+    async def test_anthropic_client_schema_enforcement_call(
+        self, llm_client: AnthropicLLM
+    ):  # Use fixture
         """
         Tests an API call with a JSON schema to guide the response.
         Note: This test verifies the schema is sent and the LLM attempts to use it.
               Exact output adherence can vary with LLM behavior.
         """
         # --- Arrange ---
-        llm_client = AnthropicLLM(model_name=TEST_INTEGRATION_MODEL)
+        # llm_client is now provided by the fixture
 
         # Define a simple schema for the LLM
         test_schema: Dict[str, Any] = {
@@ -192,7 +212,7 @@ class TestAnthropicLLMIntegration:
             }
         ]
 
-        # --- Act ---
+        # --- Act & Assert ---
         try:
             result_message: AgentOutputMessage = await llm_client.create_message(
                 messages=messages_input,  # type: ignore[arg-type]
@@ -203,6 +223,7 @@ class TestAnthropicLLMIntegration:
             pytest.fail(
                 f"Anthropic API call with schema enforcement failed unexpectedly: {e}"
             )
+        # finally block removed as cleanup is handled by the fixture
 
         # --- Assert ---
         assert isinstance(result_message, AgentOutputMessage)

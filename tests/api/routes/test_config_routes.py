@@ -16,16 +16,25 @@ pytestmark = [
 
 
 # Helper function to set up config directories/files for testing
-from src.bin.api.routes.config_api import CONFIG_DIRS as API_CONFIG_DIRS # Import the actual mapping
+from src.bin.api.routes.config_api import (
+    CONFIG_DIRS as API_CONFIG_DIRS,
+)  # Import the actual mapping
+
 
 def setup_test_config_file(component_type: str, filename: str, content: dict):
     """Creates a dummy config file in the actual project structure for testing GET/DELETE."""
     # Use the actual directory path from the API's CONFIG_DIRS mapping
     if component_type not in API_CONFIG_DIRS:
-        raise ValueError(f"Invalid component_type '{component_type}' not found in API_CONFIG_DIRS for test setup.")
+        raise ValueError(
+            f"Invalid component_type '{component_type}' not found in API_CONFIG_DIRS for test setup."
+        )
 
-    actual_dir_name = API_CONFIG_DIRS[component_type] # This is a Path relative to PROJECT_ROOT/config
-    target_dir = PROJECT_ROOT / actual_dir_name # API_CONFIG_DIRS already has "config/" prefix in its values
+    actual_dir_name = API_CONFIG_DIRS[
+        component_type
+    ]  # This is a Path relative to PROJECT_ROOT/config
+    target_dir = (
+        PROJECT_ROOT / actual_dir_name
+    )  # API_CONFIG_DIRS already has "config/" prefix in its values
 
     target_dir.mkdir(parents=True, exist_ok=True)
     target_file = target_dir / filename
@@ -53,7 +62,10 @@ def cleanup_test_config_file(file_path: Path):
 # --- Tests for GET /configs/{component_type} ---
 
 
-@pytest.mark.parametrize("component_type", ["agents", "clients", "workflows", "testing"])
+@pytest.mark.parametrize(
+    "component_type",
+    ["agents", "clients", "simple_workflows", "custom_workflows", "testing"],
+)
 def test_list_configs_success(api_client: TestClient, component_type: str):
     """Tests successfully listing config files for valid types."""
     # Ensure at least one file exists for the test
@@ -128,7 +140,7 @@ def test_get_config_success(api_client: TestClient):
 
 def test_get_config_not_found(api_client: TestClient):
     """Tests getting a config file that does not exist."""
-    component_type = "workflows"
+    component_type = "simple_workflows"  # Corrected type
     filename = "non_existent_workflow.json"
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.get(f"/configs/{component_type}/{filename}", headers=headers)
@@ -207,7 +219,7 @@ def test_upload_config_success_new_file(api_client: TestClient):
 
 def test_upload_config_success_overwrite_file(api_client: TestClient):
     """Tests successfully uploading a config file that overwrites an existing one."""
-    component_type = "workflows"
+    component_type = "simple_workflows"  # Corrected type
     filename = "test_overwrite_workflow.json"
     initial_content = {"name": "Initial Workflow", "steps": ["step1"]}
     new_content = {
@@ -392,7 +404,7 @@ def test_update_config_invalid_filename(
     expected_detail_part: str,
 ):
     """Tests updating a config file with an invalid filename."""
-    component_type = "workflows"
+    component_type = "simple_workflows"  # Corrected type
     payload = {"content": {"key": "value"}}
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.put(
@@ -433,7 +445,7 @@ def test_update_config_unauthorized(api_client: TestClient):
 
 def test_delete_config_success(api_client: TestClient):
     """Tests successfully deleting an existing config file."""
-    component_type = "workflows"
+    component_type = "simple_workflows"  # Corrected type
     filename = "test_delete_workflow.json"
     content = {"name": "Delete Me", "steps": ["stepX"]}
 

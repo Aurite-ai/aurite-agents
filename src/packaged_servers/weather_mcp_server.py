@@ -187,11 +187,13 @@ async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
     response_text = (
         f"Weather for {location}:\n"
         f"Temperature: {temp}{unit_label}\n"
-        f"Condition: {data['condition']}\n"
+        f"Condition: {data['condition']}; "  # Use semicolon instead of newline
         f"Humidity: {data['humidity']}%"
     )
+    # Simplify to a single line
+    simple_response_text = f"Weather for {location}: Temp {temp}{unit_label}, {data['condition']}, Humidity {data['humidity']}%"
 
-    return [types.TextContent(type="text", text=response_text)]
+    return [types.TextContent(type="text", text=simple_response_text)]
 
 
 async def current_time(args: Dict[str, Any]) -> list[types.TextContent]:
