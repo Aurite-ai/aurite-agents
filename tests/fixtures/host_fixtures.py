@@ -97,76 +97,57 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     Provides an initialized HostManager instance for testing, based on
     the testing_config.json file. Handles setup and teardown.
     """
-    # --- Use a minimal, hardcoded HostConfig for debugging initialization ---
-    actual_project_root = PROJECT_ROOT_DIR.parent
-    minimal_client_config = ClientConfig(
-        client_id="weather_server_minimal",  # Use a distinct ID for clarity
-        server_path=(
-            actual_project_root / "src/packaged_servers/weather_mcp_server.py"
-        ).resolve(),
-        capabilities=["tools"],
-        roots=[],
-    )
-    minimal_host_config_for_test = HostConfig(
-        name="MinimalTestHost", clients=[minimal_client_config]
-    )
+    # Define path to the test config file relative to the project root
+    test_config_path = (
+        PROJECT_ROOT_DIR / "config/testing_config.json"
+    )  # Use PROJECT_ROOT_DIR directly
 
-    # Check if the single client path exists
-    if not minimal_client_config.server_path.exists():
-        pytest.skip(
-            f"Minimal test server path does not exist: {minimal_client_config.server_path}"
-        )
+    if not test_config_path.exists():
+        pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Instantiate HostManager with a dummy path, as we'll inject the config
-    dummy_path = actual_project_root / "config/dummy_for_fixture.json"
-    manager = HostManager(config_path=dummy_path)
+    # Check if the referenced server paths exist relative to the project root
+    try:
+        with open(test_config_path, "r") as f:
+            raw_config = json.load(f)
+        clients = raw_config.get("clients", [])
+        if not clients:
+            pytest.fail("No clients defined in testing_config.json for fixture setup.")
 
-    # --- Mock ProjectManager to return a ProjectConfig derived from our minimal HostConfig ---
-    # This keeps the HostManager internal logic consistent while controlling the clients MCPHost sees.
-    minimal_project_config = ProjectConfig(
-        name=minimal_host_config_for_test.name,
-        description="Minimal project config for fixture debugging",
-        clients={minimal_client_config.client_id: minimal_client_config},
-        agent_configs={},
-        llm_configs={},
-        simple_workflow_configs={},
-        custom_workflow_configs={},
-    )
+        for client_config in clients:
+            client_path_str = client_config.get("server_path")
+            if client_path_str:
+                # Resolve client path relative to PROJECT_ROOT_DIR
+                client_path = (
+                    PROJECT_ROOT_DIR / client_path_str
+                ).resolve()  # Use PROJECT_ROOT_DIR directly
+                if not client_path.exists():
+                    pytest.skip(
+                        f"Test server path in config does not exist: {client_path}"  # Keep skip message
+                    )
+            else:
+                pytest.fail(
+                    f"Client '{client_config.get('client_id', 'UNKNOWN')}' missing 'server_path' in testing config."
+                )
+    except Exception as e:
+        pytest.fail(f"Failed to pre-check server paths in testing config: {e}")
 
-    with patch("src.host_manager.ProjectManager") as MockProjectManager:
-        mock_pm_instance = MagicMock()
-        mock_pm_instance.load_project.return_value = minimal_project_config
-        MockProjectManager.return_value = mock_pm_instance
+    # Instantiate HostManager - This will use the real ProjectManager now
+    manager = HostManager(config_path=test_config_path)
 
-        # Re-instantiate HostManager *inside* the patch context so it uses the mock
-        manager = HostManager(config_path=dummy_path)
-
-        # Initialize (this will now use the minimal_project_config via the mock)
+    # Initialize (this loads configs via real ProjectManager and starts MCPHost/clients)
+    try:
+        await manager.initialize()
+    except Exception as init_e:
+        # Attempt cleanup even if init fails partially
         try:
-            await manager.initialize()
-            # Verify that MCPHost received the minimal config
-            assert manager.host is not None
-            assert len(manager.host._config.clients) == 1
-            assert (
-                manager.host._config.clients[0].client_id
-                == minimal_client_config.client_id
-            )
-        except Exception as init_e:
-            # Attempt cleanup even if init fails partially
-            try:
-                await manager.shutdown()
-            except Exception:
-                pass  # Ignore shutdown errors after init failure
-            pytest.fail(
-                f"HostManager initialization failed in fixture with minimal config: {init_e}"
-            )
+            await manager.shutdown()
+        except Exception:
+            pass  # Ignore shutdown errors after init failure
+        pytest.fail(f"HostManager initialization failed in fixture: {init_e}")
 
-    # --- End of modifications for fixture setup ---
+    yield manager  # Provide the initialized manager to the test
 
-    yield manager  # Provide the initialized manager (initialized with minimal config) to the test
-
-    # --- Teardown Logic ---
-    logger.debug("Starting teardown for host_manager fixture...")
+    # Teardown: Shutdown the manager (which shuts down the host)
     try:
         # Only shutdown should be called here
         if manager and manager.host:  # Check if manager and host exist before shutdown

@@ -1,5 +1,6 @@
 {
   "name": "DefaultMCPHost",
+  "description": "Default host for MCP server.",
   "clients": [
     {
       "client_id": "weather_server",
@@ -26,7 +27,7 @@
       "roots": []
     }
   ],
-  "agents": [
+  "agent_configs": [
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
@@ -129,7 +130,7 @@
       "include_history": "True"
     }
   ],
-  "workflows": [
+  "simple_workflow_configs": [
     {
       "name": "main",
       "steps": [
@@ -139,7 +140,7 @@
       "description": "Example workflow to test simple workflow execution using agents."
     }
   ],
-  "custom_workflows": [
+  "custom_workflow_configs": [
     {
       "name": "ExampleCustom",
       "module_path": "tests/fixtures/custom_workflows/example_workflow.py",

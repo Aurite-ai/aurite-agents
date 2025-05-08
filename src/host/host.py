@@ -148,10 +148,11 @@ class MCPHost:
                     )  # Keep error as ERROR
 
             # Setup transport with potentially updated environment
+            # server_path should already be an absolute Path object from config loading
             server_params = StdioServerParameters(
                 command="python",
-                args=[str(config.server_path)],
-                env=client_env,  # Pass the modified env
+                args=[str(config.server_path)],  # Use the absolute path directly
+                env=client_env,
             )
             logger.debug(
                 f"Attempting to start stdio_client for {config.client_id} with command: {server_params.command} {' '.join(server_params.args)}"
@@ -166,6 +167,7 @@ class MCPHost:
             )
             logger.debug(f"ClientSession created for {config.client_id}")
 
+            # --- Restore communication ---
             # Initialize with capabilities using proper types
             init_request = types.InitializeRequest(
                 method="initialize",
@@ -262,6 +264,7 @@ class MCPHost:
                 f"Client '{config.client_id}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
             )  # Keep client summary as INFO
+            # --- End of restored section ---
 
         except Exception as e:
             logger.error(

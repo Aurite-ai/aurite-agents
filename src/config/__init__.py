@@ -17,7 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
 # Define project root relative to this __init__.py file (src/config/__init__.py -> aurite-agents/)
-PROJECT_ROOT_DIR = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()  # Go up one more level
 
 
 class ServerConfig(BaseSettings):
