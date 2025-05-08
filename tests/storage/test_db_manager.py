@@ -240,7 +240,8 @@ def test_sync_all_configs(setup_test_db, storage_manager_instance: StorageManage
         )
     }
 
-    manager.sync_all_configs(agents, workflows, custom_workflows)
+    llm_configs = {}
+    manager.sync_all_configs(agents, workflows, custom_workflows, llm_configs)
 
     # Verify using the engine from the fixture
     with get_db_session(engine=setup_test_db) as db:

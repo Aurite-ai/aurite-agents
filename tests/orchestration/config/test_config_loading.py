@@ -18,7 +18,8 @@ from src.host.models import (
     AgentConfig,
     ClientConfig,
     WorkflowConfig,
-    CustomWorkflowConfig,  # Import CustomWorkflowConfig
+    CustomWorkflowConfig,
+    LLMConfig,  # Import LLMConfig
 )
 
 
@@ -74,6 +75,21 @@ VALID_CONFIG_DATA_FULL = {
             "name": "CustomWF2_NoDesc",
             "module_path": "another/path/wf2.py",
             "class_name": "MyWF",
+        },
+    ],
+    "llm_configs": [  # Add LLM configs section here as well
+        {
+            "llm_id": "llm_default",
+            "provider": "anthropic",
+            "model_name": "claude-3-haiku-20240307",
+            "temperature": "0.5",
+            "max_tokens": "1024",
+            "default_system_prompt": "Default LLM prompt.",
+        },
+        {
+            "llm_id": "llm_opus",
+            "provider": "anthropic",
+            "model_name": "claude-3-opus-20240229",
         },
     ],
 }
@@ -196,6 +212,55 @@ INVALID_CONFIG_DATA_AGENT_BAD_TYPE = {
     ],
 }
 
+# --- LLM Config Test Data ---
+
+VALID_CONFIG_DATA_WITH_LLM = {
+    "name": "TestHostWithLLM",
+    "clients": [],
+    "agents": [],
+    "llm_configs": [
+        {
+            "llm_id": "llm_1",
+            "provider": "anthropic",
+            "model_name": "claude-3-haiku-20240307",
+            "temperature": "0.6",
+            "max_tokens": "2048",
+        },
+        {
+            "llm_id": "llm_2_defaults",
+            "provider": "anthropic",
+            "model_name": "claude-3-sonnet-20240229",
+        },
+    ],
+}
+
+INVALID_CONFIG_DATA_LLM_MISSING_ID = {
+    "name": "TestHostInvalidLLM_NoID",
+    "clients": [],
+    "agents": [],
+    "llm_configs": [
+        {
+            # "llm_id": "missing_id",
+            "provider": "anthropic",
+            "model_name": "claude-3-haiku-20240307",
+        }
+    ],
+}
+
+INVALID_CONFIG_DATA_LLM_BAD_TYPE = {
+    "name": "TestHostInvalidLLM_BadType",
+    "clients": [],
+    "agents": [],
+    "llm_configs": [
+        {
+            "llm_id": "bad_temp_llm",
+            "provider": "anthropic",
+            "model_name": "claude-3-haiku-20240307",
+            "temperature": "very_high",  # Invalid type
+        }
+    ],
+}
+
 
 # --- Test Class ---
 
@@ -221,6 +286,7 @@ class TestConfigLoading:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Unpack llm_configs_dict
             ) = load_host_config_from_json(config_path)
 
         # Assert HostConfig
@@ -304,6 +370,30 @@ class TestConfigLoading:
         assert cwf2.class_name == "MyWF"
         assert cwf2.description is None
 
+        # Assert LLMConfigs (added in VALID_CONFIG_DATA_FULL)
+        assert isinstance(llm_configs_dict, dict)
+        assert len(llm_configs_dict) == 2
+        assert "llm_default" in llm_configs_dict
+        assert "llm_opus" in llm_configs_dict
+
+        llm1 = llm_configs_dict["llm_default"]
+        assert isinstance(llm1, LLMConfig)
+        assert llm1.llm_id == "llm_default"
+        assert llm1.provider == "anthropic"
+        assert llm1.model_name == "claude-3-haiku-20240307"
+        assert llm1.temperature == 0.5  # Check conversion
+        assert llm1.max_tokens == 1024  # Check conversion
+        assert llm1.default_system_prompt == "Default LLM prompt."
+
+        llm2 = llm_configs_dict["llm_opus"]
+        assert isinstance(llm2, LLMConfig)
+        assert llm2.llm_id == "llm_opus"
+        assert llm2.provider == "anthropic"
+        assert llm2.model_name == "claude-3-opus-20240229"
+        assert llm2.temperature is None  # Check default
+        assert llm2.max_tokens is None  # Check default
+        assert llm2.default_system_prompt is None  # Check default
+
     @patch("src.config.Path.is_file", return_value=True)
     @patch("src.config.Path.exists", return_value=True)
     @patch("src.config.PROJECT_ROOT_DIR", Path("/fake/project/root"))
@@ -318,6 +408,7 @@ class TestConfigLoading:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Unpack llm_configs_dict
             ) = load_host_config_from_json(config_path)
 
         # Assert HostConfig loaded correctly
@@ -335,6 +426,9 @@ class TestConfigLoading:
         # Assert custom_workflow_configs_dict is also empty
         assert isinstance(custom_workflow_configs_dict, dict)
         assert len(custom_workflow_configs_dict) == 0
+        # Assert llm_configs_dict is also empty
+        assert isinstance(llm_configs_dict, dict)
+        assert len(llm_configs_dict) == 0
 
     @patch("src.config.Path.is_file", return_value=True)
     @patch("src.config.Path.exists", return_value=True)
@@ -375,6 +469,7 @@ class TestConfigLoading:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Unpack llm_configs_dict
             ) = load_host_config_from_json(config_path)
 
         # Assert HostConfig, AgentConfig, WorkflowConfig loaded correctly
@@ -390,6 +485,9 @@ class TestConfigLoading:
         # Assert custom_workflow_configs_dict is empty
         assert isinstance(custom_workflow_configs_dict, dict)
         assert len(custom_workflow_configs_dict) == 0
+        # Assert llm_configs_dict is also empty
+        assert isinstance(llm_configs_dict, dict)
+        assert len(llm_configs_dict) == 0
 
     @patch("src.config.Path.is_file", return_value=True)
     @patch(
@@ -451,6 +549,7 @@ class TestConfigLoading:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Unpack llm_configs_dict
             ) = load_host_config_from_json(config_path)
 
             # Assert loading still succeeds
@@ -503,6 +602,7 @@ class TestConfigLoading:
                 agent_configs_dict,
                 workflow_configs_dict,
                 custom_workflow_configs_dict,
+                llm_configs_dict,  # Unpack llm_configs_dict
             ) = load_host_config_from_json(config_path)
 
         # Assert HostConfig and AgentConfig loaded correctly
@@ -518,6 +618,9 @@ class TestConfigLoading:
         # Assert custom_workflow_configs_dict is also empty
         assert isinstance(custom_workflow_configs_dict, dict)
         assert len(custom_workflow_configs_dict) == 0
+        # Assert llm_configs_dict is also empty
+        assert isinstance(llm_configs_dict, dict)
+        assert len(llm_configs_dict) == 0
 
     @patch("src.config.Path.is_file", return_value=True)
     @patch("src.config.Path.exists", return_value=True)
@@ -552,6 +655,7 @@ class TestConfigLoading:
                     agent_configs_dict,
                     workflow_configs_dict,
                     custom_workflow_configs_dict,
+                    llm_configs_dict,  # Unpack llm_configs_dict
                 ) = load_host_config_from_json(config_path)
             except Exception as e:
                 pytest.fail(

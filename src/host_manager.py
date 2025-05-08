@@ -525,16 +525,12 @@ class HostManager:
                     raise RuntimeError(
                         "Host is not initialized, cannot register client."
                     )
-            except ValueError:  # Catch duplicate client IDs
+            except ValueError as e:  # Catch duplicate client IDs specifically
                 logger.warning(
-                    f"Successfully registered client: {client_config.client_id}"
+                    f"Skipping client registration for '{client_config.client_id}' due to duplicate ID: {e}"
                 )
-            except ValueError as e:  # Catch duplicate client IDs
-                logger.warning(
-                    f"Skipping client registration for '{client_config.client_id}': {e}"
-                )
-                skipped_count += 1
-            except Exception as e:
+                skipped_count += 1  # Increment for duplicate
+            except Exception as e:  # Catch other errors during registration
                 err_msg = f"Failed to register client '{client_config.client_id}': {e}"
                 logger.error(err_msg, exc_info=True)
                 error_list.append(err_msg)

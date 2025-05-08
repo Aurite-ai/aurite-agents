@@ -200,13 +200,18 @@ class TestConversationManagerUnit:  # Renamed class
             usage={"input_tokens": 10, "output_tokens": 10},
         )
         # Tool results prepared by AgentTurnProcessor (mocked return value)
+        # This should be List[MessageParam], where each MessageParam is a user message
+        # containing one or more ToolResultBlockParam in its content.
         mock_tool_results_params_turn1: List[MessageParam] = [
-            {
-                "type": "tool_result",  # This is a ToolResultBlockParam
-                "tool_use_id": tool_use_id,
+            {  # This is now a user MessageParam containing the ToolResultBlockParam
+                "role": "user",
                 "content": [
-                    {"type": "text", "text": tool_result_content_str}
-                ],  # Content should be a list of blocks
+                    {  # This is the ToolResultBlockParam
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_id,
+                        "content": [{"type": "text", "text": tool_result_content_str}],
+                    }
+                ],
             }
         ]
 
@@ -295,14 +300,9 @@ class TestConversationManagerUnit:  # Renamed class
                     }
                 ],
             },
-            {  # User message with tool results (already List[MessageParam], so this is one item)
-                # Actually, mock_tool_results_params_turn1 is List[MessageParam],
-                # and ConversationManager appends:
-                # self.messages.append({"role": "user", "content": turn_tool_results_params})
-                # So the content of this user message is a list of tool result blocks.
-                "role": "user",
-                "content": mock_tool_results_params_turn1,  # This is List[MessageParam]
-            },
+            # The expected third message is the *first* (and only) item from mock_tool_results_params_turn1,
+            # as ConversationManager now extends self.messages with the items from the list returned by the processor.
+            mock_tool_results_params_turn1[0],
         ]
 
         call2_kwargs = call_args_list[1].kwargs
@@ -365,10 +365,15 @@ class TestConversationManagerUnit:  # Renamed class
         )  # The list of tool results becomes one content block
         user_tool_result_content_block = result.conversation[2].content[0]
         # Check how the ToolResultBlockParam's content (which was a list containing a TextBlockParam)
-        # gets serialized into the AgentOutputMessage history. It appears to become a single TextBlock.
-        assert user_tool_result_content_block.type == "text"
-        assert user_tool_result_content_block.text == tool_result_content_str
-        # The tool_use_id association might be lost in this simplified history representation.
+        # gets serialized into the AgentOutputMessage history.
+        # The user message (result.conversation[2]) has content that is a list of AgentOutputContentBlock.
+        # In this case, it's one AgentOutputContentBlock of type "tool_result".
+        assert user_tool_result_content_block.type == "tool_result"
+        assert user_tool_result_content_block.tool_use_id == tool_use_id
+        # The content of the ToolResultBlock itself is a list of TextBlock/ImageBlock etc.
+        assert len(user_tool_result_content_block.content) == 1
+        assert user_tool_result_content_block.content[0].type == "text"
+        assert user_tool_result_content_block.content[0].text == tool_result_content_str
 
         # Final Assistant Response
         assert result.conversation[3].model_dump(
@@ -409,14 +414,26 @@ class TestConversationManagerUnit:  # Renamed class
         # Configure the mock TurnProcessor instance
         mock_turn_processor_instance = MockAgentTurnProcessor.return_value
         # Always return is_final=False to prevent loop breaking early
-        # Define a dummy tool result to ensure the loop continues
-        dummy_tool_result: List[MessageParam] = [
-            {"role": "user", "content": [{"type": "text", "text": "dummy"}]}
+        # Define a dummy tool result (List[ToolResultBlockParam]) to ensure the loop continues
+        # This is what AgentTurnProcessor would return as `turn_tool_results_params`
+        dummy_tool_id = "dummy_max_iter_tool_id"
+        dummy_tool_output_text = "dummy tool output for max_iterations"
+        dummy_tool_result_params: List[MessageParam] = [
+            {  # Wrap in user message
+                "role": "user",
+                "content": [
+                    {  # The actual ToolResultBlockParam
+                        "type": "tool_result",
+                        "tool_use_id": dummy_tool_id,
+                        "content": [{"type": "text", "text": dummy_tool_output_text}],
+                    }
+                ],
+            }
         ]
         mock_turn_processor_instance.process_turn = AsyncMock(
             return_value=(
                 mock_assistant_response_loop,  # Return a response object
-                dummy_tool_result,  # Return non-empty list for tool_results to bypass schema check path
+                dummy_tool_result_params,  # Return non-empty list for tool_results to bypass schema check path
                 False,  # IMPORTANT: Never signal final turn
             )
         )
@@ -463,10 +480,18 @@ class TestConversationManagerUnit:  # Renamed class
             assert result.conversation[assistant_index].model_dump(
                 mode="json"
             ) == mock_assistant_response_loop.model_dump(mode="json")
-            # Check dummy user message
-            assert result.conversation[user_index].role == "user"
-            assert result.conversation[user_index].content[0].type == "text"
-            assert result.conversation[user_index].content[0].text == "dummy"
+            # Check dummy user message (which contains the tool result)
+            user_tool_msg = result.conversation[user_index]
+            assert user_tool_msg.role == "user"
+            assert len(user_tool_msg.content) == 1  # Contains one tool_result block
+            tool_result_block_in_history = user_tool_msg.content[0]
+            assert tool_result_block_in_history.type == "tool_result"
+            assert tool_result_block_in_history.tool_use_id == dummy_tool_id
+            assert len(tool_result_block_in_history.content) == 1
+            assert tool_result_block_in_history.content[0].type == "text"
+            assert (
+                tool_result_block_in_history.content[0].text == dummy_tool_output_text
+            )
 
     @pytest.mark.anyio
     @patch(

@@ -422,7 +422,7 @@ def load_host_config_from_json(
     try:
         # Load components using helper functions
         client_configs = _load_client_configs(config_data, config_path)
-        client_configs = _load_client_configs(config_data, config_path)
+        # client_configs = _load_client_configs(config_data, config_path) # Removed duplicate call
         agent_configs_dict = _load_agent_configs(config_data, config_path)
         workflow_configs_dict = _load_workflow_configs(config_data, config_path)
         custom_workflow_configs_dict = _load_custom_workflow_configs(

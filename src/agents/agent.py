@@ -35,34 +35,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# --- Helper Function for Serialization ---
-def _serialize_content_blocks(content: Any) -> Any:
-    """Recursively converts Anthropic content blocks into JSON-serializable dicts."""
-    if isinstance(content, list):
-        # Process each item in the list
-        return [_serialize_content_blocks(item) for item in content]
-    elif isinstance(content, dict):
-        # Recursively process dictionary values
-        return {k: _serialize_content_blocks(v) for k, v in content.items()}
-    elif hasattr(content, "model_dump") and callable(content.model_dump):
-        # Use Pydantic's model_dump for TextBlock, ToolUseBlock, etc.
-        try:
-            # model_dump typically returns a dict suitable for JSON
-            return content.model_dump(mode="json")
-        except Exception as e:
-            logger.warning(
-                f"Could not serialize object of type {type(content)} using model_dump: {e}. Falling back to string representation."
-            )
-            return str(content)  # Fallback if model_dump fails
-    # Handle primitive types that are already JSON-serializable
-    elif isinstance(content, (str, int, float, bool, type(None))):
-        return content
-    else:
-        # Fallback for any other unknown types
-        logger.warning(
-            f"Attempting to serialize unknown type {type(content)}. Using string representation."
-        )
-        return str(content)
+# _serialize_content_blocks function removed from here.
 
 
 class Agent:

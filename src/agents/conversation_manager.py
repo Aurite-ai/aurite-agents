@@ -13,16 +13,16 @@ from anthropic.types import MessageParam
 from ..host.host import MCPHost
 from .agent_models import AgentExecutionResult, AgentOutputMessage
 from .agent_turn_processor import AgentTurnProcessor
-from .agent import (
-    Agent,
-    _serialize_content_blocks,
-)  # Need Agent for type hint, _serialize for history
+from .agent import Agent  # Need Agent for type hint
 
 # Type hinting imports
 if TYPE_CHECKING:
     pass  # Add other necessary type hints here if needed
 
 logger = logging.getLogger(__name__)
+
+
+# _serialize_content_blocks function removed as it's deemed redundant here.
 
 
 class ConversationManager:
@@ -52,9 +52,8 @@ class ConversationManager:
         self.host = host_instance
         self.messages = list(initial_messages)  # Start with a copy
         self.system_prompt_override = system_prompt_override
-        self.conversation_history: List[Dict[str, Any]] = [
-            _serialize_content_blocks(msg) for msg in initial_messages
-        ]
+        # Initial messages are already dicts, no need for serialization here.
+        self.conversation_history: List[Dict[str, Any]] = list(initial_messages)
         self.final_response: Optional[AgentOutputMessage] = None
         self.tool_uses_in_last_turn: List[Dict[str, Any]] = []
         logger.debug("ConversationManager initialized.")
@@ -146,33 +145,25 @@ class ConversationManager:
                 if (
                     turn_tool_results_params
                 ):  # If the processor returned tool results (List[MessageParam])
-                    # Extend self.messages with the individual MessageParam objects from turn_tool_results_params
+                    # turn_tool_results_params is already a list of MessageParam dicts,
+                    # typically [{"role": "user", "content": [ToolResultBlockParam, ...]}, ...]
+                    # Append these messages directly to the list for the next LLM call.
                     self.messages.extend(turn_tool_results_params)
-                    # Append the *individual* tool result message dicts to the conversation_history log
-                    # turn_tool_results_params is List[MessageParam], which are dicts.
-                    # We need to ensure the content within these dicts is also serializable if complex.
-                    # _serialize_content_blocks should handle the inner content.
+
+                    # For self.conversation_history (log of interaction)
+                    # Append the same message dicts directly to the history log.
+                    # Ensure the content within these dicts is serializable if complex.
                     for tool_result_msg_param in turn_tool_results_params:
-                        # Ensure the content block(s) within the message param are serialized dicts
-                        if isinstance(tool_result_msg_param.get("content"), list):
-                            serialized_content = _serialize_content_blocks(
-                                tool_result_msg_param["content"]
-                            )
-                            # Create a new dict to avoid modifying the original MessageParam potentially used elsewhere
-                            history_entry = {
-                                "role": tool_result_msg_param.get(
-                                    "role", "user"
-                                ),  # Default to user if role missing
-                                "content": serialized_content,
-                            }
-                            self.conversation_history.append(history_entry)
-                        else:
-                            # Handle cases where content might not be a list (though it should be)
-                            logger.warning(
-                                f"Tool result message param content is not a list: {tool_result_msg_param}"
-                            )
-                            # Append as is, validation might fail later but preserves data
-                            self.conversation_history.append(tool_result_msg_param)  # type: ignore[arg-type]
+                        # Use _serialize_content_blocks on the *inner* content if needed,
+                        # but the message structure itself is already a dict.
+                        # Assuming tool_result_msg_param is already a dict like:
+                        # {"role": "user", "content": [{"type": "tool_result", ...}]}
+                        # The tool_result_msg_param is already a dictionary in the correct format
+                        # (e.g., {"role": "user", "content": [{"type": "tool_result", ...}]})
+                        # and its inner content should also be JSON-serializable dicts/primitives
+                        # as prepared by ToolManager.create_tool_result_blocks.
+                        # No need for _serialize_content_blocks here.
+                        self.conversation_history.append(tool_result_msg_param)
 
                     # Update tool uses if tool results were processed this turn
                     self.tool_uses_in_last_turn = (
@@ -285,106 +276,114 @@ Please correct your previous response to conform to the schema."""
         (Adapted from Agent._prepare_agent_result)
         """
         logger.debug("Preparing final agent execution result...")
-        # Prepare conversation history for return.
-        return_conversation_history_dicts = []
-        for message_item in self.conversation_history:  # Use self.conversation_history
-            if isinstance(message_item, dict):
-                try:
-                    # Validate each item to ensure it matches AgentOutputMessage structure before final dump
-                    validated_msg_for_conv = AgentOutputMessage.model_validate(
-                        message_item
-                    )
-                    return_conversation_history_dicts.append(
-                        validated_msg_for_conv.model_dump(mode="json")
-                    )
-                except ValidationError as ve:
-                    logger.warning(
-                        f"Could not validate message for return conversation history: {ve}. Original item: {message_item}"
-                    )
-                    # Fallback: try to serialize what we have, might be incomplete/invalid structure
-                    return_conversation_history_dicts.append(
-                        _serialize_content_blocks(message_item)
-                    )  # Best effort
-            else:
-                logger.warning(
-                    f"Skipping non-dict item in conversation_history for return: {type(message_item)}"
-                )
 
-        # Prepare final_response for return.
-        return_final_response_dict = None
-        if self.final_response:  # Use self.final_response
+        # Prepare final_response for return (it's already an AgentOutputMessage instance or None)
+        # If it's an instance, AgentExecutionResult validation will handle its dumping if necessary,
+        # or it can accept the model instance directly.
+        # Forcing it to dict here, then having AgentExecutionResult re-validate from dict is fine.
+        return_final_response_model_or_dict = None
+        if self.final_response:  # self.final_response is AgentOutputMessage or None
             try:
-                return_final_response_dict = self.final_response.model_dump(mode="json")
-            except Exception as e:
+                # Pydantic models can often be nested, so passing the instance might be okay,
+                # but model_dump ensures it's a dict if AgentExecutionResult expects dicts.
+                return_final_response_model_or_dict = (
+                    self.final_response
+                )  # Pass as instance
+            except (
+                Exception
+            ) as e:  # Should not fail if self.final_response is a valid Pydantic model
                 logger.error(
-                    f"Failed to serialize final_response (AgentOutputMessage) for return: {e}",
+                    f"Failed to process final_response (AgentOutputMessage) for return: {e}",
                     exc_info=True,
                 )
-                # If final response serialization fails, set an error in the result
                 execution_error = (
-                    execution_error
-                    or f"Serialization of final_response failed: {str(e)}"
+                    execution_error or f"Processing of final_response failed: {str(e)}"
                 )
-                return_final_response_dict = (
-                    None  # Ensure it's None if serialization fails
-                )
+                return_final_response_model_or_dict = None
 
-        # Construct the final dictionary to be validated
-        output_dict = {
-            "conversation": return_conversation_history_dicts,  # List of dicts
-            "final_response": return_final_response_dict,  # Dict or None
-            "tool_uses_in_final_turn": self.tool_uses_in_last_turn,  # Use self.tool_uses_in_last_turn
-            "error": execution_error,  # Use passed error or None
+        # Construct the dictionary for AgentExecutionResult validation.
+        # self.conversation_history is already List[Dict[str, Any]]
+        # These dicts should be directly parsable by AgentOutputMessage within AgentExecutionResult.
+        output_dict_for_validation = {
+            "conversation": self.conversation_history,  # Pass the list of dicts directly
+            "final_response": return_final_response_model_or_dict,  # Pass model instance or None
+            "tool_uses_in_final_turn": self.tool_uses_in_last_turn,
+            "error": execution_error,
         }
 
-        # Validate the final dictionary against the Pydantic model
         try:
-            agent_result = AgentExecutionResult.model_validate(output_dict)
+            # Validate the final structure. Pydantic will attempt to convert
+            # items in 'conversation' (dicts) to AgentOutputMessage instances,
+            # and 'final_response' (AgentOutputMessage instance or None) as needed.
+            agent_result = AgentExecutionResult.model_validate(
+                output_dict_for_validation
+            )
+
+            # Ensure error consistency
             if execution_error and not agent_result.error:
                 logger.warning(
                     "Execution error was provided but not set in validated AgentExecutionResult. Overriding."
                 )
+                # This might indicate an issue if model_validate clears a pre-existing error.
+                # However, if execution_error is from a different source than model validation,
+                # it's correct to ensure it's part of the final result.
                 agent_result.error = execution_error
+            elif not execution_error and agent_result.error:
+                # If model_validate itself found an error, that should be the primary error.
+                logger.info(
+                    f"AgentExecutionResult validation failed: {agent_result.error}"
+                )
 
             return agent_result
         except ValidationError as e:
-            # This should ideally not happen if preparation is correct, but handle defensively.
-            error_msg = f"Failed to validate final agent output dictionary: {e}"
+            # This is the primary path for validation failures of the overall structure.
+            error_msg = f"Failed to validate final AgentExecutionResult: {e}"
             logger.error(error_msg, exc_info=True)
-            # Try to return history even if final validation fails
-            validated_conversation_for_error = []
+
+            # Construct a fallback result.
+            # Try to include as much valid information as possible.
+            # For conversation, use the raw history dicts as they were before validation attempt.
+            # This avoids trying to re-validate potentially problematic individual messages here.
+            final_error_message = (
+                f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            )
+
+            # Create a "best-effort" AgentExecutionResult.
+            # Pydantic might still raise an error here if fundamental types are wrong,
+            # but we provide the raw data hoping some parts are acceptable.
             try:
-                for msg_dict_err in return_conversation_history_dicts:
-                    # Attempt validation again, might fail if structure is bad
-                    validated_conversation_for_error.append(
-                        AgentOutputMessage.model_validate(msg_dict_err)
-                    )
-            except Exception:
-                logger.error(
-                    "Could not even validate individual messages for error reporting during final validation failure."
+                return AgentExecutionResult(
+                    conversation=[
+                        AgentOutputMessage.model_validate(item)
+                        for item in self.conversation_history
+                        if isinstance(item, dict)
+                    ],  # Try to validate items individually for the error response
+                    final_response=self.final_response,  # Use the original final_response instance
+                    tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                    error=final_error_message,
                 )
-                validated_conversation_for_error = []
-
-            combined_error = (
-                f"{execution_error}\n{error_msg}" if execution_error else error_msg
-            )
-
-            return AgentExecutionResult(
-                conversation=validated_conversation_for_error,
-                final_response=None,
-                tool_uses_in_final_turn=self.tool_uses_in_last_turn,  # Use self.
-                error=combined_error,
-            )
+            except Exception as fallback_e:
+                logger.error(
+                    f"Failed to create even a fallback AgentExecutionResult: {fallback_e}"
+                )
+                # Absolute fallback if even individual message validation fails
+                return AgentExecutionResult(
+                    conversation=[],
+                    final_response=None,
+                    tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                    error=final_error_message
+                    + f"\nAdditionally, fallback result creation failed: {fallback_e}",
+                )
         except Exception as e:
-            # Catch any other unexpected error during validation
-            error_msg = f"Unexpected error during final output preparation/validation: {type(e).__name__}: {str(e)}"
+            # Catch any other unexpected error during the final validation.
+            error_msg = f"Unexpected error during final AgentExecutionResult preparation/validation: {type(e).__name__}: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            combined_error = (
+            final_error_message = (
                 f"{execution_error}\n{error_msg}" if execution_error else error_msg
             )
             return AgentExecutionResult(
-                conversation=[],
+                conversation=[],  # Safest to return empty if something truly unexpected happened
                 final_response=None,
-                tool_uses_in_final_turn=self.tool_uses_in_last_turn,  # Use self.
-                error=combined_error,
+                tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                error=final_error_message,
             )
