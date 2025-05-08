@@ -170,7 +170,7 @@ class TestAgentIntegration:
                 "Weather for London:" in tool_result_text
             )  # Match actual mock server output format
             assert (
-                "Temperature: 15" in tool_result_text  # Keep this check
+                "Temp 15°C" in tool_result_text  # Check for new format
             )  # Check within the text content
 
             assert conversation[3]["role"] == "assistant"
