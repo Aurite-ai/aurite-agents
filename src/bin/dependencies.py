@@ -10,6 +10,7 @@ from fastapi.security import APIKeyHeader
 # Import config/models needed by dependencies
 from ..config import ServerConfig
 from ..host_manager import HostManager  # Needed for get_host_manager
+from ..config.component_manager import ComponentManager  # Added for new dependency
 
 logger = logging.getLogger(__name__)
 
@@ -90,3 +91,22 @@ async def get_host_manager(request: Request) -> HostManager:
         )
     # Removed debug log from here, keep it in api.py if needed upon retrieval
     return manager
+
+
+# --- ComponentManager Dependency ---
+async def get_component_manager(
+    host_manager: HostManager = Depends(get_host_manager),
+) -> ComponentManager:
+    """
+    Dependency function to get the ComponentManager instance from the HostManager.
+    """
+    if not host_manager.component_manager:
+        # This case should ideally not happen if HostManager is initialized correctly
+        logger.error(
+            "ComponentManager not found on HostManager instance. This indicates an initialization issue."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="ComponentManager is not available due to an internal error.",
+        )
+    return host_manager.component_manager

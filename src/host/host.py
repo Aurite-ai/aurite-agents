@@ -153,14 +153,18 @@ class MCPHost:
                 args=[str(config.server_path)],
                 env=client_env,  # Pass the modified env
             )
-
+            logger.debug(
+                f"Attempting to start stdio_client for {config.client_id} with command: {server_params.command} {' '.join(server_params.args)}"
+            )
             # Create transport using context manager
             transport = await self._exit_stack.enter_async_context(
                 stdio_client(server_params)
             )
+            logger.debug(f"stdio_client transport acquired for {config.client_id}")
             session = await self._exit_stack.enter_async_context(
                 ClientSession(transport[0], transport[1])
             )
+            logger.debug(f"ClientSession created for {config.client_id}")
 
             # Initialize with capabilities using proper types
             init_request = types.InitializeRequest(

@@ -123,21 +123,25 @@ class HostManager:
         Raises:
             RuntimeError: If configuration loading or host initialization fails.
         """
-        logger.debug(
+        logger.info(  # Changed back to INFO for high-level start
             f"Initializing HostManager with project config: {self.config_path}..."
         )
         try:
             # 1. Load Project Configuration using ProjectManager
+            logger.debug(f"Loading project configuration from {self.config_path}...")
             self.current_project = self.project_manager.load_project(self.config_path)
             # load_project raises FileNotFoundError or RuntimeError on failure
+            logger.info(f"Project '{self.current_project.name}' loaded successfully.")
 
-            # Store component configs from the loaded project
+            # Store component configs from the loaded project directly onto the manager
             self.agent_configs = self.current_project.agent_configs
             self.workflow_configs = self.current_project.simple_workflow_configs
             self.custom_workflow_configs = self.current_project.custom_workflow_configs
             self.llm_configs = self.current_project.llm_configs
             logger.debug(
-                f"Project '{self.current_project.name}' loaded successfully via ProjectManager."
+                f"Stored {len(self.agent_configs)} agents, {len(self.llm_configs)} LLMs, "
+                f"{len(self.workflow_configs)} simple workflows, "
+                f"{len(self.custom_workflow_configs)} custom workflows from project."
             )
 
             # 1.5 Initialize DB Schema if storage manager exists
@@ -146,31 +150,36 @@ class HostManager:
 
             # 2. Construct HostConfig for MCPHost from ProjectConfig
             # Import HostConfig model if not already imported at top
-            from .config.config_models import HostConfig
+            from .config.config_models import HostConfig  # Keep this import here
 
+            logger.debug("Constructing HostConfig for MCPHost...")
             host_config_for_mcphost = HostConfig(
-                name=self.current_project.name,
-                description=self.current_project.description,
+                name=self.current_project.name,  # Use name from loaded project
+                description=self.current_project.description,  # Use description from loaded project
                 clients=list(
                     self.current_project.clients.values()
-                ),  # MCPHost expects a list
+                ),  # MCPHost expects a list of ClientConfig objects
             )
+            logger.debug("HostConfig constructed.")
 
             # Instantiate MCPHost
+            logger.debug("Instantiating MCPHost...")
             self.host = MCPHost(
                 config=host_config_for_mcphost,  # Use constructed HostConfig
-                agent_configs=self.agent_configs,  # Still pass this for now, MCPHost uses it
-                # Removed workflow_configs argument
+                agent_configs=self.agent_configs,  # Still pass this for now, MCPHost might use it internally
+                # Removed workflow_configs argument as MCPHost doesn't need it directly
                 # encryption_key could be passed from a secure source if needed
             )
-            logger.debug("MCPHost instance created.")  # INFO -> DEBUG
+            logger.debug("MCPHost instance created.")
 
             # 3. Initialize MCPHost (connects to clients, etc.)
+            logger.debug("Initializing MCPHost (connecting clients)...")
             await self.host.initialize()
             logger.info("MCPHost initialized successfully.")
 
             # 2.5 Sync initial configs to DB if storage manager exists
             if self.storage_manager:
+                logger.debug("Syncing loaded configurations to database...")
                 # Assuming sync_all_configs is synchronous for now
                 # If it becomes async, add await here.
                 self.storage_manager.sync_all_configs(
@@ -179,10 +188,13 @@ class HostManager:
                     custom_workflows=self.custom_workflow_configs,
                     llm_configs=self.llm_configs,  # Pass LLM configs to sync
                 )
+                logger.debug("Database sync complete.")
 
-            # Step 3 (Load additional configs) is removed as project loading handles all necessary configs now.
+            # Old Step 3 (Load additional configs) is removed as project loading handles all necessary configs now.
+            # Old private registration helpers (_register_clients_from_config etc.) are no longer needed here.
 
             # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
+            logger.debug("Instantiating ExecutionFacade...")
             self.execution = ExecutionFacade(
                 host_manager=self,
                 storage_manager=self.storage_manager,  # Pass storage manager
@@ -515,148 +527,6 @@ class HostManager:
                     f"Failed to sync custom workflow '{custom_workflow_config.name}' to database: {e}",
                     exc_info=True,
                 )
-
-    # --- Private Registration Helpers ---
-
-    async def _register_clients_from_config(
-        self, clients: List[ClientConfig]
-    ) -> Tuple[int, int, List[str]]:
-        """Registers clients from a loaded list, returning counts and errors."""
-        registered_count = 0
-        skipped_count = 0
-        error_list = []
-        logger.debug(f"Registering {len(clients)} clients...")  # INFO -> DEBUG
-        for client_config in clients:
-            try:
-                # Add explicit check for self.host before calling its method
-                if self.host:
-                    await self.host.register_client(client_config)
-                    registered_count += 1
-                    logger.debug(
-                        f"Successfully registered client: {client_config.client_id}"
-                    )
-                else:
-                    # This case should ideally not be reached if called after successful init, but handle defensively
-                    raise RuntimeError(
-                        "Host is not initialized, cannot register client."
-                    )
-            except ValueError as e:  # Catch duplicate client IDs specifically
-                logger.warning(
-                    f"Skipping client registration for '{client_config.client_id}' due to duplicate ID: {e}"
-                )
-                skipped_count += 1  # Increment for duplicate
-            except Exception as e:  # Catch other errors during registration
-                err_msg = f"Failed to register client '{client_config.client_id}': {e}"
-                logger.error(err_msg, exc_info=True)
-                error_list.append(err_msg)
-                skipped_count += 1  # Count as skipped due to error
-        return registered_count, skipped_count, error_list
-
-    async def _register_agents_from_config(
-        self, agents: Dict[str, AgentConfig]
-    ) -> Tuple[int, int, List[str]]:
-        """Registers agents from a loaded dict, returning counts and errors."""
-        registered_count = 0
-        skipped_count = 0
-        error_list = []
-        logger.debug(f"Registering {len(agents)} agents...")  # INFO -> DEBUG
-        for agent_name, agent_config in agents.items():
-            try:
-                await self.register_agent(
-                    agent_config
-                )  # Uses internal check for host init
-                registered_count += 1
-                logger.debug(f"Successfully registered agent: {agent_name}")
-            except ValueError as e:  # Catch duplicates or invalid client IDs
-                logger.warning(f"Skipping agent registration for '{agent_name}': {e}")
-                skipped_count += 1
-            except Exception as e:  # Catch unexpected errors
-                err_msg = f"Failed to register agent '{agent_name}': {e}"
-                logger.error(err_msg, exc_info=True)
-                error_list.append(err_msg)
-                skipped_count += 1
-        return registered_count, skipped_count, error_list
-
-    async def _register_workflows_from_config(
-        self,
-        workflows: Dict[str, WorkflowConfig],
-        available_agents: Set[str],  # Pass the set of available agent names
-    ) -> Tuple[int, int, List[str]]:
-        """Validates and registers simple workflows, returning counts and errors."""
-        registered_count = 0
-        skipped_count = 0
-        error_list = []
-        valid_workflows_to_register = {}
-        logger.debug(
-            f"Validating {len(workflows)} simple workflows..."
-        )  # INFO -> DEBUG
-
-        # First, validate agent references
-        for workflow_name, workflow_config in workflows.items():
-            is_valid = True
-            if workflow_config.steps:
-                for step_agent_name in workflow_config.steps:
-                    if step_agent_name not in available_agents:
-                        err_msg = f"Workflow '{workflow_name}' references unknown agent '{step_agent_name}'. Agent not found in existing or newly loaded configurations."
-                        logger.error(err_msg)
-                        error_list.append(err_msg)
-                        skipped_count += 1
-                        is_valid = False
-                        break  # No need to check other steps
-            if is_valid:
-                valid_workflows_to_register[workflow_name] = workflow_config
-
-        # Now register the valid ones
-        logger.debug(  # INFO -> DEBUG
-            f"Registering {len(valid_workflows_to_register)} valid simple workflows..."
-        )
-        for workflow_name, workflow_config in valid_workflows_to_register.items():
-            try:
-                await self.register_workflow(
-                    workflow_config
-                )  # Uses internal check for host init
-                registered_count += 1
-                logger.debug(f"Successfully registered workflow: {workflow_name}")
-            except ValueError as e:  # Catch duplicates
-                logger.warning(
-                    f"Skipping workflow registration for '{workflow_name}': {e}"
-                )
-                skipped_count += 1
-            except Exception as e:  # Catch unexpected errors
-                err_msg = f"Failed to register workflow '{workflow_name}': {e}"
-                logger.error(err_msg, exc_info=True)
-                error_list.append(err_msg)
-                skipped_count += 1
-        return registered_count, skipped_count, error_list
-
-    async def _register_custom_workflows_from_config(
-        self, custom_workflows: Dict[str, CustomWorkflowConfig]
-    ) -> Tuple[int, int, List[str]]:
-        """Registers custom workflows from a loaded dict, returning counts and errors."""
-        registered_count = 0
-        skipped_count = 0
-        error_list = []
-        logger.debug(
-            f"Registering {len(custom_workflows)} custom workflows..."
-        )  # INFO -> DEBUG
-        for cwf_name, cwf_config in custom_workflows.items():
-            try:
-                await self.register_custom_workflow(
-                    cwf_config
-                )  # Uses internal check for host init
-                registered_count += 1
-                logger.debug(f"Successfully registered custom workflow: {cwf_name}")
-            except ValueError as e:  # Catch duplicates or invalid paths
-                logger.warning(
-                    f"Skipping custom workflow registration for '{cwf_name}': {e}"
-                )
-                skipped_count += 1
-            except Exception as e:  # Catch unexpected errors
-                err_msg = f"Failed to register custom workflow '{cwf_name}': {e}"
-                logger.error(err_msg, exc_info=True)
-                error_list.append(err_msg)
-                skipped_count += 1
-        return registered_count, skipped_count, error_list
 
     # --- Configuration Access Methods ---
 

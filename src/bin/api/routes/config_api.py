@@ -3,129 +3,124 @@ import json
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel  # Add this import
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ValidationError
 
 # Import dependencies from the new location (relative to parent of routes' parent)
-from ...dependencies import get_api_key, PROJECT_ROOT
+from ...dependencies import (
+    get_api_key,
+    get_component_manager,
+)  # PROJECT_ROOT no longer needed here
+from src.config.component_manager import (
+    ComponentManager,
+)  # For type hinting (Changed to absolute import)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/configs",  # Prefix for all routes in this router
     tags=["Config Management"],  # Tag for OpenAPI docs
-    # dependencies=[Depends(get_api_key)] # Apply auth to all routes in this router
+    dependencies=[Depends(get_api_key)],  # Apply auth to all routes in this router
 )
 
 # --- Config File CRUD Logic ---
 
-# Define allowed component types and their base directories relative to PROJECT_ROOT
-CONFIG_DIRS = {
-    "agents": Path("config/agents"),
-    "clients": Path("config/clients"),
-    "simple_workflows": Path(
-        "config/workflows"
-    ),  # Maps to the existing 'workflows' directory
-    "custom_workflows": Path("config/custom_workflows"),  # New mapping
-    "testing": Path("config/testing"),
+# CONFIG_DIRS and get_validated_config_path are no longer needed here,
+# ComponentManager handles path logic.
+
+# Mapping from API path component_type to ComponentManager's internal type keys
+# This helps keep API paths user-friendly if they differ from internal keys.
+# For now, they are mostly the same, but this provides a layer of abstraction.
+API_TO_CM_TYPE_MAP = {
+    "agents": "agents",
+    "clients": "clients",
+    "llm-configs": "llm_configs",  # New API endpoint for LLM configs
+    "simple-workflows": "simple_workflows",
+    "custom-workflows": "custom_workflows",
+    # "testing" type is not managed by ComponentManager, so it's removed from here.
+    # If "testing" configs need to be managed, it would require a different mechanism
+    # or extending ComponentManager (if appropriate).
 }
 
 
-# Helper function for security - ensure path is within allowed config dirs
-# Moved from api.py
-def get_validated_config_path(component_type: str, filename: str | None = None) -> Path:
-    if component_type not in CONFIG_DIRS:
-        raise HTTPException(status_code=400, detail="Invalid component type specified.")
-
-    base_dir = PROJECT_ROOT / CONFIG_DIRS[component_type]
-
-    # Create directory if it doesn't exist (for listing/creation)
-    base_dir.mkdir(parents=True, exist_ok=True)
-
-    if filename:
-        # Validate filename
-        # Removed explicit ".." check - rely on resolve() and startswith() check below for security.
-        # Keep checks for explicit path separators within the filename itself.
-        if "/" in filename or "\\" in filename:
-            raise HTTPException(
-                status_code=400, detail="Invalid filename (contains path separators)."
-            )
-        if not filename.endswith(".json"):
-            raise HTTPException(status_code=400, detail="Filename must end with .json.")
-
-        full_path = (base_dir / filename).resolve()
-
-        # Security check
-        if not str(full_path).startswith(str(base_dir.resolve())):
-            raise HTTPException(status_code=400, detail="Invalid path specified.")
-        return full_path
-    else:
-        return base_dir.resolve()
+def _get_cm_component_type(api_component_type: str) -> str:
+    """Validates and maps API component type to ComponentManager type key."""
+    cm_type = API_TO_CM_TYPE_MAP.get(api_component_type)
+    if not cm_type:
+        logger.warning(
+            f"Invalid component type specified in API path: {api_component_type}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid component type '{api_component_type}' specified. "
+            f"Valid types are: {', '.join(API_TO_CM_TYPE_MAP.keys())}",
+        )
+    return cm_type
 
 
-@router.get(
-    "/{component_type}", response_model=List[str], dependencies=[Depends(get_api_key)]
-)
+def _extract_component_id(filename: str) -> str:
+    """Extracts component ID from filename (removes .json suffix)."""
+    if not filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+    return filename[:-5]  # Remove .json
+
+
+@router.get("/{component_type}", response_model=List[str])
 async def list_config_files(
     component_type: str,
-    # api_key: str = Depends(get_api_key), # Dependency moved to router level if preferred
+    cm: ComponentManager = Depends(get_component_manager),
 ):
-    """Lists available JSON configuration files for a given component type."""
-    logger.info(f"Request received to list configs for type: {component_type}")
+    """Lists available JSON configuration filenames for a given component type."""
+    logger.info(f"Request received to list configs for API type: {component_type}")
     try:
-        config_dir = get_validated_config_path(component_type)
-        logger.debug(f"Listing files in validated directory: {config_dir}")
-
-        if not config_dir.is_dir():
-            logger.warning(
-                f"Config directory not found for type '{component_type}' at {config_dir}"
-            )
-            return []
-
-        json_files = [
-            f.name for f in config_dir.iterdir() if f.is_file() and f.suffix == ".json"
-        ]
-        logger.info(f"Found {len(json_files)} config files for type '{component_type}'")
-        return json_files
-    except HTTPException as http_exc:
+        cm_component_type = _get_cm_component_type(component_type)
+        filenames = cm.list_component_files(cm_component_type)
+        logger.info(
+            f"Found {len(filenames)} config files for CM type '{cm_component_type}'"
+        )
+        return filenames
+    except HTTPException as http_exc:  # Re-raise our own HTTPExceptions
         raise http_exc
     except Exception as e:
         logger.error(
-            f"Error listing config files for type '{component_type}': {e}",
+            f"Error listing config files for API type '{component_type}': {e}",
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to list configuration files: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list configuration files: {str(e)}",
         )
 
 
-@router.get("/{component_type}/{filename:path}", dependencies=[Depends(get_api_key)])
+@router.get(
+    "/{component_type}/{filename:path}", response_model=dict
+)  # Return type is dict (JSON)
 async def get_config_file(
     component_type: str,
-    filename: str,  # filename will now contain the full path segment
-    # api_key: str = Depends(get_api_key), # Dependency moved to router level if preferred
+    filename: str,
+    cm: ComponentManager = Depends(get_component_manager),
 ):
     """Gets the content of a specific JSON configuration file."""
     logger.info(f"Request received to get config file: {component_type}/{filename}")
     try:
-        file_path = get_validated_config_path(component_type, filename)
-        logger.debug(f"Reading content from validated path: {file_path}")
+        cm_component_type = _get_cm_component_type(component_type)
+        component_id = _extract_component_id(filename)
 
-        if not file_path.is_file():
-            logger.warning(f"Config file not found at path: {file_path}")
-            raise HTTPException(status_code=404, detail="Configuration file not found.")
+        component_model = cm.get_component_config(cm_component_type, component_id)
 
-        content = file_path.read_text()
-        try:
-            json_content = json.loads(content)
-            return json_content
-        except json.JSONDecodeError as json_err:
-            logger.error(f"Error decoding JSON from file {file_path}: {json_err}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to parse file content as JSON: {str(json_err)}",
+        if component_model is None:
+            logger.warning(
+                f"Config component ID '{component_id}' of type '{cm_component_type}' not found."
             )
-
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Configuration file not found.",
+            )
+        # Return the Pydantic model as a dictionary, which FastAPI will serialize to JSON
+        return component_model.model_dump(mode="json")
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
@@ -134,7 +129,8 @@ async def get_config_file(
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to read configuration file: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read configuration file: {str(e)}",
         )
 
 
@@ -145,181 +141,218 @@ class ConfigContent(BaseModel):
     content: dict  # Expecting a dictionary for the JSON content
 
 
-@router.post(
-    "/{component_type}/{filename:path}",
-    status_code=201,
-    dependencies=[Depends(get_api_key)],
-)
-async def upload_config_file(
+@router.post("/{component_type}/{filename:path}", status_code=status.HTTP_201_CREATED)
+async def create_config_file(  # Renamed from upload_config_file for clarity (POST = create)
     component_type: str,
-    filename: str,  # filename will now contain the full path segment
-    config_data: ConfigContent,
-    # api_key: str = Depends(get_api_key), # Applied at router level
+    filename: str,
+    config_body: ConfigContent,  # Changed variable name from config_data
+    cm: ComponentManager = Depends(get_component_manager),
 ):
-    """Creates or overwrites a specific JSON configuration file."""
-    logger.info(f"Request received to upload config file: {component_type}/{filename}")
+    """Creates a new component JSON configuration file."""
+    logger.info(f"Request received to create config file: {component_type}/{filename}")
     try:
-        file_path = get_validated_config_path(component_type, filename)
-        logger.debug(f"Writing content to validated path: {file_path}")
+        cm_component_type = _get_cm_component_type(component_type)
+        component_id_from_path = _extract_component_id(filename)
 
-        # Basic validation: Ensure filename matches expected pattern if needed
-        # (get_validated_config_path already checks for .json and path traversal)
+        # Ensure the ID in the path matches the ID inside the content, if present.
+        # ComponentManager's save/create methods also validate this.
+        # Here, we primarily use the ID from the path as the definitive one.
+        # The content dict itself must contain the ID field.
+        config_payload = config_body.content.copy()  # Work with a copy
 
-        # Check if file already exists (optional, could return 409 Conflict if needed)
-        # if file_path.exists():
-        #     logger.warning(f"Config file {file_path} already exists. Overwriting.")
-        # raise HTTPException(status_code=409, detail="Configuration file already exists.")
-
-        # Write the content (pretty-printed JSON)
-        try:
-            json_string = json.dumps(config_data.content, indent=4)
-            file_path.write_text(json_string)
-            logger.info(f"Successfully wrote config file: {file_path}")
-            return {
-                "status": "success",
-                "filename": filename,
-                "component_type": component_type,
-            }
-        except TypeError as json_err:
-            logger.error(
-                f"Error serializing provided content to JSON for {file_path}: {json_err}"
-            )
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid JSON content provided: {str(json_err)}",
-            )
-        except IOError as io_err:
-            logger.error(
-                f"Error writing config file {file_path}: {io_err}", exc_info=True
-            )
+        # Get the expected ID field name for this component type
+        id_field_name = ComponentManager.COMPONENT_META.get(
+            cm_component_type, (None, None)
+        )[1]
+        if not id_field_name:  # Should not happen if _get_cm_component_type worked
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to write configuration file: {str(io_err)}",
+                detail="Internal server error: Unknown component ID field.",
             )
 
+        if id_field_name not in config_payload:
+            # If ID field is missing in content, inject it from path filename
+            config_payload[id_field_name] = component_id_from_path
+            logger.debug(
+                f"Injected ID '{component_id_from_path}' into payload for type '{cm_component_type}'."
+            )
+        elif config_payload[id_field_name] != component_id_from_path:
+            logger.warning(
+                f"ID in path ('{component_id_from_path}') differs from ID in payload ('{config_payload[id_field_name]}') for type '{cm_component_type}'. Using ID from path."
+            )
+            # Overwrite ID in payload with ID from path to ensure consistency
+            config_payload[id_field_name] = component_id_from_path
+
+        # Use create_component_file with overwrite=False for POST
+        created_model = cm.create_component_file(
+            cm_component_type, config_payload, overwrite=False
+        )
+        logger.info(
+            f"Successfully created component '{created_model.model_dump().get(id_field_name)}' of type '{cm_component_type}'"
+        )
+        return created_model.model_dump(mode="json")
+
+    except FileExistsError as fe_err:
+        logger.warning(
+            f"Config file {component_type}/{filename} already exists: {fe_err}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Configuration file {filename} already exists. Use PUT to update.",
+        )
+    except (
+        ValueError,
+        ValidationError,
+    ) as val_err:  # Catch CM's ValueError or Pydantic's ValidationError
+        logger.error(
+            f"Validation or value error for '{component_type}/{filename}': {val_err}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid configuration data: {str(val_err)}",
+        )
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
         logger.error(
-            f"Unexpected error uploading config file '{component_type}/{filename}': {e}",
+            f"Unexpected error creating config file '{component_type}/{filename}': {e}",
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to upload configuration file: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create configuration file: {str(e)}",
         )
 
 
-@router.put(
-    "/{component_type}/{filename:path}",
-    status_code=200,
-    dependencies=[Depends(get_api_key)],
-)
+@router.put("/{component_type}/{filename:path}", status_code=status.HTTP_200_OK)
 async def update_config_file(
     component_type: str,
     filename: str,
-    config_data: ConfigContent,
+    config_body: ConfigContent,
+    cm: ComponentManager = Depends(get_component_manager),
 ):
-    """Updates an existing specific JSON configuration file."""
-    logger.info(f"Request received to update config file: {component_type}/{filename}")
+    """Updates an existing specific JSON configuration file. Can also create if not exists (upsert)."""
+    logger.info(
+        f"Request received to update/create config file: {component_type}/{filename}"
+    )
     try:
-        file_path = get_validated_config_path(component_type, filename)
-        logger.debug(f"Updating content at validated path: {file_path}")
+        cm_component_type = _get_cm_component_type(component_type)
+        component_id_from_path = _extract_component_id(filename)
 
-        # Ensure the file exists before updating
-        if not file_path.is_file():
-            logger.warning(f"Config file not found for update at path: {file_path}")
-            raise HTTPException(
-                status_code=404, detail="Configuration file not found for update."
-            )
+        config_payload = config_body.content.copy()
 
-        # Write the new content (pretty-printed JSON)
-        try:
-            json_string = json.dumps(config_data.content, indent=4)
-            file_path.write_text(json_string)
-            logger.info(f"Successfully updated config file: {file_path}")
-            return {
-                "status": "success",
-                "filename": filename,
-                "component_type": component_type,
-            }
-        except TypeError as json_err:
-            logger.error(
-                f"Error serializing provided content to JSON for {file_path}: {json_err}"
-            )
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid JSON content provided: {str(json_err)}",
-            )
-        except IOError as io_err:
-            logger.error(
-                f"Error writing config file {file_path}: {io_err}", exc_info=True
-            )
+        id_field_name = ComponentManager.COMPONENT_META.get(
+            cm_component_type, (None, None)
+        )[1]
+        if not id_field_name:
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to write configuration file: {str(io_err)}",
+                detail="Internal server error: Unknown component ID field.",
             )
 
+        if id_field_name not in config_payload:
+            config_payload[id_field_name] = component_id_from_path
+        elif config_payload[id_field_name] != component_id_from_path:
+            logger.warning(
+                f"ID in path ('{component_id_from_path}') differs from ID in payload ('{config_payload[id_field_name]}') for type '{cm_component_type}'. Using ID from path."
+            )
+            config_payload[id_field_name] = component_id_from_path
+
+        # save_component_config handles create or update (upsert)
+        saved_model = cm.save_component_config(cm_component_type, config_payload)
+        logger.info(
+            f"Successfully saved (created/updated) component '{saved_model.model_dump().get(id_field_name)}' of type '{cm_component_type}'"
+        )
+        return saved_model.model_dump(mode="json")
+
+    except (
+        ValueError,
+        ValidationError,
+    ) as val_err:  # Catch CM's ValueError or Pydantic's ValidationError
+        logger.error(
+            f"Validation or value error for '{component_type}/{filename}': {val_err}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid configuration data: {str(val_err)}",
+        )
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
         logger.error(
-            f"Unexpected error updating config file '{component_type}/{filename}': {e}",
+            f"Unexpected error saving config file '{component_type}/{filename}': {e}",
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to update configuration file: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save configuration file: {str(e)}",
         )
 
 
-@router.delete(
-    "/{component_type}/{filename:path}",
-    status_code=200,
-    dependencies=[Depends(get_api_key)],
-)
+@router.delete("/{component_type}/{filename:path}", status_code=status.HTTP_200_OK)
 async def delete_config_file(
     component_type: str,
     filename: str,
+    cm: ComponentManager = Depends(get_component_manager),
 ):
     """Deletes a specific JSON configuration file."""
     logger.info(f"Request received to delete config file: {component_type}/{filename}")
     try:
-        file_path = get_validated_config_path(component_type, filename)
-        logger.debug(f"Attempting to delete file at validated path: {file_path}")
+        cm_component_type = _get_cm_component_type(component_type)
+        component_id = _extract_component_id(filename)
 
-        # Ensure the file exists before deleting
-        if not file_path.is_file():
-            logger.warning(f"Config file not found for deletion at path: {file_path}")
-            raise HTTPException(
-                status_code=404, detail="Configuration file not found for deletion."
+        # ComponentManager.delete_component_config returns True if deleted (or not found in memory but file also not found)
+        # and False if deletion failed (e.g., OS error, or not in memory but file deletion failed).
+        # It logs warnings if file not found on disk but was in memory, or vice-versa.
+        # For API, if it returns True, it means the state is "deleted" or "was not there".
+        # If it returns False, it means an actual error occurred during deletion attempt.
+
+        # Check if component exists first to return 404 if not found at all
+        if cm.get_component_config(cm_component_type, component_id) is None:
+            # Further check if file exists on disk, CM might have it in memory but no file
+            # However, list_component_files is a better check for "does a file exist for this ID"
+            if f"{component_id}.json" not in cm.list_component_files(cm_component_type):
+                logger.warning(
+                    f"Config file '{filename}' of type '{component_type}' not found for deletion."
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Configuration file not found for deletion.",
+                )
+
+        deleted = cm.delete_component_config(cm_component_type, component_id)
+
+        if deleted:
+            logger.info(
+                f"Successfully deleted or confirmed not present for component ID '{component_id}' of type '{cm_component_type}'"
             )
-
-        # Delete the file
-        try:
-            file_path.unlink()  # Use unlink() from pathlib
-            logger.info(f"Successfully deleted config file: {file_path}")
             return {
                 "status": "success",
                 "filename": filename,
                 "component_type": component_type,
-                "message": "File deleted successfully.",
+                "message": "File deleted successfully or was not found.",
             }
-        except OSError as os_err:
+        else:
+            # This path implies an actual error during deletion (e.g., file system error)
+            # because if the file/component just didn't exist, delete_component_config would likely return True.
             logger.error(
-                f"Error deleting config file {file_path}: {os_err}", exc_info=True
+                f"Deletion failed for component ID '{component_id}' of type '{cm_component_type}' due to an internal error."
             )
             raise HTTPException(
-                status_code=500,
-                detail=f"Failed to delete configuration file: {str(os_err)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete configuration file due to an internal error.",
             )
 
     except HTTPException as http_exc:
-        # Re-raise HTTPExceptions (like 400 from validation, 404 from check)
         raise http_exc
-    except Exception as e:
+    except Exception as e:  # Catch any other unexpected errors
         logger.error(
             f"Unexpected error deleting config file '{component_type}/{filename}': {e}",
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to delete configuration file: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while deleting configuration file: {str(e)}",
         )

@@ -3,16 +3,32 @@ Pytest fixtures related to MCPHost configuration and mocking.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import (
+    Mock,
+    AsyncMock,
+    patch,
+    MagicMock,
+)  # Ensure patch and MagicMock are here
+import json
+import logging  # Added logging import
+from pathlib import Path
 
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.config.config_models import HostConfig
+# Import necessary models
+from src.config.config_models import (
+    HostConfig,
+    ProjectConfig,
+    ClientConfig,
+)  # Ensure ProjectConfig and ClientConfig are here
 from src.host.host import MCPHost
-from src.host_manager import HostManager  # Import HostManager
-from src.host.resources import ToolManager, PromptManager  # Added ResourceManager
+from src.host_manager import HostManager
+from src.host.resources import ToolManager, PromptManager
 from src.config import PROJECT_ROOT_DIR  # Import project root
+
+# Define logger for this fixtures module
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -81,54 +97,92 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     Provides an initialized HostManager instance for testing, based on
     the testing_config.json file. Handles setup and teardown.
     """
-    # Define path to the test config file relative to project root
-    test_config_path = PROJECT_ROOT_DIR / "config/testing_config.json"
+    # --- Use a minimal, hardcoded HostConfig for debugging initialization ---
+    actual_project_root = PROJECT_ROOT_DIR.parent
+    minimal_client_config = ClientConfig(
+        client_id="weather_server_minimal",  # Use a distinct ID for clarity
+        server_path=(
+            actual_project_root / "src/packaged_servers/weather_mcp_server.py"
+        ).resolve(),
+        capabilities=["tools"],
+        roots=[],
+    )
+    minimal_host_config_for_test = HostConfig(
+        name="MinimalTestHost", clients=[minimal_client_config]
+    )
 
-    if not test_config_path.exists():
-        pytest.skip(f"Test host config file not found at {test_config_path}")
+    # Check if the single client path exists
+    if not minimal_client_config.server_path.exists():
+        pytest.skip(
+            f"Minimal test server path does not exist: {minimal_client_config.server_path}"
+        )
 
-    # Check if the referenced server path exists to avoid unnecessary setup failure
-    # This requires loading the config partially or making assumptions.
-    # Let's load it quickly just to check the server path for skipping.
-    try:
-        import json
+    # Instantiate HostManager with a dummy path, as we'll inject the config
+    dummy_path = actual_project_root / "config/dummy_for_fixture.json"
+    manager = HostManager(config_path=dummy_path)
 
-        with open(test_config_path, "r") as f:
-            raw_config = json.load(f)
-        first_client_path_str = raw_config.get("clients", [{}])[0].get("server_path")
-        if first_client_path_str:
-            first_client_path = (PROJECT_ROOT_DIR / first_client_path_str).resolve()
-            if not first_client_path.exists():
-                pytest.skip(
-                    f"Test server path in config does not exist: {first_client_path}"
-                )
-        else:
-            pytest.fail("Could not read first client server_path from testing config.")
-    except Exception as e:
-        pytest.fail(f"Failed to pre-check server path in testing config: {e}")
+    # --- Mock ProjectManager to return a ProjectConfig derived from our minimal HostConfig ---
+    # This keeps the HostManager internal logic consistent while controlling the clients MCPHost sees.
+    minimal_project_config = ProjectConfig(
+        name=minimal_host_config_for_test.name,
+        description="Minimal project config for fixture debugging",
+        clients={minimal_client_config.client_id: minimal_client_config},
+        agent_configs={},
+        llm_configs={},
+        simple_workflow_configs={},
+        custom_workflow_configs={},
+    )
 
-    # Instantiate HostManager
-    manager = HostManager(config_path=test_config_path)
+    with patch("src.host_manager.ProjectManager") as MockProjectManager:
+        mock_pm_instance = MagicMock()
+        mock_pm_instance.load_project.return_value = minimal_project_config
+        MockProjectManager.return_value = mock_pm_instance
 
-    # Initialize (this loads configs and starts MCPHost/clients)
-    try:
-        await manager.initialize()
-    except Exception as init_e:
-        # Attempt cleanup even if init fails partially
+        # Re-instantiate HostManager *inside* the patch context so it uses the mock
+        manager = HostManager(config_path=dummy_path)
+
+        # Initialize (this will now use the minimal_project_config via the mock)
         try:
-            await manager.shutdown()
-        except Exception:
-            pass  # Ignore shutdown errors after init failure
-        pytest.fail(f"HostManager initialization failed in fixture: {init_e}")
+            await manager.initialize()
+            # Verify that MCPHost received the minimal config
+            assert manager.host is not None
+            assert len(manager.host._config.clients) == 1
+            assert (
+                manager.host._config.clients[0].client_id
+                == minimal_client_config.client_id
+            )
+        except Exception as init_e:
+            # Attempt cleanup even if init fails partially
+            try:
+                await manager.shutdown()
+            except Exception:
+                pass  # Ignore shutdown errors after init failure
+            pytest.fail(
+                f"HostManager initialization failed in fixture with minimal config: {init_e}"
+            )
 
-    yield manager  # Provide the initialized manager to the test
+    # --- End of modifications for fixture setup ---
 
-    # Teardown: Shutdown the manager (which shuts down the host)
+    yield manager  # Provide the initialized manager (initialized with minimal config) to the test
+
+    # --- Teardown Logic ---
+    logger.debug("Starting teardown for host_manager fixture...")
     try:
-        await manager.shutdown()
+        # Only shutdown should be called here
+        if manager and manager.host:  # Check if manager and host exist before shutdown
+            logger.debug(f"Attempting shutdown for host: {manager.host._config.name}")
+            await manager.shutdown()
+            logger.debug(
+                f"Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}"
+            )  # Check host again as shutdown sets it to None
+        else:
+            logger.debug("Manager or host not available for shutdown in teardown.")
     except RuntimeError as e:
         # Catch and log the specific "Event loop is closed" error during teardown
-        if "Event loop is closed" in str(e):
+        # Also catch "Cannot run shutdown() while loop is stopping" which might occur
+        if "Event loop is closed" in str(
+            e
+        ) or "Cannot run shutdown() while loop is stopping" in str(e):
             print(
                 f"\n[WARN] Suppressed known teardown error in host_manager fixture: {e}"
             )
