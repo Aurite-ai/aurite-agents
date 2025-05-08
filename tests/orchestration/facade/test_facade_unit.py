@@ -3,17 +3,28 @@ Unit tests for the ExecutionFacade.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock  # Add MagicMock import
+from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Add patch
+from typing import List  # Add missing import
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.execution.facade import ExecutionFacade
-from src.host.models import AgentConfig
+from src.host.models import AgentConfig, LLMConfig  # Added LLMConfig
 from src.host_manager import HostManager
 from src.agents.agent import Agent
+from src.agents.conversation_manager import (
+    ConversationManager,
+)  # Import ConversationManager
+from src.agents.agent_models import (
+    AgentExecutionResult,
+    AgentOutputMessage,
+    AgentOutputContentBlock,
+)  # Import result models
+from src.llm.base_client import BaseLLM  # Import BaseLLM for type hint
 from src.host.host import MCPHost  # Needed for type hinting if used
+from anthropic.types import MessageParam  # Import MessageParam
 
 # --- Fixtures ---
 
@@ -24,8 +35,10 @@ def mock_host_manager() -> Mock:
     manager = Mock(spec=HostManager)
     manager.host = AsyncMock(spec=MCPHost)  # Mock the host instance within the manager
     manager.agent_configs = {}
+    manager.llm_configs = {}  # Add llm_configs dict
     manager.workflow_configs = {}
     manager.custom_workflow_configs = {}
+    manager._storage_manager = None  # Assume no storage by default for facade tests
     return manager
 
 
@@ -44,54 +57,118 @@ class TestExecutionFacadeUnit:
     """Unit tests for ExecutionFacade public methods."""
 
     @pytest.mark.asyncio
+    # Patch dependencies called by run_agent
+    @patch("src.execution.facade.AnthropicLLM")
+    @patch("src.execution.facade.ConversationManager")
     async def test_run_agent_success(
-        self, execution_facade: ExecutionFacade, mock_host_manager: Mock
+        self,
+        MockConversationManager: MagicMock,
+        MockAnthropicLLM: MagicMock,
+        execution_facade: ExecutionFacade,
+        mock_host_manager: Mock,
     ):
         """
-        Test run_agent successfully calls _execute_component with correct args.
+        Test run_agent successfully executes the agent flow using ConversationManager.
         """
         print("\n--- Running Test: test_run_agent_success ---")
         agent_name = "TestAgent"
-        initial_input = "Hello Agent"
-        session_id = "unit_test_session_agent"  # Define session ID
-        expected_result = {"status": "completed", "final_response": "Agent Response"}
+        user_message = "Hello Agent"
+        session_id = "unit_test_session_agent"
+        system_prompt_override = "Be extra helpful."
 
-        # Mock the internal _execute_component method for this unit test
-        execution_facade._execute_component = AsyncMock(return_value=expected_result)
+        # --- Mock HostManager Configs ---
+        mock_agent_config = AgentConfig(
+            name=agent_name,
+            llm_config_id="test_llm",
+            model="agent-model-override",  # Agent overrides LLMConfig model
+            temperature=0.5,
+            max_iterations=5,
+            include_history=False,  # Simplify test by not involving storage mock
+        )
+        mock_llm_config = LLMConfig(
+            llm_id="test_llm",
+            provider="anthropic",
+            model_name="llm-config-model",  # Will be overridden by agent_config
+            temperature=0.8,  # Will be overridden by agent_config
+            default_system_prompt="Default LLM prompt.",  # Will be used by LLM client
+        )
+        mock_host_manager.agent_configs = {agent_name: mock_agent_config}
+        mock_host_manager.llm_configs = {"test_llm": mock_llm_config}
 
-        # Call the public method
-        result = await execution_facade.run_agent(
+        # --- Mock LLM Client Instantiation ---
+        mock_llm_instance = MagicMock(spec=BaseLLM)
+        MockAnthropicLLM.return_value = mock_llm_instance
+
+        # --- Mock ConversationManager ---
+        mock_cm_instance = MagicMock(spec=ConversationManager)
+        # Mock the result of run_conversation
+        mock_agent_result = AgentExecutionResult(
+            conversation=[
+                AgentOutputMessage(
+                    role="user",
+                    content=[AgentOutputContentBlock(type="text", text=user_message)],
+                ),
+                AgentOutputMessage(
+                    role="assistant",
+                    content=[
+                        AgentOutputContentBlock(type="text", text="Agent Response")
+                    ],
+                ),
+            ],
+            final_response=AgentOutputMessage(
+                role="assistant",
+                content=[AgentOutputContentBlock(type="text", text="Agent Response")],
+            ),
+            tool_uses_in_final_turn=[],
+            error=None,
+        )
+        mock_cm_instance.run_conversation = AsyncMock(return_value=mock_agent_result)
+        MockConversationManager.return_value = mock_cm_instance
+
+        # --- Act ---
+        result_dict = await execution_facade.run_agent(
             agent_name=agent_name,
-            user_message=initial_input,
-            session_id=session_id,  # Pass session ID
+            user_message=user_message,
+            system_prompt=system_prompt_override,  # Pass override
+            session_id=session_id,
         )
 
-        print(f"Execution Result: {result}")
+        print(f"Execution Result: {result_dict}")
 
-        # Assertions
-        # Verify _execute_component was called with the arguments run_agent should provide
-        execution_facade._execute_component.assert_awaited_once()
-        call_args, call_kwargs = execution_facade._execute_component.call_args
+        # --- Assertions ---
+        # 1. LLM Client Instantiation
+        MockAnthropicLLM.assert_called_once_with(
+            model_name="agent-model-override",  # Overridden by agent config
+            temperature=0.5,  # Overridden by agent config
+            max_tokens=None,  # Not set in configs, uses default
+            system_prompt="Default LLM prompt.",  # From LLM config (agent config system_prompt is None)
+        )
 
-        # Check keyword arguments passed to _execute_component
-        assert call_kwargs.get("component_type") == "Agent"
-        assert call_kwargs.get("component_name") == agent_name
-        # assert call_kwargs.get("config_dict") == mock_host_manager.agent_configs # Incorrect: Facade passes lookup functions
-        assert (
-            "config_lookup" in call_kwargs
-        )  # Check that the lookup function is passed
-        assert "executor_setup" in call_kwargs
-        assert "execution_func" in call_kwargs
-        assert "error_structure_factory" in call_kwargs
-        # Check args specific to the executor type that are passed through
-        assert call_kwargs.get("host_instance") == mock_host_manager.host
-        assert call_kwargs.get("user_message") == initial_input  # Agent specific arg
-        assert call_kwargs.get("session_id") == session_id  # Verify session_id passed
+        # 2. Agent Instantiation (Implicit via ConversationManager)
+        # We can check the args passed to ConversationManager constructor
 
-        # Check the final result
-        assert result == expected_result
+        # 3. ConversationManager Instantiation
+        MockConversationManager.assert_called_once()
+        cm_call_args = MockConversationManager.call_args.kwargs
+        assert isinstance(cm_call_args.get("agent"), Agent)
+        assert cm_call_args.get("agent").config == mock_agent_config
+        assert cm_call_args.get("agent").llm == mock_llm_instance
+        assert cm_call_args.get("host_instance") == mock_host_manager.host
+        # Check initial messages passed to CM
+        expected_initial_messages: List[MessageParam] = [
+            {"role": "user", "content": [{"type": "text", "text": user_message}]}
+        ]
+        assert cm_call_args.get("initial_messages") == expected_initial_messages
+        assert cm_call_args.get("system_prompt_override") == system_prompt_override
+
+        # 4. run_conversation called
+        mock_cm_instance.run_conversation.assert_awaited_once()
+
+        # 5. Final result check
+        assert result_dict == mock_agent_result.model_dump(mode="json")
+        assert result_dict.get("error") is None
+
         print("Assertions passed.")
-
         print("--- Test Finished: test_run_agent_success ---")
 
     @pytest.mark.asyncio
@@ -200,43 +277,35 @@ class TestExecutionFacadeUnit:
         self, execution_facade: ExecutionFacade, mock_host_manager: Mock
     ):
         """
-        Test run_agent returns an error structure when the agent is not found.
-        (Simulated by having _execute_component return the error).
+        Test run_agent returns an error structure when the agent config is not found.
         """
         print("\n--- Running Test: test_run_agent_not_found ---")
         agent_name = "NonExistentAgent"
-        initial_input = "Hello?"
-        # This is the expected error structure returned by _execute_component's error_factory
-        expected_error_result = {
-            "status": "error",
-            "component_type": "Agent",
-            "component_name": agent_name,
-            "error": f"Agent '{agent_name}' not found.",
-            "details": None,
-        }
+        user_message = "Hello?"
 
-        # Mock _execute_component to return the specific error structure
-        execution_facade._execute_component = AsyncMock(
-            return_value=expected_error_result
-        )
+        # Ensure the agent config does not exist in the mock manager
+        mock_host_manager.agent_configs = {}
 
-        # Call the public method
+        # Expected error structure from run_agent's internal error_factory
+        expected_error_dict = AgentExecutionResult(
+            conversation=[],
+            final_response=None,
+            tool_uses_in_final_turn=[],
+            # Adjust expected error message to include quotes from KeyError str()
+            error=f"Configuration error: \"Agent configuration '{agent_name}' not found.\"",
+        ).model_dump(mode="json")
+
+        # Call the public method - no need to mock _execute_component
         result = await execution_facade.run_agent(
             agent_name=agent_name,
-            user_message=initial_input,
+            user_message=user_message,
         )
 
         print(f"Execution Result: {result}")
 
         # Assertions
-        # Verify _execute_component was called correctly
-        execution_facade._execute_component.assert_awaited_once()
-        call_args, call_kwargs = execution_facade._execute_component.call_args
-        assert call_kwargs.get("component_name") == agent_name
-        assert call_kwargs.get("component_type") == "Agent"
-
         # Verify the result matches the expected error structure
-        assert result == expected_error_result
+        assert result == expected_error_dict
         print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_not_found ---")
@@ -322,52 +391,47 @@ class TestExecutionFacadeUnit:
         self, execution_facade: ExecutionFacade, mock_host_manager: Mock
     ):
         """
-        Test run_agent returns an error structure when the Agent class fails to instantiate.
-        (Simulated by having _execute_component raise an error during setup).
+        Test run_agent returns an error structure when the LLM client fails to instantiate.
         """
         print("\n--- Running Test: test_run_agent_instantiation_error ---")
         agent_name = "TestAgent"
-        initial_input = "Hello Agent"
-        instantiation_error = TypeError("Failed to create Agent")
-        # This is the expected error structure when instantiation fails inside _execute_component
-        expected_error_result = {
-            "status": "error",
-            "component_type": "Agent",
-            "component_name": agent_name,
-            "error": "Failed to instantiate Agent.",
-            "details": str(instantiation_error),
-        }
+        user_message = "Hello Agent"
+        instantiation_error = ValueError("LLM Client Init Failed")
 
-        # Mock _execute_component to raise the error
-        execution_facade._execute_component = AsyncMock(side_effect=instantiation_error)
-        # We also need to mock the error factory specifically for this test case,
-        # as the default one inside run_agent won't be called if _execute_component raises early.
-        # However, the goal is to test that run_agent *calls* _execute_component and returns whatever
-        # _execute_component returns or raises. Let's refine: _execute_component *should* catch
-        # the instantiation error and return the structured error. So we mock _execute_component
-        # to return the expected error structure directly, simulating its internal error handling.
-        execution_facade._execute_component = AsyncMock(
-            return_value=expected_error_result
+        # --- Mock HostManager Configs ---
+        # Need valid configs up to the point of LLM instantiation
+        mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
+        mock_llm_config = LLMConfig(
+            llm_id="test_llm", provider="anthropic", model_name="test-model"
         )
+        mock_host_manager.agent_configs = {agent_name: mock_agent_config}
+        mock_host_manager.llm_configs = {"test_llm": mock_llm_config}
 
-        # Call the public method
-        result = await execution_facade.run_agent(
-            agent_name=agent_name,
-            user_message=initial_input,
-        )
+        # --- Mock LLM Client Instantiation to raise error ---
+        with patch(
+            "src.execution.facade.AnthropicLLM", side_effect=instantiation_error
+        ) as MockLLM:
+            # --- Act ---
+            result = await execution_facade.run_agent(
+                agent_name=agent_name,
+                user_message=user_message,
+            )
 
-        print(f"Execution Result: {result}")
+            print(f"Execution Result: {result}")
 
-        # Assertions
-        # Verify _execute_component was called correctly
-        execution_facade._execute_component.assert_awaited_once()
-        call_args, call_kwargs = execution_facade._execute_component.call_args
-        assert call_kwargs.get("component_name") == agent_name
-        assert call_kwargs.get("component_type") == "Agent"
+            # --- Assertions ---
+            # 1. Check LLM was attempted to be instantiated
+            MockLLM.assert_called_once()
 
-        # Verify the result matches the expected error structure
-        assert result == expected_error_result
-        print("Assertions passed.")
+            # 2. Verify the result matches the expected error structure from error_factory
+            expected_error_dict = AgentExecutionResult(
+                conversation=[],
+                final_response=None,
+                tool_uses_in_final_turn=[],
+                error=f"Initialization error for Agent '{agent_name}': {instantiation_error}",
+            ).model_dump(mode="json")
+            assert result == expected_error_dict
+            print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_instantiation_error ---")
 
@@ -454,45 +518,58 @@ class TestExecutionFacadeUnit:
         self, execution_facade: ExecutionFacade, mock_host_manager: Mock
     ):
         """
-        Test run_agent returns an error structure when the agent's execute_agent method fails.
-        (Simulated by having _execute_component return the error).
+        Test run_agent returns an error structure when conversation_manager.run_conversation fails.
         """
         print("\n--- Running Test: test_run_agent_execution_error ---")
         agent_name = "TestAgent"
-        initial_input = "Hello Agent"
-        execution_error = RuntimeError("LLM API call failed")
-        # This is the expected error structure when execution fails inside _execute_component
-        expected_error_result = {
-            "status": "error",
-            "component_type": "Agent",
-            "component_name": agent_name,
-            "error": "Agent execution failed.",
-            "details": str(execution_error),
-        }
+        user_message = "Hello Agent"
+        execution_error = RuntimeError("Conversation failed")
 
-        # Mock _execute_component to return the error structure simulating an execution failure
-        execution_facade._execute_component = AsyncMock(
-            return_value=expected_error_result
+        # --- Mock HostManager Configs ---
+        mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
+        mock_llm_config = LLMConfig(
+            llm_id="test_llm", provider="anthropic", model_name="test-model"
         )
+        mock_host_manager.agent_configs = {agent_name: mock_agent_config}
+        mock_host_manager.llm_configs = {"test_llm": mock_llm_config}
 
-        # Call the public method
-        result = await execution_facade.run_agent(
-            agent_name=agent_name,
-            user_message=initial_input,
-        )
+        # --- Mock LLM Client Instantiation (should succeed) ---
+        with patch("src.execution.facade.AnthropicLLM") as MockLLM:
+            mock_llm_instance = MagicMock(spec=BaseLLM)
+            MockLLM.return_value = mock_llm_instance
 
-        print(f"Execution Result: {result}")
+            # --- Mock ConversationManager to raise error on run_conversation ---
+            with patch("src.execution.facade.ConversationManager") as MockCM:
+                mock_cm_instance = MagicMock(spec=ConversationManager)
+                mock_cm_instance.run_conversation = AsyncMock(
+                    side_effect=execution_error
+                )
+                MockCM.return_value = mock_cm_instance
 
-        # Assertions
-        # Verify _execute_component was called correctly
-        execution_facade._execute_component.assert_awaited_once()
-        call_args, call_kwargs = execution_facade._execute_component.call_args
-        assert call_kwargs.get("component_name") == agent_name
-        assert call_kwargs.get("component_type") == "Agent"
+                # --- Act ---
+                result = await execution_facade.run_agent(
+                    agent_name=agent_name,
+                    user_message=user_message,
+                )
 
-        # Verify the result matches the expected error structure
-        assert result == expected_error_result
-        print("Assertions passed.")
+                print(f"Execution Result: {result}")
+
+                # --- Assertions ---
+                # 1. Check LLM and CM were instantiated
+                MockLLM.assert_called_once()
+                MockCM.assert_called_once()
+                # 2. Check run_conversation was called
+                mock_cm_instance.run_conversation.assert_awaited_once()
+
+                # 3. Verify the result matches the expected error structure
+                expected_error_dict = AgentExecutionResult(
+                    conversation=[],
+                    final_response=None,
+                    tool_uses_in_final_turn=[],
+                    error=f"Unexpected error running Agent '{agent_name}': {type(execution_error).__name__}: {execution_error}",
+                ).model_dump(mode="json")
+                assert result == expected_error_dict
+                print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_execution_error ---")
 
