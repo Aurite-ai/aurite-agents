@@ -10,14 +10,16 @@ from typing import List
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from src.agents.agent import Agent
-from src.agents.conversation_manager import ConversationManager  # Added
+# from src.agents.agent import Agent # Old agent import removed
+from src.agents.agent import Agent  # New consolidated agent class
+
+# from src.agents.conversation_manager import ConversationManager # Removed
 from src.agents.agent_models import (
     AgentExecutionResult,
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
-from src.config.config_models import AgentConfig
+from src.config.config_models import AgentConfig, LLMConfig  # Added LLMConfig
 from src.llm.base_client import BaseLLM
 from src.host.host import MCPHost
 from anthropic.types import MessageParam
@@ -50,10 +52,7 @@ def mock_mcp_host() -> MagicMock:
     return mock_host
 
 
-@pytest.fixture
-def agent_instance(mock_agent_config: AgentConfig, mock_llm_client: MagicMock) -> Agent:
-    """Provides an Agent instance initialized with mock config and LLM client."""
-    return Agent(config=mock_agent_config, llm_client=mock_llm_client)
+# Removed agent_instance fixture
 
 
 @pytest.fixture
@@ -65,23 +64,23 @@ def initial_messages() -> List[MessageParam]:
 # --- Test Class ---
 
 
-class TestConversationManagerUnit:  # Renamed class
-    """Unit tests for the ConversationManager class orchestration logic."""
+class TestAgentUnit:  # Renamed class
+    """Unit tests for the Agent class orchestration logic."""  # Updated docstring
 
     @pytest.mark.anyio
-    # Patched AgentTurnProcessor where ConversationManager uses it
-    @patch("src.agents.conversation_manager.AgentTurnProcessor", autospec=True)
-    async def test_run_conversation_single_turn_no_tool(  # Renamed test method
+    # Patched AgentTurnProcessor where Agent uses it
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Updated patch path
+    async def test_agent_run_conversation_single_turn_no_tool(  # Renamed test method
         self,
         MockAgentTurnProcessor: MagicMock,  # The patched class
-        agent_instance: Agent,  # Still need agent for ConversationManager
+        # agent_instance: Agent, # Removed fixture
         mock_mcp_host: MagicMock,
         initial_messages: List[MessageParam],
         mock_agent_config: AgentConfig,
         mock_llm_client: MagicMock,
     ):
         """
-        Tests run_conversation for a single turn with a final response (no tools).
+        Tests Agent.run_conversation for a single turn with a final response (no tools). # Updated docstring
         Verifies AgentTurnProcessor is called correctly and the loop terminates.
         """
         # --- Arrange ---
@@ -112,14 +111,16 @@ class TestConversationManagerUnit:  # Renamed class
         mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
 
         # --- Act ---
-        # Instantiate ConversationManager
-        conversation_manager = ConversationManager(
-            agent=agent_instance,
+        # Instantiate the new Agent class directly
+        agent_under_test = Agent(
+            config=mock_agent_config,
+            llm_client=mock_llm_client,
             host_instance=mock_mcp_host,
             initial_messages=initial_messages,
-            system_prompt_override=None,  # Corresponds to old system_prompt
+            system_prompt_override=None,
+            llm_config_for_override=None,  # Pass None for this test
         )
-        result: AgentExecutionResult = await conversation_manager.run_conversation()
+        result: AgentExecutionResult = await agent_under_test.run_conversation()
 
         # --- Assert ---
         # 1. MCPHost setup called
@@ -135,6 +136,7 @@ class TestConversationManagerUnit:  # Renamed class
             current_messages=initial_messages,  # Initial call uses initial_messages
             tools_data=[],  # Based on mock_mcp_host.get_formatted_tools
             effective_system_prompt="You are a helpful assistant.",  # Default from config/agent logic
+            llm_config_for_override=None,  # Added new arg
         )
 
         # 3. process_turn called on the instance
@@ -165,11 +167,11 @@ class TestConversationManagerUnit:  # Renamed class
         ) == mock_final_assistant_response.model_dump(mode="json")
 
     @pytest.mark.anyio
-    @patch("src.agents.conversation_manager.AgentTurnProcessor", autospec=True)
-    async def test_run_conversation_multi_turn_with_tool(
+    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Updated patch path
+    async def test_agent_run_conversation_multi_turn_with_tool(  # Renamed test
         self,
         MockAgentTurnProcessor: MagicMock,
-        agent_instance: Agent,
+        # agent_instance: Agent, # Removed fixture
         mock_mcp_host: MagicMock,
         initial_messages: List[MessageParam],
         mock_agent_config: AgentConfig,
@@ -249,13 +251,16 @@ class TestConversationManagerUnit:  # Renamed class
         ]
 
         # --- Act ---
-        conversation_manager = ConversationManager(
-            agent=agent_instance,
+        # Instantiate the new Agent class directly
+        agent_under_test = Agent(
+            config=mock_agent_config,
+            llm_client=mock_llm_client,
             host_instance=mock_mcp_host,
             initial_messages=initial_messages,
             system_prompt_override=None,
+            llm_config_for_override=None,  # Pass None for this test
         )
-        result: AgentExecutionResult = await conversation_manager.run_conversation()
+        result: AgentExecutionResult = await agent_under_test.run_conversation()
 
         # --- Assert ---
         # 1. MCPHost setup called once
@@ -278,9 +283,10 @@ class TestConversationManagerUnit:  # Renamed class
         )  # First call uses initial
         assert call1_kwargs["tools_data"] == []
         assert call1_kwargs["effective_system_prompt"] == "You are a helpful assistant."
+        assert call1_kwargs["llm_config_for_override"] is None  # Check new arg
 
         # Call 2 Args - Construct expected messages list after turn 1 for AgentTurnProcessor
-        # ConversationManager internally manages `self.messages` which are MessageParam
+        # Agent class internally manages `self.messages` which are MessageParam
         # It passes a *copy* of `self.messages` to AgentTurnProcessor
         # After turn 1, self.messages would be:
         # 1. Initial user message (MessageParam)
@@ -301,7 +307,7 @@ class TestConversationManagerUnit:  # Renamed class
                 ],
             },
             # The expected third message is the *first* (and only) item from mock_tool_results_params_turn1,
-            # as ConversationManager now extends self.messages with the items from the list returned by the processor.
+            # as Agent class now extends self.messages with the items from the list returned by the processor.
             mock_tool_results_params_turn1[0],
         ]
 
@@ -329,6 +335,7 @@ class TestConversationManagerUnit:  # Renamed class
             call2_kwargs["tools_data"] == []
         )  # Assuming mock_mcp_host.get_formatted_tools still returns []
         assert call2_kwargs["effective_system_prompt"] == "You are a helpful assistant."
+        assert call2_kwargs["llm_config_for_override"] is None  # Check new arg
 
         # 4. process_turn called twice on the instance(s)
         assert mock_turn_processor_instance.process_turn.await_count == 2
@@ -354,7 +361,7 @@ class TestConversationManagerUnit:  # Renamed class
         ) == mock_assistant_response_turn1.model_dump(mode="json")
 
         # User Tool Result
-        # ConversationManager._prepare_agent_result serializes MessageParam for history.
+        # Agent._prepare_agent_result serializes MessageParam for history.
         # The 'user' message with tool results has content that is a list of ToolResultBlockParam.
         # AgentOutputMessage expects content to be List[AgentOutputContentBlock].
         # The _serialize_content_blocks and validation in _prepare_agent_result handle this.
@@ -382,12 +389,13 @@ class TestConversationManagerUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "src.agents.conversation_manager.AgentTurnProcessor", autospec=True
-    )  # Patched
-    async def test_run_conversation_max_iterations_reached(  # Renamed
+        "src.agents.agent.AgentTurnProcessor",
+        autospec=True,  # Updated patch path
+    )
+    async def test_agent_run_conversation_max_iterations_reached(  # Renamed test
         self,
         MockAgentTurnProcessor: MagicMock,
-        agent_instance: Agent,
+        # agent_instance: Agent, # Removed fixture
         mock_mcp_host: MagicMock,
         initial_messages: List[MessageParam],
         mock_agent_config: AgentConfig,
@@ -444,13 +452,16 @@ class TestConversationManagerUnit:  # Renamed class
         mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
 
         # --- Act ---
-        conversation_manager = ConversationManager(
-            agent=agent_instance,
+        # Instantiate the new Agent class directly
+        agent_under_test = Agent(
+            config=mock_agent_config,
+            llm_client=mock_llm_client,
             host_instance=mock_mcp_host,
             initial_messages=initial_messages,
             system_prompt_override=None,
+            llm_config_for_override=None,  # Pass None for this test
         )
-        result: AgentExecutionResult = await conversation_manager.run_conversation()
+        result: AgentExecutionResult = await agent_under_test.run_conversation()
 
         # --- Assert ---
         # 1. AgentTurnProcessor instantiated max_iterations times
@@ -495,12 +506,13 @@ class TestConversationManagerUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "src.agents.conversation_manager.AgentTurnProcessor", autospec=True
-    )  # Patched
-    async def test_run_conversation_schema_correction_loop(  # Renamed
+        "src.agents.agent.AgentTurnProcessor",
+        autospec=True,  # Updated patch path
+    )
+    async def test_agent_run_conversation_schema_correction_loop(  # Renamed test
         self,
         MockAgentTurnProcessor: MagicMock,
-        agent_instance: Agent,
+        # agent_instance: Agent, # Removed fixture
         mock_mcp_host: MagicMock,
         initial_messages: List[MessageParam],
         mock_agent_config: AgentConfig,
@@ -562,13 +574,16 @@ class TestConversationManagerUnit:  # Renamed class
         mock_turn_processor_instance.get_tool_uses_this_turn.return_value = []
 
         # --- Act ---
-        conversation_manager = ConversationManager(
-            agent=agent_instance,
+        # Instantiate the new Agent class directly
+        agent_under_test = Agent(
+            config=mock_agent_config,
+            llm_client=mock_llm_client,
             host_instance=mock_mcp_host,
             initial_messages=initial_messages,
             system_prompt_override=None,
+            llm_config_for_override=None,  # Pass None for this test
         )
-        result: AgentExecutionResult = await conversation_manager.run_conversation()
+        result: AgentExecutionResult = await agent_under_test.run_conversation()
 
         # --- Assert ---
         # 1. MCPHost setup called once

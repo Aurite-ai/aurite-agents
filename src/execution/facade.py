@@ -318,20 +318,7 @@ class ExecutionFacade:
                 f"temp: {effective_temperature}, max_tokens: {effective_max_tokens}."
             )
 
-            # 4. Instantiate Agent (passing the LLM client)
-            agent_instance = Agent(
-                config=agent_config,
-                llm_client=llm_client_instance,
-                # llm_config_for_override will be added here in Part II, Step 9
-            )
-            # The actual passing of llm_config_for_override_obj to Agent constructor
-            # will be done in Part II, Step 9 of the plan.
-            # For now, we've fetched it.
-            logger.debug(
-                f"Facade: Instantiated Agent '{agent_name}' (LLMConfig override object prepared if applicable)"
-            )
-
-            # 5. Prepare Initial Messages (Load History + User Message)
+            # 4. Prepare Initial Messages (Load History + User Message)
             initial_messages_for_agent: List[MessageParam] = []
             load_history = (
                 agent_config.include_history and self._storage_manager and session_id
@@ -364,29 +351,20 @@ class ExecutionFacade:
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
 
-            # 5. Instantiate New Agent Class (formerly ConversationManager)
-            # This instantiation logic will be fully updated in Step 9
-            # For now, just removing the old ConversationManager instantiation call placeholder
-            # conversation_manager = ConversationManager( # Remove this block later
-            #     agent=agent_instance,
-            #     host_instance=self._host,
-            #     initial_messages=initial_messages_for_agent,
-            #     system_prompt_override=system_prompt,  # Pass override
-            # )
-            # logger.debug(
-            #     f"Facade: Instantiated ConversationManager for agent '{agent_name}'"
-            # ) # Remove this log later
+            # 5. Instantiate the new Agent class (formerly ConversationManager)
+            agent_instance = Agent(
+                config=agent_config,
+                llm_client=llm_client_instance,
+                host_instance=self._host,
+                initial_messages=initial_messages_for_agent,
+                system_prompt_override=system_prompt,  # Pass override from run_agent args
+                llm_config_for_override=llm_config_for_override_obj,  # Pass fetched override object
+            )
+            logger.debug(f"Facade: Instantiated new Agent class for '{agent_name}'")
 
-            # 6. Execute Conversation (using the new Agent instance)
-            # This execution logic will be fully updated in Step 9
+            # 6. Execute Conversation
             logger.info(f"Facade: Running conversation for Agent '{agent_name}'...")
-            # agent_result: AgentExecutionResult = ( # Update this call in Step 9
-            #     await agent_instance.run_conversation()
-            # )
-            # Placeholder for result until Step 9 implementation
-            agent_result: AgentExecutionResult = (
-                await agent_instance.run_conversation()
-            )  # TEMPORARY - WILL BE REFINED IN STEP 9
+            agent_result: AgentExecutionResult = await agent_instance.run_conversation()
             logger.info(f"Facade: Agent '{agent_name}' conversation finished.")
 
             # 7. Save History (if enabled and successful)
