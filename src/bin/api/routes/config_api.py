@@ -13,6 +13,7 @@ from ...dependencies import (
 )  # PROJECT_ROOT no longer needed here
 from src.config.component_manager import (
     ComponentManager,
+    COMPONENT_META,  # Import the constant
 )  # For type hinting (Changed to absolute import)
 
 logger = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ async def create_config_file(  # Renamed from upload_config_file for clarity (PO
         config_payload = config_body.content.copy()  # Work with a copy
 
         # Get the expected ID field name for this component type
-        id_field_name = ComponentManager.COMPONENT_META.get(
+        id_field_name = COMPONENT_META.get(  # Use the imported constant
             cm_component_type, (None, None)
         )[1]
         if not id_field_name:  # Should not happen if _get_cm_component_type worked
@@ -242,7 +243,7 @@ async def update_config_file(
 
         config_payload = config_body.content.copy()
 
-        id_field_name = ComponentManager.COMPONENT_META.get(
+        id_field_name = COMPONENT_META.get(  # Use the imported constant
             cm_component_type, (None, None)
         )[1]
         if not id_field_name:
