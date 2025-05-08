@@ -10,7 +10,7 @@ from src.host.resources.prompts import PromptManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.host.models import ClientConfig
+from src.config.config_models import ClientConfig  # Updated import path
 
 # Import mcp types
 import mcp.types as types

@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.execution.facade import ExecutionFacade
-from src.host.models import AgentConfig, LLMConfig  # Added LLMConfig
+from src.config.config_models import AgentConfig, LLMConfig  # Added LLMConfig
 from src.host_manager import HostManager
 from src.agents.agent import Agent
 from src.agents.conversation_manager import (

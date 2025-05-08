@@ -13,7 +13,7 @@ from anthropic.types import MessageParam, ToolResultBlockParam
 from typing import cast  # Added for casting
 from .agent_models import AgentOutputMessage
 from ..host.host import MCPHost
-from ..host.models import AgentConfig
+from ..config.config_models import AgentConfig  # Updated import path
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:

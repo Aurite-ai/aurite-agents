@@ -11,7 +11,7 @@ pytestmark = pytest.mark.orchestration
 
 # Import components to test and dependencies
 from src.host.filtering import FilteringManager
-from src.host.models import AgentConfig, ClientConfig
+from src.config.config_models import AgentConfig, ClientConfig
 from src.host.foundation import MessageRouter
 
 

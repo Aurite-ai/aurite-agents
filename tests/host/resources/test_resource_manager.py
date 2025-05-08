@@ -11,7 +11,7 @@ from src.host.resources.resources import ResourceManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.host.models import ClientConfig, RootConfig
+from src.config.config_models import ClientConfig, RootConfig  # Updated import path
 
 # Import mcp types
 import mcp.types as types

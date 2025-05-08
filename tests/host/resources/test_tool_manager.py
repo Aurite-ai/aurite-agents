@@ -12,7 +12,7 @@ from src.host.resources.tools import ToolManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.host.models import ClientConfig, RootConfig, AgentConfig
+from src.config.config_models import ClientConfig, RootConfig, AgentConfig
 
 # Import shared fixtures
 # Import mcp types and session for mocking

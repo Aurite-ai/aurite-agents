@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Assuming models and manager are importable
-from src.host.models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from src.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
 from src.storage.db_manager import StorageManager
 from src.storage.db_models import (
     Base,

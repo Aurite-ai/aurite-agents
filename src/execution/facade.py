@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from ..storage.db_manager import StorageManager
 
     # Import LLM client base class and models for type hinting and instantiation logic
-    from ..host.models import AgentConfig  # Import config models
+    from ..config.config_models import AgentConfig  # Updated import path
 
 # Import Agent and ConversationManager at runtime for instantiation
 from ..agents.agent import Agent

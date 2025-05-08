@@ -6,7 +6,7 @@ import pytest
 
 # Import the class to test and dependent models
 from src.host.foundation.roots import RootManager
-from src.host.models import RootConfig
+from src.config.config_models import RootConfig
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]

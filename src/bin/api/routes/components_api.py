@@ -7,7 +7,7 @@ from pydantic import BaseModel
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
 from ....host_manager import HostManager
-from ....host.models import (
+from ....config.config_models import (
     ClientConfig,
     AgentConfig,
     WorkflowConfig,  # Added for consistency, though not directly used in new endpoints

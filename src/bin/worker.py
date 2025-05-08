@@ -19,7 +19,11 @@ from pydantic import ValidationError
 # Adjust imports for new location (src/bin -> src)
 from ..host_manager import HostManager
 from ..config import ServerConfig
-from ..host.models import ClientConfig, AgentConfig, WorkflowConfig
+from ..config.config_models import (
+    ClientConfig,
+    AgentConfig,
+    WorkflowConfig,
+)  # Updated import path
 from ..config import PROJECT_ROOT_DIR  # For resolving client paths
 
 # Configure logging

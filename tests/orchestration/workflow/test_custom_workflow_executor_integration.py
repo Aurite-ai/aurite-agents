@@ -19,7 +19,7 @@ import pytest
 import os  # Import os for environment variable check
 
 # Assuming models and executors are importable
-from src.host.models import CustomWorkflowConfig
+from src.config.config_models import CustomWorkflowConfig
 from src.workflows.custom_workflow import CustomWorkflowExecutor
 from src.host_manager import HostManager  # For host_manager fixture
 from src.config import PROJECT_ROOT_DIR

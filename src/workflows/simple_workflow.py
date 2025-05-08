@@ -6,10 +6,8 @@ import logging
 from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
 
 # Relative imports assuming this file is in src/workflows/
-from ..host.models import WorkflowConfig, AgentConfig
+from ..config.config_models import WorkflowConfig, AgentConfig  # Updated import path
 from ..host.host import MCPHost
-from ..agents.agent import Agent
-from ..agents.agent_models import AgentExecutionResult  # Import for type hint
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:

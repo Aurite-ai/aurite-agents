@@ -10,7 +10,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.workflows.simple_workflow import SimpleWorkflowExecutor
-from src.host.models import WorkflowConfig, AgentConfig
+from src.config.config_models import WorkflowConfig, AgentConfig
 from src.agents.agent import Agent  # Needed for mocking
 from anthropic.types import Message  # Added Message
 from src.llm.base_client import BaseLLM  # For mocking llm_client

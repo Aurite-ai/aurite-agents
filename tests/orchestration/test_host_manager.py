@@ -12,7 +12,7 @@ import os  # Add import for environment variable check
 # Assuming tests run from project root
 from src.host_manager import HostManager
 from src.host.host import MCPHost
-from src.host.models import (
+from src.config.config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,

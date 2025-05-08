@@ -207,7 +207,7 @@ class LLMConfig(BaseModel):
     # In src/llm/client.py
     from abc import ABC, abstractmethod
     # from .models import LLMConfig # (if LLMConfig is in src/llm/models.py)
-    # from src.host.models import AgentOutputMessage # Or a more generic LLMMessage model
+    # from src.config.config_models import AgentOutputMessage # Or a more generic LLMMessage model
 
     class BaseLLMClient(ABC):
         def __init__(self, model_name: str, temperature: Optional[float], max_tokens: Optional[int], system_prompt: Optional[str]):

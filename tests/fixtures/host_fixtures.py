@@ -8,7 +8,7 @@ from unittest.mock import Mock, AsyncMock
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.host.models import HostConfig
+from src.config.config_models import HostConfig
 from src.host.host import MCPHost
 from src.host_manager import HostManager  # Import HostManager
 from src.host.resources import ToolManager, PromptManager  # Added ResourceManager

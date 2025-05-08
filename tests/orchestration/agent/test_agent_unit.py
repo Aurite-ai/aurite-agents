@@ -17,7 +17,7 @@ from src.agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
-from src.host.models import AgentConfig
+from src.config.config_models import AgentConfig
 from src.llm.base_client import BaseLLM
 from src.host.host import MCPHost
 from anthropic.types import MessageParam

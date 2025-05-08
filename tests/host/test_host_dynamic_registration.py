@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Import the class to test and dependencies/models
 from src.host.host import MCPHost
-from src.host.models import ClientConfig
+from src.config.config_models import ClientConfig  # Updated import path
 from src.host_manager import HostManager  # For type hinting fixture
 
 # Mark tests as host_integration and async

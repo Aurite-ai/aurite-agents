@@ -10,7 +10,7 @@ from typing import Dict, Optional, List, Tuple, Set
 # Assuming this file is in src/, use relative imports
 from .config import load_host_config_from_json
 from .host.host import MCPHost
-from .host.models import (
+from .config.config_models import (  # Updated import path
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
@@ -32,6 +32,10 @@ from .storage.db_connection import create_db_engine  # Import engine factory
 logger = logging.getLogger(__name__)
 
 # Removed conditional import block for StorageManager
+
+# Import the new ConfigManager and ProjectConfig
+from .config.config_manager import ConfigManager
+from .config.config_models import ProjectConfig
 
 
 class HostManager:
@@ -72,6 +76,8 @@ class HostManager:
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
         self._db_engine = None  # Store engine if created
+        self.config_manager = ConfigManager()  # Instantiate ConfigManager
+        self.current_project: Optional[ProjectConfig] = None  # To store loaded project
 
         # Instantiate StorageManager if DB is enabled
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
@@ -114,33 +120,49 @@ class HostManager:
             RuntimeError: If configuration loading or host initialization fails.
         """
         logger.debug(
-            f"Initializing HostManager with config: {self.config_path}..."
-        )  # INFO -> DEBUG
+            f"Initializing HostManager with project config: {self.config_path}..."  # Updated log message
+        )
         try:
-            # 1. Load all configurations
-            (
-                host_config,
-                agent_configs_dict,
-                workflow_configs_dict,
-                custom_workflow_configs_dict,
-                llm_configs_dict,  # Added llm_configs_dict
-            ) = load_host_config_from_json(self.config_path)
+            # 1. Load Project Configuration using ConfigManager
+            self.current_project = self.config_manager.load_project(self.config_path)
+            if not self.current_project:
+                # load_project should raise error if file not found or parsing fails
+                # This check is a safeguard in case it returns None unexpectedly
+                raise RuntimeError(
+                    f"ConfigManager failed to load project from {self.config_path}"
+                )
 
-            # Store configs internally
-            self.agent_configs = agent_configs_dict
-            self.workflow_configs = workflow_configs_dict
-            self.custom_workflow_configs = custom_workflow_configs_dict
-            self.llm_configs = llm_configs_dict  # Store LLM configs
-            logger.debug("Configurations loaded successfully.")
+            # Store component configs from the loaded project
+            self.agent_configs = self.current_project.agent_configs
+            self.workflow_configs = (
+                self.current_project.simple_workflow_configs
+            )  # Use renamed field from ProjectConfig
+            self.custom_workflow_configs = self.current_project.custom_workflow_configs
+            self.llm_configs = self.current_project.llm_configs
+            logger.debug(
+                f"Project '{self.current_project.name}' loaded successfully via ConfigManager."
+            )
 
             # 1.5 Initialize DB Schema if storage manager exists
             if self.storage_manager:
                 self.storage_manager.init_db()  # Synchronous call for schema creation
 
-            # 2. Instantiate MCPHost
+            # 2. Construct HostConfig for MCPHost from ProjectConfig
+            # Import HostConfig model if not already imported at top
+            from .config.config_models import HostConfig
+
+            host_config_for_mcphost = HostConfig(
+                name=self.current_project.name,
+                description=self.current_project.description,
+                clients=list(
+                    self.current_project.clients.values()
+                ),  # MCPHost expects a list
+            )
+
+            # Instantiate MCPHost
             self.host = MCPHost(
-                config=host_config,
-                agent_configs=self.agent_configs,
+                config=host_config_for_mcphost,  # Use constructed HostConfig
+                agent_configs=self.agent_configs,  # Still pass this for now, MCPHost uses it
                 # Removed workflow_configs argument
                 # encryption_key could be passed from a secure source if needed
             )

@@ -13,7 +13,7 @@ pytestmark = pytest.mark.orchestration
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.config import load_host_config_from_json
-from src.host.models import (
+from src.config.config_models import (
     HostConfig,
     AgentConfig,
     ClientConfig,

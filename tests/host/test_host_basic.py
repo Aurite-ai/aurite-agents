@@ -9,7 +9,7 @@ import pytest
 
 # Use relative imports assuming tests run from aurite-mcp root
 from src.host.host import MCPHost
-from src.host.models import HostConfig, ClientConfig
+from src.config.config_models import HostConfig, ClientConfig  # Updated import path
 
 
 @pytest.mark.integration

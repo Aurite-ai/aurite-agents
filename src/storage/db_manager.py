@@ -13,7 +13,7 @@ from sqlalchemy import delete  # Import delete
 
 # Assuming models are accessible from here
 from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
-from ..host.models import (
+from ..config.config_models import (  # Updated import path
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,

@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 from src.host_manager import HostManager
 
 # from src.host.host import MCPHost # No longer needed directly, mock provides spec
-from src.host.models import (
+from src.config.config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,

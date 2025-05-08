@@ -3,25 +3,13 @@ Core Agent implementation for interacting with MCP Hosts and executing tasks.
 """
 
 import logging
-import json  # Added for schema validation message formatting
 
 # APIConnectionError and RateLimitError might be raised by the LLMClient, so keep them if used in try-except blocks.
 # For now, assuming LLMClient handles these and agent only catches generic Exception or specific LLMClient exceptions.
 # If Agent needs to catch these specific Anthropic errors directly from LLMClient, this import might need adjustment.
-from anthropic.types import (
-    MessageParam,
-)  # These are for constructing messages/tool results
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
-from pydantic import ValidationError  # Import for validation error handling
+from typing import TYPE_CHECKING
 
-from ..host.models import AgentConfig
-from ..host.host import MCPHost
-
-# Import the new models
-from .agent_models import AgentExecutionResult, AgentOutputMessage
-
-# Import the new turn processor
-from .agent_turn_processor import AgentTurnProcessor
+from ..config.config_models import AgentConfig  # Updated import path
 
 # Import the LLM base class directly for runtime checks
 from ..llm.base_client import BaseLLM

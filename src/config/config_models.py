@@ -9,7 +9,7 @@ This module provides:
 """
 
 import logging
-from typing import Any, List, Optional  # Added Any
+from typing import Any, List, Optional, Dict  # Added Dict
 from pathlib import Path
 from pydantic import BaseModel, Field  # Added Field
 
@@ -168,3 +168,39 @@ class CustomWorkflowConfig(BaseModel):
     module_path: Path  # Resolved absolute path to the python file
     class_name: str  # Name of the class within the file implementing the workflow
     description: Optional[str] = None
+
+
+# --- Project Configuration ---
+
+
+class ProjectConfig(BaseModel):
+    """
+    Defines the overall configuration for a specific project, including
+    all its components (clients, LLMs, agents, workflows).
+    This is typically loaded from a project file (e.g., config/projects/my_project.json)
+    and may reference component configurations defined elsewhere.
+    """
+
+    name: str = Field(description="The unique name of the project.")
+    description: Optional[str] = Field(
+        None, description="A brief description of the project."
+    )
+    clients: Dict[str, ClientConfig] = Field(
+        default_factory=dict, description="Clients available within this project."
+    )
+    llm_configs: Dict[str, LLMConfig] = Field(
+        default_factory=dict,
+        description="LLM configurations available within this project.",
+    )
+    agent_configs: Dict[str, AgentConfig] = Field(
+        default_factory=dict,
+        description="Agents defined or referenced by this project.",
+    )
+    simple_workflow_configs: Dict[str, WorkflowConfig] = Field(
+        default_factory=dict,
+        description="Simple workflows defined or referenced by this project.",
+    )
+    custom_workflow_configs: Dict[str, CustomWorkflowConfig] = Field(
+        default_factory=dict,
+        description="Custom workflows defined or referenced by this project.",
+    )
