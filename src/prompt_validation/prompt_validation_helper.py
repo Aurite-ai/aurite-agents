@@ -453,8 +453,6 @@ def _prepare_prompts(testing_config: ValidationConfig):
         "required": ["analysis", "grade"]
     }
     
-    logging.info(f"debug: qa_schema = {json.dumps(qa_schema, indent=2)}")
-
     return {
         "type_prompts": type_prompts,
         "qa_system_prompt": qa_system_prompt,
@@ -582,7 +580,7 @@ async def _run_single_iteration(
         executor, testing_config, test_input, override_system_prompt
     )
 
-    if testing_config.analysis:
+    if testing_config.analysis:        
         # analyze the agent/workflow output, overriding system prompt
         analysis_output = await executor.run_agent(
             agent_name="Quality Assurance Agent",
