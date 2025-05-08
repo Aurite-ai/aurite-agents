@@ -183,8 +183,13 @@ def test_load_project_with_inline_definitions(
         loaded_project_config.clients["client1"].server_path == expected_resolved_path
     )
 
-    assert len(loaded_project_config.agent_configs) == len(project_data["agents"])
-    assert loaded_project_config.agent_configs["Agent1"].name == "Agent1"
+    # Use the correct key 'agent_configs' from the updated fixture
+    assert len(loaded_project_config.agent_configs) == len(
+        project_data["agent_configs"]
+    )
+    assert (
+        loaded_project_config.agent_configs["Agent1"].name == "Agent1"
+    )  # Re-corrected indentation
 
 
 def test_load_project_with_references(

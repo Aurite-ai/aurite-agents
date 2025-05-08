@@ -9,7 +9,7 @@ VALID_PROJECT_CONFIG_INLINE_DEFS = {
             "roots": [],
         }
     ],
-    "agents": [
+    "agent_configs": [  # Renamed key
         {
             "name": "Agent1",
             "system_prompt": "Prompt for Agent1",
@@ -30,7 +30,7 @@ VALID_PROJECT_CONFIG_INLINE_DEFS = {
             # Other params missing, should use defaults or None
         },
     ],
-    "workflows": [  # Add workflow section
+    "simple_workflow_configs": [  # Renamed key
         {
             "name": "Workflow1",
             "description": "A test workflow",
@@ -38,7 +38,7 @@ VALID_PROJECT_CONFIG_INLINE_DEFS = {
         },
         {"name": "WorkflowEmpty", "steps": []},
     ],
-    "custom_workflows": [  # Add custom workflow section
+    "custom_workflow_configs": [  # Renamed key
         {
             "name": "CustomWF1",
             "module_path": "custom/wf1.py",  # Relative path

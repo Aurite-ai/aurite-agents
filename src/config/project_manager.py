@@ -251,10 +251,19 @@ class ProjectManager:
                 )
                 # Decide whether to skip this item or raise an error for the whole project load
                 raise ValueError(f"Invalid inline {type_name} definition: {e}") from e
-            except Exception as e:
+            except (
+                ValueError
+            ) as e:  # Catch missing reference or inline validation errors specifically
                 logger.error(
-                    f"Failed to process {type_name} reference '{component_id or item_ref}' in project '{project_name}': {e}",
-                    exc_info=True,
+                    f"Value error processing {type_name} reference '{component_id or item_ref}' in project '{project_name}': {e}",
+                    exc_info=True,  # Include traceback for ValueError as well
+                )
+                # Re-raise the ValueError so it's not caught by the generic Exception handler below
+                raise
+            except Exception as e:  # Catch other unexpected errors
+                logger.error(
+                    f"Unexpected error processing {type_name} reference '{component_id or item_ref}' in project '{project_name}': {e}",
+                    exc_info=True,  # Changed message to 'Unexpected error'
                 )
                 # Decide whether to skip or raise
                 raise RuntimeError(
