@@ -146,10 +146,8 @@ class ConversationManager:
                 if (
                     turn_tool_results_params
                 ):  # If the processor returned tool results (List[MessageParam])
-                    # Append the user message containing tool results for the next LLM call
-                    self.messages.append(  # type: ignore[typeddict-item] # This appends the 'user' message containing tool results for the *next* LLM call
-                        {"role": "user", "content": turn_tool_results_params}
-                    )
+                    # Extend self.messages with the individual MessageParam objects from turn_tool_results_params
+                    self.messages.extend(turn_tool_results_params)
                     # Append the *individual* tool result message dicts to the conversation_history log
                     # turn_tool_results_params is List[MessageParam], which are dicts.
                     # We need to ensure the content within these dicts is also serializable if complex.

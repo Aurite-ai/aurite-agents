@@ -7,6 +7,7 @@ LLM calls are typically mocked to control agent behavior for testing host intera
 """
 
 import pytest
+import os  # Import os for environment variable check
 from unittest.mock import MagicMock, AsyncMock, patch
 from typing import Dict, Any
 
@@ -79,11 +80,15 @@ class TestAgentIntegration:
             model="mock_model",
             content=[
                 AgentOutputContentBlock(
-                    type="text", text="The weather in London is mocked."
+                    type="text",
+                    text='{"weather_summary": "Mocked: The weather in London is clear.", "temperature": {"value": 15, "unit": "celsius"}, "recommendations": ["Enjoy your day!"]}',
                 )
             ],
             stop_reason="end_turn",
-            usage={"input_tokens": 20, "output_tokens": 5},
+            usage={
+                "input_tokens": 20,
+                "output_tokens": 50,
+            },  # Adjusted token count for JSON
         )
 
         mock_llm.create_message = AsyncMock(
@@ -128,7 +133,8 @@ class TestAgentIntegration:
                     if block.get("type") == "text":
                         primary_text = block.get("text")
                         break
-            assert primary_text == "The weather in London is mocked."
+            expected_primary_text = '{"weather_summary": "Mocked: The weather in London is clear.", "temperature": {"value": 15, "unit": "celsius"}, "recommendations": ["Enjoy your day!"]}'
+            assert primary_text == expected_primary_text
 
             # 4. Check tool use was recorded in the result
             tool_uses = result_dict.get("tool_uses_in_final_turn", [])
@@ -175,7 +181,183 @@ class TestAgentIntegration:
                     if block.get("type") == "text":
                         final_primary_text = block.get("text")
                         break
-            assert final_primary_text == "The weather in London is mocked."
+            assert final_primary_text == expected_primary_text
 
-    # TODO: Add integration test with real LLM (optional, marked skip)
-    # TODO: Add integration test involving schema validation
+    @pytest.mark.anyio
+    async def test_agent_integration_schema_validation_mock_llm(
+        self,
+        host_manager: HostManager,
+    ):
+        """
+        Tests agent execution with schema validation where the LLM provides
+        a valid response matching the schema (using mocked LLM).
+        """
+        # --- Arrange ---
+        agent_name = "Weather Agent"  # This agent has a schema defined
+        agent_config = host_manager.get_agent_config(agent_name)
+        assert agent_config is not None, f"'{agent_name}' config not found"
+        assert agent_config.config_validation_schema is not None, (
+            f"'{agent_name}' should have a validation schema"
+        )
+
+        mock_llm = MagicMock(spec=BaseLLM)
+        user_message = "Weather in Boston?"
+
+        # Mock LLM response - valid JSON matching the Weather Agent's schema
+        valid_json_response = {
+            "weather_summary": "Mocked: Sunny and pleasant",
+            "temperature": {"value": 22, "unit": "celsius"},  # Corrected structure
+            "recommendations": ["Wear sunscreen", "Enjoy the day!"],
+        }
+        import json
+
+        valid_json_text = json.dumps(valid_json_response)
+
+        mock_llm_response = AgentOutputMessage(
+            id="llm_msg_valid_schema",
+            role="assistant",
+            model="mock_model",
+            content=[AgentOutputContentBlock(type="text", text=valid_json_text)],
+            stop_reason="end_turn",
+            usage={"input_tokens": 15, "output_tokens": 50},
+        )
+        mock_llm.create_message = AsyncMock(return_value=mock_llm_response)
+
+        # Patch LLM client instantiation in the facade
+        with patch(
+            "src.execution.facade.AnthropicLLM", return_value=mock_llm
+        ) as MockAnthropicLLM:
+            # --- Act ---
+            assert host_manager.execution is not None, "Facade not initialized"
+            result_dict: Dict[str, Any] = await host_manager.execution.run_agent(
+                agent_name=agent_name,
+                user_message=user_message,
+                session_id=None,
+            )
+
+            # --- Assert ---
+            # 1. LLM mock called once
+            assert mock_llm.create_message.await_count == 1
+            # Check schema was passed to LLM client
+            call_args = mock_llm.create_message.call_args.kwargs
+            assert call_args.get("schema") == agent_config.config_validation_schema
+
+            # 2. Final result is successful
+            assert isinstance(result_dict, dict)
+            assert result_dict.get("error") is None
+            final_response = result_dict.get("final_response")
+            assert final_response is not None
+            assert final_response.get("role") == "assistant"
+            assert final_response.get("stop_reason") == "end_turn"
+
+            # 3. Final response content matches the valid JSON text
+            primary_text = None
+            if final_response.get("content"):
+                for block in final_response["content"]:
+                    if block.get("type") == "text":
+                        primary_text = block.get("text")
+                        break
+            assert primary_text == valid_json_text
+
+            # 4. Conversation history should only have user -> assistant (no correction message)
+            conversation = result_dict.get("conversation", [])
+            assert len(conversation) == 2
+            assert conversation[0]["role"] == "user"
+            assert conversation[1]["role"] == "assistant"
+            assert conversation[1]["content"][0]["text"] == valid_json_text
+
+    @pytest.mark.skipif(
+        not os.environ.get("ANTHROPIC_API_KEY"),
+        reason="Requires ANTHROPIC_API_KEY environment variable for real LLM calls",
+    )
+    @pytest.mark.anyio
+    async def test_agent_integration_real_llm(
+        self,
+        host_manager: HostManager,
+    ):
+        """
+        Tests agent execution using the real LLM API (Anthropic).
+        This test requires the ANTHROPIC_API_KEY environment variable to be set.
+        It verifies basic successful execution without mocking the LLM.
+        """
+        # --- Arrange ---
+        agent_name = "Weather Agent"  # Use an agent expected to work with the real LLM
+        agent_config = host_manager.get_agent_config(agent_name)
+        assert agent_config is not None, f"'{agent_name}' config not found"
+
+        user_message = "What is the weather like in Boston today? Use your tool."
+
+        # --- Act ---
+        # No LLM patching needed here
+        assert host_manager.execution is not None, "Facade not initialized"
+        try:
+            result_dict: Dict[str, Any] = await host_manager.execution.run_agent(
+                agent_name=agent_name,
+                user_message=user_message,
+                session_id=None,
+            )
+        except Exception as e:
+            pytest.fail(f"Real LLM agent execution failed unexpectedly: {e}")
+
+        # --- Assert ---
+        # Basic checks for successful execution with real LLM
+        assert isinstance(result_dict, dict)
+        assert result_dict.get("error") is None, (
+            f"Agent run failed with error: {result_dict.get('error')}"
+        )
+
+        final_response = result_dict.get("final_response")
+        assert final_response is not None, "Final response should not be None"
+        assert final_response.get("role") == "assistant"
+        assert (
+            final_response.get("stop_reason") is not None
+        )  # e.g., 'end_turn' or 'tool_use'
+
+        # Check that content exists
+        assert final_response.get("content") is not None
+        assert len(final_response.get("content", [])) > 0
+
+        # Optional: Check if tool was likely used (based on conversation history)
+        conversation = result_dict.get("conversation", [])
+        # Expecting user -> assistant (tool_use) -> user (tool_result) -> assistant (final)
+        # Or potentially user -> assistant (final) if LLM didn't use tool
+        assert len(conversation) >= 2
+
+        # Check if a tool result message exists in the history
+        tool_result_found = any(
+            msg.get("role") == "user" and msg["content"][0].get("type") == "tool_result"
+            for msg in conversation
+            if isinstance(msg.get("content"), list) and len(msg.get("content", [])) > 0
+        )
+        print(f"Tool result found in history: {tool_result_found}")  # For debugging
+
+        # Check final response text for keywords (less strict than JSON parsing for real LLM)
+        primary_text = ""
+        if final_response.get("content"):
+            for block in final_response["content"]:
+                if block.get("type") == "text":
+                    primary_text += block.get("text", "") + " "
+        primary_text = primary_text.strip()  # Keep original case for JSON parsing
+
+        # Assert that the primary_text is valid JSON and contains expected structure
+        try:
+            import json
+
+            parsed_json_response = json.loads(primary_text)
+            assert "weather_summary" in parsed_json_response, (
+                "JSON response missing 'weather_summary'"
+            )
+            assert "temperature" in parsed_json_response, (
+                "JSON response missing 'temperature'"
+            )
+            assert "recommendations" in parsed_json_response, (
+                "JSON response missing 'recommendations'"
+            )
+        except json.JSONDecodeError:
+            pytest.fail(f"Final response text was not valid JSON: {primary_text}")
+
+        # The check for "boston" is removed as the LLM is not required to include it
+        # in the structured JSON output, only to use it for the tool call.
+        # If tool use was expected, check for related terms
+        # if tool_result_found:
+        #     assert "weather" in primary_text.lower() or "temperature" in primary_text.lower()

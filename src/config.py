@@ -151,7 +151,9 @@ def _load_agent_configs(
 
         try:
             # Extract and potentially convert parameters
-            schema = agent_data.get("schema")
+            schema = agent_data.get(
+                "config_validation_schema"
+            )  # Changed "schema" to "config_validation_schema"
             temperature = (
                 float(agent_data["temperature"])
                 if "temperature" in agent_data and agent_data["temperature"] is not None

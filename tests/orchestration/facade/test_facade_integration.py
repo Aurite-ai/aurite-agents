@@ -48,38 +48,50 @@ async def test_facade_run_agent(host_manager: HostManager):
         assert isinstance(result, dict)
         assert result.get("error") is None
         assert "final_response" in result
-        assert result["final_response"] is not None
+        final_response_dict = result.get("final_response")  # Get the dict
+        assert final_response_dict is not None
         # Check for stop reason (e.g., 'end_turn' or 'tool_use' if tools were called)
-        assert result["final_response"].stop_reason in ["end_turn", "tool_use"]
+        assert final_response_dict.get("stop_reason") in ["end_turn", "tool_use"]
 
         # Content check for JSON response
-        final_content_blocks = result["final_response"].content
+        final_content_blocks = final_response_dict.get(
+            "content", []
+        )  # Access content from dict
         assert isinstance(final_content_blocks, list) and len(final_content_blocks) > 0
         # Assuming the JSON is in the first text block
-        first_text_block = next(
+        first_text_block_dict = next(
             (
-                block
+                block  # block is already a dict here
                 for block in final_content_blocks
-                if hasattr(block, "type") and block.type == "text"
+                if isinstance(block, dict) and block.get("type") == "text"
             ),
             None,
         )
-        assert first_text_block is not None, (
+        assert first_text_block_dict is not None, (
             "No text block found in final response content"
         )
-        assert hasattr(first_text_block, "text"), "Text block missing 'text' attribute"
-        json_text = first_text_block.text
+        assert "text" in first_text_block_dict, "Text block missing 'text' key"
+        json_text = first_text_block_dict.get("text", "")
         try:
             parsed_json = json.loads(json_text)
-            # Basic check for expected keys in the JSON response based on the schema
+            # Basic check for expected keys and types in the JSON response based on the schema
             assert "weather_summary" in parsed_json, (
                 "JSON response missing 'weather_summary'"
             )
             assert "temperature" in parsed_json, "JSON response missing 'temperature'"
+            assert isinstance(parsed_json.get("temperature"), dict), (
+                "'temperature' should be an object"
+            )
+            assert "value" in parsed_json.get("temperature", {}), (
+                "Temperature object missing 'value'"
+            )
+            assert isinstance(
+                parsed_json.get("temperature", {}).get("value"), (int, float)
+            ), "'temperature.value' should be a number"
             assert "recommendations" in parsed_json, (
                 "JSON response missing 'recommendations'"
             )
-            assert isinstance(parsed_json["recommendations"], list), (
+            assert isinstance(parsed_json.get("recommendations"), list), (
                 "'recommendations' should be a list"
             )
         except json.JSONDecodeError:

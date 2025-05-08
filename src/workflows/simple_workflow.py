@@ -11,9 +11,10 @@ from ..host.host import MCPHost
 from ..agents.agent import Agent
 from ..agents.agent_models import AgentExecutionResult  # Import for type hint
 
-# Import LLM client for type hinting only
+# Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
     from ..llm.base_client import BaseLLM
+    from ..execution.facade import ExecutionFacade  # Added Facade import
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class SimpleWorkflowExecutor:
         config: WorkflowConfig,
         agent_configs: Dict[str, AgentConfig],
         host_instance: MCPHost,
-        llm_client: "BaseLLM",  # Added llm_client parameter
+        llm_client: "BaseLLM",
+        facade: "ExecutionFacade",  # Added facade parameter
     ):
         """
         Initializes the SimpleWorkflowExecutor.
@@ -38,6 +40,7 @@ class SimpleWorkflowExecutor:
             agent_configs: A dictionary containing all available agent configurations,
                            keyed by agent name. Needed to look up configs for steps.
             host_instance: The initialized MCPHost instance.
+            facade: The ExecutionFacade instance.
         """
         if not isinstance(config, WorkflowConfig):
             raise TypeError("config must be an instance of WorkflowConfig")
@@ -49,7 +52,8 @@ class SimpleWorkflowExecutor:
         self.config = config
         self._agent_configs = agent_configs
         self._host = host_instance
-        self._llm_client = llm_client  # Store llm_client
+        self._llm_client = llm_client
+        self.facade = facade  # Store facade instance
         logger.debug(
             f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}"
         )
@@ -100,85 +104,67 @@ class SimpleWorkflowExecutor:
                 )
 
                 try:
-                    # 1. Retrieve AgentConfig for the current step
-                    agent_config = self._agent_configs[agent_name]
-                    logger.debug(
-                        f"Step {step_num}: Found AgentConfig for '{agent_name}'"
+                    # 1. Execute Agent via Facade
+                    # Facade handles config lookup, LLM client resolution, agent instantiation, and execution.
+                    # TODO: Consider passing session_id if workflows need state persistence
+                    result_dict: Dict[str, Any] = await self.facade.run_agent(
+                        agent_name=agent_name,
+                        user_message=current_message,
+                        # system_prompt=None, # Use agent's default
+                        # session_id=None, # Add session management if needed
                     )
 
-                    # 2. Instantiate Agent (Pass llm_client)
-                    agent = Agent(config=agent_config, llm_client=self._llm_client)
-                    logger.debug(f"Step {step_num}: Instantiated Agent '{agent_name}'")
-
-                    # 3. Execute the agent step (Pass initial_messages correctly)
-                    # Note: We pass the host instance stored in the executor
-                    result: AgentExecutionResult = await agent.execute_agent(
-                        initial_messages=[{"role": "user", "content": current_message}],
-                        host_instance=self._host,
-                    )
-
-                    # 4. Process Agent Result (Use attribute access)
-                    if result.error:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {result.error}"
+                    # 2. Process Agent Result (Dictionary)
+                    agent_error = result_dict.get("error")
+                    if agent_error:
+                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {agent_error}"
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    if not result.final_response or not result.final_response.content:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response."
+                    final_response_dict = result_dict.get("final_response")
+                    if not final_response_dict:
+                        error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response structure."
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    # 5. Extract Output for Next Step (Use attribute access)
-                    try:
-                        if result.final_response and result.final_response.content:
-                            text_content = next(
-                                (
-                                    block.text
-                                    for block in result.final_response.content  # Use attribute access
-                                    if block.type == "text"
-                                ),
-                                None,
-                            )
-                            if text_content is not None:
-                                current_message = text_content
-                                logger.debug(
-                                    f"Step {step_num}: Output message for next step: '{current_message[:100]}...'"
-                                )
-                            else:
-                                # Agent responded, but no text block found. What should happen?
-                                # Option 1: Fail the workflow
-                                # error_message = f"Agent '{agent_name}' (step {step_num}) response content has no text block."
-                                # logger.error(error_message)
-                                # break
-                                # Option 2: Pass an empty string or placeholder? Let's pass empty string for now.
-                                current_message = ""
-                                logger.warning(
-                                    f"Agent '{agent_name}' (step {step_num}) response content has no text block. Passing empty string to next step."
-                                )
-                        else:
-                            # Agent result structure is missing expected parts
-                            error_message = f"Agent '{agent_name}' (step {step_num}) returned unexpected result structure (missing final_response or content)."
-                            logger.error(error_message)
-                            break
+                    # 3. Extract Output for Next Step (from Dictionary)
+                    final_content_blocks = final_response_dict.get("content", [])
+                    if not final_content_blocks:
+                        error_message = f"Agent '{agent_name}' (step {step_num}) final response has no content."
+                        logger.error(error_message)
+                        break  # Stop workflow execution
 
-                    except (AttributeError, TypeError) as e:
-                        # Catch errors if the result structure is malformed
-                        error_message = f"Error processing agent '{agent_name}' (step {step_num}) response structure: {e}"
-                        logger.error(error_message, exc_info=True)
-                        break
+                    text_content = next(
+                        (
+                            block.get("text")
+                            for block in final_content_blocks
+                            if isinstance(block, dict) and block.get("type") == "text"
+                        ),
+                        None,
+                    )
+
+                    if text_content is not None:
+                        current_message = text_content
+                        logger.debug(
+                            f"Step {step_num}: Output message for next step: '{current_message[:100]}...'"
+                        )
+                    else:
+                        # Agent responded, but no text block found.
+                        current_message = ""  # Pass empty string
+                        logger.warning(
+                            f"Agent '{agent_name}' (step {step_num}) response content has no text block. Passing empty string to next step."
+                        )
 
                 except KeyError:
-                    # This occurs if agent_name is not found in self._agent_configs
-                    error_message = f"Configuration error in workflow '{workflow_name}': Agent '{agent_name}' (step {step_num}) not found in provided agent configurations."
+                    # This occurs if agent_name is not found in self._agent_configs (should be caught by facade now, but keep as fallback)
+                    error_message = f"Configuration error in workflow '{workflow_name}': Agent '{agent_name}' (step {step_num}) not found."
                     logger.error(error_message)
-                    # Stop workflow execution
-                    break
+                    break  # Stop workflow execution
                 except Exception as agent_exec_e:
-                    # Catch other unexpected errors from Agent instantiation or execution
-                    error_message = f"Unexpected error during agent '{agent_name}' (step {step_num}) execution within workflow '{workflow_name}': {agent_exec_e}"
+                    # Catch other unexpected errors during facade call or result processing
+                    error_message = f"Unexpected error during agent '{agent_name}' (step {step_num}) execution via facade within workflow '{workflow_name}': {agent_exec_e}"
                     logger.error(error_message, exc_info=True)
-                    # Stop workflow execution
-                    break
+                    break  # Stop workflow execution
 
             # Determine final status after loop finishes or breaks
             if error_message is None:

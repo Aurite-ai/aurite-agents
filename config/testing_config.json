@@ -36,7 +36,30 @@
       "max_tokens": 4096,
       "max_iterations": 10,
       "include_history": "True",
-      "exclude_components": ["current_time"]
+      "exclude_components": ["current_time"],
+      "config_validation_schema": {
+        "type": "object",
+        "properties": {
+          "weather_summary": {
+            "type": "string",
+            "description": "A brief summary of the weather conditions."
+          },
+          "temperature": {
+            "type": "object",
+            "properties": {
+              "value": {"type": "number"},
+              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+            },
+            "required": ["value", "unit"]
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Recommendations based on the weather."
+          }
+        },
+        "required": ["weather_summary", "temperature", "recommendations"]
+      }
     },
     {
       "name": "Weather Planning Agent",

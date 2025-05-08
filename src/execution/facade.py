@@ -429,9 +429,10 @@ class ExecutionFacade:
                 config=config,
                 agent_configs=self._manager.agent_configs,
                 host_instance=self._host,
-                llm_client=AnthropicLLM(
+                llm_client=AnthropicLLM(  # TODO: Resolve LLM client properly
                     model_name="claude-3-haiku-20240307"
-                ),  # Provide default LLM client
+                ),
+                facade=self,  # Pass the facade instance
                 # storage_manager=self._storage_manager # Add if needed later for workflow history
             ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
