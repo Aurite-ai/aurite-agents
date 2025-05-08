@@ -27,7 +27,10 @@ if TYPE_CHECKING:
     from ..storage.db_manager import StorageManager
 
     # Import LLM client base class and models for type hinting and instantiation logic
-    from ..config.config_models import AgentConfig  # Updated import path
+    from ..config.config_models import (
+        AgentConfig,
+        LLMConfig,
+    )  # Updated import path, added LLMConfig
 
 # Import Agent and ConversationManager at runtime for instantiation
 from ..agents.agent import Agent
@@ -230,25 +233,38 @@ class ExecutionFacade:
             effective_system_prompt: Optional[str] = (
                 None  # This will be for the LLM client itself
             )
+            llm_config_for_override_obj: Optional[LLMConfig] = (
+                None  # For passing to Agent constructor
+            )
 
             # 2.a. LLMConfig Lookup (Base values)
             if agent_config.llm_config_id:
-                llm_config = self._manager.llm_configs.get(agent_config.llm_config_id)
-                if llm_config:
+                llm_config_for_override_obj = self._manager.llm_configs.get(
+                    agent_config.llm_config_id
+                )  # Store the object
+                if llm_config_for_override_obj:
                     logger.debug(
                         f"Facade: Applying base LLMConfig '{agent_config.llm_config_id}' for agent '{agent_name}'."
                     )
-                    effective_model_name = llm_config.model_name
-                    effective_temperature = llm_config.temperature
-                    effective_max_tokens = llm_config.max_tokens
-                    effective_system_prompt = llm_config.default_system_prompt
+                    # These values are now primarily for the LLM client's direct instantiation,
+                    # but the llm_config_for_override_obj itself will be passed to the Agent,
+                    # which then passes it to the LLM client's create_message method.
+                    effective_model_name = llm_config_for_override_obj.model_name
+                    effective_temperature = llm_config_for_override_obj.temperature
+                    effective_max_tokens = llm_config_for_override_obj.max_tokens
+                    effective_system_prompt = (
+                        llm_config_for_override_obj.default_system_prompt
+                    )
                 else:
                     logger.warning(
                         f"Facade: LLMConfig ID '{agent_config.llm_config_id}' specified for agent '{agent_name}' not found. "
-                        "Proceeding with AgentConfig-specific LLM parameters or defaults."
+                        "Proceeding with AgentConfig-specific LLM parameters or defaults for LLM client instantiation."
                     )
+                    # llm_config_for_override_obj remains None
 
-            # 2.b. AgentConfig Overrides (Agent-specific values override LLMConfig)
+            # 2.b. AgentConfig Overrides (Agent-specific values override LLMConfig for LLM client instantiation)
+            # The llm_config_override_obj is for the create_message call.
+            # The LLM client itself is initialized with the most specific defaults available.
             if agent_config.model is not None:
                 effective_model_name = agent_config.model
                 logger.debug(
@@ -303,8 +319,17 @@ class ExecutionFacade:
             )
 
             # 4. Instantiate Agent (passing the LLM client)
-            agent_instance = Agent(config=agent_config, llm_client=llm_client_instance)
-            logger.debug(f"Facade: Instantiated Agent '{agent_name}'")
+            agent_instance = Agent(
+                config=agent_config,
+                llm_client=llm_client_instance,
+                # llm_config_for_override will be added here in Part II, Step 9
+            )
+            # The actual passing of llm_config_for_override_obj to Agent constructor
+            # will be done in Part II, Step 9 of the plan.
+            # For now, we've fetched it.
+            logger.debug(
+                f"Facade: Instantiated Agent '{agent_name}' (LLMConfig override object prepared if applicable)"
+            )
 
             # 5. Prepare Initial Messages (Load History + User Message)
             initial_messages_for_agent: List[MessageParam] = []

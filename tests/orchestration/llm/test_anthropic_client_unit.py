@@ -16,8 +16,9 @@ from anthropic.types import (
     Usage,
 )
 
-from src.llm.providers.anthropic_client import AnthropicLLM
+from src.llm.providers.anthropic_client import AnthropicLLM, BASE_DEFAULT_MAX_TOKENS
 from src.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
+from src.config.config_models import LLMConfig  # Added import
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"
@@ -416,3 +417,265 @@ class TestAnthropicLLMUnit:
         assert isinstance(result_message, AgentOutputMessage)
         assert result_message.stop_reason == "stop_sequence"
         assert result_message.stop_sequence == stop_seq  # Verify correct propagation
+
+    @pytest.mark.anyio
+    async def test_create_message_with_llm_config_override_all_values(self):
+        """
+        Tests create_message with llm_config_override providing all possible values.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_override_all",
+            type="message",
+            role="assistant",
+            model="override-model-from-config",  # Expected overridden model
+            content=[TextBlock(type="text", text="Override response")],
+            stop_reason="end_turn",
+            usage=Usage(input_tokens=5, output_tokens=5),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name="client-default-model",
+                temperature=0.1,
+                max_tokens=100,
+                system_prompt="Client default system prompt.",
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        override_config = LLMConfig(
+            llm_id="override_cfg",
+            provider="anthropic",
+            model_name="override-model-from-config",
+            temperature=0.99,
+            max_tokens=999,
+            default_system_prompt="System prompt from LLMConfig override.",
+        )
+        messages_input = [
+            {"role": "user", "content": [{"type": "text", "text": "Test override"}]}
+        ]
+
+        await llm_client.create_message(
+            messages=messages_input, tools=None, llm_config_override=override_config
+        )
+
+        mock_create_method.assert_called_once()
+        call_args = mock_create_method.call_args
+        assert call_args.kwargs["model"] == "override-model-from-config"
+        assert call_args.kwargs["temperature"] == 0.99
+        assert call_args.kwargs["max_tokens"] == 999
+        assert call_args.kwargs["system"] == "System prompt from LLMConfig override."
+
+    @pytest.mark.anyio
+    async def test_create_message_with_llm_config_override_partial_values(self):
+        """
+        Tests create_message with llm_config_override providing only some values,
+        expecting others to fall back to client defaults.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_override_partial",
+            type="message",
+            role="assistant",
+            model="client-default-model",  # Expect client default model
+            content=[TextBlock(type="text", text="Partial override response")],
+            stop_reason="end_turn",
+            usage=Usage(input_tokens=5, output_tokens=5),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        client_default_temp = 0.15
+        client_default_max_tokens = 150
+        client_default_system_prompt = "Client default system prompt for partial test."
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name="client-default-model",
+                temperature=client_default_temp,
+                max_tokens=client_default_max_tokens,
+                system_prompt=client_default_system_prompt,
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        # Override only temperature and system prompt
+        override_config = LLMConfig(
+            llm_id="override_cfg_partial",
+            provider="anthropic",
+            model_name=None,  # Should use client's default model
+            temperature=0.88,
+            max_tokens=None,  # Should use client's default max_tokens
+            default_system_prompt="Partial system prompt from LLMConfig.",
+        )
+        messages_input = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": "Test partial override"}],
+            }
+        ]
+
+        await llm_client.create_message(
+            messages=messages_input, tools=None, llm_config_override=override_config
+        )
+
+        mock_create_method.assert_called_once()
+        call_args = mock_create_method.call_args
+        assert call_args.kwargs["model"] == "client-default-model"  # Fell back
+        assert call_args.kwargs["temperature"] == 0.88  # Overridden
+        assert call_args.kwargs["max_tokens"] == client_default_max_tokens  # Fell back
+        assert (
+            call_args.kwargs["system"] == "Partial system prompt from LLMConfig."
+        )  # Overridden
+
+    @pytest.mark.anyio
+    async def test_create_message_llm_config_override_system_prompt_hierarchy(self):
+        """
+        Tests system prompt hierarchy: method_override > llm_config_override > client_default.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_sys_hierarchy",
+            type="message",
+            role="assistant",
+            model="client-default-model",
+            content=[TextBlock(type="text", text="Hierarchy test")],
+            stop_reason="end_turn",
+            usage=Usage(input_tokens=5, output_tokens=5),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name="client-default-model",
+                system_prompt="Client Default System Prompt",
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        llm_cfg_override = LLMConfig(
+            llm_id="cfg",
+            provider="anthropic",
+            model_name="any",
+            default_system_prompt="LLMConfig System Prompt",
+        )
+        method_sys_prompt_override = "Method Argument System Prompt"
+        messages_input = [
+            {"role": "user", "content": [{"type": "text", "text": "Test hierarchy"}]}
+        ]
+
+        # Case 1: Method override is present (highest priority)
+        await llm_client.create_message(
+            messages=messages_input,
+            tools=None,
+            llm_config_override=llm_cfg_override,
+            system_prompt_override=method_sys_prompt_override,
+        )
+        assert (
+            mock_create_method.call_args.kwargs["system"] == method_sys_prompt_override
+        )
+        mock_create_method.reset_mock()
+
+        # Case 2: No method override, llm_config_override is present
+        await llm_client.create_message(
+            messages=messages_input,
+            tools=None,
+            llm_config_override=llm_cfg_override,
+            system_prompt_override=None,
+        )
+        assert (
+            mock_create_method.call_args.kwargs["system"] == "LLMConfig System Prompt"
+        )
+        mock_create_method.reset_mock()
+
+        # Case 3: No method override, no llm_config_override default_system_prompt
+        llm_cfg_override_no_prompt = LLMConfig(
+            llm_id="cfg_no_prompt",
+            provider="anthropic",
+            model_name="any",
+            default_system_prompt=None,
+        )
+        await llm_client.create_message(
+            messages=messages_input,
+            tools=None,
+            llm_config_override=llm_cfg_override_no_prompt,
+            system_prompt_override=None,
+        )
+        assert (
+            mock_create_method.call_args.kwargs["system"]
+            == "Client Default System Prompt"
+        )
+        mock_create_method.reset_mock()
+
+        # Case 4: No method override, no llm_config_override at all
+        await llm_client.create_message(
+            messages=messages_input,
+            tools=None,
+            llm_config_override=None,
+            system_prompt_override=None,
+        )
+        assert (
+            mock_create_method.call_args.kwargs["system"]
+            == "Client Default System Prompt"
+        )
+
+    @pytest.mark.anyio
+    async def test_create_message_llm_config_override_max_tokens_fallback_to_base_default(
+        self,
+    ):
+        """
+        Tests that if client.max_tokens is None and llm_config_override.max_tokens is None,
+        it falls back to BASE_DEFAULT_MAX_TOKENS.
+        """
+        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        mock_sdk_response = AnthropicSDKMessage(
+            id="msg_max_tokens_fallback",
+            type="message",
+            role="assistant",
+            model="default-model",
+            content=[TextBlock(type="text", text="Fallback test")],
+            stop_reason="end_turn",
+            usage=Usage(input_tokens=5, output_tokens=5),
+        )
+        mock_messages_api = MagicMock()
+        mock_create_method = AsyncMock(return_value=mock_sdk_response)
+        mock_messages_api.create = mock_create_method
+        mock_anthropic_sdk_client.messages = mock_messages_api
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+            llm_client = AnthropicLLM(
+                model_name="default-model",
+                max_tokens=None,  # Client's max_tokens is explicitly None
+            )
+        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+
+        # LLMConfig override also has max_tokens as None
+        override_config_no_max_tokens = LLMConfig(
+            llm_id="cfg_no_max",
+            provider="anthropic",
+            model_name="default-model",
+            max_tokens=None,
+        )
+        messages_input = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": "Test max_tokens fallback"}],
+            }
+        ]
+
+        await llm_client.create_message(
+            messages=messages_input,
+            tools=None,
+            llm_config_override=override_config_no_max_tokens,
+        )
+
+        mock_create_method.assert_called_once()
+        call_args = mock_create_method.call_args
+        assert call_args.kwargs["max_tokens"] == BASE_DEFAULT_MAX_TOKENS

@@ -13,7 +13,10 @@ from anthropic.types import MessageParam, ToolResultBlockParam
 from typing import cast  # Added for casting
 from .agent_models import AgentOutputMessage
 from ..host.host import MCPHost
-from ..config.config_models import AgentConfig  # Updated import path
+from ..config.config_models import (
+    AgentConfig,
+    LLMConfig,
+)  # Updated import path, added LLMConfig
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:
@@ -37,6 +40,7 @@ class AgentTurnProcessor:
         current_messages: List[MessageParam],
         tools_data: Optional[List[Dict[str, Any]]],
         effective_system_prompt: Optional[str],
+        llm_config_for_override: Optional[LLMConfig] = None,  # New parameter
     ):
         """
         Initializes the turn processor.
@@ -48,6 +52,7 @@ class AgentTurnProcessor:
             current_messages: The current list of messages to be sent to the LLM.
             tools_data: Formatted tool definitions for the LLM.
             effective_system_prompt: The system prompt to use for this turn.
+            llm_config_for_override: Optional LLMConfig to pass to the LLM client.
         """
         self.config = config
         self.llm = llm_client
@@ -55,11 +60,12 @@ class AgentTurnProcessor:
         self.messages = current_messages
         self.tools = tools_data
         self.system_prompt = effective_system_prompt
+        self.llm_config_for_override = llm_config_for_override  # Store new parameter
         self._last_llm_response: Optional[AgentOutputMessage] = (
             None  # Store the raw response
         )
         self._tool_uses_this_turn: List[Dict[str, Any]] = []  # Store tool uses
-        logger.debug("ConversationTurnProcessor initialized.")
+        logger.debug("AgentTurnProcessor initialized.")
 
     def get_last_llm_response(self) -> Optional[AgentOutputMessage]:
         """Returns the last raw response received from the LLM for this turn."""
@@ -98,6 +104,7 @@ class AgentTurnProcessor:
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,  # Use renamed field
+                llm_config_override=self.llm_config_for_override,  # Pass stored override
             )
         except Exception as e:
             # Handle or re-raise LLM call errors appropriately

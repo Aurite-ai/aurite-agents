@@ -29,7 +29,11 @@ from anthropic.types import (
 from typing import Iterable  # Added
 
 # Import the base LLM class
-from ..base_client import BaseLLM
+from ..base_client import (
+    BaseLLM,
+    DEFAULT_MAX_TOKENS as BASE_DEFAULT_MAX_TOKENS,
+)  # Import default for fallback
+from ...config.config_models import LLMConfig  # Corrected relative import
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,7 @@ class AnthropicLLM(BaseLLM):
         tools: Optional[List[Dict[str, Any]]],  # Expects Anthropic tool format for now
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
+        llm_config_override: Optional[LLMConfig] = None,  # New parameter
     ) -> AgentOutputMessage:
         """
         Sends messages to the Anthropic API and returns a standardized response.
@@ -95,6 +100,7 @@ class AnthropicLLM(BaseLLM):
             tools: List of tool definitions in Anthropic format.
             system_prompt_override: Optional override for the system prompt.
             schema: Optional JSON schema for response formatting.
+            llm_config_override: Optional LLMConfig to override client defaults for this call.
 
         Returns:
             An AgentOutputMessage instance.
@@ -104,13 +110,50 @@ class AnthropicLLM(BaseLLM):
             RateLimitError: If Anthropic rate limits are exceeded.
             Exception: For other API call errors.
         """
-        effective_system_prompt = (
-            system_prompt_override
-            if system_prompt_override is not None
-            else self.system_prompt
-        )
+        # --- Parameter Resolution ---
+        # Model
+        model_to_use = self.model_name
+        if llm_config_override and llm_config_override.model_name:
+            model_to_use = llm_config_override.model_name
+            logger.debug(
+                f"Overriding model to '{model_to_use}' from LLMConfig override."
+            )
 
-        # Inject schema if provided
+        # Temperature
+        temperature_to_use = self.temperature  # Instance default
+        if llm_config_override and llm_config_override.temperature is not None:
+            temperature_to_use = llm_config_override.temperature
+            logger.debug(
+                f"Overriding temperature to '{temperature_to_use}' from LLMConfig override."
+            )
+
+        # Max Tokens
+        max_tokens_to_use = self.max_tokens  # Instance default
+        if llm_config_override and llm_config_override.max_tokens is not None:
+            max_tokens_to_use = llm_config_override.max_tokens
+            logger.debug(
+                f"Overriding max_tokens to '{max_tokens_to_use}' from LLMConfig override."
+            )
+        # Ensure max_tokens has a value for the API call, falling back to a base default if needed
+        if max_tokens_to_use is None:
+            max_tokens_to_use = (
+                BASE_DEFAULT_MAX_TOKENS  # Use imported default from base_client
+            )
+            logger.debug(f"Max tokens resolved to base default: {max_tokens_to_use}")
+
+        # System Prompt Resolution
+        # 1. system_prompt_override (method argument)
+        # 2. llm_config_override.default_system_prompt
+        # 3. self.system_prompt (instance default)
+        resolved_system_prompt = self.system_prompt  # Start with instance default
+        if llm_config_override and llm_config_override.default_system_prompt:
+            resolved_system_prompt = llm_config_override.default_system_prompt
+            logger.debug("Using system prompt from LLMConfig override.")
+        if system_prompt_override is not None:  # Highest precedence
+            resolved_system_prompt = system_prompt_override
+            logger.debug("Using system prompt from method argument override.")
+
+        # Inject schema if provided, into the resolved system prompt
         if schema:
             import json
 
@@ -121,54 +164,41 @@ Your response must be valid JSON matching this schema:
 {schema_str}
 
 Remember to format your response as a valid JSON object."""
-                effective_system_prompt = (
-                    f"{effective_system_prompt}\n{schema_injection}"
-                )
+                if resolved_system_prompt:  # Append if there's an existing prompt
+                    resolved_system_prompt = (
+                        f"{resolved_system_prompt}\n{schema_injection}"
+                    )
+                else:  # Otherwise, schema injection becomes the prompt
+                    resolved_system_prompt = schema_injection
             except Exception as json_err:
                 logger.error(f"Failed to serialize schema for injection: {json_err}")
-                # Decide whether to proceed without schema or raise error
-                # For now, proceed without schema injection on error
+                # Proceed without schema injection on error
 
-        # Prepare API arguments
-        api_args = {
-            "model": self.model_name,
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature,
-            "messages": messages,  # Assume input 'messages' are already in Anthropic format
-        }
-        if effective_system_prompt:
-            api_args["system"] = effective_system_prompt
-        if tools:
-            # api_args["tools"] = tools # Removed packing into dict
-            logger.debug(f"Including {len(tools)} tools in Anthropic API call.")
+        # Ensure tools is None if not provided or empty for the API call
+        tools_for_api = tools if tools else None
+        if tools_for_api:
+            logger.debug(f"Including {len(tools_for_api)} tools in Anthropic API call.")
         else:
             logger.debug("No tools included in Anthropic API call.")
-            tools = None  # Ensure tools is None if not provided
 
-        logger.debug(f"Making Anthropic API call to model '{self.model_name}'")
+        logger.debug(f"Making Anthropic API call to model '{model_to_use}'")
         try:
-            # Prepare arguments, ensuring correct types and filtering None
-            # Use default if max_tokens is None
-            current_max_tokens = self.max_tokens or DEFAULT_MAX_TOKENS
             # Cast messages and tools to expected Iterable types
             typed_messages = cast(Iterable[MessageParam], messages)
-            typed_tools = cast(Optional[Iterable[ToolParam]], tools)
+            typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
 
-            # Make the actual API call with direct keyword arguments, filtering Nones
             anthropic_response: AnthropicMessage = (
                 await self.anthropic_sdk_client.messages.create(
-                    model=self.model_name,
-                    max_tokens=current_max_tokens,
+                    model=model_to_use,
+                    max_tokens=max_tokens_to_use,  # Already ensured to be non-None
                     messages=typed_messages,
-                    system=effective_system_prompt
-                    if effective_system_prompt is not None
+                    system=resolved_system_prompt
+                    if resolved_system_prompt
                     else NOT_GIVEN,
                     tools=typed_tools if typed_tools is not None else NOT_GIVEN,
-                    temperature=self.temperature
-                    if self.temperature is not None
+                    temperature=temperature_to_use
+                    if temperature_to_use is not None
                     else NOT_GIVEN,
-                    # Add other optional params directly here if needed, e.g.:
-                    # top_k=self.top_k if self.top_k is not None else NOT_GIVEN,
                 )
             )
             logger.debug(

@@ -9,6 +9,9 @@ from typing import List, Optional, Dict, Any
 
 # Import our standardized output models from the agents module
 from ..agents.agent_models import AgentOutputMessage
+from ..config.config_models import LLMConfig  # Added import
+
+# Import Anthropic specific types and client
 
 # Import Anthropic specific types and client
 logger = logging.getLogger(__name__)
@@ -59,6 +62,7 @@ class BaseLLM(ABC):
             str
         ] = None,  # Allow overriding the default/configured system prompt
         schema: Optional[Dict[str, Any]] = None,  # Pass schema for potential injection
+        llm_config_override: Optional[LLMConfig] = None,  # New parameter
     ) -> AgentOutputMessage:  # Returns our standardized message model
         """
         Sends messages to the LLM and returns a standardized response message.
@@ -69,6 +73,13 @@ class BaseLLM(ABC):
             tools: A list of tool definitions in a standardized format (initially Anthropic's format).
             system_prompt_override: An optional system prompt to use instead of the default.
             schema: An optional JSON schema to guide the LLM's output format.
+            llm_config_override: An optional LLMConfig object. If provided, its values
+                                 (model_name, temperature, max_tokens, default_system_prompt)
+                                 take precedence over the client's instance-level defaults
+                                 for this specific call. The system prompt resolution hierarchy is:
+                                 1. system_prompt_override (this argument)
+                                 2. llm_config_override.default_system_prompt
+                                 3. self.system_prompt (instance default)
 
         Returns:
             An AgentOutputMessage Pydantic model instance representing the LLM's response.

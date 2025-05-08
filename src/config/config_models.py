@@ -83,7 +83,9 @@ class LLMConfig(BaseModel):
         default="anthropic",
         description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').",
     )
-    model_name: str = Field(description="The specific model name for the provider.")
+    model_name: Optional[str] = Field(
+        None, description="The specific model name for the provider."
+    )  # Made optional
 
     # Common LLM parameters
     temperature: Optional[float] = Field(
