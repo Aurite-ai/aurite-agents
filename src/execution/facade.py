@@ -32,9 +32,9 @@ if TYPE_CHECKING:
         LLMConfig,
     )  # Updated import path, added LLMConfig
 
-# Import Agent and ConversationManager at runtime for instantiation
+# Import Agent at runtime for instantiation
 from ..agents.agent import Agent
-from ..agents.conversation_manager import ConversationManager
+# Removed ConversationManager import as it's merged into Agent
 
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import AgentExecutionResult
@@ -364,22 +364,29 @@ class ExecutionFacade:
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
 
-            # 5. Instantiate Conversation Manager
-            conversation_manager = ConversationManager(
-                agent=agent_instance,
-                host_instance=self._host,
-                initial_messages=initial_messages_for_agent,
-                system_prompt_override=system_prompt,  # Pass override
-            )
-            logger.debug(
-                f"Facade: Instantiated ConversationManager for agent '{agent_name}'"
-            )
+            # 5. Instantiate New Agent Class (formerly ConversationManager)
+            # This instantiation logic will be fully updated in Step 9
+            # For now, just removing the old ConversationManager instantiation call placeholder
+            # conversation_manager = ConversationManager( # Remove this block later
+            #     agent=agent_instance,
+            #     host_instance=self._host,
+            #     initial_messages=initial_messages_for_agent,
+            #     system_prompt_override=system_prompt,  # Pass override
+            # )
+            # logger.debug(
+            #     f"Facade: Instantiated ConversationManager for agent '{agent_name}'"
+            # ) # Remove this log later
 
-            # 6. Execute Conversation
+            # 6. Execute Conversation (using the new Agent instance)
+            # This execution logic will be fully updated in Step 9
             logger.info(f"Facade: Running conversation for Agent '{agent_name}'...")
+            # agent_result: AgentExecutionResult = ( # Update this call in Step 9
+            #     await agent_instance.run_conversation()
+            # )
+            # Placeholder for result until Step 9 implementation
             agent_result: AgentExecutionResult = (
-                await conversation_manager.run_conversation()
-            )
+                await agent_instance.run_conversation()
+            )  # TEMPORARY - WILL BE REFINED IN STEP 9
             logger.info(f"Facade: Agent '{agent_name}' conversation finished.")
 
             # 7. Save History (if enabled and successful)
