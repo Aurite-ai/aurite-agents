@@ -152,9 +152,29 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
             assert "agent_result_text" in inner_result
             assert isinstance(inner_result["agent_result_text"], str)
             assert len(inner_result["agent_result_text"]) > 0
-            assert (
-                "Paris" in inner_result["agent_result_text"]
-            )  # Check if city was used
+            # Parse the JSON output from the agent and check values
+            try:
+                import json
+
+                agent_output_json = json.loads(inner_result["agent_result_text"])
+                assert isinstance(agent_output_json, dict)
+                assert (
+                    agent_output_json.get("weather_summary") == "Clear skies"
+                )  # Default condition
+                assert isinstance(agent_output_json.get("temperature"), dict)
+                assert (
+                    agent_output_json["temperature"].get("value") == 20
+                )  # Default temp
+                assert agent_output_json["temperature"].get("unit") == "celsius"
+            except json.JSONDecodeError:
+                pytest.fail(
+                    f"Agent result text was not valid JSON: {inner_result['agent_result_text']}"
+                )
+            except AssertionError as ae:
+                pytest.fail(
+                    f"JSON structure or values incorrect: {ae}. JSON: {inner_result['agent_result_text']}"
+                )
+
             print("Success assertions passed.")
         else:
             # Unexpected status

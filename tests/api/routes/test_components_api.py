@@ -31,8 +31,14 @@ def test_execute_agent_success(api_client: TestClient):
     # Check for the presence of the expected output structure from Agent execution
     # With a real API key, the LLM call is expected to succeed.
     assert "final_response" in response_data
-    assert response_data["final_response"] is not None  # Expecting a response
-    assert isinstance(response_data["final_response"], str) # Expecting a string response
+    final_response_data = response_data["final_response"]
+    assert final_response_data is not None  # Expecting a response object
+    assert isinstance(
+        final_response_data, dict
+    )  # Expecting a dictionary representing AgentOutputMessage
+    assert final_response_data.get("role") == "assistant"
+    assert "content" in final_response_data
+    assert isinstance(final_response_data["content"], list)
     # Error should be None or not present if the call is successful
     assert response_data.get("error") is None
 
@@ -60,9 +66,11 @@ def test_execute_simple_workflow_success(api_client: TestClient):
     assert response_data["workflow_name"] == workflow_name
     assert "status" in response_data
     # With a real API key, the workflow and its underlying agent calls are expected to succeed.
-    assert response_data["status"] == "completed"  # Or "success" depending on your SimpleWorkflowExecutor
+    assert (
+        response_data["status"] == "completed"
+    )  # Or "success" depending on your SimpleWorkflowExecutor
     assert "final_message" in response_data
-    assert response_data["final_message"] is not None # Expecting a final message
+    assert response_data["final_message"] is not None  # Expecting a final message
     assert isinstance(response_data["final_message"], str)
     # Error should be None or not present if the workflow is successful
     assert response_data.get("error") is None
@@ -91,7 +99,9 @@ def test_execute_custom_workflow_success(api_client: TestClient):
     assert response_data["workflow_name"] == workflow_name
     assert "status" in response_data
     # With a real API key, the custom workflow and its internal agent calls are expected to succeed.
-    assert response_data["status"] == "completed" # Or "success" depending on your CustomWorkflowExecutor
+    assert (
+        response_data["status"] == "completed"
+    )  # Or "success" depending on your CustomWorkflowExecutor
     assert "result" in response_data
     assert response_data["result"] is not None  # Expecting a result
     # Error should be None or not present if the custom workflow is successful
@@ -364,6 +374,7 @@ def test_register_workflow_invalid_agent_name(api_client: TestClient):
 
 # --- Listing Registered Components Endpoint Tests ---
 
+
 def test_list_registered_agents_success(api_client: TestClient):
     """Tests successfully listing registered agents."""
     headers = {"X-API-Key": api_client.test_api_key}
@@ -379,15 +390,18 @@ def test_list_registered_agents_success(api_client: TestClient):
         "Weather Planning Workflow Step 2",
         "Filtering Test Agent",
         "Planning Agent",
-        "Mapping Agent"
+        "Mapping Agent",
     ]
     for agent_name in expected_agents:
         assert agent_name in agent_names
-    assert len(agent_names) >= len(expected_agents) # Could be more if dynamically registered
+    assert len(agent_names) >= len(
+        expected_agents
+    )  # Could be more if dynamically registered
+
 
 def test_list_registered_agents_unauthorized(api_client: TestClient):
     """Tests listing registered agents without API key."""
-    response = api_client.get("/components/agents") # No headers
+    response = api_client.get("/components/agents")  # No headers
     assert response.status_code == 401
 
 
@@ -403,9 +417,10 @@ def test_list_registered_simple_workflows_success(api_client: TestClient):
         assert wf_name in workflow_names
     assert len(workflow_names) >= len(expected_workflows)
 
+
 def test_list_registered_simple_workflows_unauthorized(api_client: TestClient):
     """Tests listing registered simple workflows without API key."""
-    response = api_client.get("/components/workflows") # No headers
+    response = api_client.get("/components/workflows")  # No headers
     assert response.status_code == 401
 
 
@@ -421,10 +436,12 @@ def test_list_registered_custom_workflows_success(api_client: TestClient):
         assert cwf_name in custom_workflow_names
     assert len(custom_workflow_names) >= len(expected_custom_workflows)
 
+
 def test_list_registered_custom_workflows_unauthorized(api_client: TestClient):
     """Tests listing registered custom workflows without API key."""
-    response = api_client.get("/components/custom_workflows") # No headers
+    response = api_client.get("/components/custom_workflows")  # No headers
     assert response.status_code == 401
+
 
 # To test empty lists, we would need a HostManager fixture that loads an empty config
 # or a config with no components of a specific type. For now, these tests assume
