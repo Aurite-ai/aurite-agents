@@ -33,10 +33,8 @@ class TestHostBasicE2E:
         host = host_manager.host
         # The host_manager fixture calls host.initialize() via manager.initialize()
         # We need a way to check if it's considered 'running'.
-        # Let's assume the presence of client processes indicates running state,
-        # or check if a dedicated status method/attribute exists.
-        # Checking _clients dict length after initialize() is a good proxy.
-        assert len(host._clients) > 0, (
+        # Active clients are now managed by ClientManager.
+        assert len(host.client_manager.active_clients) > 0, (
             "Host should have active clients after initialization"
         )
         # If MCPHost had an `is_running` property that's set after initialize(),
@@ -58,7 +56,9 @@ class TestHostBasicE2E:
         """Verify basic list_tools/list_prompts communication via the initialized host."""
         # Use host_manager fixture
         host = host_manager.host
-        assert len(host._clients) > 0, "Host should have active clients"
+        assert len(host.client_manager.active_clients) > 0, (
+            "Host should have active clients"
+        )
 
         logger.info("Testing basic communication (list_tools/list_prompts) via host...")
 
