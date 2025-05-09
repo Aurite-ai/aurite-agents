@@ -19,7 +19,12 @@ from ...host_manager import (
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import config_api, components_api, evaluation_api
+from .routes import (
+    config_api,
+    components_api,
+    evaluation_api,
+    project_api,
+)  # Added project_api
 
 # Import shared dependencies (relative to parent directory - src/bin)
 from ..dependencies import (  # Corrected relative import (up one level from src/bin/api)
@@ -134,6 +139,7 @@ async def get_status(
 app.include_router(config_api.router)
 app.include_router(components_api.router)
 app.include_router(evaluation_api.router)
+app.include_router(project_api.router)  # Added project router
 
 # --- Custom Exception Handlers ---
 # Define handlers before endpoints that might raise these exceptions
