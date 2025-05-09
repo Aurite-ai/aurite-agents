@@ -68,9 +68,11 @@ async def change_project(
             )
 
         await manager.change_project(new_path)
+        active_project = manager.project_manager.get_active_project_config()
+        project_name_for_response = active_project.name if active_project else "Unknown"
         return {
             "status": "success",
-            "message": f"Successfully changed project to {manager.current_project.name if manager.current_project else 'Unknown'}",
+            "message": f"Successfully changed project to {project_name_for_response}",
             "current_project_path": str(manager.config_path),
         }
     except FileNotFoundError as e:

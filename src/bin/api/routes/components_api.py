@@ -199,27 +199,30 @@ async def register_workflow_endpoint(
 
 @router.get("/components/agents", response_model=List[str])
 async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
-    """Lists the names of all currently registered agents."""
-    if not manager or not manager.agent_configs:
+    """Lists the names of all currently registered agents from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if not active_project or not active_project.agent_configs:
         return []
-    return list(manager.agent_configs.keys())
+    return list(active_project.agent_configs.keys())
 
 
 @router.get("/components/workflows", response_model=List[str])
 async def list_registered_simple_workflows(
     manager: HostManager = Depends(get_host_manager),
 ):
-    """Lists the names of all currently registered simple workflows."""
-    if not manager or not manager.workflow_configs:
+    """Lists the names of all currently registered simple workflows from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if not active_project or not active_project.simple_workflow_configs:
         return []
-    return list(manager.workflow_configs.keys())
+    return list(active_project.simple_workflow_configs.keys())
 
 
 @router.get("/components/custom_workflows", response_model=List[str])
 async def list_registered_custom_workflows(
     manager: HostManager = Depends(get_host_manager),
 ):
-    """Lists the names of all currently registered custom workflows."""
-    if not manager or not manager.custom_workflow_configs:
+    """Lists the names of all currently registered custom workflows from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if not active_project or not active_project.custom_workflow_configs:
         return []
-    return list(manager.custom_workflow_configs.keys())
+    return list(active_project.custom_workflow_configs.keys())

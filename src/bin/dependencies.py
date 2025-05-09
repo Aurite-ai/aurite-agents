@@ -11,6 +11,7 @@ from fastapi.security import APIKeyHeader
 from ..config import ServerConfig
 from ..host_manager import HostManager  # Needed for get_host_manager
 from ..config.component_manager import ComponentManager  # Added for new dependency
+from ..config.project_manager import ProjectManager  # Added for new dependency
 
 logger = logging.getLogger(__name__)
 
@@ -110,3 +111,22 @@ async def get_component_manager(
             detail="ComponentManager is not available due to an internal error.",
         )
     return host_manager.component_manager
+
+
+# --- ProjectManager Dependency ---
+async def get_project_manager(
+    host_manager: HostManager = Depends(get_host_manager),
+) -> ProjectManager:
+    """
+    Dependency function to get the ProjectManager instance from the HostManager.
+    """
+    if not host_manager.project_manager:
+        # This case should ideally not happen if HostManager is initialized correctly
+        logger.error(
+            "ProjectManager not found on HostManager instance. This indicates an initialization issue."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="ProjectManager is not available due to an internal error.",
+        )
+    return host_manager.project_manager

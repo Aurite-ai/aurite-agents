@@ -230,9 +230,10 @@ class HostManager:
                         f"Error shutting down host after initialization failure: {shutdown_err}"
                     )
             self.host = None
-            raise RuntimeError(
-                f"Unexpected error during HostManager initialization: {e}"
-            ) from e
+            # Ensure a more specific error message if this generic block is hit
+            detailed_error_msg = f"HostManager.initialize failed in generic exception handler: {type(e).__name__}: {str(e)}"
+            logger.error(detailed_error_msg, exc_info=True)
+            raise RuntimeError(detailed_error_msg) from e
 
     async def shutdown(self):
         """
