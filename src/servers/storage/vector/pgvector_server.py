@@ -133,6 +133,8 @@ def delete(entry_id: int):
         
         deleted_id = cursor.fetchone()
         
+        conn.commit()
+        
         cursor.close()
         conn.close()
         
@@ -147,7 +149,7 @@ def delete(entry_id: int):
         logging.error(f"Error deleting entry: {str(e)}")
         return False
 
-def batch_delete_entries(entry_ids: list[int]) -> dict:
+def batch_delete(entry_ids: list[int]) -> dict:
     """
     Delete multiple entries from the vector database by their IDs
     
@@ -179,6 +181,8 @@ def batch_delete_entries(entry_ids: list[int]) -> dict:
             except Exception as e:
                 logging.error(f"Error deleting entry {entry_id}: {str(e)}")
                 failed_ids.append(entry_id)
+                
+        conn.commit()
                 
         cursor.close()
         conn.close()
@@ -214,10 +218,12 @@ def clear_database(confirmation_code: str = None) -> bool:
         
         # Perform deletion
         cursor.execute("TRUNCATE TABLE text_embeddings;")
-        
+                
         # Verify deletion
         cursor.execute("SELECT COUNT(*) FROM text_embeddings;")
         count_after = cursor.fetchone()[0]
+        
+        conn.commit()
         
         cursor.close()
         conn.close()
@@ -266,7 +272,7 @@ def search(query_text: str, limit: int = 5) -> list[(str, int, float)]:
 
 if __name__ == "__main__":
     # print(batch_store(["The sky is blue today", "The grass is green"]))
-    # print(delete(5))
+    # print(batch_delete([4,5]))
     # print(search("color"))
     
     mcp.run(transport="stdio")
