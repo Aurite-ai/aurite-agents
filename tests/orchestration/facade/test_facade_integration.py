@@ -29,9 +29,12 @@ async def test_facade_run_agent(host_manager: HostManager):
     user_message = "What's the weather in Boston?"
     session_id = f"test_agent_session_{uuid.uuid4()}"  # Generate unique session ID
 
-    assert agent_name in host_manager.agent_configs, (
-        f"'{agent_name}' not found for test setup."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        agent_name in host_manager.project_manager.active_project_config.agent_configs
+    ), f"'{agent_name}' not found for test setup."
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
@@ -119,9 +122,13 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
     workflow_name = "main"  # Correct name from testing_config.json
     initial_message = "Check weather in Chicago and make a plan."
 
-    assert workflow_name in host_manager.workflow_configs, (
-        f"'{workflow_name}' not found for test setup."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        workflow_name
+        in host_manager.project_manager.active_project_config.simple_workflow_configs
+    ), f"'{workflow_name}' not found for test setup."
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
@@ -165,9 +172,13 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     initial_input = {"city": "Tokyo"}
     session_id = f"test_custom_session_{uuid.uuid4()}"  # Generate unique session ID
 
-    assert workflow_name in host_manager.custom_workflow_configs, (
-        f"'{workflow_name}' not found for test setup."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        workflow_name
+        in host_manager.project_manager.active_project_config.custom_workflow_configs
+    ), f"'{workflow_name}' not found for test setup."
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
@@ -261,9 +272,13 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
     agent_name = "NonExistentAgent"
     user_message = "This should fail."
 
-    assert agent_name not in host_manager.agent_configs, (
-        f"'{agent_name}' should not exist for this test."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        agent_name
+        not in host_manager.project_manager.active_project_config.agent_configs
+    ), f"'{agent_name}' should not exist for this test."
 
     try:
         result = await facade.run_agent(
@@ -302,9 +317,13 @@ async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
     workflow_name = "NonExistentSimpleWorkflow"
     initial_input = "This should fail."
 
-    assert workflow_name not in host_manager.workflow_configs, (
-        f"'{workflow_name}' should not exist for this test."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        workflow_name
+        not in host_manager.project_manager.active_project_config.simple_workflow_configs
+    ), f"'{workflow_name}' should not exist for this test."
 
     try:
         result = await facade.run_simple_workflow(
@@ -344,9 +363,13 @@ async def test_facade_run_custom_workflow_not_found(host_manager: HostManager):
     workflow_name = "NonExistentCustomWorkflow"
     initial_input = {"data": "This should fail."}
 
-    assert workflow_name not in host_manager.custom_workflow_configs, (
-        f"'{workflow_name}' should not exist for this test."
+    assert host_manager.project_manager.active_project_config is not None, (
+        "Active project not loaded"
     )
+    assert (
+        workflow_name
+        not in host_manager.project_manager.active_project_config.custom_workflow_configs
+    ), f"'{workflow_name}' should not exist for this test."
 
     try:
         result = await facade.run_custom_workflow(
