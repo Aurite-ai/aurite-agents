@@ -43,46 +43,57 @@ class TestHostManagerInitialization:
         assert host_manager is not None
         assert host_manager.host is not None
         assert isinstance(host_manager.host, MCPHost)
-        assert host_manager.current_project is not None
+
+        active_project = host_manager.project_manager.get_active_project_config()
+        assert active_project is not None
         # Assert based on the name in config/testing_config.json
-        assert host_manager.current_project.name == "DefaultMCPHost"
+        assert active_project.name == "DefaultMCPHost"
 
-        # Check if configs are loaded from config/testing_config.json
-        assert len(host_manager.agent_configs) == EXPECTED_AGENT_COUNT
+        # Check if configs are loaded into the active_project managed by ProjectManager
+        assert len(active_project.agent_configs) == EXPECTED_AGENT_COUNT
         assert all(
-            isinstance(cfg, AgentConfig) for cfg in host_manager.agent_configs.values()
+            isinstance(cfg, AgentConfig)
+            for cfg in active_project.agent_configs.values()
         )
-        assert "Weather Agent" in host_manager.agent_configs  # Check a known agent
-        assert "Planning Agent" in host_manager.agent_configs  # Check another
-
-        assert len(host_manager.llm_configs) == EXPECTED_LLM_CONFIG_COUNT  # Should be 0
-
-        assert len(host_manager.workflow_configs) == EXPECTED_WORKFLOW_COUNT
-        assert all(
-            isinstance(cfg, WorkflowConfig)
-            for cfg in host_manager.workflow_configs.values()
-        )
-        assert "main" in host_manager.workflow_configs  # Check the workflow name
+        assert "Weather Agent" in active_project.agent_configs  # Check a known agent
+        assert "Planning Agent" in active_project.agent_configs  # Check another
 
         assert (
-            len(host_manager.custom_workflow_configs) == EXPECTED_CUSTOM_WORKFLOW_COUNT
+            len(active_project.llm_configs) == EXPECTED_LLM_CONFIG_COUNT
+        )  # Should be 0
+
+        assert len(active_project.simple_workflow_configs) == EXPECTED_WORKFLOW_COUNT
+        assert all(
+            isinstance(cfg, WorkflowConfig)
+            for cfg in active_project.simple_workflow_configs.values()
+        )
+        assert (
+            "main" in active_project.simple_workflow_configs
+        )  # Check the workflow name
+
+        assert (
+            len(active_project.custom_workflow_configs)
+            == EXPECTED_CUSTOM_WORKFLOW_COUNT
         )
         assert all(
             isinstance(cfg, CustomWorkflowConfig)
-            for cfg in host_manager.custom_workflow_configs.values()
+            for cfg in active_project.custom_workflow_configs.values()
         )
         assert (
-            "ExampleCustom" in host_manager.custom_workflow_configs
+            "ExampleCustom" in active_project.custom_workflow_configs
         )  # Check the custom workflow name
 
         # Check if the underlying host seems initialized (e.g., has clients from config)
-        assert host_manager.host._clients is not None
-        assert len(host_manager.host._clients) == EXPECTED_CLIENT_COUNT
+        assert host_manager.host.client_manager.active_clients is not None
         assert (
-            "weather_server" in host_manager.host._clients
+            len(host_manager.host.client_manager.active_clients)
+            == EXPECTED_CLIENT_COUNT
+        )
+        assert (
+            "weather_server" in host_manager.host.client_manager.active_clients
         )  # Check client IDs from config
-        assert "planning_server" in host_manager.host._clients
-        assert "address_server" in host_manager.host._clients
+        assert "planning_server" in host_manager.host.client_manager.active_clients
+        assert "address_server" in host_manager.host.client_manager.active_clients
 
         # Check if tool manager seems populated (via host property)
         # This depends on the servers actually starting and registering tools.
@@ -99,7 +110,7 @@ class TestHostManagerInitialization:
         # Given the mock_project_config_object uses paths like "config/clients/weather_mcp_server.py",
         # these are real server files. If they are functional, tools should be loaded.
         if (
-            len(host_manager.host._clients) > 0
+            len(host_manager.host.client_manager.active_clients) > 0
         ):  # Only check tools if clients were loaded
             assert len(host_manager.host.tools._tools) > 0
             # Example: if weather_mcp_server.py registers 'weather_lookup'

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional  # Added List and Optional
 import json
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel  # Added BaseModel here
 
 # Use relative import for models and the ComponentManager
 from .config_models import (
@@ -12,6 +12,7 @@ from .config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
+    HostConfig,  # Added HostConfig import
 )
 from .component_manager import ComponentManager
 from .config_utils import resolve_path_fields  # Import the utility
@@ -44,6 +45,7 @@ class ProjectManager:
         if not isinstance(component_manager, ComponentManager):
             raise TypeError("component_manager must be an instance of ComponentManager")
         self.component_manager = component_manager
+        self.active_project_config: Optional[ProjectConfig] = None
         logger.info("ProjectManager initialized.")
 
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
@@ -145,6 +147,10 @@ class ProjectManager:
                 custom_workflow_configs=resolved_custom_workflows,
             )
             logger.info(f"Successfully loaded and resolved project '{project_name}'.")
+            self.active_project_config = project_config
+            logger.info(
+                f"Project '{project_config.name}' set as active in ProjectManager."
+            )
             return project_config
         except (
             ValidationError
@@ -164,8 +170,58 @@ class ProjectManager:
                 exc_info=True,
             )
             raise RuntimeError(
-                f"Unexpected error assembling final ProjectConfig for '{project_name}': {e}"
+                f"An unexpected error assembling final ProjectConfig for '{project_name}': {e}"
             ) from e
+
+    def unload_active_project(self):
+        if self.active_project_config:
+            logger.info(
+                f"Unloading active project '{self.active_project_config.name}' from ProjectManager."
+            )
+            self.active_project_config = None
+        else:
+            logger.info("No active project to unload from ProjectManager.")
+
+    def get_active_project_config(self) -> Optional[ProjectConfig]:
+        return self.active_project_config
+
+    def get_host_config_for_active_project(
+        self,
+    ) -> Optional[HostConfig]:  # No longer need quotes, HostConfig is imported
+        if not self.active_project_config:
+            logger.warning(
+                "Cannot get HostConfig: No active project loaded in ProjectManager."
+            )
+            return None
+        return HostConfig(
+            name=self.active_project_config.name,
+            description=self.active_project_config.description,
+            clients=list(self.active_project_config.clients.values()),
+        )
+
+    def add_component_to_active_project(
+        self,
+        component_type_key: str,
+        component_id: str,
+        component_model: BaseModel,  # No longer need quotes
+    ):
+        if not self.active_project_config:
+            logger.error(
+                "Cannot add component: No active project loaded in ProjectManager."
+            )
+            raise RuntimeError("No active project to add component to.")
+
+        target_dict = getattr(self.active_project_config, component_type_key, None)
+        if target_dict is None or not isinstance(target_dict, dict):
+            logger.error(
+                f"Invalid component_type_key '{component_type_key}' for active_project_config."
+            )
+            raise ValueError(f"Invalid component type key: {component_type_key}")
+
+        target_dict[component_id] = component_model
+        logger.info(
+            f"Component '{component_id}' of type '{component_type_key}' added to active project '{self.active_project_config.name}'."
+        )
 
     # --- Private Helper for Resolving ---
     def _resolve_components(

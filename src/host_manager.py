@@ -69,10 +69,6 @@ class HostManager:
         self.host: Optional["MCPHost"] = (
             None  # Forward reference for type hint if MCPHost is imported later
         )
-        self.agent_configs: Dict[str, "AgentConfig"] = {}
-        self.workflow_configs: Dict[str, "WorkflowConfig"] = {}
-        self.custom_workflow_configs: Dict[str, "CustomWorkflowConfig"] = {}
-        self.llm_configs: Dict[str, "LLMConfig"] = {}  # Added for LLM configs
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
         self._db_engine = None  # Store engine if created
@@ -81,7 +77,6 @@ class HostManager:
         self.project_manager = ProjectManager(
             self.component_manager
         )  # Pass component manager
-        self.current_project: Optional[ProjectConfig] = None  # To store loaded project
 
         # Instantiate StorageManager if DB is enabled
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
@@ -129,75 +124,74 @@ class HostManager:
         try:
             # 1. Load Project Configuration using ProjectManager
             logger.debug(f"Loading project configuration from {self.config_path}...")
-            self.current_project = self.project_manager.load_project(self.config_path)
-            # load_project raises FileNotFoundError or RuntimeError on failure
-            logger.info(f"Project '{self.current_project.name}' loaded successfully.")
+            # load_project now sets active_project_config in project_manager
+            self.project_manager.load_project(self.config_path)
+            active_project = self.project_manager.get_active_project_config()
+            if not active_project:  # Ensure active_project is not None
+                raise RuntimeError(
+                    f"Failed to load project '{self.config_path}' into ProjectManager."
+                )
+            logger.info(
+                f"Project '{active_project.name}' loaded successfully and set as active."
+            )
 
-            # Store component configs from the loaded project directly onto the manager
-            self.agent_configs = self.current_project.agent_configs
-            self.workflow_configs = self.current_project.simple_workflow_configs
-            self.custom_workflow_configs = self.current_project.custom_workflow_configs
-            self.llm_configs = self.current_project.llm_configs
+            # Configs are now accessed via project_manager.get_active_project_config()
             logger.debug(
-                f"Stored {len(self.agent_configs)} agents, {len(self.llm_configs)} LLMs, "
-                f"{len(self.workflow_configs)} simple workflows, "
-                f"{len(self.custom_workflow_configs)} custom workflows from project."
+                f"Active project '{active_project.name}' has {len(active_project.agent_configs)} agents, "
+                f"{len(active_project.llm_configs)} LLMs, "
+                f"{len(active_project.simple_workflow_configs)} simple workflows, "
+                f"{len(active_project.custom_workflow_configs)} custom workflows."
             )
 
             # 1.5 Initialize DB Schema if storage manager exists
             if self.storage_manager:
-                self.storage_manager.init_db()  # Synchronous call for schema creation
+                self.storage_manager.init_db()
 
-            # 2. Construct HostConfig for MCPHost from ProjectConfig
-            # Import HostConfig model if not already imported at top
-            from .config.config_models import HostConfig  # Keep this import here
-
-            logger.debug("Constructing HostConfig for MCPHost...")
-            host_config_for_mcphost = HostConfig(
-                name=self.current_project.name,  # Use name from loaded project
-                description=self.current_project.description,  # Use description from loaded project
-                clients=list(
-                    self.current_project.clients.values()
-                ),  # MCPHost expects a list of ClientConfig objects
+            # 2. Construct HostConfig for MCPHost from ProjectManager
+            host_config_for_mcphost = (
+                self.project_manager.get_host_config_for_active_project()
             )
-            logger.debug("HostConfig constructed.")
+            if not host_config_for_mcphost:  # Ensure host_config is not None
+                raise RuntimeError(
+                    "Failed to get HostConfig from ProjectManager for active project."
+                )
+            logger.debug("HostConfig constructed for MCPHost.")
 
             # Instantiate MCPHost
             logger.debug("Instantiating MCPHost...")
-            self.host = MCPHost(
-                config=host_config_for_mcphost,  # Use constructed HostConfig
-                agent_configs=self.agent_configs,  # Still pass this for now, MCPHost might use it internally
-                # Removed workflow_configs argument as MCPHost doesn't need it directly
-                # encryption_key could be passed from a secure source if needed
-            )
+            self.host = MCPHost(config=host_config_for_mcphost)
             logger.debug("MCPHost instance created.")
 
-            # 3. Initialize MCPHost (connects to clients, etc.)
+            # 3. Initialize MCPHost
             logger.debug("Initializing MCPHost (connecting clients)...")
             await self.host.initialize()
             logger.info("MCPHost initialized successfully.")
 
             # 2.5 Sync initial configs to DB if storage manager exists
-            if self.storage_manager:
+            if (
+                self.storage_manager and active_project
+            ):  # Ensure active_project for safety
                 logger.debug("Syncing loaded configurations to database...")
-                # Assuming sync_all_configs is synchronous for now
-                # If it becomes async, add await here.
                 self.storage_manager.sync_all_configs(
-                    agents=self.agent_configs,
-                    workflows=self.workflow_configs,
-                    custom_workflows=self.custom_workflow_configs,
-                    llm_configs=self.llm_configs,  # Pass LLM configs to sync
+                    agents=active_project.agent_configs,
+                    workflows=active_project.simple_workflow_configs,
+                    custom_workflows=active_project.custom_workflow_configs,
+                    llm_configs=active_project.llm_configs,
                 )
                 logger.debug("Database sync complete.")
 
-            # Old Step 3 (Load additional configs) is removed as project loading handles all necessary configs now.
-            # Old private registration helpers (_register_clients_from_config etc.) are no longer needed here.
-
-            # 4. Instantiate ExecutionFacade, passing self (the manager) and storage_manager
+            # 4. Instantiate ExecutionFacade
             logger.debug("Instantiating ExecutionFacade...")
+            if (
+                not self.host or not active_project
+            ):  # Ensure host and active_project are not None
+                raise RuntimeError(
+                    "Cannot instantiate ExecutionFacade: Host or active_project is not initialized."
+                )
             self.execution = ExecutionFacade(
-                host_manager=self,
-                storage_manager=self.storage_manager,  # Pass storage manager
+                host_instance=self.host,
+                current_project=active_project,
+                storage_manager=self.storage_manager,
             )
 
             logger.info(
@@ -250,19 +244,49 @@ class HostManager:
                 await self.host.shutdown()
                 logger.info("Managed MCPHost shutdown successfully.")
             except Exception as e:
-                logger.error(
-                    f"Error during managed MCPHost shutdown: {e}", exc_info=True
-                )
-                # Decide if we should re-raise or just log the error
+                # Check for known anyio issues, which might be wrapped in an ExceptionGroup
+                actual_exception_to_check = e
+                # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
+                # and if the first exception is a RuntimeError
+                if (
+                    hasattr(e, "exceptions")
+                    and isinstance(e.exceptions, list)
+                    and len(e.exceptions) > 0
+                    and isinstance(e.exceptions[0], RuntimeError)
+                ):
+                    actual_exception_to_check = e.exceptions[0]
+
+                is_known_anyio_issue = False
+                if isinstance(actual_exception_to_check, RuntimeError):
+                    exc_str = str(actual_exception_to_check).lower()
+                    if (
+                        "attempted to exit cancel scope" in exc_str
+                        or "event loop is closed" in exc_str
+                        or "cannot run shutdown() while loop is stopping" in exc_str
+                    ):
+                        is_known_anyio_issue = True
+
+                if is_known_anyio_issue:
+                    # Log the specific RuntimeError and the original exception type if it was a group
+                    original_exc_type_name = type(e).__name__
+                    logger.warning(
+                        f"Known anyio issue during MCPHost shutdown (Original: {original_exc_type_name}): {actual_exception_to_check}"
+                    )
+                else:
+                    # Log the original exception 'e' if it's not the specific anyio issue we're handling gently
+                    logger.error(
+                        f"Error during managed MCPHost shutdown: {e}", exc_info=True
+                    )
+                    # Decide if we should re-raise or just log the error for other exceptions
         else:
             logger.info("No active MCPHost instance to shut down.")
 
         # Clear internal state regardless of shutdown success/failure
         self.host = None
-        self.agent_configs.clear()
-        self.workflow_configs.clear()
-        self.custom_workflow_configs.clear()
-        self.llm_configs.clear()  # Clear LLM configs
+        # self.agent_configs.clear() # Removed
+        # self.workflow_configs.clear() # Removed
+        # self.custom_workflow_configs.clear() # Removed
+        # self.llm_configs.clear()  # Removed
         # Dispose the engine if it was created
         if self._db_engine:
             try:
@@ -286,20 +310,53 @@ class HostManager:
                 await self.host.shutdown()
                 logger.info("Managed MCPHost shutdown successfully during unload.")
             except Exception as e:
-                logger.error(
-                    f"Error during managed MCPHost shutdown on unload: {e}",
-                    exc_info=True,
-                )
+                # Check for known anyio issues, which might be wrapped in an ExceptionGroup
+                actual_exception_to_check = e
+                # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
+                # and if the first exception is a RuntimeError
+                if (
+                    hasattr(e, "exceptions")
+                    and isinstance(e.exceptions, list)
+                    and len(e.exceptions) > 0
+                    and isinstance(e.exceptions[0], RuntimeError)
+                ):
+                    actual_exception_to_check = e.exceptions[0]
+
+                is_known_anyio_issue = False
+                if isinstance(actual_exception_to_check, RuntimeError):
+                    exc_str = str(actual_exception_to_check).lower()
+                    if (
+                        "attempted to exit cancel scope" in exc_str
+                        or "event loop is closed" in exc_str
+                        or "cannot run shutdown() while loop is stopping" in exc_str
+                    ):
+                        is_known_anyio_issue = True
+
+                if is_known_anyio_issue:
+                    # Log the specific RuntimeError and the original exception type if it was a group
+                    original_exc_type_name = type(e).__name__
+                    logger.warning(
+                        f"Known anyio issue during MCPHost shutdown on unload (Original: {original_exc_type_name}): {actual_exception_to_check}"
+                    )
+                else:
+                    # Log the original exception 'e' if it's not the specific anyio issue we're handling gently
+                    logger.error(
+                        f"Error during managed MCPHost shutdown on unload: {e}",
+                        exc_info=True,
+                    )
+                    # For unload, we generally prefer to continue to clear state, so we don't re-raise here.
         else:
             logger.info("No active MCPHost instance to shut down during unload.")
 
         # Clear internal state related to the project
         self.host = None
-        self.current_project = None
-        self.agent_configs.clear()
-        self.workflow_configs.clear()
-        self.custom_workflow_configs.clear()
-        self.llm_configs.clear()
+        # self.current_project = None # Removed, project_manager handles active project state
+        if self.project_manager:  # Ensure project_manager exists
+            self.project_manager.unload_active_project()
+        self.execution = None  # Clear the facade instance
+
+        # The old dictionaries like self.agent_configs are already removed from the class.
+        # Their state was tied to self.current_project which is now managed by ProjectManager.
         # Note: We keep the ComponentManager and ProjectManager instances,
         # as they manage the available components and project loading logic,
         # which might be needed for the next project.
@@ -348,9 +405,12 @@ class HostManager:
 
     # --- Registration Methods ---
 
-    async def register_client(self, client_config: "ClientConfig"):
+    async def register_client(
+        self, client_config: ClientConfig
+    ):  # Removed quotes from type hint
         """
         Dynamically registers and initializes a new MCP client.
+        Updates the active project configuration upon successful registration.
 
         Args:
             client_config: The configuration for the client to register.
@@ -359,16 +419,28 @@ class HostManager:
             ValueError: If the HostManager is not initialized, or if the client ID already exists.
             Exception: Propagates exceptions from the underlying MCPHost client initialization.
         """
-        logger.debug(  # INFO -> DEBUG
+        logger.debug(
             f"Attempting to dynamically register client: {client_config.client_id}"
         )
         if not self.host:
             logger.error("HostManager is not initialized. Cannot register client.")
             raise ValueError("HostManager is not initialized.")
 
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register client: No active project loaded.")
+            raise RuntimeError("No active project loaded to register client against.")
+
         # Check for duplicate client ID using the host's method
         if self.host.is_client_registered(client_config.client_id):
-            logger.error(f"Client ID '{client_config.client_id}' already registered.")
+            logger.error(
+                f"Client ID '{client_config.client_id}' already registered with host."
+            )
+            # Also check if it's in the project config, though host check is primary for runtime
+            if client_config.client_id in active_project.clients:
+                logger.warning(
+                    f"Client ID '{client_config.client_id}' also found in active project config."
+                )
             raise ValueError(
                 f"Client ID '{client_config.client_id}' already registered."
             )
@@ -376,16 +448,22 @@ class HostManager:
         try:
             # Delegate to MCPHost to handle the actual initialization and lifecycle management
             await self.host.register_client(client_config)
-            logger.info(f"Client '{client_config.client_id}' registered successfully.")
+            # If successful, add to the active project's configuration
+            self.project_manager.add_component_to_active_project(
+                "clients", client_config.client_id, client_config
+            )
+            logger.info(
+                f"Client '{client_config.client_id}' registered successfully with host and active project."
+            )
         except Exception as e:
             logger.error(
-                f"Failed to register client '{client_config.client_id}': {e}",
+                f"Failed to register client '{client_config.client_id}' with host: {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (e.g., API endpoint) to handle
             raise
 
-    async def register_agent(self, agent_config: "AgentConfig"):
+    async def register_agent(self, agent_config: AgentConfig):  # Removed quotes
         """
         Dynamically registers a new Agent configuration.
 
@@ -403,45 +481,67 @@ class HostManager:
             logger.error("HostManager is not initialized. Cannot register agent.")
             raise ValueError("HostManager is not initialized.")
 
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register agent: No active project loaded.")
+            raise RuntimeError("No active project loaded to register agent against.")
+
         # Ensure agent has a name before registering
         if not agent_config.name:
             logger.error("Attempted to register an agent config with no name.")
             raise ValueError("Agent configuration must have a 'name'.")
 
-        if agent_config.name in self.agent_configs:
-            logger.error(f"Agent name '{agent_config.name}' already registered.")
+        if agent_config.name in active_project.agent_configs:
+            logger.error(
+                f"Agent name '{agent_config.name}' already registered in active project."
+            )
             raise ValueError(f"Agent name '{agent_config.name}' already registered.")
 
-        # Validate client_ids exist using the new host method
+        # Validate client_ids exist using the host's method
         if agent_config.client_ids:
             for client_id in agent_config.client_ids:
-                # Use the new public method on the host instance
                 if not self.host.is_client_registered(client_id):
                     logger.error(
-                        f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found."
+                        f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in active host clients."
                     )
                     raise ValueError(
                         f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
                     )
 
-        # Add the agent config to memory
-        self.agent_configs[agent_config.name] = agent_config
-        logger.info(f"Agent '{agent_config.name}' registered successfully (in memory).")
+        # Validate llm_config_id if present
+        if agent_config.llm_config_id:
+            if (
+                not active_project.llm_configs
+                or agent_config.llm_config_id not in active_project.llm_configs
+            ):
+                logger.error(
+                    f"LLMConfig ID '{agent_config.llm_config_id}' specified in agent '{agent_config.name}' not found in active project."
+                )
+                raise ValueError(
+                    f"LLMConfig ID '{agent_config.llm_config_id}' not found for agent '{agent_config.name}'."
+                )
+
+        # Add the agent config to the active project
+        self.project_manager.add_component_to_active_project(
+            "agent_configs", agent_config.name, agent_config
+        )
+        # Note: self.agent_configs attribute is removed, direct update to project_manager's state.
+        logger.info(
+            f"Agent '{agent_config.name}' registered successfully in active project."
+        )
 
         # Sync to DB if enabled
         if self.storage_manager:
             try:
-                # Assuming sync_agent_config is synchronous
                 self.storage_manager.sync_agent_config(agent_config)
                 logger.info(f"Agent '{agent_config.name}' synced to database.")
             except Exception as e:
-                # Log error but don't fail registration, as it's in memory
                 logger.error(
                     f"Failed to sync agent '{agent_config.name}' to database: {e}",
                     exc_info=True,
                 )
 
-    async def register_llm_config(self, llm_config: "LLMConfig"):
+    async def register_llm_config(self, llm_config: LLMConfig):
         """
         Dynamically registers a new LLM configuration.
 
@@ -450,6 +550,7 @@ class HostManager:
 
         Raises:
             ValueError: If the HostManager is not initialized or the llm_id already exists.
+            RuntimeError: If no active project is loaded.
         """
         logger.debug(
             f"Attempting to dynamically register LLM config: {llm_config.llm_id}"
@@ -458,22 +559,31 @@ class HostManager:
             logger.error("HostManager is not initialized. Cannot register LLM config.")
             raise ValueError("HostManager is not initialized.")
 
-        if llm_config.llm_id in self.llm_configs:
-            logger.error(f"LLM config ID '{llm_config.llm_id}' already registered.")
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register LLM config: No active project loaded.")
+            raise RuntimeError(
+                "No active project loaded to register LLM config against."
+            )
+
+        if llm_config.llm_id in active_project.llm_configs:
+            logger.error(
+                f"LLM config ID '{llm_config.llm_id}' already registered in active project."
+            )
             raise ValueError(f"LLM config ID '{llm_config.llm_id}' already registered.")
 
-        # Add the LLM config to memory
-        self.llm_configs[llm_config.llm_id] = llm_config
+        # Add the LLM config to the active project
+        self.project_manager.add_component_to_active_project(
+            "llm_configs", llm_config.llm_id, llm_config
+        )
         logger.info(
-            f"LLM config '{llm_config.llm_id}' registered successfully (in memory)."
+            f"LLM config '{llm_config.llm_id}' registered successfully in active project."
         )
 
         # Sync to DB if enabled
         if self.storage_manager:
             try:
-                self.storage_manager.sync_llm_config(
-                    llm_config
-                )  # Assumes method exists
+                self.storage_manager.sync_llm_config(llm_config)
                 logger.info(f"LLM config '{llm_config.llm_id}' synced to database.")
             except Exception as e:
                 logger.error(
@@ -481,7 +591,9 @@ class HostManager:
                     exc_info=True,
                 )
 
-    async def register_workflow(self, workflow_config: "WorkflowConfig"):
+    async def register_workflow(
+        self, workflow_config: WorkflowConfig
+    ):  # Removed quotes
         """
         Dynamically registers a new simple Workflow configuration.
 
@@ -499,33 +611,40 @@ class HostManager:
             logger.error("HostManager is not initialized. Cannot register workflow.")
             raise ValueError("HostManager is not initialized.")
 
-        if workflow_config.name in self.workflow_configs:
-            logger.error(f"Workflow name '{workflow_config.name}' already registered.")
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register workflow: No active project loaded.")
+            raise RuntimeError("No active project loaded to register workflow against.")
+
+        if workflow_config.name in active_project.simple_workflow_configs:
+            logger.error(
+                f"Workflow name '{workflow_config.name}' already registered in active project."
+            )
             raise ValueError(
                 f"Workflow name '{workflow_config.name}' already registered."
             )
 
-        # Validate agent names in steps exist
+        # Validate agent names in steps exist in the active project's agent_configs
         if workflow_config.steps:
             for agent_name in workflow_config.steps:
-                if agent_name not in self.agent_configs:
+                if agent_name not in active_project.agent_configs:
                     logger.error(
-                        f"Agent name '{agent_name}' in workflow '{workflow_config.name}' steps not found."
+                        f"Agent name '{agent_name}' in workflow '{workflow_config.name}' steps not found in active project."
                     )
                     raise ValueError(
                         f"Agent '{agent_name}' not found for workflow '{workflow_config.name}'."
                     )
 
-        # Add the workflow config to memory
-        self.workflow_configs[workflow_config.name] = workflow_config
+        self.project_manager.add_component_to_active_project(
+            "simple_workflow_configs", workflow_config.name, workflow_config
+        )
         logger.info(
-            f"Workflow '{workflow_config.name}' registered successfully (in memory)."
+            f"Workflow '{workflow_config.name}' registered successfully in active project."
         )
 
         # Sync to DB if enabled
         if self.storage_manager:
             try:
-                # Assuming sync_workflow_config is synchronous
                 self.storage_manager.sync_workflow_config(workflow_config)
                 logger.info(f"Workflow '{workflow_config.name}' synced to database.")
             except Exception as e:
@@ -535,7 +654,8 @@ class HostManager:
                 )
 
     async def register_custom_workflow(
-        self, custom_workflow_config: "CustomWorkflowConfig"
+        self,
+        custom_workflow_config: CustomWorkflowConfig,  # Removed quotes
     ):
         """
         Dynamically registers a new custom Workflow configuration.
@@ -556,9 +676,16 @@ class HostManager:
             )
             raise ValueError("HostManager is not initialized.")
 
-        if custom_workflow_config.name in self.custom_workflow_configs:
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register custom workflow: No active project loaded.")
+            raise RuntimeError(
+                "No active project loaded to register custom workflow against."
+            )
+
+        if custom_workflow_config.name in active_project.custom_workflow_configs:
             logger.error(
-                f"Custom Workflow name '{custom_workflow_config.name}' already registered."
+                f"Custom Workflow name '{custom_workflow_config.name}' already registered in active project."
             )
             raise ValueError(
                 f"Custom Workflow name '{custom_workflow_config.name}' already registered."
@@ -575,18 +702,19 @@ class HostManager:
             logger.error(f"Custom workflow module file not found: {module_path}")
             raise ValueError(f"Custom workflow module file not found: {module_path}")
 
-        # Add the workflow config to memory
-        self.custom_workflow_configs[custom_workflow_config.name] = (
-            custom_workflow_config
+        # Add the workflow config to the active project
+        self.project_manager.add_component_to_active_project(
+            "custom_workflow_configs",
+            custom_workflow_config.name,
+            custom_workflow_config,
         )
         logger.info(
-            f"Custom Workflow '{custom_workflow_config.name}' registered successfully (in memory)."
+            f"Custom Workflow '{custom_workflow_config.name}' registered successfully in active project."
         )
 
         # Sync to DB if enabled
         if self.storage_manager:
             try:
-                # Assuming sync_custom_workflow_config is synchronous
                 self.storage_manager.sync_custom_workflow_config(custom_workflow_config)
                 logger.info(
                     f"Custom Workflow '{custom_workflow_config.name}' synced to database."
@@ -600,12 +728,18 @@ class HostManager:
     # --- Configuration Access Methods ---
 
     def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
-        """Retrieves the configuration for a specific agent by name."""
-        return self.agent_configs.get(agent_name)
+        """Retrieves the configuration for a specific agent by name from the active project."""
+        active_project = self.project_manager.get_active_project_config()
+        if active_project and active_project.agent_configs:
+            return active_project.agent_configs.get(agent_name)
+        return None
 
     def get_llm_config(self, llm_config_id: str) -> Optional[LLMConfig]:
-        """Retrieves the configuration for a specific LLM config by ID."""
-        return self.llm_configs.get(llm_config_id)
+        """Retrieves the configuration for a specific LLM config by ID from the active project."""
+        active_project = self.project_manager.get_active_project_config()
+        if active_project and active_project.llm_configs:
+            return active_project.llm_configs.get(llm_config_id)
+        return None
 
     # Add getters for workflow_configs and custom_workflow_configs if needed later
 

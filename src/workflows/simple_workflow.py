@@ -25,33 +25,35 @@ class SimpleWorkflowExecutor:
     def __init__(
         self,
         config: WorkflowConfig,
-        agent_configs: Dict[str, AgentConfig],
-        host_instance: MCPHost,
-        llm_client: "BaseLLM",
-        facade: "ExecutionFacade",  # Added facade parameter
+        agent_configs: Dict[
+            str, AgentConfig
+        ],  # This is passed by Facade from current_project
+        facade: "ExecutionFacade",
     ):
         """
         Initializes the SimpleWorkflowExecutor.
 
         Args:
             config: The configuration for the specific workflow to execute.
-            agent_configs: A dictionary containing all available agent configurations,
-                           keyed by agent name. Needed to look up configs for steps.
-            host_instance: The initialized MCPHost instance.
-            facade: The ExecutionFacade instance.
+            agent_configs: A dictionary containing all available agent configurations
+                           from the current project, keyed by agent name.
+                           (Used by the facade when it runs agents for this workflow).
+            facade: The ExecutionFacade instance, used to run agents.
         """
         if not isinstance(config, WorkflowConfig):
             raise TypeError("config must be an instance of WorkflowConfig")
         if not isinstance(agent_configs, dict):
             raise TypeError("agent_configs must be a dictionary")
-        if not isinstance(host_instance, MCPHost):
-            raise TypeError("host_instance must be an instance of MCPHost")
+        if not facade:
+            raise ValueError("ExecutionFacade instance is required.")
 
         self.config = config
+        # _agent_configs is not strictly needed by SimpleWorkflowExecutor itself if facade handles agent lookup,
+        # but keeping it for now as it was passed by the updated facade.
+        # If facade.run_agent can fully resolve agents using its own _current_project.agent_configs,
+        # this could potentially be removed too. For now, it's harmless.
         self._agent_configs = agent_configs
-        self._host = host_instance
-        self._llm_client = llm_client
-        self.facade = facade  # Store facade instance
+        self.facade = facade
         logger.debug(
             f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}"
         )
@@ -68,17 +70,7 @@ class SimpleWorkflowExecutor:
             and any error message encountered.
         """
         workflow_name = self.config.name
-        logger.info(f"Executing simple workflow: {workflow_name}")  # Keep start as INFO
-
-        if not self._host:
-            # This check might be redundant if __init__ validates, but good practice
-            logger.error(
-                f"MCPHost instance not available for workflow '{workflow_name}'."
-            )
-            # Should ideally not happen if initialized correctly
-            raise RuntimeError(
-                f"MCPHost instance not available for workflow '{workflow_name}'."
-            )
+        logger.info(f"Executing simple workflow: {workflow_name}")
 
         current_message = initial_input
         final_status = "failed"  # Default status

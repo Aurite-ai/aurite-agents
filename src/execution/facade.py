@@ -30,7 +30,10 @@ if TYPE_CHECKING:
     from ..config.config_models import (
         AgentConfig,
         LLMConfig,
-    )  # Updated import path, added LLMConfig
+        ProjectConfig,  # Added ProjectConfig for type hint
+        WorkflowConfig,  # Added for SimpleWorkflowExecutor setup
+        CustomWorkflowConfig,  # Added for CustomWorkflowExecutor setup
+    )
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
@@ -67,27 +70,28 @@ class ExecutionFacade:
 
     def __init__(
         self,
-        host_manager: "HostManager",
+        host_instance: "MCPHost",
+        current_project: "ProjectConfig",  # Add ProjectConfig type hint
         storage_manager: Optional["StorageManager"] = None,
     ):
         """
         Initializes the ExecutionFacade.
 
         Args:
-            host_manager: The initialized HostManager instance containing
-                          configurations and the MCPHost instance.
+            host_instance: The initialized and active MCPHost instance.
+            current_project: The currently loaded and resolved ProjectConfig object.
             storage_manager: An optional initialized StorageManager instance for persistence.
         """
-        if not host_manager:
-            raise ValueError("HostManager instance is required.")
-        if not host_manager.host:
-            raise ValueError("HostManager must be initialized with an active MCPHost.")
+        if not host_instance:
+            raise ValueError("MCPHost instance is required for ExecutionFacade.")
+        if not current_project:  # Check current_project directly
+            raise ValueError("Current ProjectConfig is required for ExecutionFacade.")
 
-        self._manager = host_manager
-        self._host: "MCPHost" = host_manager.host
-        self._storage_manager = storage_manager  # Store storage manager instance
+        self._host = host_instance
+        self._current_project = current_project
+        self._storage_manager = storage_manager
         logger.debug(
-            f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'})."
+            f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
         )
 
     # --- Private Execution Helper ---
@@ -221,10 +225,20 @@ class ExecutionFacade:
 
         try:
             # 1. Get Agent Configuration
-            agent_config = self._manager.agent_configs.get(agent_name)
+            if (
+                not self._current_project.agent_configs
+            ):  # Should not happen if ProjectConfig is valid
+                raise KeyError(
+                    f"Agent configurations not found in current project for agent '{agent_name}'."
+                )
+            agent_config = self._current_project.agent_configs.get(agent_name)
             if not agent_config:
-                raise KeyError(f"Agent configuration '{agent_name}' not found.")
-            logger.debug(f"Facade: Found AgentConfig for '{agent_name}'")
+                raise KeyError(
+                    f"Agent configuration '{agent_name}' not found in current project."
+                )
+            logger.debug(
+                f"Facade: Found AgentConfig for '{agent_name}' in project '{self._current_project.name}'."
+            )
 
             # 2. Resolve LLM Parameters
             effective_model_name: Optional[str] = None
@@ -239,9 +253,14 @@ class ExecutionFacade:
 
             # 2.a. LLMConfig Lookup (Base values)
             if agent_config.llm_config_id:
-                llm_config_for_override_obj = self._manager.llm_configs.get(
-                    agent_config.llm_config_id
-                )  # Store the object
+                if not self._current_project.llm_configs:  # Should not happen
+                    logger.warning(
+                        f"LLM configurations not found in current project for agent '{agent_name}'."
+                    )
+                else:
+                    llm_config_for_override_obj = self._current_project.llm_configs.get(
+                        agent_config.llm_config_id
+                    )  # Store the object
                 if llm_config_for_override_obj:
                     logger.debug(
                         f"Facade: Applying base LLMConfig '{agent_config.llm_config_id}' for agent '{agent_name}'."
@@ -431,19 +450,15 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Simple Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._manager.workflow_configs[name],
-            # Pass storage_manager to SimpleWorkflowExecutor if it needs it (currently doesn't)
-            # Pass storage_manager to SimpleWorkflowExecutor if it needs it (currently doesn't)
-            # TODO: Resolve LLM client properly instead of using default Anthropic
-            executor_setup=lambda config: SimpleWorkflowExecutor(
-                config=config,
-                agent_configs=self._manager.agent_configs,
-                host_instance=self._host,
-                llm_client=AnthropicLLM(  # TODO: Resolve LLM client properly
-                    model_name="claude-3-haiku-20240307"
-                ),
-                facade=self,  # Pass the facade instance
-                # storage_manager=self._storage_manager # Add if needed later for workflow history
+            config_lookup=lambda name: self._current_project.simple_workflow_configs.get(
+                name
+            ),
+            executor_setup=lambda wf_config: SimpleWorkflowExecutor(
+                config=wf_config,
+                agent_configs=self._current_project.agent_configs,  # Pass from facade's current_project
+                # host_instance=self._host, # To be removed from SimpleWorkflowExecutor
+                # llm_client=AnthropicLLM(model_name="claude-3-haiku-20240307"), # To be removed
+                facade=self,
             ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
             error_structure_factory=error_factory,
@@ -463,11 +478,11 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Custom Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._manager.custom_workflow_configs[name],
-            # Pass storage_manager to CustomWorkflowExecutor if it needs it
-            executor_setup=lambda config: CustomWorkflowExecutor(
-                config=config,
-                # storage_manager=self._storage_manager # Add if needed later
+            config_lookup=lambda name: self._current_project.custom_workflow_configs.get(
+                name
+            ),
+            executor_setup=lambda wf_config: CustomWorkflowExecutor(
+                config=wf_config,
             ),
             execution_func=lambda instance, **kwargs: instance.execute(**kwargs),
             error_structure_factory=error_factory,

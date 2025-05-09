@@ -51,7 +51,7 @@ class MCPHost:
     def __init__(
         self,
         config: HostConfig,
-        agent_configs: Optional[Dict[str, AgentConfig]] = None,
+        # agent_configs: Optional[Dict[str, AgentConfig]] = None, # Removed
         # Removed workflow_configs parameter
         # Removed custom_workflow_configs parameter
         encryption_key: Optional[str] = None,
@@ -79,7 +79,7 @@ class MCPHost:
 
         # State management
         self._config = config
-        self._agent_configs = agent_configs or {}
+        # self._agent_configs = agent_configs or {} # Removed
         # Removed self._workflow_configs initialization
         # Removed self._custom_workflow_configs initialization
         # self._clients: Dict[str, ClientSession] = {} # Removed, managed by ClientManager
@@ -379,24 +379,7 @@ class MCPHost:
             )
             return None
 
-    def get_agent_config(self, agent_name: str) -> AgentConfig:
-        """
-        Retrieves the configuration for a specific agent by name.
-
-        Args:
-            agent_name: The name of the agent whose configuration is needed.
-
-        Returns:
-            The AgentConfig object for the specified agent.
-
-        Raises:
-            KeyError: If no agent with the given name is found.
-        """
-        if agent_name not in self._agent_configs:
-            logger.error(f"Agent configuration not found for name: {agent_name}")
-            raise KeyError(f"Agent configuration not found for name: {agent_name}")
-        return self._agent_configs[agent_name]
-
+    # Removed get_agent_config method
     # Removed get_workflow_config method
     # Removed get_custom_workflow_config method
     # Removed execute_custom_workflow method
@@ -739,8 +722,7 @@ class MCPHost:
         logger.info("Closing main AsyncExitStack...")
         await self._exit_stack.aclose()
 
-        # Clear stored agent configs
-        self._agent_configs.clear()
+        # self._agent_configs.clear() # Removed, as _agent_configs is removed
         # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 

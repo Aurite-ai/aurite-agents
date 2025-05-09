@@ -12,8 +12,10 @@ from src.config.config_models import (
     LLMConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
-    RootConfig,  # Added RootConfig for ClientConfig instantiation
+    HostConfig,  # Added for new tests
+    RootConfig,
 )
+from pydantic import BaseModel  # Added for new tests
 from src.config import PROJECT_ROOT_DIR
 
 # Fixtures from tests.fixtures.config_fixtures
@@ -34,7 +36,6 @@ def mock_component_manager() -> MagicMock:
     mock_cm = MagicMock(spec=ComponentManager)
 
     client1_data = VALID_CLIENT_CONFIG_DATA_MINIMAL.copy()
-    # Ensure 'roots' is present for ClientConfig instantiation
     client1_data.setdefault("roots", [])
     client1_model = ClientConfig(**client1_data)
 
@@ -212,74 +213,6 @@ def test_new_create_project_file_overwrite_success(
     assert len(data_on_disk["llm_configs"]) == 1
 
 
-# --- Old tests for create_project_file (now adapted or to be removed) ---
-# The old tests are being removed as their functionality is covered by the new tests
-# and the method signature has changed significantly.
-
-# def test_create_project_file_success(project_manager: ProjectManager, tmp_path: Path):
-#     """Test successful creation of a project file."""
-#     project_file_path = tmp_path / "test_project.json"
-#     project_name = "MyTestProject"
-#     project_description = "A test."
-#     # Expected content after ProjectConfig model serializes with defaults for empty lists
-#     expected_content_on_disk = {
-#         "name": project_name,
-#         "description": project_description,
-#         "clients": {},
-#         "llm_configs": {},
-#         "agent_configs": {},
-#         "simple_workflow_configs": {},
-#         "custom_workflow_configs": {}
-#     }
-
-#     created_config = project_manager.create_project_file(
-#         project_name=project_name,
-#         project_file_path=project_file_path,
-#         project_description=project_description
-#     )
-#     assert isinstance(created_config, ProjectConfig)
-#     assert created_config.name == project_name
-#     assert project_file_path.is_file()
-#     with open(project_file_path, "r") as f:
-#         data_on_disk = json.load(f)
-#     assert data_on_disk == expected_content_on_disk
-
-# def test_create_project_file_already_exists_error(
-#     project_manager: ProjectManager, tmp_path: Path
-# ):
-#     """Test FileExistsError when creating a project file that already exists."""
-#     project_file_path = tmp_path / "test_project_exists.json"
-#     project_name = "MyExistingProject"
-
-#     project_manager.create_project_file(project_name=project_name, project_file_path=project_file_path)  # Create first time
-
-#     with pytest.raises(FileExistsError):
-#         project_manager.create_project_file(project_name=project_name, project_file_path=project_file_path, overwrite=False)
-
-
-# def test_create_project_file_overwrite_success(
-#     project_manager: ProjectManager, tmp_path: Path
-# ):
-#     """Test overwriting an existing project file successfully."""
-#     project_file_path = tmp_path / "test_project_overwrite.json"
-#     initial_name = "InitialProject"
-#     initial_desc = "Initial Version"
-
-#     project_manager.create_project_file(project_name=initial_name, project_file_path=project_file_path, project_description=initial_desc)
-
-#     updated_name = "UpdatedProject"
-#     updated_desc = "Version 2"
-#     updated_config = project_manager.create_project_file(
-#         project_name=updated_name, project_file_path=project_file_path, project_description=updated_desc, overwrite=True
-#     )
-#     assert updated_config.name == updated_name
-#     assert updated_config.description == updated_desc
-#     with open(project_file_path, "r") as f:
-#         data_on_disk = json.load(f)
-#     assert data_on_disk["name"] == updated_name
-#     assert data_on_disk["description"] == updated_desc
-
-
 def test_load_project_with_inline_definitions(
     project_manager: ProjectManager, tmp_path: Path
 ):
@@ -422,3 +355,122 @@ def test_load_project_invalid_json_error(
 
     with pytest.raises(RuntimeError, match="Error parsing project configuration file"):
         project_manager.load_project(invalid_json_file)
+
+
+class TestProjectManagerStateful:
+    """Tests for the stateful behavior of ProjectManager."""
+
+    @pytest.fixture
+    def sample_project_file(self, tmp_path: Path) -> Path:
+        """Creates a sample project JSON file for stateful tests."""
+        project_data = VALID_PROJECT_CONFIG_WITH_REFS.copy()
+        # Ensure it has a known name for assertions
+        project_data["name"] = "StatefulTestProject"
+        file_path = tmp_path / "stateful_test_project.json"
+        with open(file_path, "w") as f:
+            json.dump(project_data, f)
+        return file_path
+
+    def test_load_and_get_active_project(
+        self, project_manager: ProjectManager, sample_project_file: Path
+    ):
+        """Test that load_project sets active_project_config and get_active_project_config retrieves it."""
+        assert project_manager.get_active_project_config() is None
+        loaded_config = project_manager.load_project(sample_project_file)
+        assert project_manager.get_active_project_config() == loaded_config
+        assert project_manager.active_project_config is not None
+        assert project_manager.active_project_config.name == "StatefulTestProject"
+
+    def test_unload_active_project(
+        self, project_manager: ProjectManager, sample_project_file: Path
+    ):
+        """Test that unload_active_project clears the active_project_config."""
+        project_manager.load_project(sample_project_file)
+        assert project_manager.get_active_project_config() is not None
+        project_manager.unload_active_project()
+        assert project_manager.get_active_project_config() is None
+
+    def test_get_host_config_for_active_project(
+        self, project_manager: ProjectManager, sample_project_file: Path
+    ):
+        """Test get_host_config_for_active_project."""
+        # Test when no project is active
+        assert project_manager.get_host_config_for_active_project() is None
+
+        # Load a project
+        loaded_project = project_manager.load_project(sample_project_file)
+        host_config = project_manager.get_host_config_for_active_project()
+
+        assert isinstance(host_config, HostConfig)
+        assert host_config.name == loaded_project.name
+        assert host_config.description == loaded_project.description
+        assert len(host_config.clients) == len(loaded_project.clients)
+        # Verify one client to ensure it's a list of ClientConfig
+        client_id_from_project = list(loaded_project.clients.keys())[0]
+        client_model_from_project = loaded_project.clients[client_id_from_project]
+        assert client_model_from_project in host_config.clients
+
+    def test_add_component_to_active_project(
+        self, project_manager: ProjectManager, sample_project_file: Path
+    ):
+        """Test adding various components to the active project."""
+        project_manager.load_project(sample_project_file)
+        active_project = project_manager.get_active_project_config()
+        assert active_project is not None
+
+        # Add a new agent
+        new_agent_id = "DynamicAgent"
+        new_agent_data = VALID_AGENT_CONFIG_DATA.copy()
+        new_agent_data["name"] = new_agent_id
+        new_agent_model = AgentConfig(**new_agent_data)
+        project_manager.add_component_to_active_project(
+            "agent_configs", new_agent_id, new_agent_model
+        )
+        assert new_agent_id in active_project.agent_configs
+        assert active_project.agent_configs[new_agent_id] == new_agent_model
+
+        # Add a new client
+        new_client_id = "DynamicClient"
+        new_client_data = VALID_CLIENT_CONFIG_DATA_MINIMAL.copy()
+        new_client_data["client_id"] = new_client_id
+        new_client_data.setdefault("roots", [])
+        new_client_model = ClientConfig(**new_client_data)
+        project_manager.add_component_to_active_project(
+            "clients", new_client_id, new_client_model
+        )
+        assert new_client_id in active_project.clients
+        assert active_project.clients[new_client_id] == new_client_model
+
+        # Add a new LLM config
+        new_llm_id = "DynamicLLM"
+        new_llm_data = VALID_LLM_CONFIG_DATA.copy()
+        new_llm_data["llm_id"] = new_llm_id
+        new_llm_model = LLMConfig(**new_llm_data)
+        project_manager.add_component_to_active_project(
+            "llm_configs", new_llm_id, new_llm_model
+        )
+        assert new_llm_id in active_project.llm_configs
+        assert active_project.llm_configs[new_llm_id] == new_llm_model
+
+    def test_add_component_no_active_project_error(
+        self, project_manager: ProjectManager
+    ):
+        """Test RuntimeError when adding component with no active project."""
+        new_agent_model = AgentConfig(name="test")
+        with pytest.raises(
+            RuntimeError, match="No active project to add component to."
+        ):
+            project_manager.add_component_to_active_project(
+                "agent_configs", "test", new_agent_model
+            )
+
+    def test_add_component_invalid_type_key_error(
+        self, project_manager: ProjectManager, sample_project_file: Path
+    ):
+        """Test ValueError when adding component with an invalid type key."""
+        project_manager.load_project(sample_project_file)
+        new_agent_model = AgentConfig(name="test")
+        with pytest.raises(ValueError, match="Invalid component type key"):
+            project_manager.add_component_to_active_project(
+                "invalid_type_key", "test", new_agent_model
+            )
