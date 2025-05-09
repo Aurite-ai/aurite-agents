@@ -20,7 +20,12 @@ from mcp import (
 import mcp.types as types
 
 # Foundation layer
-from .foundation import SecurityManager, RootManager, MessageRouter
+from .foundation import (
+    SecurityManager,
+    RootManager,
+    MessageRouter,
+    ClientManager,
+)  # Added ClientManager
 from .filtering import FilteringManager
 from src.config.config_models import (
     AgentConfig,
@@ -77,8 +82,11 @@ class MCPHost:
         self._agent_configs = agent_configs or {}
         # Removed self._workflow_configs initialization
         # Removed self._custom_workflow_configs initialization
-        self._clients: Dict[str, ClientSession] = {}
-        self._exit_stack = AsyncExitStack()
+        # self._clients: Dict[str, ClientSession] = {} # Removed, managed by ClientManager
+        self._exit_stack = AsyncExitStack()  # MCPHost still owns the main exit stack
+        self.client_manager = ClientManager(
+            exit_stack=self._exit_stack
+        )  # Instantiate ClientManager
 
         # Create property accessors for resource layer managers
         self.prompts = self._prompt_manager
@@ -114,60 +122,17 @@ class MCPHost:
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
-        logger.debug(f"Initializing client: {config.client_id}")  # INFO -> DEBUG
+        logger.debug(f"Initializing client: {config.client_id}")
 
         try:
-            # Resolve GCP secrets if configured
-            client_env = os.environ.copy()  # Start with current environment
-            if (
-                config.gcp_secrets and self._security_manager
-            ):  # Check if SecurityManager exists and secrets are configured
-                logger.info(f"Resolving GCP secrets for client: {config.client_id}")
-                try:
-                    # Await the resolution method
-                    resolved_env_vars = (
-                        await self._security_manager.resolve_gcp_secrets(
-                            config.gcp_secrets
-                        )
-                    )
-                    if resolved_env_vars:
-                        # Update the environment dictionary for the subprocess
-                        client_env.update(resolved_env_vars)
-                        logger.info(
-                            f"Injecting {len(resolved_env_vars)} secrets into environment for client: {config.client_id}"
-                        )
-                        # Optional: Log the keys being injected for debugging (DO NOT log values)
-                        # Log keys at DEBUG level only if needed
-                        # logger.debug(
-                        #     f"Injecting env vars: {list(resolved_env_vars.keys())}"
-                        # )
-                except Exception as e:
-                    # Log error but allow host to continue initialization without injected secrets
-                    logger.error(
-                        f"Failed to resolve or inject GCP secrets for client {config.client_id}: {e}. Proceeding without injected secrets."
-                    )  # Keep error as ERROR
+            # Delegate client starting to ClientManager
+            # ClientManager handles secrets, process start, session creation, and exit stack management
+            session = await self.client_manager.start_client(
+                config, self._security_manager
+            )
+            # ClientManager now stores the session and process handle
 
-            # Setup transport with potentially updated environment
-            # server_path should already be an absolute Path object from config loading
-            server_params = StdioServerParameters(
-                command="python",
-                args=[str(config.server_path)],  # Use the absolute path directly
-                env=client_env,
-            )
-            logger.debug(
-                f"Attempting to start stdio_client for {config.client_id} with command: {server_params.command} {' '.join(server_params.args)}"
-            )
-            # Create transport using context manager
-            transport = await self._exit_stack.enter_async_context(
-                stdio_client(server_params)
-            )
-            logger.debug(f"stdio_client transport acquired for {config.client_id}")
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(transport[0], transport[1])
-            )
-            logger.debug(f"ClientSession created for {config.client_id}")
-
-            # --- Restore communication ---
+            # --- Communication and Registration (using the session returned by ClientManager) ---
             # Initialize with capabilities using proper types
             init_request = types.InitializeRequest(
                 method="initialize",
@@ -208,8 +173,8 @@ class MCPHost:
                 weight=config.routing_weight,
             )
 
-            # Store client session
-            self._clients[config.client_id] = session
+            # Client session is stored in self.client_manager.active_clients
+            # self._clients[config.client_id] = session # Removed
 
             # Discover and register components based on capabilities, applying exclusions
             tool_names = []
@@ -274,7 +239,8 @@ class MCPHost:
 
     def is_client_registered(self, client_id: str) -> bool:
         """Checks if a client with the given ID is registered."""
-        return client_id in self._clients
+        # Check in ClientManager's active clients
+        return client_id in self.client_manager.active_clients
 
     async def get_prompt(
         self,
@@ -320,8 +286,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists (basic check)
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the prompt
             providing_clients = await self._message_router.get_clients_for_prompt(
@@ -471,8 +437,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the tool
             providing_clients = await self._message_router.get_clients_for_tool(
@@ -600,8 +566,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the resource
             providing_clients = await self._message_router.get_clients_for_resource(
@@ -725,13 +691,13 @@ class MCPHost:
             Exception: Propagates exceptions from the underlying client initialization process.
         """
         logger.info(f"Attempting to dynamically register client: {config.client_id}")
-        if config.client_id in self._clients:
+        # Check using the new method
+        if self.is_client_registered(config.client_id):
             logger.error(f"Client ID '{config.client_id}' already registered.")
             raise ValueError(f"Client ID '{config.client_id}' already registered.")
 
         try:
-            # Reuse the existing internal initialization logic
-            # This will add the client to self._clients and manage its lifecycle via self._exit_stack
+            # Reuse the existing internal initialization logic, which now uses ClientManager
             await self._initialize_client(config)
             logger.info(
                 f"Client '{config.client_id}' dynamically registered and initialized successfully."
@@ -765,8 +731,12 @@ class MCPHost:
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
 
-        # Now, close all client connections and resources using the exit stack
-        logger.info("Closing client connections via AsyncExitStack...")
+        # Shutdown clients via ClientManager *before* closing the main exit stack
+        logger.info("Shutting down all clients via ClientManager...")
+        await self.shutdown_all_clients()  # Call the new method
+
+        # Now, close the main exit stack (which ClientManager used)
+        logger.info("Closing main AsyncExitStack...")
         await self._exit_stack.aclose()
 
         # Clear stored agent configs
@@ -775,3 +745,38 @@ class MCPHost:
         # Removed clearing of self._custom_workflow_configs
 
         logger.info("MCP Host shutdown complete")
+
+    # --- New Client Lifecycle Methods ---
+
+    async def client_shutdown(self, client_id: str):
+        """
+        Shuts down a specific client by ID.
+
+        Args:
+            client_id: The ID of the client to shut down.
+        """
+        logger.info(
+            f"MCPHost requesting ClientManager to shut down client: {client_id}"
+        )
+        # TODO: Consider unregistering components from managers if needed before shutdown
+        await self.client_manager.shutdown_client(client_id)
+        # TODO: Add logic here to unregister tools/prompts/resources from managers
+        # Example (needs implementation in managers):
+        # await self._tool_manager.unregister_client_tools(client_id)
+        # await self._prompt_manager.unregister_client_prompts(client_id)
+        # await self._resource_manager.unregister_client_resources(client_id)
+        # await self._message_router.unregister_server(client_id)
+        logger.info(f"MCPHost completed shutdown request for client: {client_id}")
+
+    async def shutdown_all_clients(self):
+        """
+        Shuts down all currently active clients managed by the ClientManager.
+        """
+        logger.info("MCPHost requesting ClientManager to shut down all clients...")
+        # TODO: Consider unregistering components from managers if needed before shutdown
+        await self.client_manager.shutdown_all_clients()
+        # TODO: Add logic here to unregister all components from managers
+        # Example (needs implementation in managers):
+        # await self._tool_manager.unregister_all_client_tools()
+        # ... etc for prompts, resources, router
+        logger.info("MCPHost completed shutdown request for all clients.")

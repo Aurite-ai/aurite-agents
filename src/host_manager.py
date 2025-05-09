@@ -275,6 +275,39 @@ class HostManager:
         logger.info("HostManager internal state cleared.")
         logger.info("HostManager shutdown complete.")
 
+    async def unload_project(self):
+        """
+        Shuts down the current MCPHost instance and clears loaded project configurations.
+        """
+        logger.info("Unloading current project and shutting down host...")
+        if self.host:
+            try:
+                # MCPHost.shutdown() handles shutting down clients via ClientManager
+                await self.host.shutdown()
+                logger.info("Managed MCPHost shutdown successfully during unload.")
+            except Exception as e:
+                logger.error(
+                    f"Error during managed MCPHost shutdown on unload: {e}",
+                    exc_info=True,
+                )
+        else:
+            logger.info("No active MCPHost instance to shut down during unload.")
+
+        # Clear internal state related to the project
+        self.host = None
+        self.current_project = None
+        self.agent_configs.clear()
+        self.workflow_configs.clear()
+        self.custom_workflow_configs.clear()
+        self.llm_configs.clear()
+        # Note: We keep the ComponentManager and ProjectManager instances,
+        # as they manage the available components and project loading logic,
+        # which might be needed for the next project.
+        # We also keep the DB engine/storage manager if it exists, assuming
+        # it might be used across projects or needs separate lifecycle management.
+        logger.info("Current project configurations cleared.")
+        logger.info("Project unload complete.")
+
     # --- Registration Methods ---
 
     async def register_client(self, client_config: "ClientConfig"):

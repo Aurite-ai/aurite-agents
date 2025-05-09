@@ -23,9 +23,10 @@ class TestHostBasicIntegration:
 
         assert host._config == empty_config  # Use private attribute
         assert host._config.name == "TestEmptyHost"  # Access name via config
+        # Check ClientManager's state instead of host._clients
         assert (
-            host._clients == {}
-        )  # Should be an empty dict internally # Use private attribute
+            host.client_manager.active_clients == {}
+        )  # Should be empty after __init__
         # assert not host.is_running  # State not explicitly tracked before initialize()
 
     def test_host_initialization_with_clients(self):
@@ -51,8 +52,8 @@ class TestHostBasicIntegration:
 
         assert host._config == host_config  # Use private attribute
         assert host._config.name == "TestHostWithClients"  # Access name via config
-        # _clients dict is only populated during async initialize(), should be empty after __init__
-        assert host._clients == {}  # Use private attribute, check for empty dict
+        # ClientManager's clients dict is only populated during async initialize(), should be empty after __init__
+        assert host.client_manager.active_clients == {}  # Check ClientManager's state
         # assert "client1" in host._clients  # Removed check - _clients is empty here
         # assert "client2" in host._clients  # Removed check - _clients is empty here
         # assert (

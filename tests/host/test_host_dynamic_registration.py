@@ -44,7 +44,9 @@ async def test_register_client_success(host_manager: HostManager):
 
     # Verify client is registered
     assert host.is_client_registered(new_client_id)
-    assert new_client_id in host._clients  # Check internal state
+    assert (
+        new_client_id in host.client_manager.active_clients
+    )  # Check ClientManager's state
 
     # Verify the client's tool is registered in the ToolManager
     assert host.tools.has_tool("weather_lookup")  # Check tool exists
