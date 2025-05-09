@@ -149,6 +149,6 @@ class ResourceManager:
 
     async def shutdown(self):
         """Shutdown the resource manager"""
-        logger.info("Shutting down resource manager")
+        logger.debug("Shutting down resource manager")  # Changed to DEBUG
         self._resources.clear()
         # _subscriptions removed

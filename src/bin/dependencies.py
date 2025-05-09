@@ -31,7 +31,7 @@ def get_server_config() -> ServerConfig:
     """
     try:
         config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
-        logger.info("Server configuration loaded successfully.")
+        logger.debug("Server configuration loaded successfully.")  # Changed to DEBUG
         logging.getLogger().setLevel(config.LOG_LEVEL.upper())
         return config
     except Exception as e:  # Catch generic Exception during config load

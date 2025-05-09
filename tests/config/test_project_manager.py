@@ -13,9 +13,7 @@ from src.config.config_models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     HostConfig,  # Added for new tests
-    RootConfig,
-)
-from pydantic import BaseModel  # Added for new tests
+    )
 from src.config import PROJECT_ROOT_DIR
 
 # Fixtures from tests.fixtures.config_fixtures

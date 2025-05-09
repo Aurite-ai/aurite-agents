@@ -46,7 +46,13 @@ class ProjectManager:
             raise TypeError("component_manager must be an instance of ComponentManager")
         self.component_manager = component_manager
         self.active_project_config: Optional[ProjectConfig] = None
-        logger.info("ProjectManager initialized.")
+        component_counts = self.component_manager.get_component_counts()
+        count_str = ", ".join(
+            f"{count} {ctype}" for ctype, count in component_counts.items()
+        )
+        logger.info(
+            f"ProjectManager initialized, ComponentManager loaded: {count_str if count_str else '0 components'}."
+        )
 
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
         """
@@ -64,7 +70,9 @@ class ProjectManager:
             RuntimeError: If JSON parsing fails or validation errors occur.
             ValueError: If component references are invalid or cannot be resolved.
         """
-        logger.info(f"Loading project configuration from: {project_config_file_path}")
+        logger.debug(
+            f"Loading project configuration from: {project_config_file_path}"
+        )  # Changed to debug
         if not project_config_file_path.is_file():
             logger.error(
                 f"Project configuration file not found: {project_config_file_path}"
@@ -146,9 +154,11 @@ class ProjectManager:
                 simple_workflow_configs=resolved_simple_workflows,
                 custom_workflow_configs=resolved_custom_workflows,
             )
-            logger.info(f"Successfully loaded and resolved project '{project_name}'.")
+            logger.debug(
+                f"Successfully loaded and resolved project '{project_name}'."
+            )  # Changed to debug
             self.active_project_config = project_config
-            logger.info(
+            logger.debug(  # Changed to debug
                 f"Project '{project_config.name}' set as active in ProjectManager."
             )
             return project_config

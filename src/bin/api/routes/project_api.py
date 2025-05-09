@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ValidationError, Field
+from pydantic import BaseModel, Field
 
 # Import dependencies (adjust relative paths as needed)
 from ...dependencies import get_api_key, get_host_manager

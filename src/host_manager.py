@@ -5,7 +5,7 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 import logging
 import os  # Added for environment variable check
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 # Assuming this file is in src/, use relative imports
 from .host.host import MCPHost
@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 # Import the new managers and ProjectConfig
 from .config.component_manager import ComponentManager
 from .config.project_manager import ProjectManager
-from .config.config_models import ProjectConfig
 
 
 class HostManager:
@@ -101,7 +100,7 @@ class HostManager:
                 # Engine creation failed (logged in create_db_engine)
                 self.storage_manager = None
         else:
-            logger.info(
+            logger.debug(  # Changed to DEBUG
                 "Database persistence is disabled (AURITE_ENABLE_DB is not 'true')."
             )
 
@@ -118,7 +117,7 @@ class HostManager:
         Raises:
             RuntimeError: If configuration loading or host initialization fails.
         """
-        logger.info(  # Changed back to INFO for high-level start
+        logger.debug(  # Changed to DEBUG
             f"Initializing HostManager with project config: {self.config_path}..."
         )
         try:
@@ -131,7 +130,7 @@ class HostManager:
                 raise RuntimeError(
                     f"Failed to load project '{self.config_path}' into ProjectManager."
                 )
-            logger.info(
+            logger.debug(  # Changed to DEBUG
                 f"Project '{active_project.name}' loaded successfully and set as active."
             )
 
@@ -165,7 +164,7 @@ class HostManager:
             # 3. Initialize MCPHost
             logger.debug("Initializing MCPHost (connecting clients)...")
             await self.host.initialize()
-            logger.info("MCPHost initialized successfully.")
+            logger.debug("MCPHost initialized successfully.")  # Changed to DEBUG
 
             # 2.5 Sync initial configs to DB if storage manager exists
             if (
@@ -239,11 +238,13 @@ class HostManager:
         """
         Shuts down the managed MCPHost and cleans up resources.
         """
-        logger.info("Shutting down HostManager...")
+        logger.debug("Shutting down HostManager...")  # Changed to DEBUG
         if self.host:
             try:
                 await self.host.shutdown()
-                logger.info("Managed MCPHost shutdown successfully.")
+                logger.debug(
+                    "Managed MCPHost shutdown successfully."
+                )  # Changed to DEBUG
             except Exception as e:
                 # Check for known anyio issues, which might be wrapped in an ExceptionGroup
                 actual_exception_to_check = e
@@ -297,7 +298,7 @@ class HostManager:
                 logger.error(f"Error disposing database engine: {e}", exc_info=True)
         self._db_engine = None
         self.storage_manager = None  # Clear storage manager too
-        logger.info("HostManager internal state cleared.")
+        logger.debug("HostManager internal state cleared.")  # Changed to DEBUG
         logger.info("HostManager shutdown complete.")
 
     async def unload_project(self):

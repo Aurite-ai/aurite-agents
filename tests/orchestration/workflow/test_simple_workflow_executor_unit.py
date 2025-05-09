@@ -3,7 +3,7 @@ Unit tests for the SimpleWorkflowExecutor.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, call, MagicMock  # Added MagicMock
+from unittest.mock import AsyncMock, call, MagicMock  # Added MagicMock
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]

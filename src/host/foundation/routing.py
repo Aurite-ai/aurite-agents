@@ -117,7 +117,7 @@ class MessageRouter:
         """Register an MCP server (client) with its capabilities and routing weight."""
         self._server_capabilities[server_id] = capabilities
         self._server_weights[server_id] = weight
-        logger.info(
+        logger.debug(  # Changed to DEBUG
             f"Registered server '{server_id}' with weight {weight} and capabilities: {capabilities}"
         )
 
@@ -125,7 +125,7 @@ class MessageRouter:
 
     async def shutdown(self):
         """Shutdown the message router and clear registry data."""
-        logger.info("Shutting down message router")
+        logger.debug("Shutting down message router")  # Changed to DEBUG
 
         # Clear registry data
         self._tool_routes.clear()
@@ -148,7 +148,9 @@ class MessageRouter:
             # Check against server_capabilities as the primary indicator of registration
             raise ValueError(f"Server not registered: {server_id}")
         self._server_weights[server_id] = weight
-        logger.info(f"Updated weight for server '{server_id}' to: {weight}")
+        logger.debug(
+            f"Updated weight for server '{server_id}' to: {weight}"
+        )  # Changed to DEBUG
 
     async def remove_server(self, server_id: str):
         """Remove a server (client) and all its associated registrations."""
@@ -193,4 +195,6 @@ class MessageRouter:
         self._client_prompts.pop(server_id, None)
         self._client_resources.pop(server_id, None)  # Remove client resources
 
-        logger.info(f"Removed server '{server_id}' and its registrations.")
+        logger.debug(
+            f"Removed server '{server_id}' and its registrations."
+        )  # Changed to DEBUG

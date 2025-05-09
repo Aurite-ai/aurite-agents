@@ -3,7 +3,6 @@ Unit tests for the ClientManager class.
 """
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from contextlib import AsyncExitStack

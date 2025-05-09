@@ -7,11 +7,9 @@ from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
 
 # Relative imports assuming this file is in src/workflows/
 from ..config.config_models import WorkflowConfig, AgentConfig  # Updated import path
-from ..host.host import MCPHost
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
-    from ..llm.base_client import BaseLLM
     from ..execution.facade import ExecutionFacade  # Added Facade import
 
 logger = logging.getLogger(__name__)

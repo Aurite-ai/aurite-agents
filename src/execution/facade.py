@@ -17,7 +17,6 @@ from typing import (
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
-    from ..host_manager import HostManager
     from ..host.host import MCPHost  # Needed for passing to executors/workflows
     from ..agents.agent import Agent  # Keep type hint here
     from ..workflows.simple_workflow import (
@@ -31,9 +30,7 @@ if TYPE_CHECKING:
         AgentConfig,
         LLMConfig,
         ProjectConfig,  # Added ProjectConfig for type hint
-        WorkflowConfig,  # Added for SimpleWorkflowExecutor setup
-        CustomWorkflowConfig,  # Added for CustomWorkflowExecutor setup
-    )
+        )
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent

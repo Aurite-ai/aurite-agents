@@ -2,7 +2,6 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
-import os  # Added os import
 import logging  # Removed importlib, inspect, Path
 from contextlib import AsyncExitStack
 from typing import (
@@ -12,11 +11,6 @@ from typing import (
     Optional,
 )  # Kept Any, Dict, List, Optional as they are used elsewhere
 
-from mcp import (
-    ClientSession,
-    StdioServerParameters,
-    stdio_client,
-)
 import mcp.types as types
 
 # Foundation layer
@@ -95,7 +89,7 @@ class MCPHost:
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
-        logger.info("Initializing MCP Host...")  # Keep high-level start as INFO
+        logger.debug("Initializing MCP Host...")  # Changed to DEBUG
 
         # Initialize subsystems in layer order
 
@@ -117,6 +111,18 @@ class MCPHost:
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
+
+        num_clients = len(self.client_manager.active_clients)
+        # MCPHost uses HostConfig (self._config), which doesn't directly hold agent_configs.
+        # This will result in 0 if HostConfig doesn't have agent_configs.
+        num_agent_configs = (
+            len(self._config.agent_configs)
+            if hasattr(self._config, "agent_configs") and self._config.agent_configs
+            else 0
+        )
+        logger.info(
+            f"Host initialized {num_clients} clients and loaded {num_agent_configs} agent configs."
+        )
 
         logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
 
@@ -225,10 +231,10 @@ class MCPHost:
                 )
                 resource_names = [r.name for r in registered_resources]
 
-            logger.info(
+            logger.debug(  # Changed to DEBUG
                 f"Client '{config.client_id}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
-            )  # Keep client summary as INFO
+            )
             # --- End of restored section ---
 
         except Exception as e:
@@ -700,26 +706,28 @@ class MCPHost:
         # Shutdown managers first, in reverse layer order, before closing connections
 
         # Layer 3: Resource management layer
-        logger.info("Shutting down resource management layer...")
+        logger.debug("Shutting down resource management layer...")  # Changed to DEBUG
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
         await self._tool_manager.shutdown()
 
         # Layer 2: Communication layer
-        logger.info("Shutting down communication layer...")
+        logger.debug("Shutting down communication layer...")  # Changed to DEBUG
         await self._message_router.shutdown()
 
         # Layer 1: Foundation layer
-        logger.info("Shutting down foundation layer...")
+        logger.debug("Shutting down foundation layer...")  # Changed to DEBUG
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
 
         # Shutdown clients via ClientManager *before* closing the main exit stack
-        logger.info("Shutting down all clients via ClientManager...")
+        logger.debug(
+            "Shutting down all clients via ClientManager..."
+        )  # Changed to DEBUG
         await self.shutdown_all_clients()  # Call the new method
 
         # Now, close the main exit stack (which ClientManager used)
-        logger.info("Closing main AsyncExitStack...")
+        logger.debug("Closing main AsyncExitStack...")  # Changed to DEBUG
         await self._exit_stack.aclose()
 
         # self._agent_configs.clear() # Removed, as _agent_configs is removed
@@ -737,7 +745,7 @@ class MCPHost:
         Args:
             client_id: The ID of the client to shut down.
         """
-        logger.info(
+        logger.debug(  # Changed to DEBUG
             f"MCPHost requesting ClientManager to shut down client: {client_id}"
         )
         # TODO: Consider unregistering components from managers if needed before shutdown
@@ -748,17 +756,23 @@ class MCPHost:
         # await self._prompt_manager.unregister_client_prompts(client_id)
         # await self._resource_manager.unregister_client_resources(client_id)
         # await self._message_router.unregister_server(client_id)
-        logger.info(f"MCPHost completed shutdown request for client: {client_id}")
+        logger.debug(
+            f"MCPHost completed shutdown request for client: {client_id}"
+        )  # Changed to DEBUG
 
     async def shutdown_all_clients(self):
         """
         Shuts down all currently active clients managed by the ClientManager.
         """
-        logger.info("MCPHost requesting ClientManager to shut down all clients...")
+        logger.debug(
+            "MCPHost requesting ClientManager to shut down all clients..."
+        )  # Changed to DEBUG
         # TODO: Consider unregistering components from managers if needed before shutdown
         await self.client_manager.shutdown_all_clients()
         # TODO: Add logic here to unregister all components from managers
         # Example (needs implementation in managers):
         # await self._tool_manager.unregister_all_client_tools()
         # ... etc for prompts, resources, router
-        logger.info("MCPHost completed shutdown request for all clients.")
+        logger.debug(
+            "MCPHost completed shutdown request for all clients."
+        )  # Changed to DEBUG

@@ -513,7 +513,7 @@ class ToolManager:
 
     async def shutdown(self):
         """Shutdown the tool manager"""
-        logger.info("Shutting down tool manager")
+        logger.debug("Shutting down tool manager")  # Changed to DEBUG
 
         # _active_requests removed
 

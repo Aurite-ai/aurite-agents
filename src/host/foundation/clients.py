@@ -55,7 +55,7 @@ class ClientManager:
             Exception: If client startup or session establishment fails.
         """
         client_id = client_config.client_id
-        logger.info(f"Starting client: {client_id}...")
+        logger.debug(f"Starting client: {client_id}...")  # Changed to DEBUG
 
         if client_id in self.active_clients:
             logger.error(f"Client {client_id} is already active.")
@@ -66,14 +66,16 @@ class ClientManager:
         try:
             client_env = os.environ.copy()
             if client_config.gcp_secrets and security_manager:
-                logger.info(f"Resolving GCP secrets for client: {client_id}")
+                logger.debug(
+                    f"Resolving GCP secrets for client: {client_id}"
+                )  # Changed to DEBUG
                 try:
                     resolved_env_vars = await security_manager.resolve_gcp_secrets(
                         client_config.gcp_secrets
                     )
                     if resolved_env_vars:
                         client_env.update(resolved_env_vars)
-                        logger.info(
+                        logger.debug(  # Changed to DEBUG
                             f"Injected {len(resolved_env_vars)} secrets into environment for client: {client_id}"
                         )
                 except Exception as e:
@@ -111,7 +113,7 @@ class ClientManager:
             logger.debug(f"ClientSession created for {client_id}")
 
             self.active_clients[client_id] = session
-            logger.info(
+            logger.debug(  # Changed to DEBUG
                 f"Client {client_id} started and session established successfully."
             )
             return session
@@ -140,7 +142,7 @@ class ClientManager:
         Args:
             client_id: The ID of the client to shut down.
         """
-        logger.info(f"Shutting down client: {client_id}...")
+        logger.debug(f"Shutting down client: {client_id}...")  # Changed to DEBUG
         session = self.active_clients.pop(client_id, None)
         # Process is managed by stdio_client context manager within AsyncExitStack
         process_details_removed = self.client_processes.pop(
@@ -175,7 +177,9 @@ class ClientManager:
         elif (
             not session and not process_details_removed
         ):  # only log if neither was found
-            logger.info(f"Client {client_id} was not active or already shut down.")
+            logger.debug(
+                f"Client {client_id} was not active or already shut down."
+            )  # Changed to DEBUG
         elif (
             not session and process_details_removed
         ):  # If session was gone but process details remained
@@ -187,7 +191,7 @@ class ClientManager:
         """
         Shuts down all active client sessions. Processes are managed by AsyncExitStack.
         """
-        logger.info("Shutting down all active clients...")
+        logger.debug("Shutting down all active clients...")  # Changed to DEBUG
         # Create a list of client IDs to avoid issues with modifying dict during iteration
         client_ids_to_shutdown = list(self.active_clients.keys())
         for client_id in client_ids_to_shutdown:
@@ -196,7 +200,9 @@ class ClientManager:
         # Ensure dictionaries are cleared, though shutdown_client should handle individual removals
         self.active_clients.clear()
         self.client_processes.clear()  # Clear any stored process details
-        logger.info("All active clients have been processed for shutdown.")
+        logger.debug(
+            "All active clients have been processed for shutdown."
+        )  # Changed to DEBUG
 
     def get_session(self, client_id: str) -> Optional[ClientSession]:
         """

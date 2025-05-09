@@ -140,6 +140,6 @@ class PromptManager:
 
     async def shutdown(self):
         """Shutdown the prompt manager"""
-        logger.info("Shutting down prompt manager")
+        logger.debug("Shutting down prompt manager")  # Changed to DEBUG
         self._prompts.clear()
         # _subscriptions removed

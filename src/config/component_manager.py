@@ -58,6 +58,7 @@ class ComponentManager:
         self.agents: Dict[str, AgentConfig] = {}
         self.simple_workflows: Dict[str, WorkflowConfig] = {}
         self.custom_workflows: Dict[str, CustomWorkflowConfig] = {}
+        self.component_counts: Dict[str, int] = {}  # Added for component counts
 
         # Store components in a structured way for easier access
         self._component_stores = {
@@ -69,7 +70,13 @@ class ComponentManager:
         }
 
         self._load_all_components()
-        logger.info("ComponentManager initialized and all components loaded.")
+        logger.debug(
+            "ComponentManager initialized and all components loaded."
+        )  # Changed to debug
+
+    def get_component_counts(self) -> Dict[str, int]:
+        """Returns a dictionary of component types to their loaded counts."""
+        return self.component_counts
 
     def _parse_component_file(
         self, file_path: Path, model_class: Type, id_field: str
@@ -143,7 +150,10 @@ class ComponentManager:
                 else:
                     error_count += 1  # Error logged within _parse_component_file
 
-            logger.info(  # Changed to INFO for summary
+            self.component_counts[component_type] = (
+                loaded_count  # Populate component_counts
+            )
+            logger.debug(  # Changed to DEBUG
                 f"Loaded {loaded_count} components of type '{component_type}' from {component_dir}"
                 + (f" ({error_count} errors)." if error_count else ".")
             )
