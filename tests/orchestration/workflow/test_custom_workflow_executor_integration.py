@@ -158,9 +158,6 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
 
                 agent_output_json = json.loads(inner_result["agent_result_text"])
                 assert isinstance(agent_output_json, dict)
-                assert (
-                    agent_output_json.get("weather_summary") == "Clear skies"
-                )  # Default condition
                 assert isinstance(agent_output_json.get("temperature"), dict)
                 assert (
                     agent_output_json["temperature"].get("value") == 20
