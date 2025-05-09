@@ -1,0 +1,21 @@
+{
+    "name": "DocumentationAgent",
+    "clients": [
+      
+    ],
+    "agents": [
+      
+    ],
+    "workflows": [
+      
+    ],
+    "custom_workflows": [
+      {
+        "name": "InitializeDocs",
+        "module_path": "src/documentation_chat/initialize_docs_workflow.py",
+        "class_name": "InitializeDocsWorkflow",
+        "description": "A workflow to initialize the documentation files in the embeddings db."
+      }
+    ]
+  }
+  

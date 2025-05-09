@@ -23,7 +23,7 @@ def read_file(filepath: str) -> str:
     """Read a file and return the string content
 
     Args:
-        filepath: The path to the file to be read
+        filepath: The path to the file to be read. Must be on the list of allowed filepaths (use list_filepaths())
     """
     if filepath not in FILES:
         return "Unauthorized to read file"
