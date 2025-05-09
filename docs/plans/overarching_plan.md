@@ -80,21 +80,31 @@ This phase focuses on creating the new `ComponentManager`, `ProjectManager`, and
 
 ---
 
-### Phase 2: Agent & LLM Class Refinements (Task 1 Focus)
+### Phase 2: Agent & LLM Class Refinements (Task 1 Focus) - Completed
 
 With the core configuration system in place, refactoring Agents and LLMs becomes cleaner.
 
-**3.7. Improve `LLMConfig` Handling in LLM Clients (Task 1.2):**
-    *   **Files:** `src/llm/base_client.py`, `src/llm/providers/anthropic_client.py` (and others).
-    *   **Action:** Modify `BaseLLM` and provider `__init__` to use defaults. Modify `create_message` to accept an optional `llm_config_id` and use the corresponding `LLMConfig` (fetched via `ComponentManager` or from `HostManager.current_project`) to override defaults for that call.
+**3.7. Improve `LLMConfig` Handling in LLM Clients (Task 1.2):** (Done)
+    *   **Files:** `src/llm/base_client.py`, `src/llm/providers/anthropic_client.py`, `src/execution/facade.py`, `src/agents/agent_turn_processor.py`, `src/config/config_models.py`.
+    *   **Action:** Modified `BaseLLM.create_message` and `AnthropicLLM.create_message` signatures to accept an optional `llm_config_override: Optional[LLMConfig]` parameter. (Done)
+    *   **Action:** Implemented logic in `AnthropicLLM.create_message` to prioritize parameters (model, temp, tokens, system prompt) from `llm_config_override` over client instance defaults. (Done)
+    *   **Action:** Updated `ExecutionFacade.run_agent` to fetch the `LLMConfig` object specified by `AgentConfig.llm_config_id`. (Done)
+    *   **Action:** Updated `AgentTurnProcessor.__init__` to accept `llm_config_for_override` and pass it to `llm_client.create_message`. (Done)
+    *   **Action:** Made `LLMConfig.model_name` optional to support fallback testing. (Done)
+    *   **Testing:** Added unit and integration tests for `AnthropicLLM` to verify override logic. (`tests/orchestration/llm/test_anthropic_client_*.py`). (Done)
 
-**3.8. Merge Agent Class Files (Task 1.1):**
+**3.8. Merge Agent Class Files (Task 1.1):** (Done)
     *   **Files:** `src/agents/agent.py`, `src/agents/conversation_manager.py`.
-    *   **Action:** Merge `ConversationManager` logic into a renamed `Agent` class in `src/agents/agent.py`. Delete `conversation_manager.py`. Update imports.
+    *   **Action:** Merged `ConversationManager` logic into `Agent` class in `src/agents/conversation_manager.py`. (Done)
+    *   **Action:** Renamed `src/agents/conversation_manager.py` to `src/agents/agent.py`, overwriting the old `Agent` file. (Done)
+    *   **Action:** Updated `Agent.__init__` to accept `config`, `llm_client`, `host_instance`, `initial_messages`, `system_prompt_override`, `llm_config_for_override`. (Done)
+    *   **Action:** Updated internal references in the new `Agent` class from `self.agent.*` to `self.config` and `self.llm`. (Done)
+    *   **Action:** Updated `ExecutionFacade` and test files (`tests/orchestration/agent/test_agent.py`) to remove `ConversationManager` imports/usage and correctly instantiate/use the new `Agent` class. (Done)
 
-**3.9. Review and Refactor (New) Agent Class Logic (Task 1.3):**
+**3.9. Review and Refactor (New) Agent Class Logic (Task 1.3):** (Done)
     *   **File:** `src/agents/agent.py` (newly merged).
-    *   **Action:** Review conversation history management (`self.messages`, `self.conversation_history`) for clarity and correctness, ensuring `AgentConfig.include_history` is handled.
+    *   **Action:** Reviewed conversation history management (`self.messages`, `self.conversation_history`) and confirmed clarity and correctness. `AgentConfig.include_history` handling remains external in `ExecutionFacade`. No code changes required. (Done)
+    *   **Testing:** Updated unit tests (`tests/orchestration/agent/test_agent.py`) to reflect the merged class structure and verify core logic (single turn, multi-turn tool use, max iterations, schema correction). (Done)
 
 ---
 
@@ -190,9 +200,9 @@ Builds upon the `ConfigManager` to implement full project/component functionalit
 
 ## 4. Key Considerations & Open Questions
 
-*   **LLMClient Instantiation with `LLMConfig`:** (Deferred to Phase 2) Current plan remains: `ExecutionFacade` resolves LLM parameters based on `AgentConfig` and referenced `LLMConfig` (from `HostManager.llm_configs`) before instantiating the LLM client.
-*   **Dynamic Registration Persistence:** (Confirmed for Phase 1) Dynamic registrations (`register_agent` etc. in `HostManager`) are runtime-only updates to the *current project's* in-memory config dictionaries (`self.agent_configs`, etc.). They do *not* modify component files via `ComponentManager` in this phase. Persistence via API requires using the component CRUD endpoints directly.
-*   **`HostConfig` vs. `ProjectConfig`:** (Confirmed) `ProjectConfig` is the primary definition loaded by `ProjectManager`. `HostManager` constructs a temporary `HostConfig` instance from `ProjectConfig` data solely for `MCPHost` initialization.
+*   **LLMClient Instantiation with `LLMConfig`:** (Updated after Phase 2) `ExecutionFacade` now resolves LLM parameters based on `AgentConfig` and referenced `LLMConfig` (from `HostManager.llm_configs`) before instantiating the `LLMClient` (currently `AnthropicLLM`). The `Agent` class receives the instantiated client and the resolved `LLMConfig` object (if any) to pass as `llm_config_override` during `create_message` calls via `AgentTurnProcessor`.
+*   **Dynamic Registration Persistence:** (No change from Phase 1) Dynamic registrations (`register_agent` etc. in `HostManager`) are runtime-only updates to the *current project's* in-memory config dictionaries (`self.agent_configs`, etc.). They do *not* modify component files via `ComponentManager` in this phase. Persistence via API requires using the component CRUD endpoints directly.
+*   **`HostConfig` vs. `ProjectConfig`:** (No change from Phase 1) `ProjectConfig` is the primary definition loaded by `ProjectManager`. `HostManager` constructs a temporary `HostConfig` instance from `ProjectConfig` data solely for `MCPHost` initialization.
 *   **Error Handling for Missing Components:** (Confirmed) `ProjectManager._resolve_components` raises a `ValueError` if a referenced component ID is not found in `ComponentManager`, causing `load_project` to fail.
 *   **Client Re-initialization:** (Deferred to Phase 3) Plan remains: When switching projects, `HostManager` will need a mechanism (e.g., `reset_host()`) to call `host.shutdown_all_clients()`, load the new project, and re-initialize `MCPHost`.
 *   **Location of `ServerConfig`:** (Confirmed) Moved to `src/config/__init__.py`. `src/config/config.py` deleted.
