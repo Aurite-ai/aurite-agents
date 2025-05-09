@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional  # Added List and Optional
 import json
 from pydantic import ValidationError
 
@@ -274,69 +274,125 @@ class ProjectManager:
 
     def create_project_file(
         self,
-        file_path: Path,
-        project_content: Dict[str, Any],
+        project_name: str,
+        project_file_path: Path,  # Changed from file_path to project_file_path for clarity
+        project_description: Optional[str] = None,
+        client_configs: Optional[List[ClientConfig]] = None,
+        llm_configs: Optional[List[LLMConfig]] = None,
+        agent_configs: Optional[List[AgentConfig]] = None,
+        simple_workflow_configs: Optional[List[WorkflowConfig]] = None,
+        custom_workflow_configs: Optional[List[CustomWorkflowConfig]] = None,
         overwrite: bool = False,
-    ) -> bool:
+    ) -> ProjectConfig:
         """
-        Creates a new project JSON file at the given file_path with the
-        provided project_content.
+        Creates a new project JSON file from the provided configurations and metadata.
 
         Args:
-            file_path: The absolute Path where the project JSON file should be created.
-            project_content: A dictionary representing the content of the project file.
-            overwrite: If True, overwrite the file if it already exists.
-                       Defaults to False.
+            project_name: The name of the project.
+            project_file_path: The absolute Path where the project JSON file should be created.
+            project_description: Optional description for the project.
+            client_configs: Optional list of ClientConfig objects.
+            llm_configs: Optional list of LLMConfig objects.
+            agent_configs: Optional list of AgentConfig objects.
+            simple_workflow_configs: Optional list of WorkflowConfig objects.
+            custom_workflow_configs: Optional list of CustomWorkflowConfig objects.
+            overwrite: If True, overwrite the file if it already exists. Defaults to False.
 
         Returns:
-            True if the file was successfully created.
+            The created ProjectConfig object.
 
         Raises:
             FileExistsError: If the project file already exists and overwrite is False.
             IOError: If there's an error writing the file.
-            RuntimeError: For other unexpected errors.
+            RuntimeError: For other unexpected errors or Pydantic validation issues.
+            TypeError: If project_file_path is not a Path object.
         """
         logger.info(
-            f"Attempting to create project file at: {file_path}, overwrite={overwrite}"
+            f"Attempting to create project file '{project_name}' at: {project_file_path}, overwrite={overwrite}"
         )
 
         try:
-            if not isinstance(file_path, Path):
-                raise TypeError("file_path must be a Path object.")
-            if not file_path.is_absolute():
-                # Or decide to resolve it relative to PROJECT_ROOT_DIR if that's desired
-                logger.warning(
-                    f"Project file path {file_path} is not absolute. Proceeding, but absolute paths are recommended."
+            if not isinstance(project_file_path, Path):
+                raise TypeError("project_file_path must be a Path object.")
+            # Path resolution should ideally happen before calling this, or be clearly documented.
+            # For now, assume project_file_path is the final intended path.
+
+            if project_file_path.exists() and not overwrite:
+                logger.error(
+                    f"Project file {project_file_path} already exists and overwrite is False."
+                )
+                raise FileExistsError(
+                    f"Project file {project_file_path} already exists. Set overwrite=True to replace it."
                 )
 
-            if file_path.exists() and not overwrite:
-                raise FileExistsError(
-                    f"Project file {file_path} already exists. Set overwrite=True to replace it."
-                )
+            # Construct dictionaries for ProjectConfig
+            clients_dict = (
+                {c.client_id: c for c in client_configs} if client_configs else {}
+            )
+            llms_dict = {lc.llm_id: lc for lc in llm_configs} if llm_configs else {}
+            agents_dict = (
+                {ac.name: ac for ac in agent_configs if ac.name}
+                if agent_configs
+                else {}
+            )
+            simple_workflows_dict = (
+                {swc.name: swc for swc in simple_workflow_configs if swc.name}
+                if simple_workflow_configs
+                else {}
+            )
+            custom_workflows_dict = (
+                {cwfc.name: cwfc for cwfc in custom_workflow_configs if cwfc.name}
+                if custom_workflow_configs
+                else {}
+            )
+
+            # Create ProjectConfig model instance
+            project_config_model = ProjectConfig(
+                name=project_name,
+                description=project_description,
+                clients=clients_dict,
+                llm_configs=llms_dict,
+                agent_configs=agents_dict,
+                simple_workflow_configs=simple_workflows_dict,
+                custom_workflow_configs=custom_workflows_dict,
+            )
 
             # Ensure parent directory exists
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            project_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write to file (pretty-printed)
-            with open(file_path, "w") as f:
-                json.dump(project_content, f, indent=4)
+            # Serialize ProjectConfig to JSON and write to file
+            # Use .model_dump_json() for Pydantic v2
+            project_json_content = project_config_model.model_dump_json(indent=4)
 
-            logger.info(f"Successfully created project file at {file_path}")
-            return True
+            with open(project_file_path, "w") as f:
+                f.write(project_json_content)
+
+            logger.info(
+                f"Successfully created project file for '{project_name}' at {project_file_path}"
+            )
+            return project_config_model
 
         except FileExistsError:  # Re-raise specifically
             raise
-        except TypeError as e:  # For incorrect file_path type
-            logger.error(f"Invalid argument type for create_project_file: {e}")
+        except (
+            TypeError,
+            ValidationError,
+        ) as e:  # Catch Pydantic validation or type errors
+            logger.error(
+                f"Invalid data for creating project '{project_name}': {e}",
+                exc_info=True,
+            )
             raise
         except IOError as e:
-            logger.error(f"Failed to write project file {file_path}: {e}")
+            logger.error(
+                f"Failed to write project file {project_file_path}: {e}", exc_info=True
+            )
             raise IOError(f"Failed to write project file: {e}") from e
         except Exception as e:
             logger.error(
-                f"Unexpected error creating project file {file_path}: {e}",
+                f"Unexpected error creating project file '{project_name}' at {project_file_path}: {e}",
                 exc_info=True,
             )
             raise RuntimeError(
-                f"An unexpected error occurred during project file creation: {e}"
+                f"An unexpected error occurred during project file creation for '{project_name}': {e}"
             ) from e

@@ -12,6 +12,7 @@ from src.config.config_models import (
     LLMConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
+    RootConfig,  # Added RootConfig for ClientConfig instantiation
 )
 from src.config import PROJECT_ROOT_DIR
 
@@ -32,17 +33,11 @@ def mock_component_manager() -> MagicMock:
     """Provides a MagicMock for ComponentManager."""
     mock_cm = MagicMock(spec=ComponentManager)
 
-    # Setup mock return values for get_component_config based on VALID_PROJECT_CONFIG_WITH_REFS
-    # and the individual component fixtures.
-    # This assumes the IDs in VALID_PROJECT_CONFIG_WITH_REFS match the IDs in these fixtures.
-
     client1_data = VALID_CLIENT_CONFIG_DATA_MINIMAL.copy()
-    client1_model = ClientConfig(
-        **client1_data
-    )  # Paths will be strings here, CM would resolve them
+    # Ensure 'roots' is present for ClientConfig instantiation
+    client1_data.setdefault("roots", [])
+    client1_model = ClientConfig(**client1_data)
 
-    # Agent data needs its llm_config_id and client_ids to be valid if we were fully resolving
-    # For this mock, we just need to return an AgentConfig instance.
     agent_data = VALID_AGENT_CONFIG_DATA.copy()
     agent_model = AgentConfig(**agent_data)
 
@@ -53,7 +48,6 @@ def mock_component_manager() -> MagicMock:
     simple_wf_model = WorkflowConfig(**simple_wf_data)
 
     custom_wf_data = VALID_CUSTOM_WORKFLOW_CONFIG_DATA.copy()
-    # Resolve path for CustomWorkflowConfig as ProjectManager would expect it from ComponentManager
     custom_wf_path_resolved = (
         PROJECT_ROOT_DIR / custom_wf_data["module_path"]
     ).resolve()
@@ -63,40 +57,35 @@ def mock_component_manager() -> MagicMock:
 
     def get_component_side_effect(component_type, component_id):
         if component_type == "clients":
-            if component_id == client1_model.client_id:  # "test_client_min"
-                # Simulate path resolution that ComponentManager would do
+            if component_id == client1_model.client_id:
                 resolved_client_data = client1_data.copy()
                 resolved_client_data["server_path"] = (
                     PROJECT_ROOT_DIR / client1_data["server_path"]
                 ).resolve()
+                resolved_client_data.setdefault(
+                    "roots", []
+                )  # Ensure roots for instantiation
                 return ClientConfig(**resolved_client_data)
-            # Add more clients if VALID_PROJECT_CONFIG_WITH_REFS refers to them by ID
-            elif component_id == "test_client_full":  # from fixture name
-                # Create a dummy ClientConfig for test_client_full for simplicity
+            elif component_id == "test_client_full":
                 return ClientConfig(
                     client_id="test_client_full",
                     server_path=Path("/dummy/path.py"),
                     capabilities=[],
                     roots=[],
                 )
-
-        elif (
-            component_type == "agents" and component_id == agent_model.name
-        ):  # "test_agent_fixture"
+        elif component_type == "agents" and component_id == agent_model.name:
             return agent_model
-        elif (
-            component_type == "llm_configs" and component_id == llm_model.llm_id
-        ):  # "test_llm_fixture"
+        elif component_type == "llm_configs" and component_id == llm_model.llm_id:
             return llm_model
         elif (
             component_type == "simple_workflows"
             and component_id == simple_wf_model.name
-        ):  # "test_simple_workflow_fixture"
+        ):
             return simple_wf_model
         elif (
             component_type == "custom_workflows"
             and component_id == custom_wf_model.name
-        ):  # "test_custom_workflow_fixture"
+        ):
             return custom_wf_model
         return None
 
@@ -110,49 +99,185 @@ def project_manager(mock_component_manager: MagicMock) -> ProjectManager:
     return ProjectManager(component_manager=mock_component_manager)
 
 
-def test_create_project_file_success(project_manager: ProjectManager, tmp_path: Path):
-    """Test successful creation of a project file."""
-    project_file_path = tmp_path / "test_project.json"
-    content = {"name": "MyTestProject", "description": "A test."}
-
-    result = project_manager.create_project_file(project_file_path, content)
-    assert result is True
-    assert project_file_path.is_file()
-    with open(project_file_path, "r") as f:
-        data_on_disk = json.load(f)
-    assert data_on_disk == content
+# --- Tests for the new create_project_file method ---
 
 
-def test_create_project_file_already_exists_error(
+def test_new_create_project_file_success(
     project_manager: ProjectManager, tmp_path: Path
 ):
-    """Test FileExistsError when creating a project file that already exists."""
-    project_file_path = tmp_path / "test_project_exists.json"
-    content = {"name": "MyExistingProject"}
+    """Test successful creation of a project file with the new signature."""
+    project_file_path = tmp_path / "new_test_project.json"
+    project_name = "MyNewProject"
+    project_description = "A brand new project."
 
-    project_manager.create_project_file(project_file_path, content)  # Create first time
+    client_data_dict = VALID_CLIENT_CONFIG_DATA_MINIMAL.copy()
+    client_data_dict["client_id"] = "client_for_new_proj"
+    client_data_dict.setdefault("roots", [])  # Ensure roots for ClientConfig
+    client_configs_list = [ClientConfig(**client_data_dict)]
+
+    llm_data_dict = VALID_LLM_CONFIG_DATA.copy()
+    llm_data_dict["llm_id"] = "llm_for_new_proj"
+    llm_configs_list = [LLMConfig(**llm_data_dict)]
+
+    created_project_config = project_manager.create_project_file(
+        project_name=project_name,
+        project_file_path=project_file_path,
+        project_description=project_description,
+        client_configs=client_configs_list,
+        llm_configs=llm_configs_list,
+    )
+
+    assert project_file_path.is_file()
+    assert isinstance(created_project_config, ProjectConfig)
+    assert created_project_config.name == project_name
+    assert created_project_config.description == project_description
+    assert len(created_project_config.clients) == 1
+    assert "client_for_new_proj" in created_project_config.clients
+    # Pydantic converts string path to Path object on model creation
+    assert created_project_config.clients["client_for_new_proj"].server_path == Path(
+        client_data_dict["server_path"]
+    )
+    assert len(created_project_config.llm_configs) == 1
+    assert "llm_for_new_proj" in created_project_config.llm_configs
+
+    with open(project_file_path, "r") as f:
+        data_on_disk = json.load(f)
+
+    assert data_on_disk["name"] == project_name
+    assert data_on_disk["description"] == project_description
+    assert len(data_on_disk["clients"]) == 1
+    assert (
+        data_on_disk["clients"]["client_for_new_proj"]["client_id"]
+        == "client_for_new_proj"
+    )
+    assert data_on_disk["clients"]["client_for_new_proj"]["server_path"] == str(
+        Path(client_data_dict["server_path"])
+    )
+
+
+def test_new_create_project_file_already_exists_error(
+    project_manager: ProjectManager, tmp_path: Path
+):
+    """Test FileExistsError with the new create_project_file."""
+    project_file_path = tmp_path / "new_exists.json"
+    project_name = "ExistingProject"
+
+    project_manager.create_project_file(
+        project_name=project_name, project_file_path=project_file_path
+    )
 
     with pytest.raises(FileExistsError):
-        project_manager.create_project_file(project_file_path, content, overwrite=False)
+        project_manager.create_project_file(
+            project_name=project_name,
+            project_file_path=project_file_path,
+            overwrite=False,
+        )
 
 
-def test_create_project_file_overwrite_success(
+def test_new_create_project_file_overwrite_success(
     project_manager: ProjectManager, tmp_path: Path
 ):
-    """Test overwriting an existing project file successfully."""
-    project_file_path = tmp_path / "test_project_overwrite.json"
-    initial_content = {"name": "InitialProject", "version": 1}
-    updated_content = {"name": "UpdatedProject", "version": 2}
+    """Test overwriting with the new create_project_file."""
+    project_file_path = tmp_path / "new_overwrite.json"
 
-    project_manager.create_project_file(project_file_path, initial_content)
-
-    result = project_manager.create_project_file(
-        project_file_path, updated_content, overwrite=True
+    project_manager.create_project_file(
+        project_name="InitialName",
+        project_file_path=project_file_path,
+        project_description="Initial desc.",
     )
-    assert result is True
+
+    updated_name = "UpdatedName"
+    updated_description = "Updated desc."
+    llm_data_dict = VALID_LLM_CONFIG_DATA.copy()
+    llm_data_dict["llm_id"] = "llm_for_overwrite"
+    llm_configs_list = [LLMConfig(**llm_data_dict)]
+
+    overwritten_config = project_manager.create_project_file(
+        project_name=updated_name,
+        project_file_path=project_file_path,
+        project_description=updated_description,
+        llm_configs=llm_configs_list,
+        overwrite=True,
+    )
+
+    assert overwritten_config.name == updated_name
+    assert overwritten_config.description == updated_description
+    assert len(overwritten_config.llm_configs) == 1
+    assert "llm_for_overwrite" in overwritten_config.llm_configs
+
     with open(project_file_path, "r") as f:
         data_on_disk = json.load(f)
-    assert data_on_disk == updated_content
+    assert data_on_disk["name"] == updated_name
+    assert data_on_disk["description"] == updated_description
+    assert len(data_on_disk["llm_configs"]) == 1
+
+
+# --- Old tests for create_project_file (now adapted or to be removed) ---
+# The old tests are being removed as their functionality is covered by the new tests
+# and the method signature has changed significantly.
+
+# def test_create_project_file_success(project_manager: ProjectManager, tmp_path: Path):
+#     """Test successful creation of a project file."""
+#     project_file_path = tmp_path / "test_project.json"
+#     project_name = "MyTestProject"
+#     project_description = "A test."
+#     # Expected content after ProjectConfig model serializes with defaults for empty lists
+#     expected_content_on_disk = {
+#         "name": project_name,
+#         "description": project_description,
+#         "clients": {},
+#         "llm_configs": {},
+#         "agent_configs": {},
+#         "simple_workflow_configs": {},
+#         "custom_workflow_configs": {}
+#     }
+
+#     created_config = project_manager.create_project_file(
+#         project_name=project_name,
+#         project_file_path=project_file_path,
+#         project_description=project_description
+#     )
+#     assert isinstance(created_config, ProjectConfig)
+#     assert created_config.name == project_name
+#     assert project_file_path.is_file()
+#     with open(project_file_path, "r") as f:
+#         data_on_disk = json.load(f)
+#     assert data_on_disk == expected_content_on_disk
+
+# def test_create_project_file_already_exists_error(
+#     project_manager: ProjectManager, tmp_path: Path
+# ):
+#     """Test FileExistsError when creating a project file that already exists."""
+#     project_file_path = tmp_path / "test_project_exists.json"
+#     project_name = "MyExistingProject"
+
+#     project_manager.create_project_file(project_name=project_name, project_file_path=project_file_path)  # Create first time
+
+#     with pytest.raises(FileExistsError):
+#         project_manager.create_project_file(project_name=project_name, project_file_path=project_file_path, overwrite=False)
+
+
+# def test_create_project_file_overwrite_success(
+#     project_manager: ProjectManager, tmp_path: Path
+# ):
+#     """Test overwriting an existing project file successfully."""
+#     project_file_path = tmp_path / "test_project_overwrite.json"
+#     initial_name = "InitialProject"
+#     initial_desc = "Initial Version"
+
+#     project_manager.create_project_file(project_name=initial_name, project_file_path=project_file_path, project_description=initial_desc)
+
+#     updated_name = "UpdatedProject"
+#     updated_desc = "Version 2"
+#     updated_config = project_manager.create_project_file(
+#         project_name=updated_name, project_file_path=project_file_path, project_description=updated_desc, overwrite=True
+#     )
+#     assert updated_config.name == updated_name
+#     assert updated_config.description == updated_desc
+#     with open(project_file_path, "r") as f:
+#         data_on_disk = json.load(f)
+#     assert data_on_disk["name"] == updated_name
+#     assert data_on_disk["description"] == updated_desc
 
 
 def test_load_project_with_inline_definitions(
@@ -164,8 +289,6 @@ def test_load_project_with_inline_definitions(
     with open(project_file, "w") as f:
         json.dump(project_data, f)
 
-    # Mock ComponentManager to return None for any ID lookups,
-    # forcing ProjectManager to rely on inline defs.
     project_manager.component_manager.get_component_config.return_value = None
 
     loaded_project_config = project_manager.load_project(project_file)
@@ -174,22 +297,15 @@ def test_load_project_with_inline_definitions(
     assert loaded_project_config.name == project_data["name"]
     assert len(loaded_project_config.clients) == len(project_data["clients"])
     assert loaded_project_config.clients["client1"].client_id == "client1"
-    # Check path resolution for an inline client
-    inline_client_path_str = project_data["clients"][0][
-        "server_path"
-    ]  # "dummy_server1.py"
+    inline_client_path_str = project_data["clients"][0]["server_path"]
     expected_resolved_path = (PROJECT_ROOT_DIR / inline_client_path_str).resolve()
     assert (
         loaded_project_config.clients["client1"].server_path == expected_resolved_path
     )
-
-    # Use the correct key 'agent_configs' from the updated fixture
     assert len(loaded_project_config.agent_configs) == len(
         project_data["agent_configs"]
     )
-    assert (
-        loaded_project_config.agent_configs["Agent1"].name == "Agent1"
-    )  # Re-corrected indentation
+    assert loaded_project_config.agent_configs["Agent1"].name == "Agent1"
 
 
 def test_load_project_with_references(
@@ -201,19 +317,15 @@ def test_load_project_with_references(
     with open(project_file, "w") as f:
         json.dump(project_data, f)
 
-    # The project_manager fixture is already using mock_component_manager with side_effect
     loaded_project_config = project_manager.load_project(project_file)
 
     assert isinstance(loaded_project_config, ProjectConfig)
     assert loaded_project_config.name == project_data["name"]
-
-    # Check clients (test_client_min, test_client_full)
     assert len(loaded_project_config.clients) == 2
     assert "test_client_min" in loaded_project_config.clients
     assert (
         loaded_project_config.clients["test_client_min"].client_id == "test_client_min"
     )
-    # Verify path resolution for referenced client (done by mock_component_manager's side_effect)
     client1_fixture_data = VALID_CLIENT_CONFIG_DATA_MINIMAL
     expected_client1_path = (
         PROJECT_ROOT_DIR / client1_fixture_data["server_path"]
@@ -222,30 +334,19 @@ def test_load_project_with_references(
         loaded_project_config.clients["test_client_min"].server_path
         == expected_client1_path
     )
-
-    assert (
-        "test_client_full" in loaded_project_config.clients
-    )  # Mocked to return a simple ClientConfig
-
-    # Check agents
+    assert "test_client_full" in loaded_project_config.clients
     assert len(loaded_project_config.agent_configs) == 1
     assert "test_agent_fixture" in loaded_project_config.agent_configs
     assert (
         loaded_project_config.agent_configs["test_agent_fixture"].name
         == "test_agent_fixture"
     )
-
-    # Check LLMs
     assert len(loaded_project_config.llm_configs) == 1
     assert "test_llm_fixture" in loaded_project_config.llm_configs
-
-    # Check simple workflows
     assert len(loaded_project_config.simple_workflow_configs) == 1
     assert (
         "test_simple_workflow_fixture" in loaded_project_config.simple_workflow_configs
     )
-
-    # Check custom workflows
     assert len(loaded_project_config.custom_workflow_configs) == 1
     assert (
         "test_custom_workflow_fixture" in loaded_project_config.custom_workflow_configs
@@ -271,7 +372,6 @@ def test_load_project_missing_reference_error(
     with open(project_file, "w") as f:
         json.dump(project_data, f)
 
-    # Configure mock CM to return None for this specific ID
     project_manager.component_manager.get_component_config.side_effect = (
         lambda type, id: None if id == "non_existent_client_id" else MagicMock()
     )
@@ -292,17 +392,14 @@ def test_load_project_inline_def_validation_error(
             {
                 "llm_id": "bad_llm",
                 "temperature": "not-a-float",
-            }  # Invalid temperature type
+            }
         ],
     }
     project_file = tmp_path / "invalid_inline_project.json"
     with open(project_file, "w") as f:
         json.dump(project_data, f)
 
-    # No need to mock CM here as the error is in inline validation by ProjectManager
-    with pytest.raises(
-        ValueError, match="Invalid inline LLMConfig definition"
-    ):  # ProjectManager wraps Pydantic error
+    with pytest.raises(ValueError, match="Invalid inline LLMConfig definition"):
         project_manager.load_project(project_file)
 
 
@@ -321,7 +418,7 @@ def test_load_project_invalid_json_error(
     """Test RuntimeError when project file contains invalid JSON."""
     invalid_json_file = tmp_path / "invalid.json"
     with open(invalid_json_file, "w") as f:
-        f.write("{'name': 'bad json, quotes not double'}")  # Invalid JSON
+        f.write("{'name': 'bad json, quotes not double'}")
 
     with pytest.raises(RuntimeError, match="Error parsing project configuration file"):
         project_manager.load_project(invalid_json_file)

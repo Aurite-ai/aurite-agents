@@ -308,6 +308,44 @@ class HostManager:
         logger.info("Current project configurations cleared.")
         logger.info("Project unload complete.")
 
+    async def change_project(self, new_project_config_path: Path):
+        """
+        Unloads the current project and initializes the HostManager with a new project configuration.
+
+        Args:
+            new_project_config_path: The absolute path to the new project's JSON configuration file.
+        """
+        logger.info(f"Attempting to change project to: {new_project_config_path}...")
+        # Ensure path is absolute
+        if not new_project_config_path.is_absolute():
+            logger.warning(
+                f"New project path {new_project_config_path} is not absolute. Resolving."
+            )
+            new_project_config_path = new_project_config_path.resolve()
+
+        # Unload current project and host
+        await self.unload_project()
+
+        # Update the config path for the next initialization
+        self.config_path = new_project_config_path
+        logger.info(f"HostManager config path updated to: {self.config_path}")
+
+        # Initialize with the new project config
+        # This will load the new project, create a new MCPHost, connect clients, etc.
+        try:
+            await self.initialize()
+            logger.info(
+                f"Successfully changed project and initialized with {self.config_path}."
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize HostManager after changing project to {self.config_path}: {e}",
+                exc_info=True,
+            )
+            # Ensure state is clean even after failed initialization
+            await self.unload_project()  # Call unload again to be safe
+            raise  # Re-raise the exception so the caller knows it failed
+
     # --- Registration Methods ---
 
     async def register_client(self, client_config: "ClientConfig"):

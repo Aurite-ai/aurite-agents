@@ -3,6 +3,7 @@ Unit tests for the HostManager class, focusing on registration logic.
 """
 
 import pytest
+import asyncio  # Added import
 from unittest.mock import MagicMock, patch, call
 from pathlib import Path
 
@@ -457,3 +458,123 @@ class TestHostManagerClientRegistration:
         )
         with pytest.raises(ValueError, match="HostManager is not initialized."):
             await manager.register_client(client_config)
+
+
+# --- Test Class for Unload Project ---
+
+
+class TestHostManagerUnloadProject:
+    """Tests for HostManager.unload_project."""
+
+    async def test_unload_project_clears_state_and_shuts_down_host(
+        self, unit_test_host_manager: HostManager
+    ):
+        """Verify unload_project calls host shutdown and clears project state."""
+        manager = unit_test_host_manager
+        mock_host = manager.host  # Get the mock host instance
+
+        # Pre-populate some state to verify clearing
+        manager.current_project = MagicMock()  # Simulate a loaded project
+        manager.agent_configs = {"agent1": MagicMock()}
+        manager.llm_configs = {"llm1": MagicMock()}
+        manager.workflow_configs = {"wf1": MagicMock()}
+        manager.custom_workflow_configs = {"cwf1": MagicMock()}
+
+        # Call the method under test
+        await manager.unload_project()
+
+        # Verify host shutdown was called
+        mock_host.shutdown.assert_awaited_once()
+
+        # Verify state is cleared
+        assert manager.host is None
+        assert manager.current_project is None
+        assert manager.agent_configs == {}
+        assert manager.llm_configs == {}
+        assert manager.workflow_configs == {}
+        assert manager.custom_workflow_configs == {}
+
+    async def test_unload_project_no_host(self, unit_test_host_manager: HostManager):
+        """Verify unload_project works correctly when host is already None."""
+        manager = unit_test_host_manager
+        manager.host = None  # Ensure host is None initially
+        # Pre-populate some state
+        manager.current_project = MagicMock()
+        manager.agent_configs = {"agent1": MagicMock()}
+
+        # Call the method under test
+        await manager.unload_project()
+
+        # Verify state is cleared (host remains None)
+        assert manager.host is None
+        assert manager.current_project is None
+        assert manager.agent_configs == {}
+        # No error should be raised
+
+
+# --- Test Class for Change Project ---
+
+
+class TestHostManagerChangeProject:
+    """Tests for HostManager.change_project."""
+
+    @patch.object(
+        HostManager, "unload_project", new_callable=MagicMock
+    )  # Use MagicMock for async def
+    @patch.object(
+        HostManager, "initialize", new_callable=MagicMock
+    )  # Use MagicMock for async def
+    async def test_change_project_calls_unload_and_initialize(
+        self,
+        mock_initialize: MagicMock,
+        mock_unload_project: MagicMock,
+        unit_test_host_manager: HostManager,
+    ):
+        """Verify change_project calls unload_project then initialize, and updates config_path."""
+        manager = unit_test_host_manager
+        original_config_path = manager.config_path
+        new_config_path = Path("/new/fake/project.json")
+
+        # Configure async mocks
+        mock_unload_project.return_value = asyncio.Future()
+        mock_unload_project.return_value.set_result(None)
+        mock_initialize.return_value = asyncio.Future()
+        mock_initialize.return_value.set_result(None)
+
+        await manager.change_project(new_config_path)
+
+        mock_unload_project.assert_called_once()  # Corrected from assert_awaited_once
+        assert (
+            manager.config_path == new_config_path.resolve()
+        )  # change_project resolves the path
+        mock_initialize.assert_called_once()  # Corrected from assert_awaited_once
+
+        # Verify the order of calls if possible (might need more complex mocking or call list inspection)
+        # For now, individual calls are verified.
+
+    @patch.object(HostManager, "unload_project", new_callable=MagicMock)
+    @patch.object(
+        HostManager, "initialize", side_effect=RuntimeError("Init failed")
+    )  # Simulate init failure
+    async def test_change_project_handles_initialization_failure(
+        self,
+        mock_initialize_fails: MagicMock,
+        mock_unload_project_on_fail: MagicMock,
+        unit_test_host_manager: HostManager,
+    ):
+        """Verify change_project calls unload_project again if initialize fails."""
+        manager = unit_test_host_manager
+        new_config_path = Path("/another/project.json")
+
+        # Configure async mocks
+        mock_unload_project_on_fail.return_value = asyncio.Future()
+        mock_unload_project_on_fail.return_value.set_result(None)
+        # mock_initialize_fails is already configured with side_effect
+
+        with pytest.raises(RuntimeError, match="Init failed"):
+            await manager.change_project(new_config_path)
+
+        # unload_project should be called twice: once at the start, once after init failure
+        assert mock_unload_project_on_fail.call_count == 2  # Corrected from await_count
+        mock_initialize_fails.assert_called_once()  # Corrected from assert_awaited_once
+        assert manager.config_path == new_config_path.resolve()
