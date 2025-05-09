@@ -337,7 +337,7 @@ class TestExecutionFacadeUnit:
             conversation=[],
             final_response=None,
             tool_uses_in_final_turn=[],
-            error=f"Configuration error: \"Agent configuration '{agent_name}' not found in current project.\"",
+            error=f"Configuration error: \"Agent configurations not found in current project for agent '{agent_name}'.\"",
         ).model_dump(mode="json")
 
         # Call the public method - no need to mock _execute_component
