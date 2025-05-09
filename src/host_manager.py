@@ -366,10 +366,8 @@ class HostManager:
             logger.error("HostManager is not initialized. Cannot register client.")
             raise ValueError("HostManager is not initialized.")
 
-        # Check for duplicate client ID (MCPHost will also check, but good to check early)
-        # Accessing host._clients directly might be fragile, consider adding a method to host?
-        # For now, following the plan.
-        if client_config.client_id in self.host._clients:
+        # Check for duplicate client ID using the host's method
+        if self.host.is_client_registered(client_config.client_id):
             logger.error(f"Client ID '{client_config.client_id}' already registered.")
             raise ValueError(
                 f"Client ID '{client_config.client_id}' already registered."

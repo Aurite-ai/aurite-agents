@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+import os
 
 # Import the FastAPI app instance from its new location
 from src.bin.api.api import app
@@ -24,6 +25,7 @@ def api_client(monkeypatch):
     # Use monkeypatch (provided by pytest) to set environment variables for the test function
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")  # Default to DB disabled
     # monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key_fixture")  # Dummy key
+    test_api_key = os.getenv("API_KEY", "dummy_api_key_fixture")
 
     # Add any other environment variables required by your application during testing
     # monkeypatch.setenv("SOME_OTHER_VAR", "some_value")
@@ -40,6 +42,7 @@ def api_client(monkeypatch):
         # Set common headers, but DO NOT set the API key by default.
         # Tests requiring auth must add the 'X-API-Key' header explicitly.
         client.headers["Content-Type"] = "application/json"  # Common header
+        client.test_api_key = test_api_key
 
         yield client  # Provide the configured client to the test function
 
