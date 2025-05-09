@@ -339,40 +339,60 @@ class TestAnthropicLLMUnit:
         Tests that a 'max_tokens' stop_reason from the SDK is correctly
         propagated to the AgentOutputMessage.
         """
-        mock_anthropic_sdk_client = MagicMock(spec=AsyncAnthropic)
+        # Mock the response that the SDK's create method should return
         mock_sdk_response = AnthropicSDKMessage(
             id="msg_test_max_tokens_prop",
             type="message",
             role="assistant",
             model=TEST_MODEL_NAME,
-            content=[
-                TextBlock(type="text", text="Some truncated text.")
-            ],  # Content doesn't matter for this test
+            content=[TextBlock(type="text", text="Some truncated text.")],
             stop_reason="max_tokens",  # This is the key part to test
             stop_sequence=None,
             usage=Usage(input_tokens=10, output_tokens=50),
         )
-        mock_messages_api = MagicMock()
+
+        # This will be the mock for the .create() method
         mock_create_method = AsyncMock(return_value=mock_sdk_response)
-        mock_messages_api.create = mock_create_method
-        mock_anthropic_sdk_client.messages = mock_messages_api
 
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
-            llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
-        llm_client.anthropic_sdk_client = mock_anthropic_sdk_client
+        # Patch 'AsyncAnthropic' where it's imported in the module under test (src.llm.providers.anthropic_client)
+        with patch(
+            "src.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
+        ) as MockAsyncAnthropicClass:
+            # Configure the instance that MockAsyncAnthropicClass() will return when AnthropicLLM initializes it
+            mock_sdk_client_instance = MagicMock(spec=AsyncAnthropic)
+            mock_sdk_client_instance.messages = MagicMock()
+            mock_sdk_client_instance.messages.create = mock_create_method
+            MockAsyncAnthropicClass.return_value = mock_sdk_client_instance
 
-        messages_input = [
-            {"role": "user", "content": [{"type": "text", "text": "A user message."}]}
-        ]
+            # AnthropicLLM initialization will now use the mocked AsyncAnthropic class
+            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": TEST_API_KEY}):
+                llm_client = AnthropicLLM(model_name=TEST_MODEL_NAME)
 
-        result_message: AgentOutputMessage = await llm_client.create_message(
-            messages=messages_input, tools=None
-        )
+            # Sanity check: Ensure the llm_client is using our mocked instance
+            assert llm_client.anthropic_sdk_client is mock_sdk_client_instance, (
+                "Patching strategy failed: llm_client.anthropic_sdk_client is not the expected mock instance."
+            )
 
-        mock_create_method.assert_called_once()
+            messages_input = [
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "A user message."}],
+                }
+            ]
 
-        assert isinstance(result_message, AgentOutputMessage)
-        assert result_message.stop_reason == "max_tokens"  # Verify correct propagation
+            result_message: AgentOutputMessage = await llm_client.create_message(
+                messages=messages_input, tools=None
+            )
+
+            # Assert that the create method on our controlled mock was called
+            mock_create_method.assert_called_once()
+            # Alternative assertion on the instance held by the client:
+            # llm_client.anthropic_sdk_client.messages.create.assert_called_once()
+
+            assert isinstance(result_message, AgentOutputMessage)
+            assert (
+                result_message.stop_reason == "max_tokens"
+            )  # Verify correct propagation
 
     @pytest.mark.anyio
     async def test_create_message_propagates_stop_sequence(self):

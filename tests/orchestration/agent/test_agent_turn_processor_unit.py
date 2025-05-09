@@ -111,6 +111,7 @@ class TestAgentTurnProcessorUnit:
             tools=None,
             system_prompt_override="You are helpful.",
             schema=None,  # Agent config has no schema
+            llm_config_override=None,  # Expecting default None
         )
 
         # Correct results returned
@@ -410,6 +411,7 @@ class TestAgentTurnProcessorUnit:
             tools=None,
             system_prompt_override="You are helpful.",
             schema=test_schema,  # Schema was passed
+            llm_config_override=None,  # Expecting default None
         )
 
         # Correct results returned - validation fails
@@ -478,6 +480,7 @@ class TestAgentTurnProcessorUnit:
             tools=None,
             system_prompt_override="You are helpful.",
             schema=test_schema,  # Verify schema was passed to LLM client
+            llm_config_override=None,  # Expecting default None
         )
 
         # Correct results returned - validation passes, so return original response
