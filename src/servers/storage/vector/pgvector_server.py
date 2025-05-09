@@ -240,13 +240,13 @@ def clear_database(confirmation_code: str = None) -> bool:
         return False
 
 @mcp.tool()
-def search(query_text: str, limit: int = 5) -> list[(str, int, float)]:
+def search(query_text: str, limit: int = 3) -> list[(str, int, float)]:
     """
     Search for text similar to the query in the vector database
     
     Args:
         query_text (str): The text to find entries similar to
-        limit (int): How many entries to return, default 5
+        limit (int): How many entries to return, default 3
         
     Returns:
         list[(str, int, float)]: List of entries as tuples of text value (str), id (int), and the cosine distance to the query (float)

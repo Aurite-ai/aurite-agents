@@ -1,10 +1,26 @@
 {
     "name": "DocumentationAgent",
     "clients": [
-      
+        {
+            "client_id": "pgvector_server",
+            "server_path": "src/servers/storage/vector/pgvector_server.py",
+            "capabilities": ["tools", "prompts"],
+            "timeout": 15.0,
+            "routing_weight": 1.0,
+            "roots": []
+        }
     ],
     "agents": [
-      
+        {
+            "name": "Documentation Chat Agent",
+            "system_prompt": "Your job is to use the information stored in the pgvector database to answer any questions asked by the user. This database contains text snippets from relevant documentation files. Whenever the user asks a question, use the search tool to search for similar text snippets and use them to answer their question",
+            "client_ids": ["pgvector_server"],
+            "model": "claude-3-opus-20240229",
+            "temperature": "0.1",
+            "max_tokens": 4096,
+            "max_iterations": 10,
+            "include_history": "True"
+        }
     ],
     "workflows": [
       
