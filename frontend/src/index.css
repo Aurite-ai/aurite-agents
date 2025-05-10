@@ -25,11 +25,17 @@ body {
 /* If specific global overrides are needed, they can be added here, but prefer utility classes. */
 
 /* ChatScope UI Kit Overrides */
+/* Message List Background */
+.cs-message-list__scroll-wrapper {
+  background-color: theme('colors.dracula-background') !important;
+}
+
 /* MessageInput */
 .cs-message-input__content-editor-wrapper .cs-message-input__content-editor {
   background-color: theme(
-    'colors.dracula-current-line'
-  ) !important; /* Use !important if necessary to override */
+    'colors.dracula-comment'
+      /* Changed to a lighter Dracula color for contrast */
+  ) !important;
   color: theme('colors.dracula-foreground') !important;
   border-radius: theme('borderRadius.md'); /* Optional: match border radius */
 }
