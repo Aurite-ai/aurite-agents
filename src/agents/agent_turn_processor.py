@@ -211,9 +211,26 @@ class AgentTurnProcessor:
                     yield llm_event  # Forward to frontend
 
                 elif event_type == "tool_use_input_delta":
-                    if index in active_tool_calls:
-                        active_tool_calls[index]["input_str"] += event_data.get(
-                            "json_chunk", ""
+                    logger.debug(
+                        f"ATP: Received tool_use_input_delta event. Full event_data: {event_data}"
+                    )
+                    if index is not None and index in active_tool_calls:
+                        json_chunk_data = event_data.get("json_chunk")
+                        # Ensure chunk_to_add is a string
+                        chunk_to_add = (
+                            str(json_chunk_data) if json_chunk_data is not None else ""
+                        )
+
+                        logger.debug(
+                            f"ATP: Tool input delta for index {index}. Current input_str: '{active_tool_calls[index]['input_str']}'. Chunk to add (type {type(chunk_to_add)}): '{chunk_to_add}'"
+                        )
+                        active_tool_calls[index]["input_str"] += chunk_to_add
+                        logger.debug(
+                            f"ATP: Tool input delta for index {index}. New input_str: '{active_tool_calls[index]['input_str']}'"
+                        )
+                    else:
+                        logger.warning(
+                            f"ATP: Received tool_use_input_delta for index {index} (from event_data: {event_data.get('index')}) but not found in active_tool_calls ({list(active_tool_calls.keys())}) or index is None."
                         )
                     yield llm_event  # Forward to frontend
 
@@ -227,23 +244,55 @@ class AgentTurnProcessor:
                         tool_id = tool_call_info["id"]
                         tool_name = tool_call_info["name"]
                         tool_input_str = tool_call_info["input_str"]
+                        # 'index' here is the index of the tool_use block from the LLM event.
 
                         logger.info(
                             f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
-                        self._tool_uses_this_turn.append(  # For non-streaming compatibility if needed
-                            {
-                                "id": tool_id,
-                                "name": tool_name,
-                                "input": json.loads(tool_input_str)
-                                if tool_input_str
-                                else {},
-                            }
+                        logger.debug(
+                            f"ATP: Attempting to parse tool_input_str (repr): {repr(tool_input_str)}"
                         )
 
+                        # Store tool use details (already done in non-streaming, ensure consistency if needed)
+                        # self._tool_uses_this_turn.append(...)
+
                         try:
+                            # Strip whitespace just in case, though json.loads usually handles it.
+                            cleaned_tool_input_str = (
+                                tool_input_str.strip() if tool_input_str else ""
+                            )
+                            # Aggressively remove potential null bytes or other non-printable ASCII that might break json.loads
+                            sanitized_tool_input_str = "".join(
+                                c
+                                for c in cleaned_tool_input_str
+                                if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
+                            )  # Allow common whitespace
+                            if (
+                                not sanitized_tool_input_str and cleaned_tool_input_str
+                            ):  # If stripping all made it empty, it was likely bad
+                                logger.warning(
+                                    f"ATP: tool_input_str became empty after sanitization. Original: {repr(cleaned_tool_input_str)}"
+                                )
+                                # Decide: raise error or try to parse original? For now, try original if sanitization empties it.
+                                # Or, more safely, if sanitization changes the string, log both and parse sanitized.
+                                if sanitized_tool_input_str != cleaned_tool_input_str:
+                                    logger.debug(
+                                        f"ATP: Sanitized tool_input_str for parsing: {repr(sanitized_tool_input_str)}. Original cleaned: {repr(cleaned_tool_input_str)}"
+                                    )
+                                # Use the sanitized string for parsing if it's not empty, otherwise use cleaned if that wasn't empty.
+                                string_to_parse = (
+                                    sanitized_tool_input_str
+                                    if sanitized_tool_input_str
+                                    else cleaned_tool_input_str
+                                )
+                            else:
+                                string_to_parse = cleaned_tool_input_str  # Default to cleaned if sanitization didn't change or wasn't needed
+
+                            logger.debug(
+                                f"ATP: Final string for json.loads: {repr(string_to_parse)}"
+                            )
                             parsed_input = (
-                                json.loads(tool_input_str) if tool_input_str else {}
+                                json.loads(string_to_parse) if string_to_parse else {}
                             )
                             tool_result_content = await self.host.execute_tool(
                                 tool_name=tool_name,
@@ -253,13 +302,45 @@ class AgentTurnProcessor:
                             logger.debug(
                                 f"Tool '{tool_name}' executed successfully via stream."
                             )
+
+                            # Ensure tool_result_content is JSON serializable
+                            serializable_output: Any
+                            if isinstance(tool_result_content, str):
+                                serializable_output = tool_result_content
+                            elif isinstance(tool_result_content, (list, tuple)):
+                                serializable_output = [
+                                    item.model_dump(mode="json")
+                                    if hasattr(item, "model_dump")
+                                    else str(item)
+                                    for item in tool_result_content
+                                ]
+                            elif hasattr(
+                                tool_result_content, "model_dump"
+                            ):  # Pydantic model
+                                serializable_output = tool_result_content.model_dump(
+                                    mode="json"
+                                )
+                            elif (
+                                isinstance(
+                                    tool_result_content, (dict, int, float, bool)
+                                )
+                                or tool_result_content is None
+                            ):
+                                serializable_output = tool_result_content
+                            else:
+                                logger.warning(
+                                    f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string."
+                                )
+                                serializable_output = str(tool_result_content)
+
                             yield {
                                 "event_type": "tool_result",
                                 "data": {
+                                    "index": index,  # Use the same index as the tool_use block for the result
                                     "tool_use_id": tool_id,
                                     "tool_name": tool_name,
-                                    "status": "success",  # Assuming success if no exception
-                                    "output": tool_result_content,  # This should be JSON serializable
+                                    "status": "success",
+                                    "output": serializable_output,
                                     "is_error": False,
                                 },
                             }
@@ -268,8 +349,9 @@ class AgentTurnProcessor:
                                 f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
                             )
                             yield {
-                                "event_type": "tool_execution_error",
+                                "event_type": "tool_execution_error",  # This is a specific error type
                                 "data": {
+                                    "index": index,  # Use the same index
                                     "tool_use_id": tool_id,
                                     "tool_name": tool_name,
                                     "error_message": f"Invalid JSON input for tool: {str(json_err)}",
@@ -281,8 +363,9 @@ class AgentTurnProcessor:
                                 exc_info=True,
                             )
                             yield {
-                                "event_type": "tool_execution_error",
+                                "event_type": "tool_execution_error",  # This is a specific error type
                                 "data": {
+                                    "index": index,  # Use the same index
                                     "tool_use_id": tool_id,
                                     "tool_name": tool_name,
                                     "error_message": str(e),

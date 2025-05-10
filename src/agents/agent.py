@@ -445,12 +445,7 @@ Please correct your previous response to conform to the schema."""
         # This list will store the content blocks for the *current* assistant message being streamed
         # It's used to reconstruct the full assistant message for history *after* the stream for that message is done.
         current_assistant_message_content_blocks_for_history: List[Dict[str, Any]] = []
-        # This will store the full input string for a tool call as it's being streamed
-        accumulated_tool_input_json: Dict[int, str] = {}  # index -> json_string
-        # Store tool call info to match with results
-        pending_tool_calls_info: Dict[
-            str, Dict[str, Any]
-        ] = {}  # tool_id -> {name, input_json_str}
+        # Removed Agent-level accumulation for tool input JSON, as AgentTurnProcessor handles it.
 
         while current_iteration < max_iterations:
             current_iteration += 1
@@ -530,58 +525,21 @@ Please correct your previous response to conform to the schema."""
                                 "index": index,
                             }
                         )
-                        pending_tool_calls_info[tool_id] = {
-                            "name": tool_name,
-                            "input_str": "",
-                            "index": index,
-                        }
+                        # pending_tool_calls_info was removed, AgentTurnProcessor handles accumulation.
 
                     elif event_type == "tool_use_input_delta":
-                        # Find the corresponding pending tool call by index and append input
-                        tool_id_to_update = None
-                        for tid, info in pending_tool_calls_info.items():
-                            if info["index"] == event_data.get("index"):
-                                tool_id_to_update = tid
-                                break
-                        if tool_id_to_update:
-                            pending_tool_calls_info[tool_id_to_update]["input_str"] += (
-                                event_data.get("json_chunk", "")
-                            )
+                        # Agent.stream_conversation no longer accumulates tool_use_input_delta.
+                        # It relies on AgentTurnProcessor to handle tool execution and yield tool_result.
+                        # This event is still yielded by TurnProcessor and forwarded by Agent.
+                        pass
 
                     elif event_type == "content_block_stop":
-                        # If this was a tool_use block that just stopped, finalize its input
-                        index = event_data.get("index")
-                        tool_id_finalized = None
-                        for tid, info in pending_tool_calls_info.items():
-                            if info["index"] == index:
-                                tool_id_finalized = tid
-                                break
-
-                        if tool_id_finalized:
-                            final_input_str = pending_tool_calls_info[
-                                tool_id_finalized
-                            ]["input_str"]
-                            try:
-                                parsed_input = (
-                                    json.loads(final_input_str)
-                                    if final_input_str
-                                    else {}
-                                )
-                                # Update the block in history
-                                for block in (
-                                    current_assistant_message_content_blocks_for_history
-                                ):
-                                    if (
-                                        block.get("type") == "tool_use"
-                                        and block.get("id") == tool_id_finalized
-                                    ):
-                                        block["input"] = parsed_input
-                                        break
-                            except json.JSONDecodeError:
-                                logger.error(
-                                    f"Failed to parse accumulated JSON for tool {tool_id_finalized}: {final_input_str}"
-                                )
-                                # Input will remain empty or partially filled in history if error
+                        # Agent.stream_conversation no longer finalizes tool input here.
+                        # AgentTurnProcessor handles parsing and execution upon content_block_stop for a tool_use.
+                        # This event is still yielded by TurnProcessor and forwarded by Agent.
+                        # We might need to update current_assistant_message_content_blocks_for_history
+                        # if the content_block_stop finalizes a text block, but that's usually implicit.
+                        pass
 
                     elif event_type == "tool_result":
                         # A tool result event was yielded by the turn_processor.
@@ -703,8 +661,7 @@ Please correct your previous response to conform to the schema."""
 
                         # Reset for a potential next assistant message in the loop (if tools were used)
                         current_assistant_message_content_blocks_for_history = []
-                        accumulated_tool_input_json.clear()
-                        # pending_tool_calls_info should be clear if all content_block_stop for tools were handled
+                        # pending_tool_calls_info was removed
 
                         if (
                             streamed_assistant_stop_reason
