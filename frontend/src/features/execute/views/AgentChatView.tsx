@@ -344,21 +344,53 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       try {
         const eventData = JSON.parse(event.data as string);
         // event.type is 'tool_result'. eventData is the payload.
-        const { index, tool_use_id, content, is_error, name } = eventData;
-        if (typeof index === 'number' && tool_use_id && content !== undefined) {
+        // Backend sends "output" for tool result content.
+        const { index, tool_use_id, output, is_error, name } = eventData;
+        if (typeof index === 'number' && tool_use_id && output !== undefined) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             // Ensure array is long enough for the new tool_result block
             while (newBlocks.length <= index) {
               newBlocks.push({ type: 'placeholder', text: '' }); // Should be replaced
             }
+            // The 'content' field of an AgentOutputContentBlock of type 'tool_result'
+            // is used to store the actual result data for ToolResultView's 'result' prop.
+            // If 'output' itself is a list of blocks, it can be directly assigned.
+            // If 'output' is a string (e.g. simple text result or stringified JSON),
+            // ToolResultView's renderResultContent will handle it.
+            let resultBlockContent: string | AgentOutputContentBlock[] | Record<string, any>;
+            if (typeof output === 'string') {
+                // If it's a string that might be JSON, ToolResultView handles parsing
+                resultBlockContent = output;
+            } else if (Array.isArray(output) || typeof output === 'object' && output !== null) {
+                // If it's an array (of blocks) or an object, pass as is
+                resultBlockContent = output;
+            } else {
+                resultBlockContent = String(output); // Fallback
+            }
+
             newBlocks[index] = {
               type: 'tool_result',
-              id: `tool_result_for_${tool_use_id}_${index}`, // Create a unique ID for the block itself
+              id: `tool_result_for_${tool_use_id}_${index}`,
               tool_use_id: tool_use_id,
-              content: content, // Content can be string or AgentOutputContentBlock[]
+              // The 'content' field of AgentOutputContentBlock is for *nested blocks*.
+              // For a tool_result block, the actual result data is what ToolResultView expects in its 'result' prop.
+              // We need to decide how to store this. Let's use a custom field or ensure 'text' or 'content' (as list) is used.
+              // The `StreamingMessageContentView` passes `block` to `ToolResultView` as props.
+              // `ToolResultView` expects `result={block.content}` if we map it that way.
+              // So, the `output` from the event should be placed into a field that `ToolResultView` reads.
+              // `ToolResultView`'s `result` prop is `string | Record<string, any> | AgentOutputContentBlock[]`.
+              // Our `AgentOutputContentBlock` has `text: Optional[str]` and `content: Optional[List["AgentOutputContentBlock"]]`.
+              // Let's put simple string results into `text` and complex (object/array) results into `content` if it's an array of blocks,
+              // or just pass the object if ToolResultView can handle it.
+              // For simplicity, let's assume ToolResultView's `result` prop will get the `output` directly.
+              // We need to make sure the block structure matches what StreamingMessageContentView passes to ToolResultView.
+              // StreamingMessageContentView does: <ToolResultView ... result={block.content} ... />
+              // So, we must put the tool's output into the 'content' field of this 'tool_result' block.
+              content: resultBlockContent as any, // Cast as any because resultBlockContent can be Record<string,any> which AgentOutputContentBlock.content doesn't directly type as.
+                                                 // ToolResultView's prop `result` is more flexible.
               is_error: is_error || false,
-              name: name, // Optional name of the tool that produced result
+              name: name,
             };
             return newBlocks.filter(b => b.type !== 'placeholder');
           });
