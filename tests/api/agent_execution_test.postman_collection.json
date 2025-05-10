@@ -1,0 +1,120 @@
+{
+  "info": {
+    "_postman_id": "b2c3d4e5-f6a7-8901-2345-bcdefa123456",
+    "name": "Aurite Agent Execution Test",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection for testing agent execution and conversation history, specifically for tool calls and results."
+  },
+  "item": [
+    {
+      "name": "Execute Agent Known to Use Tools (e.g., Weather Agent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/Weather%20Agent/execute",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "Weather%20Agent", "execute"]
+        },
+        "description": "Executes an agent expected to use tools and checks the conversation history for tool_use and tool_result blocks."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has 'conversation' array\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('conversation');",
+              "    pm.expect(jsonData.conversation).to.be.an('array').that.is.not.empty;",
+              "});",
+              "",
+              "pm.test(\"Conversation contains assistant message with 'tool_use'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    let conversation = jsonData.conversation;",
+              "    let assistantToolUseFound = false;",
+              "    for (let i = 0; i < conversation.length; i++) {",
+              "        if (conversation[i].role === 'assistant' && Array.isArray(conversation[i].content)) {",
+              "            for (let j = 0; j < conversation[i].content.length; j++) {",
+              "                if (conversation[i].content[j].type === 'tool_use') {",
+              "                    assistantToolUseFound = true;",
+              "                    pm.expect(conversation[i].content[j]).to.have.property('id');",
+              "                    pm.expect(conversation[i].content[j]).to.have.property('name');",
+              "                    pm.expect(conversation[i].content[j]).to.have.property('input');",
+              "                    break;",
+              "                }",
+              "            }",
+              "        }",
+              "        if (assistantToolUseFound) break;",
+              "    }",
+              "    pm.expect(assistantToolUseFound, \"No assistant message with tool_use found\").to.be.true;",
+              "});",
+              "",
+              "pm.test(\"Conversation contains user message with 'tool_result'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    let conversation = jsonData.conversation;",
+              "    let userToolResultFound = false;",
+              "    for (let i = 0; i < conversation.length; i++) {",
+              "        if (conversation[i].role === 'user' && Array.isArray(conversation[i].content)) {",
+              "            for (let j = 0; j < conversation[i].content.length; j++) {",
+              "                if (conversation[i].content[j].type === 'tool_result') {",
+              "                    userToolResultFound = true;",
+              "                    pm.expect(conversation[i].content[j]).to.have.property('tool_use_id');",
+              "                    pm.expect(conversation[i].content[j]).to.have.property('content'); // Content of tool_result can be string or list of blocks",
+              "                    break;",
+              "                }",
+              "            }",
+              "        }",
+              "        if (userToolResultFound) break;",
+              "    }",
+              "    pm.expect(userToolResultFound, \"No user message with tool_result found\").to.be.true;",
+              "});",
+              "",
+              "pm.test(\"Final response is present\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('final_response');",
+              "    // final_response can be null if max_iterations hit without explicit final text, but should exist",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string",
+      "description": "Base URL of the running FastAPI server, including /api prefix"
+    },
+    {
+      "key": "api_key",
+      "value": "YOUR_TEST_API_KEY",
+      "type": "secret",
+      "description": "API Key for accessing protected endpoints (Set this in your Postman environment)"
+    }
+  ]
+}

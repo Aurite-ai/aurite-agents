@@ -4,7 +4,14 @@ Manages the multi-turn conversation loop for an Agent.
 
 import logging
 import json
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import (
+    Dict,
+    Any,
+    Optional,
+    List,
+    TYPE_CHECKING,
+    AsyncGenerator,
+)  # Added AsyncGenerator
 
 from pydantic import ValidationError
 from anthropic.types import MessageParam
@@ -401,3 +408,345 @@ Please correct your previous response to conform to the schema."""
                 tool_uses_in_final_turn=self.tool_uses_in_last_turn,
                 error=final_error_message,
             )
+
+    async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Executes the conversation loop, streaming events (text, tool calls, tool results)
+        as they happen. This version is designed for streaming and will differ from
+        run_conversation in how it handles turns and accumulates history for the stream.
+
+        Yields:
+            Dict[str, Any]: Standardized event dictionaries suitable for SSE.
+        """
+        logger.debug(
+            f"Agent starting STREAMING run for agent '{self.config.name or 'Unnamed'}'."
+        )
+
+        effective_system_prompt = (
+            self.system_prompt_override
+            or self.config.system_prompt
+            or "You are a helpful assistant."
+        )
+        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+
+        # For streaming, we manage messages turn by turn more explicitly
+        current_turn_messages = list(
+            self.messages
+        )  # Start with initial messages for the first turn
+
+        max_iterations = self.config.max_iterations or 10
+        current_iteration = 0
+
+        # Accumulators for the current assistant message being built from stream
+        # These would be reset or managed if the agent makes multiple LLM calls in a single "stream_conversation"
+        # For now, assuming one primary LLM interaction per call to stream_conversation,
+        # which might involve multiple tool uses.
+
+        # This list will store the content blocks for the *current* assistant message being streamed
+        # It's used to reconstruct the full assistant message for history *after* the stream for that message is done.
+        current_assistant_message_content_blocks_for_history: List[Dict[str, Any]] = []
+        # This will store the full input string for a tool call as it's being streamed
+        accumulated_tool_input_json: Dict[int, str] = {}  # index -> json_string
+        # Store tool call info to match with results
+        pending_tool_calls_info: Dict[
+            str, Dict[str, Any]
+        ] = {}  # tool_id -> {name, input_json_str}
+
+        while current_iteration < max_iterations:
+            current_iteration += 1
+            logger.debug(f"Streaming conversation loop iteration {current_iteration}")
+
+            turn_processor = AgentTurnProcessor(
+                config=self.config,
+                llm_client=self.llm,
+                host_instance=self.host,
+                current_messages=list(
+                    current_turn_messages
+                ),  # Messages for this specific LLM call
+                tools_data=tools_data,
+                effective_system_prompt=effective_system_prompt,
+                llm_config_for_override=self.llm_config_for_override,
+            )
+
+            # This will be the full assistant message once its parts are streamed
+            streamed_assistant_message_id: Optional[str] = None
+            streamed_assistant_model: Optional[str] = None
+            streamed_assistant_role: str = "assistant"  # Default
+            streamed_assistant_stop_reason: Optional[str] = None
+            streamed_assistant_usage: Optional[Dict[str, int]] = None
+
+            try:
+                async for event in turn_processor.stream_turn_response():
+                    yield event  # Yield every event from turn_processor to the caller (facade)
+
+                    # --- Logic to update Agent's internal state based on stream ---
+                    event_type = event.get("event_type")
+                    event_data = event.get("data", {})
+
+                    if event_type == "message_start":
+                        streamed_assistant_message_id = event_data.get("message_id")
+                        streamed_assistant_model = event_data.get("model")
+                        streamed_assistant_role = event_data.get("role", "assistant")
+                        # Input tokens are for this specific call
+                        # We don't accumulate usage across multiple LLM calls within stream_conversation here yet
+
+                    elif event_type == "text_block_start":
+                        # If it's the first content block for this assistant message, initialize
+                        if not any(
+                            b.get("index") == event_data.get("index")
+                            for b in current_assistant_message_content_blocks_for_history
+                            if "index" in b
+                        ):
+                            current_assistant_message_content_blocks_for_history.append(
+                                {
+                                    "type": "text",
+                                    "text": "",
+                                    "index": event_data.get("index"),
+                                }
+                            )
+
+                    elif event_type == "text_delta":
+                        # Find the text block by index and append
+                        for (
+                            block
+                        ) in current_assistant_message_content_blocks_for_history:
+                            if (
+                                block.get("index") == event_data.get("index")
+                                and block["type"] == "text"
+                            ):
+                                block["text"] += event_data.get("text_chunk", "")
+                                break
+
+                    elif event_type == "tool_use_start":
+                        tool_id = event_data.get("tool_id")
+                        tool_name = event_data.get("tool_name")
+                        index = event_data.get("index")
+                        current_assistant_message_content_blocks_for_history.append(
+                            {
+                                "type": "tool_use",
+                                "id": tool_id,
+                                "name": tool_name,
+                                "input": {},
+                                "index": index,
+                            }
+                        )
+                        pending_tool_calls_info[tool_id] = {
+                            "name": tool_name,
+                            "input_str": "",
+                            "index": index,
+                        }
+
+                    elif event_type == "tool_use_input_delta":
+                        # Find the corresponding pending tool call by index and append input
+                        tool_id_to_update = None
+                        for tid, info in pending_tool_calls_info.items():
+                            if info["index"] == event_data.get("index"):
+                                tool_id_to_update = tid
+                                break
+                        if tool_id_to_update:
+                            pending_tool_calls_info[tool_id_to_update]["input_str"] += (
+                                event_data.get("json_chunk", "")
+                            )
+
+                    elif event_type == "content_block_stop":
+                        # If this was a tool_use block that just stopped, finalize its input
+                        index = event_data.get("index")
+                        tool_id_finalized = None
+                        for tid, info in pending_tool_calls_info.items():
+                            if info["index"] == index:
+                                tool_id_finalized = tid
+                                break
+
+                        if tool_id_finalized:
+                            final_input_str = pending_tool_calls_info[
+                                tool_id_finalized
+                            ]["input_str"]
+                            try:
+                                parsed_input = (
+                                    json.loads(final_input_str)
+                                    if final_input_str
+                                    else {}
+                                )
+                                # Update the block in history
+                                for block in (
+                                    current_assistant_message_content_blocks_for_history
+                                ):
+                                    if (
+                                        block.get("type") == "tool_use"
+                                        and block.get("id") == tool_id_finalized
+                                    ):
+                                        block["input"] = parsed_input
+                                        break
+                            except json.JSONDecodeError:
+                                logger.error(
+                                    f"Failed to parse accumulated JSON for tool {tool_id_finalized}: {final_input_str}"
+                                )
+                                # Input will remain empty or partially filled in history if error
+
+                    elif event_type == "tool_result":
+                        # A tool result event was yielded by the turn_processor.
+                        # This means a tool was executed. We need to add this to `current_turn_messages`
+                        # for the *next* LLM interaction if the loop continues.
+                        # And also add to conversation_history.
+                        tool_use_id = event_data.get("tool_use_id")
+                        tool_output_content = event_data.get(
+                            "output"
+                        )  # This is the raw content from tool
+
+                        # Create the MessageParam structure for tool result
+                        # The content of a tool_result can be a list of blocks or a simple string.
+                        # Assuming host.tools.create_tool_result_blocks handles this.
+                        # For simplicity, let's assume tool_result_content is directly usable or a string.
+                        # If it's complex, it should be a list of content blocks.
+                        tool_result_block_param_content: List[Dict[str, Any]]
+                        if isinstance(tool_output_content, str):
+                            tool_result_block_param_content = [
+                                {"type": "text", "text": tool_output_content}
+                            ]
+                        elif isinstance(
+                            tool_output_content, list
+                        ):  # Expecting list of content blocks
+                            tool_result_block_param_content = tool_output_content
+                        else:  # Fallback for other types, wrap as text
+                            tool_result_block_param_content = [
+                                {"type": "text", "text": str(tool_output_content)}
+                            ]
+
+                        tool_result_message_param: MessageParam = {
+                            "role": "user",  # Tool results are submitted as user role
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_use_id,
+                                    "content": tool_result_block_param_content,
+                                    "is_error": event_data.get(
+                                        "is_error", False
+                                    ),  # Pass along if it's an error result
+                                }
+                            ],
+                        }
+                        current_turn_messages.append(tool_result_message_param)
+                        self.conversation_history.append(
+                            dict(tool_result_message_param)
+                        )  # Add to log
+
+                    elif event_type == "tool_execution_error":
+                        # Similar to tool_result, but for errors
+                        tool_use_id = event_data.get("tool_use_id")
+                        error_message = event_data.get(
+                            "error_message", "Unknown tool execution error"
+                        )
+                        tool_error_message_param: MessageParam = {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_use_id,
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "text": f"Error: {error_message}",
+                                        }
+                                    ],  # Simplified error content
+                                    "is_error": True,
+                                }
+                            ],
+                        }
+                        current_turn_messages.append(tool_error_message_param)
+                        self.conversation_history.append(dict(tool_error_message_param))
+
+                    elif event_type == "message_delta":  # From Anthropic stream
+                        if (
+                            "stop_reason" in event_data
+                        ):  # Check if delta contains stop_reason
+                            streamed_assistant_stop_reason = event_data.get(
+                                "stop_reason"
+                            )
+                        if "output_tokens" in event_data:  # Check for usage
+                            if streamed_assistant_usage is None:
+                                streamed_assistant_usage = {}
+                            streamed_assistant_usage["output_tokens"] = event_data.get(
+                                "output_tokens"
+                            )
+
+                    elif event_type == "stream_end":
+                        # The LLM part of the turn is over.
+                        # Finalize the assistant message for history
+                        if (
+                            streamed_assistant_message_id
+                        ):  # Only if a message actually started
+                            full_assistant_message_for_history = AgentOutputMessage(
+                                id=streamed_assistant_message_id,
+                                model=streamed_assistant_model
+                                or self.config.model
+                                or "unknown_stream_model",
+                                role=streamed_assistant_role,  # type: ignore
+                                content=current_assistant_message_content_blocks_for_history,
+                                stop_reason=streamed_assistant_stop_reason,
+                                usage=streamed_assistant_usage,
+                            )
+                            self.conversation_history.append(
+                                full_assistant_message_for_history.model_dump(
+                                    mode="json"
+                                )
+                            )
+
+                            # Add the fully formed assistant message to current_turn_messages for the next LLM call
+                            # if the conversation is to continue (e.g. after tool use)
+                            # The content blocks are already suitable for MessageParam
+                            current_turn_messages.append(
+                                {
+                                    "role": streamed_assistant_role,
+                                    "content": current_assistant_message_content_blocks_for_history,
+                                }
+                            )
+
+                        # Reset for a potential next assistant message in the loop (if tools were used)
+                        current_assistant_message_content_blocks_for_history = []
+                        accumulated_tool_input_json.clear()
+                        # pending_tool_calls_info should be clear if all content_block_stop for tools were handled
+
+                        if (
+                            streamed_assistant_stop_reason
+                            and streamed_assistant_stop_reason != "tool_use"
+                        ):
+                            logger.debug(
+                                f"Final response indicated by stream_end with reason: {streamed_assistant_stop_reason}. Breaking loop."
+                            )
+                            # This is the final response from the LLM for the whole conversation
+                            self.final_response = (
+                                full_assistant_message_for_history
+                                if streamed_assistant_message_id
+                                else None
+                            )
+                            break  # Exit the while loop for iterations
+
+                        # If it was tool_use, the loop continues, current_turn_messages has been updated with tool_result
+
+            except Exception as e:
+                error_msg = f"Error during streaming conversation turn {current_iteration}: {type(e).__name__}: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                yield {
+                    "event_type": "error",
+                    "data": {"message": error_msg, "turn": current_iteration},
+                }
+                break  # Stop streaming on unhandled error in a turn
+
+            # Check if loop should break due to max_iterations or if final_response is set
+            if self.final_response or current_iteration >= max_iterations:
+                if current_iteration >= max_iterations and not self.final_response:
+                    logger.warning(
+                        f"Reached max iterations ({max_iterations}) in streaming. Aborting."
+                    )
+                    # Yield a final error or completion event if not already done
+                    yield {
+                        "event_type": "stream_end",
+                        "data": {"reason": "max_iterations_reached"},
+                    }
+                break
+
+        logger.info(
+            f"Agent finished STREAMING run for agent '{self.config.name or 'Unnamed'}'."
+        )
+        # The actual AgentExecutionResult is not built by this streaming method.
+        # The caller (Facade) will be responsible for that if needed, or the stream itself is the result.

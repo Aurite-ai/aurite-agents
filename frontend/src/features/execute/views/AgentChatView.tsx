@@ -7,7 +7,9 @@ import {
   MessageInput,
 } from '@chatscope/chat-ui-kit-react';
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
-import StructuredResponseView from '../../../components/common/StructuredResponseView'; // Import the new component
+import StructuredResponseView from '../../../components/common/StructuredResponseView';
+import ToolCallView from '../../../components/common/ToolCallView'; // Added import
+import ToolResultView from '../../../components/common/ToolResultView'; // Added import
 
 import {
   getSpecificComponentConfig,
@@ -96,37 +98,68 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     setChatError(null);
     try {
       const executionResult: AgentExecutionResult = await executeAgentAPI(agentName, userMessageContent);
+
       if (executionResult.error) {
         addMessage('error', `Execution Error: ${executionResult.error}`);
-      } else if (executionResult.final_response && executionResult.final_response.content && executionResult.final_response.content.length > 0) {
-        const firstBlock = executionResult.final_response.content[0];
-        if (firstBlock.type === 'text' && firstBlock.text !== undefined && firstBlock.text !== null) {
-          console.log('[AgentChatView DEBUG] firstBlock.text:', firstBlock.text); // For debugging
-          console.log('[AgentChatView DEBUG] typeof firstBlock.text:', typeof firstBlock.text); // For debugging
+      } else if (executionResult.conversation && executionResult.conversation.length > 0) {
+        // Process the entire conversation history from the result
+        // Skip the initial user message we already added
+        const conversationMessages = executionResult.conversation.slice(messages.filter(m => m.role === 'user').length);
 
-          if (typeof firstBlock.text === 'string') {
-            try {
-              const jsonData = JSON.parse(firstBlock.text);
-              // Ensure it's an object (and not an array or primitive that JSON.parse can also return)
-              if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
-                addMessage('assistant', <StructuredResponseView data={jsonData} />);
-              } else {
-                // Parsed, but not the object structure we want for StructuredResponseView
-                addMessage('assistant', firstBlock.text); // Fallback to raw text
+        conversationMessages.forEach(convMessage => {
+          if (convMessage.role === 'assistant') {
+            convMessage.content.forEach(block => {
+              if (block.type === 'text' && block.text !== undefined && block.text !== null) {
+                if (typeof block.text === 'string') {
+                  try {
+                    const jsonData = JSON.parse(block.text);
+                    if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+                      addMessage('assistant', <StructuredResponseView data={jsonData} />);
+                    } else {
+                      addMessage('assistant', block.text);
+                    }
+                  } catch (e) {
+                    addMessage('assistant', block.text);
+                  }
+                } else { // It's a Record<string, any>
+                  addMessage('assistant', <StructuredResponseView data={block.text as Record<string, any>} />);
+                }
+              } else if (block.type === 'tool_use' && block.id && block.name && block.input) {
+                addMessage('assistant', <ToolCallView toolId={block.id} toolName={block.name} toolInput={block.input} />);
               }
-            } catch (e) {
-              // Not valid JSON, or parsing failed, so treat as a plain string
-              addMessage('assistant', firstBlock.text); // Fallback to raw text
-            }
-          } else {
-            // It's already a Record<string, any>, as originally expected
-            addMessage('assistant', <StructuredResponseView data={firstBlock.text as Record<string, any>} />);
+            });
+          } else if (convMessage.role === 'user') { // Typically for tool results
+            convMessage.content.forEach(block => {
+              if (block.type === 'tool_result' && block.tool_use_id && block.content) {
+                 // The 'content' of a tool_result can be a string or array of blocks.
+                 // ToolResultView's renderResultContent handles this.
+                addMessage('user', <ToolResultView toolUseId={block.tool_use_id} result={block.content} isError={block.is_error} />);
+              } else if (block.type === 'text' && typeof block.text === 'string') {
+                // This case might not happen if user messages are only for tool results or initial input
+                // but good to handle if user role can have plain text in conversation history.
+                // We've already added the initial user message, so this would be for subsequent user text if any.
+                // For now, we assume user messages in conversation are primarily tool_results.
+              }
+            });
           }
-        } else {
-          addMessage('assistant', `Received complex response: ${JSON.stringify(executionResult.final_response, null, 2)}`);
+        });
+
+        // If after processing conversation, there's still a final_response object not covered
+        // (e.g. if conversation doesn't include the absolute last utterance, which is unlikely with current Agent model)
+        // This part might become redundant if conversation always includes the final_response content.
+        if (executionResult.final_response &&
+            !executionResult.conversation.find(m => m.id === executionResult.final_response?.id)) {
+            // This logic is a fallback and might need refinement based on how `final_response` relates to `conversation`
+            executionResult.final_response.content.forEach(block => {
+                 if (block.type === 'text' && block.text !== undefined && block.text !== null) {
+                    if (typeof block.text === 'string') addMessage('assistant', block.text);
+                    else addMessage('assistant', <StructuredResponseView data={block.text as Record<string, any>} />);
+                 }
+            });
         }
+
       } else {
-        addMessage('assistant', `Execution completed. Full result: ${JSON.stringify(executionResult, null, 2)}`);
+        addMessage('assistant', `Execution completed, but no standard response found. Full result: ${JSON.stringify(executionResult, null, 2)}`);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';

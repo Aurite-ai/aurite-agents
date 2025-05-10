@@ -4,7 +4,7 @@ LLM Client Abstraction for interacting with different LLM providers.
 
 import os
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator  # Added AsyncGenerator
 
 # Import Pydantic validation error
 from pydantic import ValidationError
@@ -277,3 +277,164 @@ Remember to format your response as a valid JSON object."""
             )
             # Re-raise other unexpected errors
             raise
+
+    async def stream_message(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]],
+        system_prompt_override: Optional[str] = None,
+        schema: Optional[
+            Dict[str, Any]
+        ] = None,  # Kept for consistency, less used in direct streaming
+        llm_config_override: Optional[LLMConfig] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Streams messages to the Anthropic API and yields standardized event dictionaries.
+        """
+        # --- Parameter Resolution (similar to create_message) ---
+        model_to_use = self.model_name
+        if llm_config_override and llm_config_override.model_name:
+            model_to_use = llm_config_override.model_name
+
+        temperature_to_use = self.temperature
+        if llm_config_override and llm_config_override.temperature is not None:
+            temperature_to_use = llm_config_override.temperature
+
+        max_tokens_to_use = self.max_tokens
+        if llm_config_override and llm_config_override.max_tokens is not None:
+            max_tokens_to_use = llm_config_override.max_tokens
+        if max_tokens_to_use is None:
+            max_tokens_to_use = BASE_DEFAULT_MAX_TOKENS
+
+        resolved_system_prompt = self.system_prompt
+        if llm_config_override and llm_config_override.default_system_prompt:
+            resolved_system_prompt = llm_config_override.default_system_prompt
+        if system_prompt_override is not None:
+            resolved_system_prompt = system_prompt_override
+
+        # Schema injection for streaming is less common as the primary goal is progressive display.
+        # If schema validation is needed, it's typically done on the fully accumulated response.
+        # However, if the LLM supports guiding streamed output via system prompt, it could be included.
+        # For now, we'll keep it simple and not inject the schema into the system prompt for streaming.
+
+        tools_for_api = tools if tools else None
+        logger.debug(f"Streaming Anthropic API call to model '{model_to_use}'")
+
+        try:
+            typed_messages = cast(Iterable[MessageParam], messages)
+            typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
+
+            async with self.anthropic_sdk_client.messages.stream(
+                model=model_to_use,
+                max_tokens=max_tokens_to_use,
+                messages=typed_messages,
+                system=resolved_system_prompt if resolved_system_prompt else NOT_GIVEN,
+                tools=typed_tools if typed_tools is not None else NOT_GIVEN,
+                temperature=temperature_to_use
+                if temperature_to_use is not None
+                else NOT_GIVEN,
+            ) as stream:
+                async for event in stream:
+                    logger.debug(f"Anthropic stream event received: {event.type}")
+                    if event.type == "message_start":
+                        yield {
+                            "event_type": "message_start",
+                            "data": {
+                                "message_id": event.message.id,
+                                "role": event.message.role,
+                                "model": event.message.model,
+                                "input_tokens": event.message.usage.input_tokens,
+                            },
+                        }
+                    elif event.type == "content_block_start":
+                        if event.content_block.type == "text":
+                            yield {
+                                "event_type": "text_block_start",
+                                "data": {"index": event.index},
+                            }
+                        elif event.content_block.type == "tool_use":
+                            yield {
+                                "event_type": "tool_use_start",
+                                "data": {
+                                    "index": event.index,
+                                    "tool_id": event.content_block.id,
+                                    "tool_name": event.content_block.name,
+                                },
+                            }
+                    elif event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            yield {
+                                "event_type": "text_delta",
+                                "data": {
+                                    "index": event.index,
+                                    "text_chunk": event.delta.text,
+                                },
+                            }
+                        elif event.delta.type == "input_json_delta":
+                            yield {
+                                "event_type": "tool_use_input_delta",
+                                "data": {
+                                    "index": event.index,
+                                    "json_chunk": event.delta.partial_json,
+                                },
+                            }
+                    elif event.type == "content_block_stop":
+                        yield {
+                            "event_type": "content_block_stop",
+                            "data": {"index": event.index},
+                        }
+                    elif event.type == "message_delta":
+                        # message_delta contains stop_reason and cumulative usage
+                        yield {
+                            "event_type": "message_delta",
+                            "data": {
+                                "stop_reason": str(event.delta.stop_reason)
+                                if event.delta.stop_reason
+                                else None,
+                                "stop_sequence": event.delta.stop_sequence,
+                                "output_tokens": event.usage.output_tokens,
+                            },
+                        }
+                    elif event.type == "message_stop":
+                        yield {
+                            "event_type": "stream_end",
+                            "data": {},  # No specific data for stream_end from this event itself
+                        }
+                    elif event.type == "ping":
+                        yield {"event_type": "ping", "data": {}}
+                    elif event.type == "error":
+                        logger.error(
+                            f"Error event from Anthropic stream: {event.error}"
+                        )
+                        yield {
+                            "event_type": "error",
+                            "data": {
+                                "type": event.error.type,
+                                "message": event.error.message,
+                            },
+                        }
+                        # Decide if we should break or continue after an error event
+                        # For now, we yield it and let the consumer decide.
+                    else:
+                        logger.warning(
+                            f"Unhandled Anthropic stream event type: {event.type}"
+                        )
+                        yield {"event_type": "unknown", "data": event.model_dump_json()}
+
+        except (APIConnectionError, RateLimitError) as e:
+            logger.error(f"Anthropic API stream failed: {type(e).__name__}: {e}")
+            yield {
+                "event_type": "error",
+                "data": {"type": "sdk_error", "message": str(e)},
+            }
+            # Re-raise or handle as appropriate for the application context
+            # For now, just yield error and finish generator
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during Anthropic stream: {e}", exc_info=True
+            )
+            yield {
+                "event_type": "error",
+                "data": {"type": "unexpected_error", "message": str(e)},
+            }
+            # Re-raise or handle

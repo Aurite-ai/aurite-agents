@@ -94,7 +94,8 @@ export interface AgentOutputContentBlock {
   input?: Record<string, any>; // For tool_use
   name?: string; // For tool_use
   tool_use_id?: string; // For tool_result
-  content?: AgentOutputContentBlock[]; // For nested content in tool_result
+  content?: AgentOutputContentBlock[] | string; // For tool_result content (can be string or list of blocks)
+  is_error?: boolean; // For tool_result, indicating if it's an error result
 }
 
 export interface AgentOutputMessage {

@@ -5,7 +5,12 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 import logging
 import os  # Added for environment variable check
 from pathlib import Path
-from typing import Optional
+from typing import (
+    Optional,
+    AsyncGenerator,
+    Dict,
+    Any,
+)  # Added AsyncGenerator, Dict, Any
 
 # Assuming this file is in src/, use relative imports
 from .host.host import MCPHost
@@ -838,6 +843,40 @@ class HostManager:
     # Entrypoints (API, CLI, Worker) will need to be updated to call
     # self.execution.run_agent(), self.execution.run_simple_workflow(), etc.
     # (The actual method definitions below are removed by this change)
+
+    async def stream_agent_run_via_facade(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Streams an agent run by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            logger.error("ExecutionFacade not available on HostManager for streaming.")
+            # Yield an error event or raise an exception
+            # For now, let's yield an error event consistent with facade's stream_agent_run
+            yield {
+                "event_type": "error",
+                "data": {
+                    "message": "Execution subsystem not available for streaming.",
+                    "agent_name": agent_name,
+                },
+            }
+            return
+
+        logger.debug(
+            f"HostManager delegating streaming run for agent '{agent_name}' to ExecutionFacade."
+        )
+        async for event in self.execution.stream_agent_run(
+            agent_name=agent_name,
+            user_message=user_message,
+            system_prompt=system_prompt,
+            session_id=session_id,
+        ):
+            yield event
 
     async def load_components_from_project(self, project_config_path: Path):
         """

@@ -3,7 +3,15 @@ Helper class for processing a single turn in an Agent's conversation loop.
 """
 
 import logging
-from typing import List, Optional, Tuple, Dict, Any, TYPE_CHECKING
+from typing import (
+    List,
+    Optional,
+    Tuple,
+    Dict,
+    Any,
+    TYPE_CHECKING,
+    AsyncGenerator,
+)  # Added AsyncGenerator
 
 import json
 from jsonschema import validate, ValidationError as JsonSchemaValidationError
@@ -150,6 +158,170 @@ class AgentTurnProcessor:
 
         logger.debug(f"Turn processed. Is final turn: {is_final_turn}")
         return final_assistant_response, tool_results_for_next_turn, is_final_turn
+
+    async def stream_turn_response(
+        self,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Processes a single conversation turn by streaming events from the LLM,
+        handling tool calls inline, and yielding standardized event dictionaries.
+
+        Yields:
+            Dict[str, Any]: Standardized event dictionaries for SSE.
+                            Includes text_delta, tool_use_start, tool_use_input_delta,
+                            tool_use_end, tool_result, tool_execution_error, stream_end.
+        """
+        logger.debug("Streaming conversation turn...")
+        self._tool_uses_this_turn = []  # Reset for this turn
+
+        active_tool_calls: Dict[
+            int, Dict[str, Any]
+        ] = {}  # To store info about tools being called, indexed by content_block_index
+
+        try:
+            async for llm_event in self.llm.stream_message(
+                messages=self.messages,  # type: ignore[arg-type]
+                tools=self.tools,
+                system_prompt_override=self.system_prompt,
+                schema=self.config.config_validation_schema,  # Though schema less used in streaming
+                llm_config_override=self.llm_config_for_override,
+            ):
+                event_type = llm_event.get("event_type")
+                event_data = llm_event.get("data", {})
+                index = event_data.get("index")
+
+                if event_type == "message_start":
+                    # Forward message_start if needed, or just log
+                    logger.info(f"Stream started: {event_data}")
+                    yield llm_event  # Forward as is
+
+                elif event_type == "text_block_start":
+                    # Useful for frontend to know a text block is beginning
+                    yield llm_event
+
+                elif event_type == "text_delta":
+                    yield llm_event  # Forward text chunks
+
+                elif event_type == "tool_use_start":
+                    active_tool_calls[index] = {
+                        "id": event_data["tool_id"],
+                        "name": event_data["tool_name"],
+                        "input_str": "",  # Initialize buffer for input JSON
+                    }
+                    yield llm_event  # Forward to frontend
+
+                elif event_type == "tool_use_input_delta":
+                    if index in active_tool_calls:
+                        active_tool_calls[index]["input_str"] += event_data.get(
+                            "json_chunk", ""
+                        )
+                    yield llm_event  # Forward to frontend
+
+                elif event_type == "content_block_stop":
+                    yield llm_event  # Forward to frontend
+                    if index in active_tool_calls:
+                        # This signifies the LLM is done specifying this tool call
+                        tool_call_info = active_tool_calls.pop(
+                            index
+                        )  # Process this tool call
+                        tool_id = tool_call_info["id"]
+                        tool_name = tool_call_info["name"]
+                        tool_input_str = tool_call_info["input_str"]
+
+                        logger.info(
+                            f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
+                        )
+                        self._tool_uses_this_turn.append(  # For non-streaming compatibility if needed
+                            {
+                                "id": tool_id,
+                                "name": tool_name,
+                                "input": json.loads(tool_input_str)
+                                if tool_input_str
+                                else {},
+                            }
+                        )
+
+                        try:
+                            parsed_input = (
+                                json.loads(tool_input_str) if tool_input_str else {}
+                            )
+                            tool_result_content = await self.host.execute_tool(
+                                tool_name=tool_name,
+                                arguments=parsed_input,
+                                agent_config=self.config,
+                            )
+                            logger.debug(
+                                f"Tool '{tool_name}' executed successfully via stream."
+                            )
+                            yield {
+                                "event_type": "tool_result",
+                                "data": {
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "status": "success",  # Assuming success if no exception
+                                    "output": tool_result_content,  # This should be JSON serializable
+                                    "is_error": False,
+                                },
+                            }
+                        except json.JSONDecodeError as json_err:
+                            logger.error(
+                                f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
+                            )
+                            yield {
+                                "event_type": "tool_execution_error",
+                                "data": {
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "error_message": f"Invalid JSON input for tool: {str(json_err)}",
+                                },
+                            }
+                        except Exception as e:
+                            logger.error(
+                                f"Error executing tool {tool_name} via stream: {e}",
+                                exc_info=True,
+                            )
+                            yield {
+                                "event_type": "tool_execution_error",
+                                "data": {
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "error_message": str(e),
+                                },
+                            }
+
+                elif event_type == "message_delta":
+                    # Contains stop_reason, usage. Could be part of stream_end or separate.
+                    # For now, let Agent handle the final stop_reason from message_stop.
+                    yield llm_event  # Forward as is
+
+                elif (
+                    event_type == "stream_end" or event_type == "message_stop"
+                ):  # Anthropic uses message_stop
+                    logger.info(f"LLM stream ended. Reason: {event_data.get('reason')}")
+                    yield {
+                        "event_type": "stream_end",
+                        "data": event_data,
+                    }  # Ensure this is the last event yielded by this method
+                    break  # Stop processing further events from LLM for this turn
+
+                elif (
+                    event_type == "ping"
+                    or event_type == "error"
+                    or event_type == "unknown"
+                ):
+                    yield llm_event  # Forward these utility/error events
+
+        except Exception as e:
+            logger.error(f"Error during agent turn streaming: {e}", exc_info=True)
+            yield {
+                "event_type": "error",  # A general error for the stream processing itself
+                "data": {"message": f"Agent turn processing error: {str(e)}"},
+            }
+        finally:
+            logger.debug("Finished streaming conversation turn.")
+            # Ensure a final stream_end is yielded if not already by LLM, though LLM should handle it.
+            # This might be redundant if LLM always sends message_stop.
+            # For safety, one could add a check here if a stream_end wasn't the last thing yielded.
 
     async def _process_tool_calls(
         self, llm_response: AgentOutputMessage

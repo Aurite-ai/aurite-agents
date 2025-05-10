@@ -1,7 +1,9 @@
 import logging
 from typing import Any, Optional
+import json  # Added json import
 
 from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
+from fastapi.responses import StreamingResponse  # Added StreamingResponse
 from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
@@ -84,6 +86,58 @@ async def execute_agent_endpoint(
     )
     logger.info(f"Agent '{agent_name}' execution finished successfully via manager.")
     return result
+
+
+@router.post("/agents/{agent_name}/execute-stream")  # Using POST to allow request body
+async def stream_agent_endpoint(
+    agent_name: str,
+    request_body: ExecuteAgentRequest,  # Re-use existing request model
+    manager: HostManager = Depends(get_host_manager),
+):
+    """
+    Executes a configured agent by name using the HostManager and streams events.
+    """
+    logger.info(f"Received request to STREAM agent: {agent_name}")
+    if not manager.execution:  # Check if facade is available
+        logger.error("ExecutionFacade not available on HostManager for streaming.")
+        # For streaming, raising HTTPException might interrupt before stream starts.
+        # The stream_agent_run_via_facade already yields an error event.
+        # However, if manager.execution itself is None, we can't even call it.
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
+
+    async def event_generator():
+        try:
+            async for event in manager.stream_agent_run_via_facade(
+                agent_name=agent_name,
+                user_message=request_body.user_message,
+                system_prompt=request_body.system_prompt,
+                # session_id could be added to ExecuteAgentRequest if needed for history in streaming
+            ):
+                event_type = event.get(
+                    "event_type", "message"
+                )  # Default to "message" if no specific type
+                event_data_json = json.dumps(event.get("data", {}))
+                # SSE format:
+                # event: event_name\n
+                # data: json_payload\n
+                # id: optional_id\n
+                # retry: optional_retry_timeout\n
+                # \n (extra newline to terminate)
+                sse_formatted_event = (
+                    f"event: {event_type}\ndata: {event_data_json}\n\n"
+                )
+                yield sse_formatted_event
+        except Exception as e:
+            logger.error(
+                f"Error during agent streaming for '{agent_name}': {e}", exc_info=True
+            )
+            # Yield a final error event to the client if the generator itself fails
+            error_event_data = json.dumps({"type": "critical_error", "message": str(e)})
+            yield f"event: error\ndata: {error_event_data}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.post(

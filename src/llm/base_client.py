@@ -4,7 +4,7 @@ LLM Client Abstraction for interacting with different LLM providers.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, AsyncGenerator  # Added AsyncGenerator
 # Import Pydantic validation error
 
 # Import our standardized output models from the agents module
@@ -89,6 +89,24 @@ class BaseLLM(ABC):
             Exception: Propagates exceptions from the underlying LLM API call.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    async def stream_message(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]],
+        system_prompt_override: Optional[str] = None,
+        schema: Optional[Dict[str, Any]] = None,
+        llm_config_override: Optional[LLMConfig] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Streams messages to the LLM and yields events (text chunks, tool calls, etc.).
+        The yielded dictionary should be structured to be easily convertible to an SSE data payload.
+        Example yield: {"event_type": "text_delta", "data": {"text": "chunk"}}
+                       {"event_type": "tool_use_start", "data": {"tool_name": "x", "input_so_far": "..."}}
+        """
+        raise NotImplementedError
+        yield {}  # Placeholder for linter
 
 
 # --- Factory Function (Example) ---

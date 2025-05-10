@@ -13,7 +13,8 @@ from typing import (
     Coroutine,
     List,
     cast,
-)  # Added cast
+    AsyncGenerator,  # Added AsyncGenerator
+)
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
         LLMConfig,
         ProjectConfig,  # Added ProjectConfig for type hint
     )
+    from ..llm.base_client import BaseLLM  # Added for type hint
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
@@ -194,6 +196,131 @@ class ExecutionFacade:
             return error_structure_factory(component_name, error_msg)
 
     # --- Public Execution Methods ---
+
+    async def stream_agent_run(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[
+            str
+        ] = None,  # For history, though less critical for pure stream
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Executes a configured agent by name, streaming events.
+        Handles history loading for context but primarily focuses on streaming the current interaction.
+        """
+        logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
+        agent_config: Optional[AgentConfig] = None
+        llm_client_instance: Optional[BaseLLM] = None
+        llm_config_for_override_obj: Optional[LLMConfig] = None
+
+        try:
+            # 1. Get Agent Configuration (same as non-streaming)
+            if not self._current_project.agents:
+                raise KeyError(
+                    f"Agent configurations not found for agent '{agent_name}'."
+                )
+            agent_config = self._current_project.agents.get(agent_name)
+            if not agent_config:
+                raise KeyError(f"Agent configuration '{agent_name}' not found.")
+
+            # 2. Resolve LLM Parameters & Instantiate LLM Client (same as non-streaming)
+            effective_model_name: Optional[str] = None
+            effective_temperature: Optional[float] = None
+            effective_max_tokens: Optional[int] = None
+            effective_system_prompt_for_llm_client: Optional[str] = None
+
+            if agent_config.llm_config_id:
+                if self._current_project.llms:
+                    llm_config_for_override_obj = self._current_project.llms.get(
+                        agent_config.llm_config_id
+                    )
+                if llm_config_for_override_obj:
+                    effective_model_name = llm_config_for_override_obj.model_name
+                    effective_temperature = llm_config_for_override_obj.temperature
+                    effective_max_tokens = llm_config_for_override_obj.max_tokens
+                    effective_system_prompt_for_llm_client = (
+                        llm_config_for_override_obj.default_system_prompt
+                    )
+                else:
+                    logger.warning(
+                        f"LLMConfig ID '{agent_config.llm_config_id}' for agent '{agent_name}' not found."
+                    )
+
+            if agent_config.model is not None:
+                effective_model_name = agent_config.model
+            if agent_config.temperature is not None:
+                effective_temperature = agent_config.temperature
+            if agent_config.max_tokens is not None:
+                effective_max_tokens = agent_config.max_tokens
+            if agent_config.system_prompt is not None:
+                effective_system_prompt_for_llm_client = agent_config.system_prompt
+            if not effective_model_name:
+                effective_model_name = "claude-3-haiku-20240307"  # Fallback
+
+            llm_client_instance = AnthropicLLM(  # Assuming Anthropic for now, refactor for provider pattern later
+                model_name=effective_model_name,
+                temperature=effective_temperature,
+                max_tokens=effective_max_tokens,
+                system_prompt=effective_system_prompt_for_llm_client,
+            )
+            logger.debug(
+                f"Facade: Instantiated LLM Client for streaming agent '{agent_name}'."
+            )
+
+            # 3. Prepare Initial Messages (same as non-streaming, for context)
+            initial_messages_for_agent: List[MessageParam] = []
+            if agent_config.include_history and self._storage_manager and session_id:
+                try:
+                    loaded_history = self._storage_manager.load_history(
+                        agent_name, session_id
+                    )
+                    if loaded_history:
+                        initial_messages_for_agent.extend(
+                            [cast(MessageParam, item) for item in loaded_history]
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Facade: Failed to load history for streaming agent '{agent_name}': {e}",
+                        exc_info=True,
+                    )
+
+            initial_messages_for_agent.append(
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
+            )
+
+            # 4. Instantiate Agent
+            agent_instance = Agent(
+                config=agent_config,
+                llm_client=llm_client_instance,
+                host_instance=self._host,
+                initial_messages=initial_messages_for_agent,
+                system_prompt_override=system_prompt,  # User-provided override for this run
+                llm_config_for_override=llm_config_for_override_obj,
+            )
+            logger.debug(
+                f"Facade: Instantiated Agent for streaming run of '{agent_name}'."
+            )
+
+            # 5. Stream Conversation
+            logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
+            async for event in agent_instance.stream_conversation():
+                yield event
+
+            # Note: History saving for streamed conversations needs careful consideration.
+            # It might happen after the stream ends, based on accumulated events,
+            # or be handled differently. For now, this method focuses on yielding the stream.
+
+        except Exception as e:
+            error_msg = f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            yield {
+                "event_type": "error",
+                "data": {"message": error_msg, "agent_name": agent_name},
+            }
+            # Ensure the generator stops
+            return
 
     async def run_agent(
         self,
