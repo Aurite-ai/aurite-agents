@@ -10,37 +10,44 @@ interface StreamingMessageContentViewProps {
 
 const StreamingMessageContentView: React.FC<StreamingMessageContentViewProps> = ({ blocks }) => {
   if (!blocks || blocks.length === 0) {
-    return null; // Or a loading spinner, or some placeholder
+    // Return a placeholder if there are no blocks yet, or if the parent indicates loading
+    return <span className="text-xs text-dracula-comment italic">Assistant is working...</span>;
   }
 
   return (
-    <div className="streaming-message-content">
+    <div className="flex flex-col space-y-2">
       {blocks.map((block, index) => {
-        // Key should be more stable if blocks have IDs, fall back to index if not.
-        // Assuming block.id is present for tool_use and tool_result as per AgentOutputContentBlock
-        const key = block.id ? `${block.type}-${block.id}` : `${block.type}-${index}`;
+        const key = block.id ? `${block.type}-${block.id}-${index}` : `${block.type}-${index}`;
 
         switch (block.type) {
-          case 'text':
+          case 'structured_json':
+            if (block.parsedJson) {
+              return <StructuredResponseView key={key} data={block.parsedJson} />;
+            }
+            // Fallback if parsedJson is somehow missing, try to parse from text
             if (typeof block.text === 'string') {
-              // Attempt to parse JSON only if it looks like a JSON object or array
-              if (block.text.trim().startsWith('{') || block.text.trim().startsWith('[')) {
-                try {
-                  const jsonData = JSON.parse(block.text);
-                  // Ensure it's an object and not an array or primitive for StructuredResponseView
-                  if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
-                    return <StructuredResponseView key={key} data={jsonData} />;
-                  }
-                } catch (e) {
-                  // Not valid JSON, or not the type we want for StructuredResponseView, render as plain text
+              try {
+                const jsonData = JSON.parse(block.text);
+                if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+                  return <StructuredResponseView key={key} data={jsonData} />;
                 }
-              }
-              return <span key={key} className="text-chunk">{block.text}</span>;
-            } else if (typeof block.text === 'object' && block.text !== null) {
-              // If block.text is already an object (e.g. from schema)
+              } catch (e) { /* Fall through to render as text */ }
+            }
+            // If all else fails, render the raw text of the supposed JSON
+            return <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>;
+
+          case 'text':
+            // This case now primarily handles non-JSON text, like <thinking> blocks
+            // or text that failed to parse as JSON in the 'structured_json' case's fallback.
+            if (typeof block.text === 'string') {
+              return <div key={key} className="whitespace-pre-wrap">{block.text}</div>;
+            }
+            // If block.text was already an object (should be rare now with AgentChatView changes)
+            if (typeof block.text === 'object' && block.text !== null) {
               return <StructuredResponseView key={key} data={block.text as Record<string, any>} />;
             }
             return null;
+
           case 'tool_use':
             if (block.id && block.name && block.input !== undefined) {
               return (
@@ -48,28 +55,33 @@ const StreamingMessageContentView: React.FC<StreamingMessageContentViewProps> = 
                   key={key}
                   toolId={block.id}
                   toolName={block.name}
-                  toolInput={block.input}
-                  // We might need a prop for "isStreamingInput" or "isPending" if input arrives in chunks
+                  toolInput={block.input as Record<string, any>}
                 />
               );
             }
-            return <span key={key} className="tool-call-placeholder">Tool call forming...</span>;
+            return <div key={key} className="text-xs text-dracula-comment italic">Tool call forming...</div>;
+
           case 'tool_result':
             if (block.tool_use_id && block.content !== undefined) {
               return (
                 <ToolResultView
                   key={key}
                   toolUseId={block.tool_use_id}
-                  toolName={block.name} // Optional: ToolResultView might not always have toolName directly from this block
-                  result={block.content}
+                  toolName={block.name}
+                  result={block.content as any}
                   isError={block.is_error ?? false}
                 />
               );
             }
-            return <span key={key} className="tool-result-placeholder">Tool result pending...</span>;
+            return <div key={key} className="text-xs text-dracula-comment italic">Tool result pending...</div>;
+
+          case 'placeholder':
+            return null; // Don't render placeholders
+
           default:
-            console.warn('Unknown content block type:', block.type);
-            return <span key={key} className="unknown-block">Unsupported content type: {block.type}</span>;
+            console.warn('StreamingMessageContentView: Unknown block type or unhandled block', block);
+            const fallbackText = typeof block.text === 'string' ? block.text : JSON.stringify(block.text);
+            return fallbackText ? <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic"> (Raw/Unknown: {fallbackText})</div> : null;
         }
       })}
     </div>

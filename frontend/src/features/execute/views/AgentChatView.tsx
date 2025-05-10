@@ -268,37 +268,92 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
         const { index } = eventData;
         if (typeof index === 'number') {
           updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
-              const toolBlock = newBlocks[index] as any;
-              if (toolBlock._accumulatedJsonInput) {
+            let newBlocks = [...blocks];
+            if (index < newBlocks.length && newBlocks[index]) {
+              const currentBlock = newBlocks[index];
+
+              if (currentBlock.type === 'tool_use') {
+                const toolBlock = currentBlock as any;
+                if (toolBlock._accumulatedJsonInput) {
+                  try {
+                    const parsedInput = JSON.parse(toolBlock._accumulatedJsonInput);
+                    newBlocks[index] = {
+                      ...toolBlock,
+                      input: parsedInput,
+                    };
+                    delete (newBlocks[index] as any)._accumulatedJsonInput;
+                    if ((newBlocks[index] as any).input?._partialInput) {
+                      delete (newBlocks[index] as any).input._partialInput;
+                    }
+                    if (Object.keys((newBlocks[index] as any).input).length === 0) {
+                       newBlocks[index].input = {};
+                    }
+                  } catch (e) {
+                    console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
+                    newBlocks[index] = {
+                      ...toolBlock,
+                      input: { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput },
+                    };
+                     delete (newBlocks[index]as any)._accumulatedJsonInput;
+                     if ((newBlocks[index] as any).input?._partialInput) {
+                      delete (newBlocks[index] as any).input._partialInput;
+                    }
+                  }
+                }
+              } else if (currentBlock.type === 'text' && currentBlock.text) {
+                // Attempt to parse for <thinking> and JSON
+                const textContent = currentBlock.text;
+                const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
+                const thinkingMatch = textContent.match(thinkingRegex);
+
+                let thinkingText: string | null = null;
+                let remainingText = textContent;
+
+                if (thinkingMatch) {
+                  thinkingText = thinkingMatch[0]; // Keep the tags for now, or extract thinkingMatch[1]
+                  remainingText = textContent.replace(thinkingRegex, '').trim();
+                }
+
                 try {
-                  const parsedInput = JSON.parse(toolBlock._accumulatedJsonInput);
-                  newBlocks[index] = {
-                    ...toolBlock,
-                    input: parsedInput,
-                  };
-                  delete (newBlocks[index] as any)._accumulatedJsonInput;
-                  if ((newBlocks[index] as any).input?._partialInput) {
-                    delete (newBlocks[index] as any).input._partialInput;
+                  const parsedJson = JSON.parse(remainingText);
+                  // If JSON parsing is successful, split the block
+                  const updatedBlocks: AgentOutputContentBlock[] = [];
+                  let currentBlockIndex = index;
+
+                  if (thinkingText) {
+                    // Insert thinking block before
+                    newBlocks.splice(currentBlockIndex, 0, { type: 'text', text: thinkingText });
+                    currentBlockIndex++; // Adjust index for the next block
                   }
-                  if (Object.keys((newBlocks[index] as any).input).length === 0) {
-                     newBlocks[index].input = {};
-                  }
-                } catch (e) {
-                  console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
-                  newBlocks[index] = {
-                    ...toolBlock,
-                    input: { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput },
+
+                  // Update current block to be structured_json
+                  newBlocks[currentBlockIndex] = {
+                    ...currentBlock, // Keep original id, name etc. if any
+                    type: 'structured_json',
+                    text: remainingText, // Store original JSON string
+                    parsedJson: parsedJson,
                   };
-                   delete (newBlocks[index]as any)._accumulatedJsonInput;
-                   if ((newBlocks[index] as any).input?._partialInput) {
-                    delete (newBlocks[index] as any).input._partialInput;
+
+                  // Note: Any text *after* the JSON in remainingText is currently ignored.
+                  // If there could be trailing text, that would need further handling.
+
+                } catch (jsonError) {
+                  // Not valid JSON, or no JSON found after thinking tags.
+                  // Keep as a single text block. If thinking was extracted, it's handled.
+                  if (thinkingText && thinkingText !== textContent) {
+                     // We have thinking and some other non-JSON text
+                     newBlocks.splice(index, 1,
+                        { type: 'text', text: thinkingText },
+                        { type: 'text', text: remainingText }
+                     );
+                  } else {
+                    // No thinking, or thinking was the whole text, or remaining wasn't JSON.
+                    // Block remains as is (original text block).
                   }
                 }
               }
             }
-            return newBlocks;
+            return newBlocks.filter(b => b.type !== 'placeholder');
           });
         }
       } catch (e) {

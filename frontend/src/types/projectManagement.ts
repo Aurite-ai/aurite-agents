@@ -87,8 +87,8 @@ export interface ApiError {
 
 // Types for Agent Execution (mirroring backend src/agents/agent_models.py)
 export interface AgentOutputContentBlock {
-  type: string;
-  text?: string | Record<string, any>; // Text can be a string or a JSON object from schema
+  type: 'text' | 'tool_use' | 'tool_result' | 'structured_json' | 'placeholder' | string;
+  text?: string; // Text can be a string or a JSON object from schema
   // Add other fields like id, input, name for tool_use if needed for display
   id?: string; // For tool_use or tool_result
   input?: Record<string, any>; // For tool_use
@@ -96,6 +96,7 @@ export interface AgentOutputContentBlock {
   tool_use_id?: string; // For tool_result
   content?: AgentOutputContentBlock[] | string; // For tool_result content (can be string or list of blocks)
   is_error?: boolean; // For tool_result, indicating if it's an error result
+  parsedJson?: Record<string, any>; // For 'structured_json' type
 }
 
 export interface AgentOutputMessage {
