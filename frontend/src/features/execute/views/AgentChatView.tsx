@@ -130,10 +130,10 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
             });
           } else if (convMessage.role === 'user') { // Typically for tool results
             convMessage.content.forEach(block => {
-              if (block.type === 'tool_result' && block.tool_use_id && block.content) {
+               if (block.type === 'tool_result' && block.tool_use_id && block.content) {
                  // The 'content' of a tool_result can be a string or array of blocks.
                  // ToolResultView's renderResultContent handles this.
-                addMessage('user', <ToolResultView toolUseId={block.tool_use_id} result={block.content} isError={block.is_error} />);
+                addMessage('assistant', <ToolResultView toolUseId={block.tool_use_id} toolName={block.name} result={block.content} isError={block.is_error} />); {/* Changed role to 'assistant', added toolName if available */}
               } else if (block.type === 'text' && typeof block.text === 'string') {
                 // This case might not happen if user messages are only for tool results or initial input
                 // but good to handle if user role can have plain text in conversation history.
