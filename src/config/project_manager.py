@@ -92,38 +92,38 @@ class ProjectManager:
         resolved_llm_configs = self._resolve_components(
             project_data,
             project_name,
-            "llm_configs",
+            "llms",  # Changed from llm_configs
             LLMConfig,
             "llm_id",
             "LLMConfig",
-            "llm_configs",
+            "llm_configs",  # COMPONENT_META key for llms is 'llm_configs'
         )
         resolved_agents = self._resolve_components(
             project_data,
             project_name,
-            "agent_configs",
+            "agents",  # Changed from agent_configs
             AgentConfig,
             "name",
             "Agent",
-            "agents",
+            "agents",  # COMPONENT_META key for agents is 'agents'
         )
         resolved_simple_workflows = self._resolve_components(
             project_data,
             project_name,
-            "simple_workflow_configs",
+            "simple_workflows",  # Changed from simple_workflow_configs
             WorkflowConfig,
             "name",
             "SimpleWorkflow",
-            "simple_workflows",
+            "simple_workflows",  # COMPONENT_META key for simple_workflows is 'simple_workflows'
         )
         resolved_custom_workflows = self._resolve_components(
             project_data,
             project_name,
-            "custom_workflow_configs",
+            "custom_workflows",  # Changed from custom_workflow_configs
             CustomWorkflowConfig,
             "name",
             "CustomWorkflow",
-            "custom_workflows",
+            "custom_workflows",  # COMPONENT_META key for custom_workflows is 'custom_workflows'
         )
 
         try:
@@ -132,10 +132,10 @@ class ProjectManager:
                 name=project_name,
                 description=project_description,
                 clients=resolved_clients,
-                llm_configs=resolved_llm_configs,
-                agent_configs=resolved_agents,
-                simple_workflow_configs=resolved_simple_workflows,
-                custom_workflow_configs=resolved_custom_workflows,
+                llms=resolved_llm_configs,  # Changed from llm_configs
+                agents=resolved_agents,  # Changed from agent_configs
+                simple_workflows=resolved_simple_workflows,  # Changed from simple_workflow_configs
+                custom_workflows=resolved_custom_workflows,  # Changed from custom_workflow_configs
             )
             logger.debug(
                 f"Successfully parsed and resolved project data for '{project_name}'."
@@ -441,17 +441,21 @@ class ProjectManager:
             clients_dict = (
                 {c.client_id: c for c in client_configs} if client_configs else {}
             )
+            # Input arg is llm_configs, but ProjectConfig field is llms
             llms_dict = {lc.llm_id: lc for lc in llm_configs} if llm_configs else {}
+            # Input arg is agent_configs, but ProjectConfig field is agents
             agents_dict = (
                 {ac.name: ac for ac in agent_configs if ac.name}
                 if agent_configs
                 else {}
             )
+            # Input arg is simple_workflow_configs, but ProjectConfig field is simple_workflows
             simple_workflows_dict = (
                 {swc.name: swc for swc in simple_workflow_configs if swc.name}
                 if simple_workflow_configs
                 else {}
             )
+            # Input arg is custom_workflow_configs, but ProjectConfig field is custom_workflows
             custom_workflows_dict = (
                 {cwfc.name: cwfc for cwfc in custom_workflow_configs if cwfc.name}
                 if custom_workflow_configs
@@ -463,10 +467,10 @@ class ProjectManager:
                 name=project_name,
                 description=project_description,
                 clients=clients_dict,
-                llm_configs=llms_dict,
-                agent_configs=agents_dict,
-                simple_workflow_configs=simple_workflows_dict,
-                custom_workflow_configs=custom_workflows_dict,
+                llms=llms_dict,  # Changed from llm_configs
+                agents=agents_dict,  # Changed from agent_configs
+                simple_workflows=simple_workflows_dict,  # Changed from simple_workflow_configs
+                custom_workflows=custom_workflows_dict,  # Changed from custom_workflow_configs
             )
 
             # Ensure parent directory exists

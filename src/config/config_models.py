@@ -190,19 +190,19 @@ class ProjectConfig(BaseModel):
     clients: Dict[str, ClientConfig] = Field(
         default_factory=dict, description="Clients available within this project."
     )
-    llm_configs: Dict[str, LLMConfig] = Field(
+    llms: Dict[str, LLMConfig] = Field(  # Renamed from llm_configs
         default_factory=dict,
         description="LLM configurations available within this project.",
     )
-    agent_configs: Dict[str, AgentConfig] = Field(
+    agents: Dict[str, AgentConfig] = Field(
         default_factory=dict,
         description="Agents defined or referenced by this project.",
     )
-    simple_workflow_configs: Dict[str, WorkflowConfig] = Field(
+    simple_workflows: Dict[str, WorkflowConfig] = Field(
         default_factory=dict,
         description="Simple workflows defined or referenced by this project.",
     )
-    custom_workflow_configs: Dict[str, CustomWorkflowConfig] = Field(
+    custom_workflows: Dict[str, CustomWorkflowConfig] = Field(
         default_factory=dict,
         description="Custom workflows defined or referenced by this project.",
     )

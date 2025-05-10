@@ -136,10 +136,10 @@ class HostManager:
 
             # Configs are now accessed via project_manager.get_active_project_config()
             logger.debug(
-                f"Active project '{active_project.name}' has {len(active_project.agent_configs)} agents, "
-                f"{len(active_project.llm_configs)} LLMs, "
-                f"{len(active_project.simple_workflow_configs)} simple workflows, "
-                f"{len(active_project.custom_workflow_configs)} custom workflows."
+                f"Active project '{active_project.name}' has {len(active_project.agents)} agents, "  # Changed agent_configs to agents
+                f"{len(active_project.llms)} LLMs, "  # Changed llm_configs to llms
+                f"{len(active_project.simple_workflows)} simple workflows, "  # Changed simple_workflow_configs to simple_workflows
+                f"{len(active_project.custom_workflows)} custom workflows."  # Changed custom_workflow_configs to custom_workflows
             )
 
             # 1.5 Initialize DB Schema if storage manager exists
@@ -172,10 +172,10 @@ class HostManager:
             ):  # Ensure active_project for safety
                 logger.debug("Syncing loaded configurations to database...")
                 self.storage_manager.sync_all_configs(
-                    agents=active_project.agent_configs,
-                    workflows=active_project.simple_workflow_configs,
-                    custom_workflows=active_project.custom_workflow_configs,
-                    llm_configs=active_project.llm_configs,
+                    agents=active_project.agents,  # Changed agent_configs to agents
+                    workflows=active_project.simple_workflows,  # Changed simple_workflow_configs to simple_workflows
+                    custom_workflows=active_project.custom_workflows,  # Changed custom_workflow_configs to custom_workflows
+                    llm_configs=active_project.llms,  # Changed llm_configs to llms
                 )
                 logger.debug("Database sync complete.")
 
@@ -493,7 +493,9 @@ class HostManager:
             logger.error("Attempted to register an agent config with no name.")
             raise ValueError("Agent configuration must have a 'name'.")
 
-        if agent_config.name in active_project.agent_configs:
+        if (
+            agent_config.name in active_project.agents
+        ):  # Changed agent_configs to agents
             logger.error(
                 f"Agent name '{agent_config.name}' already registered in active project."
             )
@@ -513,8 +515,9 @@ class HostManager:
         # Validate llm_config_id if present
         if agent_config.llm_config_id:
             if (
-                not active_project.llm_configs
-                or agent_config.llm_config_id not in active_project.llm_configs
+                not active_project.llms  # Changed llm_configs to llms
+                or agent_config.llm_config_id
+                not in active_project.llms  # Changed llm_configs to llms
             ):
                 logger.error(
                     f"LLMConfig ID '{agent_config.llm_config_id}' specified in agent '{agent_config.name}' not found in active project."
@@ -524,8 +527,11 @@ class HostManager:
                 )
 
         # Add the agent config to the active project
+        # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
-            "agent_configs", agent_config.name, agent_config
+            "agents",
+            agent_config.name,
+            agent_config,  # Changed "agent_configs" to "agents"
         )
         # Note: self.agent_configs attribute is removed, direct update to project_manager's state.
         logger.info(
@@ -568,15 +574,18 @@ class HostManager:
                 "No active project loaded to register LLM config against."
             )
 
-        if llm_config.llm_id in active_project.llm_configs:
+        if llm_config.llm_id in active_project.llms:  # Changed llm_configs to llms
             logger.error(
                 f"LLM config ID '{llm_config.llm_id}' already registered in active project."
             )
             raise ValueError(f"LLM config ID '{llm_config.llm_id}' already registered.")
 
         # Add the LLM config to the active project
+        # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
-            "llm_configs", llm_config.llm_id, llm_config
+            "llms",
+            llm_config.llm_id,
+            llm_config,  # Changed "llm_configs" to "llms"
         )
         logger.info(
             f"LLM config '{llm_config.llm_id}' registered successfully in active project."
@@ -618,7 +627,9 @@ class HostManager:
             logger.error("Cannot register workflow: No active project loaded.")
             raise RuntimeError("No active project loaded to register workflow against.")
 
-        if workflow_config.name in active_project.simple_workflow_configs:
+        if (
+            workflow_config.name in active_project.simple_workflows
+        ):  # Changed simple_workflow_configs to simple_workflows
             logger.error(
                 f"Workflow name '{workflow_config.name}' already registered in active project."
             )
@@ -626,10 +637,12 @@ class HostManager:
                 f"Workflow name '{workflow_config.name}' already registered."
             )
 
-        # Validate agent names in steps exist in the active project's agent_configs
+        # Validate agent names in steps exist in the active project's agents
         if workflow_config.steps:
             for agent_name in workflow_config.steps:
-                if agent_name not in active_project.agent_configs:
+                if (
+                    agent_name not in active_project.agents
+                ):  # Changed agent_configs to agents
                     logger.error(
                         f"Agent name '{agent_name}' in workflow '{workflow_config.name}' steps not found in active project."
                     )
@@ -637,8 +650,11 @@ class HostManager:
                         f"Agent '{agent_name}' not found for workflow '{workflow_config.name}'."
                     )
 
+        # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
-            "simple_workflow_configs", workflow_config.name, workflow_config
+            "simple_workflows",
+            workflow_config.name,
+            workflow_config,  # Changed "simple_workflow_configs" to "simple_workflows"
         )
         logger.info(
             f"Workflow '{workflow_config.name}' registered successfully in active project."
@@ -685,7 +701,9 @@ class HostManager:
                 "No active project loaded to register custom workflow against."
             )
 
-        if custom_workflow_config.name in active_project.custom_workflow_configs:
+        if (
+            custom_workflow_config.name in active_project.custom_workflows
+        ):  # Changed custom_workflow_configs to custom_workflows
             logger.error(
                 f"Custom Workflow name '{custom_workflow_config.name}' already registered in active project."
             )
@@ -705,8 +723,9 @@ class HostManager:
             raise ValueError(f"Custom workflow module file not found: {module_path}")
 
         # Add the workflow config to the active project
+        # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
-            "custom_workflow_configs",
+            "custom_workflows",  # Changed "custom_workflow_configs" to "custom_workflows"
             custom_workflow_config.name,
             custom_workflow_config,
         )
@@ -732,18 +751,20 @@ class HostManager:
     def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
         """Retrieves the configuration for a specific agent by name from the active project."""
         active_project = self.project_manager.get_active_project_config()
-        if active_project and active_project.agent_configs:
-            return active_project.agent_configs.get(agent_name)
+        if active_project and active_project.agents:  # Changed agent_configs to agents
+            return active_project.agents.get(
+                agent_name
+            )  # Changed agent_configs to agents
         return None
 
     def get_llm_config(self, llm_config_id: str) -> Optional[LLMConfig]:
         """Retrieves the configuration for a specific LLM config by ID from the active project."""
         active_project = self.project_manager.get_active_project_config()
-        if active_project and active_project.llm_configs:
-            return active_project.llm_configs.get(llm_config_id)
+        if active_project and active_project.llms:  # Changed llm_configs to llms
+            return active_project.llms.get(llm_config_id)  # Changed llm_configs to llms
         return None
 
-    # Add getters for workflow_configs and custom_workflow_configs if needed later
+    # Add getters for simple_workflows and custom_workflows if needed later
 
     # --- Execution Methods --- # Comment remains relevant as a section separator
     # NOTE: The original execute_* methods are removed.
@@ -816,8 +837,13 @@ class HostManager:
                     logger.debug(f"Client {client_id} already registered. Skipping.")
 
             # Add LLM Configs
-            for llm_id, llm_config in parsed_config.llm_configs.items():
-                if llm_id not in active_project_config.llm_configs:
+            for (
+                llm_id,
+                llm_config,
+            ) in parsed_config.llms.items():  # Changed llm_configs to llms
+                if (
+                    llm_id not in active_project_config.llms
+                ):  # Changed llm_configs to llms
                     try:
                         logger.debug(f"Registering new LLM config: {llm_id}")
                         await self.register_llm_config(llm_config)
@@ -831,8 +857,13 @@ class HostManager:
                     logger.debug(f"LLM config {llm_id} already exists. Skipping.")
 
             # Add Agent Configs
-            for agent_name, agent_config in parsed_config.agent_configs.items():
-                if agent_name not in active_project_config.agent_configs:
+            for (
+                agent_name,
+                agent_config,
+            ) in parsed_config.agents.items():  # Changed agent_configs to agents
+                if (
+                    agent_name not in active_project_config.agents
+                ):  # Changed agent_configs to agents
                     try:
                         logger.debug(f"Registering new agent: {agent_name}")
                         await self.register_agent(agent_config)
@@ -849,8 +880,12 @@ class HostManager:
             for (
                 workflow_name,
                 workflow_config,
-            ) in parsed_config.simple_workflow_configs.items():
-                if workflow_name not in active_project_config.simple_workflow_configs:
+            ) in (
+                parsed_config.simple_workflows.items()
+            ):  # Changed simple_workflow_configs to simple_workflows
+                if (
+                    workflow_name not in active_project_config.simple_workflows
+                ):  # Changed simple_workflow_configs to simple_workflows
                     try:
                         logger.debug(
                             f"Registering new simple workflow: {workflow_name}"
@@ -872,10 +907,12 @@ class HostManager:
             for (
                 custom_workflow_name,
                 custom_workflow_config,
-            ) in parsed_config.custom_workflow_configs.items():
+            ) in (
+                parsed_config.custom_workflows.items()
+            ):  # Changed custom_workflow_configs to custom_workflows
                 if (
                     custom_workflow_name
-                    not in active_project_config.custom_workflow_configs
+                    not in active_project_config.custom_workflows  # Changed custom_workflow_configs to custom_workflows
                 ):
                     try:
                         logger.debug(

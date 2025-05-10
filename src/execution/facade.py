@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         AgentConfig,
         LLMConfig,
         ProjectConfig,  # Added ProjectConfig for type hint
-        )
+    )
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
@@ -223,12 +223,14 @@ class ExecutionFacade:
         try:
             # 1. Get Agent Configuration
             if (
-                not self._current_project.agent_configs
+                not self._current_project.agents  # Changed agent_configs to agents
             ):  # Should not happen if ProjectConfig is valid
                 raise KeyError(
                     f"Agent configurations not found in current project for agent '{agent_name}'."
                 )
-            agent_config = self._current_project.agent_configs.get(agent_name)
+            agent_config = self._current_project.agents.get(
+                agent_name
+            )  # Changed agent_configs to agents
             if not agent_config:
                 raise KeyError(
                     f"Agent configuration '{agent_name}' not found in current project."
@@ -250,13 +252,15 @@ class ExecutionFacade:
 
             # 2.a. LLMConfig Lookup (Base values)
             if agent_config.llm_config_id:
-                if not self._current_project.llm_configs:  # Should not happen
+                if not self._current_project.llms:  # Changed llm_configs to llms
                     logger.warning(
                         f"LLM configurations not found in current project for agent '{agent_name}'."
                     )
                 else:
-                    llm_config_for_override_obj = self._current_project.llm_configs.get(
-                        agent_config.llm_config_id
+                    llm_config_for_override_obj = (
+                        self._current_project.llms.get(  # Changed llm_configs to llms
+                            agent_config.llm_config_id
+                        )
                     )  # Store the object
                 if llm_config_for_override_obj:
                     logger.debug(
@@ -447,12 +451,12 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Simple Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._current_project.simple_workflow_configs.get(
+            config_lookup=lambda name: self._current_project.simple_workflows.get(  # Changed simple_workflow_configs to simple_workflows
                 name
             ),
             executor_setup=lambda wf_config: SimpleWorkflowExecutor(
                 config=wf_config,
-                agent_configs=self._current_project.agent_configs,  # Pass from facade's current_project
+                agent_configs=self._current_project.agents,  # Pass from facade's current_project # Changed agent_configs to agents
                 # host_instance=self._host, # To be removed from SimpleWorkflowExecutor
                 # llm_client=AnthropicLLM(model_name="claude-3-haiku-20240307"), # To be removed
                 facade=self,
@@ -475,7 +479,7 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Custom Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._current_project.custom_workflow_configs.get(
+            config_lookup=lambda name: self._current_project.custom_workflows.get(  # Changed custom_workflow_configs to custom_workflows
                 name
             ),
             executor_setup=lambda wf_config: CustomWorkflowExecutor(
