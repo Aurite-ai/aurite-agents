@@ -288,13 +288,24 @@ class AgentTurnProcessor:
                             else:
                                 string_to_parse = cleaned_tool_input_str  # Default to cleaned if sanitization didn't change or wasn't needed
 
-                            logger.debug(
-                                f"ATP: Final string for json.loads: {repr(string_to_parse)}"
-                            )
-                            parsed_input = (
-                                json.loads(string_to_parse) if string_to_parse else {}
-                            )
-                            tool_result_content = await self.host.execute_tool(
+                        logger.debug(
+                            f"ATP: Final string for json.loads: {repr(string_to_parse)}"
+                        )
+                        parsed_input = (
+                            json.loads(string_to_parse) if string_to_parse else {}
+                        )
+
+                        # Yield an event indicating the tool input is finalized
+                        yield {
+                            "event_type": "tool_use_input_complete",
+                            "data": {
+                                "index": index, # Original index of the tool_use block
+                                "tool_id": tool_id,
+                                "input": parsed_input,
+                            }
+                        }
+
+                        tool_result_content = await self.host.execute_tool(
                                 tool_name=tool_name,
                                 arguments=parsed_input,
                                 agent_config=self.config,
@@ -308,18 +319,34 @@ class AgentTurnProcessor:
                             if isinstance(tool_result_content, str):
                                 serializable_output = tool_result_content
                             elif isinstance(tool_result_content, (list, tuple)):
-                                serializable_output = [
-                                    item.model_dump(mode="json")
-                                    if hasattr(item, "model_dump")
-                                    else str(item)
-                                    for item in tool_result_content
-                                ]
+                                serializable_output = []
+                                for item in tool_result_content:
+                                    if hasattr(item, "model_dump"):
+                                        # Ensure exclude_none=True for nested models
+                                        item_dump = item.model_dump(
+                                            mode="json", exclude_none=True
+                                        )
+                                        # Anthropic expects tool result content text blocks to NOT have 'id' or 'name'
+                                        if item_dump.get("type") == "text":
+                                            item_dump = {
+                                                "type": "text",
+                                                "text": item_dump.get("text", ""),
+                                            }  # Keep only type and text
+                                        serializable_output.append(item_dump)
+                                    else:
+                                        serializable_output.append(str(item))
                             elif hasattr(
                                 tool_result_content, "model_dump"
                             ):  # Pydantic model
                                 serializable_output = tool_result_content.model_dump(
-                                    mode="json"
+                                    mode="json", exclude_none=True
                                 )
+                                # If the top-level result is a single text block, ensure it's clean
+                                if serializable_output.get("type") == "text":
+                                    serializable_output = {
+                                        "type": "text",
+                                        "text": serializable_output.get("text", ""),
+                                    }
                             elif (
                                 isinstance(
                                     tool_result_content, (dict, int, float, bool)
@@ -378,14 +405,29 @@ class AgentTurnProcessor:
                     yield llm_event  # Forward as is
 
                 elif (
-                    event_type == "stream_end" or event_type == "message_stop"
-                ):  # Anthropic uses message_stop
-                    logger.info(f"LLM stream ended. Reason: {event_data.get('reason')}")
+                    event_type
+                    == "stream_end"  # This event now comes from anthropic_client with stop_reason
+                ):
+                    llm_call_stop_reason = event_data.get("stop_reason")
+                    logger.info(
+                        f"LLM stream call processing finished by ATP. LLM Stop Reason: {llm_call_stop_reason}"
+                    )
+
+                    # This event signifies the end of the current LLM call from the LLM's perspective.
+                    # AgentTurnProcessor's role for *this specific LLM call* is complete.
+                    # It needs to inform the Agent class about the outcome of this LLM call.
+                    # If tools were used, the Agent class will decide to loop.
+                    # If it was 'end_turn', the Agent class will decide to stop.
+                    # AgentTurnProcessor itself does not yield the *final* stream_end to the client.
+                    # It yields an event indicating this LLM part of the turn is done.
                     yield {
-                        "event_type": "stream_end",
-                        "data": event_data,
-                    }  # Ensure this is the last event yielded by this method
-                    break  # Stop processing further events from LLM for this turn
+                        "event_type": "llm_call_completed",  # New, specific event for Agent class
+                        "data": {
+                            "stop_reason": llm_call_stop_reason,
+                            "original_event_data": event_data,  # Pass along original data if needed
+                        },
+                    }
+                    break  # Stop processing events from this specific LLM stream call; ATP's job for this LLM call is done.
 
                 elif (
                     event_type == "ping"

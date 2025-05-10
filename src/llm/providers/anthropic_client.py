@@ -297,9 +297,21 @@ Remember to format your response as a valid JSON object."""
                             },
                         }
                     elif event.type == "message_stop":
+                        # The MessageStopEvent contains the final Message object
+                        final_message_stop_reason = None
+                        if event.message and event.message.stop_reason:
+                            final_message_stop_reason = str(event.message.stop_reason)
+                        logger.info(
+                            f"Anthropic message_stop event, stop_reason: {final_message_stop_reason}"
+                        )
                         yield {
-                            "event_type": "stream_end",
-                            "data": {},
+                            "event_type": "stream_end",  # This signifies the end of THIS LLM call
+                            "data": {
+                                "stop_reason": final_message_stop_reason,
+                                "raw_message_stop_event": event.model_dump(mode="json")
+                                if hasattr(event, "model_dump")
+                                else str(event),
+                            },
                         }
                     elif event.type == "ping":
                         yield {"event_type": "ping", "data": {}}

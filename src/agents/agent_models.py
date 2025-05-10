@@ -34,28 +34,25 @@ class AgentOutputContentBlock(BaseModel):
     )
 
     # Fields for 'tool_result' type
-    # Note: Anthropic's ToolResultBlock has 'tool_use_id' and 'content' (which can be string or list of blocks)
-    # and optionally 'is_error'. We'll simplify here for now, assuming _serialize_content_blocks
-    # will turn the tool result's content into a string or a list of dicts that can map to AgentOutputContentBlock.
     tool_use_id: Optional[str] = Field(
         None,
         description="The ID of the tool use this result corresponds to, if block is 'tool_result'.",
     )
-    # If content of a tool_result can be complex, we might need:
-    # content_tool_result: Union[str, List['AgentOutputContentBlock'], None] = Field(None, alias="content")
-    # For now, assuming 'text' field can capture simple string results of tools,
-    # or _serialize_content_blocks will handle complex tool results appropriately before validation.
-    # Explicitly define 'content' for tool_result blocks and other potential container types.
-    content: Optional[List["AgentOutputContentBlock"]] = Field(
+    content: Optional[List["AgentOutputContentBlock"]] = Field( # For tool_result, content can be list of blocks
         None,
-        description="Nested content, e.g., for tool_result blocks. This allows a block to contain other blocks.",
+        description="Nested content, e.g., for tool_result blocks or other container types.",
     )
+    # Added for tool_result, though ToolResultView handles it via props
+    is_error: Optional[bool] = Field(None, description="Indicates if a tool result is an error.")
+
+    # Internal field, not for API
+    index: Optional[int] = Field(None, description="Internal index of the block in a sequence.", exclude=True)
+
 
     class Config:
         extra = (
-            "allow"  # Allow other fields for future extensibility or other block types.
+            "allow"
         )
-        # Consider changing to 'ignore' if all expected fields are explicitly defined.
 
 
 class AgentOutputMessage(BaseModel):
@@ -68,7 +65,6 @@ class AgentOutputMessage(BaseModel):
         description="A list of content blocks comprising the message."
     )
 
-    # Optional fields that might be present in a final response message from an LLM
     id: Optional[str] = Field(
         None,
         description="The unique ID of the message, if applicable (e.g., from LLM provider).",
@@ -87,6 +83,56 @@ class AgentOutputMessage(BaseModel):
         None,
         description="Token usage information for this message generation, if applicable.",
     )
+
+    def to_api_message_param(self) -> Dict[str, Any]:
+        """Converts this AgentOutputMessage to an Anthropic MessageParam compliant dictionary."""
+        api_compliant_content_blocks = []
+        if self.content:
+            for block in self.content: # block is AgentOutputContentBlock
+                if block.type == "text":
+                    if block.text is not None:
+                        api_compliant_content_blocks.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    # Ensure input is a dict, even if empty, for Anthropic schema
+                    tool_input = block.input if isinstance(block.input, dict) else {}
+                    if block.id and block.name: # input can be empty {}
+                        api_compliant_content_blocks.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": tool_input,
+                        })
+                # Add other block type conversions if necessary (e.g. image)
+                # For tool_result content blocks within an assistant message (rare, usually user role):
+                elif block.type == "tool_result":
+                     # This case is primarily for when an assistant might be reflecting on a tool result
+                     # or if a tool_result block is part of its direct output content.
+                     # The content of a tool_result block itself can be complex.
+                    if block.tool_use_id and block.content is not None: # block.content is List[AgentOutputContentBlock]
+                        inner_api_content = []
+                        for inner_block in block.content:
+                            if inner_block.type == "text" and inner_block.text is not None:
+                                inner_api_content.append({"type": "text", "text": inner_block.text})
+                            # Potentially handle other inner block types if tools can return complex structures
+
+                        api_compliant_content_blocks.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.tool_use_id,
+                            "content": inner_api_content, # This should be List of simple blocks like {"type": "text", "text": ...}
+                            "is_error": block.is_error if block.is_error is not None else False
+                        })
+                    elif block.tool_use_id and block.text is not None: # Simple string content for tool_result
+                         api_compliant_content_blocks.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.tool_use_id,
+                            "content": block.text, # Anthropic allows string content for tool_result
+                            "is_error": block.is_error if block.is_error is not None else False
+                        })
+
+
+        message_param: Dict[str, Any] = {"role": self.role, "content": api_compliant_content_blocks}
+        # Anthropic doesn't take id, model, stop_reason etc. as part of the MessageParam input list.
+        return message_param
 
 
 class AgentExecutionResult(BaseModel):
@@ -122,6 +168,3 @@ class AgentExecutionResult(BaseModel):
     def has_error(self) -> bool:
         """Checks if an error message is present."""
         return self.error is not None
-
-    # Consider renaming tool_uses_in_final_turn to something like 'executed_tool_calls_in_final_turn'
-    # to be very clear about what it represents. For now, keeping as per design doc.

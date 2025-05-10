@@ -10,7 +10,7 @@ import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 import StructuredResponseView from '../../../components/common/StructuredResponseView';
 import ToolCallView from '../../../components/common/ToolCallView';
 import ToolResultView from '../../../components/common/ToolResultView';
-import StreamingMessageContentView from '../../../components/common/StreamingMessageContentView'; // Added for streaming
+import StreamingMessageContentView from '../../../components/common/StreamingMessageContentView';
 
 import {
   getSpecificComponentConfig,
@@ -18,13 +18,13 @@ import {
   registerAgentAPI,
   executeAgentAPI
 } from '../../../lib/apiClient';
-import useAuthStore from '../../../store/authStore'; // Added for API key access
+import useAuthStore from '../../../store/authStore';
 
 import type {
   AgentConfig,
   LLMConfig,
   AgentExecutionResult,
-  AgentOutputContentBlock, // Added for streaming
+  AgentOutputContentBlock,
 } from '../../../types/projectManagement';
 
 interface AgentChatViewProps {
@@ -32,13 +32,12 @@ interface AgentChatViewProps {
   onClose: () => void;
 }
 
-// Updated ChatMessage interface for streaming
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'error' | 'system';
-  content?: string | JSX.Element; // Optional for assistant messages that use contentBlocks
-  contentBlocks?: AgentOutputContentBlock[]; // For assistant messages, built incrementally
-  isStreaming?: boolean; // Indicates if the assistant message is actively streaming
+  content?: string | JSX.Element;
+  contentBlocks?: AgentOutputContentBlock[];
+  isStreaming?: boolean;
   timestamp: Date;
 }
 
@@ -69,14 +68,13 @@ const performPreExecutionRegistration = async (
 const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const eventSourceRef = useRef<EventSource | null>(null); // Added for EventSource management
+  const eventSourceRef = useRef<EventSource | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  // Updated addMessage function
   const addMessage = (
     role: ChatMessage['role'],
-    contentOrId: string | JSX.Element, // ID for streaming assistant, content for others
+    contentOrId: string | JSX.Element,
     isStreamingOp: boolean = false,
     initialBlocksOp?: AgentOutputContentBlock[]
   ): string => {
@@ -89,8 +87,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     };
     if (role === 'assistant' && isStreamingOp) {
       newMessage.contentBlocks = initialBlocksOp || [];
-      // For streaming messages, content might be initially undefined or a placeholder
-      // The actual rendering will be driven by contentBlocks via StreamingMessageContentView
     } else {
       newMessage.content = contentOrId as string | JSX.Element;
     }
@@ -104,13 +100,11 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       setIsInitializing(true);
       setMessages([]);
       setChatError(null);
-      // Ensure eventSource is closed if an agent switch occurs mid-stream
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
       try {
-        // System messages from registration are now silent by default
         await performPreExecutionRegistration(agentName, (msgText) => addMessage('system', msgText), true);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize agent session.';
@@ -124,7 +118,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     setupAgentSession();
   }, [agentName]);
 
-  // Effect for cleaning up EventSource on component unmount
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
@@ -137,36 +130,33 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
   const handleSend = async (text: string) => {
     if (!text.trim() || isInitializing || isLoading) return;
     const userMessageContent = text;
-    addMessage('user', userMessageContent); // Standard user message
+    addMessage('user', userMessageContent);
     setIsLoading(true);
     setChatError(null);
 
     const assistantMessageId = Date.now().toString() + '-stream';
-    addMessage('assistant', assistantMessageId, true, []); // Add placeholder for streaming
-
-    // TODO: Retrieve system_prompt from agentConfig if available
-    // const agentConfig: AgentConfig = await getSpecificComponentConfig("agents", agentName);
-    // const systemPrompt = agentConfig?.system_prompt;
-    // For now, system_prompt is not passed, adapt if backend requires/supports it for streaming endpoint
+    addMessage('assistant', assistantMessageId, true, []);
 
     const queryParams = new URLSearchParams({
       user_message: userMessageContent,
     });
-    // if (systemPrompt) queryParams.append('system_prompt', systemPrompt);
+    const agentConfigFromStore: AgentConfig | undefined = (await getSpecificComponentConfig("agents", agentName));
+    if (agentConfigFromStore?.system_prompt) {
+        queryParams.append('system_prompt', agentConfigFromStore.system_prompt);
+    }
+
 
     const { apiKey } = useAuthStore.getState();
     if (apiKey) {
       queryParams.append('api_key', apiKey);
     } else {
-      // Handle missing API key - perhaps show an error or prevent the call
-      // For now, this will result in a 401 if the backend strictly requires it and it's not in a cookie
       console.warn('API key is missing. Streaming call might fail if auth is required via query param.');
     }
 
     const url = `/api/agents/${agentName}/execute-stream?${queryParams.toString()}`;
 
     if (eventSourceRef.current) {
-      eventSourceRef.current.close(); // Close any existing connection
+      eventSourceRef.current.close();
     }
 
     const eventSource = new EventSource(url);
@@ -176,11 +166,8 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       console.log('SSE connection opened.');
     };
 
-    // Generic message handler for debugging
     eventSource.onmessage = (event) => {
       console.log('SSE generic message received:', event);
-      // You could try to parse event.data here to see what it is
-      // if it's not being caught by specific listeners.
       try {
         const parsedData = JSON.parse(event.data);
         console.log('SSE generic message data (parsed):', parsedData);
@@ -189,7 +176,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       }
     };
 
-    // Helper to update contentBlocks for the current streaming message
     const updateStreamingMessageBlocks = (updater: (blocks: AgentOutputContentBlock[]) => AgentOutputContentBlock[]) => {
       setMessages(prevMessages =>
         prevMessages.map(msg =>
@@ -203,27 +189,22 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('text_delta', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // For named events, event.type is 'text_delta'. eventData is the payload.
-        // No need for eventData.event_type check here.
-        const { index, text_chunk } = eventData; // Directly use properties from parsed data
+        const { index, text_chunk } = eventData;
         if (typeof index === 'number' && typeof text_chunk === 'string') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'text') {
-              // Append to existing text block
               newBlocks[index] = {
                 ...newBlocks[index],
                 text: (newBlocks[index].text || '') + text_chunk,
               };
             } else {
-              // Create new text block or replace if type mismatch (should ideally not happen if backend sends consistent indices)
-              // Ensure array is long enough
               while (newBlocks.length <= index) {
-                newBlocks.push({ type: 'placeholder', text: '' }); // Should be replaced
+                newBlocks.push({ type: 'placeholder', text: '' });
               }
               newBlocks[index] = { type: 'text', text: text_chunk };
             }
-            return newBlocks.filter(b => b.type !== 'placeholder'); // Clean up placeholders if any
+            return newBlocks.filter(b => b.type !== 'placeholder');
           });
         }
       } catch (e) {
@@ -234,20 +215,18 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_use_start', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // event.type is 'tool_use_start'. eventData is the payload.
         const { index, tool_name, tool_id } = eventData;
         if (typeof index === 'number' && tool_name && tool_id) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
-            // Ensure array is long enough
             while (newBlocks.length <= index) {
-              newBlocks.push({ type: 'placeholder', text: '' }); // Should be replaced
+              newBlocks.push({ type: 'placeholder', text: '' });
             }
             newBlocks[index] = {
               type: 'tool_use',
               id: tool_id,
               name: tool_name,
-              input: {}, // Initialize input as an empty object, to be filled by input_delta
+              input: {},
             };
             return newBlocks.filter(b => b.type !== 'placeholder');
           });
@@ -260,22 +239,18 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_use_input_delta', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // event.type is 'tool_use_input_delta'. eventData is the payload.
         const { index, json_chunk } = eventData;
         if (typeof index === 'number' && typeof json_chunk === 'string') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
-              const currentBlock = newBlocks[index] as any; // Cast for temporary field access
-              // Ensure _accumulatedJsonInput is initialized
+              const currentBlock = newBlocks[index] as any;
               const existingRawInput = currentBlock._accumulatedJsonInput || '';
               newBlocks[index] = {
                 ...currentBlock,
-                // Temporarily store accumulating JSON string.
-                // ToolCallView will need to be aware of this or we parse on content_block_stop
                 input: { ...(currentBlock.input || {}), _partialInput: ((currentBlock.input as any)?._partialInput || "") + json_chunk },
                 _accumulatedJsonInput: existingRawInput + json_chunk,
-              } as AgentOutputContentBlock; // Cast back to the original type
+              } as AgentOutputContentBlock;
             } else {
               console.warn(`Received tool_use_input_delta for block at index ${index} which is not a tool_use block or doesn't exist.`);
             }
@@ -290,36 +265,28 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('content_block_stop', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // event.type is 'content_block_stop'. eventData is the payload.
         const { index } = eventData;
         if (typeof index === 'number') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
-              const toolBlock = newBlocks[index] as any; // Cast for temporary field access
+              const toolBlock = newBlocks[index] as any;
               if (toolBlock._accumulatedJsonInput) {
                 try {
                   const parsedInput = JSON.parse(toolBlock._accumulatedJsonInput);
                   newBlocks[index] = {
                     ...toolBlock,
-                    input: parsedInput, // Set the final parsed input
+                    input: parsedInput,
                   };
-                  // Clean up temporary fields
                   delete (newBlocks[index] as any)._accumulatedJsonInput;
                   if ((newBlocks[index] as any).input?._partialInput) {
                     delete (newBlocks[index] as any).input._partialInput;
                   }
-                  // If input was just {} and _partialInput was the only thing, clean that too.
                   if (Object.keys((newBlocks[index] as any).input).length === 0) {
-                     delete (newBlocks[index] as any).input; // Or set to undefined, if ToolCallView handles it
-                     // For now, let's ensure input is at least an empty object if it was meant to be an object
-                     newBlocks[index].input = newBlocks[index].input || {};
+                     newBlocks[index].input = {};
                   }
-
-
                 } catch (e) {
                   console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
-                  // Keep the raw input or set an error state? For now, keep raw if parse fails.
                   newBlocks[index] = {
                     ...toolBlock,
                     input: { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput },
@@ -331,7 +298,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                 }
               }
             }
-            // Potentially handle other block types if needed, e.g., marking a text block as "complete"
             return newBlocks;
           });
         }
@@ -343,56 +309,28 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_result', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // event.type is 'tool_result'. eventData is the payload.
-        // Backend sends "output" for tool result content.
-        const { index, tool_use_id, output, is_error, name } = eventData;
-        if (typeof index === 'number' && tool_use_id && output !== undefined) {
+        const { tool_use_id, output, is_error, name } = eventData; // Removed index from destructuring
+        if (tool_use_id && output !== undefined) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
-            // Ensure array is long enough for the new tool_result block
-            while (newBlocks.length <= index) {
-              newBlocks.push({ type: 'placeholder', text: '' }); // Should be replaced
-            }
-            // The 'content' field of an AgentOutputContentBlock of type 'tool_result'
-            // is used to store the actual result data for ToolResultView's 'result' prop.
-            // If 'output' itself is a list of blocks, it can be directly assigned.
-            // If 'output' is a string (e.g. simple text result or stringified JSON),
-            // ToolResultView's renderResultContent will handle it.
             let resultBlockContent: string | AgentOutputContentBlock[] | Record<string, any>;
             if (typeof output === 'string') {
-                // If it's a string that might be JSON, ToolResultView handles parsing
                 resultBlockContent = output;
             } else if (Array.isArray(output) || typeof output === 'object' && output !== null) {
-                // If it's an array (of blocks) or an object, pass as is
                 resultBlockContent = output;
             } else {
-                resultBlockContent = String(output); // Fallback
+                resultBlockContent = String(output);
             }
-
-            newBlocks[index] = {
+            // Append the new tool_result block
+            newBlocks.push({
               type: 'tool_result',
-              id: `tool_result_for_${tool_use_id}_${index}`,
+              id: `tool_result_for_${tool_use_id}_${blocks.length}`, // Unique ID
               tool_use_id: tool_use_id,
-              // The 'content' field of AgentOutputContentBlock is for *nested blocks*.
-              // For a tool_result block, the actual result data is what ToolResultView expects in its 'result' prop.
-              // We need to decide how to store this. Let's use a custom field or ensure 'text' or 'content' (as list) is used.
-              // The `StreamingMessageContentView` passes `block` to `ToolResultView` as props.
-              // `ToolResultView` expects `result={block.content}` if we map it that way.
-              // So, the `output` from the event should be placed into a field that `ToolResultView` reads.
-              // `ToolResultView`'s `result` prop is `string | Record<string, any> | AgentOutputContentBlock[]`.
-              // Our `AgentOutputContentBlock` has `text: Optional[str]` and `content: Optional[List["AgentOutputContentBlock"]]`.
-              // Let's put simple string results into `text` and complex (object/array) results into `content` if it's an array of blocks,
-              // or just pass the object if ToolResultView can handle it.
-              // For simplicity, let's assume ToolResultView's `result` prop will get the `output` directly.
-              // We need to make sure the block structure matches what StreamingMessageContentView passes to ToolResultView.
-              // StreamingMessageContentView does: <ToolResultView ... result={block.content} ... />
-              // So, we must put the tool's output into the 'content' field of this 'tool_result' block.
-              content: resultBlockContent as any, // Cast as any because resultBlockContent can be Record<string,any> which AgentOutputContentBlock.content doesn't directly type as.
-                                                 // ToolResultView's prop `result` is more flexible.
+              content: resultBlockContent as any,
               is_error: is_error || false,
               name: name,
-            };
-            return newBlocks.filter(b => b.type !== 'placeholder');
+            });
+            return newBlocks; // No filter needed as we are appending
           });
         }
       } catch (e) {
@@ -403,28 +341,21 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_execution_error', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        // event.type is 'tool_execution_error'. eventData is the payload.
-        const { index, tool_use_id, error_message, tool_name } = eventData;
-        if (typeof index === 'number' && tool_use_id && error_message) {
+        const { tool_use_id, error_message, tool_name } = eventData; // Removed index
+        if (tool_use_id && error_message) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
-            // Ensure array is long enough
-            while (newBlocks.length <= index) {
-              newBlocks.push({ type: 'placeholder', text: '' });
-            }
-            // We can represent this as a tool_result block with is_error = true
-            newBlocks[index] = {
-              type: 'tool_result', // Use tool_result type for consistency with ToolResultView
-              id: `tool_error_for_${tool_use_id}_${index}`, // Unique ID for the error block
+            // Append the new tool_execution_error block (as a tool_result type)
+            newBlocks.push({
+              type: 'tool_result',
+              id: `tool_error_for_${tool_use_id}_${blocks.length}`,
               tool_use_id: tool_use_id,
-              content: error_message || "Unknown tool execution error", // Error message as content
+              content: error_message || "Unknown tool execution error",
               is_error: true,
-              name: tool_name, // Optional name of the tool that failed
-            };
-            return newBlocks.filter(b => b.type !== 'placeholder');
+              name: tool_name,
+            });
+            return newBlocks; // No filter needed
           });
-          // Optionally, also add a general error message to the chat via addMessage('error', ...)
-          // For now, relying on the block being rendered as an error.
         }
       } catch (e) {
         console.error('Error parsing tool_execution_error event:', e, event.data);
@@ -449,16 +380,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       setIsLoading(false);
       eventSourceRef.current?.close();
     };
-
-    // Fallback for non-streaming API (to be removed once streaming is fully implemented and stable)
-    // try {
-    //   const executionResult: AgentExecutionResult = await executeAgentAPI(agentName, userMessageContent);
-    //   // ... existing non-streaming logic ...
-    // } catch (err) {
-    //   // ... existing error handling ...
-    // } finally {
-    //   // setIsLoading(false); // This will be handled by stream_end or onerror
-    // }
   };
 
   const mapRoleToDirection = (role: ChatMessage['role']): "incoming" | "outgoing" => {
@@ -501,7 +422,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                     <Message
                       key={msg.id}
                       model={{
-                        message: msg.content as string, // User content is always string for now
+                        message: msg.content as string,
                         sentTime: msg.timestamp.toISOString(),
                         sender: msg.role,
                         direction: mapRoleToDirection(msg.role),
@@ -512,7 +433,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                 }
                 if (msg.role === 'assistant') {
                   if (msg.contentBlocks && msg.contentBlocks.length > 0) {
-                    // Streaming or streamed message with content blocks
                     return (
                       <Message
                         key={msg.id}
@@ -524,7 +444,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                         </Message.CustomContent>
                       </Message>
                     );
-                  } else if (msg.content) { // Non-streaming assistant message with JSX or string content
+                  } else if (msg.content) {
                      if (typeof msg.content === 'string') {
                         return (
                           <Message
@@ -538,7 +458,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                             }}
                           />
                         );
-                      } else { // msg.content is JSX.Element
+                      } else {
                         return (
                           <Message
                             key={msg.id}
@@ -550,7 +470,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                           </Message>
                         );
                       }
-                  } else if (msg.isStreaming) { // Placeholder for a streaming message that hasn't received content yet
+                  } else if (msg.isStreaming) {
                      return (
                       <Message
                         key={msg.id}
@@ -563,7 +483,6 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                     );
                   }
                 }
-                // System messages are silent
                 return null;
               })}
             </MessageList>
@@ -573,12 +492,11 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
               attachButton={false}
               disabled={isInitializing || isLoading}
               sendDisabled={isInitializing || isLoading}
-              // className prop removed to let index.css handle all MessageInput styling
             />
           </ChatContainer>
         </MainContainer>
       </div>
-      {chatError && !messages.some(m => m.role === 'error') && /* Show general chatError if not already shown as a message */
+      {chatError && !messages.some(m => m.role === 'error') &&
         <p className="text-sm text-dracula-red p-2 text-center">{chatError}</p>}
     </div>
   );
