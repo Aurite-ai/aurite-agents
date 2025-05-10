@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Removed useRef as it's not used after MessageList integration
+import React, { useState, useEffect, type JSX } from 'react'; // Removed useRef as it's not used after MessageList integration
 import {
   MainContainer,
   ChatContainer,
@@ -30,7 +30,7 @@ interface AgentChatViewProps {
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'error' | 'system';
-  content: string | JSX.Element; // Allow content to be a JSX element
+  content: string | JSX.Element;
   timestamp: Date;
 }
 
@@ -101,9 +101,25 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       } else if (executionResult.final_response && executionResult.final_response.content && executionResult.final_response.content.length > 0) {
         const firstBlock = executionResult.final_response.content[0];
         if (firstBlock.type === 'text' && firstBlock.text !== undefined && firstBlock.text !== null) {
+          console.log('[AgentChatView DEBUG] firstBlock.text:', firstBlock.text); // For debugging
+          console.log('[AgentChatView DEBUG] typeof firstBlock.text:', typeof firstBlock.text); // For debugging
+
           if (typeof firstBlock.text === 'string') {
-            addMessage('assistant', firstBlock.text);
-          } else { // It's a Record<string, any> due to schema
+            try {
+              const jsonData = JSON.parse(firstBlock.text);
+              // Ensure it's an object (and not an array or primitive that JSON.parse can also return)
+              if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+                addMessage('assistant', <StructuredResponseView data={jsonData} />);
+              } else {
+                // Parsed, but not the object structure we want for StructuredResponseView
+                addMessage('assistant', firstBlock.text); // Fallback to raw text
+              }
+            } catch (e) {
+              // Not valid JSON, or parsing failed, so treat as a plain string
+              addMessage('assistant', firstBlock.text); // Fallback to raw text
+            }
+          } else {
+            // It's already a Record<string, any>, as originally expected
             addMessage('assistant', <StructuredResponseView data={firstBlock.text as Record<string, any>} />);
           }
         } else {
