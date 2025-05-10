@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import apiClient from '../../../lib/apiClient'; // Adjust path as needed
-import useUIStore from '../../../store/uiStore'; // Adjust path as needed
-import useProjectStore from '../../../store/projectStore'; // Added
-import type { ComponentType } from '../../../components/layout/ComponentSidebar'; // Adjust path as needed
-import ConfigEditorView from './ConfigEditorView'; // Import the editor view
+// Import the new generic function
+import { listConfigFiles as fetchFilesGeneric } from '../../../lib/apiClient'; // Renamed import
+import useUIStore from '../../../store/uiStore';
+import useProjectStore from '../../../store/projectStore';
+import type { ComponentType } from '../../../components/layout/ComponentSidebar';
+import ConfigEditorView from './ConfigEditorView';
 
 interface ConfigFile {
   name: string;
@@ -31,16 +32,8 @@ const ConfigListView: React.FC = () => {
       setConfigFiles([]); // Clear previous files
 
       try {
-        // Map UI component type to API component type if necessary
-        // For now, assuming they are the same or selectedComponent is already the API type
-        const apiComponentType = selectedComponent;
-
-        const response = await apiClient(`/configs/${apiComponentType}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || `Failed to fetch ${apiComponentType} configs`);
-        }
-        const data: string[] = await response.json();
+        // Use the new generic function from apiClient.ts
+        const data: string[] = await fetchFilesGeneric(selectedComponent);
         setConfigFiles(data.map(name => ({ name })));
       } catch (err) {
         console.error('Error fetching config files:', err);

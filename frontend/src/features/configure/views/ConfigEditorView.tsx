@@ -4,7 +4,11 @@ import { highlight, languages } from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-json';
 import 'prismjs/themes/prism-okaidia.css'; // Using Okaidia theme for dark mode
 
-import apiClient from '../../../lib/apiClient';
+// Import the new generic functions
+import {
+  getConfigFileContent as fetchFileContentGeneric,
+  saveConfigFileContent as saveFileContentGeneric
+} from '../../../lib/apiClient';
 import type { ComponentType } from '../../../components/layout/ComponentSidebar';
 
 interface ConfigEditorViewProps {
@@ -32,12 +36,8 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await apiClient(`/configs/${componentType}/${filename}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || `Failed to fetch ${filename}`);
-        }
-        const data = await response.json(); // Assuming content is JSON
+        // Use the new generic function from apiClient.ts
+        const data = await fetchFileContentGeneric(componentType, filename);
         setCode(JSON.stringify(data, null, 2)); // Pretty print JSON
       } catch (err) {
         console.error('Error fetching config content:', err);
@@ -66,16 +66,8 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
     }
 
     try {
-      const response = await apiClient(`/configs/${componentType}/${filename}`, {
-        method: 'PUT',
-        body: { content: parsedContent }, // apiClient will stringify this
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `Failed to save ${filename}`);
-      }
-
+      // Use the new generic function from apiClient.ts
+      await saveFileContentGeneric(componentType, filename, parsedContent);
       setSaveStatus('Configuration saved successfully!');
       // Optionally, clear status after a few seconds
       setTimeout(() => setSaveStatus(null), 3000);

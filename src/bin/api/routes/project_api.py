@@ -1,18 +1,19 @@
 """
-API routes for managing projects (loading, creating, etc.).
+API routes for managing projects (loading, creating, viewing, editing, etc.).
 """
 
 import logging
+import json  # For loading/dumping JSON
 from pathlib import Path
-from typing import List, Optional  # Added for list_files and optional description
+from typing import List, Optional, Any, Dict  # Added Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError  # Added ValidationError
 
 # Import dependencies (adjust relative paths as needed)
 from ...dependencies import get_api_key, get_host_manager
 from ....host_manager import HostManager
-from ....config.config_models import ProjectConfig  # For response model
+from ....config.config_models import ProjectConfig  # For response model and validation
 from ....config import PROJECT_ROOT_DIR  # For constructing paths
 
 logger = logging.getLogger(__name__)
@@ -268,4 +269,155 @@ async def list_project_files(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list project files: {str(e)}",
+        )
+
+
+# --- Project File Content Endpoints (View & Edit) ---
+
+
+@router.get("/file/{filename:path}", response_model=Any)
+async def get_project_file_content(filename: str):
+    """Retrieves the raw JSON content of a specific project file."""
+    logger.info(f"Request to get content of project file: {filename}")
+    if not filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+
+    projects_dir = PROJECT_ROOT_DIR / "config" / "projects"
+    file_path = (projects_dir / filename).resolve()
+
+    # Security check: ensure the path is within the projects directory
+    if not str(file_path).startswith(str(projects_dir.resolve())):
+        logger.error(
+            f"Path traversal attempt or invalid filename for project file: {filename}. Resolved to {file_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid project filename or path.",
+        )
+
+    if not file_path.is_file():
+        logger.warning(f"Project file not found: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project file '{filename}' not found.",
+        )
+
+    try:
+        with open(file_path, "r") as f:
+            content = json.load(f)
+        return content
+    except json.JSONDecodeError:
+        logger.error(f"Invalid JSON format in project file {file_path}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Project file '{filename}' contains invalid JSON.",
+        )
+    except Exception as e:
+        logger.error(f"Error reading project file {file_path}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read project file: {str(e)}",
+        )
+
+
+class ProjectFileContent(BaseModel):
+    content: Dict[str, Any]
+
+
+@router.put("/file/{filename:path}", status_code=status.HTTP_200_OK)
+async def update_project_file_content(
+    filename: str,
+    body: ProjectFileContent,
+    manager: HostManager = Depends(get_host_manager),  # Added HostManager dependency
+):
+    """Updates the content of a specific project file."""
+    logger.info(f"Request to update content of project file: {filename}")
+    if not filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+
+    projects_dir = PROJECT_ROOT_DIR / "config" / "projects"
+    file_path = (projects_dir / filename).resolve()
+
+    if not str(file_path).startswith(str(projects_dir.resolve())):
+        logger.error(
+            f"Path traversal attempt or invalid filename for project file update: {filename}. Resolved to {file_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid project filename or path.",
+        )
+
+    if not isinstance(body.content, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project file content must be a JSON object.",
+        )
+
+    try:
+        # Validate the content by attempting to parse and resolve it using ProjectManager
+        # This leverages the same logic as loading a project, ensuring all references and structures are valid.
+        # _parse_and_resolve_project_data will raise ValueError or RuntimeError on failure.
+        manager.project_manager._parse_and_resolve_project_data(body.content, filename)
+        logger.debug(
+            f"Project file content for {filename} validated successfully by ProjectManager's parsing logic."
+        )
+    except (
+        ValueError,
+        RuntimeError,
+        ValidationError,
+    ) as e:  # Catch errors from _parse_and_resolve_project_data or Pydantic
+        logger.error(
+            f"Validation failed for project file {filename} via ProjectManager parsing: {e}",
+            exc_info=True,
+        )
+        # Provide a more generic error or try to extract useful info from 'e'
+        error_detail = str(e)
+        if isinstance(e, ValidationError):
+            error_detail = f"Invalid project configuration structure: {e.errors()}"
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_detail,
+        )
+    except Exception as e:  # Catch any other unexpected error during validation
+        logger.error(
+            f"Unexpected error during validation of project file {filename} via ProjectManager: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred during content validation: {str(e)}",
+        )
+
+    # If validation passed, proceed to save the original raw content to the file
+    try:
+        # Ensure the directory exists
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "w") as f:
+            json.dump(body.content, f, indent=2)  # Save with pretty print
+        logger.info(f"Successfully updated project file: {file_path}")
+        return {
+            "status": "success",
+            "filename": filename,
+            "message": "Project file updated successfully.",
+        }
+    except IOError as e:
+        logger.error(f"Failed to write project file {file_path}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to write project file: {str(e)}",
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating project file {file_path}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {str(e)}",
         )

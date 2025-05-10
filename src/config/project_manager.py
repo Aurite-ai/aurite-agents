@@ -54,51 +54,35 @@ class ProjectManager:
             f"ProjectManager initialized, ComponentManager loaded: {count_str if count_str else '0 components'}."
         )
 
-    def parse_project_file(self, project_config_file_path: Path) -> ProjectConfig:
+    def _parse_and_resolve_project_data(
+        self, project_data: Dict[str, Any], project_identifier_for_logging: str
+    ) -> ProjectConfig:
         """
-        Parses a project configuration file, resolving component references
+        Parses a dictionary of project data, resolving component references
         using the associated ComponentManager, and returns the ProjectConfig object.
-        This method does NOT set the parsed project as the active project.
+        This is the core logic used by parse_project_file and for validating project data.
 
         Args:
-            project_config_file_path: Path to the project JSON file.
+            project_data: A dictionary containing the raw project data.
+            project_identifier_for_logging: A string (e.g., filename) for logging context.
 
         Returns:
             A fully resolved ProjectConfig object.
 
         Raises:
-            FileNotFoundError: If the project file does not exist.
-            RuntimeError: If JSON parsing fails or validation errors occur.
+            RuntimeError: If validation errors occur.
             ValueError: If component references are invalid or cannot be resolved.
         """
-        logger.debug(f"Parsing project configuration from: {project_config_file_path}")
-        if not project_config_file_path.is_file():
-            logger.error(
-                f"Project configuration file not found: {project_config_file_path}"
-            )
-            raise FileNotFoundError(
-                f"Project configuration file not found: {project_config_file_path}"
-            )
-
-        try:
-            with open(project_config_file_path, "r") as f:
-                project_data = json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error(
-                f"Error parsing project configuration file {project_config_file_path}: {e}"
-            )
-            raise RuntimeError(f"Error parsing project configuration file: {e}") from e
-
-        project_name = project_data.get(
-            "name", project_config_file_path.stem
-        )  # Use filename stem as fallback name
+        project_name = project_data.get("name", project_identifier_for_logging)
         project_description = project_data.get("description")
-        logger.debug(f"Processing project: '{project_name}'")
+        logger.debug(
+            f"Processing project data for: '{project_name}' (source: {project_identifier_for_logging})"
+        )
 
         # Resolve all component types using the helper
         resolved_clients = self._resolve_components(
             project_data,
-            project_name,
+            project_name,  # For logging context within _resolve_components
             "clients",
             ClientConfig,
             "client_id",
@@ -153,28 +137,68 @@ class ProjectManager:
                 simple_workflow_configs=resolved_simple_workflows,
                 custom_workflow_configs=resolved_custom_workflows,
             )
-            logger.debug(f"Successfully parsed and resolved project '{project_name}'.")
+            logger.debug(
+                f"Successfully parsed and resolved project data for '{project_name}'."
+            )
             return project_config
-        except (
-            ValidationError
-        ) as e:  # Catch Pydantic validation errors for the final ProjectConfig
+        except ValidationError as e:
             logger.error(
-                f"Failed to validate final ProjectConfig for '{project_name}': {e}",
+                f"Failed to validate final ProjectConfig for '{project_name}' from {project_identifier_for_logging}: {e}",
                 exc_info=True,
             )
             raise RuntimeError(
                 f"Failed to validate final ProjectConfig for '{project_name}': {e}"
             ) from e
-        except (
-            Exception
-        ) as e:  # Catch any other unexpected errors during final assembly
+        except Exception as e:
             logger.error(
-                f"Unexpected error assembling final ProjectConfig for '{project_name}': {e}",
+                f"Unexpected error assembling final ProjectConfig for '{project_name}' from {project_identifier_for_logging}: {e}",
                 exc_info=True,
             )
             raise RuntimeError(
                 f"An unexpected error assembling final ProjectConfig for '{project_name}': {e}"
             ) from e
+
+    def parse_project_file(self, project_config_file_path: Path) -> ProjectConfig:
+        """
+        Reads and parses a project configuration file, resolving component references
+        using the associated ComponentManager, and returns the ProjectConfig object.
+        This method does NOT set the parsed project as the active project.
+
+        Args:
+            project_config_file_path: Path to the project JSON file.
+
+        Returns:
+            A fully resolved ProjectConfig object.
+
+        Raises:
+            FileNotFoundError: If the project file does not exist.
+            RuntimeError: If JSON parsing fails or validation errors occur.
+            ValueError: If component references are invalid or cannot be resolved.
+        """
+        logger.debug(
+            f"Reading and parsing project configuration from: {project_config_file_path}"
+        )
+        if not project_config_file_path.is_file():
+            logger.error(
+                f"Project configuration file not found: {project_config_file_path}"
+            )
+            raise FileNotFoundError(
+                f"Project configuration file not found: {project_config_file_path}"
+            )
+
+        try:
+            with open(project_config_file_path, "r") as f:
+                project_data_dict = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Error parsing project configuration file {project_config_file_path}: {e}"
+            )
+            raise RuntimeError(f"Error parsing project configuration file: {e}") from e
+
+        # Use the new internal method to do the actual parsing and resolution
+        return self._parse_and_resolve_project_data(
+            project_data_dict, str(project_config_file_path)
+        )
 
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
         """
