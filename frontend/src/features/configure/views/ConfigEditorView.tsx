@@ -9,10 +9,10 @@ import {
   getConfigFileContent as fetchFileContentGeneric,
   saveConfigFileContent as saveFileContentGeneric
 } from '../../../lib/apiClient';
-import type { ComponentType } from '../../../components/layout/ComponentSidebar';
+import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar'; // Changed ComponentType to SelectedSidebarItemType
 
 interface ConfigEditorViewProps {
-  componentType: ComponentType;
+  componentType: SelectedSidebarItemType; // Changed ComponentType to SelectedSidebarItemType
   filename: string;
   onClose: () => void; // To go back to the list view
 }
@@ -37,7 +37,7 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
       setError(null);
       try {
         // Use the new generic function from apiClient.ts
-        const data = await fetchFileContentGeneric(componentType, filename);
+        const data = await fetchFileContentGeneric(componentType as string, filename); // Cast componentType
         setCode(JSON.stringify(data, null, 2)); // Pretty print JSON
       } catch (err) {
         console.error('Error fetching config content:', err);
@@ -67,7 +67,7 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
 
     try {
       // Use the new generic function from apiClient.ts
-      await saveFileContentGeneric(componentType, filename, parsedContent);
+      await saveFileContentGeneric(componentType as string, filename, parsedContent); // Cast componentType
       setSaveStatus('Configuration saved successfully!');
       // Optionally, clear status after a few seconds
       setTimeout(() => setSaveStatus(null), 3000);

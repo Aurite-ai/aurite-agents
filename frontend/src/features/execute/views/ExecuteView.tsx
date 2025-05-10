@@ -1,103 +1,109 @@
-import React, { useEffect, useState } from 'react';
-import apiClient from '../../../lib/apiClient';
+import React, { useEffect, useState, useCallback } from 'react';
 import useUIStore from '../../../store/uiStore';
-import type { ComponentType } from '../../../components/layout/ComponentSidebar';
+import {
+  listRegisteredAgents,
+  listRegisteredSimpleWorkflows,
+  listRegisteredCustomWorkflows
+} from '../../../lib/apiClient';
+// Corrected import for SelectedSidebarItemType and ExecutableComponentType
+import type { SelectedSidebarItemType, ExecutableComponentType } from '../../../components/layout/ComponentSidebar';
+import AgentChatView from './AgentChatView'; // Assuming AgentChatView.tsx is in the same directory
 
-interface ExecutableComponent {
+interface ExecutableItem {
   name: string;
-  type: 'agent' | 'workflow' | 'custom_workflow'; // To distinguish in a unified list if needed
+  type: ExecutableComponentType;
 }
 
 const ExecuteView: React.FC = () => {
-  const { selectedComponent, setSelectedComponent } = useUIStore(); // We might use selectedComponent to pre-select or filter
+  const { selectedComponent } = useUIStore() as { selectedComponent: SelectedSidebarItemType | null };
 
-  const [agents, setAgents] = useState<ExecutableComponent[]>([]);
-  const [workflows, setWorkflows] = useState<ExecutableComponent[]>([]);
-  const [customWorkflows, setCustomWorkflows] = useState<ExecutableComponent[]>([]);
+  const [agents, setAgents] = useState<ExecutableItem[]>([]);
+  const [simpleWorkflows, setSimpleWorkflows] = useState<ExecutableItem[]>([]);
+  const [customWorkflows, setCustomWorkflows] = useState<ExecutableItem[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State for the selected component to execute
-  const [selectedExecutable, setSelectedExecutable] = useState<ExecutableComponent | null>(null);
+  const [selectedAgentForChat, setSelectedAgentForChat] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setAgents([]);
+    setSimpleWorkflows([]);
+    setCustomWorkflows([]);
+
+    try {
+      const promises = [];
+      if (selectedComponent === null || selectedComponent === 'agents') {
+        promises.push(listRegisteredAgents().then(data => setAgents(data.map(name => ({ name, type: 'agents' })))));
+      }
+      if (selectedComponent === null || selectedComponent === 'simple_workflows') {
+        promises.push(listRegisteredSimpleWorkflows().then(data => setSimpleWorkflows(data.map(name => ({ name, type: 'simple_workflows' })))));
+      }
+      if (selectedComponent === null || selectedComponent === 'custom_workflows') {
+        promises.push(listRegisteredCustomWorkflows().then(data => setCustomWorkflows(data.map(name => ({ name, type: 'custom_workflows' })))));
+      }
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Error fetching executable components:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedComponent]);
 
   useEffect(() => {
-    const fetchAllComponents = async () => {
-      setIsLoading(true);
-      setError(null);
-      setAgents([]);
-      setWorkflows([]);
-      setCustomWorkflows([]);
+    setSelectedAgentForChat(null);
+    fetchData();
+  }, [selectedComponent, fetchData]);
 
-      try {
-        const [agentsRes, workflowsRes, customWorkflowsRes] = await Promise.all([
-          apiClient('/components/agents'),
-          apiClient('/components/workflows'),
-          apiClient('/components/custom_workflows'),
-        ]);
-
-        if (!agentsRes.ok) throw new Error(`Failed to fetch agents: ${await agentsRes.text()}`);
-        const agentsData: string[] = await agentsRes.json();
-        setAgents(agentsData.map(name => ({ name, type: 'agent' })));
-
-        if (!workflowsRes.ok) throw new Error(`Failed to fetch workflows: ${await workflowsRes.text()}`);
-        const workflowsData: string[] = await workflowsRes.json();
-        setWorkflows(workflowsData.map(name => ({ name, type: 'workflow' })));
-
-        if (!customWorkflowsRes.ok) throw new Error(`Failed to fetch custom workflows: ${await customWorkflowsRes.text()}`);
-        const customWorkflowsData: string[] = await customWorkflowsRes.json();
-        setCustomWorkflows(customWorkflowsData.map(name => ({ name, type: 'custom_workflow' })));
-
-      } catch (err) {
-        console.error('Error fetching executable components:', err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchAllComponents();
-  }, []); // Fetch once on mount
-
-  const handleSelectExecutable = (component: ExecutableComponent) => {
-    setSelectedExecutable(component);
-    // Update the global component type in uiStore if it's different,
-    // this helps keep the sidebar in sync if we want that behavior.
-    // Map our local 'type' to the ComponentType used by the sidebar.
-    let newSelectedComponentType: ComponentType | null = null;
-    if (component.type === 'agent') newSelectedComponentType = 'agents';
-    else if (component.type === 'workflow') newSelectedComponentType = 'simple_workflows';
-    else if (component.type === 'custom_workflow') newSelectedComponentType = 'custom_workflows';
-
-    if (newSelectedComponentType && selectedComponent !== newSelectedComponentType) {
-      setSelectedComponent(newSelectedComponentType);
+  const handleItemSelect = (item: ExecutableItem) => {
+    if (item.type === 'agents') {
+      setSelectedAgentForChat(item.name);
+    } else {
+      console.log(`Selected ${item.type}: ${item.name} - Execution UI TBD`);
     }
-    console.log('Selected for execution:', component);
-    // Next step will be to show input form based on this selection
   };
 
-  const renderListComponent = (
+  const handleCloseChat = () => {
+    setSelectedAgentForChat(null);
+  };
+
+  if (selectedAgentForChat) {
+    return <AgentChatView agentName={selectedAgentForChat} onClose={handleCloseChat} />;
+  }
+
+  const renderListSection = (
     title: string,
-    items: ExecutableComponent[],
-    currentType: 'agent' | 'workflow' | 'custom_workflow'
+    items: ExecutableItem[],
+    itemTypeFilter: ExecutableComponentType
   ) => {
-    if (items.length === 0) return null; // Don't render section if no items
+    if (selectedComponent !== null && selectedComponent !== itemTypeFilter) {
+      return null;
+    }
+    if (items.length === 0 && selectedComponent === itemTypeFilter) {
+        return (
+            <div className="mb-6">
+                <h4 className="text-xl font-semibold text-dracula-cyan mb-3">{title}</h4>
+                <p className="text-dracula-comment">No {title.toLowerCase()} available for execution.</p>
+            </div>
+        );
+    }
+    if (items.length === 0) return null;
+
     return (
       <div className="mb-6">
-        <h4 className="text-md font-semibold text-dracula-cyan mb-2 border-b border-dracula-comment pb-1">
-          {title}
-        </h4>
-        <ul className="space-y-1 max-h-60 overflow-y-auto pr-2">
+        <h4 className="text-xl font-semibold text-dracula-cyan mb-3">{title}</h4>
+        <ul className="space-y-2">
           {items.map(item => (
             <li key={`${item.type}-${item.name}`}>
               <button
-                onClick={() => handleSelectExecutable(item)}
-                className={`w-full text-left p-2 rounded-md text-sm transition-colors duration-150 ease-in-out
-                  ${
-                    selectedExecutable?.name === item.name && selectedExecutable?.type === item.type
-                      ? 'bg-dracula-pink text-dracula-background'
-                      : 'bg-dracula-current-line hover:bg-opacity-80 text-dracula-foreground focus:bg-dracula-comment focus:bg-opacity-50'
-                  }
-                  focus:outline-none focus:ring-1 focus:ring-dracula-pink`}
+                onClick={() => handleItemSelect(item)}
+                className={`w-full text-left p-3 rounded-md text-sm transition-colors duration-150 ease-in-out
+                  focus:outline-none focus:ring-2 focus:ring-dracula-cyan
+                  bg-dracula-current-line hover:bg-opacity-80 text-dracula-foreground focus:bg-dracula-comment focus:bg-opacity-50
+                `}
               >
                 {item.name}
               </button>
@@ -109,39 +115,34 @@ const ExecuteView: React.FC = () => {
   };
 
   if (isLoading) {
-    return <p className="text-dracula-comment">Loading executable components...</p>;
+    return <p className="text-dracula-comment p-1">Loading executable components...</p>;
   }
 
   if (error) {
-    return <p className="text-dracula-red">Error: {error}</p>;
+    return <p className="text-dracula-red p-1">Error: {error}</p>;
   }
+
+  const noComponentsAvailable = agents.length === 0 && simpleWorkflows.length === 0 && customWorkflows.length === 0;
 
   return (
     <div className="p-1">
-      <h3 className="text-lg font-semibold text-dracula-purple mb-4">
-        Select Component to Execute
-      </h3>
-
-      {renderListComponent('Agents', agents, 'agent')}
-      {renderListComponent('Simple Workflows', workflows, 'workflow')}
-      {renderListComponent('Custom Workflows', customWorkflows, 'custom_workflow')}
-
-      {selectedExecutable && (
-        <div className="mt-6 p-4 bg-dracula-current-line rounded-lg border border-dracula-comment">
-          <h4 className="text-md font-semibold text-dracula-green mb-2">
-            Selected: {selectedExecutable.name} ({selectedExecutable.type})
-          </h4>
-          <p className="text-dracula-comment text-sm">
-            Next: Implement input form and execution button here (Step 4.2).
-          </p>
-        </div>
+      {!selectedAgentForChat && (
+        <h3 className="text-lg font-semibold text-dracula-purple mb-4">
+          {selectedComponent ? `Execute ${selectedComponent.charAt(0).toUpperCase() + selectedComponent.slice(1)}` : "Select Component to Execute"}
+        </h3>
       )}
 
-      {(agents.length === 0 && workflows.length === 0 && customWorkflows.length === 0 && !isLoading) && (
-        <p className="text-dracula-comment">No executable components found.</p>
+      {renderListSection('Agents', agents, 'agents')}
+      {renderListSection('Simple Workflows', simpleWorkflows, 'simple_workflows')}
+      {renderListSection('Custom Workflows', customWorkflows, 'custom_workflows')}
+
+      {noComponentsAvailable && !isLoading && (
+        <p className="text-dracula-comment">
+          {selectedComponent ? `No ${selectedComponent} available for execution.` : "No executable components found."}
+        </p>
       )}
     </div>
   );
 };
 
-export default ExecuteView;
+export default ExecuteView; // Exporting as ExecuteView

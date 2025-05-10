@@ -12,7 +12,7 @@ const Layout: React.FC = () => {
     selectedAction,
     selectedComponent,
     setSelectedAction,
-    setSelectedComponent,
+    setSelectedComponent, // This is still used by ComponentSidebar internally via useUIStore
   } = useUIStore();
 
   return (
@@ -20,10 +20,10 @@ const Layout: React.FC = () => {
       <Header /> {/* Use the new Header component */}
       {/* ActionTabs component removed from here */}
       <div className="flex flex-1 overflow-hidden">
-        <ComponentSidebar
-          selectedComponent={selectedComponent}
-          onSelectComponent={setSelectedComponent}
-        />
+        <ComponentSidebar />
+        {/* Removed props: selectedComponent and onSelectComponent
+            as ComponentSidebar now uses useUIStore directly
+        */}
         <main className="flex-1 p-6 overflow-y-auto bg-dracula-background">
           {renderDynamicContent()}
         </main>

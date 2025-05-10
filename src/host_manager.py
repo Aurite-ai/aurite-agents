@@ -496,10 +496,43 @@ class HostManager:
         if (
             agent_config.name in active_project.agents
         ):  # Changed agent_configs to agents
-            logger.error(
-                f"Agent name '{agent_config.name}' already registered in active project."
+            logger.info(  # Changed from error to info
+                f"Agent name '{agent_config.name}' already exists in active project. It will be updated."
             )
-            raise ValueError(f"Agent name '{agent_config.name}' already registered.")
+            # No longer raising ValueError
+
+        # Cascading LLMConfig registration/update
+        if agent_config.llm_config_id:
+            logger.info(
+                f"Agent '{agent_config.name}' specifies LLM config ID '{agent_config.llm_config_id}'. Attempting to register/update it."
+            )
+            try:
+                retrieved_llm_config = self.component_manager.get_component_config(
+                    "llm_configs", agent_config.llm_config_id
+                )
+                if retrieved_llm_config:
+                    # Type cast to LLMConfig if get_component_config returns BaseModel
+                    from .config.config_models import (
+                        LLMConfig as LLMConfigModel,
+                    )  # Local import for type hint
+
+                    if isinstance(retrieved_llm_config, LLMConfigModel):
+                        await self.register_llm_config(retrieved_llm_config)
+                    else:
+                        logger.error(
+                            f"Retrieved component for LLM ID '{agent_config.llm_config_id}' is not an LLMConfig. Type: {type(retrieved_llm_config)}"
+                        )
+                        # Decide if this is a hard error or just a warning
+                else:
+                    logger.warning(
+                        f"LLMConfig ID '{agent_config.llm_config_id}' for agent '{agent_config.name}' not found in ComponentManager. Agent might rely on overrides or fail."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error during cascading registration of LLMConfig '{agent_config.llm_config_id}' for agent '{agent_config.name}': {e}",
+                    exc_info=True,
+                )
+                # Decide if this should be a hard error for agent registration
 
         # Validate client_ids exist using the host's method
         if agent_config.client_ids:
@@ -575,12 +608,12 @@ class HostManager:
             )
 
         if llm_config.llm_id in active_project.llms:  # Changed llm_configs to llms
-            logger.error(
-                f"LLM config ID '{llm_config.llm_id}' already registered in active project."
+            logger.info(  # Changed from error to info, and adjusted message
+                f"LLM config ID '{llm_config.llm_id}' already exists in active project. It will be updated."
             )
-            raise ValueError(f"LLM config ID '{llm_config.llm_id}' already registered.")
+            # No longer raising ValueError, proceeding to update via add_component_to_active_project
 
-        # Add the LLM config to the active project
+        # Add the LLM config to the active project (this will overwrite/update if ID exists)
         # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
             "llms",
@@ -630,27 +663,58 @@ class HostManager:
         if (
             workflow_config.name in active_project.simple_workflows
         ):  # Changed simple_workflow_configs to simple_workflows
-            logger.error(
-                f"Workflow name '{workflow_config.name}' already registered in active project."
+            logger.info(  # Changed from error to info
+                f"Workflow name '{workflow_config.name}' already exists in active project. It will be updated."
             )
-            raise ValueError(
-                f"Workflow name '{workflow_config.name}' already registered."
-            )
+            # No longer raising ValueError, proceeding to update.
+        else:  # New workflow, log differently or just proceed
+            logger.info(f"Registering new workflow: {workflow_config.name}")
 
-        # Validate agent names in steps exist in the active project's agents
+        # Cascading Agent registration/update for steps
         if workflow_config.steps:
             for agent_name in workflow_config.steps:
-                if (
-                    agent_name not in active_project.agents
-                ):  # Changed agent_configs to agents
-                    logger.error(
-                        f"Agent name '{agent_name}' in workflow '{workflow_config.name}' steps not found in active project."
+                logger.info(
+                    f"Workflow '{workflow_config.name}' step: Agent '{agent_name}'. Attempting to register/update it."
+                )
+                try:
+                    retrieved_agent_config = self.component_manager.get_component_config(
+                        "agents",
+                        agent_name,  # Assuming "agents" is the key in ComponentManager for AgentConfig
                     )
-                    raise ValueError(
-                        f"Agent '{agent_name}' not found for workflow '{workflow_config.name}'."
-                    )
+                    if retrieved_agent_config:
+                        # Ensure it's an AgentConfig instance before calling register_agent
+                        from .config.config_models import (
+                            AgentConfig as AgentConfigModel,
+                        )
 
-        # Ensure component_type_key matches the new attribute name in ProjectConfig
+                        if isinstance(retrieved_agent_config, AgentConfigModel):
+                            await self.register_agent(
+                                retrieved_agent_config
+                            )  # This will cascade to LLMConfig
+                        else:
+                            logger.error(
+                                f"Retrieved component for Agent step '{agent_name}' in workflow '{workflow_config.name}' is not an AgentConfig. Type: {type(retrieved_agent_config)}. Skipping this step's agent registration."
+                            )
+                            # Decide: raise error or allow workflow registration to proceed without this agent?
+                            # For now, let's make it a hard error as per plan.
+                            raise ValueError(
+                                f"Component for agent step '{agent_name}' in workflow '{workflow_config.name}' is not a valid AgentConfig."
+                            )
+                    else:
+                        logger.error(
+                            f"Agent '{agent_name}' (a step in workflow '{workflow_config.name}') not found in ComponentManager. Cannot register workflow."
+                        )
+                        raise ValueError(
+                            f"Agent step '{agent_name}' for workflow '{workflow_config.name}' not found in ComponentManager."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Error during cascading registration of agent step '{agent_name}' for workflow '{workflow_config.name}': {e}",
+                        exc_info=True,
+                    )
+                    raise  # Re-raise to stop workflow registration if a step agent fails
+
+        # Add/Update the workflow config to the active project
         self.project_manager.add_component_to_active_project(
             "simple_workflows",
             workflow_config.name,
@@ -704,12 +768,14 @@ class HostManager:
         if (
             custom_workflow_config.name in active_project.custom_workflows
         ):  # Changed custom_workflow_configs to custom_workflows
-            logger.error(
-                f"Custom Workflow name '{custom_workflow_config.name}' already registered in active project."
+            logger.info(  # Changed from error to info
+                f"Custom Workflow name '{custom_workflow_config.name}' already exists in active project. It will be updated."
             )
-            raise ValueError(
-                f"Custom Workflow name '{custom_workflow_config.name}' already registered."
-            )
+            # No longer raising ValueError
+        # else: # Removed else block, logging for new/update is handled by add_component_to_active_project or could be added before it.
+        # logger.info(
+        # f"Registering new custom workflow: {custom_workflow_config.name}"
+        # )
 
         module_path = custom_workflow_config.module_path
         if not str(module_path.resolve()).startswith(str(PROJECT_ROOT_DIR.resolve())):

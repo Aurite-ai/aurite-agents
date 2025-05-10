@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { listConfigFiles as fetchFilesGeneric } from '../../../lib/apiClient'; // Renamed import
 import useUIStore from '../../../store/uiStore';
 import useProjectStore from '../../../store/projectStore';
-import type { ComponentType } from '../../../components/layout/ComponentSidebar';
+import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar'; // Changed ComponentType to SelectedSidebarItemType
 import ConfigEditorView from './ConfigEditorView';
 
 interface ConfigFile {
@@ -12,7 +12,7 @@ interface ConfigFile {
 }
 
 const ConfigListView: React.FC = () => {
-  const { selectedComponent } = useUIStore();
+  const { selectedComponent } = useUIStore() as { selectedComponent: SelectedSidebarItemType | null }; // Cast for clarity
   const { lastComponentsUpdateTimestamp } = useProjectStore(); // Added
   const [configFiles, setConfigFiles] = useState<ConfigFile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -33,7 +33,7 @@ const ConfigListView: React.FC = () => {
 
       try {
         // Use the new generic function from apiClient.ts
-        const data: string[] = await fetchFilesGeneric(selectedComponent);
+        const data: string[] = await fetchFilesGeneric(selectedComponent as string); // selectedComponent might be null, handle or ensure it's passed correctly
         setConfigFiles(data.map(name => ({ name })));
       } catch (err) {
         console.error('Error fetching config files:', err);
@@ -59,7 +59,7 @@ const ConfigListView: React.FC = () => {
   if (editingFile && selectedComponent) {
     return (
       <ConfigEditorView
-        componentType={selectedComponent}
+        componentType={selectedComponent as SelectedSidebarItemType} // Ensure type matches
         filename={editingFile}
         onClose={handleCloseEditor}
       />
@@ -67,21 +67,25 @@ const ConfigListView: React.FC = () => {
   }
 
   // Displaying list view content
+  if (!selectedComponent) { // Handle case where no component is selected yet
+    return <p className="text-dracula-comment p-1">Please select a component type from the sidebar.</p>;
+  }
+
   if (isLoading) {
-    return <p className="text-dracula-comment">Loading configuration files...</p>;
+    return <p className="text-dracula-comment p-1">Loading configuration files...</p>;
   }
 
   if (error) {
-    return <p className="text-dracula-red">Error: {error}</p>;
+    return <p className="text-dracula-red p-1">Error: {error}</p>;
   }
 
   return (
     <div className="p-1">
       <h3 className="text-lg font-semibold text-dracula-purple mb-3">
-        {selectedComponent.charAt(0).toUpperCase() + selectedComponent.slice(1)} Configurations
+        {(selectedComponent as string).charAt(0).toUpperCase() + (selectedComponent as string).slice(1)} Configurations
       </h3>
       {configFiles.length === 0 ? (
-        <p className="text-dracula-comment">No configuration files found for {selectedComponent}.</p>
+        <p className="text-dracula-comment">No configuration files found for {selectedComponent as string}.</p>
       ) : (
         <ul className="space-y-2">
           {configFiles.map((file) => (

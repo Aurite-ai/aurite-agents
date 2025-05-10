@@ -10,7 +10,8 @@ from ....host_manager import HostManager
 from ....config.config_models import (
     ClientConfig,
     AgentConfig,
-    WorkflowConfig,  # Added for consistency, though not directly used in new endpoints
+    WorkflowConfig,
+    LLMConfig,  # Added LLMConfig for the new endpoint
 )
 from typing import List  # Added for response model
 
@@ -194,6 +195,17 @@ async def register_workflow_endpoint(
     return {"status": "success", "workflow_name": workflow_config.name}
 
 
+@router.post("/llm-configs/register", status_code=201)
+async def register_llm_config_endpoint(
+    llm_config: LLMConfig,  # Use LLMConfig model for request body
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Dynamically registers a new LLM configuration."""
+    logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
+    await manager.register_llm_config(llm_config)
+    return {"status": "success", "llm_id": llm_config.llm_id}
+
+
 # --- Listing Endpoints for Registered Components ---
 
 
@@ -201,9 +213,11 @@ async def register_workflow_endpoint(
 async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
     """Lists the names of all currently registered agents from the active project."""
     active_project = manager.project_manager.get_active_project_config()
-    if not active_project or not active_project.agent_configs:
+    if (
+        not active_project or not active_project.agents
+    ):  # Changed agent_configs to agents
         return []
-    return list(active_project.agent_configs.keys())
+    return list(active_project.agents.keys())  # Changed agent_configs to agents
 
 
 @router.get("/components/workflows", response_model=List[str])
@@ -212,9 +226,13 @@ async def list_registered_simple_workflows(
 ):
     """Lists the names of all currently registered simple workflows from the active project."""
     active_project = manager.project_manager.get_active_project_config()
-    if not active_project or not active_project.simple_workflow_configs:
+    if (
+        not active_project or not active_project.simple_workflows
+    ):  # Changed simple_workflow_configs to simple_workflows
         return []
-    return list(active_project.simple_workflow_configs.keys())
+    return list(
+        active_project.simple_workflows.keys()
+    )  # Changed simple_workflow_configs to simple_workflows
 
 
 @router.get("/components/custom_workflows", response_model=List[str])
@@ -223,6 +241,10 @@ async def list_registered_custom_workflows(
 ):
     """Lists the names of all currently registered custom workflows from the active project."""
     active_project = manager.project_manager.get_active_project_config()
-    if not active_project or not active_project.custom_workflow_configs:
+    if (
+        not active_project or not active_project.custom_workflows
+    ):  # Changed custom_workflow_configs to custom_workflows
         return []
-    return list(active_project.custom_workflow_configs.keys())
+    return list(
+        active_project.custom_workflows.keys()
+    )  # Changed custom_workflow_configs to custom_workflows
