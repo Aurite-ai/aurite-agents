@@ -88,32 +88,33 @@ async def execute_agent_endpoint(
     return result
 
 
-@router.post("/agents/{agent_name}/execute-stream")  # Using POST to allow request body
+@router.get("/agents/{agent_name}/execute-stream")  # Changed to GET for EventSource
 async def stream_agent_endpoint(
     agent_name: str,
-    request_body: ExecuteAgentRequest,  # Re-use existing request model
+    # user_message and system_prompt will be query parameters, matching ExecuteAgentRequest fields
+    user_message: str,  # Made individual query params
+    system_prompt: Optional[str] = None,  # Made individual query params
     manager: HostManager = Depends(get_host_manager),
 ):
     """
-    Executes a configured agent by name using the HostManager and streams events.
+    Executes a configured agent by name using the HostManager and streams events via GET.
     """
-    logger.info(f"Received request to STREAM agent: {agent_name}")
+    logger.info(
+        f"Received request to STREAM agent (GET): {agent_name} with message: '{user_message}'"
+    )
     if not manager.execution:  # Check if facade is available
         logger.error("ExecutionFacade not available on HostManager for streaming.")
-        # For streaming, raising HTTPException might interrupt before stream starts.
-        # The stream_agent_run_via_facade already yields an error event.
-        # However, if manager.execution itself is None, we can't even call it.
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
 
     async def event_generator():
         try:
+            # Use the query parameters directly
             async for event in manager.stream_agent_run_via_facade(
                 agent_name=agent_name,
-                user_message=request_body.user_message,
-                system_prompt=request_body.system_prompt,
-                # session_id could be added to ExecuteAgentRequest if needed for history in streaming
+                user_message=user_message,
+                system_prompt=system_prompt,
             ):
                 event_type = event.get(
                     "event_type", "message"

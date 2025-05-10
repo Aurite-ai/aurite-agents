@@ -419,7 +419,43 @@ Remember to format your response as a valid JSON object."""
                         logger.warning(
                             f"Unhandled Anthropic stream event type: {event.type}"
                         )
-                        yield {"event_type": "unknown", "data": event.model_dump_json()}
+                        # Ensure 'data' is a dict, not a stringified JSON
+                        parsed_unknown_data: Dict[str, Any] = {}
+                        try:
+                            if hasattr(event, "model_dump"):
+                                # Use mode='json' to ensure serializable structures
+                                parsed_unknown_data = event.model_dump(mode="json")
+                            elif isinstance(event, dict):
+                                # If it's already a dict, assume it's serializable or handle downstream
+                                # For safety, could attempt a json.dumps/loads cycle here too,
+                                # but let's assume dicts passed here are simple enough.
+                                parsed_unknown_data = event
+                            else:
+                                logger.warning(
+                                    f"Unhandled Anthropic event type '{event.type}' is not a Pydantic model or dict: {type(event)}. Converting to string."
+                                )
+                                parsed_unknown_data = {
+                                    "raw_event_type": event.type,
+                                    "details": str(
+                                        event
+                                    ),  # Fallback to string representation
+                                }
+                        except Exception as e_parse:
+                            logger.error(
+                                f"Could not serialize/parse unknown event data for type {event.type}: {e_parse}"
+                            )
+                            parsed_unknown_data = {
+                                "raw_event_type": event.type,
+                                "error": "failed to serialize/parse data",
+                                "original_type": str(type(event)),
+                            }
+                        yield {"event_type": "unknown", "data": parsed_unknown_data}
+                    # It seems the warning "Unhandled Anthropic stream event type: text" might be from
+                    # event.content_block.type == "text" within a "content_block_start" or "content_block_delta"
+                    # if the specific delta type isn't "text_delta".
+                    # The current logic for content_block_start and content_block_delta seems to cover text and tool_use.
+                    # The issue is more likely that the 'data' field in one of the *handled* events
+                    # (like tool_result from AgentTurnProcessor) is not JSON serializable.
 
         except (APIConnectionError, RateLimitError) as e:
             logger.error(f"Anthropic API stream failed: {type(e).__name__}: {e}")
