@@ -1,0 +1,9 @@
+{
+    "name": "First Project",
+    "description": "Let's see if this works",
+    "clients": {},
+    "llm_configs": {},
+    "agent_configs": {},
+    "simple_workflow_configs": {},
+    "custom_workflow_configs": {}
+}

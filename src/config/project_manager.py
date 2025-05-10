@@ -54,10 +54,11 @@ class ProjectManager:
             f"ProjectManager initialized, ComponentManager loaded: {count_str if count_str else '0 components'}."
         )
 
-    def load_project(self, project_config_file_path: Path) -> ProjectConfig:
+    def parse_project_file(self, project_config_file_path: Path) -> ProjectConfig:
         """
-        Loads a project configuration file, resolving component references
-        using the associated ComponentManager.
+        Parses a project configuration file, resolving component references
+        using the associated ComponentManager, and returns the ProjectConfig object.
+        This method does NOT set the parsed project as the active project.
 
         Args:
             project_config_file_path: Path to the project JSON file.
@@ -70,9 +71,7 @@ class ProjectManager:
             RuntimeError: If JSON parsing fails or validation errors occur.
             ValueError: If component references are invalid or cannot be resolved.
         """
-        logger.debug(
-            f"Loading project configuration from: {project_config_file_path}"
-        )  # Changed to debug
+        logger.debug(f"Parsing project configuration from: {project_config_file_path}")
         if not project_config_file_path.is_file():
             logger.error(
                 f"Project configuration file not found: {project_config_file_path}"
@@ -154,13 +153,7 @@ class ProjectManager:
                 simple_workflow_configs=resolved_simple_workflows,
                 custom_workflow_configs=resolved_custom_workflows,
             )
-            logger.debug(
-                f"Successfully loaded and resolved project '{project_name}'."
-            )  # Changed to debug
-            self.active_project_config = project_config
-            logger.debug(  # Changed to debug
-                f"Project '{project_config.name}' set as active in ProjectManager."
-            )
+            logger.debug(f"Successfully parsed and resolved project '{project_name}'.")
             return project_config
         except (
             ValidationError
@@ -182,6 +175,35 @@ class ProjectManager:
             raise RuntimeError(
                 f"An unexpected error assembling final ProjectConfig for '{project_name}': {e}"
             ) from e
+
+    def load_project(self, project_config_file_path: Path) -> ProjectConfig:
+        """
+        Loads a project configuration file by parsing it and then sets it
+        as the active project in the ProjectManager.
+
+        Args:
+            project_config_file_path: Path to the project JSON file.
+
+        Returns:
+            A fully resolved ProjectConfig object.
+
+        Raises:
+            FileNotFoundError: If the project file does not exist.
+            RuntimeError: If JSON parsing fails or validation errors occur.
+            ValueError: If component references are invalid or cannot be resolved.
+        """
+        logger.debug(
+            f"Loading project configuration from: {project_config_file_path} and setting as active."
+        )
+        # Parse the project file without setting it as active yet
+        project_config = self.parse_project_file(project_config_file_path)
+
+        # Now set the parsed and validated project_config as the active one
+        self.active_project_config = project_config
+        logger.info(  # Changed to info for this significant state change
+            f"Project '{project_config.name}' loaded and set as active in ProjectManager."
+        )
+        return project_config
 
     def unload_active_project(self):
         if self.active_project_config:

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react'; // Added useState
 import useUIStore from '../../store/uiStore'; // For selectedAction and onSelectAction
+import CreateProjectModal from '../projects/CreateProjectModal'; // Added
+import LoadProjectDropdown from '../projects/LoadProjectDropdown'; // Added
 
 // Copied from ActionTabs.tsx
 export type ActionType = 'build' | 'configure' | 'execute' | 'evaluate';
@@ -12,19 +14,21 @@ const actions: { id: ActionType; label: string }[] = [
 
 const Header: React.FC = () => { // Renamed component to Header
   const { selectedAction, setSelectedAction } = useUIStore();
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
 
   return (
+    <> {/* Added Fragment */}
     <nav className="w-full bg-dracula-current-line text-dracula-foreground p-4 shadow-lg">
       <div className="w-full flex items-center"> {/* Removed container and mx-auto */}
         {/* Left Group: Logo and Title */}
-        <div className="flex items-center space-x-4 mr-6"> {/* Added mr-6 for spacing */}
+        <div className="flex items-center space-x-2 mr-6"> {/* Adjusted spacing for more items */}
           <div className="w-8 h-8 bg-dracula-purple rounded-full flex items-center justify-center text-dracula-background font-bold">
             A
           </div>
           <h1 className="text-xl font-semibold text-dracula-foreground">Aurite AI Studio</h1>
         </div>
 
-        {/* Middle Group: Action Tabs */}
+        {/* Middle Group: Action Tabs & Project Buttons */}
         <div className="flex items-center space-x-2">
           {actions.map((action) => (
             <button
@@ -41,6 +45,17 @@ const Header: React.FC = () => { // Renamed component to Header
               {action.label}
             </button>
           ))}
+        </div>
+
+        {/* Project Management Group - Placed after Action Tabs, before User Profile Icon */}
+        <div className="flex items-center space-x-2 ml-4"> {/* Added ml-4 for spacing from action tabs */}
+          <button
+            onClick={() => setIsCreateProjectModalOpen(true)}
+            className="py-2 px-4 bg-dracula-green text-dracula-background rounded-md hover:bg-opacity-80 transition-colors focus:outline-none focus:ring-2 focus:ring-dracula-pink focus:ring-opacity-75"
+          >
+            Create Project
+          </button>
+          <LoadProjectDropdown />
         </div>
 
         {/* Right Group: User Profile Icon - Pushed to the right by ml-auto */}
@@ -60,6 +75,11 @@ const Header: React.FC = () => { // Renamed component to Header
         </div>
       </div>
     </nav>
+    <CreateProjectModal
+      isOpen={isCreateProjectModalOpen}
+      onClose={() => setIsCreateProjectModalOpen(false)}
+    />
+    </> // Close Fragment
   );
 };
 

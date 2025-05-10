@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../lib/apiClient'; // Adjust path as needed
 import useUIStore from '../../../store/uiStore'; // Adjust path as needed
+import useProjectStore from '../../../store/projectStore'; // Added
 import type { ComponentType } from '../../../components/layout/ComponentSidebar'; // Adjust path as needed
 import ConfigEditorView from './ConfigEditorView'; // Import the editor view
 
@@ -11,6 +12,7 @@ interface ConfigFile {
 
 const ConfigListView: React.FC = () => {
   const { selectedComponent } = useUIStore();
+  const { lastComponentsUpdateTimestamp } = useProjectStore(); // Added
   const [configFiles, setConfigFiles] = useState<ConfigFile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ const ConfigListView: React.FC = () => {
     };
 
     fetchConfigFiles();
-  }, [selectedComponent]);
+  }, [selectedComponent, lastComponentsUpdateTimestamp]); // Added lastComponentsUpdateTimestamp
 
   const handleFileSelect = (filename: string) => {
     setEditingFile(filename);

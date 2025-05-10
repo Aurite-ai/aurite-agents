@@ -1,0 +1,8 @@
+{
+  "client_id": "default_clients",
+  "server_path": "src/packaged_servers/weather_mcp_server.py",
+  "capabilities": ["tools", "prompts"],
+  "timeout": 15.0,
+  "routing_weight": 1.0,
+  "roots": []
+}

@@ -1,0 +1,6 @@
+{
+  "name": "default_agent",
+  "llm_config_id": "default_llm",
+  "client_ids": [],
+  "system_prompt": "You are a helpful assistant."
+}

@@ -751,3 +751,167 @@ class HostManager:
     # Entrypoints (API, CLI, Worker) will need to be updated to call
     # self.execution.run_agent(), self.execution.run_simple_workflow(), etc.
     # (The actual method definitions below are removed by this change)
+
+    async def load_components_from_project(self, project_config_path: Path):
+        """
+        Loads components from a specified project configuration file and adds them
+        to the active project. If no project is active, this will initialize
+        the HostManager with the specified project.
+
+        Args:
+            project_config_path: Path to the project JSON file to load components from.
+        """
+        logger.info(
+            f"Attempting to load components from project: {project_config_path}"
+        )
+        if not project_config_path.is_absolute():
+            project_config_path = (PROJECT_ROOT_DIR / project_config_path).resolve()
+            logger.debug(f"Resolved relative path to: {project_config_path}")
+
+        if not project_config_path.is_file():
+            logger.error(f"Project config file not found at: {project_config_path}")
+            raise FileNotFoundError(
+                f"Project configuration file not found: {project_config_path}"
+            )
+
+        try:
+            parsed_config = self.project_manager.parse_project_file(project_config_path)
+            logger.info(f"Successfully parsed project file: {project_config_path.name}")
+
+            active_project_config = self.project_manager.get_active_project_config()
+
+            if not active_project_config or not self.host:
+                logger.info(
+                    "No active project or host. Initializing with the new project."
+                )
+                # This effectively becomes an initial load.
+                # We need to set the config_path for initialize to use the correct one.
+                self.config_path = project_config_path
+                await self.initialize()
+                logger.info(
+                    f"HostManager initialized with project: {parsed_config.name}"
+                )
+                return  # Initialization handles everything
+
+            # Project is already active, add components additively
+            logger.info(
+                f"Adding components from '{parsed_config.name}' to active project '{active_project_config.name}'."
+            )
+
+            # Add Clients
+            for client_id, client_config in parsed_config.clients.items():
+                if not self.host.is_client_registered(client_id):
+                    try:
+                        logger.debug(f"Registering new client: {client_id}")
+                        await self.register_client(client_config)
+                    except (
+                        ValueError
+                    ) as e:  # Catch if client already registered by another call
+                        logger.warning(f"Skipping client {client_id}: {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"Error registering client {client_id}: {e}", exc_info=True
+                        )
+                else:
+                    logger.debug(f"Client {client_id} already registered. Skipping.")
+
+            # Add LLM Configs
+            for llm_id, llm_config in parsed_config.llm_configs.items():
+                if llm_id not in active_project_config.llm_configs:
+                    try:
+                        logger.debug(f"Registering new LLM config: {llm_id}")
+                        await self.register_llm_config(llm_config)
+                    except ValueError as e:
+                        logger.warning(f"Skipping LLM config {llm_id}: {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"Error registering LLM config {llm_id}: {e}", exc_info=True
+                        )
+                else:
+                    logger.debug(f"LLM config {llm_id} already exists. Skipping.")
+
+            # Add Agent Configs
+            for agent_name, agent_config in parsed_config.agent_configs.items():
+                if agent_name not in active_project_config.agent_configs:
+                    try:
+                        logger.debug(f"Registering new agent: {agent_name}")
+                        await self.register_agent(agent_config)
+                    except ValueError as e:
+                        logger.warning(f"Skipping agent {agent_name}: {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"Error registering agent {agent_name}: {e}", exc_info=True
+                        )
+                else:
+                    logger.debug(f"Agent config {agent_name} already exists. Skipping.")
+
+            # Add Simple Workflow Configs
+            for (
+                workflow_name,
+                workflow_config,
+            ) in parsed_config.simple_workflow_configs.items():
+                if workflow_name not in active_project_config.simple_workflow_configs:
+                    try:
+                        logger.debug(
+                            f"Registering new simple workflow: {workflow_name}"
+                        )
+                        await self.register_workflow(workflow_config)
+                    except ValueError as e:
+                        logger.warning(f"Skipping simple workflow {workflow_name}: {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"Error registering simple workflow {workflow_name}: {e}",
+                            exc_info=True,
+                        )
+                else:
+                    logger.debug(
+                        f"Simple workflow config {workflow_name} already exists. Skipping."
+                    )
+
+            # Add Custom Workflow Configs
+            for (
+                custom_workflow_name,
+                custom_workflow_config,
+            ) in parsed_config.custom_workflow_configs.items():
+                if (
+                    custom_workflow_name
+                    not in active_project_config.custom_workflow_configs
+                ):
+                    try:
+                        logger.debug(
+                            f"Registering new custom workflow: {custom_workflow_name}"
+                        )
+                        await self.register_custom_workflow(custom_workflow_config)
+                    except ValueError as e:
+                        logger.warning(
+                            f"Skipping custom workflow {custom_workflow_name}: {e}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error registering custom workflow {custom_workflow_name}: {e}",
+                            exc_info=True,
+                        )
+                else:
+                    logger.debug(
+                        f"Custom workflow config {custom_workflow_name} already exists. Skipping."
+                    )
+
+            logger.info(
+                f"Finished loading components from project: {parsed_config.name}"
+            )
+
+        except FileNotFoundError:
+            # Already logged by parse_project_file, re-raise for API to handle
+            raise
+        except (RuntimeError, ValueError) as e:
+            logger.error(
+                f"Error loading components from project {project_config_path}: {e}",
+                exc_info=True,
+            )
+            raise  # Re-raise for API to handle
+        except Exception as e:
+            logger.error(
+                f"Unexpected error loading components from project {project_config_path}: {e}",
+                exc_info=True,
+            )
+            raise  # Re-raise for API to handle
