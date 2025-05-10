@@ -23,3 +23,53 @@ body {
 
 /* Remove default h1, button, a styling to let Tailwind control them. */
 /* If specific global overrides are needed, they can be added here, but prefer utility classes. */
+
+/* ChatScope UI Kit Overrides */
+/* MessageInput */
+.cs-message-input__content-editor-wrapper .cs-message-input__content-editor {
+  background-color: theme(
+    'colors.dracula-current-line'
+  ) !important; /* Use !important if necessary to override */
+  color: theme('colors.dracula-foreground') !important;
+  border-radius: theme('borderRadius.md'); /* Optional: match border radius */
+}
+
+.cs-message-input__content-editor-wrapper
+  .cs-message-input__content-editor::placeholder {
+  color: theme('colors.dracula-comment') !important;
+  opacity: 1; /* Browsers sometimes apply lower opacity to placeholders */
+}
+
+/* Send Button - Example, inspect for actual class */
+.cs-button.cs-button--send .cs-button__icon svg {
+  fill: theme('colors.dracula-cyan') !important; /* Or another theme color */
+}
+.cs-button.cs-button--send:hover .cs-button__icon svg {
+  fill: theme('colors.dracula-pink') !important; /* Hover color */
+}
+
+/* Message Bubbles - Examples, inspect for actual classes */
+/* Outgoing (User) Messages */
+.cs-message--outgoing .cs-message__content {
+  background-color: theme('colors.dracula-comment') !important;
+  color: theme('colors.dracula-foreground') !important;
+  border-radius: theme('borderRadius.lg'); /* Example */
+}
+
+/* Incoming (Assistant) Messages */
+.cs-message--incoming .cs-message__content {
+  background-color: theme(
+    'colors.dracula-current-line'
+  ) !important; /* Changed from dracula-selection */
+  color: theme('colors.dracula-foreground') !important;
+  border-radius: theme('borderRadius.lg'); /* Example */
+}
+
+/* Ensure StructuredResponseView within a message doesn't have conflicting background if bubble has one */
+.cs-message--incoming
+  .cs-message__custom-content
+  > div[class*='StructuredResponseView'] {
+  /* If the .cs-message__content gets a background, StructuredResponseView might not need its own, or make it transparent */
+  /* background-color: transparent !important; */
+  /* padding: 0 !important; */ /* If bubble provides padding */
+}
