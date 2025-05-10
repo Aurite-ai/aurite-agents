@@ -373,6 +373,13 @@ def start():
         f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
     )
 
+    # IF ENV = "development", set reload=True
+    # This is typically set in the environment or config file
+    if os.getenv("ENV") == "development":
+        reload_mode = True
+    else:
+        reload = False
+
     # Update the app path for uvicorn to point to the new location
     uvicorn.run(
         "src.bin.api.api:app",  # Updated path
@@ -380,7 +387,7 @@ def start():
         port=config.PORT,
         workers=config.WORKERS,
         log_level=config.LOG_LEVEL.lower(),  # Uvicorn expects lowercase log level
-        reload=False,  # Typically False for production/running directly
+        reload=reload_mode,  # Typically False for production/running directly
     )  # type: ignore[union-attr] # Ignore likely false positive on config.HOST/PORT
 
 

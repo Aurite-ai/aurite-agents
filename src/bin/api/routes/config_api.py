@@ -118,6 +118,57 @@ async def list_config_files(
 
 
 @router.get(
+    "/{component_type}/id/{component_id_or_name}",
+    response_model=Any,
+    summary="Get a specific component configuration by its ID or name",
+)
+async def get_specific_component_config_by_id(
+    component_type: str,
+    component_id_or_name: str,
+    cm: ComponentManager = Depends(get_component_manager),
+):
+    logger.info(
+        f"Request received for specific component: type='{component_type}', id/name='{component_id_or_name}'"
+    )
+    try:
+        # Validate and map API component type to ComponentManager's internal type key
+        cm_internal_type = _get_cm_component_type(component_type)
+
+        # Retrieve the component model from ComponentManager
+        component_model = cm.get_component_config(
+            cm_internal_type, component_id_or_name
+        )
+
+        if component_model is None:
+            logger.warning(
+                f"Component type '{component_type}' with ID/name '{component_id_or_name}' not found by ComponentManager."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Component '{component_id_or_name}' of type '{component_type}' not found.",
+            )
+
+        logger.info(
+            f"Successfully retrieved component '{component_id_or_name}' of type '{component_type}'."
+        )
+        # Return the Pydantic model dumped as a JSON-compatible dict
+        return component_model.model_dump(mode="json")
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPExceptions (e.g., from _get_cm_component_type or our own 404)
+        raise http_exc
+    except Exception as e:
+        logger.error(
+            f"Unexpected error retrieving component: type='{component_type}', id/name='{component_id_or_name}'. Error: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while retrieving the component: {str(e)}",
+        )
+
+
+@router.get(
     "/{component_type}/{filename:path}",
     response_model=Any,  # Changed response_model to Any
 )

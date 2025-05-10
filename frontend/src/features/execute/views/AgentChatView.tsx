@@ -9,11 +9,12 @@ import {
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 
 import {
-  getConfigFileContent,
+  // getConfigFileContent, // No longer used directly here for individual configs
+  getSpecificComponentConfig, // New function to get specific config by ID/name
   registerLlmConfigAPI,
   registerAgentAPI,
   executeAgentAPI
-} from '../../../lib/apiClient'; // Assuming apiClient.ts is in lib
+} from '../../../lib/apiClient';
 
 // Assuming types are defined in a central place
 import type { AgentConfig, LLMConfig } from '../../../types/projectManagement';
@@ -41,66 +42,95 @@ interface ChatMessage {
 // Helper function for pre-execution registration
 const performPreExecutionRegistration = async (
   agentName: string,
-  addSystemMessage: (text: string) => void // Callback to add system messages to UI
+  addSystemMessage: (text: string) => void, // Callback to add system messages to UI
+  silent: boolean = false // Added silent flag
 ): Promise<void> => {
-  addSystemMessage(`Fetching configuration for agent: ${agentName}...`);
-  const agentConfig: AgentConfig = await getConfigFileContent("agents", `${agentName}.json`);
-  addSystemMessage(`Agent configuration for ${agentName} fetched.`);
+  if (!silent) addSystemMessage(`Fetching configuration for agent: ${agentName}...`);
+  const agentConfig: AgentConfig = await getSpecificComponentConfig("agents", agentName);
+  if (!silent) addSystemMessage(`Agent configuration for ${agentName} fetched.`);
 
   if (agentConfig && agentConfig.llm_config_id) {
-    addSystemMessage(`Fetching LLM configuration: ${agentConfig.llm_config_id}...`);
-    const llmConfig: LLMConfig = await getConfigFileContent("llms", `${agentConfig.llm_config_id}.json`);
-    addSystemMessage(`LLM configuration ${agentConfig.llm_config_id} fetched. Registering...`);
+    if (!silent) addSystemMessage(`Fetching LLM configuration: ${agentConfig.llm_config_id}...`);
+    const llmConfig: LLMConfig = await getSpecificComponentConfig("llms", agentConfig.llm_config_id);
+    if (!silent) addSystemMessage(`LLM configuration ${agentConfig.llm_config_id} fetched. Registering...`);
     await registerLlmConfigAPI(llmConfig);
-    addSystemMessage(`LLM configuration ${agentConfig.llm_config_id} registered/updated.`);
+    if (!silent) addSystemMessage(`LLM configuration ${agentConfig.llm_config_id} registered/updated.`);
   } else if (agentConfig && !agentConfig.llm_config_id) {
-    addSystemMessage(`Agent ${agentName} does not have an LLM configuration specified. Skipping LLM registration.`);
+    if (!silent) addSystemMessage(`Agent ${agentName} does not have an LLM configuration specified. Skipping LLM registration.`);
   }
 
-  addSystemMessage(`Registering/updating agent: ${agentName}...`);
-  await registerAgentAPI(agentConfig); // agentConfig should be AgentConfig type
-  addSystemMessage(`Agent ${agentName} registered/updated.`);
+  if (!silent) addSystemMessage(`Registering/updating agent: ${agentName}...`);
+  await registerAgentAPI(agentConfig);
+  if (!silent) addSystemMessage(`Agent ${agentName} registered/updated.`);
 };
 
 const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  // inputValue is now managed by MessageInput's onSend prop
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  // Error state for displaying general errors, not individual message errors
+  const [isLoading, setIsLoading] = useState<boolean>(false); // For message sending
+  const [isInitializing, setIsInitializing] = useState<boolean>(false); // For initial agent setup
   const [chatError, setChatError] = useState<string | null>(null);
-  // const [isTyping, setIsTyping] = useState(false); // For typing indicator
-  // messagesEndRef and scrollToBottom are no longer needed with MessageList
 
   const addMessage = (role: ChatMessage['role'], content: string) => {
     setMessages(prev => [...prev, { id: Date.now().toString(), role, content, timestamp: new Date() }]);
   };
 
-  const handleSend = async (text: string) => { // text comes from MessageInput
-    if (!text.trim()) return;
+  // Effect for initializing/re-initializing agent session when agentName changes
+  useEffect(() => {
+    const setupAgentSession = async () => {
+      if (!agentName) return;
+
+      setIsInitializing(true);
+      setMessages([]); // Clear previous messages - good to keep for a fresh chat session
+      setChatError(null);
+      // Removed: addMessage('system', `Initializing session for agent: ${agentName}...`);
+
+      try {
+        // Call with silent = true to suppress internal system messages from this function
+        await performPreExecutionRegistration(agentName, (msg) => addMessage('system', msg), true);
+        // Removed: addMessage('system', `Agent ${agentName} is ready. You can now send messages.`);
+        // If we want a "ready" message, it should be a single, specific one after all silent setup.
+        // For now, per request, keeping it clean until user sends a message.
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize agent session.';
+        // Still show critical initialization errors in the chat
+        addMessage('error', `Initialization Error: ${errorMessage}`);
+        setChatError(errorMessage);
+        console.error(`Error initializing agent ${agentName}:`, err);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    setupAgentSession();
+  }, [agentName]); // Re-run when agentName changes
+
+  const handleSend = async (text: string) => {
+    if (!text.trim() || isInitializing || isLoading) return;
 
     const userMessageContent = text;
     addMessage('user', userMessageContent);
-    // setInputValue(''); // No longer needed
     setIsLoading(true);
-    setChatError(null); // Clears general chat error
-    // setIsTyping(true); // Show typing indicator
+    setChatError(null);
 
     try {
-      // 1. Pre-Execution Registration
-      // Use the helper function. addMessage callback is used for system messages.
-      await performPreExecutionRegistration(agentName, (msg) => addMessage('system', msg));
-
-      // 2. Execute Agent
-      addMessage('system', `Executing agent ${agentName} with your message...`);
+      // Pre-execution registration is now handled by useEffect/setupAgentSession
+      // Removed: addMessage('system', `Executing agent ${agentName} with your message...`);
       const executionResult: AgentExecutionResult = await executeAgentAPI(agentName, userMessageContent);
       // setIsTyping(false); // Hide typing indicator
 
       if (executionResult.error) {
         addMessage('error', `Execution Error: ${executionResult.error}`);
       } else if (executionResult.final_response) {
-        addMessage('assistant', executionResult.final_response);
+        // Check if final_response is a string or an object
+        if (typeof executionResult.final_response === 'string') {
+          addMessage('assistant', executionResult.final_response);
+        } else {
+          // If it's an object (e.g., from schema validation), stringify it for display
+          addMessage('assistant', JSON.stringify(executionResult.final_response, null, 2));
+        }
       } else {
-        addMessage('assistant', `Execution finished. Result: ${JSON.stringify(executionResult, null, 2)}`);
+        // Fallback if no final_response and no error
+        addMessage('assistant', `Execution completed. Full result: ${JSON.stringify(executionResult, null, 2)}`);
       }
 
     } catch (err) {
