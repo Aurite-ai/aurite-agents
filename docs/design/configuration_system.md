@@ -46,9 +46,16 @@ These models are utilized by `ComponentManager` for parsing individual component
 
 The `ComponentManager` is responsible for discovering, loading, and managing all *available* individual component configuration files from their respective subdirectories within `config/`.
 
-*   **Initialization**: On instantiation, it scans the predefined component directories (e.g., `config/agents/`, `config/clients/`). For each JSON file found, it parses it into the corresponding Pydantic model (e.g., `AgentConfig`, `ClientConfig`), validates it (including resolving relative paths to absolute ones based on `PROJECT_ROOT_DIR`), and stores the validated model instance in an in-memory dictionary, keyed by the component's unique ID/name (e.g., `client_id` for clients, `name` for agents).
-*   **Accessors**: Provides methods like `get_component_config(component_type_key: str, component_id: str)` to retrieve a specific loaded and validated component model from its internal stores.
-*   **CRUD Operations**: Offers methods (`save_component_config`, `delete_component_config`, `create_component_file`) to manage the component JSON files on disk. These operations also update the in-memory store and handle path relativization when saving. These are primarily intended for use by administrative API endpoints that manage the library of available components.
+*   **Initialization**: On instantiation, it scans the predefined component directories (e.g., `config/agents/`, `config/clients/`).
+    *   For each JSON file found, it attempts to parse it. A file can contain either a single JSON object representing one component, or a JSON array where each element is a component definition.
+    *   If the file contains a single object, it's parsed into the corresponding Pydantic model (e.g., `AgentConfig`, `ClientConfig`).
+    *   If the file contains an array, each element of the array is individually parsed into the corresponding Pydantic model.
+    *   All successfully parsed and validated models (with paths resolved relative to `PROJECT_ROOT_DIR`) are stored in an in-memory dictionary, keyed by the component's *actual internal unique ID/name* (e.g., `client_id` for clients, `name` for agents).
+    *   If a component ID is duplicated (either within the same file or across different files for the same component type), a warning is logged, and the first loaded component with that ID is retained.
+*   **Accessors**: Provides methods like `get_component_config(component_type_key: str, component_id: str)` to retrieve a specific loaded and validated component model from its internal stores, based on the component's internal ID.
+*   **CRUD Operations**:
+    *   Offers methods (`save_component_config`, `delete_component_config`, `create_component_file`) to manage component JSON files on disk. These operations also update the in-memory store and handle path relativization when saving.
+    *   **Important Note on `save_component_config` and `create_component_file`**: These methods currently operate on *single* component models. When saving, they will create/overwrite a JSON file named after the component's ID (e.g., `client_A.json`) containing only that single component's definition. If this filename matches a file that previously contained an array of components, that file will be overwritten with the single component structure. Modifying individual components within a multi-component file while preserving the list structure in that *same file* is not supported by these methods in the current implementation.
 *   **Role**: The `ComponentManager` acts as a comprehensive library or registry of all parseable component definitions found on the filesystem. Its primary consumer is the `ProjectManager`, which uses it to look up and resolve component references when loading a specific project configuration. Its role remains unchanged in this refined design.
 
 ### 2.4. `ProjectManager` (`src/config/project_manager.py`)

@@ -1,8 +1,8 @@
 {
-    "name": "Example workflow using weather and planning servers",
+    "name": "test_list_workflows",
     "steps": [
         "Weather Planning Workflow Step 1",
         "Weather Planning Workflow Step 2"
     ],
-    "description": "Example workflow to test simple workflow execution using agents."
+    "description": "Example workflow to test simple workflow execution using agents in a sequence."
 }

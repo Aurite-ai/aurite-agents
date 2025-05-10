@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple, Type
+from typing import Dict, Any, Optional, List, Tuple, Type, Union  # Added Union
 import json
 from pydantic import ValidationError
 
@@ -80,37 +80,77 @@ class ComponentManager:
 
     def _parse_component_file(
         self, file_path: Path, model_class: Type, id_field: str
-    ) -> Optional[Tuple[str, Any]]:
-        """Parses a single component JSON file, validates it, and resolves paths."""
+    ) -> List[Any]:  # Changed return type
+        """
+        Parses a component JSON file (can be a single object or an array of objects),
+        validates items, resolves paths, and returns a list of parsed models.
+        """
+        parsed_models: List[Any] = []
         try:
             with open(file_path, "r") as f:
-                data = json.load(f)
-
-            component_id = data.get(id_field)
-            if not component_id:
-                logger.warning(
-                    f"Component file {file_path} missing ID field '{id_field}'. Skipping."
-                )
-                return None
-
-            # Resolve paths using the utility function
-            data_to_validate = resolve_path_fields(data, model_class, PROJECT_ROOT_DIR)
-
-            # Validate and return model instance
-            component_model = model_class(**data_to_validate)
-            return component_id, component_model
-
+                raw_content = json.load(f)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode JSON from component file {file_path}: {e}")
-            return None
-        except ValidationError as e:  # Catch Pydantic validation errors specifically
-            logger.error(f"Validation failed for component file {file_path}: {e}")
-            return None
-        except Exception as e:
+            return parsed_models  # Return empty list
+        except Exception as e:  # Catch other file reading errors
             logger.error(
-                f"Failed to load component from {file_path}: {e}", exc_info=True
+                f"Error reading component file {file_path}: {e}", exc_info=True
             )
-            return None
+            return parsed_models
+
+        items_to_parse = []
+        if isinstance(raw_content, list):
+            items_to_parse.extend(raw_content)
+            logger.debug(
+                f"File {file_path} contains a list of {len(raw_content)} items."
+            )
+        elif isinstance(raw_content, dict):
+            items_to_parse.append(raw_content)
+            logger.debug(f"File {file_path} contains a single component object.")
+        else:
+            logger.error(
+                f"File {file_path} contains neither a JSON object nor an array. Content type: {type(raw_content)}. Skipping."
+            )
+            return parsed_models
+
+        for index, item_data in enumerate(items_to_parse):
+            if not isinstance(item_data, dict):
+                logger.warning(
+                    f"Item at index {index} in {file_path} is not a JSON object. Skipping item."
+                )
+                continue
+
+            # component_id = item_data.get(id_field) # ID check is now done in _load_all_components per model
+            # if not component_id:
+            #     logger.warning(
+            #         f"Item at index {index} in {file_path} missing ID field '{id_field}'. Skipping item."
+            #     )
+            #     continue
+
+            try:
+                # Resolve paths using the utility function
+                data_to_validate = resolve_path_fields(
+                    item_data, model_class, PROJECT_ROOT_DIR
+                )
+                # Validate and add model instance to list
+                component_model = model_class(**data_to_validate)
+                parsed_models.append(component_model)
+            except ValidationError as e:
+                logger.error(
+                    f"Validation failed for item at index {index} in component file {file_path}: {e}"
+                )
+                # Continue to next item
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error parsing item at index {index} in {file_path}: {e}",
+                    exc_info=True,
+                )
+                # Continue to next item
+
+        logger.debug(
+            f"Successfully parsed {len(parsed_models)} models from {file_path}."
+        )
+        return parsed_models
 
     def _load_all_components(self):
         """Loads all component configurations from their respective directories."""
@@ -136,23 +176,48 @@ class ComponentManager:
             error_count = 0
             logger.debug(f"Scanning {component_dir} for {component_type} components...")
             for file_path in component_dir.glob("*.json"):
-                parse_result = self._parse_component_file(
+                # _parse_component_file now returns a list of models
+                parsed_models_from_file = self._parse_component_file(
                     file_path, model_class, id_field
                 )
-                if parse_result:
-                    component_id, component_model = parse_result
-                    if component_id in target_dict:
-                        logger.warning(
-                            f"Duplicate component ID '{component_id}' found for type '{component_type}'. Overwriting existing entry from {file_path}."
-                        )
-                    target_dict[component_id] = component_model
-                    loaded_count += 1
-                else:
-                    error_count += 1  # Error logged within _parse_component_file
 
-            self.component_counts[component_type] = (
-                loaded_count  # Populate component_counts
-            )
+                for component_model in parsed_models_from_file:
+                    try:
+                        component_id = getattr(component_model, id_field)
+                        if not component_id or not isinstance(
+                            component_id, str
+                        ):  # Ensure ID is valid string
+                            logger.warning(
+                                f"Parsed component from {file_path} has missing or invalid ID. Skipping."
+                            )
+                            error_count += 1
+                            continue
+
+                        if component_id in target_dict:
+                            logger.warning(
+                                f"Duplicate component ID '{component_id}' (from file {file_path}) found for type '{component_type}'. The first loaded component with this ID will be kept."
+                            )
+                            # Do not overwrite, first one wins as per plan.
+                            # error_count +=1 # Not an error per se, but a conflict.
+                        else:
+                            target_dict[component_id] = component_model
+                            loaded_count += 1
+                            logger.debug(
+                                f"Registered component '{component_id}' of type '{component_type}' from {file_path}"
+                            )
+                    except AttributeError:
+                        logger.warning(
+                            f"Parsed component model from {file_path} is missing the ID field '{id_field}'. Skipping."
+                        )
+                        error_count += 1
+                    except Exception as e:
+                        logger.error(
+                            f"Error processing parsed model from {file_path} with ID '{component_id}': {e}",
+                            exc_info=True,
+                        )
+                        error_count += 1
+
+            self.component_counts[component_type] = loaded_count
             logger.debug(  # Changed to DEBUG
                 f"Loaded {loaded_count} components of type '{component_type}' from {component_dir}"
                 + (f" ({error_count} errors)." if error_count else ".")
@@ -511,3 +576,155 @@ class ComponentManager:
             raise RuntimeError(
                 f"An unexpected error occurred during creation: {e}"
             ) from e
+
+    def save_components_to_file(
+        self,
+        component_type: str,
+        components_data: List[
+            Union[Dict[str, Any], Any]
+        ],  # Using Any for Pydantic models
+        filename: str,
+        overwrite: bool = True,
+    ) -> List[Any]:  # Return list of Pydantic models
+        """
+        Saves a list of component configurations to a single JSON file as an array,
+        and updates the in-memory store for each successfully processed component.
+
+        Args:
+            component_type: The type of component (e.g., 'clients', 'agents').
+            components_data: A list of dictionaries or Pydantic model instances.
+            filename: The name of the file to save (e.g., 'my_clients.json').
+            overwrite: If True, overwrite the file if it already exists. Defaults to True.
+
+        Returns:
+            A list of validated Pydantic model instances that were successfully processed and saved.
+
+        Raises:
+            ValueError: If component_type is invalid.
+            FileExistsError: If the file already exists and overwrite is False.
+            IOError: If there's an error writing the file.
+            RuntimeError: For other unexpected errors.
+        """
+        logger.info(
+            f"Attempting to save list of components to file: {filename} for type: {component_type}"
+        )
+
+        if component_type not in COMPONENT_META:
+            raise ValueError(f"Invalid component type specified: {component_type}")
+
+        model_class, id_field = COMPONENT_META[component_type]
+        target_dict = self._component_stores.get(component_type)
+        if (
+            target_dict is None
+        ):  # Should not happen if COMPONENT_META is source of truth
+            raise ValueError(
+                f"Internal error: No component store for type '{component_type}'"
+            )
+
+        component_dir = COMPONENT_TYPES_DIRS.get(component_type)
+        if not component_dir:
+            raise ValueError(
+                f"Configuration error: No directory defined for component type '{component_type}'."
+            )
+
+        file_path = (component_dir / filename).resolve()
+        # Security check for file_path (already in _get_component_file_path, good to have here too for direct filename usage)
+        if not str(file_path).startswith(str(component_dir.resolve())):
+            raise ValueError(
+                f"Constructed file path '{file_path}' for filename '{filename}' is outside the allowed directory '{component_dir}'."
+            )
+
+        if not overwrite and file_path.exists():
+            raise FileExistsError(
+                f"Component file {file_path} already exists. Set overwrite=True to replace it."
+            )
+
+        validated_models: List[Any] = []  # Using Any for Pydantic models
+        data_to_save_list: List[Dict[str, Any]] = []
+
+        for index, item_data in enumerate(components_data):
+            try:
+                item_dict: Dict[str, Any]
+                if isinstance(item_data, dict):
+                    item_dict = item_data.copy()
+                elif hasattr(item_data, "model_dump") and callable(
+                    getattr(item_data, "model_dump")
+                ):  # Check if Pydantic model
+                    item_dict = item_data.model_dump(mode="json")
+                else:
+                    logger.warning(
+                        f"Item at index {index} in components_data for {filename} is not a dictionary or Pydantic model. Skipping."
+                    )
+                    continue
+
+                # Resolve paths before validation
+                resolved_item_data = resolve_path_fields(
+                    item_dict, model_class, PROJECT_ROOT_DIR
+                )
+                # Validate
+                model_instance = model_class(**resolved_item_data)
+                validated_models.append(model_instance)
+
+                # Prepare for saving (relativize paths)
+                data_for_json = self._prepare_data_for_save(model_instance)
+                data_to_save_list.append(data_for_json)
+
+            except ValidationError as e:
+                logger.error(
+                    f"Validation failed for item at index {index} in '{filename}' for type '{component_type}': {e}. Skipping item."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error processing item at index {index} in '{filename}' for type '{component_type}': {e}. Skipping item.",
+                    exc_info=True,
+                )
+
+        if not validated_models:
+            logger.warning(
+                f"No valid components to save in file {filename} for type {component_type}. File will not be created/updated if it would be empty."
+            )
+            # Depending on desired behavior, we might still want to write an empty list if the input was an empty list.
+            # For now, if all items failed validation, we don't write. If input list was empty, data_to_save_list is empty.
+            if not components_data:  # If input was empty list, write empty list to file
+                pass  # Allow writing empty list
+            else:  # Input was not empty, but all items failed validation
+                return []
+
+        try:
+            component_dir.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w") as f:
+                json.dump(data_to_save_list, f, indent=4)  # Save the list of dicts
+            logger.info(
+                f"Successfully saved {len(validated_models)} components of type '{component_type}' to {file_path}"
+            )
+        except IOError as e:
+            logger.error(f"Failed to write component file {file_path}: {e}")
+            raise IOError(f"Failed to write configuration file: {e}") from e
+        except Exception as e:
+            logger.error(
+                f"Unexpected error writing components to file {file_path}: {e}",
+                exc_info=True,
+            )
+            raise RuntimeError(
+                f"An unexpected error occurred during file write: {e}"
+            ) from e
+
+        # Update in-memory store for successfully validated and saved components
+        for model in validated_models:
+            try:
+                component_id = getattr(model, id_field)
+                if component_id and isinstance(component_id, str):
+                    target_dict[component_id] = model
+                    logger.debug(
+                        f"Updated/added component '{component_id}' of type '{component_type}' in memory from file {filename}."
+                    )
+                else:
+                    logger.warning(
+                        f"Component model from {filename} (type {component_type}) has invalid or missing ID ('{id_field}'). Cannot update in memory."
+                    )
+            except AttributeError:
+                logger.warning(
+                    f"Component model from {filename} (type {component_type}) is missing ID field '{id_field}'. Cannot update in memory."
+                )
+
+        return validated_models

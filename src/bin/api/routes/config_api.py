@@ -1,5 +1,7 @@
 import logging
-from typing import List
+from typing import List, Any, Union  # Added Any, Union
+import json  # Added json
+from pathlib import Path  # Added Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
@@ -7,12 +9,16 @@ from pydantic import BaseModel, ValidationError
 # Import dependencies from the new location (relative to parent of routes' parent)
 from ...dependencies import (
     get_api_key,
-    get_component_manager,
-)  # PROJECT_ROOT no longer needed here
+    get_component_manager,  # get_component_manager will still be used for other endpoints
+)
 from src.config.component_manager import (
-    ComponentManager,
-    COMPONENT_META,  # Import the constant
-)  # For type hinting (Changed to absolute import)
+    ComponentManager,  # Not directly used by get_config_file anymore, but by others
+    COMPONENT_META,
+    COMPONENT_TYPES_DIRS,  # Need this for directory lookup
+)
+from src.config import (
+    PROJECT_ROOT_DIR,
+)  # For path construction if needed, though COMPONENT_TYPES_DIRS is absolute
 
 logger = logging.getLogger(__name__)
 
@@ -33,32 +39,48 @@ router = APIRouter(
 API_TO_CM_TYPE_MAP = {
     "agents": "agents",
     "clients": "clients",
-    "llm-configs": "llm_configs",  # New API endpoint for LLM configs
+    "llm-configs": "llm_configs",
     "simple-workflows": "simple_workflows",
     "custom-workflows": "custom_workflows",
-    # "testing" type is not managed by ComponentManager, so it's removed from here.
-    # If "testing" configs need to be managed, it would require a different mechanism
-    # or extending ComponentManager (if appropriate).
 }
 
 
 def _get_cm_component_type(api_component_type: str) -> str:
     """Validates and maps API component type to ComponentManager type key."""
-    cm_type = API_TO_CM_TYPE_MAP.get(api_component_type)
+    # This function remains relevant for other endpoints like list_config_files, create, update, delete
+
+    # Handle aliases for workflow types
+    if api_component_type == "custom_workflows":
+        api_component_type_to_check = "custom-workflows"
+    elif api_component_type == "simple_workflows":
+        api_component_type_to_check = "simple-workflows"
+    else:
+        api_component_type_to_check = api_component_type
+
+    cm_type = API_TO_CM_TYPE_MAP.get(api_component_type_to_check)
     if not cm_type:
         logger.warning(
             f"Invalid component type specified in API path: {api_component_type}"
         )
+        # Show original API_TO_CM_TYPE_MAP keys in error for clarity on supported backend keys
+        valid_keys = list(API_TO_CM_TYPE_MAP.keys())
+        # Add underscore versions to the "valid types" message if they are common aliases
+        if "simple-workflows" in valid_keys:
+            valid_keys.append("simple_workflows")
+        if "custom-workflows" in valid_keys:
+            valid_keys.append("custom_workflows")
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid component type '{api_component_type}' specified. "
-            f"Valid types are: {', '.join(API_TO_CM_TYPE_MAP.keys())}",
+            f"Valid types are: {', '.join(sorted(list(set(valid_keys))))}",  # Show unique sorted list
         )
     return cm_type
 
 
 def _extract_component_id(filename: str) -> str:
     """Extracts component ID from filename (removes .json suffix)."""
+    # This function remains relevant for create, update, delete if they operate by ID derived from filename
     if not filename.endswith(".json"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,12 +92,13 @@ def _extract_component_id(filename: str) -> str:
 @router.get("/{component_type}", response_model=List[str])
 async def list_config_files(
     component_type: str,
-    cm: ComponentManager = Depends(get_component_manager),
+    cm: ComponentManager = Depends(get_component_manager),  # cm is used here
 ):
     """Lists available JSON configuration filenames for a given component type."""
     logger.info(f"Request received to list configs for API type: {component_type}")
     try:
         cm_component_type = _get_cm_component_type(component_type)
+        # Assuming ComponentManager.list_component_files() still exists and works as before
         filenames = cm.list_component_files(cm_component_type)
         logger.info(
             f"Found {len(filenames)} config files for CM type '{cm_component_type}'"
@@ -95,34 +118,72 @@ async def list_config_files(
 
 
 @router.get(
-    "/{component_type}/{filename:path}", response_model=dict
-)  # Return type is dict (JSON)
-async def get_config_file(
+    "/{component_type}/{filename:path}",
+    response_model=Any,  # Changed response_model to Any
+)
+async def get_config_file(  # Removed cm: ComponentManager dependency for this specific endpoint
     component_type: str,
     filename: str,
-    cm: ComponentManager = Depends(get_component_manager),
+    # cm: ComponentManager = Depends(get_component_manager), # No longer using CM to get parsed model by ID
 ):
-    """Gets the content of a specific JSON configuration file."""
-    logger.info(f"Request received to get config file: {component_type}/{filename}")
+    """Gets the raw parsed JSON content of a specific configuration file."""
+    logger.info(
+        f"Request received to get raw config file content: {component_type}/{filename}"
+    )
     try:
-        cm_component_type = _get_cm_component_type(component_type)
-        component_id = _extract_component_id(filename)
+        # Validate component_type and get the ComponentManager's internal type key
+        # _get_cm_component_type can still be used for validation even if not using cm_component_type directly for CM lookup
+        cm_component_type_validated = _get_cm_component_type(component_type)
 
-        component_model = cm.get_component_config(cm_component_type, component_id)
-
-        if component_model is None:
-            logger.warning(
-                f"Config component ID '{component_id}' of type '{cm_component_type}' not found."
+        # Get the base directory for this component type
+        # COMPONENT_TYPES_DIRS is imported from component_manager
+        config_dir = COMPONENT_TYPES_DIRS.get(cm_component_type_validated)
+        if not config_dir:
+            # This case should ideally be caught by _get_cm_component_type if API_TO_CM_TYPE_MAP and COMPONENT_TYPES_DIRS are aligned
+            logger.error(
+                f"No directory configured for component type '{cm_component_type_validated}'. This is an internal configuration issue."
             )
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Configuration file not found.",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Internal server error: Directory not configured for type '{component_type}'.",
             )
-        # Return the Pydantic model as a dictionary, which FastAPI will serialize to JSON
-        return component_model.model_dump(mode="json")
-    except HTTPException as http_exc:
+
+        file_path = (config_dir / filename).resolve()
+
+        # Security check: ensure the resolved path is within the intended config directory
+        if not str(file_path).startswith(str(config_dir.resolve())):
+            logger.error(
+                f"Path traversal attempt detected or invalid filename for {component_type}/{filename}. Resolved to {file_path}, expected under {config_dir.resolve()}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid filename or path.",
+            )
+
+        if not file_path.is_file():
+            logger.warning(f"Configuration file not found at path: {file_path}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Configuration file '{filename}' not found.",
+            )
+
+        with open(file_path, "r") as f:
+            raw_json_content = json.load(f)  # Parse JSON from file
+
+        return raw_json_content  # Return the parsed Python object/list
+
+    except json.JSONDecodeError:
+        logger.error(
+            f"Invalid JSON format in file {component_type}/{filename} at {file_path}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,  # Or 400 if client could upload malformed
+            detail=f"File '{filename}' contains invalid JSON.",
+        )
+    except HTTPException as http_exc:  # Re-raise our own HTTPExceptions (like 404 or from _get_cm_component_type)
         raise http_exc
-    except Exception as e:
+    except Exception as e:  # Catch other unexpected errors
         logger.error(
             f"Error reading config file '{component_type}/{filename}': {e}",
             exc_info=True,
@@ -137,7 +198,7 @@ async def get_config_file(
 class ConfigContent(BaseModel):
     """Model for the JSON content being uploaded."""
 
-    content: dict  # Expecting a dictionary for the JSON content
+    content: Any  # Changed from dict to Any to allow arrays or objects initially
 
 
 @router.post("/{component_type}/{filename:path}", status_code=status.HTTP_201_CREATED)
@@ -147,49 +208,75 @@ async def create_config_file(  # Renamed from upload_config_file for clarity (PO
     config_body: ConfigContent,  # Changed variable name from config_data
     cm: ComponentManager = Depends(get_component_manager),
 ):
-    """Creates a new component JSON configuration file."""
+    """
+    Creates a new component JSON configuration file.
+    If 'content' is a dictionary, it creates a single component file (named by its ID).
+    If 'content' is a list, it saves all components in the list to the specified 'filename'.
+    """
     logger.info(f"Request received to create config file: {component_type}/{filename}")
     try:
         cm_component_type = _get_cm_component_type(component_type)
-        component_id_from_path = _extract_component_id(filename)
 
-        # Ensure the ID in the path matches the ID inside the content, if present.
-        # ComponentManager's save/create methods also validate this.
-        # Here, we primarily use the ID from the path as the definitive one.
-        # The content dict itself must contain the ID field.
-        config_payload = config_body.content.copy()  # Work with a copy
+        if isinstance(config_body.content, dict):
+            # Handle single component creation
+            component_id_from_path = _extract_component_id(
+                filename
+            )  # Used for logging/consistency check
+            config_payload = config_body.content.copy()
 
-        # Get the expected ID field name for this component type
-        id_field_name = COMPONENT_META.get(  # Use the imported constant
-            cm_component_type, (None, None)
-        )[1]
-        if not id_field_name:  # Should not happen if _get_cm_component_type worked
+            id_field_name = COMPONENT_META.get(cm_component_type, (None, None))[1]
+            if not id_field_name:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Internal server error: Unknown component ID field.",
+                )
+
+            # Ensure payload ID matches filename-derived ID if creating a single file by specific name
+            # Note: cm.create_component_file internally saves as `internal_id.json`.
+            # If filename in path is different, this might be slightly confusing.
+            # For strict filename usage with single component, cm.save_components_to_file could be adapted or a new cm method.
+            # For now, we align the payload ID with filename for clarity if it's a single object.
+            if id_field_name not in config_payload:
+                config_payload[id_field_name] = component_id_from_path
+            elif config_payload[id_field_name] != component_id_from_path:
+                logger.warning(
+                    f"ID in payload ('{config_payload[id_field_name]}') for POST to '{filename}' "
+                    f"differs from filename-derived ID ('{component_id_from_path}'). "
+                    f"Using ID from payload for ComponentManager.create_component_file, which saves as '{config_payload[id_field_name]}.json'."
+                )
+                # No, cm.create_component_file will use the ID from payload to name the file.
+                # The component_id_from_path (derived from {filename} in URL) is what the user *expects* the file to be named.
+                # This part needs careful handling if filename from URL is the strict target.
+                # For now, let cm.create_component_file handle it, which names file by internal ID.
+
+            created_model = cm.create_component_file(
+                cm_component_type, config_payload, overwrite=False
+            )
+            # The actual filename might be different from 'filename' in path if internal ID differs.
+            actual_filename = f"{getattr(created_model, id_field_name)}.json"
+            logger.info(
+                f"Successfully created single component '{getattr(created_model, id_field_name)}' of type '{cm_component_type}' as {actual_filename}"
+            )
+            return created_model.model_dump(mode="json")
+
+        elif isinstance(config_body.content, list):
+            # Handle list of components creation, save to specified filename
+            saved_models = cm.save_components_to_file(
+                cm_component_type, config_body.content, filename, overwrite=False
+            )
+            logger.info(
+                f"Successfully created/saved {len(saved_models)} components of type '{cm_component_type}' to file '{filename}'"
+            )
+            return [model.model_dump(mode="json") for model in saved_models]
+
+        else:
+            logger.error(
+                f"POST /configs/{component_type}/{filename}: Received content is not a dictionary or a list. Found type: {type(config_body.content)}."
+            )
             raise HTTPException(
-                status_code=500,
-                detail="Internal server error: Unknown component ID field.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid request body: 'content' must be a single JSON object or a list of JSON objects.",
             )
-
-        if id_field_name not in config_payload:
-            # If ID field is missing in content, inject it from path filename
-            config_payload[id_field_name] = component_id_from_path
-            logger.debug(
-                f"Injected ID '{component_id_from_path}' into payload for type '{cm_component_type}'."
-            )
-        elif config_payload[id_field_name] != component_id_from_path:
-            logger.warning(
-                f"ID in path ('{component_id_from_path}') differs from ID in payload ('{config_payload[id_field_name]}') for type '{cm_component_type}'. Using ID from path."
-            )
-            # Overwrite ID in payload with ID from path to ensure consistency
-            config_payload[id_field_name] = component_id_from_path
-
-        # Use create_component_file with overwrite=False for POST
-        created_model = cm.create_component_file(
-            cm_component_type, config_payload, overwrite=False
-        )
-        logger.info(
-            f"Successfully created component '{created_model.model_dump().get(id_field_name)}' of type '{cm_component_type}'"
-        )
-        return created_model.model_dump(mode="json")
 
     except FileExistsError as fe_err:
         logger.warning(
@@ -231,42 +318,70 @@ async def update_config_file(
     config_body: ConfigContent,
     cm: ComponentManager = Depends(get_component_manager),
 ):
-    """Updates an existing specific JSON configuration file. Can also create if not exists (upsert)."""
+    """
+    Updates an existing specific JSON configuration file.
+    If 'content' is a dictionary, it updates/creates a single component file (named by its ID).
+    If 'content' is a list, it overwrites the specified 'filename' with all components in the list.
+    """
     logger.info(
         f"Request received to update/create config file: {component_type}/{filename}"
     )
     try:
         cm_component_type = _get_cm_component_type(component_type)
-        component_id_from_path = _extract_component_id(filename)
 
-        config_payload = config_body.content.copy()
+        if isinstance(config_body.content, dict):
+            # Handle single component update/creation
+            component_id_from_path = _extract_component_id(filename)
+            config_payload = config_body.content.copy()
 
-        id_field_name = COMPONENT_META.get(  # Use the imported constant
-            cm_component_type, (None, None)
-        )[1]
-        if not id_field_name:
+            id_field_name = COMPONENT_META.get(cm_component_type, (None, None))[1]
+            if not id_field_name:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Internal server error: Unknown component ID field.",
+                )
+
+            # Ensure the payload's ID matches the filename-derived ID for saving to the correct file.
+            if (
+                id_field_name not in config_payload
+                or config_payload[id_field_name] != component_id_from_path
+            ):
+                logger.warning(
+                    f"ID in payload for PUT request ('{config_payload.get(id_field_name)}') "
+                    f"for file '{filename}' differs from filename-derived ID ('{component_id_from_path}') or is missing. "
+                    f"Forcing payload ID to '{component_id_from_path}' to ensure file '{filename}' is updated."
+                )
+                config_payload[id_field_name] = component_id_from_path
+
+            saved_model = cm.save_component_config(
+                cm_component_type, config_payload
+            )  # This saves as component_id_from_path.json
+            logger.info(
+                f"Successfully saved (updated/created) single component '{getattr(saved_model, id_field_name)}' of type '{cm_component_type}' to file {filename}"
+            )
+            return saved_model.model_dump(mode="json")
+
+        elif isinstance(config_body.content, list):
+            # Handle list of components update, overwrites specified filename
+            saved_models = cm.save_components_to_file(
+                cm_component_type, config_body.content, filename, overwrite=True
+            )
+            logger.info(
+                f"Successfully updated/saved {len(saved_models)} components of type '{cm_component_type}' to file '{filename}'"
+            )
+            return [model.model_dump(mode="json") for model in saved_models]
+
+        else:
+            logger.error(
+                f"PUT /configs/{component_type}/{filename}: Received content is not a dictionary or a list. Found type: {type(config_body.content)}."
+            )
             raise HTTPException(
-                status_code=500,
-                detail="Internal server error: Unknown component ID field.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid request body: 'content' must be a single JSON object or a list of JSON objects.",
             )
-
-        if id_field_name not in config_payload:
-            config_payload[id_field_name] = component_id_from_path
-        elif config_payload[id_field_name] != component_id_from_path:
-            logger.warning(
-                f"ID in path ('{component_id_from_path}') differs from ID in payload ('{config_payload[id_field_name]}') for type '{cm_component_type}'. Using ID from path."
-            )
-            config_payload[id_field_name] = component_id_from_path
-
-        # save_component_config handles create or update (upsert)
-        saved_model = cm.save_component_config(cm_component_type, config_payload)
-        logger.info(
-            f"Successfully saved (created/updated) component '{saved_model.model_dump().get(id_field_name)}' of type '{cm_component_type}'"
-        )
-        return saved_model.model_dump(mode="json")
 
     except (
-        ValueError,
+        ValueError,  # Catches ID issues from cm methods or _get_cm_component_type
         ValidationError,
     ) as val_err:  # Catch CM's ValueError or Pydantic's ValidationError
         logger.error(
