@@ -223,7 +223,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
               attachButton={false}
               disabled={isInitializing || isLoading}
               sendDisabled={isInitializing || isLoading}
-              className="bg-dracula-current-line text-dracula-foreground placeholder:text-dracula-comment"
+              // className prop removed to let index.css handle all MessageInput styling
             />
           </ChatContainer>
         </MainContainer>
