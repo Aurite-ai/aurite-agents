@@ -176,6 +176,19 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       console.log('SSE connection opened.');
     };
 
+    // Generic message handler for debugging
+    eventSource.onmessage = (event) => {
+      console.log('SSE generic message received:', event);
+      // You could try to parse event.data here to see what it is
+      // if it's not being caught by specific listeners.
+      try {
+        const parsedData = JSON.parse(event.data);
+        console.log('SSE generic message data (parsed):', parsedData);
+      } catch (e) {
+        console.error('Error parsing generic SSE message data:', e, event.data);
+      }
+    };
+
     // Helper to update contentBlocks for the current streaming message
     const updateStreamingMessageBlocks = (updater: (blocks: AgentOutputContentBlock[]) => AgentOutputContentBlock[]) => {
       setMessages(prevMessages =>
@@ -190,8 +203,10 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('text_delta', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'text_delta') {
-          const { index, text_chunk } = eventData;
+        // For named events, event.type is 'text_delta'. eventData is the payload.
+        // No need for eventData.event_type check here.
+        const { index, text_chunk } = eventData; // Directly use properties from parsed data
+        if (typeof index === 'number' && typeof text_chunk === 'string') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'text') {
@@ -219,8 +234,9 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_use_start', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'tool_use_start') {
-          const { index, tool_name, tool_id } = eventData;
+        // event.type is 'tool_use_start'. eventData is the payload.
+        const { index, tool_name, tool_id } = eventData;
+        if (typeof index === 'number' && tool_name && tool_id) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             // Ensure array is long enough
@@ -244,8 +260,9 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_use_input_delta', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'tool_use_input_delta') {
-          const { index, json_chunk } = eventData;
+        // event.type is 'tool_use_input_delta'. eventData is the payload.
+        const { index, json_chunk } = eventData;
+        if (typeof index === 'number' && typeof json_chunk === 'string') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
@@ -273,8 +290,9 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('content_block_stop', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'content_block_stop') {
-          const { index } = eventData;
+        // event.type is 'content_block_stop'. eventData is the payload.
+        const { index } = eventData;
+        if (typeof index === 'number') {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
@@ -325,9 +343,9 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_result', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'tool_result') {
-          // Assuming eventData structure: { index: number, tool_use_id: string, content: any, is_error: boolean, name?: string }
-          const { index, tool_use_id, content, is_error, name } = eventData;
+        // event.type is 'tool_result'. eventData is the payload.
+        const { index, tool_use_id, content, is_error, name } = eventData;
+        if (typeof index === 'number' && tool_use_id && content !== undefined) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             // Ensure array is long enough for the new tool_result block
@@ -353,9 +371,9 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     eventSource.addEventListener('tool_execution_error', (event) => {
       try {
         const eventData = JSON.parse(event.data as string);
-        if (eventData.event_type === 'tool_execution_error') {
-          // Assuming eventData: { index: number, tool_use_id: string, error_message: string, tool_name?: string }
-          const { index, tool_use_id, error_message, tool_name } = eventData;
+        // event.type is 'tool_execution_error'. eventData is the payload.
+        const { index, tool_use_id, error_message, tool_name } = eventData;
+        if (typeof index === 'number' && tool_use_id && error_message) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
             // Ensure array is long enough

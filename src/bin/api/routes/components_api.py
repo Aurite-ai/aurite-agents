@@ -129,6 +129,9 @@ async def stream_agent_endpoint(
                 sse_formatted_event = (
                     f"event: {event_type}\ndata: {event_data_json}\n\n"
                 )
+                logger.debug(
+                    f"SSE Event Yielding: {repr(sse_formatted_event)}"
+                )  # Log the exact SSE string
                 yield sse_formatted_event
         except Exception as e:
             logger.error(
