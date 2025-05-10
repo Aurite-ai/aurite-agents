@@ -1,7 +1,7 @@
 import React from 'react';
 
-// Added 'projects' to ComponentType
-export type ComponentType = 'clients' | 'agents' | 'simple_workflows' | 'custom_workflows' | 'projects';
+// Added 'projects' and 'llms' to ComponentType
+export type ComponentType = 'clients' | 'agents' | 'llms' | 'simple_workflows' | 'custom_workflows' | 'projects';
 
 interface ComponentSidebarProps {
   selectedComponent: ComponentType | null; // Allow null if nothing is selected initially or for project section
@@ -11,6 +11,7 @@ interface ComponentSidebarProps {
 const componentTypes: { id: ComponentType; label: string }[] = [
   { id: 'clients', label: 'Clients' },
   { id: 'agents', label: 'Agents' },
+  { id: 'llms', label: 'LLMs' }, // Added LLMs
   { id: 'simple_workflows', label: 'Simple Workflows' },
   { id: 'custom_workflows', label: 'Custom Workflows' },
 ];
