@@ -1,12 +1,11 @@
 import React from 'react';
 import useUIStore from '../../store/uiStore'; // Import useUIStore to access selectedAction
 
-// Combined type for all selectable items in the sidebar, used by Config and Execute views
+// Combined type for all selectable items in the sidebar
 export type ConfigurableComponentType = 'clients' | 'agents' | 'llms' | 'simple_workflows' | 'custom_workflows' | 'projects';
-export type ExecutableComponentType = 'agents' | 'simple_workflows' | 'custom_workflows'; // LLMs are not directly "executed" in the same way via UI for now
 
-// Union type for what `selectedComponent` in uiStore can hold
-export type SelectedSidebarItemType = ConfigurableComponentType | ExecutableComponentType;
+// SelectedSidebarItemType will now just be ConfigurableComponentType
+export type SelectedSidebarItemType = ConfigurableComponentType;
 
 
 interface ComponentSidebarProps {
@@ -14,7 +13,7 @@ interface ComponentSidebarProps {
   // onSelectComponent is also from useUIStore
 }
 
-const configurableComponentTypes: { id: ConfigurableComponentType; label: string }[] = [
+const componentTypes: { id: ConfigurableComponentType; label: string }[] = [
   { id: 'clients', label: 'Clients' },
   { id: 'agents', label: 'Agents' },
   { id: 'llms', label: 'LLMs' },
@@ -27,30 +26,26 @@ const projectManagementItem: { id: ConfigurableComponentType; label: string } = 
   label: 'Active Project Files',
 };
 
-const executableComponentTypes: { id: ExecutableComponentType; label: string }[] = [
-  { id: 'agents', label: 'Agents' },
-  { id: 'simple_workflows', label: 'Simple Workflows' },
-  { id: 'custom_workflows', label: 'Custom Workflows' },
-];
+// executableComponentTypes is no longer needed as we will use componentTypes for all views.
 
 
 const ComponentSidebar: React.FC<ComponentSidebarProps> = () => {
-  const { selectedAction, selectedComponent, setSelectedComponent } = useUIStore();
+  const { selectedComponent, setSelectedComponent } = useUIStore(); // selectedAction is no longer needed here to switch rendering logic
 
-  const renderConfigureModeItems = () => (
+  const renderSidebarItems = () => (
     <>
       <div>
         <h3 className="px-2 py-1 text-xs font-semibold text-dracula-comment uppercase tracking-wider mb-1">
           Component Types
         </h3>
-        {configurableComponentTypes.map((component) => (
+        {componentTypes.map((component) => (
           <button
-            key={`config-${component.id}`}
+            key={`sidebar-item-${component.id}`} // Generic key
             onClick={() => setSelectedComponent(component.id as SelectedSidebarItemType)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-dracula-pink bg-transparent
               ${
                 selectedComponent === component.id
-                  ? 'bg-dracula-purple text-dracula-foreground'
+                  ? 'bg-dracula-purple text-dracula-foreground' // Consistent highlight for components
                   : 'text-dracula-foreground hover:bg-dracula-current-line hover:text-dracula-foreground'
               }
             `}
@@ -65,12 +60,12 @@ const ComponentSidebar: React.FC<ComponentSidebarProps> = () => {
           Project Management
         </h3>
         <button
-          key={`config-${projectManagementItem.id}`}
+          key={`sidebar-item-${projectManagementItem.id}`} // Generic key
           onClick={() => setSelectedComponent(projectManagementItem.id as SelectedSidebarItemType)}
           className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-dracula-pink bg-transparent
             ${
               selectedComponent === projectManagementItem.id
-                ? 'bg-dracula-green text-dracula-background font-semibold'
+                ? 'bg-dracula-green text-dracula-background font-semibold' // Consistent highlight for project management
                 : 'text-dracula-foreground hover:bg-dracula-current-line hover:text-dracula-foreground'
             }
           `}
@@ -81,34 +76,14 @@ const ComponentSidebar: React.FC<ComponentSidebarProps> = () => {
     </>
   );
 
-  const renderExecuteModeItems = () => (
-    <div>
-      <h3 className="px-2 py-1 text-xs font-semibold text-dracula-comment uppercase tracking-wider mb-1">
-        Executable Types
-      </h3>
-      {executableComponentTypes.map((component) => (
-        <button
-          key={`exec-${component.id}`}
-          onClick={() => setSelectedComponent(component.id as SelectedSidebarItemType)}
-          className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-dracula-pink bg-transparent
-            ${
-              selectedComponent === component.id // Use selectedComponent for highlighting
-                ? 'bg-dracula-cyan text-dracula-background font-semibold' // Different highlight for execute mode
-                : 'text-dracula-foreground hover:bg-dracula-current-line hover:text-dracula-foreground'
-            }
-          `}
-        >
-          {component.label}
-        </button>
-      ))}
-    </div>
-  );
+  // renderExecuteModeItems is no longer needed.
 
   return (
     <aside className="w-64 bg-dracula-background p-4 space-y-4 shadow-lg border-r border-dracula-current-line">
-      {selectedAction === 'configure' && renderConfigureModeItems()}
-      {selectedAction === 'execute' && renderExecuteModeItems()}
-      {/* Add other modes like 'build', 'evaluate' here if needed */}
+      {renderSidebarItems()}
+      {/* The sidebar content is now consistent across all action tabs.
+          If specific tabs needed *additional* items, that would require further logic,
+          but the request was for them all to look like renderConfigureModeItems. */}
     </aside>
   );
 };

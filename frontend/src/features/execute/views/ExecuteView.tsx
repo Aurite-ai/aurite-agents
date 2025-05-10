@@ -5,13 +5,13 @@ import {
   listRegisteredSimpleWorkflows,
   listRegisteredCustomWorkflows
 } from '../../../lib/apiClient';
-// Corrected import for SelectedSidebarItemType and ExecutableComponentType
-import type { SelectedSidebarItemType, ExecutableComponentType } from '../../../components/layout/ComponentSidebar';
+// Corrected import for SelectedSidebarItemType
+import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar';
 import AgentChatView from './AgentChatView'; // Assuming AgentChatView.tsx is in the same directory
 
 interface ExecutableItem {
   name: string;
-  type: ExecutableComponentType;
+  type: SelectedSidebarItemType; // Changed from ExecutableComponentType
 }
 
 const ExecuteView: React.FC = () => {
@@ -77,7 +77,7 @@ const ExecuteView: React.FC = () => {
   const renderListSection = (
     title: string,
     items: ExecutableItem[],
-    itemTypeFilter: ExecutableComponentType
+    itemTypeFilter: SelectedSidebarItemType // Changed from ExecutableComponentType
   ) => {
     if (selectedComponent !== null && selectedComponent !== itemTypeFilter) {
       return null;
