@@ -143,7 +143,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] bg-dracula-background p-0 rounded-lg shadow-md border border-dracula-current-line">
+    <div className="flex flex-col h-[calc(100vh-15rem)] bg-dracula-background p-0 rounded-lg shadow-md border border-dracula-current-line max-w-6xl mx-auto"> {/* Adjusted height and width */}
       <div className="flex justify-between items-center p-3 border-b border-dracula-comment bg-dracula-current-line rounded-t-lg">
         <h3 className="text-xl font-semibold text-dracula-cyan">Chat with: {agentName}</h3>
         <button
@@ -156,7 +156,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
       <div style={{ position: "relative", flexGrow: 1, overflow: "hidden" }} className="bg-dracula-background">
         <MainContainer responsive className="h-full">
           <ChatContainer className="h-full">
-            <MessageList className="bg-dracula-background">
+            <MessageList className="bg-dracula-background"> {/* Removed pt-4 */}
               {messages.map((msg) => {
                 // Render error messages using CustomContent for specific styling
                 if (msg.role === 'error') {
