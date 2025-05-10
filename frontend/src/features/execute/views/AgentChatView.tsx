@@ -301,55 +301,49 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                   }
                 }
               } else if (currentBlock.type === 'text' && currentBlock.text) {
-                // Attempt to parse for <thinking> and JSON
                 const textContent = currentBlock.text;
                 const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
                 const thinkingMatch = textContent.match(thinkingRegex);
 
-                let thinkingText: string | null = null;
-                let remainingText = textContent;
+                let extractedThinkingText: string | undefined = undefined;
+                let textForJsonParsing = textContent;
 
-                if (thinkingMatch) {
-                  thinkingText = thinkingMatch[0]; // Keep the tags for now, or extract thinkingMatch[1]
-                  remainingText = textContent.replace(thinkingRegex, '').trim();
+                if (thinkingMatch && thinkingMatch[1]) {
+                  extractedThinkingText = thinkingMatch[1].trim(); // Extracted content of <thinking>
+                  textForJsonParsing = textContent.replace(thinkingRegex, '').trim();
                 }
 
                 try {
-                  const parsedJson = JSON.parse(remainingText);
-                  // If JSON parsing is successful, split the block
-                  const updatedBlocks: AgentOutputContentBlock[] = [];
-                  let currentBlockIndex = index;
+                  // Attempt to parse the remaining text (or full text if no thinking tags) as JSON
+                  const parsedJsonData = JSON.parse(textForJsonParsing);
 
-                  if (thinkingText) {
-                    // Insert thinking block before
-                    newBlocks.splice(currentBlockIndex, 0, { type: 'text', text: thinkingText });
-                    currentBlockIndex++; // Adjust index for the next block
-                  }
-
-                  // Update current block to be structured_json
-                  newBlocks[currentBlockIndex] = {
-                    ...currentBlock, // Keep original id, name etc. if any
-                    type: 'structured_json',
-                    text: remainingText, // Store original JSON string
-                    parsedJson: parsedJson,
+                  // If JSON parsing is successful, update the block in place
+                  newBlocks[index] = {
+                    ...currentBlock, // Preserve other properties like id if any
+                    type: 'final_response_data',
+                    thinkingText: extractedThinkingText,
+                    parsedJson: parsedJsonData,
+                    text: textForJsonParsing, // Store the raw JSON string part
                   };
-
-                  // Note: Any text *after* the JSON in remainingText is currently ignored.
-                  // If there could be trailing text, that would need further handling.
-
                 } catch (jsonError) {
-                  // Not valid JSON, or no JSON found after thinking tags.
-                  // Keep as a single text block. If thinking was extracted, it's handled.
-                  if (thinkingText && thinkingText !== textContent) {
-                     // We have thinking and some other non-JSON text
-                     newBlocks.splice(index, 1,
-                        { type: 'text', text: thinkingText },
-                        { type: 'text', text: remainingText }
-                     );
-                  } else {
-                    // No thinking, or thinking was the whole text, or remaining wasn't JSON.
-                    // Block remains as is (original text block).
+                  // Not valid JSON.
+                  // If there was thinking text, we might want to ensure it's displayed.
+                  // For now, the block remains a 'text' block with its original content,
+                  // or if thinking was extracted, it could be split if desired,
+                  // but current approach is to modify in place or leave as 'text'.
+                  // If only thinkingText was found and the rest wasn't JSON,
+                  // we could make it a 'text' block with just thinkingText,
+                  // but for simplicity, if it's not 'final_response_data', it's just 'text'.
+                  // The current logic will leave it as a 'text' block with original textContent.
+                  // If we want to *only* show thinking if the rest isn't JSON:
+                  if (extractedThinkingText && textForJsonParsing === '') {
+                     newBlocks[index] = { ...currentBlock, type: 'text', text: `<thinking>${extractedThinkingText}</thinking>` };
+                  } else if (extractedThinkingText) {
+                    // Contains thinking and other non-JSON text. Render as single text block for now.
+                    // Or, could split into two text blocks if preferred.
+                    // For simplicity, keep as one. The StreamingMessageContentView will show the whole text.
                   }
+                  // If no thinking and not JSON, it's already a plain text block.
                 }
               }
             }

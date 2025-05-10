@@ -20,25 +20,42 @@ const StreamingMessageContentView: React.FC<StreamingMessageContentViewProps> = 
         const key = block.id ? `${block.type}-${block.id}-${index}` : `${block.type}-${index}`;
 
         switch (block.type) {
-          case 'structured_json':
-            if (block.parsedJson) {
-              return <StructuredResponseView key={key} data={block.parsedJson} />;
-            }
-            // Fallback if parsedJson is somehow missing, try to parse from text
-            if (typeof block.text === 'string') {
-              try {
-                const jsonData = JSON.parse(block.text);
-                if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
-                  return <StructuredResponseView key={key} data={jsonData} />;
-                }
-              } catch (e) { /* Fall through to render as text */ }
-            }
-            // If all else fails, render the raw text of the supposed JSON
-            return <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>;
+          case 'final_response_data':
+            return (
+              <div key={key}>
+                {block.thinkingText && (
+                  <div className="whitespace-pre-wrap p-2 my-1 border border-dashed border-dracula-comment rounded-md bg-dracula-current-line bg-opacity-30">
+                    <span className="text-xs text-dracula-comment italic">Thinking:</span>
+                    <div className="text-sm">{block.thinkingText}</div>
+                  </div>
+                )}
+                {block.parsedJson && (
+                  <StructuredResponseView data={block.parsedJson} />
+                )}
+                {!block.parsedJson && block.text && ( // Fallback for raw JSON string if parsing failed at view but was intended
+                  <div className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>
+                )}
+              </div>
+            );
+          // case 'structured_json': // This type is now replaced by 'final_response_data'
+          //   if (block.parsedJson) {
+          //     return <StructuredResponseView key={key} data={block.parsedJson} />;
+          //   }
+          //   // Fallback if parsedJson is somehow missing, try to parse from text
+          //   if (typeof block.text === 'string') {
+          //     try {
+          //       const jsonData = JSON.parse(block.text);
+          //       if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+          //         return <StructuredResponseView key={key} data={jsonData} />;
+          //       }
+          //     } catch (e) { /* Fall through to render as text */ }
+          //   }
+          //   // If all else fails, render the raw text of the supposed JSON
+          //   return <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>;
 
           case 'text':
-            // This case now primarily handles non-JSON text, like <thinking> blocks
-            // or text that failed to parse as JSON in the 'structured_json' case's fallback.
+            // This case now primarily handles non-JSON text, like <thinking> blocks that weren't part of final_response_data
+            // or text that failed to parse as JSON in the 'final_response_data' case's fallback.
             if (typeof block.text === 'string') {
               return <div key={key} className="whitespace-pre-wrap">{block.text}</div>;
             }
