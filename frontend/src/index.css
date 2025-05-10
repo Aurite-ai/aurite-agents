@@ -40,12 +40,12 @@ body {
   opacity: 1; /* Browsers sometimes apply lower opacity to placeholders */
 }
 
-/* Send Button - Example, inspect for actual class */
-.cs-button.cs-button--send .cs-button__icon svg {
-  fill: theme('colors.dracula-cyan') !important; /* Or another theme color */
+/* Send Button - Targeting SVG path */
+.cs-button.cs-button--send svg path {
+  fill: theme('colors.dracula-cyan') !important;
 }
-.cs-button.cs-button--send:hover .cs-button__icon svg {
-  fill: theme('colors.dracula-pink') !important; /* Hover color */
+.cs-button.cs-button--send:hover svg path {
+  fill: theme('colors.dracula-pink') !important;
 }
 
 /* Message Bubbles - Examples, inspect for actual classes */
