@@ -84,3 +84,32 @@ export interface ApiError {
   status?: number;
   details?: any;
 }
+
+// Types for Agent Execution (mirroring backend src/agents/agent_models.py)
+export interface AgentOutputContentBlock {
+  type: string;
+  text?: string | Record<string, any>; // Text can be a string or a JSON object from schema
+  // Add other fields like id, input, name for tool_use if needed for display
+  id?: string; // For tool_use or tool_result
+  input?: Record<string, any>; // For tool_use
+  name?: string; // For tool_use
+  tool_use_id?: string; // For tool_result
+  content?: AgentOutputContentBlock[]; // For nested content in tool_result
+}
+
+export interface AgentOutputMessage {
+  role: string;
+  content: AgentOutputContentBlock[];
+  id?: string;
+  model?: string;
+  stop_reason?: string;
+  stop_sequence?: string;
+  usage?: Record<string, number>;
+}
+
+export interface AgentExecutionResult {
+  conversation: AgentOutputMessage[];
+  final_response?: AgentOutputMessage;
+  tool_uses_in_final_turn?: Record<string, any>[]; // List of dicts
+  error?: string;
+}

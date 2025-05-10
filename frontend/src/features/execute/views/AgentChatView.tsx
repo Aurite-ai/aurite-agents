@@ -17,15 +17,15 @@ import {
 } from '../../../lib/apiClient';
 
 // Assuming types are defined in a central place
-import type { AgentConfig, LLMConfig } from '../../../types/projectManagement';
-
-// Placeholder for AgentExecutionResult - adjust based on actual backend response
-interface AgentExecutionResult {
-  final_response?: string;
-  error?: string;
-  // conversation?: any[]; // If backend returns full conversation history
-  // Add other fields as per your backend's response structure
-}
+import type {
+  AgentConfig,
+  LLMConfig,
+  AgentExecutionResult, // Import the shared type
+  // AgentOutputMessage and AgentOutputContentBlock are implicitly typed
+  // by their usage within AgentExecutionResult and are not directly
+  // instantiated or used as standalone types in this component's props/state.
+  // If they were, we would import them explicitly.
+} from '../../../types/projectManagement';
 
 interface AgentChatViewProps {
   agentName: string;
@@ -120,16 +120,20 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
 
       if (executionResult.error) {
         addMessage('error', `Execution Error: ${executionResult.error}`);
-      } else if (executionResult.final_response) {
-        // Check if final_response is a string or an object
-        if (typeof executionResult.final_response === 'string') {
-          addMessage('assistant', executionResult.final_response);
+      } else if (executionResult.final_response && executionResult.final_response.content && executionResult.final_response.content.length > 0) {
+        const firstBlock = executionResult.final_response.content[0];
+        if (firstBlock.type === 'text' && firstBlock.text !== undefined && firstBlock.text !== null) {
+          if (typeof firstBlock.text === 'string') {
+            addMessage('assistant', firstBlock.text);
+          } else { // It's a Record<string, any> due to schema
+            addMessage('assistant', JSON.stringify(firstBlock.text, null, 2));
+          }
         } else {
-          // If it's an object (e.g., from schema validation), stringify it for display
-          addMessage('assistant', JSON.stringify(executionResult.final_response, null, 2));
+          // Fallback if the first block is not text or text is empty
+          addMessage('assistant', `Received complex response: ${JSON.stringify(executionResult.final_response, null, 2)}`);
         }
       } else {
-        // Fallback if no final_response and no error
+        // Fallback if no final_response or no content in final_response
         addMessage('assistant', `Execution completed. Full result: ${JSON.stringify(executionResult, null, 2)}`);
       }
 
