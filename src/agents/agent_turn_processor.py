@@ -288,24 +288,25 @@ class AgentTurnProcessor:
                             else:
                                 string_to_parse = cleaned_tool_input_str  # Default to cleaned if sanitization didn't change or wasn't needed
 
-                        logger.debug(
-                            f"ATP: Final string for json.loads: {repr(string_to_parse)}"
-                        )
-                        parsed_input = (
-                            json.loads(string_to_parse) if string_to_parse else {}
-                        )
+                            logger.debug(
+                                f"ATP: Final string for json.loads: {repr(string_to_parse)}"
+                            )
+                            parsed_input = (
+                                json.loads(string_to_parse) if string_to_parse else {}
+                            )
 
-                        # Yield an event indicating the tool input is finalized
-                        yield {
-                            "event_type": "tool_use_input_complete",
-                            "data": {
-                                "index": index, # Original index of the tool_use block
-                                "tool_id": tool_id,
-                                "input": parsed_input,
-                            }
-                        }
+                            # Yield an event indicating the tool input is finalized
+                            yield {
+                                "event_type": "tool_use_input_complete",
+                                "data": {
+                                    "index": index, # Original index of the tool_use block
+                                    "tool_id": tool_id,
+                                    "input": parsed_input,
+                                    }
+                                }
 
-                        tool_result_content = await self.host.execute_tool(
+                            # Tool execution logic
+                            tool_result_content = await self.host.execute_tool(
                                 tool_name=tool_name,
                                 arguments=parsed_input,
                                 agent_config=self.config,
@@ -371,7 +372,7 @@ class AgentTurnProcessor:
                                     "is_error": False,
                                 },
                             }
-                        except json.JSONDecodeError as json_err:
+                        except json.JSONDecodeError as json_err: # Dedented
                             logger.error(
                                 f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
                             )
@@ -384,7 +385,7 @@ class AgentTurnProcessor:
                                     "error_message": f"Invalid JSON input for tool: {str(json_err)}",
                                 },
                             }
-                        except Exception as e:
+                        except Exception as e: # Dedented
                             logger.error(
                                 f"Error executing tool {tool_name} via stream: {e}",
                                 exc_info=True,
