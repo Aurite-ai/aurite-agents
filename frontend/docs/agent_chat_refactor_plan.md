@@ -23,89 +23,104 @@ The desired order is:
 3.  Tool Result
 4.  Agent's final text/response (if any, after the tool interaction)
 
-## 3. Proposed Solution
+## 3. Proposed Solution (Revised Strategy)
 
-The core of the solution is to modify how `tool_result` and `tool_execution_error` events are handled within the `updateStreamingMessageBlocks` function in `AgentChatView.tsx`. Instead of appending these blocks, they will be inserted directly after their corresponding `tool_use` block.
+To address persistent ordering and styling issues, the strategy involves introducing new content block types for intermediate streaming states and refining the logic in both `text_delta` and `content_block_stop` event handlers in `AgentChatView.tsx`.
 
-### 3.1. Key Changes in `AgentChatView.tsx`
+### 3.1. New/Updated Content Block Types
 
-1.  **`content_block_stop` Event Handler (Revised Logic):**
-    *   This is the most critical change. When a `content_block_stop` event is received for a text block at a given `index`:
-        *   The handler will parse the accumulated text content of `contentBlocks[index]`.
-        *   It will attempt to extract `<thinking>...</thinking>` tags (`extractedThinkingText`) and the remaining text (`textForJsonParsing`).
-        *   It will attempt to parse `textForJsonParsing` as JSON (`parsedJsonData`).
-        *   **Scenario 1: Both `extractedThinkingText` and valid `parsedJsonData` are found within the same original text block:**
-            *   The block at `contentBlocks[index]` will be updated to become a `text` block containing *only* the `extractedThinkingText`.
-            *   A *new* `AgentOutputContentBlock` of `type: 'final_response_data'` will be created for `parsedJsonData`.
-            *   This new `final_response_data` block will be **pushed** to the end of the `contentBlocks` array. This ensures it appears after any tool calls that might have their own `index` values.
-        *   **Scenario 2: Only valid `parsedJsonData` is found (no `extractedThinkingText` in this specific block):**
-            *   The block at `contentBlocks[index]` will be converted into a `type: 'final_response_data'` block, preserving its original `index`.
-        *   **Scenario 3: Only `extractedThinkingText` is found (the rest is not valid JSON):**
-            *   The block at `contentBlocks[index]` will be updated to a `text` block containing the `extractedThinkingText` (and any non-JSON remainder).
-        *   **Scenario 4: Plain text (no thinking, not JSON):**
-            *   The block remains as `type: 'text'`; no specific change needed by `content_block_stop` beyond what `text_delta` accumulated.
+The following types will be added/clarified in `src/types/projectManagement.ts` for `AgentOutputContentBlock.type`:
+*   `'text'`: Will continue to be used for plain text, and as an initial state for text being streamed by `text_delta` that might become thinking.
+*   `'thinking_finalized'`: A new type for a block that contains only finalized thinking text. This allows specific styling.
+*   `'json_stream'`: A new type for a block that is actively accumulating the text of a (potential) final JSON response. This block will be created and pushed to the end of `contentBlocks` as soon as JSON streaming is detected following thinking text within the same backend-indexed stream.
+*   `'final_response_data'`: Remains for finalized JSON data.
+*   `'tool_use'`, `'tool_result'`: Remain unchanged.
 
-2.  **`tool_result` Event Handler (Logic remains as previously planned):**
-    *   When a `tool_result` event is received:
-        *   Identify the `tool_use_id`.
-        *   Find the `tool_use` block in `contentBlocks` by its `id`.
-        *   Create the new `tool_result` block.
-        *   Use `Array.prototype.splice(toolCallBlockIndex + 1, 0, newToolResultBlock)` to insert it immediately after the found `tool_use` block.
-        *   Fallback to appending if the `tool_use` block is not found (with a warning).
+### 3.2. Key Changes in `AgentChatView.tsx` (Further Refined)
 
-3.  **`tool_execution_error` Event Handler (Logic remains as previously planned):**
-    *   Apply the same `findIndex` and `splice` logic as for `tool_result` to insert the error block (typed as `tool_result` with `is_error: true`) after its corresponding `tool_use` block.
+1.  **`text_delta` Event Handler (Refined Logic):**
+    *   When a `text_chunk` arrives for a given `index`:
+        *   Initialize `newBlocks[index]` as `type: 'text'` if it doesn't exist or is a placeholder. Let this be `blockAtIndex`.
+        *   **If `blockAtIndex.text` already contains a complete `</thinking>` tag:**
+            *   This means `blockAtIndex` has finished its thinking phase. The current `text_chunk` must belong to the associated `json_stream`.
+            *   Find or create a single `json_stream` block (associated with `_originalIndex: index`) at the end of `newBlocks`.
+            *   Append `text_chunk` to this `json_stream` block.
+        *   **Else (text is for `blockAtIndex`):**
+            *   Append `text_chunk` to `blockAtIndex.text`.
+            *   **If `text_chunk` itself contained `</thinking>` (thus completing the thinking part now):**
+                *   Split `blockAtIndex.text` into the thinking part (up to and including `</thinking>`) and the `beyondThinkingPart`.
+                *   Update `blockAtIndex.text` to only contain the thinking part.
+                *   If `beyondThinkingPart` is not empty, find or create the `json_stream` block (as above) and append `beyondThinkingPart` to it.
+    *   This ensures that as soon as `</thinking>` is processed for an indexed block, all subsequent text (even if part of the same `text_chunk` or later chunks for the same backend `index`) is immediately routed to the correct, separate `json_stream` block.
 
-### 3.2. Expected Chronological Order
+2.  **`content_block_stop` Event Handler (Refined Logic):**
+    *   When `content_block_stop` arrives for `index`:
+        *   Let `blockToFinalize = newBlocks[index]`.
+        *   **If `blockToFinalize.type === 'text'`:**
+            *   Match for `<thinking>content</thinking>`.
+            *   If a match is found, change `blockToFinalize.type` to `'thinking_finalized'` and set `blockToFinalize.text` to *only* the extracted `content` (without the tags).
+            *   The `text_delta` handler is now solely responsible for splitting off any text that appeared *after* `</thinking>` into a `json_stream` block. `content_block_stop` no longer deals with this split.
+            *   If no thinking tags are found, the block remains `type: 'text'`.
+        *   This handler does NOT attempt to parse JSON from the indexed block.
 
-With these changes, the display order should be:
-1.  Agent's initial text/thinking (at its original `index`).
-2.  Tool Call (at its original, subsequent `index`).
-3.  Tool Result (spliced in immediately after its Tool Call).
-4.  Agent's final structured response (pushed to the end of all blocks for that turn, if it was separated from thinking text that shared its original `index`).
+3.  **`stream_end` Event Handler (Primary JSON Finalization):**
+    *   This handler is now the primary place where `json_stream` blocks are converted.
+    *   Iterate through all `contentBlocks`. If a block is `type: 'json_stream'`:
+        *   Attempt to parse its `text`.
+        *   If successful, convert it to `type: 'final_response_data'` with the `parsedJson`.
+        *   If unsuccessful, convert it to `type: 'text'` (e.g., with an error message or the raw unparseable text).
 
-### 3.3. Compatibility Confirmation
+4.  **`tool_use_start` Event Handler:** (No change)
+5.  **`tool_result` and `tool_execution_error` Event Handlers:** (No change from previous correct logic)
 
-*   **`src/components/common/StreamingMessageContentView.tsx`:** This component renders blocks in the order they are present in the `blocks` prop. The proposed changes will ensure the `blocks` array is correctly ordered, so `StreamingMessageContentView` will render them chronologically without needing modification.
-*   **`src/types/projectManagement.ts` (`AgentOutputContentBlock`):** The existing type definitions for `AgentOutputContentBlock` (including `id` for `tool_use` and `tool_use_id` for `tool_result`) are sufficient and support this refactoring. No changes to types are anticipated.
+### 3.3. Expected Chronological Order & Behavior (Reaffirmed)
 
-## 4. Implementation Steps
+*   Thinking text streams into its indexed block (initially `type: 'text'`).
+*   If JSON text follows thinking (even in the same `text_chunk` that contains `</thinking>`), `text_delta` immediately splits the post-thinking part and routes it to a *new* `json_stream` block (pushed to the end). The indexed block's text is truncated to only include the thinking part.
+*   `content_block_stop` for the original index finalizes the thinking block from `type: 'text'` to `type: 'thinking_finalized'`, using the (now purely thinking) text.
+*   The `json_stream` block (at the end) continues to accumulate its JSON content from subsequent `text_delta` calls (if any).
+*   `stream_end` finalizes any `json_stream` blocks into `final_response_data`.
+*   Tool calls and results are handled as before.
+*   This should prevent JSON mangling and ensure correct styling and ordering.
 
-1.  **Modify `content_block_stop` event listener in `AgentChatView.tsx`:**
-    *   Locate the `eventSource.addEventListener('content_block_stop', ...)` block.
-    *   Inside the `updateStreamingMessageBlocks` callback, specifically within the `else if (currentBlock.type === 'text' && currentBlock.text)` condition:
-        *   Implement the logic to extract `extractedThinkingText` and `textForJsonParsing`.
-        *   Attempt to parse `textForJsonParsing` into `parsedJsonData`.
-        *   Based on whether `extractedThinkingText` and `parsedJsonData` exist:
-            *   If both exist: Update `newBlocks[index]` to be a `text` block with only thinking. Create a new `final_response_data` block for the JSON and `newBlocks.push()` it.
-            *   If only JSON exists: Convert `newBlocks[index]` to `final_response_data`.
-            *   If only thinking exists: Update `newBlocks[index]` to be a `text` block with thinking (and any non-JSON remainder).
-            *   Ensure unique IDs are generated for any newly created blocks.
+### 3.4. Compatibility Confirmation
 
-2.  **Verify/Confirm `tool_result` event listener in `AgentChatView.tsx`:**
-    *   Ensure the logic implemented in the previous iteration (using `findIndex` and `splice`) is correctly in place as per section 3.1.2.
+*   **`src/types/projectManagement.ts`:** Needs updates for `thinking_finalized`, `json_stream`.
+*   **`src/components/common/StreamingMessageContentView.tsx`:** Needs to be updated to handle rendering for `thinking_finalized` (with specific styling) and `json_stream` (as raw streaming text).
 
-3.  **Verify/Confirm `tool_execution_error` event listener in `AgentChatView.tsx`:**
-    *   Ensure the logic implemented in the previous iteration (using `findIndex` and `splice`) is correctly in place as per section 3.1.3.
+## 4. Implementation Steps (Order of file changes adjusted for clarity)
 
-4.  **Testing:**
-    *   Manually test the chat view with an agent that:
-        *   Outputs thinking, then a tool call, then its result, then a final JSON response.
-        *   Outputs thinking and a final JSON response in the same text stream (without an intermediate tool call).
-        *   Outputs only thinking.
-        *   Outputs only a final JSON response.
-        *   Outputs plain text.
-    *   Verify the chronological order in all scenarios.
-    *   Check browser console for any new warnings or errors.
+1.  **Verify `src/types/projectManagement.ts`:**
+    *   Ensure `'thinking_finalized'`, `'json_stream'`, and optional `_originalIndex?: number` are correctly defined in `AgentOutputContentBlock.type`. (Done in previous iteration).
+
+2.  **Verify `src/components/common/StreamingMessageContentView.tsx`:**
+    *   Ensure rendering cases for `'thinking_finalized'` (with styling) and `'json_stream'` (raw text) are correct.
+    *   Ensure `final_response_data` does not use `thinkingText`. (Done in previous iteration).
+
+3.  **Refactor `text_delta` event listener in `AgentChatView.tsx`:**
+    *   Implement the refined logic from section 3.2.1 to handle the split between thinking text (in the indexed block) and subsequent JSON text (in a pushed `json_stream` block), including immediate splitting if `</thinking>` is in the current `text_chunk`.
+
+4.  **Refactor `content_block_stop` event listener in `AgentChatView.tsx`:**
+    *   Implement the simplified logic from section 3.2.2: only convert `text` blocks with thinking content to `thinking_finalized` (storing only inner thinking text). No JSON parsing here.
+
+5.  **Verify `stream_end` event listener in `AgentChatView.tsx`:**
+    *   Ensure it correctly iterates `contentBlocks` and finalizes any `json_stream` blocks to `final_response_data` or `text`. (Logic from previous iteration should be mostly correct).
+
+6.  **Verify `tool_result` and `tool_execution_error` listeners:** (No change expected).
+
+7.  **Testing (Comprehensive):**
+    *   Scenario: Thinking followed immediately by JSON in the same backend stream. Verify JSON streams into its own block at the end from the start.
+    *   Scenario: Only thinking. Verify it's styled correctly.
+    *   Scenario: Thinking, then tool call, then tool result, then final JSON (that was part of the initial stream with thinking).
+    *   Verify no "jump" of the final JSON response.
+    *   Verify thinking text styling is consistently applied.
 
 ## 5. Anticipated Issues/Risks
 
-*   **Complexity in `content_block_stop`:** The logic for handling combined thinking/JSON text streams adds complexity. Careful implementation is needed.
-*   **Off-by-one errors with `splice` (for tool results):** Still relevant, ensure `toolCallBlockIndex + 1` is correct.
-*   **Backend `index` assumptions:** The plan relies on the backend providing consistent `index` values for distinct "operations" (initial text, tool call). If a final JSON response (that was *not* part of an initial text stream with thinking) is sent with an `index` by the backend, the current "push" logic for separated JSON might need refinement to respect that `index` if it's intended to be placed before other later-indexed items. For now, pushing ensures it comes after earlier indexed tool calls.
-*   **Performance:** Still expected to be negligible.
+*   **Complexity in `text_delta` and `content_block_stop`:** The logic to differentiate and route text streams is intricate.
+*   **State management for `json_stream`:** Ensuring only one active `json_stream` is appended per assistant message if multiple `text_delta` chunks trigger the post-thinking logic. A simple flag or checking the last block's type might be needed.
+*   **Finalization of `json_stream`:** Relying on `stream_end` for `json_stream` blocks is a good catch-all.
 
 ## 6. Future Considerations
 
-*   This more robust refactor should significantly improve the chronological accuracy and lay a better foundation for the "simple workflow UI".
-*   Further clarification on the backend's SSE `index` strategy for different content block types could help simplify frontend logic in the long term.
+*   This comprehensive approach should yield the correct visual behavior and robustly handle various streaming sequences.

@@ -128,6 +128,7 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
   }, []);
 
   const handleSend = async (text: string) => {
+    console.log('[handleSend] Invoked with text:', text, 'Timestamp:', Date.now());
     if (!text.trim() || isInitializing || isLoading) return;
     const userMessageContent = text;
     addMessage('user', userMessageContent);
@@ -191,19 +192,34 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
         const eventData = JSON.parse(event.data as string);
         const { index, text_chunk } = eventData;
         if (typeof index === 'number' && typeof text_chunk === 'string') {
-          updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'text') {
-              newBlocks[index] = {
-                ...newBlocks[index],
-                text: (newBlocks[index].text || '') + text_chunk,
-              };
-            } else {
+          updateStreamingMessageBlocks(currentBlocks => { // currentBlocks is AgentOutputContentBlock[]
+            const newBlocks = [...currentBlocks]; // Work with a copy
+            let blockAtIndex = newBlocks[index];
+
+            // Ensure block exists at index, initialize as 'text' if placeholder or new
+            if (!blockAtIndex || blockAtIndex.type === 'placeholder') {
               while (newBlocks.length <= index) {
-                newBlocks.push({ type: 'placeholder', text: '' });
+                // Push placeholders if needed to fill gaps, ensuring they have unique IDs
+                newBlocks.push({ type: 'placeholder', text: '', id: `placeholder-${newBlocks.length}-${Date.now()}` });
               }
-              newBlocks[index] = { type: 'text', text: text_chunk };
+              newBlocks[index] = { type: 'text', text: '', id: `text-idx-${index}-${Date.now()}` };
+              blockAtIndex = newBlocks[index];
             }
+
+            // text_delta ensures the block is 'text' and appends the chunk immutably.
+            const newText = (blockAtIndex.text || '') + text_chunk;
+            const updatedBlockAtIndex = {
+              ...blockAtIndex, // Spread existing properties
+              type: 'text' as const, // Ensure type is 'text'
+              text: newText,
+              id: blockAtIndex.id || `text-idx-${index}-${Date.now()}`, // Ensure ID
+            };
+            newBlocks[index] = updatedBlockAtIndex; // Replace the old block with the new one
+
+            console.log(`[text_delta] index: ${index}, chunk: "${text_chunk}"`);
+            console.log('[text_delta] updatedBlockAtIndex:', JSON.stringify(updatedBlockAtIndex, null, 2));
+            // console.log('[text_delta] newBlocks state before filter:', JSON.stringify(newBlocks, null, 2));
+
             return newBlocks.filter(b => b.type !== 'placeholder');
           });
         }
@@ -267,106 +283,85 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
         const eventData = JSON.parse(event.data as string);
         const { index } = eventData;
         if (typeof index === 'number') {
-          updateStreamingMessageBlocks(blocks => {
-            let newBlocks = [...blocks];
-            if (index < newBlocks.length && newBlocks[index]) {
-              const currentBlock = newBlocks[index];
+          updateStreamingMessageBlocks((currentContentBlocks: AgentOutputContentBlock[]) => {
+            // Use flatMap to replace the block at 'index' with potentially multiple new blocks
+            return currentContentBlocks.flatMap((block, i) => {
+              if (i === index) {
+                console.log(`[content_block_stop] Processing block at index: ${index}`, JSON.stringify(block, null, 2));
+                const blockToProcess = block;
+                const processedSubBlocks: AgentOutputContentBlock[] = [];
 
-              if (currentBlock.type === 'tool_use') {
-                const toolBlock = currentBlock as any;
-                if (toolBlock._accumulatedJsonInput) {
-                  try {
-                    const parsedInput = JSON.parse(toolBlock._accumulatedJsonInput);
-                    newBlocks[index] = {
-                      ...toolBlock,
-                      input: parsedInput,
-                    };
-                    delete (newBlocks[index] as any)._accumulatedJsonInput;
-                    if ((newBlocks[index] as any).input?._partialInput) {
-                      delete (newBlocks[index] as any).input._partialInput;
-                    }
-                    if (Object.keys((newBlocks[index] as any).input).length === 0) {
-                       newBlocks[index].input = {};
-                    }
-                  } catch (e) {
-                    console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
-                    newBlocks[index] = {
-                      ...toolBlock,
-                      input: { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput },
-                    };
-                     delete (newBlocks[index]as any)._accumulatedJsonInput;
-                     if ((newBlocks[index] as any).input?._partialInput) {
-                      delete (newBlocks[index] as any).input._partialInput;
+                if (blockToProcess.type === 'tool_use') {
+                  const toolBlock = blockToProcess as any; // Cast for internal props
+                  let finalizedInput = toolBlock.input;
+                  if (toolBlock._accumulatedJsonInput) {
+                    try {
+                      finalizedInput = JSON.parse(toolBlock._accumulatedJsonInput);
+                    } catch (e) {
+                      console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
+                      finalizedInput = { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput };
                     }
                   }
-                }
-              } else if (currentBlock.type === 'text' && currentBlock.text) {
-                const textContent = currentBlock.text;
-                const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
-                const thinkingMatch = textContent.match(thinkingRegex);
+                  // Return an array with the single finalized tool_use block
+                  return [{
+                    ...toolBlock,
+                    input: finalizedInput,
+                    _accumulatedJsonInput: undefined,
+                    _partialInput: undefined,
+                  }];
+                } else if (blockToProcess.type === 'text' && blockToProcess.text) {
+                  const rawText = blockToProcess.text;
+                  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
+                  const thinkingMatch = rawText.match(thinkingRegex);
+                  let remainingText = rawText;
 
-                let extractedThinkingText: string | undefined = undefined;
-                let textForJsonParsing = textContent;
-
-                if (thinkingMatch && thinkingMatch[1]) {
-                  extractedThinkingText = thinkingMatch[1].trim();
-                  textForJsonParsing = textContent.replace(thinkingRegex, '').trim();
-                }
-
-                let jsonParsedSuccessfully = false;
-                let parsedJsonData: Record<string, any> | undefined = undefined;
-
-                if (textForJsonParsing) {
-                  try {
-                    parsedJsonData = JSON.parse(textForJsonParsing);
-                    jsonParsedSuccessfully = true;
-                  } catch (jsonError) {
-                    // Not valid JSON, or empty string after thinking tags
+                  if (thinkingMatch && thinkingMatch[1]) {
+                    const thinkingContent = thinkingMatch[1].trim();
+                    if (thinkingContent) { // Only add if there's actual thinking content
+                      processedSubBlocks.push({
+                        type: 'thinking_finalized',
+                        text: thinkingContent,
+                        id: `${blockToProcess.id || 'block'}-${index}-thinking-${Date.now()}`,
+                      });
+                    }
+                    remainingText = rawText.substring(thinkingMatch[0].length).trim();
                   }
-                }
 
-                if (extractedThinkingText && jsonParsedSuccessfully && parsedJsonData) {
-                  // Scenario 1: Both thinking and valid JSON found.
-                  // Update current block to be ONLY thinking text.
-                  newBlocks[index] = {
-                    ...currentBlock,
-                    id: currentBlock.id || `thinking-${Date.now()}`, // Ensure ID
-                    type: 'text',
-                    text: `<thinking>${extractedThinkingText}</thinking>`,
-                  };
-                  // Create a NEW block for final_response_data and PUSH it.
-                  const finalResponseBlock: AgentOutputContentBlock = {
-                    type: 'final_response_data',
-                    id: `final-response-${Date.now()}`,
-                    parsedJson: parsedJsonData,
-                    thinkingText: undefined, // Thinking is separate
-                    text: textForJsonParsing,
-                  };
-                  newBlocks.push(finalResponseBlock);
-                } else if (jsonParsedSuccessfully && parsedJsonData) {
-                  // Scenario 2: Only JSON found (no preceding thinking in this block).
-                  newBlocks[index] = {
-                    ...currentBlock,
-                    id: currentBlock.id || `final-response-idx-${Date.now()}`, // Ensure ID
-                    type: 'final_response_data',
-                    parsedJson: parsedJsonData,
-                    thinkingText: undefined,
-                    text: textForJsonParsing,
-                  };
-                } else if (extractedThinkingText) {
-                  // Scenario 3: Only thinking text found (rest wasn't valid JSON).
-                  newBlocks[index] = {
-                    ...currentBlock,
-                    id: currentBlock.id || `thinking-only-${Date.now()}`, // Ensure ID
-                    type: 'text',
-                    // Keep original non-JSON text if any, after the thinking part
-                    text: `<thinking>${extractedThinkingText}</thinking>` + (textForJsonParsing ? ` ${textForJsonParsing}` : ''),
-                  };
+                  if (remainingText) {
+                    try {
+                      const parsedJson = JSON.parse(remainingText);
+                      processedSubBlocks.push({
+                        type: 'final_response_data',
+                        parsedJson: parsedJson,
+                        text: remainingText, // Keep raw JSON string
+                        id: `${blockToProcess.id || 'block'}-${index}-json-${Date.now()}`,
+                      });
+                    } catch (e) {
+                      if (remainingText.trim()) { // Only add if non-empty, non-JSON
+                        processedSubBlocks.push({
+                          type: 'text',
+                          text: remainingText.trim(),
+                          id: `${blockToProcess.id || 'block'}-${index}-plaintext-${Date.now()}`,
+                        });
+                      }
+                    }
+                  }
+                  // If processedSubBlocks is empty, it means the original text block was effectively empty
+                  // (e.g., just "<thinking></thinking>" or whitespace). Returning an empty array removes it.
+                  console.log(`[content_block_stop] index: ${index}, generated subBlocks:`, JSON.stringify(processedSubBlocks, null, 2));
+                  return processedSubBlocks;
                 }
-                // Scenario 4: Plain text, no thinking, not JSON - block remains as is from text_delta.
+                // If not 'tool_use' or processable 'text', return the original block in an array
+                console.log(`[content_block_stop] index: ${index}, block not processed (kept as is):`, JSON.stringify(blockToProcess, null, 2));
+                return [blockToProcess];
               }
-            }
-            return newBlocks.filter(b => b.type !== 'placeholder');
+              // Not the block at 'index', return as is in an array for flatMap
+              return [block];
+            }).filter(b => {
+              const keep = b && b.type !== 'placeholder';
+              // if (!keep) console.log('[content_block_stop] Filtering out block:', JSON.stringify(b, null, 2));
+              return keep;
+            }); // Ensure no null/undefined from flatMap and filter placeholders
           });
         }
       } catch (e) {
@@ -450,6 +445,8 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
 
     eventSource.addEventListener('stream_end', (event) => {
       console.log('SSE stream_end:', event.data);
+      // content_block_stop is now responsible for all parsing and type conversion.
+      // stream_end just marks the message as no longer streaming.
       setMessages(prevMessages =>
         prevMessages.map(msg =>
           msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg

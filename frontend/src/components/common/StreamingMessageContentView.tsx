@@ -20,47 +20,40 @@ const StreamingMessageContentView: React.FC<StreamingMessageContentViewProps> = 
         const key = block.id ? `${block.type}-${block.id}-${index}` : `${block.type}-${index}`;
 
         switch (block.type) {
+          case 'thinking_finalized':
+            return (
+              <div key={key} className="whitespace-pre-wrap p-2 my-1 border border-dashed border-dracula-comment rounded-md bg-dracula-current-line bg-opacity-30">
+                <span className="text-xs text-dracula-comment italic">Thinking:</span>
+                <div className="text-sm">{block.text}</div> {/* block.text now holds the thinking content */}
+              </div>
+            );
+
           case 'final_response_data':
             return (
               <div key={key}>
-                {block.thinkingText && (
-                  <div className="whitespace-pre-wrap p-2 my-1 border border-dashed border-dracula-comment rounded-md bg-dracula-current-line bg-opacity-30">
-                    <span className="text-xs text-dracula-comment italic">Thinking:</span>
-                    <div className="text-sm">{block.thinkingText}</div>
-                  </div>
-                )}
+                {/* thinkingText property is no longer used here; thinking is handled by 'thinking_finalized' type */}
                 {block.parsedJson && (
                   <StructuredResponseView data={block.parsedJson} />
                 )}
-                {!block.parsedJson && block.text && ( // Fallback for raw JSON string if parsing failed at view but was intended
-                  <div className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>
+                {!block.parsedJson && block.text && (
+                  // This case might occur if json_stream failed to parse but was finalized as final_response_data with raw text
+                  <div className="whitespace-pre-wrap text-xs text-dracula-red italic">Raw (Unparsed) Response: {block.text}</div>
                 )}
               </div>
             );
-          // case 'structured_json': // This type is now replaced by 'final_response_data'
-          //   if (block.parsedJson) {
-          //     return <StructuredResponseView key={key} data={block.parsedJson} />;
-          //   }
-          //   // Fallback if parsedJson is somehow missing, try to parse from text
-          //   if (typeof block.text === 'string') {
-          //     try {
-          //       const jsonData = JSON.parse(block.text);
-          //       if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
-          //         return <StructuredResponseView key={key} data={jsonData} />;
-          //       }
-          //     } catch (e) { /* Fall through to render as text */ }
-          //   }
-          //   // If all else fails, render the raw text of the supposed JSON
-          //   return <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic">Raw JSON: {block.text}</div>;
 
           case 'text':
-            // This case now primarily handles non-JSON text, like <thinking> blocks that weren't part of final_response_data
-            // or text that failed to parse as JSON in the 'final_response_data' case's fallback.
+            // This case now handles plain text from the agent, or text that was part of thinking stream before finalization.
+            // Also, user messages if this component were used for them (though typically it's for assistant messages).
             if (typeof block.text === 'string') {
+              // Avoid rendering raw <thinking> tags if a block is temporarily 'text' during streaming
+              if (block.text.startsWith("<thinking>") && block.text.endsWith("</thinking>")) {
+                 // Potentially show a generic "Assistant is working..." or the raw text if preferred during transition
+                 return <div key={key} className="whitespace-pre-wrap text-xs text-dracula-comment italic">Processing...</div>;
+              }
               return <div key={key} className="whitespace-pre-wrap">{block.text}</div>;
             }
-            // If block.text was already an object (should be rare now with AgentChatView changes)
-            if (typeof block.text === 'object' && block.text !== null) {
+            if (typeof block.text === 'object' && block.text !== null) { // Should be rare
               return <StructuredResponseView key={key} data={block.text as Record<string, any>} />;
             }
             return null;
