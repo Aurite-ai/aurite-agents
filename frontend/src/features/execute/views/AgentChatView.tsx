@@ -309,42 +309,61 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
                 let textForJsonParsing = textContent;
 
                 if (thinkingMatch && thinkingMatch[1]) {
-                  extractedThinkingText = thinkingMatch[1].trim(); // Extracted content of <thinking>
+                  extractedThinkingText = thinkingMatch[1].trim();
                   textForJsonParsing = textContent.replace(thinkingRegex, '').trim();
                 }
 
-                try {
-                  // Attempt to parse the remaining text (or full text if no thinking tags) as JSON
-                  const parsedJsonData = JSON.parse(textForJsonParsing);
+                let jsonParsedSuccessfully = false;
+                let parsedJsonData: Record<string, any> | undefined = undefined;
 
-                  // If JSON parsing is successful, update the block in place
-                  newBlocks[index] = {
-                    ...currentBlock, // Preserve other properties like id if any
-                    type: 'final_response_data',
-                    thinkingText: extractedThinkingText,
-                    parsedJson: parsedJsonData,
-                    text: textForJsonParsing, // Store the raw JSON string part
-                  };
-                } catch (jsonError) {
-                  // Not valid JSON.
-                  // If there was thinking text, we might want to ensure it's displayed.
-                  // For now, the block remains a 'text' block with its original content,
-                  // or if thinking was extracted, it could be split if desired,
-                  // but current approach is to modify in place or leave as 'text'.
-                  // If only thinkingText was found and the rest wasn't JSON,
-                  // we could make it a 'text' block with just thinkingText,
-                  // but for simplicity, if it's not 'final_response_data', it's just 'text'.
-                  // The current logic will leave it as a 'text' block with original textContent.
-                  // If we want to *only* show thinking if the rest isn't JSON:
-                  if (extractedThinkingText && textForJsonParsing === '') {
-                     newBlocks[index] = { ...currentBlock, type: 'text', text: `<thinking>${extractedThinkingText}</thinking>` };
-                  } else if (extractedThinkingText) {
-                    // Contains thinking and other non-JSON text. Render as single text block for now.
-                    // Or, could split into two text blocks if preferred.
-                    // For simplicity, keep as one. The StreamingMessageContentView will show the whole text.
+                if (textForJsonParsing) {
+                  try {
+                    parsedJsonData = JSON.parse(textForJsonParsing);
+                    jsonParsedSuccessfully = true;
+                  } catch (jsonError) {
+                    // Not valid JSON, or empty string after thinking tags
                   }
-                  // If no thinking and not JSON, it's already a plain text block.
                 }
+
+                if (extractedThinkingText && jsonParsedSuccessfully && parsedJsonData) {
+                  // Scenario 1: Both thinking and valid JSON found.
+                  // Update current block to be ONLY thinking text.
+                  newBlocks[index] = {
+                    ...currentBlock,
+                    id: currentBlock.id || `thinking-${Date.now()}`, // Ensure ID
+                    type: 'text',
+                    text: `<thinking>${extractedThinkingText}</thinking>`,
+                  };
+                  // Create a NEW block for final_response_data and PUSH it.
+                  const finalResponseBlock: AgentOutputContentBlock = {
+                    type: 'final_response_data',
+                    id: `final-response-${Date.now()}`,
+                    parsedJson: parsedJsonData,
+                    thinkingText: undefined, // Thinking is separate
+                    text: textForJsonParsing,
+                  };
+                  newBlocks.push(finalResponseBlock);
+                } else if (jsonParsedSuccessfully && parsedJsonData) {
+                  // Scenario 2: Only JSON found (no preceding thinking in this block).
+                  newBlocks[index] = {
+                    ...currentBlock,
+                    id: currentBlock.id || `final-response-idx-${Date.now()}`, // Ensure ID
+                    type: 'final_response_data',
+                    parsedJson: parsedJsonData,
+                    thinkingText: undefined,
+                    text: textForJsonParsing,
+                  };
+                } else if (extractedThinkingText) {
+                  // Scenario 3: Only thinking text found (rest wasn't valid JSON).
+                  newBlocks[index] = {
+                    ...currentBlock,
+                    id: currentBlock.id || `thinking-only-${Date.now()}`, // Ensure ID
+                    type: 'text',
+                    // Keep original non-JSON text if any, after the thinking part
+                    text: `<thinking>${extractedThinkingText}</thinking>` + (textForJsonParsing ? ` ${textForJsonParsing}` : ''),
+                  };
+                }
+                // Scenario 4: Plain text, no thinking, not JSON - block remains as is from text_delta.
               }
             }
             return newBlocks.filter(b => b.type !== 'placeholder');
@@ -370,16 +389,26 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
             } else {
                 resultBlockContent = String(output);
             }
-            // Append the new tool_result block
-            newBlocks.push({
+            const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
+
+            const newToolResultBlock: AgentOutputContentBlock = {
               type: 'tool_result',
-              id: `tool_result_for_${tool_use_id}_${blocks.length}`, // Unique ID
+              id: `tool_result_for_${tool_use_id}_${Date.now()}`, // More robust unique ID
               tool_use_id: tool_use_id,
               content: resultBlockContent as any,
               is_error: is_error || false,
               name: name,
-            });
-            return newBlocks; // No filter needed as we are appending
+            };
+
+            if (toolCallBlockIndex !== -1) {
+              newBlocks.splice(toolCallBlockIndex + 1, 0, newToolResultBlock);
+            } else {
+              console.warn(`Tool call with id ${tool_use_id} not found for tool result. Appending result as fallback.`);
+              newBlocks.push(newToolResultBlock);
+            }
+            // It's good practice to still filter placeholders if they could somehow be re-introduced,
+            // though with splice and targeted insertion, it's less likely for this specific operation.
+            return newBlocks.filter(b => b.type !== 'placeholder');
           });
         }
       } catch (e) {
@@ -394,16 +423,24 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
         if (tool_use_id && error_message) {
           updateStreamingMessageBlocks(blocks => {
             const newBlocks = [...blocks];
-            // Append the new tool_execution_error block (as a tool_result type)
-            newBlocks.push({
-              type: 'tool_result',
-              id: `tool_error_for_${tool_use_id}_${blocks.length}`,
+            const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
+
+            const newToolErrorBlock: AgentOutputContentBlock = {
+              type: 'tool_result', // Representing an error as a type of tool result
+              id: `tool_error_for_${tool_use_id}_${Date.now()}`, // Unique ID
               tool_use_id: tool_use_id,
               content: error_message || "Unknown tool execution error",
               is_error: true,
               name: tool_name,
-            });
-            return newBlocks; // No filter needed
+            };
+
+            if (toolCallBlockIndex !== -1) {
+              newBlocks.splice(toolCallBlockIndex + 1, 0, newToolErrorBlock);
+            } else {
+              console.warn(`Tool call with id ${tool_use_id} not found for tool execution error. Appending error as fallback.`);
+              newBlocks.push(newToolErrorBlock);
+            }
+            return newBlocks.filter(b => b.type !== 'placeholder');
           });
         }
       } catch (e) {
