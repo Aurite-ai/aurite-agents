@@ -338,4 +338,17 @@ export async function executeSimpleWorkflowAPI(workflowName: string, initialUser
   return response.json();
 }
 
+export async function getActiveProjectComponentConfig(projectComponentType: string, componentName: string): Promise<any> {
+  const encodedComponentName = encodeURIComponent(componentName);
+  // Ensure projectComponentType matches the expected path segments like "agents", "simple_workflows", etc.
+  const url = `/projects/active/component/${projectComponentType}/${encodedComponentName}`;
+
+  const response = await apiClient(url, { method: 'GET' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || `Failed to get active project component ${componentName} of type ${projectComponentType}`, status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
 // TODO: Add listRegisteredSimpleWorkflows etc. when needed

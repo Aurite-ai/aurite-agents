@@ -5,19 +5,28 @@ import {
   getSpecificComponentConfig,
   registerCustomWorkflowAPI,
   registerSimpleWorkflowAPI,
-  registerAgentAPI, // Added for agent registration consistency
-  registerLlmConfigAPI, // Added for agent LLM config registration
+  registerAgentAPI,
+  registerLlmConfigAPI,
+  getActiveProjectComponentConfig,
+  getConfigFileContent // Added
 } from '../../../lib/apiClient';
 // Corrected import for SelectedSidebarItemType
 import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar';
-import type { CustomWorkflowConfig, WorkflowConfig, AgentConfig, LLMConfig } from '../../../types/projectManagement'; // Added AgentConfig, LLMConfig
+import type { CustomWorkflowConfig, WorkflowConfig, AgentConfig, LLMConfig } from '../../../types/projectManagement';
 import AgentChatView from './AgentChatView';
 import CustomWorkflowExecuteView from './CustomWorkflowExecuteView';
 import SimpleWorkflowExecuteView from './SimpleWorkflowExecuteView';
+import {
+    listRegisteredAgents, // Keep for project-defined components
+    listRegisteredSimpleWorkflows, // Keep for project-defined components
+    listRegisteredCustomWorkflows // Keep for project-defined components
+} from '../../../lib/apiClient'; // Ensure these are still imported if used below
 
 interface ExecutableItem {
-  name: string;
+  id: string; // Unique ID (filename without .json or registered name)
+  displayName: string; // Name to show in UI
   type: SelectedSidebarItemType;
+  source: 'file' | 'project'; // To distinguish origin
 }
 
 const ExecuteView: React.FC = () => {
@@ -37,43 +46,87 @@ const ExecuteView: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setAgents([]);
+    setAgents([]); // Clear previous lists
     setSimpleWorkflows([]);
     setCustomWorkflows([]);
 
-    const extractName = (filename: string) => filename.replace(/\.json$/, '');
+    const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, '');
+
+    const fetchAndMergeItems = async (
+      uiComponentType: SelectedSidebarItemType, // e.g., 'agents', 'simple_workflows'
+      listRegisteredFn: () => Promise<string[]>, // Function to get names from active project
+      // API key for listConfigFiles & getConfigFileContent (e.g., "agents", "simple_workflows")
+      configFileApiType: "agents" | "simple_workflows" | "custom_workflows" | "llms"
+    ): Promise<ExecutableItem[]> => {
+      const itemMap = new Map<string, ExecutableItem>();
+
+      // 1. Fetch components from individual config files
+      try {
+        const filenames = await listConfigFiles(configFileApiType);
+        for (const fname of filenames) {
+          try {
+            const fileContent = await getConfigFileContent(configFileApiType, fname);
+
+            if (Array.isArray(fileContent)) { // File contains a list of components
+              fileContent.forEach((componentConfig: any) => {
+                const id = componentConfig.name; // Assuming 'name' is the ID field
+                if (id && typeof id === 'string') {
+                  itemMap.set(id, { id, displayName: id, type: uiComponentType, source: 'file' });
+                } else {
+                  console.warn(`Component in file ${fname} (type ${configFileApiType}) is missing a 'name' or has invalid name.`);
+                }
+              });
+            } else if (typeof fileContent === 'object' && fileContent !== null) { // File contains a single component object
+              const id = fileContent.name || extractNameFromFilename(fname); // Use 'name' field or fallback to filename
+              if (id && typeof id === 'string') {
+                 itemMap.set(id, { id, displayName: id, type: uiComponentType, source: 'file' });
+              } else {
+                 console.warn(`Could not determine ID for single component in ${fname} (type ${configFileApiType}).`);
+              }
+            } else {
+              console.warn(`Content of file ${fname} (type ${configFileApiType}) is not an array or a valid object. Skipping.`);
+            }
+          } catch (fileContentError) {
+            console.error(`Error fetching or parsing content of ${fname} for ${configFileApiType}:`, fileContentError);
+          }
+        }
+      } catch (e) {
+        console.error(`Error listing config files for ${configFileApiType}:`, e);
+      }
+
+      // 2. Fetch project-registered components
+      try {
+        const registeredNames = await listRegisteredFn();
+        registeredNames.forEach(name => {
+          if (!itemMap.has(name)) { // Add only if not already present from file-based (file takes precedence)
+            itemMap.set(name, { id: name, displayName: name, type: uiComponentType, source: 'project' });
+          }
+        });
+      } catch (e) {
+        console.error(`Error listing registered ${uiComponentType}:`, e);
+      }
+      return Array.from(itemMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    };
 
     try {
       const promises = [];
       if (selectedComponent === null || selectedComponent === 'agents') {
-        promises.push(
-          listConfigFiles("agents").then(filenames =>
-            setAgents(filenames.map(fname => ({ name: extractName(fname), type: 'agents' })))
-          )
-        );
+        promises.push(fetchAndMergeItems('agents', listRegisteredAgents, 'agents').then(setAgents));
       }
       if (selectedComponent === null || selectedComponent === 'simple_workflows') {
-        promises.push(
-          listConfigFiles("simple_workflows").then(filenames =>
-            setSimpleWorkflows(filenames.map(fname => ({ name: extractName(fname), type: 'simple_workflows' })))
-          )
-        );
+        promises.push(fetchAndMergeItems('simple_workflows', listRegisteredSimpleWorkflows, 'simple_workflows').then(setSimpleWorkflows));
       }
       if (selectedComponent === null || selectedComponent === 'custom_workflows') {
-        promises.push(
-          listConfigFiles("custom_workflows").then(filenames =>
-            setCustomWorkflows(filenames.map(fname => ({ name: extractName(fname), type: 'custom_workflows' })))
-          )
-        );
+        promises.push(fetchAndMergeItems('custom_workflows', listRegisteredCustomWorkflows, 'custom_workflows').then(setCustomWorkflows));
       }
       await Promise.all(promises);
     } catch (err) {
-      console.error('Error fetching component files for execution:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      console.error('Error fetching and merging executable components:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching components.');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedComponent]);
+  }, [selectedComponent]); // Removed getConfigFileContent from deps as it's stable from import
 
   useEffect(() => {
     setSelectedAgentForChat(null);
@@ -82,59 +135,95 @@ const ExecuteView: React.FC = () => {
     fetchData();
   }, [selectedComponent, fetchData]);
 
-  const performAgentRegistration = async (agentName: string): Promise<boolean> => {
+  // getActiveProjectComponentConfig is now directly imported
+
+  const performAgentRegistration = async (item: ExecutableItem): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
-      const agentConfig: AgentConfig = await getSpecificComponentConfig("agents", agentName);
+      let agentConfig: AgentConfig;
+      if (item.source === 'project') {
+        agentConfig = await getActiveProjectComponentConfig("agents", item.id);
+      } else { // source === 'file'
+        agentConfig = await getSpecificComponentConfig("agents", item.id);
+      }
+
+      if (!agentConfig) throw new Error(`Agent config for ${item.displayName} not found.`);
+
       if (agentConfig.llm_config_id) {
-        const llmConfig: LLMConfig = await getSpecificComponentConfig("llms", agentConfig.llm_config_id);
-        await registerLlmConfigAPI(llmConfig);
+        let llmConfig: LLMConfig | null = null;
+        // Try fetching LLM config from project first, then from file
+        try {
+          llmConfig = await getActiveProjectComponentConfig("llm_configs", agentConfig.llm_config_id);
+        } catch (projectLlmError) {
+          console.warn(`LLM config ${agentConfig.llm_config_id} not found in project, trying file-based.`);
+          try {
+            llmConfig = await getSpecificComponentConfig("llms", agentConfig.llm_config_id);
+          } catch (fileLlmError) {
+            console.error(`LLM config ${agentConfig.llm_config_id} not found in project or as file.`);
+            throw new Error(`Required LLM config ${agentConfig.llm_config_id} not found.`);
+          }
+        }
+        if (llmConfig) {
+          await registerLlmConfigAPI(llmConfig);
+        } else {
+           // This case should ideally be caught by the errors above
+           throw new Error(`LLM config ${agentConfig.llm_config_id} could not be loaded.`);
+        }
       }
       await registerAgentAPI(agentConfig);
       setIsLoading(false);
       return true;
     } catch (err) {
-      console.error(`Error registering agent ${agentName}:`, err);
+      console.error(`Error registering agent ${item.displayName}:`, err);
       const apiError = err as any;
-      setError(apiError.message || `Failed to register agent ${agentName}.`);
+      setError(apiError.message || `Failed to register agent ${item.displayName}.`);
       setIsLoading(false);
       return false;
     }
   };
 
-  const performCustomWorkflowRegistration = async (workflowName: string): Promise<boolean> => {
+  const performCustomWorkflowRegistration = async (item: ExecutableItem): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
-      const config: CustomWorkflowConfig = await getSpecificComponentConfig("custom_workflows", workflowName);
+      let config: CustomWorkflowConfig;
+      if (item.source === 'project') {
+        config = await getActiveProjectComponentConfig("custom_workflows", item.id);
+      } else { // source === 'file'
+        config = await getSpecificComponentConfig("custom_workflows", item.id);
+      }
+      if (!config) throw new Error(`Custom workflow config for ${item.displayName} not found.`);
       await registerCustomWorkflowAPI(config);
       setIsLoading(false);
       return true;
     } catch (err) {
-      console.error(`Error registering custom workflow ${workflowName}:`, err);
+      console.error(`Error registering custom workflow ${item.displayName}:`, err);
       const apiError = err as any;
-      setError(apiError.message || `Failed to register custom workflow ${workflowName}.`);
+      setError(apiError.message || `Failed to register custom workflow ${item.displayName}.`);
       setIsLoading(false);
       return false;
     }
   };
 
-  // Removed the first, incomplete handleItemSelect here.
-  // The consolidated one is below.
-
-  const performSimpleWorkflowRegistration = async (workflowName: string): Promise<boolean> => {
+  const performSimpleWorkflowRegistration = async (item: ExecutableItem): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
-      const config: WorkflowConfig = await getSpecificComponentConfig("simple_workflows", workflowName); // Reverted "workflows" back to "simple_workflows"
+      let config: WorkflowConfig;
+      if (item.source === 'project') {
+        config = await getActiveProjectComponentConfig("simple_workflows", item.id);
+      } else { // source === 'file'
+        config = await getSpecificComponentConfig("simple_workflows", item.id);
+      }
+      if (!config) throw new Error(`Simple workflow config for ${item.displayName} not found.`);
       await registerSimpleWorkflowAPI(config);
       setIsLoading(false);
       return true;
     } catch (err) {
-      console.error(`Error registering simple workflow ${workflowName}:`, err);
+      console.error(`Error registering simple workflow ${item.displayName}:`, err);
       const apiError = err as any;
-      setError(apiError.message || `Failed to register simple workflow ${workflowName}.`);
+      setError(apiError.message || `Failed to register simple workflow ${item.displayName}.`);
       setIsLoading(false);
       return false;
     }
@@ -142,28 +231,28 @@ const ExecuteView: React.FC = () => {
 
   const handleItemSelect = async (item: ExecutableItem) => {
     if (item.type === 'agents') {
-      const registrationSuccess = await performAgentRegistration(item.name);
+      const registrationSuccess = await performAgentRegistration(item);
       if (registrationSuccess) {
-        setSelectedAgentForChat(item.name);
+        setSelectedAgentForChat(item.id); // Use item.id
         setSelectedCustomWorkflowForExecution(null);
         setSelectedSimpleWorkflowForExecution(null);
       }
     } else if (item.type === 'custom_workflows') {
-      const registrationSuccess = await performCustomWorkflowRegistration(item.name);
+      const registrationSuccess = await performCustomWorkflowRegistration(item);
       if (registrationSuccess) {
-        setSelectedCustomWorkflowForExecution(item.name);
+        setSelectedCustomWorkflowForExecution(item.id); // Use item.id
         setSelectedAgentForChat(null);
         setSelectedSimpleWorkflowForExecution(null);
       }
     } else if (item.type === 'simple_workflows') {
-      const registrationSuccess = await performSimpleWorkflowRegistration(item.name);
+      const registrationSuccess = await performSimpleWorkflowRegistration(item);
       if (registrationSuccess) {
-        setSelectedSimpleWorkflowForExecution(item.name);
+        setSelectedSimpleWorkflowForExecution(item.id); // Use item.id
         setSelectedAgentForChat(null);
         setSelectedCustomWorkflowForExecution(null);
       }
     } else {
-      console.log(`Selected ${item.type}: ${item.name} - Execution UI TBD`);
+      console.log(`Selected ${item.type}: ${item.displayName} - Execution UI TBD`);
       setSelectedAgentForChat(null);
       setSelectedCustomWorkflowForExecution(null);
       setSelectedSimpleWorkflowForExecution(null);
@@ -222,7 +311,7 @@ const ExecuteView: React.FC = () => {
         <h4 className="text-xl font-semibold text-dracula-cyan mb-3">{title}</h4>
         <ul className="space-y-2">
           {items.map(item => (
-            <li key={`${item.type}-${item.name}`}>
+            <li key={`${item.type}-${item.id}`}> {/* Changed item.name to item.id */}
               <button
                 onClick={() => handleItemSelect(item)}
                 className={`w-full text-left p-3 rounded-md text-sm transition-colors duration-150 ease-in-out
@@ -230,7 +319,7 @@ const ExecuteView: React.FC = () => {
                   bg-dracula-current-line hover:bg-opacity-80 text-dracula-foreground focus:bg-dracula-comment focus:bg-opacity-50
                 `}
               >
-                {item.name}
+                {item.displayName} {/* Use item.displayName */}
               </button>
             </li>
           ))}
