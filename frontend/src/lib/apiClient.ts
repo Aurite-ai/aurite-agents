@@ -215,7 +215,15 @@ export async function getSpecificComponentConfig(componentType: string, idOrName
 // --- Execution Tab API Functions ---
 
 // Import specific types for better type safety
-import type { AgentConfig, LLMConfig, AgentExecutionResult } from '../types/projectManagement'; // Ensure these are exported
+import type {
+  AgentConfig,
+  LLMConfig,
+  AgentExecutionResult,
+  CustomWorkflowConfig,
+  ExecuteCustomWorkflowResponse,
+  WorkflowConfig, // Added
+  ExecuteWorkflowResponse // Added
+} from '../types/projectManagement'; // Ensure these are exported
 
 export async function listRegisteredAgents(): Promise<string[]> {
   const response = await apiClient('/components/agents', { method: 'GET' });
@@ -280,4 +288,54 @@ export async function executeAgentAPI(agentName: string, userMessage: string, sy
   return response.json();
 }
 
-// TODO: Add registerWorkflowAPI, listRegisteredSimpleWorkflows, listRegisteredCustomWorkflows, executeWorkflowAPI etc. when needed
+export async function registerCustomWorkflowAPI(customWorkflowConfig: CustomWorkflowConfig): Promise<any> {
+  const response = await apiClient('/custom_workflows/register', {
+    method: 'POST',
+    body: customWorkflowConfig,
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || 'Failed to register custom workflow', status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
+export async function executeCustomWorkflowAPI(workflowName: string, initialInput: any): Promise<ExecuteCustomWorkflowResponse> {
+  const encodedWorkflowName = encodeURIComponent(workflowName);
+  const response = await apiClient(`/custom_workflows/${encodedWorkflowName}/execute`, {
+    method: 'POST',
+    body: { initial_input: initialInput },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || `Failed to execute custom workflow ${workflowName}`, status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
+export async function registerSimpleWorkflowAPI(workflowConfig: WorkflowConfig): Promise<any> {
+  const response = await apiClient('/workflows/register', {
+    method: 'POST',
+    body: workflowConfig,
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || 'Failed to register simple workflow', status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
+export async function executeSimpleWorkflowAPI(workflowName: string, initialUserMessage: string): Promise<ExecuteWorkflowResponse> {
+  const encodedWorkflowName = encodeURIComponent(workflowName);
+  const response = await apiClient(`/workflows/${encodedWorkflowName}/execute`, {
+    method: 'POST',
+    body: { initial_user_message: initialUserMessage },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || `Failed to execute simple workflow ${workflowName}`, status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
+// TODO: Add listRegisteredSimpleWorkflows etc. when needed

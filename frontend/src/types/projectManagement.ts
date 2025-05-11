@@ -117,3 +117,25 @@ export interface AgentExecutionResult {
   tool_uses_in_final_turn?: Record<string, any>[]; // List of dicts
   error?: string;
 }
+
+export interface ExecuteCustomWorkflowRequest { // Already defined in backend, adding here for frontend use if needed
+  initial_input: any;
+}
+
+export interface ExecuteCustomWorkflowResponse {
+  workflow_name: string;
+  status: 'completed' | 'failed';
+  result?: any;
+  error?: string;
+}
+
+export interface ExecuteWorkflowRequest {
+  initial_user_message: string;
+}
+
+export interface ExecuteWorkflowResponse {
+  workflow_name: string;
+  status: 'completed' | 'failed';
+  final_message?: string;
+  error?: string;
+}
