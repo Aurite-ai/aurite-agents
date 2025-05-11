@@ -371,4 +371,13 @@ export async function saveNewConfigFile(componentApiType: string, filename: stri
   return response.json(); // Assuming backend returns the created/saved config or a success message
 }
 
+export async function getActiveProjectFullConfig(): Promise<ProjectConfig> {
+  const response = await apiClient('/projects/get_active_project_config', { method: 'GET' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || 'Failed to get active project configuration', status: response.status, details: errorData } as ApiError;
+  }
+  return response.json() as Promise<ProjectConfig>;
+}
+
 // TODO: Add listRegisteredSimpleWorkflows etc. when needed
