@@ -6,6 +6,7 @@ import useUIStore from '../../store/uiStore'; // Adjust path as needed
 // Import the general ConfigListView instead of the specific ConfigureAgentsView
 import ConfigListView from '../../features/configure/views/ConfigListView';
 import ExecuteView from '../../features/execute/views/ExecuteView'; // Import ExecuteView
+import BuildView from '../../features/build/views/BuildView'; // Added BuildView import
 
 const Layout: React.FC = () => {
   const {
@@ -37,6 +38,9 @@ const Layout: React.FC = () => {
     }
     if (selectedAction === 'execute') {
       return <ExecuteView />;
+    }
+    if (selectedAction === 'build') { // Added case for 'build'
+      return <BuildView />;
     }
     // Add more conditions here for other views as they are created
 

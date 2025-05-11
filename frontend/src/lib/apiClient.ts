@@ -351,4 +351,24 @@ export async function getActiveProjectComponentConfig(projectComponentType: stri
   return response.json();
 }
 
+export async function saveNewConfigFile(componentApiType: string, filename: string, configData: object): Promise<any> {
+  // componentApiType should be the direct path segment expected by the backend API
+  // e.g., "agents", "llm-configs", "simple-workflows", "custom-workflows", "clients"
+  const encodedFilename = encodeURIComponent(filename);
+  const url = `/configs/${componentApiType}/${encodedFilename}`;
+
+  const response = await apiClient(url, {
+    method: 'POST',
+    body: { content: configData }, // Backend's create_config_file expects { "content": ... }
+  });
+
+  if (!response.ok) {
+    // Specific check for 409 Conflict (File Exists) might be useful if backend returns it distinctly
+    // For now, general error handling:
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || `Failed to save config file ${filename}`, status: response.status, details: errorData } as ApiError;
+  }
+  return response.json(); // Assuming backend returns the created/saved config or a success message
+}
+
 // TODO: Add listRegisteredSimpleWorkflows etc. when needed
