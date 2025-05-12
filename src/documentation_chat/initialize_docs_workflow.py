@@ -4,10 +4,8 @@ import re
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.host.host import MCPHost
 from src.servers.storage.file_server import list_filepaths, read_file
 from src.servers.storage.vector.pgvector_server import batch_store, clear_database
-from src.config import PROJECT_ROOT_DIR  # Import project root
 from typing import TYPE_CHECKING, Optional, Any
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -69,22 +67,24 @@ class InitializeDocsWorkflow:
 
         try:
             clear_database()
+                        
+            count = 0
             
-            paths = list_filepaths()
+            for path in list_filepaths():
+                file = read_file(path)
             
-            files = [read_file(path) for path in paths]
-            
-            paragraphs = [
-                paragraph 
-                for file in files
-                for paragraph in self.separate_markdown(file)
-            ]
-            
-            batch_store(paragraphs)
+                paragraphs = [
+                    paragraph 
+                    for paragraph in self.separate_markdown(file)
+                ]
+                
+                batch_store(paragraphs, {"filepath": path})
+                
+                count += len(paragraphs)
 
             return_value = {
                 "status": "success",
-                "entries": len(paragraphs)
+                "entries": count,
             }
 
             return return_value

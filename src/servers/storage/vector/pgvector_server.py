@@ -2,10 +2,14 @@
 import os
 import psycopg2
 import logging
+import json
 
 from mcp.server.fastmcp import FastMCP
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import Any
+from psycopg2 import sql
 
 load_dotenv()
 
@@ -19,57 +23,88 @@ DB_PARAMS = {
     'port': os.getenv("MEM0_PORT"),
 }
 
-def _establish_connection():
-    """Create the db connection"""
+class SearchResult(BaseModel):
+    text_value: str
+    id: int
+    cosine_dist: float
+    metadata: dict[str, Any]
     
-    conn = psycopg2.connect(**DB_PARAMS)
-    cursor = conn.cursor()
-
-    return conn, cursor
-
-def _text_to_embedding(input_text: str | list[str]):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    if type(input_text) is str:
-        embedding = model.encode([input_text])[0]
-    elif type(input_text) is list:
-        embedding = model.encode(input_text)
-    else:
-        raise ValueError(f"Invalid type to be embedded: {type(input_text)}")
+@mcp.tool()
+def search(query_text: str, limit: int = 3, metadata_filter: dict[str, Any] | None = None) -> list[SearchResult]:
+    """
+    Search for text similar to the query in the vector database
     
-    return embedding
+    Args:
+        query_text (str): The text to find entries similar to
+        limit (int): How many entries to return, default 3
+        metadata_filter (dict[str, Any] | None): Optional list of metadata parameters to use as a filter. Will only return objects that match all metadata fields 
+        
+    Returns:
+        list[SearchResult]: List of SearchResults, ordered by cosine distance to the query
+    """
+    query_embedding = _text_to_embedding(query_text)
+    
+    conn, cursor = _establish_connection()
+    
+    sql_query = sql.SQL("""
+        SELECT text_content, id, embedding <=> %s::vector as distance, metadata
+        FROM text_embeddings
+    """)
+    
+    where_clause = sql.SQL("")
+    params = [query_embedding.tolist()]
+    
+    # if metadata_filter is provided, add WHERE clause to the query
+    if metadata_filter:
+        where_conditions = []
+        for key, value in metadata_filter.items():
+            where_conditions.append(sql.SQL("metadata->>{} = {}").format(
+                sql.Literal(str(key)), sql.Literal(str(value))
+            ))
+        
+        if where_conditions:
+            where_clause = sql.SQL(" WHERE ") + sql.SQL(" AND ").join(where_conditions)
+    
+    order_limit = sql.SQL("""
+        ORDER BY distance
+        LIMIT %s
+    """)
+    final_query = sql.SQL(" ").join([sql_query, where_clause, order_limit])
 
-def store(input_text: str) -> bool:
+    params.append(limit)
+    
+    cursor.execute(final_query, tuple(params))
+    
+    results = cursor.fetchall()
+    
+    search_results = [SearchResult(text_value=result[0], id=result[1], cosine_dist=result[2], metadata=result[3]) for result in results]
+    
+    cursor.close()
+    conn.close()
+    
+    return search_results
+
+def store(input_text: str, metadata: dict[str, Any] = {}) -> bool:
     """
     Store text as vector embedding
     
     Args:
         input_text (str): The text to be stored in the vector database
+        metadata (dict[str, Any]): Optional metadata to be included with the entry
         
     Returns:
         bool: True if successful, False otherwise
     """
-    try:
-        embedding = _text_to_embedding(input_text)
+    try:   
+        embedding = _text_to_embedding(input_text.value)
         
-        conn, cursor = _establish_connection()
-        
-        # create table if it doesn't exist
-        cursor.execute("""
-            CREATE EXTENSION IF NOT EXISTS vector;
-            
-            CREATE TABLE IF NOT EXISTS text_embeddings (
-                id SERIAL PRIMARY KEY,
-                text_content TEXT NOT NULL,
-                embedding vector(384) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
+        conn, cursor = _establish_connection()        
         
         cursor.execute("""
-            INSERT INTO text_embeddings (text_content, embedding)
-            VALUES (%s, %s);
-        """, (input_text, embedding.tolist()))
+            INSERT INTO text_embeddings (text_content, embedding, metadata)
+            VALUES (%s, %s, %s);
+        """, (input_text, embedding.tolist(), json.dumps(metadata)))
         
         conn.commit()
         
@@ -82,13 +117,14 @@ def store(input_text: str) -> bool:
         logging.error(f"Error occurred: {str(e)}")
         return False
 
-def batch_store(texts: list[str]):
+def batch_store(texts: list[str], metadata: dict[str, Any] = {}):
     """
     Store multiple strings as vector embeddings simultaneously
     
     Args:
         texts (list[str]): The text to be stored in the vector database
-        
+        metadata (dict[str, Any]): Optional metadata to be included with the entries
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -98,9 +134,9 @@ def batch_store(texts: list[str]):
         conn, cursor = _establish_connection()
         
         cursor.executemany("""
-            INSERT INTO text_embeddings (text_content, embedding)
-            VALUES (%s, %s);
-        """, [(text, embedding.tolist()) for text, embedding in zip(texts, embeddings)])
+            INSERT INTO text_embeddings (text_content, embedding, metadata)
+            VALUES (%s, %s, %s);
+        """, [(text, embedding.tolist(), json.dumps(metadata)) for text, embedding in zip(texts, embeddings)])
         
         conn.commit()
         
@@ -238,41 +274,50 @@ def clear_database(confirmation_code: str = None) -> bool:
     except Exception as e:
         logging.error(f"Error clearing database: {str(e)}")
         return False
-
-@mcp.tool()
-def search(query_text: str, limit: int = 3) -> list[(str, int, float)]:
-    """
-    Search for text similar to the query in the vector database
     
-    Args:
-        query_text (str): The text to find entries similar to
-        limit (int): How many entries to return, default 3
-        
-    Returns:
-        list[(str, int, float)]: List of entries as tuples of text value (str), id (int), and the cosine distance to the query (float)
-    """
-    query_embedding = _text_to_embedding(query_text)
-    
+def _initialize_table():
     conn, cursor = _establish_connection()
     
-    # search for similar texts using cosine similarity
     cursor.execute("""
-        SELECT text_content, id, embedding <=> %s::vector as distance
-        FROM text_embeddings
-        ORDER BY distance
-        LIMIT %s;
-    """, (query_embedding.tolist(), limit))
+        CREATE EXTENSION IF NOT EXISTS vector;
+        
+        CREATE TABLE IF NOT EXISTS text_embeddings (
+            id SERIAL PRIMARY KEY,
+            text_content TEXT NOT NULL,
+            embedding vector(384) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        ALTER TABLE text_embeddings
+        ADD metadata JSONB NOT NULL;
+    """)
     
-    results = cursor.fetchall()
-    
+    conn.commit()
+        
     cursor.close()
     conn.close()
+
+def _establish_connection():
+    """Create the db connection"""
     
-    return results
+    conn = psycopg2.connect(**DB_PARAMS)
+    cursor = conn.cursor()
+
+    return conn, cursor
+
+def _text_to_embedding(input_text: str | list[str]):
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    if type(input_text) is str:
+        embedding = model.encode([input_text])[0]
+    elif type(input_text) is list:
+        embedding = model.encode(input_text)
+    else:
+        raise ValueError(f"Invalid type to be embedded: {type(input_text)}")
+    
+    return embedding
 
 if __name__ == "__main__":
-    # print(batch_store(["The sky is blue today", "The grass is green"]))
-    # print(batch_delete([4,5]))
-    # print(search("color"))
+    print(search("What is the difference between simple and custom workflows?", metadata_filter={"filepath": "README.md"}))
     
-    mcp.run(transport="stdio")
+    # mcp.run(transport="stdio")
