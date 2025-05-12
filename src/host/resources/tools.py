@@ -511,6 +511,50 @@ class ToolManager:
             "content": content_list,  # Ensure content is a list
         }
 
+    async def unregister_client_tools(self, client_id: str):
+        """
+        Removes tool registrations associated with a specific client ID.
+        If a tool definition is only registered to this client, it's removed entirely.
+
+        Args:
+            client_id: The ID of the client whose tools should be unregistered.
+        """
+        if client_id not in self._clients:
+            logger.debug(
+                f"Client '{client_id}' not found in ToolManager, cannot unregister tools."
+            )
+            return
+
+        # Get the set of tools registered specifically for this client from the router
+        tools_registered_by_client = (
+            await self._message_router.get_tools_for_client(client_id)
+        )
+        removed_tool_definitions = []
+
+        for tool_name in tools_registered_by_client:
+            # Check how many clients provide this tool
+            providers = await self._message_router.get_clients_for_tool(tool_name)
+            # If this client is the *only* provider left after it's removed conceptually
+            # (or if it was the only one to begin with)
+            if len(providers) <= 1 and client_id in providers:
+                # Remove the tool definition itself
+                self._tools.pop(tool_name, None)
+                self._tool_metadata.pop(tool_name, None)
+                removed_tool_definitions.append(tool_name)
+                logger.debug(
+                    f"Removed tool definition '{tool_name}' as client '{client_id}' was the last provider."
+                )
+
+        # Remove the client session itself
+        self._clients.pop(client_id, None)
+
+        logger.debug(
+            f"Unregistered client '{client_id}' from ToolManager. "
+            f"Removed definitions for tools: {removed_tool_definitions}"
+        )
+        # Note: The MessageRouter's unregister_server method handles removing the client
+        # from the router's perspective (called separately in MCPHost).
+
     async def shutdown(self):
         """Shutdown the tool manager"""
         logger.debug("Shutting down tool manager")  # Changed to DEBUG

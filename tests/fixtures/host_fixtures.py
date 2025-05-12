@@ -94,39 +94,17 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     """
     # Define path to the test config file relative to the project root
     test_config_path = (
-        PROJECT_ROOT_DIR / "config/testing_config.json"
+        PROJECT_ROOT_DIR / "config/projects/testing_config.json"  # Updated path
     )  # Use PROJECT_ROOT_DIR directly
 
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Check if the referenced server paths exist relative to the project root
-    try:
-        with open(test_config_path, "r") as f:
-            raw_config = json.load(f)
-        clients = raw_config.get("clients", [])
-        if not clients:
-            pytest.fail("No clients defined in testing_config.json for fixture setup.")
-
-        for client_config in clients:
-            client_path_str = client_config.get("server_path")
-            if client_path_str:
-                # Resolve client path relative to PROJECT_ROOT_DIR
-                client_path = (
-                    PROJECT_ROOT_DIR / client_path_str
-                ).resolve()  # Use PROJECT_ROOT_DIR directly
-                if not client_path.exists():
-                    pytest.skip(
-                        f"Test server path in config does not exist: {client_path}"  # Keep skip message
-                    )
-            else:
-                pytest.fail(
-                    f"Client '{client_config.get('client_id', 'UNKNOWN')}' missing 'server_path' in testing config."
-                )
-    except Exception as e:
-        pytest.fail(f"Failed to pre-check server paths in testing config: {e}")
-
     # Instantiate HostManager - This will use the real ProjectManager now
+    # The ProjectManager, when loading the project during manager.initialize(),
+    # will resolve client string references to full ClientConfig objects
+    # using the ComponentManager. Path validation for servers will occur
+    # during MCPHost and ClientManager initialization.
     manager = HostManager(config_path=test_config_path)
 
     # Initialize (this loads configs via real ProjectManager and starts MCPHost/clients)
