@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from src.host.host import MCPHost
 from src.config.config_models import HostConfig, ClientConfig, RootConfig
 import mcp.client.session  # To mock ClientSession
-import anyio # Import anyio
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]

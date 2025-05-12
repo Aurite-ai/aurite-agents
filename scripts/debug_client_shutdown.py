@@ -1,13 +1,11 @@
 import anyio
 import logging
-import os
 from pathlib import Path
 
 from src.host.host import MCPHost
 from src.config.config_models import (
     HostConfig,
-    ClientConfig,
-    RootConfig,  # Added RootConfig as it's needed by ClientConfig
+    ClientConfig,  # Added RootConfig as it's needed by ClientConfig
 )
 
 # Configure basic logging

@@ -3,17 +3,14 @@ Unit tests for the ClientManager class.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
-from contextlib import AsyncExitStack
 
 # Adjust imports based on your project structure
 from src.host.foundation.clients import ClientManager
 from src.config.config_models import ClientConfig, GCPSecretConfig
 from src.host.foundation.security import SecurityManager
-from mcp import ClientSession, StdioServerParameters
-import anyio # For manage_client_lifecycle test (if added)
-from anyio.abc import TaskStatus # For manage_client_lifecycle test (if added)
+from mcp import ClientSession
 
 
 # mock_exit_stack fixture is no longer needed as ClientManager.__init__ changed.

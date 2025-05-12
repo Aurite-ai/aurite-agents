@@ -4,8 +4,7 @@ ClientManager for handling MCP client subprocesses and sessions.
 
 import logging
 import os
-from contextlib import AsyncExitStack
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
