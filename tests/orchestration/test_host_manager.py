@@ -80,7 +80,7 @@ class TestHostManagerInitialization:
             for cfg in active_project.custom_workflows.values()
         )
         assert (
-            "ExampleCustom" in active_project.custom_workflows
+            "ExampleCustomWorkflow" in active_project.custom_workflows
         )  # Check the custom workflow name
 
         # Check if the underlying host seems initialized (e.g., has clients from config)

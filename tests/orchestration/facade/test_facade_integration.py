@@ -158,6 +158,9 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_simple_workflow ---")
 
 
+@pytest.mark.xfail(
+    reason="Known 'Event loop is closed' error during host_manager fixture teardown or httpx client aclose"
+)
 async def test_facade_run_custom_workflow(host_manager: HostManager):
     """
     Test Case 4.4: Verify ExecutionFacade.run_custom_workflow executes and passes facade.

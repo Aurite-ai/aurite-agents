@@ -566,7 +566,7 @@ class TestExecutionFacadeUnit:
                 conversation=[],
                 final_response=None,
                 tool_uses_in_final_turn=[],
-                error=f"Initialization error for Agent '{agent_name}': {instantiation_error}",
+                error=f"Initialization error for Agent '{agent_name}': Failed to create Anthropic client: {instantiation_error}",
             ).model_dump(mode="json")
             assert result == expected_error_dict
             print("Assertions passed.")

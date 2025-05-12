@@ -121,13 +121,19 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
 
     # Teardown: Shutdown the manager (which shuts down the host)
     try:
-        # Only shutdown should be called here
-        if manager and manager.host: # Check if manager and host exist before shutdown
-            logger.debug(f"Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
-            await manager.shutdown() # Attempt shutdown
-            logger.debug(f"Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
+        if manager:
+            if manager.execution and hasattr(manager.execution, "aclose"):
+                logger.debug("HostManager Fixture: Attempting to aclose ExecutionFacade...")
+                await manager.execution.aclose()
+                logger.debug("HostManager Fixture: ExecutionFacade aclosed.")
+            if manager.host: # Check if manager and host exist before shutdown
+                logger.debug(f"HostManager Fixture: Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
+                await manager.shutdown() # Attempt shutdown
+                logger.debug(f"HostManager Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
+            else:
+                logger.debug("HostManager Fixture: Host not available on manager for shutdown in teardown.")
         else:
-            logger.debug("Manager or host not available for shutdown in teardown.") # Log if no shutdown needed
+            logger.debug("HostManager Fixture: Manager not available for shutdown in teardown.")
     except ExceptionGroup as eg:
         # Specifically catch ExceptionGroup, likely from TaskGroup/AsyncExitStack issues
         # Check if the known ProcessLookupError is within the group

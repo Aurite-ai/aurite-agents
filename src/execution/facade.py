@@ -87,6 +87,7 @@ class ExecutionFacade:
         self._current_project = current_project
         self._storage_manager = storage_manager
         self._llm_client_cache: Dict[str, BaseLLM] = {} # LLM Client Cache
+        self._is_shut_down = False # Flag to prevent double shutdown
         logger.debug(
             f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
         )
@@ -125,6 +126,26 @@ class ExecutionFacade:
             logger.error(f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}")
             raise NotImplementedError(f"LLM provider '{provider}' is not currently supported.")
 
+    async def aclose(self):
+        """Closes all cached LLM clients."""
+        if self._is_shut_down:
+            logger.debug("ExecutionFacade.aclose called but already shut down.")
+            return
+        logger.debug("ExecutionFacade.aclose() called. Closing cached LLM clients...")
+        for llm_id, client_instance in self._llm_client_cache.items():
+            try:
+                if hasattr(client_instance, "aclose") and callable(
+                    getattr(client_instance, "aclose")
+                ):
+                    logger.debug(f"Closing LLM client for ID: {llm_id}")
+                    await client_instance.aclose()
+            except Exception as e:
+                logger.error(
+                    f"Error closing LLM client for ID '{llm_id}': {e}", exc_info=True
+                )
+        self._llm_client_cache.clear()
+        self._is_shut_down = True
+        logger.debug("ExecutionFacade LLM client cache cleared and facade marked as shut down.")
 
     # --- Private Execution Helper ---
 
