@@ -25,18 +25,15 @@ if TYPE_CHECKING:
     )  # Import for type hint
     from ..workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
+    from ..config.config_models import AgentConfig, ProjectConfig # LLMConfig will be imported outside TYPE_CHECKING
+    from ..llm.base_client import BaseLLM
+    from ..llm.providers.anthropic_client import AnthropicLLM
 
-    # Import LLM client base class and models for type hinting and instantiation logic
-    from ..config.config_models import (
-        AgentConfig,
-        LLMConfig,
-        ProjectConfig,  # Added ProjectConfig for type hint
-    )
-    from ..llm.base_client import BaseLLM  # Added for type hint
+# Actual runtime imports
+from ..config.config_models import LLMConfig # Ensure LLMConfig is imported for direct use at runtime
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
-# Removed ConversationManager import as it's merged into Agent
 
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import AgentExecutionResult
@@ -89,9 +86,45 @@ class ExecutionFacade:
         self._host = host_instance
         self._current_project = current_project
         self._storage_manager = storage_manager
+        self._llm_client_cache: Dict[str, BaseLLM] = {} # LLM Client Cache
         logger.debug(
             f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
         )
+
+    # --- Private LLM Client Factory ---
+
+    def _create_llm_client(self, llm_config: "LLMConfig") -> "BaseLLM":
+        """
+        Factory method to create an LLM client instance based on LLMConfig.
+        Handles provider selection and API key resolution (basic for now).
+        """
+        provider = llm_config.provider.lower()
+        model_name = llm_config.model_name or "claude-3-haiku-20240307" # Default if not specified in config
+
+        logger.debug(f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})")
+
+        if provider == "anthropic":
+            # API key resolution could be enhanced here (e.g., check env vars specified in config)
+            # For now, relies on AnthropicLLM's internal check for ANTHROPIC_API_KEY
+            try:
+                return AnthropicLLM(
+                    model_name=model_name,
+                    temperature=llm_config.temperature, # Pass None if not set, client handles default
+                    max_tokens=llm_config.max_tokens,   # Pass None if not set, client handles default
+                    system_prompt=llm_config.default_system_prompt # Pass None if not set, client handles default
+                    # api_key=resolved_api_key # Example if key resolution happened here
+                )
+            except Exception as e:
+                logger.error(f"Failed to instantiate AnthropicLLM for config '{llm_config.llm_id}': {e}", exc_info=True)
+                raise ValueError(f"Failed to create Anthropic client: {e}") from e
+        # Add other providers here
+        # elif provider == "openai":
+        #     # ... implementation ...
+        #     pass
+        else:
+            logger.error(f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}")
+            raise NotImplementedError(f"LLM provider '{provider}' is not currently supported.")
+
 
     # --- Private Execution Helper ---
 
@@ -265,9 +298,38 @@ class ExecutionFacade:
                 max_tokens=effective_max_tokens,
                 system_prompt=effective_system_prompt_for_llm_client,
             )
-            logger.debug(
-                f"Facade: Instantiated LLM Client for streaming agent '{agent_name}'."
-            )
+            logger.debug(f"Facade: Resolved LLM parameters for streaming agent '{agent_name}'.")
+
+            # 2.b Get/Create LLM Client Instance using Cache
+            llm_client_instance: Optional[BaseLLM] = None
+            cache_key: Optional[str] = None
+
+            if llm_config_for_override_obj:
+                cache_key = llm_config_for_override_obj.llm_id
+                llm_client_instance = self._llm_client_cache.get(cache_key)
+                if not llm_client_instance:
+                    logger.debug(f"Facade: LLM client for '{cache_key}' not in cache. Creating...")
+                    llm_client_instance = self._create_llm_client(llm_config_for_override_obj)
+                    self._llm_client_cache[cache_key] = llm_client_instance
+                    logger.debug(f"Facade: Cached LLM client for '{cache_key}'.")
+                else:
+                    logger.debug(f"Facade: Reusing cached LLM client for '{cache_key}'.")
+            else:
+                # No LLMConfig ID - create temporary config and non-cached client
+                logger.warning(f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client.")
+                temp_llm_config = LLMConfig(
+                    llm_id=f"temp_{agent_name}", # Temporary ID
+                    provider="anthropic", # Assuming default provider
+                    model_name=effective_model_name,
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                    default_system_prompt=effective_system_prompt_for_llm_client
+                )
+                llm_client_instance = self._create_llm_client(temp_llm_config) # Do not cache
+
+            if not llm_client_instance:
+                 # This should ideally not happen if _create_llm_client raises errors
+                 raise RuntimeError(f"Failed to obtain LLM client instance for agent '{agent_name}'.")
 
             # 3. Prepare Initial Messages (same as non-streaming, for context)
             initial_messages_for_agent: List[MessageParam] = []
@@ -438,32 +500,50 @@ class ExecutionFacade:
             # The `system_prompt` argument to `run_agent` is passed directly to `agent.execute_agent`, which handles it.
             # So, for `effective_system_prompt` for the LLM client, we use agent_config's if available, else LLMConfig's.
             if agent_config.system_prompt is not None:
-                effective_system_prompt = (
-                    agent_config.system_prompt
-                )  # For LLM client default
+                effective_system_prompt_for_llm_client = agent_config.system_prompt # Use agent's default for LLM client init
                 logger.debug(
-                    "Facade: AgentConfig provides default system prompt for LLM client."
+                    "Facade: AgentConfig provides default system prompt for LLM client instantiation."
                 )
 
-            # Ensure a model name is available, fallback to a default if absolutely necessary
-            if not effective_model_name:
-                effective_model_name = "claude-3-haiku-20240307"  # Hardcoded fallback
+            # Ensure a model name is available for the case where no LLMConfig ID is used
+            # and agent_config.model is also None. _create_llm_client handles internal default.
+            if not effective_model_name and not llm_config_for_override_obj:
                 logger.warning(
-                    f"Facade: No model name resolved for agent '{agent_name}', defaulting to '{effective_model_name}'."
+                    f"Facade: No model name resolved for agent '{agent_name}' (no LLMConfig ID and no direct override). LLM client factory will use its default."
                 )
 
-            # 3. Instantiate LLM Client with resolved parameters
-            # Using the class-level import of AnthropicLLM
-            llm_client_instance = AnthropicLLM(
-                model_name=effective_model_name,
-                temperature=effective_temperature,  # Let AnthropicLLM handle None with its defaults
-                max_tokens=effective_max_tokens,  # Let AnthropicLLM handle None with its defaults
-                system_prompt=effective_system_prompt,  # Pass resolved default system prompt to client
-            )
-            logger.debug(
-                f"Facade: Instantiated LLM Client '{type(llm_client_instance).__name__}' with model '{effective_model_name}', "
-                f"temp: {effective_temperature}, max_tokens: {effective_max_tokens}."
-            )
+            # 3. Get/Create LLM Client Instance using Cache
+            llm_client_instance: Optional[BaseLLM] = None
+            cache_key: Optional[str] = None
+
+            if llm_config_for_override_obj:
+                cache_key = llm_config_for_override_obj.llm_id
+                llm_client_instance = self._llm_client_cache.get(cache_key)
+                if not llm_client_instance:
+                    logger.debug(f"Facade: LLM client for '{cache_key}' not in cache. Creating...")
+                    # Use the resolved LLMConfig object to create the client
+                    llm_client_instance = self._create_llm_client(llm_config_for_override_obj)
+                    self._llm_client_cache[cache_key] = llm_client_instance
+                    logger.debug(f"Facade: Cached LLM client for '{cache_key}'.")
+                else:
+                    logger.debug(f"Facade: Reusing cached LLM client for '{cache_key}'.")
+            else:
+                # No LLMConfig ID - create temporary config and non-cached client
+                logger.warning(f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client.")
+                # Create a temporary LLMConfig based on resolved effective parameters
+                temp_llm_config = LLMConfig(
+                    llm_id=f"temp_{agent_name}", # Temporary ID
+                    provider="anthropic", # Assuming default provider for now
+                    model_name=effective_model_name, # Use resolved name
+                    temperature=effective_temperature,
+                    max_tokens=effective_max_tokens,
+                    default_system_prompt=effective_system_prompt_for_llm_client # Correct variable
+                )
+                llm_client_instance = self._create_llm_client(temp_llm_config) # Do not cache
+
+            if not llm_client_instance:
+                 # This should ideally not happen if _create_llm_client raises errors
+                 raise RuntimeError(f"Failed to obtain LLM client instance for agent '{agent_name}'.")
 
             # 4. Prepare Initial Messages (Load History + User Message)
             initial_messages_for_agent: List[MessageParam] = []

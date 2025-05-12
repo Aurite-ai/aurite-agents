@@ -48,7 +48,8 @@ class Agent:
         self.host = host_instance
         self.system_prompt_override = system_prompt_override
         self.llm_config_for_override = llm_config_for_override
-        self.conversation_history: List[Dict[str, Any]] = list(initial_messages)
+        # Store full AgentOutputMessage for assistant, dicts for others
+        self.conversation_history: List[AgentOutputMessage | Dict[str, Any]] = list(initial_messages)
         self.final_response: Optional[AgentOutputMessage] = None
         self.tool_uses_in_last_turn: List[Dict[str, Any]] = []
         logger.debug(
@@ -95,15 +96,16 @@ class Agent:
 
                 if assistant_message_this_turn:
                     # Add assistant's response (API compliant) to history
-                    # For non-streaming, self.conversation_history is the primary log
-                    # and current_messages_for_run is what's passed to next turn.
-                    api_compliant_assistant_message = assistant_message_this_turn.to_api_message_param()
-                    self.conversation_history.append(api_compliant_assistant_message)
-                    current_messages_for_run.append(api_compliant_assistant_message)
+                    # For non-streaming, self.conversation_history stores the full object
+                    # while current_messages_for_run gets the API-compliant dict for the next LLM call.
+                    self.conversation_history.append(assistant_message_this_turn) # Store the full object
+                    current_messages_for_run.append(assistant_message_this_turn.to_api_message_param()) # Use dict for next run
 
                 if turn_tool_results_params:
+                    # Tool results are already dicts (MessageParam)
                     self.conversation_history.extend(turn_tool_results_params)
                     current_messages_for_run.extend(turn_tool_results_params)
+                    # Store tool uses from the turn processor
                     self.tool_uses_in_last_turn = turn_processor.get_tool_uses_this_turn()
 
                 if is_final_turn:
@@ -119,9 +121,12 @@ Please correct your previous response to conform to the schema."""
                         correction_message_param: MessageParam = {
                             "role": "user", "content": [{"type": "text", "text": correction_message_content}]
                         }
-                        self.conversation_history.append(dict(correction_message_param))
-                        current_messages_for_run.append(dict(correction_message_param))
+                        # Correction message is a dict (MessageParam)
+                        self.conversation_history.append(correction_message_param)
+                        current_messages_for_run.append(correction_message_param)
                     else:
+                        # If no schema, treat the invalid response as final
+                        # Use the full object obtained from the processor
                         self.final_response = assistant_message_this_turn
                         break
             except Exception as e:
@@ -131,17 +136,16 @@ Please correct your previous response to conform to the schema."""
 
         if current_iteration >= max_iterations and self.final_response is None:
             logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
-            last_assistant_message_dict = next(
-                (msg for msg in reversed(self.conversation_history) if msg.get("role") == "assistant"), None
+            # Find the last AgentOutputMessage in the history
+            last_assistant_message_obj = next(
+                (msg for msg in reversed(self.conversation_history) if isinstance(msg, AgentOutputMessage)), None
             )
-            if last_assistant_message_dict:
-                try:
-                    self.final_response = AgentOutputMessage.model_validate(last_assistant_message_dict)
-                except Exception as val_err_max_iter:
-                    logger.error(f"Could not validate last assistant message for max iterations fallback: {val_err_max_iter}")
-                    self.final_response = None
+            if last_assistant_message_obj:
+                 # It's already the correct type
+                self.final_response = last_assistant_message_obj
             else:
-                self.final_response = None
+                logger.warning("Could not find a final assistant message in history for max iterations fallback.")
+                self.final_response = None # Ensure it's None if no suitable message found
 
         logger.info(f"Agent finished run for agent '{self.config.name or 'Unnamed'}'.")
         return self._prepare_agent_result(execution_error=None)
@@ -151,21 +155,27 @@ Please correct your previous response to conform to the schema."""
     ) -> AgentExecutionResult:
         logger.debug("Preparing final agent execution result...")
 
-        parsed_conversation_history = []
-        for msg_dict in self.conversation_history: # self.conversation_history now holds API-compliant dicts
+        parsed_conversation_history: List[AgentOutputMessage] = []
+        for msg_item in self.conversation_history: # History now contains AgentOutputMessage or dicts
             try:
-                # We need to parse these dicts back into AgentOutputMessage for the result
-                # This assumes AgentOutputMessage.model_validate can handle the API-compliant dict structure
-                # (e.g. content blocks might be simpler dicts than full AgentOutputContentBlock models)
-                # This might require AgentOutputMessage to be more flexible or have a custom parser here.
-                # For now, let's try direct validation.
-                parsed_conversation_history.append(AgentOutputMessage.model_validate(msg_dict))
+                if isinstance(msg_item, AgentOutputMessage):
+                    # If it's already an AgentOutputMessage, just append it
+                    parsed_conversation_history.append(msg_item)
+                elif isinstance(msg_item, dict):
+                    # If it's a dict (user message, tool result), validate it
+                    parsed_conversation_history.append(AgentOutputMessage.model_validate(msg_item))
+                else:
+                    # Handle unexpected types if necessary
+                    logger.warning(f"Unexpected item type in conversation history: {type(msg_item)}")
+                    parsed_conversation_history.append(AgentOutputMessage(role="unknown", content=[AgentOutputContentBlock(type="text", text=f"Invalid history item: {str(msg_item)}")]))
             except Exception as e:
-                logger.error(f"Failed to parse message from history for AgentExecutionResult: {msg_dict}, error: {e}")
-                parsed_conversation_history.append(AgentOutputMessage(role=msg_dict.get("role","unknown"), content=[AgentOutputContentBlock(type="text", text=f"Invalid message in history: {str(msg_dict)}")]))
+                logger.error(f"Failed to parse message from history for AgentExecutionResult: {msg_item}, error: {e}")
+                role = msg_item.get("role", "unknown") if isinstance(msg_item, dict) else "unknown"
+                parsed_conversation_history.append(AgentOutputMessage(role=role, content=[AgentOutputContentBlock(type="text", text=f"Invalid message in history: {str(msg_item)}")]))
+
 
         output_dict_for_validation = {
-            "conversation": parsed_conversation_history,
+            "conversation": parsed_conversation_history, # Use the parsed list
             "final_response": self.final_response,
             "tool_uses_in_final_turn": self.tool_uses_in_last_turn,
             "error": execution_error,

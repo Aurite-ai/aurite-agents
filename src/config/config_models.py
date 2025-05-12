@@ -9,9 +9,9 @@ This module provides:
 """
 
 import logging
-from typing import Any, List, Optional, Dict  # Added Dict
+from typing import Any, List, Optional, Dict
 from pathlib import Path
-from pydantic import BaseModel, Field  # Added Field
+from pydantic import BaseModel, Field, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -198,11 +198,67 @@ class ProjectConfig(BaseModel):
         default_factory=dict,
         description="Agents defined or referenced by this project.",
     )
+    # Intermediate fields to capture the lists from JSON using aliases
+    simple_workflow_list: List[WorkflowConfig] = Field(
+        default_factory=list, alias="simple_workflow_configs"
+    )
+    custom_workflow_list: List[CustomWorkflowConfig] = Field(
+        default_factory=list, alias="custom_workflow_configs"
+    )
+
+    # Final dictionary fields populated by the validator
     simple_workflows: Dict[str, WorkflowConfig] = Field(
         default_factory=dict,
         description="Simple workflows defined or referenced by this project.",
+        exclude=True,  # Exclude from serialization, populated by validator
     )
     custom_workflows: Dict[str, CustomWorkflowConfig] = Field(
         default_factory=dict,
         description="Custom workflows defined or referenced by this project.",
+        exclude=True,  # Exclude from serialization, populated by validator
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def transform_workflows(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform workflow lists from JSON into dictionaries keyed by name."""
+        simple_workflows_dict = {}
+        if "simple_workflow_configs" in values and isinstance(
+            values["simple_workflow_configs"], list
+        ):
+            for wf_config_data in values["simple_workflow_configs"]:
+                if isinstance(wf_config_data, dict) and "name" in wf_config_data:
+                    # Validate each item individually before adding to dict
+                    try:
+                        wf_config = WorkflowConfig.model_validate(wf_config_data)
+                        simple_workflows_dict[wf_config.name] = wf_config
+                    except Exception as e:
+                         logger.error(f"Skipping invalid simple workflow config due to validation error: {wf_config_data}, Error: {e}")
+
+        custom_workflows_dict = {}
+        if "custom_workflow_configs" in values and isinstance(
+            values["custom_workflow_configs"], list
+        ):
+            for wf_config_data in values["custom_workflow_configs"]:
+                 if isinstance(wf_config_data, dict) and "name" in wf_config_data:
+                    # Validate each item individually
+                    try:
+                        wf_config = CustomWorkflowConfig.model_validate(wf_config_data)
+                        custom_workflows_dict[wf_config.name] = wf_config
+                    except Exception as e:
+                        logger.error(f"Skipping invalid custom workflow config due to validation error: {wf_config_data}, Error: {e}")
+
+
+        # Assign the created dictionaries to the final fields
+        # Pydantic v2 expects the validator to return the full modified input dict
+        values["simple_workflows"] = simple_workflows_dict
+        values["custom_workflows"] = custom_workflows_dict
+
+        # Remove the original list keys if they exist to avoid confusion/validation errors
+        # if "simple_workflow_configs" in values:
+        #     del values["simple_workflow_configs"]
+        # if "custom_workflow_configs" in values:
+        #     del values["custom_workflow_configs"]
+        # Actually, keep the original keys but assign the dicts to the target fields
+
+        return values
