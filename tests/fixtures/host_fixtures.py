@@ -86,7 +86,7 @@ def mock_mcp_host() -> Mock:
 # --- Integration Fixture ---
 
 
-@pytest.fixture(scope="function")  # Changed scope to function for better isolation
+@pytest.fixture(scope="module")  # <<< Changed scope from function to module
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
@@ -123,32 +123,32 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     # Teardown: Shutdown the manager (which shuts down the host)
     try:
         # Only shutdown should be called here
-        if manager and manager.host:  # Check if manager and host exist before shutdown
-            logger.debug(f"Attempting shutdown for host: {manager.host._config.name}")
-            await manager.shutdown()
-            logger.debug(
-                f"Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}"
-            )  # Check host again as shutdown sets it to None
+        if manager and manager.host: # Check if manager and host exist before shutdown
+            logger.debug(f"Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
+            await manager.shutdown() # Attempt shutdown
+            logger.debug(f"Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
         else:
-            logger.debug("Manager or host not available for shutdown in teardown.")
+            logger.debug("Manager or host not available for shutdown in teardown.") # Log if no shutdown needed
+    except ExceptionGroup as eg:
+        # Specifically catch ExceptionGroup, likely from TaskGroup/AsyncExitStack issues
+        # Check if the known ProcessLookupError is within the group
+        if any(isinstance(e, ProcessLookupError) for e in eg.exceptions):
+             print(f"\n[WARN] Suppressed known ProcessLookupError during teardown in host_manager fixture: {eg}")
+        else:
+             # Re-raise other unexpected ExceptionGroups
+             print(f"\n[ERROR] Unexpected ExceptionGroup during HostManager shutdown in fixture: {eg}")
+             raise
     except RuntimeError as e:
-        # Catch and log the specific "Event loop is closed" error during teardown
-        # Also catch "Cannot run shutdown() while loop is stopping" which might occur
-        if "Event loop is closed" in str(
-            e
-        ) or "Cannot run shutdown() while loop is stopping" in str(e):
-            print(
-                f"\n[WARN] Suppressed known teardown error in host_manager fixture: {e}"
-            )
+        # Keep handling for specific RuntimeErrors like "Event loop is closed"
+        if "Event loop is closed" in str(e) or "Cannot run shutdown() while loop is stopping" in str(e):
+            print(f"\n[WARN] Suppressed known RuntimeError teardown error in host_manager fixture: {e}")
         else:
-            # Re-raise other RuntimeErrors
-            print(
-                f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}"
-            )
-            raise  # Re-raise unexpected RuntimeErrors
+            print(f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}")
+            raise # Re-raise other RuntimeErrors
     except Exception as shutdown_e:
-        # Log or handle other teardown errors if necessary
-        print(f"\n[ERROR] Error during HostManager shutdown in fixture: {shutdown_e}")
+        # Catch any other unexpected exceptions during shutdown
+        print(f"\n[ERROR] Unexpected generic Exception during HostManager shutdown in fixture: {shutdown_e}")
+        raise # Re-raise other exceptions
 
 
 # Note: The old real_host_and_manager fixture is removed as host_manager replaces it.

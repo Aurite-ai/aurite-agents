@@ -806,6 +806,14 @@ class MCPHost:
         else:
             logger.warning(f"No cancel scope found for client {client_id} during shutdown.")
 
+        # Remove the client from the ClientManager's active list
+        if client_id in self.client_manager.active_clients:
+            del self.client_manager.active_clients[client_id]
+            logger.debug(f"Removed client {client_id} from ClientManager active list.")
+        else:
+            # This might happen if shutdown is called multiple times or after an error
+            logger.warning(f"Client {client_id} not found in ClientManager active list during shutdown.")
+
         # TODO: Add logic here to unregister tools/prompts/resources from managers # This TODO is now addressed above
         # Example (needs implementation in managers):
         # await self._tool_manager.unregister_client_tools(client_id) # Addressed above

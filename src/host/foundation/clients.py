@@ -112,10 +112,12 @@ class ClientManager:
                  pass # Error will be propagated by tg.start() if started() not called.
             raise # Re-raise to ensure task group sees the error if it occurs after started()
         finally:
-            logger.info(f"Cleaning up client {client_id} resources in ClientManager.")
+            logger.debug(f"Client {client_id}: Entering manage_client_lifecycle finally block.")
             self.active_clients.pop(client_id, None)
+            logger.debug(f"Client {client_id}: Popped from active_clients. Exiting async with blocks now...")
             # __aexit__ of ClientSession and stdio_client are automatically called here
             # due to the `async with` blocks exiting.
+        logger.debug(f"Client {client_id}: Exited manage_client_lifecycle finally block.")
 
     # Old lifecycle methods are removed.
     # start_client, shutdown_client, shutdown_all_clients are now handled by

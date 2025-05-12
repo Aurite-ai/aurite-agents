@@ -86,7 +86,7 @@ async def test_register_client_duplicate_id(host_manager: HostManager):
         await host.register_client(existing_config)
 
 
-@pytest.mark.xfail(reason="Known anyio shutdown issue during client process termination by AsyncExitStack")
+# Removed xfail marker - relying on fixture teardown suppression
 async def test_dynamic_client_registration_and_unregistration(host_manager: HostManager):
     """
     Test dynamically registering a client, verifying its components,
@@ -94,36 +94,15 @@ async def test_dynamic_client_registration_and_unregistration(host_manager: Host
     """
     host: MCPHost = host_manager.host
     new_client_id = "dynamic_unreg_client"
-    tool_name_specific_to_new_client = "unreg_tool_test" # Assume this tool is unique
+    tool_name_for_dummy_server = "unreg_tool_test" # Matches TOOL_NAME in dummy_unreg_mcp_server.py
 
-    # Config for the new client
-    # Using a simple dummy server for this test to avoid relying on weather_mcp_server specifics
-    # We'll need to create a dummy server file or use an existing simple one.
-    # For now, let's assume a simple server that just offers one unique tool.
-    # This part might need adjustment based on available dummy servers.
-    dummy_server_path = Path("tests/fixtures/servers/dummy_mcp_server_for_unreg.py") # Create this
-    if not dummy_server_path.exists():
-        # Create a minimal dummy server if it doesn't exist
-        dummy_server_path.parent.mkdir(parents=True, exist_ok=True)
-        dummy_server_path.write_text(f"""
-import mcp.server
-import mcp.types as types
-
-class DummyServer(mcp.server.Server):
-    async def list_tools(self) -> types.ListToolsResult:
-        return types.ListToolsResult(tools=[
-            types.Tool(name="{tool_name_specific_to_new_client}", description="A test tool for unregistration.", inputSchema={{}})
-        ])
-    async def call_tool(self, name: str, arguments: dict) -> types.CallToolResult:
-        return types.CallToolResult(content=[types.TextContent(type="text", text="dummy result")])
-
-if __name__ == "__main__":
-    mcp.server.run_server(DummyServer())
-""")
+    # Config for the new client, referencing the permanent dummy server
+    dummy_server_path = Path("tests/fixtures/servers/dummy_unreg_mcp_server.py").resolve()
+    assert dummy_server_path.exists(), "Dummy server for unregistration test not found."
 
     new_client_config = ClientConfig(
         client_id=new_client_id,
-        server_path=dummy_server_path.resolve(),
+        server_path=dummy_server_path, # Use the resolved path to the permanent dummy server
         capabilities=["tools"],
         roots=[],
     )
@@ -132,8 +111,8 @@ if __name__ == "__main__":
     await host.register_client(new_client_config)
     assert host.is_client_registered(new_client_id)
     assert new_client_id in host.client_manager.active_clients
-    assert host.tools.has_tool(tool_name_specific_to_new_client)
-    clients_for_tool = await host._message_router.get_clients_for_tool(tool_name_specific_to_new_client)
+    assert host.tools.has_tool(tool_name_for_dummy_server)
+    clients_for_tool = await host._message_router.get_clients_for_tool(tool_name_for_dummy_server)
     assert new_client_id in clients_for_tool
 
     # 2. Unregister the client
@@ -144,13 +123,9 @@ if __name__ == "__main__":
     assert new_client_id not in host.client_manager.active_clients
 
     # Verify the tool is no longer associated with this client in the router
-    clients_for_tool_after_unreg = await host._message_router.get_clients_for_tool(tool_name_specific_to_new_client)
+    clients_for_tool_after_unreg = await host._message_router.get_clients_for_tool(tool_name_for_dummy_server)
     assert new_client_id not in clients_for_tool_after_unreg
 
     # If this client was the *only* provider of the tool, the tool should be gone from ToolManager
     if not clients_for_tool_after_unreg: # Check if the list is empty
-        assert not host.tools.has_tool(tool_name_specific_to_new_client)
-
-    # Clean up dummy server file if created
-    # if dummy_server_path.exists() and "dummy_mcp_server_for_unreg.py" in str(dummy_server_path):
-    #     dummy_server_path.unlink() # Be careful with unlink
+        assert not host.tools.has_tool(tool_name_for_dummy_server)

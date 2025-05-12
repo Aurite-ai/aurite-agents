@@ -153,6 +153,7 @@ class SecurityManager:
                 derived_key_raw = kdf.derive(key.encode("utf-8"))
                 # Fernet needs the base64 encoded version of the raw key
                 key_bytes_for_fernet = base64.urlsafe_b64encode(derived_key_raw)
+
         elif isinstance(key, bytes):
             # Assume bytes are already urlsafe-base64-encoded
             key_bytes_for_fernet = key
