@@ -27,17 +27,13 @@
         "gcp_secrets": null
     },
     {
-        "client_id": "address_server",
-        "server_path": "tests/prompt_validation/dummy_mcp_server.py",
-        "roots": [],
-        "capabilities": [
-            "tools",
-            "prompts",
-            "resources"
-        ],
-        "timeout": 30.0,
-        "routing_weight": 1.0,
-        "exclude": null,
-        "gcp_secrets": null
+      "client_id": "address_server",
+      "server_path": "tests/prompt_validation/dummy_mcp_server.py",
+      "roots": [],
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 30.0,
+      "routing_weight": 1.0,
+      "exclude": null,
+      "gcp_secrets": null
     }
 ]

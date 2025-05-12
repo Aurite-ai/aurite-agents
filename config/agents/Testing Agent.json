@@ -1,0 +1,17 @@
+{
+    "name": "Testing Agent",
+    "client_ids": [
+        "address_server",
+        "planning_server"
+    ],
+    "llm_config_id": "anthropic_claude_3_opus",
+    "system_prompt": "test agent here",
+    "config_validation_schema": null,
+    "model": null,
+    "temperature": null,
+    "max_tokens": null,
+    "max_iterations": 10,
+    "include_history": null,
+    "exclude_components": null,
+    "evaluation": null
+}

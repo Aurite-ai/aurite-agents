@@ -1,0 +1,7 @@
+[
+  {
+    "key": "ctrl+shift+q",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Run Dev"
+  }
+]

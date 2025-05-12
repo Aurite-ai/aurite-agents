@@ -49,3 +49,43 @@ def api_client(monkeypatch):
     # --- Teardown (handled by TestClient context manager and monkeypatch) ---
     # TestClient ensures app shutdown.
     # monkeypatch automatically reverts environment variables after the test function finishes.
+
+
+@pytest.fixture(scope="function")
+async def async_api_client(monkeypatch):
+    """
+    Provides an httpx.AsyncClient instance for API integration tests
+    requiring async operations (like SSE).
+    - Sets required environment variables.
+    - Clears configuration cache.
+    - Handles app lifespan (startup/shutdown) via AsyncClient context manager.
+    """
+    # --- Environment Setup (same as api_client) ---
+    monkeypatch.setenv("AURITE_ENABLE_DB", "false")
+    test_api_key = os.getenv("API_KEY", "dummy_api_key_fixture_async")
+
+    # --- Cache Clearing (same as api_client) ---
+    get_server_config.cache_clear()
+    # Potentially clear other caches if they exist and are relevant
+
+    # --- Create Async Test Client ---
+    # httpx.AsyncClient is used for async requests.
+    # It needs to be used in an async context (e.g., async with).
+    # The app context (startup/shutdown) is handled by asgi-lifespan with httpx.
+    # We need to ensure the app instance is the same one used by TestClient.
+    # For FastAPI, AsyncClient can take the app directly.
+
+    # The base_url should match how the TestClient constructs its URLs,
+    # typically "http://testserver" or "http://127.0.0.1:some_port" if running a live server.
+    # For FastAPI's TestClient, it uses "http://testserver" by default.
+    # We'll use the app directly, which is simpler for in-process testing.
+    # httpx.AsyncClient handles lifespan events for the app when passed directly.
+    from httpx import AsyncClient # Ensure httpx is available
+
+    # The app's lifespan (startup/shutdown) will be managed by AsyncClient's context manager.
+    async with AsyncClient(app=app, base_url="http://testserver") as client:
+        # Set common headers. API key will be added per request in tests.
+        client.headers["Content-Type"] = "application/json"
+        # Store the API key on the client instance for convenience in tests, similar to TestClient.
+        client.test_api_key = test_api_key
+        yield client

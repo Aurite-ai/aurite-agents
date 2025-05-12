@@ -450,3 +450,187 @@ def test_list_registered_custom_workflows_unauthorized(api_client: TestClient):
 # we could potentially have a test that registers nothing then calls these.
 # However, the current fixture setup loads testing_config.json by default.
 # The endpoints themselves return [] if manager.*_configs is empty, which is implicitly tested.
+import json # Ensure json is imported for SSE parsing
+from typing import Dict, Any, AsyncGenerator, List # For SSE parsing, FakeLLMClient, and List type hint
+from src.config.config_models import LLMConfig # For registering fake LLM config
+from tests.mocks.fake_llm_client import FakeLLMClient # Import the fake client
+
+# Helper for parsing SSE
+async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> List[Dict[str, Any]]:
+    events = []
+    current_event_type = None
+    current_data_lines = []
+    async for line_bytes in response_content:
+        line = line_bytes.decode('utf-8').strip()
+        if not line: # Empty line signifies end of an event
+            if current_event_type and current_data_lines:
+                try:
+                    data_str = "".join(current_data_lines)
+                    data_json = json.loads(data_str)
+                    events.append({"event_type": current_event_type, "data": data_json})
+                except json.JSONDecodeError as e:
+                    print(f"SSE JSON Decode Error: {e} for data: {data_str}") # Or log
+            current_event_type = None
+            current_data_lines = []
+        elif line.startswith("event:"):
+            current_event_type = line[len("event:"):].strip()
+        elif line.startswith("data:"):
+            current_data_lines.append(line[len("data:"):].strip())
+        # Ignoring id and retry for this parser
+    return events
+
+
+@pytest.mark.anyio
+async def test_execute_agent_stream_e2e(async_api_client, monkeypatch):
+    """
+    E2E test for the /agents/{agent_name}/execute-stream endpoint.
+    Verifies correct SSE index handling and event streaming.
+    """
+    # --- Arrange ---
+    test_api_key = async_api_client.test_api_key
+    headers = {"X-API-Key": test_api_key, "Accept": "text/event-stream"}
+
+    agent_name_e2e = "E2EStreamingAgent"
+    fake_llm_id_e2e = "fake_llm_for_e2e_streaming"
+
+    # 1. Define the event sequence for the FakeLLMClient
+    llm_event_sequence_for_test = [
+        {"event_type": "text_block_start", "data": {"index": 0, "text": ""}},
+        {"event_type": "text_delta", "data": {"index": 0, "delta": "Thinking (E2E)..."}},
+        {"event_type": "content_block_stop", "data": {"index": 0}},
+        {"event_type": "text_block_start", "data": {"index": 0, "text": ""}}, # LLM reuses index 0
+        {"event_type": "text_delta", "data": {"index": 0, "delta": '{"result": "done (E2E)"}'}},
+        {"event_type": "content_block_stop", "data": {"index": 0}},
+        {"event_type": "stream_end", "data": {"stop_reason": "end_turn"}}
+    ]
+
+    # This is the challenging part: How does the HostManager's LLM client resolution
+    # pick up a FakeLLMClient *configured with llm_event_sequence_for_test*?
+    # Option A: Patch HostManager.llm_manager.get_client (or similar) to return our configured FakeLLMClient.
+    # Option B: If FakeLLMClient provider is registered, ensure it can be configured (e.g. via a global test state).
+
+    # For now, let's use patching to inject our pre-configured FakeLLMClient instance.
+    # We need to find where the LLM client is instantiated for an agent.
+    # This is likely in ExecutionFacade, which gets it from HostManager.
+    # So, we patch the method on HostManager that provides the LLM client.
+
+    # Assume HostManager has a method like `get_llm_client_instance(llm_id: str)`
+    # or `resolve_llm_client_for_agent(agent_config: AgentConfig)`
+    # For this example, let's assume a simplified path:
+    # ExecutionFacade calls something on HostManager, which eventually calls LLMClient.stream_message.
+    # We will patch the `stream_message` method of the specific LLM client instance
+    # that gets resolved for our test agent. This is tricky because the instance is created dynamically.
+
+    # A more robust E2E approach:
+    # 1. Register a "fake_streaming_provider" LLMConfig.
+    # 2. Ensure the application's LLM loading mechanism can instantiate FakeLLMClient for this provider.
+    # 3. The FakeLLMClient needs a way to get its event_sequence for a given test.
+    #    This could be a class variable on FakeLLMClient that tests can set.
+
+    # Setting a class variable on FakeLLMClient for the test sequence:
+    FakeLLMClient.test_event_sequence = llm_event_sequence_for_test
+
+    # This requires FakeLLMClient to be modified to use this class variable if its instance one is None.
+    # Let's assume FakeLLMClient is modified like:
+    # class FakeLLMClient:
+    #     test_event_sequence = None # Class variable
+    #     def __init__(self, event_sequence=None, llm_id=None): # llm_id might be passed by manager
+    #         self.event_sequence = event_sequence or FakeLLMClient.test_event_sequence or []
+    #         ...
+    # This change would need to be made in tests/mocks/fake_llm_client.py
+
+    # Register a fake LLM config that uses a provider name our app can map to FakeLLMClient
+    fake_llm_config_payload = {
+        "llm_id": fake_llm_id_e2e,
+        "provider": "fake_streaming_provider", # App needs to know how to handle this
+        "model": "fake_model_for_streaming_e2e",
+        # Add other required LLMConfig fields if any, e.g., api_key_env_var
+        "api_key_env_var": "FAKE_API_KEY_UNUSED"
+    }
+    response = await async_api_client.post("/llm-configs/register", json=fake_llm_config_payload, headers={"X-API-Key": test_api_key})
+    assert response.status_code == 201
+
+    # Register an agent that uses this fake LLM
+    agent_payload_e2e = {
+        "name": agent_name_e2e,
+        "llm_config_id": fake_llm_id_e2e,
+        "system_prompt": "You are an E2E streaming test agent."
+    }
+    response = await async_api_client.post("/agents/register", json=agent_payload_e2e, headers={"X-API-Key": test_api_key})
+    assert response.status_code == 201
+
+    # --- Act ---
+    user_message_e2e = "Stream test message"
+    params = {"user_message": user_message_e2e, "system_prompt": "Test prompt"}
+
+    collected_events_raw = []
+    async with async_api_client.stream("GET", f"/agents/{agent_name_e2e}/execute-stream", params=params, headers=headers) as stream_response:
+        assert stream_response.status_code == 200
+        assert stream_response.headers["content-type"] == "text/event-stream"
+        async for line_bytes in stream_response.aiter_bytes():
+            collected_events_raw.append(line_bytes) # Collect raw bytes first
+
+    # Manually parse the raw byte stream into SSE events
+    parsed_sse_events = []
+    current_event_type = None
+    current_data_lines = []
+    for line_bytes in collected_events_raw:
+        line = line_bytes.decode('utf-8').strip()
+        if not line:
+            if current_event_type and current_data_lines:
+                try:
+                    data_str = "".join(current_data_lines)
+                    data_json = json.loads(data_str)
+                    parsed_sse_events.append({"event": current_event_type, "data": data_json})
+                except json.JSONDecodeError as e:
+                    pytest.fail(f"SSE JSON Decode Error: {e} for data: {data_str}")
+            current_event_type = None
+            current_data_lines = []
+        elif line.startswith("event:"):
+            current_event_type = line[len("event:"):].strip()
+        elif line.startswith("data:"):
+            current_data_lines.append(line[len("data:"):].strip())
+
+
+    # --- Assert ---
+    assert len(parsed_sse_events) > 0 # Ensure some events were received
+
+    # Expected frontend indices for conceptual blocks
+    # Based on llm_event_sequence_for_test:
+    # Block 1: Thinking (LLM idx 0) -> Expected Frontend Index 0
+    # Block 2: Final Response (LLM idx 0 again) -> Expected Frontend Index 1
+
+    # Filter for events that should have our managed index
+    indexed_events = [event for event in parsed_sse_events if event["event"] in ["text_block_start", "text_delta", "content_block_stop"]]
+
+    assert len(indexed_events) == 6 # 3 for thinking, 3 for final response
+
+    # Thinking block (fidx 0)
+    assert indexed_events[0]["event"] == "text_block_start"
+    assert indexed_events[0]["data"]["index"] == 0
+    assert indexed_events[1]["event"] == "text_delta"
+    assert indexed_events[1]["data"]["index"] == 0
+    assert indexed_events[1]["data"]["delta"] == "Thinking (E2E)..."
+    assert indexed_events[2]["event"] == "content_block_stop"
+    assert indexed_events[2]["data"]["index"] == 0
+
+    # Final response block (fidx 1)
+    assert indexed_events[3]["event"] == "text_block_start"
+    assert indexed_events[3]["data"]["index"] == 1 # This is the key assertion for new block index
+    assert indexed_events[4]["event"] == "text_delta"
+    assert indexed_events[4]["data"]["index"] == 1
+    assert indexed_events[4]["data"]["delta"] == '{"result": "done (E2E)"}'
+    assert indexed_events[5]["event"] == "content_block_stop"
+    assert indexed_events[5]["data"]["index"] == 1
+
+    # Check for the llm_call_completed event (which is yielded by ATP from LLM's stream_end)
+    llm_completed_events = [event for event in parsed_sse_events if event["event"] == "llm_call_completed"]
+    assert len(llm_completed_events) == 1
+    assert llm_completed_events[0]["data"]["stop_reason"] == "end_turn"
+
+    # Cleanup: Unregister agent and LLM config if the API supports it,
+    # or rely on test isolation if HostManager is reset per test.
+    # For now, assume test isolation or manual cleanup if needed.
+    # Reset class variable on FakeLLMClient
+    if hasattr(FakeLLMClient, 'test_event_sequence'):
+        del FakeLLMClient.test_event_sequence

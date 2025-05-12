@@ -17,17 +17,9 @@
       "timeout": 15.0,
       "routing_weight": 1.0,
       "roots": []
-    },
-    {
-      "client_id": "address_server",
-      "server_path": "tests/prompt_validation/dummy_mcp_server.py",
-      "capabilities": ["tools", "prompts", "resources"],
-      "timeout": 15.0,
-      "routing_weight": 1.0,
-      "roots": []
     }
   ],
-  "agents": [
+  "agent_configs": [
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
@@ -130,7 +122,7 @@
       "include_history": "True"
     }
   ],
-  "simple_workflows": [
+  "simple_workflow_configs": [
     {
       "name": "main",
       "steps": [
@@ -140,9 +132,9 @@
       "description": "Example workflow to test simple workflow execution using agents."
     }
   ],
-  "custom_workflows": [
+  "custom_workflow_configs": [
     {
-      "name": "ExampleCustom",
+      "name": "ExampleCustomWorkflow",
       "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
       "class_name": "ExampleCustomWorkflow",
       "description": "An example custom workflow for testing."

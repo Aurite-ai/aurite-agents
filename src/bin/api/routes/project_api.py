@@ -72,6 +72,89 @@ class LoadComponentsRequest(BaseModel):
 
 
 # --- Endpoints ---
+# Add to your project_api.py (e.g., after get_project_file_content)
+
+
+@router.get(
+    "/active/component/{project_component_type}/{component_name}", response_model=Any
+)
+async def get_active_project_component_config(
+    project_component_type: str,
+    component_name: str,
+    manager: HostManager = Depends(get_host_manager),
+):
+    """
+    Retrieves the full configuration of a specific component
+    from the currently active project configuration.
+    """
+    logger.info(
+        f"Request to get component '{component_name}' of type '{project_component_type}' from active project."
+    )
+    active_project = manager.project_manager.get_active_project_config()
+
+    if not active_project:
+        logger.warning("No active project loaded.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active project loaded.",
+        )
+
+    # Determine the correct attribute on the active_project object
+    # These should match the keys in your ProjectConfig Pydantic model
+    # (e.g., active_project.agents, active_project.simple_workflows)
+    # The frontend will pass "agents", "simple_workflows", "custom_workflows", "llm_configs"
+
+    component_dict_attribute_name: Optional[str] = None
+    if project_component_type == "agents":
+        component_dict_attribute_name = (
+            "agents"  # Assuming ProjectConfig has active_project.agents
+        )
+    elif project_component_type == "simple_workflows":
+        component_dict_attribute_name = "simple_workflows"
+    elif project_component_type == "custom_workflows":
+        component_dict_attribute_name = "custom_workflows"
+    elif project_component_type == "llm_configs":
+        component_dict_attribute_name = "llm_configs"
+    elif project_component_type == "clients":
+        component_dict_attribute_name = "clients"
+    else:
+        logger.warning(
+            f"Invalid project_component_type specified in path: {project_component_type}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid component type '{project_component_type}' for active project lookup.",
+        )
+
+    if not hasattr(active_project, component_dict_attribute_name):
+        logger.error(
+            f"Active project config object does not have attribute '{component_dict_attribute_name}' for type '{project_component_type}'."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Server configuration error for project component type '{project_component_type}'.",
+        )
+
+    component_config_dict: Optional[Dict[str, Any]] = getattr(
+        active_project, component_dict_attribute_name
+    )
+
+    if component_config_dict is None or component_name not in component_config_dict:
+        logger.warning(
+            f"Component '{component_name}' of type '{project_component_type}' (attr: {component_dict_attribute_name}) not found in active project."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Component '{component_name}' of type '{project_component_type}' not found in active project.",
+        )
+
+    component_config = component_config_dict[component_name]
+    logger.info(
+        f"Successfully retrieved component '{component_name}' of type '{project_component_type}' from active project."
+    )
+    # component_config is already a Pydantic model instance (e.g., WorkflowConfig).
+    # FastAPI will automatically call .model_dump() for the response.
+    return component_config
 
 
 @router.post("/change", status_code=status.HTTP_200_OK)
@@ -273,7 +356,24 @@ async def list_project_files(
 
 
 # --- Project File Content Endpoints (View & Edit) ---
+@router.get("/get_active_project_config", response_model=ProjectConfig)
+async def get_active_project_config(
+    manager: HostManager = Depends(get_host_manager),
+):
+    """
+    Retrieves the currently active project configuration.
+    """
+    logger.info("Request to get active project configuration.")
+    active_project = manager.project_manager.get_active_project_config()
 
+    if not active_project:
+        logger.warning("No active project loaded.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active project loaded.",
+        )
+
+    return active_project
 
 @router.get("/file/{filename:path}", response_model=Any)
 async def get_project_file_content(filename: str):

@@ -13,6 +13,7 @@ from ....config.config_models import (
     ClientConfig,
     AgentConfig,
     WorkflowConfig,
+    CustomWorkflowConfig,
     LLMConfig,  # Added LLMConfig for the new endpoint
 )
 from typing import List  # Added for response model
@@ -262,6 +263,17 @@ async def register_llm_config_endpoint(
     logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
     await manager.register_llm_config(llm_config)
     return {"status": "success", "llm_id": llm_config.llm_id}
+
+@router.post("/custom_workflows/register", status_code=201)
+async def register_custom_workflow_endpoint(
+    custom_workflow_config: CustomWorkflowConfig,
+    # api_key: str = Depends(get_api_key), # Dependency moved to router level
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Dynamically registers a new custom workflow configuration."""
+    logger.info(f"Received request to register custom workflow: {custom_workflow_config.name}")
+    await manager.register_custom_workflow(custom_workflow_config)
+    return {"status": "success", "workflow_name": custom_workflow_config.name}
 
 
 # --- Listing Endpoints for Registered Components ---
