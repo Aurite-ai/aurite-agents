@@ -1,7 +1,6 @@
 import logging
-from typing import List, Any, Union  # Added Any, Union
+from typing import List, Any  # Added Any, Union
 import json  # Added json
-from pathlib import Path  # Added Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
@@ -16,9 +15,6 @@ from src.config.component_manager import (
     COMPONENT_META,
     COMPONENT_TYPES_DIRS,  # Need this for directory lookup
 )
-from src.config import (
-    PROJECT_ROOT_DIR,
-)  # For path construction if needed, though COMPONENT_TYPES_DIRS is absolute
 
 logger = logging.getLogger(__name__)
 

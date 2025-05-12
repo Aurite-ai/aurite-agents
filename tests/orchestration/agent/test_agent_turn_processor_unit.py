@@ -3,14 +3,13 @@ Unit tests for the AgentTurnProcessor class.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch # Added patch
+from unittest.mock import MagicMock, AsyncMock # Added patch
 from typing import List  # Import List
 
 # Import necessary types and classes
 from src.agents.agent_turn_processor import AgentTurnProcessor
 from src.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
 from src.config.config_models import AgentConfig
-from src.llm.base_client import BaseLLM
 from src.host.host import MCPHost
 from anthropic.types import MessageParam
 

@@ -13,6 +13,7 @@ import warnings  # Add import
 from types import ModuleType  # Added ModuleType
 from typing import Dict, Optional, Any, List  # Added Type
 from dataclasses import dataclass
+import anyio  # Import anyio
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -325,9 +326,9 @@ class SecurityManager:
                     request = secretmanager.AccessSecretVersionRequest(name=secret_name)
                     # Use the synchronous client method directly as SDK doesn't provide async access method
                     # This will block the event loop briefly for each secret access.
-                    # If many secrets are needed frequently, consider running in a thread pool executor.
-                    response = self._gcp_secret_client.access_secret_version(
-                        request=request
+                    # Running in a thread pool executor using anyio.to_thread.run_sync
+                    response = await anyio.to_thread.run_sync(
+                        self._gcp_secret_client.access_secret_version, request
                     )
                     secret_value = response.payload.data.decode("UTF-8")
                     resolved_secrets[env_var] = secret_value

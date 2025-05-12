@@ -74,20 +74,23 @@ class RootManager:
         Original logic checked tool-specific root requirements, which have been removed.
         This method is kept for potential future use or more basic checks if needed.
         """
-        # Original logic checked tool-specific requirements here.
-        # Since that's removed, and the check for client registration happens
-        # before this would be called, we just return True.
-        # We could add a basic check like `return client_id in self._client_roots`
-        # if we wanted to ensure the client is known, but ToolManager likely handles that.
+        # Check if the client is known to the RootManager (i.e., has roots registered).
+        # This is a basic validation step called by ToolManager before execution.
+        # Actual resource URI validation against roots happens in ResourceManager.
         if client_id not in self._client_roots:
             # This case might indicate an issue elsewhere if ToolManager calls this
             # for an unknown client, but we'll log a warning just in case.
             logger.warning(
                 f"validate_access called for unknown or rootless client: {client_id}"
             )
-            # Still return True based on original logic's fallback for rootless clients.
-            return True
+            # Return False if the client is not registered with roots.
+            # Although the original logic returned True, it's safer to return False
+            # if the client isn't properly registered here. ToolManager should ideally
+            # ensure the client exists before calling this, but this provides a safety net.
+            # Let's return False for unknown clients.
+            return False
 
+        # If the client is known (has roots registered), return True.
         return True
 
     async def get_client_roots(

@@ -152,10 +152,10 @@ class MessageRouter:
             f"Updated weight for server '{server_id}' to: {weight}"
         )  # Changed to DEBUG
 
-    async def remove_server(self, server_id: str):
-        """Remove a server (client) and all its associated registrations."""
+    async def unregister_server(self, server_id: str):
+        """Unregister a server (client) and remove all its associated registrations."""
         if server_id not in self._server_capabilities:
-            logger.warning(f"Attempted to remove non-existent server: {server_id}")
+            logger.warning(f"Attempted to unregister non-existent server: {server_id}")
             return  # Nothing to remove
 
         self._server_capabilities.pop(server_id, None)

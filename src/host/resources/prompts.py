@@ -138,6 +138,24 @@ class PromptManager:
 
     # validate_prompt_arguments method removed.
 
+    async def unregister_client_prompts(self, client_id: str):
+        """
+        Removes all prompt registrations associated with a specific client ID.
+
+        Args:
+            client_id: The ID of the client whose prompts should be unregistered.
+        """
+        if client_id in self._prompts:
+            removed_prompts = list(self._prompts[client_id].keys())
+            del self._prompts[client_id]
+            logger.debug(
+                f"Unregistered {len(removed_prompts)} prompts for client '{client_id}': {removed_prompts}"
+            )
+        else:
+            logger.debug(
+                f"No prompts found to unregister for client '{client_id}'."
+            )
+
     async def shutdown(self):
         """Shutdown the prompt manager"""
         logger.debug("Shutting down prompt manager")  # Changed to DEBUG
