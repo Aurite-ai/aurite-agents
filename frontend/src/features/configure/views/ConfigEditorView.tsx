@@ -22,6 +22,10 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
   filename,
   onClose,
 }) => {
+  // Store the initial props in state, only set once on mount
+  const [initialComponentType] = useState(componentType);
+  const [initialFilename] = useState(filename);
+
   const [code, setCode] = useState<string>('// Loading...');
   const [isLoading, setIsLoading] = useState<boolean>(false); // For initial content loading
   const [error, setError] = useState<string | null>(null); // For initial content loading error
@@ -31,25 +35,27 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
 
   useEffect(() => {
     const fetchConfigContent = async () => {
-      if (!componentType || !filename) return;
+      // Use the initial state values for fetching, ignore prop changes after mount
+      if (!initialComponentType || !initialFilename) return;
 
       setIsLoading(true);
       setError(null);
       try {
-        // Use the new generic function from apiClient.ts
-        const data = await fetchFileContentGeneric(componentType as string, filename); // Cast componentType
+        // Use the new generic function from apiClient.ts with initial state values
+        const data = await fetchFileContentGeneric(initialComponentType as string, initialFilename);
         setCode(JSON.stringify(data, null, 2)); // Pretty print JSON
       } catch (err) {
         console.error('Error fetching config content:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        setCode(`// Error loading ${filename}:\n// ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setCode(`// Error loading ${initialFilename}:\n// ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchConfigContent();
-  }, [componentType, filename]);
+    // Depend only on the initial state values (or effectively, run only once on mount)
+  }, [initialComponentType, initialFilename]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -66,10 +72,12 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
     }
 
     try {
-      // Use the new generic function from apiClient.ts
-      await saveFileContentGeneric(componentType as string, filename, parsedContent); // Cast componentType
+      // Use the new generic function from apiClient.ts with initial state values
+      await saveFileContentGeneric(initialComponentType as string, initialFilename, parsedContent);
       setSaveStatus('Configuration saved successfully!');
       // Optionally, clear status after a few seconds
+      // TODO: Consider triggering a refresh of the list view data?
+      // e.g., useProjectStore.getState().notifyComponentsUpdate();
       setTimeout(() => setSaveStatus(null), 3000);
 
     } catch (err) {
@@ -98,7 +106,8 @@ const ConfigEditorView: React.FC<ConfigEditorViewProps> = ({
     <div className="p-1">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-dracula-purple">
-          Editing: {filename} ({componentType})
+          {/* Display initial values, not potentially changed props */}
+          Editing: {initialFilename} ({initialComponentType})
         </h3>
         <button
             onClick={onClose}

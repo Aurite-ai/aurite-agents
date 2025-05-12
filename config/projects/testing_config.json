@@ -10,14 +10,7 @@
       "routing_weight": 1.0,
       "roots": []
     },
-    {
-      "client_id": "planning_server",
-      "server_path": "src/packaged_servers/planning_server.py",
-      "capabilities": ["tools", "prompts", "resources"],
-      "timeout": 15.0,
-      "routing_weight": 1.0,
-      "roots": []
-    }
+    "planning_server"
   ],
   "agent_configs": [
     {
