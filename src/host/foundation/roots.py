@@ -64,7 +64,7 @@ class RootManager:
         self._client_roots[client_id] = normalized_roots
         self._client_uris[client_id] = normalized_uris
 
-        logger.info(f"Registered roots for client {client_id}: {normalized_uris}")
+        logger.debug(f"Registered roots for client {client_id}: {normalized_uris}")
 
     # register_tool_requirements method removed.
 
@@ -104,7 +104,7 @@ class RootManager:
 
     async def shutdown(self):
         """Shutdown the root manager"""
-        logger.info("Shutting down root manager")
+        logger.debug("Shutting down root manager")
 
         # Clear stored data
         self._client_roots.clear()

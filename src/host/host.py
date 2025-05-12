@@ -125,11 +125,11 @@ class MCPHost:
             await self._initialize_client(client_config)
 
         num_clients = len(self.client_manager.active_clients)
-        # MCPHost uses HostConfig (self._config), which doesn't directly hold agent_configs.
-        # This will result in 0 if HostConfig doesn't have agent_configs.
+        # MCPHost uses HostConfig (self._config). If HostConfig were to hold agent configurations,
+        # it would likely be under an 'agents' attribute, similar to ProjectConfig.
         num_agent_configs = (
-            len(self._config.agent_configs)
-            if hasattr(self._config, "agent_configs") and self._config.agent_configs
+            len(self._config.agents)
+            if hasattr(self._config, "agents") and self._config.agents
             else 0
         )
         logger.info(

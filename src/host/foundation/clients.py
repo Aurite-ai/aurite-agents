@@ -99,7 +99,7 @@ class ClientManager:
                         await anyio.sleep_forever()
 
         except anyio.get_cancelled_exc_class():
-            logger.info(f"Client lifecycle task for {client_id} cancelled.")
+            logger.debug(f"Client lifecycle task for {client_id} cancelled.")
         except Exception as e:
             logger.error(f"Error in client lifecycle task for {client_id}: {e}", exc_info=True)
             # If task_status.started() hasn't been called yet, and an error occurs,

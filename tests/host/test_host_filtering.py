@@ -273,15 +273,17 @@ class TestHostFilteringIntegration:
         """
         # Agent "Weather Agent" is configured with client_ids=["weather_server"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Weather Agent"
         ]
         assert agent_config.client_ids == ["weather_server"]
 
         # Get formatted tools for this agent
+        print(f"\nDEBUG: AgentConfig for Weather Agent: {agent_config.model_dump_json(indent=2)}")
         formatted_tools = host_manager.host.get_formatted_tools(
             agent_config=agent_config
         )
+        print(f"DEBUG: Raw formatted_tools for Weather Agent: {formatted_tools}")
 
         # Expected tools from weather_server (check packaged_servers/weather_mcp_server.py)
         # - weather_lookup
@@ -314,7 +316,7 @@ class TestHostFilteringIntegration:
         """
         # Agent "Weather Agent" is configured with exclude_components=["current_time"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Weather Agent"
         ]
         assert agent_config.exclude_components == [
@@ -344,7 +346,7 @@ class TestHostFilteringIntegration:
         # Agent "Filtering Test Agent" uses client_ids=["planning_server"]
         # and exclude_components=["save_plan", "create_plan_prompt", "planning://plan/excluded-test-plan"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -382,7 +384,7 @@ class TestHostFilteringIntegration:
         """
         # Weather Agent excludes 'current_time' (corrected name)
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Weather Agent"
         ]
         assert "current_time" in agent_config.exclude_components
@@ -407,7 +409,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -436,7 +438,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent excludes 'create_plan_prompt'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         assert "create_plan_prompt" in agent_config.exclude_components
@@ -461,7 +463,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -496,7 +498,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent excludes 'planning://plan/excluded-test-plan'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         excluded_uri = "planning://plan/excluded-test-plan"
@@ -524,7 +526,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agent_configs[
+        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]

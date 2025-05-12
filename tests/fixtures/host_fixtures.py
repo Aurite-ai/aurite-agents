@@ -86,7 +86,7 @@ def mock_mcp_host() -> Mock:
 # --- Integration Fixture ---
 
 
-@pytest.fixture(scope="module")  # <<< Changed scope from function to module
+@pytest.fixture(scope="function")  # <<< Reverted scope back to function
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on

@@ -361,7 +361,7 @@ class SecurityManager:
 
     async def shutdown(self):
         """Shutdown the security manager"""
-        logger.info("Shutting down security manager")
+        logger.debug("Shutting down security manager")
 
         # Clear credentials and tokens from memory
         self._credentials.clear()

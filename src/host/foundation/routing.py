@@ -155,7 +155,7 @@ class MessageRouter:
     async def unregister_server(self, server_id: str):
         """Unregister a server (client) and remove all its associated registrations."""
         if server_id not in self._server_capabilities:
-            logger.warning(f"Attempted to unregister non-existent server: {server_id}")
+            logger.debug(f"Attempted to unregister non-existent server: {server_id}")
             return  # Nothing to remove
 
         self._server_capabilities.pop(server_id, None)
