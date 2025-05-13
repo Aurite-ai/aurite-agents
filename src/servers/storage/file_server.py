@@ -34,12 +34,26 @@ def read_file(filepath: str) -> str:
     else:
         return "File not found"
 
+@mcp.tool()
+def read_file_by_id(id: int) -> str:
+    """Read a file by id and return the string content
+
+    Args:
+        id: The id of the file to be read. Must be on the list of allowed filepaths (use list_filepaths())
+    """
+    
+    if id >= len(FILES) or id < 0:
+        return "Invalid id"
+    
+    return read_file(FILES[id])
 
 @mcp.tool()
 def list_filepaths() -> list[str]:
-    """Return a list of file paths to documentation files"""
+    """Return a list of file paths to documentation files. They will be of the format 'id: filepath'"""
+    
+    file_str = "\n".join([f"{i}: {FILES[i]}" for i in range(len(FILES))])
 
-    return FILES
+    return file_str
 
 
 if __name__ == "__main__":
