@@ -113,11 +113,7 @@ These are the primary building blocks you'll work with:
     *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class.
     *   Provide maximum flexibility for intricate interactions and conditional logic. Here's a conceptual example of what a custom workflow class might look like:
     ```python
-    # Example: src/my_custom_workflows/my_orchestrator.py
-
-    from typing import Any, Optional
-    # from src.execution.facade import ExecutionFacade # Actual import path may vary
-
+    # Example: src/my_custom_workflows/my_orchestrator.py class definition
     class MyCustomOrchestrator:
         async def execute_workflow(
             self,
@@ -125,7 +121,6 @@ These are the primary building blocks you'll work with:
             executor: "ExecutionFacade", # Type hint for the passed executor
             session_id: Optional[str] = None # Optional session_id
         ) -> Any:
-            print(f"MyCustomOrchestrator received input: {initial_input}")
 
             # --- Your custom Python orchestration logic here ---
             # You can call other agents, simple workflows, or even other custom workflows
@@ -154,25 +149,24 @@ These are the primary building blocks you'll work with:
 
             return custom_workflow_result
     ```
-    # To use this custom workflow:
-    # 1. Save this code into a Python file (e.g., in src/my_custom_workflows/basic_executor_example.py).
-    # 2. In your project's JSON configuration (e.g., config/projects/default.json), add or update
-    #    a custom_workflow entry like this:
-    #    {
-    #      "custom_workflows": [
-    #        {
-    #          "name": "MyBasicWorkflowExample",  // A unique name for this workflow
-    #          "module_path": "src.my_custom_workflows.basic_executor_example", // Path to your .py file
-    #          "class_name": "BasicExecutorExampleWorkflow", // The class name defined above
-    #          "description": "A basic example demonstrating custom workflow executor usage."
-    #        }
-    #        // ... any other custom workflows
-    #      ]
-    #    }
-    #    (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
-    # 3. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code)
-    #    is also defined in the 'agents' section of your project configuration.
+    To use this custom workflow:
+      1. Save this code into a Python file (e.g., in src/my_custom_workflows/basic_executor_example.py).
+      2. In your project's JSON configuration (e.g., config/projects/default.json), add or update a custom_workflow entry like this:
+    ```json
+    {
+      "custom_workflows": [
+        {
+          "name": "MyBasicWorkflowExample",  // A unique name for this workflow
+          "module_path": "src.my_custom_workflows.basic_executor_example", // Path to your .py file
+          "class_name": "BasicExecutorExampleWorkflow", // The class name defined above
+          "description": "A basic example demonstrating custom workflow executor usage."
+        }
+        // ... any other custom workflows
+      ]
+    }
     ```
+    * (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
+    3. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code) is also defined in the 'agents' section of your project configuration.
 
 ### 3. LLM Configurations
 
