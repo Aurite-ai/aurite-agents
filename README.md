@@ -45,10 +45,10 @@ graph TD
     B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
     C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
 
-    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px
-    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px
-    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px
-    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px
+    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
+    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
+    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
+    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
 ```
 
 For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/framework_overview.md`](docs/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
@@ -76,10 +76,37 @@ These are the primary building blocks you'll work with:
     *   Configured via `AgentConfig` models, typically stored in JSON files (e.g., `config/agents/my_weather_agent.json`) and referenced in your project file.
     *   Key settings include the LLM to use, system prompts, and rules for accessing tools/clients.
 
+    ```mermaid
+    graph TD
+        Agent["Agent <br/> (src/agents/agent.py)"] --> LLM["LLM <br/> (e.g., Claude, GPT)"];
+        Agent --> Clients["MCP Clients <br/> (Connections to Servers)"];
+
+        Clients --> MCP1["MCP Server 1 <br/> (e.g., Weather Tool)"];
+        Clients --> MCP2["MCP Server 2 <br/> (e.g., Database)"];
+        Clients --> MCP3["MCP Server 3 <br/> (e.g., Custom API)"];
+
+        style Agent fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style LLM fill:#FFFFE0,stroke:#B8860B,stroke-width:2px,color:#333333
+        style Clients fill:#E6E6FA,stroke:#483D8B,stroke-width:2px,color:#333333
+        style MCP1 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+        style MCP2 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+        style MCP3 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+    ```
+
 *   **Simple Workflows (`src/workflows/simple_workflow.py`):**
     *   Define a sequence of Agents to be executed one after another.
     *   Configured via `WorkflowConfig` models (e.g., `config/workflows/my_simple_sequence.json`).
     *   Useful for straightforward, multi-step tasks where the output of one agent becomes the input for the next.
+
+    ```mermaid
+    graph LR
+        Agent1["Agent A"] -->|Input/Output| Agent2["Agent B"];
+        Agent2 -->|Input/Output| Agent3["Agent C"];
+
+        style Agent1 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style Agent2 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style Agent3 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+    ```
 
 *   **Custom Workflows (`src/workflows/custom_workflow.py`):**
     *   Allow you to define complex orchestration logic using custom Python classes.
