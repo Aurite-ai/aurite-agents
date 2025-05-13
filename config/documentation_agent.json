@@ -13,14 +13,24 @@
     "agents": [
         {
             "name": "Documentation Chat Agent",
-            "system_prompt": "Your job is to use the information stored in the pgvector database to answer any questions asked by the user. This database contains text snippets from relevant documentation files. Whenever the user asks a question, use the search tool to search for similar text snippets and use them to answer their question",
+            "system_prompt": "Your job is to use the information stored in the pgvector database to answer any questions asked by the user. This database contains text snippets from relevant documentation files. Whenever the user asks a question, use the search tool to search for similar text snippets and use them to answer their question. In your answer, include the file names of the documentation files you reference.",
             "client_ids": ["pgvector_server"],
             "model": "claude-3-opus-20240229",
             "temperature": "0.1",
             "max_tokens": 4096,
             "max_iterations": 10,
             "include_history": "True"
-        }
+        },
+        {
+          "name": "Documentation Question Agent",
+          "system_prompt": "You are an expert documentation analyst. Your job is to use the information supplied to you (CONTEXT) to answer a question (QUESTION) asked by the user. In your answer, include the file names of the documentation files you reference.",
+          "client_ids": [],
+          "model": "claude-3-opus-20240229",
+          "temperature": "0.1",
+          "max_tokens": 4096,
+          "max_iterations": 10,
+          "include_history": "True"
+      }
     ],
     "workflows": [
       
@@ -31,6 +41,12 @@
         "module_path": "src/documentation_chat/initialize_docs_workflow.py",
         "class_name": "InitializeDocsWorkflow",
         "description": "A workflow to initialize the documentation files in the embeddings db."
+      },
+      {
+        "name": "DocsQuestion",
+        "module_path": "src/documentation_chat/docs_question_workflow.py",
+        "class_name": "DocsQuestionWorkflow",
+        "description": "Workflow for asking the documentation agent a question."
       }
     ]
   }
