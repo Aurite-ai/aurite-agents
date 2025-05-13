@@ -111,7 +111,59 @@ These are the primary building blocks you'll work with:
 *   **Custom Workflows (`src/workflows/custom_workflow.py`):**
     *   Allow you to define complex orchestration logic using custom Python classes.
     *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class.
-    *   Provide maximum flexibility for intricate interactions and conditional logic.
+    *   Provide maximum flexibility for intricate interactions and conditional logic. Here's a conceptual example of what a custom workflow class might look like:
+    ```python
+    # Example: src/my_custom_workflows/my_orchestrator.py
+
+    from typing import Any, Optional
+    # from src.execution.facade import ExecutionFacade # Actual import path may vary
+
+    class MyCustomOrchestrator:
+        async def execute_workflow(
+            self,
+            initial_input: Any,
+            executor: "ExecutionFacade", # Type hint for the passed executor
+            session_id: Optional[str] = None # Optional session_id
+        ) -> Any:
+            print(f"MyCustomOrchestrator received input: {initial_input}")
+
+            # --- Your custom Python orchestration logic here ---
+            # You can call other agents, simple workflows, or even other custom workflows
+            # using the 'executor' instance.
+
+            # Example: Call an agent
+            agent_result = await executor.run_agent(
+                agent_name="MyProcessingAgent",
+                user_message=str(initial_input), # Ensure message is a string
+                session_id=session_id # Pass session_id if agent uses history
+            )
+            # Assuming agent_result is a dict-like structure or an object
+            # and final_response has content with a text block.
+            processed_data = None
+            if agent_result and hasattr(agent_result, 'final_response') and agent_result.final_response:
+                if hasattr(agent_result.final_response, 'content') and agent_result.final_response.content:
+                    if hasattr(agent_result.final_response.content[0], 'text'):
+                         processed_data = agent_result.final_response.content[0].text
+
+
+            if not processed_data:
+                return {"status": "error", "message": "Agent did not return data"}
+
+            # Example: Call a simple workflow
+            simple_workflow_result = await executor.run_simple_workflow(
+                workflow_name="MyFollowUpWorkflow",
+                initial_input=processed_data
+                # session_id for simple workflows is not directly used by the workflow itself,
+                # but could be relevant if agents within that simple workflow use history.
+            )
+            final_output = simple_workflow_result.get("final_message")
+
+            # Example: Conditional logic
+            if "complete" in (final_output or "").lower():
+                return {"status": "success", "result": final_output, "custom_message": "Orchestration complete!"}
+            else:
+                return {"status": "pending", "details": final_output}
+    ```
 
 ### 3. LLM Configurations
 
@@ -166,14 +218,75 @@ By default, it starts on `http://0.0.0.0:8000`. You can then send requests to it
     ```bash
     python -m src.bin.worker
     ```
-
+*
 ## Configuration Overview (User Perspective)
 
-*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) then references other JSON files for specific components like agents, clients, and LLMs.
-*   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`).
+*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) defines configurations or references other JSON files for specific components like agents, clients, and LLMs. For example, a project file might look like this:
+    ```json
+    {
+        "llms": [
+        {
+        "llm_id": "anthropic_claude_3_opus",
+        "provider": "anthropic",
+        "model_name": "claude-3-opus-20240229",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": true,
+        "exclude_components": ["current_time"]
+        }
+        ],
+        "clients": [
+            {
+            "client_id": "weather_server",
+            "server_path": "src/packaged_servers/weather_mcp_server.py",
+            "capabilities": ["tools", "prompts"],
+            "timeout": 15.0,
+            "routing_weight": 1.0,
+            "roots": []
+            },
+            "planning_server",
+            "address_server"
+        ],
+        "agents": [
+            {
+            "name": "Weather Agent",
+            "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+            "client_ids": ["weather_server"],
+            "llm_id": "anthropic_claude_3_opus",
+            "exclude_components": ["current_time"]
+            },
+            {
+            "name": "Weather Planning Workflow Step 2",
+            "system_prompt": "You have been provided with weather information in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information.",
+            "client_ids": ["planning_server"],
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "max_iterations": 10,
+            "include_history": true
+            }
+        ],
+        "workflows": [
+            {
+            "name": "A second testing workflow using weather and planning servers",
+            "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
+            "description": "Updated workflow to test simple workflow execution using agents."
+            }
+        ],
+        "custom_workflows": [
+            {
+            "name": "Prompt Validation Workflow",
+            "module_path": "src/prompt_validation/prompt_validation_workflow.py",
+            "class_name": "PromptValidationWorkflow",
+            "description": "A custom workflow built to test agentic components."
+            }
+        ]
+    }
+    ```
+*   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`). You can reference these components by their ID as seen in the `planning_server` and `address_server` references in the `clients` section of the example project json file above.
 *   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
 *   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
-
+*
 ## Simplified Directory Structure
 
 Key directories for users:
