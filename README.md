@@ -41,9 +41,9 @@ The framework follows a layered architecture, illustrated below:
 
 ```mermaid
 graph TD
-    A[Layer 1: Entrypoints <br/> (API, CLI, Worker)] --> B{Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)};
-    B --> C[Layer 3: Host Infrastructure <br/> (MCPHost)];
-    C --> D[Layer 4: External Capabilities <br/> (MCP Servers)];
+    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
+    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
+    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
 
     style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px
     style B fill:#C2F0C2,stroke:#408040,stroke-width:2px
