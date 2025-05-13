@@ -10,7 +10,7 @@ from src.host.resources.prompts import PromptManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.host.models import ClientConfig
+from src.config.config_models import ClientConfig  # Updated import path
 
 # Import mcp types
 import mcp.types as types
@@ -410,3 +410,51 @@ async def test_shutdown_multiple_clients(
 
     assert prompt_manager._prompts == {}
     # No need to assert router calls, as shutdown doesn't interact with it
+
+
+async def test_unregister_client_prompts(
+    prompt_manager: PromptManager,
+    mock_message_router: MagicMock,
+    mock_filtering_manager: MagicMock,
+    sample_client_config: ClientConfig,
+):
+    """Test unregistering prompts for a specific client."""
+    client_id_a = sample_client_config.client_id
+    client_id_b = "client_B"
+    client_config_b = ClientConfig(
+        client_id=client_id_b, server_path="path/b", capabilities=["prompts"], roots=[]
+    )
+
+    prompt_a1 = types.Prompt(name="prompt_a1")
+    prompt_b1 = types.Prompt(name="prompt_b1")
+
+    # Register prompts for client A
+    await prompt_manager.register_client_prompts(
+        client_id=client_id_a,
+        prompts=[prompt_a1],
+        client_config=sample_client_config,
+        filtering_manager=mock_filtering_manager,
+    )
+    # Register prompts for client B
+    mock_filtering_manager.is_registration_allowed.side_effect = None # Reset for next call
+    mock_filtering_manager.is_registration_allowed.return_value = True
+    await prompt_manager.register_client_prompts(
+        client_id=client_id_b,
+        prompts=[prompt_b1],
+        client_config=client_config_b,
+        filtering_manager=mock_filtering_manager,
+    )
+
+    assert client_id_a in prompt_manager._prompts
+    assert client_id_b in prompt_manager._prompts
+
+    # Unregister prompts for client A
+    await prompt_manager.unregister_client_prompts(client_id_a)
+
+    assert client_id_a not in prompt_manager._prompts
+    assert client_id_b in prompt_manager._prompts # Client B should remain
+    assert "prompt_a1" not in prompt_manager._prompts.get(client_id_b, {})
+
+    # Unregister prompts for a non-existent client (should not error)
+    await prompt_manager.unregister_client_prompts("non_existent_client")
+    assert client_id_b in prompt_manager._prompts # Client B should still remain

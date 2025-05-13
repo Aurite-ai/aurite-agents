@@ -1,11 +1,9 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
 import json
-from typing import Any
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.host.host import MCPHost
 from src.prompt_validation.prompt_validation_helper import (
     run_iterations,
     evaluate_results,
@@ -15,6 +13,10 @@ from src.prompt_validation.prompt_validation_helper import (
     generate_config,
 )
 from src.config import PROJECT_ROOT_DIR  # Import project root
+from typing import TYPE_CHECKING, Optional, Any
+# Type hint for ExecutionFacade to avoid circular import
+if TYPE_CHECKING:
+    from src.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,12 @@ class PromptValidationWorkflow:
     Custom workflow for prompt validation
     """
 
-    async def execute_workflow(self, initial_input: Any, host_instance: MCPHost) -> Any:
+    async def execute_workflow(
+        self, 
+        initial_input: Any, 
+        executor: "ExecutionFacade",
+        session_id: Optional[str] = None,
+    ) -> Any:
         """
         Executes the prompt validation workflow.
 
@@ -67,14 +74,14 @@ class PromptValidationWorkflow:
 
             for i in range(total_tries):
                 results, full_agent_responses = await run_iterations(
-                    host_instance=host_instance,
+                    executor=executor,
                     testing_config=testing_config,
                     override_system_prompt=improved_prompt,
                 )
 
                 # final results based on eval type
                 final_result = await evaluate_results(
-                    host_instance, testing_config, results, full_agent_responses
+                    executor, testing_config, results, full_agent_responses
                 )
 
                 if not final_result.get("pass", False):
@@ -82,12 +89,12 @@ class PromptValidationWorkflow:
                     if testing_config.edit_prompt:
                         current_prompt = (
                             improved_prompt
-                            or host_instance.get_agent_config(
+                            or executor._host.get_agent_config(
                                 testing_config.name
                             ).system_prompt
                         )
                         improved_prompt = await improve_prompt(
-                            host_instance,
+                            executor,
                             testing_config.editor_model,
                             results,
                             current_prompt,

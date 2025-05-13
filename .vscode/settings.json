@@ -13,23 +13,57 @@
     "**/.ruff_cache/**": true,
     "**/.python-version/**": true,
     "**/.venv/**": true,
-    "**/*.egg-info/**": true
+    "**/*.egg-info/**": true,
+    "**/.mypy_cache/**": true
   },
   "ruff.lint.ignore": ["F841", "E722", "E402"],
   "explorer.fileNesting.patterns": {
     "*.ts": "${capture}.js",
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
     "*.jsx": "${capture}.js",
-    "*.tsx": "${capture}.ts",
+    "*.tsx": "${capture}.test.tsx, ${capture}.ts",
     "tsconfig.json": "tsconfig.*.json, jest.config.cjs, playwright.config.ts",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb",
     "Dockerfile": "Dockerfile.dev, .dockerignore",
     "pyproject.toml": "justfile",
     "README.md": "usage_guide.md, LICENSE, CHANGELOG.md"
   },
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "[dockerfile]": {
+
+  "editor.formatOnSave": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false // Disable format on save specifically if needed
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": false
   },
-  "editor.formatOnSave": false
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[dockerfile]": {
+    // Keep existing specific settings
+    "editor.formatOnSave": false
+  },
 }

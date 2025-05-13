@@ -1,0 +1,41 @@
+/// <reference types="vitest" />
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from 'tailwindcss'; // Import tailwindcss for v3
+import autoprefixer from 'autoprefixer'; // Import autoprefixer
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.ts', // or './setupTests.ts' if at root of frontend/
+    css: true, // if you want to process CSS during tests
+  },
+  server: {
+    proxy: {
+      // Proxy API requests (adjust the path prefix if necessary)
+      // Using a generic '/api' prefix for now.
+      // Requests to e.g. /api/agents/Weather%20Agent/execute will be proxied to http://localhost:8000/agents/Weather%20Agent/execute
+      '/api': {
+        target: 'http://localhost:8000', // Your backend FastAPI server
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '') // Remove the /api prefix before forwarding
+      },
+      // If you were still serving old static files from FastAPI and needed direct access:
+      // '/static': {
+      //   target: 'http://localhost:8000',
+      //   changeOrigin: true,
+      // }
+    }
+  },
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss,    // Use tailwindcss directly for v3
+        autoprefixer,       // Use the imported autoprefixer plugin
+      ],
+    },
+  },
+})

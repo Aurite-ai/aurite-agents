@@ -1,559 +1,434 @@
 """
-Core Agent implementation for interacting with MCP Hosts and executing tasks.
+Manages the multi-turn conversation loop for an Agent.
 """
 
-import os
 import logging
-import anthropic  # Keep for types if needed
-from anthropic import AsyncAnthropic
-from anthropic.types import MessageParam, ToolUseBlock, Message
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+import json
+from typing import (
+    Dict,
+    Any,
+    Optional,
+    List,
+    TYPE_CHECKING,
+    AsyncGenerator,
+)
 
-from ..host.models import AgentConfig
+from pydantic import ValidationError
+from anthropic.types import MessageParam
+
+# Project imports
 from ..host.host import MCPHost
+from .agent_models import (
+    AgentExecutionResult,
+    AgentOutputMessage,
+    AgentOutputContentBlock,
+)
+from .agent_turn_processor import AgentTurnProcessor
+from ..config.config_models import AgentConfig, LLMConfig
+from ..llm.base_client import BaseLLM
 
-# Import StorageManager for type hinting only if needed
 if TYPE_CHECKING:
-    from ..storage.db_manager import StorageManager
+    pass
 
 logger = logging.getLogger(__name__)
 
 
-# --- Helper Function for Serialization ---
-def _serialize_content_blocks(content: Any) -> Any:
-    """Recursively converts Anthropic content blocks into JSON-serializable dicts."""
-    if isinstance(content, list):
-        # Process each item in the list
-        return [_serialize_content_blocks(item) for item in content]
-    elif isinstance(content, dict):
-        # Recursively process dictionary values
-        return {k: _serialize_content_blocks(v) for k, v in content.items()}
-    elif hasattr(content, "model_dump") and callable(content.model_dump):
-        # Use Pydantic's model_dump for TextBlock, ToolUseBlock, etc.
-        try:
-            # model_dump typically returns a dict suitable for JSON
-            return content.model_dump(mode="json")
-        except Exception as e:
-            logger.warning(
-                f"Could not serialize object of type {type(content)} using model_dump: {e}. Falling back to string representation."
-            )
-            return str(content)  # Fallback if model_dump fails
-    # Handle primitive types that are already JSON-serializable
-    elif isinstance(content, (str, int, float, bool, type(None))):
-        return content
-    else:
-        # Fallback for any other unknown types
-        logger.warning(
-            f"Attempting to serialize unknown type {type(content)}. Using string representation."
-        )
-        return str(content)
-
-
 class Agent:
-    """
-    Represents an agent capable of executing tasks using an MCP Host.
-
-    The agent is configured via an AgentConfig object and interacts with
-    the LLM and tools provided by the specified MCPHost instance during execution.
-    """
-
-    def __init__(self, config: AgentConfig):
-        """
-        Initializes the Agent instance.
-
-        Args:
-            config: The configuration object for this agent.
-        """
-        if not isinstance(config, AgentConfig):
-            raise TypeError("config must be an instance of AgentConfig")
-
-        self.config = config
-
-        # Initialize Anthropic client during agent setup
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            # Log error and raise, as agent cannot function without the key
-            logger.error("ANTHROPIC_API_KEY environment variable not found.")
-            raise ValueError("ANTHROPIC_API_KEY environment variable not found.")
-
-        try:
-            # Use the ASYNC client
-            self.anthropic_client = AsyncAnthropic(api_key=api_key)
-            logger.info("Anthropic client initialized successfully.")
-        except Exception as e:
-            logger.error(f"Failed to initialize Anthropic client: {e}")
-            # Re-raise critical initialization error
-            raise ValueError(f"Failed to initialize Anthropic client: {e}")
-
-        logger.info(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
-
-    async def _make_llm_call(
+    def __init__(
         self,
-        messages: List[MessageParam],
-        system_prompt: Optional[str],
-        tools: Optional[List[Dict]],  # Anthropic tool format
-        model: str,
-        temperature: float,
-        max_tokens: int,
-    ) -> anthropic.types.Message:
-        """
-        Internal helper to make a single call to the Anthropic Messages API.
-
-        Args:
-            client: The initialized Anthropic client.
-            messages: The list of messages for the conversation history.
-            system_prompt: The system prompt to use.
-            tools: The list of tools in Anthropic format, if any.
-            model: The model name.
-            temperature: The sampling temperature.
-            max_tokens: The maximum number of tokens to generate.
-
-        Returns:
-            The Message object from the Anthropic API response.
-
-        Raises:
-            Exception: Propagates exceptions from the Anthropic API call.
-        """
-        logger.debug(f"Making LLM call to model '{model}'")
-        try:
-            # Add schema to system prompt if available
-            final_system_prompt = system_prompt
-            if self.config.schema:
-                import json
-
-                schema_str = json.dumps(self.config.schema, indent=2)
-                final_system_prompt = f"""{system_prompt}
-
-Your response must be valid JSON matching this schema:
-{schema_str}
-
-Remember to format your response as a valid JSON object."""
-
-            # Construct arguments, omitting None values for system and tools
-            api_args = {
-                "model": model,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": messages,
-            }
-            if final_system_prompt:
-                api_args["system"] = final_system_prompt
-            if tools:
-                api_args["tools"] = tools
-                logger.debug(f"Including {len(tools)} tools in API call.")
-            else:
-                logger.debug("No tools included in API call.")
-
-            # Use the client initialized in __init__
-            # AWAIT the call since the client is async
-            response = await self.anthropic_client.messages.create(**api_args)
-            logger.debug(
-                f"Anthropic API response received (stop_reason: {response.stop_reason})"
-            )
-            return response
-        except Exception as e:
-            logger.error(f"Anthropic API call failed: {e}")
-            # Re-raise the exception for the caller (e.g., execute_agent) to handle
-            raise
-
-    async def execute_agent(
-        self,
-        user_message: str,
+        config: AgentConfig,
+        llm_client: BaseLLM,
         host_instance: MCPHost,
-        storage_manager: Optional["StorageManager"] = None,  # Added storage_manager
-        system_prompt: Optional[str] = None,
-        session_id: Optional[str] = None,  # Added session_id
-    ) -> Dict[str, Any]:
-        """
-        Executes a standard agent task based on the user message, using the
-        provided MCP Host and potentially a filtered set of its available tools
-        in a multi-turn conversation.
-
-        This method orchestrates the interaction with the LLM, including prompt
-        preparation, tool definition, and handling tool calls based on the
-        agent's configuration and the host's capabilities within the specified filter.
-
-        Args:
-            user_message: The input message or task description from the user.
-            host_instance: The instantiated MCPHost to use for accessing prompts,
-                           resources, and tools. Agent-specific filtering (client_ids,
-                           exclude_components) is applied based on self.config.
-
-        Returns:
-            A dictionary containing the conversation history and final response.
-
-        Raises:
-            ValueError: If host_instance is not provided.
-            TypeError: If host_instance is not an instance of MCPHost.
-        """
-        # --- Start of standard agent execution logic ---
-        logger.debug(  # Already DEBUG
-            f"Agent '{self.config.name or 'Unnamed'}' starting standard execution."
-        )
-
-        # 1. Validate Host Instance
-        if not host_instance:
-            raise ValueError("MCPHost instance is required for execution.")
-        if not isinstance(host_instance, MCPHost):
-            raise TypeError("host_instance must be an instance of MCPHost")
-
-        # API Key retrieval and client initialization moved to __init__
-
-        # Determine LLM Parameters (AgentConfig -> Defaults) - Renumbered step
-        model = self.config.model or "claude-3-opus-20240229"
-        temperature = self.config.temperature or 0.7
-        max_tokens = self.config.max_tokens or 4096
-        if system_prompt is None:
-            system_prompt = self.config.system_prompt
-        if not system_prompt:
-            # Fallback to default system prompt if not provided
-            # This is a generic prompt; consider making it configurable
-            # or providing a more specific default in the config.
-            system_prompt = "You are a helpful assistant."
-
-        include_history = (
-            self.config.include_history or False
-        )  # Default to not including history unless specified
-
-        logger.debug(  # Already DEBUG
-            f"Using LLM parameters: model={model}, temp={temperature}, max_tokens={max_tokens}"
-        )
-        logger.debug(  # Already DEBUG
-            f"Using system prompt: '{system_prompt[:100]}...'"
-        )  # Log truncated prompt
-
-        # Prepare Tools (Using Host's get_formatted_tools, which applies agent filtering)
-        # This method is synchronous, remove await
-        tools_data = host_instance.get_formatted_tools(agent_config=self.config)
-        logger.debug(  # Already DEBUG
-            f"Formatted tools for LLM (agent-filtered): {[t['name'] for t in tools_data]}"  # This expects tools_data to be a list of dicts
-        )
-
-        # Initialize Message History - Renumbered step
-        messages: List[MessageParam] = []
-        conversation_history: List[
-            Dict[str, Any]
-        ] = []  # Use Dict for internal history tracking
-
-        # --- History Loading ---
-        if self.config.include_history and storage_manager:
-            if session_id:  # Only load if session_id is provided
-                try:
-                    # Load history from DB (returns list in MessageParam format)
-                    loaded_history_params = storage_manager.load_history(
-                        agent_name=self.config.name,
-                        session_id=session_id,  # Pass session_id
-                    )
-                    if loaded_history_params:
-                        messages.extend(loaded_history_params)
-                        # Also add to internal history tracker
-                        conversation_history.extend(loaded_history_params)
-                        logger.info(
-                            f"Loaded {len(loaded_history_params)} history turns for agent '{self.config.name}', session '{session_id}'."
-                        )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to load history for agent '{self.config.name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
-                    # Continue execution without history if loading fails
-            else:
-                logger.warning(
-                    f"History enabled for agent '{self.config.name}' but no session_id provided. History will not be loaded."
-                )
-                # Continue execution without history if loading fails
-
-        # Add current user message
-        current_user_message_param: MessageParam = {
-            "role": "user",
-            "content": user_message,
-        }
-        messages.append(current_user_message_param)
-        conversation_history.append(
-            current_user_message_param
-        )  # Add to internal tracker too
-
-        # Execute Conversation Loop - Renumbered step
-        final_response = None
-        tool_uses_in_last_turn = []  # Track tool uses specifically for the return value
-        # Use max_iterations from config or default to 10
-        max_iterations = self.config.max_iterations or 10
+        initial_messages: List[MessageParam],
+        system_prompt_override: Optional[str] = None,
+        llm_config_for_override: Optional[LLMConfig] = None,
+    ):
+        self.config = config
+        self.llm = llm_client
+        self.host = host_instance
+        self.system_prompt_override = system_prompt_override
+        self.llm_config_for_override = llm_config_for_override
+        # Store full AgentOutputMessage for assistant, dicts for others
+        self.conversation_history: List[AgentOutputMessage | Dict[str, Any]] = list(initial_messages)
+        self.final_response: Optional[AgentOutputMessage] = None
+        self.tool_uses_in_last_turn: List[Dict[str, Any]] = []
         logger.debug(
-            f"Conversation loop max iterations set to: {max_iterations}"
-        )  # Already DEBUG
+            f"Agent '{self.config.name or 'Unnamed'}' initialized."
+        )
+
+    async def run_conversation(self) -> AgentExecutionResult:
+        logger.debug(
+            f"Agent starting run for agent '{self.config.name or 'Unnamed'}'."
+        )
+        effective_system_prompt = (
+            self.system_prompt_override
+            or self.config.system_prompt
+            or "You are a helpful assistant."
+        )
+        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+        max_iterations = self.config.max_iterations or 10
         current_iteration = 0
+
+        current_messages_for_run: List[Dict[str, Any]] = list(self.conversation_history)
 
         while current_iteration < max_iterations:
             current_iteration += 1
-            logger.debug(
-                f"Conversation loop iteration {current_iteration}"
-            )  # Already DEBUG
+            logger.debug(f"Conversation loop iteration {current_iteration}")
 
-            # Make API call using the helper method
-            try:
-                response = await self._make_llm_call(
-                    messages=messages,
-                    system_prompt=system_prompt,
-                    tools=tools_data,
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-            except Exception as e:
-                return {
-                    "conversation": conversation_history,
-                    "final_response": None,
-                    "error": f"Anthropic API call failed: {str(e)}",
-                    "tool_uses": [],
-                }
-
-            # Store assistant response in history (both formats)
-            assistant_response_param: MessageParam = {
-                "role": "assistant",
-                "content": response.content,
-            }
-            messages.append(
-                assistant_response_param
-            )  # Add raw response content for next LLM call
-            conversation_history.append(
-                assistant_response_param
-            )  # Add to internal tracker
-
-            # Check stop reason FIRST
-            if response.stop_reason != "tool_use":
-                # Get the text content from the last block
-                text_content = next(
-                    (block.text for block in response.content if block.type == "text"),
-                    None,
-                )
-                if not text_content:
-                    logger.warning("No text content found in response")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": "You must provide your response as a valid JSON object.",
-                        }
-                    )
-                    continue
-
-                # For final response, ALWAYS try to parse as JSON if schema is provided
-                if self.config.schema:
-                    import json
-                    from jsonschema import validate
-
-                    # First try to parse JSON
-                    try:
-                        json_content = json.loads(text_content)
-                    except json.JSONDecodeError:
-                        # If not valid JSON, force Claude to fix it
-                        logger.warning("Response was not valid JSON")
-                        messages.append(
-                            {
-                                "role": "user",
-                                "content": f"""Your response MUST be a single JSON object with no additional text or explanation.
-The JSON must match this schema exactly:
-
-{json.dumps(self.config.schema, indent=2)}
-
-Format your entire response as valid JSON.""",
-                            }
-                        )
-                        continue
-
-                    # Then try to validate schema
-                    try:
-                        validate(instance=json_content, schema=self.config.schema)
-                        logger.debug("Response validated successfully against schema")
-                    except Exception as e:
-                        logger.warning(f"Schema validation failed: {e}")
-                        messages.append(
-                            {
-                                "role": "user",
-                                "content": f"""Your response must be a valid JSON object matching this schema:
-{json.dumps(self.config.schema, indent=2)}
-
-The error was: {str(e)}
-Try again with just the JSON object.""",
-                            }
-                        )
-                        continue
-
-                final_response = response
-                logger.debug(  # Already DEBUG
-                    f"LLM stop reason '{response.stop_reason}' indicates end of turn. Breaking loop."
-                )
-                break  # Exit the loop
-
-            # If we reach here, stop_reason MUST be 'tool_use'
-            logger.debug("LLM requested tool use. Processing tools...")  # Already DEBUG
-            tool_results_for_next_turn = []
-            tool_uses_in_this_turn = []
-            has_tool_calls = False  # Reset for this check
-
-            for block in response.content:
-                if block.type == "tool_use":
-                    has_tool_calls = True
-                    tool_use: ToolUseBlock = block
-                    tool_uses_in_this_turn.append(
-                        {
-                            "id": tool_use.id,
-                            "name": tool_use.name,
-                            "input": tool_use.input,
-                        }
-                    )
-                    # Execute the tool via Host's ToolManager
-                    logger.info(
-                        f"Executing tool '{tool_use.name}' via host_instance (ID: {tool_use.id})"
-                    )
-                    try:
-                        # Pass agent_config for filtering within execute_tool
-                        tool_result_content = await host_instance.execute_tool(
-                            tool_name=tool_use.name,
-                            arguments=tool_use.input,
-                            agent_config=self.config,
-                        )
-                        logger.debug(
-                            f"Tool '{tool_use.name}' executed successfully (agent filters applied)."
-                        )
-                        # Create result block *after* successful execution
-                        tool_result_block = (
-                            host_instance.tools.create_tool_result_blocks(
-                                tool_use.id, tool_result_content
-                            )
-                        )
-                        tool_results_for_next_turn.append(tool_result_block)
-                    except Exception as e:
-                        # Create an error result block if execution fails
-                        logger.error(
-                            f"Error executing tool {tool_use.name}: {e}", exc_info=True
-                        )  # Add exc_info
-                        error_content = (
-                            f"Error executing tool '{tool_use.name}': {str(e)}"
-                        )
-                        # Format error message using the standard method
-                        tool_result_block = (
-                            host_instance.tools.create_tool_result_blocks(
-                                tool_use.id,
-                                error_content,  # Pass error string as content
-                            )
-                        )
-                        tool_results_for_next_turn.append(tool_result_block)
-                    # --- End of try...except for tool execution ---
-                # --- End of if block.type == "tool_use" ---
-            # --- End of for block in response.content loop ---
-
-            # Ensure we actually processed tool calls if stop_reason was tool_use
-            # This check should be *outside* the loop iterating through content blocks
-            if not has_tool_calls:
-                logger.warning(
-                    "LLM stop_reason was 'tool_use' but no tool_use blocks found in content. Breaking loop."
-                )
-                final_response = response  # Treat as final response in this edge case
-                break
-
-            # Prepare messages for the next iteration
-            if tool_results_for_next_turn:
-                # DO NOT re-append the assistant message here. It was already added.
-                # Just append the user message containing the tool results.
-                messages.append(
-                    {"role": "user", "content": tool_results_for_next_turn}
-                )  # Add tool results
-                conversation_history.append(
-                    {"role": "user", "content": tool_results_for_next_turn}
-                )
-                tool_uses_in_last_turn = tool_uses_in_this_turn
-                logger.debug(  # Already DEBUG
-                    f"Added {len(tool_results_for_next_turn)} tool result(s) for next turn."
-                )
-            else:
-                # Should not happen if has_tool_calls is True, but handle defensively
-                logger.warning(
-                    "Tool calls expected based on stop_reason, but no results generated. Breaking loop."
-                )
-                final_response = response
-                break
-
-        # Check if loop finished due to max iterations
-        if (
-            current_iteration >= max_iterations and final_response is None
-        ):  # Check final_response is None to avoid overwriting a valid break
-            logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
-            # Potentially return an error or the last response? Return last response for now.
-            final_response = (
-                response  # Assign the last response before loop termination
+            turn_processor = AgentTurnProcessor(
+                config=self.config,
+                llm_client=self.llm,
+                host_instance=self.host,
+                current_messages=list(current_messages_for_run),
+                tools_data=tools_data,
+                effective_system_prompt=effective_system_prompt,
+                llm_config_for_override=self.llm_config_for_override,
             )
 
-        # --- History Saving ---
-        if self.config.include_history and storage_manager:
-            if session_id:  # Only save if session_id is provided
-                try:
-                    # Convert conversation history to a serializable format first
-                    serializable_history = []
-                    for message in conversation_history:  # Indent this loop correctly
-                        # Ensure message is a dict before processing
-                        if isinstance(message, dict):
-                            raw_content = message.get("content")
-                        # Serialize complex blocks first
-                        serializable_content = _serialize_content_blocks(raw_content)
+            try:
+                (
+                    turn_final_response,
+                    turn_tool_results_params,
+                    is_final_turn,
+                ) = await turn_processor.process_turn()
 
-                        # Ensure simple string content is also wrapped in the standard format for consistency
-                        if isinstance(serializable_content, str):
-                            serializable_content = [
-                                {"type": "text", "text": serializable_content}
-                            ]
-                        elif not isinstance(serializable_content, list):
-                            # If serialization resulted in something unexpected (not list or str), log and wrap as error
-                            logger.warning(
-                                f"Unexpected serialized content type {type(serializable_content)} for agent '{self.config.name}'. Wrapping as error."
-                            )
-                            serializable_content = [
-                                {
-                                    "type": "text",
-                                    "text": f"[Serialization Error: {str(serializable_content)}]",
-                                }
-                            ]
+                assistant_message_this_turn = turn_processor.get_last_llm_response()
 
-                        serializable_history.append(
-                            {
-                                "role": message.get("role"),
-                                "content": serializable_content,  # Use the potentially wrapped content
-                            }
-                        )
+                if assistant_message_this_turn:
+                    # Add assistant's response (API compliant) to history
+                    # For non-streaming, self.conversation_history stores the full object
+                    # while current_messages_for_run gets the API-compliant dict for the next LLM call.
+                    self.conversation_history.append(assistant_message_this_turn) # Store the full object
+                    current_messages_for_run.append(assistant_message_this_turn.to_api_message_param()) # Use dict for next run
+
+                if turn_tool_results_params:
+                    # Tool results are already dicts (MessageParam)
+                    self.conversation_history.extend(turn_tool_results_params)
+                    current_messages_for_run.extend(turn_tool_results_params)
+                    # Store tool uses from the turn processor
+                    self.tool_uses_in_last_turn = turn_processor.get_tool_uses_this_turn()
+
+                if is_final_turn:
+                    self.final_response = turn_final_response
+                    break
+                elif not turn_tool_results_params and not is_final_turn:
+                    logger.warning("Schema validation failed. Preparing correction message.")
+                    if self.config.config_validation_schema:
+                        correction_message_content = f"""Your response must be a valid JSON object matching this schema:
+{json.dumps(self.config.config_validation_schema, indent=2)}
+
+Please correct your previous response to conform to the schema."""
+                        correction_message_param: MessageParam = {
+                            "role": "user", "content": [{"type": "text", "text": correction_message_content}]
+                        }
+                        # Correction message is a dict (MessageParam)
+                        self.conversation_history.append(correction_message_param)
+                        current_messages_for_run.append(correction_message_param)
                     else:
-                        # Log if a message isn't in the expected format
-                        logger.warning(
-                            f"Skipping non-dict message in history for agent '{self.config.name}': {type(message)}"
-                        )
+                        # If no schema, treat the invalid response as final
+                        # Use the full object obtained from the processor
+                        self.final_response = assistant_message_this_turn
+                        break
+            except Exception as e:
+                error_msg = f"Error during conversation turn {current_iteration}: {type(e).__name__}: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                return self._prepare_agent_result(execution_error=error_msg)
 
-                    # Save the SERIALIZED conversation history (save_full_history is sync)
-                    storage_manager.save_full_history(
-                        agent_name=self.config.name,
-                        session_id=session_id,  # Pass session_id
-                        conversation=serializable_history,  # Pass the serialized version
-                    )
-                    logger.info(
-                        f"Saved {len(serializable_history)} history turns for agent '{self.config.name}', session '{session_id}'."
-                    )
-                except Exception as e:
-                    # Log error but don't fail the overall execution result
-                    logger.error(
-                        f"Failed to save history for agent '{self.config.name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
-                    # Log error but don't fail the overall execution result # Removed redundant comment
-            else:  # This else corresponds to 'if session_id:'
-                logger.warning(
-                    f"History enabled for agent '{self.config.name}' but no session_id provided. History will not be saved."
-                )
+        if current_iteration >= max_iterations and self.final_response is None:
+            logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
+            # Find the last AgentOutputMessage in the history
+            last_assistant_message_obj = next(
+                (msg for msg in reversed(self.conversation_history) if isinstance(msg, AgentOutputMessage)), None
+            )
+            if last_assistant_message_obj:
+                 # It's already the correct type
+                self.final_response = last_assistant_message_obj
+            else:
+                logger.warning("Could not find a final assistant message in history for max iterations fallback.")
+                self.final_response = None # Ensure it's None if no suitable message found
 
-        # Return Results - Renumbered step
-        logger.info(f"Agent '{self.config.name or 'Unnamed'}' execution finished.")
-        # Return the final LLM response object directly if available
-        final_llm_response: Optional[Message] = final_response
+        logger.info(f"Agent finished run for agent '{self.config.name or 'Unnamed'}'.")
+        return self._prepare_agent_result(execution_error=None)
 
-        return {
-            "conversation": conversation_history,  # Return the tracked history
-            "final_response": final_llm_response,
-            "tool_uses": tool_uses_in_last_turn,
-            "error": None,  # Explicitly return None for error on success
+    def _prepare_agent_result(
+        self, execution_error: Optional[str] = None
+    ) -> AgentExecutionResult:
+        logger.debug("Preparing final agent execution result...")
+
+        parsed_conversation_history: List[AgentOutputMessage] = []
+        for msg_item in self.conversation_history: # History now contains AgentOutputMessage or dicts
+            try:
+                if isinstance(msg_item, AgentOutputMessage):
+                    # If it's already an AgentOutputMessage, just append it
+                    parsed_conversation_history.append(msg_item)
+                elif isinstance(msg_item, dict):
+                    # If it's a dict (user message, tool result), validate it
+                    parsed_conversation_history.append(AgentOutputMessage.model_validate(msg_item))
+                else:
+                    # Handle unexpected types if necessary
+                    logger.warning(f"Unexpected item type in conversation history: {type(msg_item)}")
+                    parsed_conversation_history.append(AgentOutputMessage(role="unknown", content=[AgentOutputContentBlock(type="text", text=f"Invalid history item: {str(msg_item)}")]))
+            except Exception as e:
+                logger.error(f"Failed to parse message from history for AgentExecutionResult: {msg_item}, error: {e}")
+                role = msg_item.get("role", "unknown") if isinstance(msg_item, dict) else "unknown"
+                parsed_conversation_history.append(AgentOutputMessage(role=role, content=[AgentOutputContentBlock(type="text", text=f"Invalid message in history: {str(msg_item)}")]))
+
+
+        output_dict_for_validation = {
+            "conversation": parsed_conversation_history, # Use the parsed list
+            "final_response": self.final_response,
+            "tool_uses_in_final_turn": self.tool_uses_in_last_turn,
+            "error": execution_error,
         }
+        try:
+            agent_result = AgentExecutionResult.model_validate(output_dict_for_validation)
+            if execution_error and not agent_result.error:
+                agent_result.error = execution_error
+            elif not execution_error and agent_result.error:
+                logger.info(f"AgentExecutionResult validation failed: {agent_result.error}")
+            return agent_result
+        except ValidationError as e:
+            error_msg = f"Failed to validate final AgentExecutionResult: {e}"
+            logger.error(error_msg, exc_info=True)
+            final_error_message = f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            try:
+                return AgentExecutionResult(
+                    conversation=parsed_conversation_history,
+                    final_response=self.final_response,
+                    tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                    error=final_error_message,
+                )
+            except Exception as fallback_e:
+                logger.error(f"Failed to create even a fallback AgentExecutionResult: {fallback_e}")
+                return AgentExecutionResult(
+                    conversation=[],
+                    final_response=None,
+                    tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                    error=final_error_message + f"\nAdditionally, fallback result creation failed: {fallback_e}",
+                )
+        except Exception as e:
+            error_msg = f"Unexpected error during final AgentExecutionResult preparation/validation: {type(e).__name__}: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            final_error_message = f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            return AgentExecutionResult(
+                conversation=[],
+                final_response=None,
+                tool_uses_in_final_turn=self.tool_uses_in_last_turn,
+                error=final_error_message,
+            )
+
+    async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
+        logger.debug(
+            f"Agent starting STREAMING run for agent '{self.config.name or 'Unnamed'}'."
+        )
+        effective_system_prompt = (
+            self.system_prompt_override
+            or self.config.system_prompt
+            or "You are a helpful assistant."
+        )
+        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+        max_iterations = self.config.max_iterations or 10
+        current_iteration = 0
+
+        current_assistant_message_content_blocks_for_history_dicts: List[Dict[str, Any]] = []
+        assistant_message_object_this_turn: Optional[AgentOutputMessage] = None
+
+        while current_iteration < max_iterations:
+            current_iteration += 1
+            logger.debug(f"Streaming conversation loop iteration {current_iteration}")
+
+            messages_for_this_llm_call = list(self.conversation_history)
+
+            turn_processor = AgentTurnProcessor(
+                config=self.config,
+                llm_client=self.llm,
+                host_instance=self.host,
+                current_messages=messages_for_this_llm_call,
+                tools_data=tools_data,
+                effective_system_prompt=effective_system_prompt,
+                llm_config_for_override=self.llm_config_for_override,
+            )
+
+            streamed_assistant_message_id: Optional[str] = None
+            streamed_assistant_model: Optional[str] = None
+            streamed_assistant_role: str = "assistant"
+            streamed_assistant_usage: Optional[Dict[str, int]] = None
+            llm_turn_stop_reason: Optional[str] = None
+
+            buffered_tool_results_for_this_turn: List[Dict[str, Any]] = []
+
+            try:
+                async for event in turn_processor.stream_turn_response():
+                    yield event
+                    event_type = event.get("event_type")
+                    event_data = event.get("data", {})
+
+                    if event_type == "message_start":
+                        streamed_assistant_message_id = event_data.get("message_id")
+                        streamed_assistant_model = event_data.get("model")
+                        streamed_assistant_role = event_data.get("role", "assistant")
+                        current_assistant_message_content_blocks_for_history_dicts = []
+                        assistant_message_object_this_turn = None
+
+                    elif event_type == "text_block_start":
+                        found = False
+                        for block in current_assistant_message_content_blocks_for_history_dicts:
+                            if block.get("index") == event_data.get("index"):
+                                found = True; break
+                        if not found:
+                            current_assistant_message_content_blocks_for_history_dicts.append(
+                                {"type": "text", "text": "", "index": event_data.get("index")}
+                            )
+                    elif event_type == "text_delta":
+                        found_block = False
+                        for block in current_assistant_message_content_blocks_for_history_dicts:
+                            if block.get("index") == event_data.get("index") and block.get("type") == "text":
+                                block["text"] = block.get("text", "") + event_data.get("text_chunk", "")
+                                found_block = True; break
+                        if not found_block:
+                             current_assistant_message_content_blocks_for_history_dicts.append(
+                                {"type": "text", "text": event_data.get("text_chunk", ""), "index": event_data.get("index")}
+                            )
+                    elif event_type == "thinking_block_start":
+                         found = False
+                         for block in current_assistant_message_content_blocks_for_history_dicts:
+                            if block.get("index") == event_data.get("index"):
+                                found = True; break
+                         if not found:
+                            current_assistant_message_content_blocks_for_history_dicts.append(
+                                {"type": "text", "text": "", "index": event_data.get("index")}
+                            )
+                    elif event_type == "tool_use_start":
+                        current_assistant_message_content_blocks_for_history_dicts.append({
+                            "type": "tool_use",
+                            "id": event_data.get("tool_id"),
+                            "name": event_data.get("tool_name"),
+                            "input": {},
+                            "index": event_data.get("index"),
+                        })
+                    elif event_type == "tool_use_input_complete":
+                        tool_id = event_data.get("tool_id")
+                        final_input = event_data.get("input")
+                        for block in current_assistant_message_content_blocks_for_history_dicts:
+                            if block.get("type") == "tool_use" and block.get("id") == tool_id:
+                                block["input"] = final_input
+                                break
+
+                    elif event_type == "tool_result" or event_type == "tool_execution_error":
+                        tool_use_id = event_data.get("tool_use_id")
+                        is_error = event_type == "tool_execution_error" or event_data.get("is_error", False)
+                        content_data = event_data.get("output") if not is_error else event_data.get("error_message", "Unknown error")
+
+                        tool_result_content_list: List[Dict[str, Any]]
+                        if isinstance(content_data, str):
+                            tool_result_content_list = [{"type": "text", "text": content_data}]
+                        elif isinstance(content_data, list):
+                            tool_result_content_list = content_data
+                        else:
+                            tool_result_content_list = [{"type": "text", "text": str(content_data)}]
+
+                        tool_result_param: MessageParam = {
+                            "role": "user",
+                            "content": [{
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": tool_result_content_list,
+                                "is_error": is_error,
+                            }],
+                        }
+                        buffered_tool_results_for_this_turn.append(dict(tool_result_param))
+
+                    elif event_type == "message_delta":
+                        if "stop_reason" in event_data:
+                            llm_turn_stop_reason = event_data.get("stop_reason")
+                        if "output_tokens" in event_data:
+                            if streamed_assistant_usage is None: streamed_assistant_usage = {}
+                            streamed_assistant_usage["output_tokens"] = event_data.get("output_tokens")
+
+                    elif event_type == "llm_call_completed":
+                        llm_turn_stop_reason = event_data.get("stop_reason")
+                        logger.debug(f"Agent: LLM call completed with stop_reason: {llm_turn_stop_reason}")
+
+                        if streamed_assistant_message_id:
+                            validated_content_blocks_for_model = []
+                            # Use original_llm_content_blocks from the message_stop event if available,
+                            # as it contains the fully formed blocks including tool inputs.
+                            original_llm_content_blocks = event_data.get("original_event_data", {}).get("raw_message_stop_event", {}).get("message", {}).get("content", [])
+
+                            source_blocks_for_validation = current_assistant_message_content_blocks_for_history_dicts
+                            if original_llm_content_blocks: # Prefer original blocks if present
+                                source_blocks_for_validation = original_llm_content_blocks
+                                # If using original_llm_content_blocks, ensure they are dicts, not Pydantic models yet
+                                source_blocks_for_validation = [
+                                    block.model_dump(mode="json") if hasattr(block, "model_dump") else block
+                                    for block in source_blocks_for_validation
+                                ]
+
+
+                            for block_dict_raw in source_blocks_for_validation:
+                                try:
+                                    # Ensure 'input' is present for tool_use, even if empty, before validation
+                                    # This is crucial if source_blocks_for_validation is from current_assistant_message_content_blocks_for_history_dicts
+                                    if block_dict_raw.get("type") == "tool_use" and "input" not in block_dict_raw:
+                                        # Try to find it from tool_use_input_complete if it was missed
+                                        # This part is tricky; ideally, current_assistant_message_content_blocks_for_history_dicts
+                                        # should have the input updated by tool_use_input_complete.
+                                        # If original_llm_content_blocks are used, they should have the input.
+                                        block_dict_raw["input"] = {} # Default if not found
+
+                                    validated_content_blocks_for_model.append(AgentOutputContentBlock.model_validate(block_dict_raw))
+                                except Exception as e_val:
+                                    logger.error(f"Error validating block for AgentOutputMessage: {block_dict_raw}, error: {e_val}")
+                                    validated_content_blocks_for_model.append(AgentOutputContentBlock(type="error", text=f"Invalid block: {str(block_dict_raw)}"))
+
+                            assistant_message_object_this_turn = AgentOutputMessage(
+                                id=streamed_assistant_message_id,
+                                model=streamed_assistant_model or self.config.model or "unknown_stream_model",
+                                role=streamed_assistant_role,
+                                content=validated_content_blocks_for_model,
+                                stop_reason=llm_turn_stop_reason,
+                                usage=streamed_assistant_usage,
+                            )
+                            self.conversation_history.append(assistant_message_object_this_turn.to_api_message_param())
+
+                        if buffered_tool_results_for_this_turn:
+                            self.conversation_history.extend(buffered_tool_results_for_this_turn)
+                            buffered_tool_results_for_this_turn = []
+
+                        if llm_turn_stop_reason != "tool_use":
+                            logger.debug(f"Agent: Final response indicated by LLM stop_reason: {llm_turn_stop_reason}. Breaking conversation loop.")
+                            self.final_response = assistant_message_object_this_turn
+                            break
+                        else:
+                            logger.debug("Agent: LLM stop_reason was 'tool_use'. Agent loop continues for next turn.")
+                            current_assistant_message_content_blocks_for_history_dicts = []
+                            streamed_assistant_message_id = None
+                            streamed_assistant_model = None
+                            streamed_assistant_usage = None
+                            assistant_message_object_this_turn = None
+
+            except Exception as e:
+                error_msg = f"Error during streaming conversation turn {current_iteration}: {type(e).__name__}: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                yield {"event_type": "error", "data": {"message": error_msg, "turn": current_iteration}}
+                break
+
+            if self.final_response or (llm_turn_stop_reason and llm_turn_stop_reason != "tool_use"):
+                break
+
+            if current_iteration >= max_iterations:
+                logger.warning(f"Reached max iterations ({max_iterations}) in streaming. Aborting.")
+                if not self.final_response and assistant_message_object_this_turn:
+                    self.final_response = assistant_message_object_this_turn
+                break
+
+        logger.info(
+            f"Agent finished STREAMING run for agent '{self.config.name or 'Unnamed'}'."
+        )
+        final_stop_reason_for_stream = "unknown"
+        if self.final_response and self.final_response.stop_reason:
+            final_stop_reason_for_stream = self.final_response.stop_reason
+        elif current_iteration >= max_iterations:
+            final_stop_reason_for_stream = "max_iterations_reached"
+
+        yield {"event_type": "stream_end", "data": {"reason": final_stop_reason_for_stream}}

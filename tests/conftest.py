@@ -23,7 +23,7 @@ from tests.fixtures.agent_fixtures import (
 from tests.fixtures.host_fixtures import (
     mock_host_config,  # noqa: F401
     mock_mcp_host,  # noqa: F401
-    host_manager,  # noqa: F401 - Import the new fixture
+    host_manager,  # noqa: F401
 )
 
 # Import workflow fixtures

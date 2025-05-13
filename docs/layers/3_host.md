@@ -7,9 +7,11 @@
 
 The MCP Host System (Layer 3) serves as the foundational infrastructure layer within the Aurite MCP framework. Its primary purpose is to manage connections with external Model Context Protocol (MCP) servers (referred to as "clients" from the host's perspective) and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level Orchestration Layer (Layer 2) and the individual MCP servers.
 
+`MCPHost` manages the lifecycle of these client connections using `anyio` for structured concurrency. An `anyio.TaskGroup` is used to run individual lifecycle tasks for each client, with each task operating within its own `anyio.CancelScope` for robust startup and shutdown. The `ClientManager` assists in coordinating and tracking these client lifecycles.
+
 Key responsibilities include:
-*   Establishing and managing secure connections to configured MCP servers via stdio transport.
-*   Handling the MCP initialization handshake and capability negotiation.
+*   Establishing and managing secure, concurrent connections to configured MCP servers via stdio transport, utilizing `anyio.TaskGroup` and `anyio.CancelScope` for robust lifecycle management of each client.
+*   Handling the MCP initialization handshake and capability negotiation within individual client lifecycle tasks.
 *   Discovering and registering components (tools, prompts, resources) offered by connected clients.
 *   Providing dedicated managers (`ToolManager`, `PromptManager`, `ResourceManager`) for interacting with specific component types.
 *   Implementing filtering mechanisms based on `ClientConfig` (global exclusions) and `AgentConfig` (agent-specific client access and component exclusions).
@@ -30,6 +32,7 @@ The Host System is structured internally into two sub-layers:
 | `src/host/models.py`               | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
 | `src/host/filtering.py`            | `FilteringManager`       | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules     |
 | **Foundation Layer**               |                          |                                                                                     |
+| `src/host/foundation/clients.py`   | `ClientManager`          | Manages client configurations, active sessions, and orchestrates client lifecycle tasks within `MCPHost`. |
 | `src/host/foundation/security.py`  | `SecurityManager`        | Encryption, credential storage, GCP secret resolution                               |
 | `src/host/foundation/routing.py`   | `MessageRouter`          | Routes requests to appropriate clients based on capabilities and configuration      |
 | `src/host/foundation/roots.py`     | `RootManager`            | Manages MCP root definitions for client access control                              |

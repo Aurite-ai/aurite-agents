@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     memories = get_all_memories(user_id=user_id)
 
-    print(f"MEMORIES:\n{'\n'.join(memories)}")
+    memories_str = '\n'.join(memories)
+    print(f"MEMORIES:\n{memories_str}")
 
     delete_all_memories(user_id=user_id)

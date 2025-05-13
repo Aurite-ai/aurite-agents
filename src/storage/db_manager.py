@@ -6,29 +6,37 @@ for persisting configurations and agent history.
 
 import json
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Type, TypeVar  # Added Type, TypeVar
 from pathlib import Path
 from sqlalchemy.engine import Engine  # Import Engine for type hint
+from sqlalchemy import delete  # Import delete
 
 # Assuming models are accessible from here
-from ..host.models import (
+from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
+from ..config.config_models import (  # Updated import path
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
+    LLMConfig,  # Added LLMConfig
 )
 
 # Import DB connection utilities and models
 # Use the new factory function name and the modified get_db_session
 from .db_connection import get_db_session, create_db_engine
 from .db_models import (
-    Base,
+    Base as SQLAlchemyBase,  # Alias Base
     AgentConfigDB,
     WorkflowConfigDB,
     CustomWorkflowConfigDB,
     AgentHistoryDB,
+    LLMConfigDB,  # Added LLMConfigDB
 )
 
 logger = logging.getLogger(__name__)
+
+# Define TypeVars for generic function signature
+PydanticModelType = TypeVar("PydanticModelType", bound=PydanticBaseModel)
+DBModelType = TypeVar("DBModelType", bound=SQLAlchemyBase)
 
 
 class StorageManager:
@@ -55,7 +63,7 @@ class StorageManager:
             logger.info(
                 "No engine provided to StorageManager, attempting to create default engine."
             )
-            self._engine = create_db_engine()  # Use the factory function
+            self._engine = create_db_engine()  # type: ignore[assignment] # Ignore None vs Engine mismatch
 
         if not self._engine:
             logger.warning(
@@ -74,7 +82,7 @@ class StorageManager:
 
         logger.info("Initializing database schema...")
         try:
-            Base.metadata.create_all(bind=self._engine)
+            SQLAlchemyBase.metadata.create_all(bind=self._engine)  # Use the alias
             logger.info("Database schema initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
@@ -83,7 +91,13 @@ class StorageManager:
 
     # --- Configuration Sync Methods ---
 
-    def _sync_config(self, db_session, db_model_cls, pydantic_config, pk_field="name"):
+    def _sync_config(
+        self,
+        db_session,
+        db_model_cls: Type[DBModelType],  # Use TypeVar for the class
+        pydantic_config: PydanticModelType,  # Use TypeVar for the instance
+        pk_field: str = "name",
+    ):
         """Generic helper to sync a single Pydantic config to a DB model."""
         pk_value = getattr(pydantic_config, pk_field)
         db_record = db_session.get(db_model_cls, pk_value)
@@ -123,13 +137,14 @@ class StorageManager:
                 # Check if the DB column is intended for JSON
                 if db_col_name.endswith("_json"):
                     # Store list/dict directly using the DB column name
-                    data_to_save[db_col_name] = pydantic_value
+                    data_to_save[db_col_name] = pydantic_value  # type: ignore[assignment] # Ignore list/dict vs str mismatch
                 else:
                     # Log a warning if trying to save list/dict to non-JSON field
                     logger.warning(
                         f"Attempting to save list/dict from pydantic field '{pydantic_field_name}' "
                         f"to non-JSON DB column '{db_col_name}' for {db_model_cls.__name__} '{pk_value}'. Skipping."
                     )
+                    continue  # Skip this field if it's a list/dict but not a JSON column
             elif pydantic_value is not None:
                 # Store other types directly using the DB column name
                 data_to_save[db_col_name] = pydantic_value
@@ -203,11 +218,27 @@ class StorageManager:
                         exc_info=True,
                     )
 
+    def sync_llm_config(self, config: LLMConfig):
+        """Saves or updates an LLMConfig in the database."""
+        if not self._engine:
+            return
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    # Use 'llm_id' as the primary key field
+                    self._sync_config(db, LLMConfigDB, config, pk_field="llm_id")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to sync LLMConfig '{config.llm_id}': {e}",
+                        exc_info=True,
+                    )
+
     def sync_all_configs(
         self,
         agents: Dict[str, AgentConfig],
         workflows: Dict[str, WorkflowConfig],
         custom_workflows: Dict[str, CustomWorkflowConfig],
+        llm_configs: Dict[str, LLMConfig],  # Added llm_configs argument
     ):
         """Syncs all provided configurations to the database in a single transaction."""
         if not self._engine:
@@ -229,13 +260,31 @@ class StorageManager:
 
                 # Sync Workflows
                 for config in workflows.values():
-                    self._sync_config(db, WorkflowConfigDB, config)
+                    self._sync_config(
+                        db,
+                        WorkflowConfigDB,
+                        config,
+                    )  # type: ignore[assignment] # Ignore WorkflowConfig vs AgentConfig mismatch
                 logger.debug(f"Synced {len(workflows)} workflow configs.")
 
                 # Sync Custom Workflows
                 for config in custom_workflows.values():
-                    self._sync_config(db, CustomWorkflowConfigDB, config)
+                    self._sync_config(
+                        db,
+                        CustomWorkflowConfigDB,
+                        config,  # type: ignore[assignment] # Ignore CustomWorkflowConfig vs AgentConfig mismatch
+                    )
                 logger.debug(f"Synced {len(custom_workflows)} custom workflow configs.")
+
+                # Sync LLM Configs
+                for config in llm_configs.values():
+                    self._sync_config(
+                        db,
+                        LLMConfigDB,
+                        config,
+                        pk_field="llm_id",  # Specify primary key field
+                    )  # type: ignore[assignment] # Ignore LLMConfig vs AgentConfig mismatch
+                logger.debug(f"Synced {len(llm_configs)} LLM configs.")
 
                 # Commit happens automatically when exiting 'with' block if no errors
                 logger.info("Successfully synced all configurations to database.")
@@ -388,10 +437,10 @@ class StorageManager:
             if db:
                 try:
                     # Delete existing history for this agent and session first
-                    delete_stmt = AgentHistoryDB.__table__.delete().where(
+                    # Use functional delete
+                    delete_stmt = delete(AgentHistoryDB).where(
                         AgentHistoryDB.agent_name == agent_name,
-                        AgentHistoryDB.session_id
-                        == session_id,  # Added session_id filter
+                        AgentHistoryDB.session_id == session_id,
                     )
                     db.execute(delete_stmt)
                     logger.debug(

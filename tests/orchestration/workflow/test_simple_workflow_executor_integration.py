@@ -18,7 +18,7 @@ Mocks are avoided for core components (Executor, Agent, Host).
 import pytest
 
 # Assuming models and executors are importable
-from src.host.models import WorkflowConfig, AgentConfig
+from src.config.config_models import WorkflowConfig, AgentConfig
 from src.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Placeholder configurations - replace with actual fixture/data later if needed

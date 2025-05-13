@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Assuming models and manager are importable
-from src.host.models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from src.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
 from src.storage.db_manager import StorageManager
 from src.storage.db_models import (
     Base,
@@ -240,7 +240,8 @@ def test_sync_all_configs(setup_test_db, storage_manager_instance: StorageManage
         )
     }
 
-    manager.sync_all_configs(agents, workflows, custom_workflows)
+    llm_configs = {}
+    manager.sync_all_configs(agents, workflows, custom_workflows, llm_configs)
 
     # Verify using the engine from the fixture
     with get_db_session(engine=setup_test_db) as db:

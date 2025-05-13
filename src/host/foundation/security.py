@@ -10,8 +10,10 @@ import base64
 import hashlib
 import time
 import warnings  # Add import
-from typing import Dict, Optional, Any, List  # Added List
+from types import ModuleType  # Added ModuleType
+from typing import Dict, Optional, Any, List  # Added Type
 from dataclasses import dataclass
+import anyio  # Import anyio
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -20,18 +22,24 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 logger = logging.getLogger(__name__)
 
 # GCP Imports
+secretmanager: Optional[ModuleType] = None
+gcp_exceptions: Optional[ModuleType] = None
 try:
-    from google.cloud import secretmanager
-    from google.api_core import exceptions as gcp_exceptions  # Alias for clarity
+    from google.cloud import secretmanager as sm_module
+    from google.api_core import exceptions as gcp_exc_module
+
+    secretmanager = sm_module
+    gcp_exceptions = gcp_exc_module
 except ImportError:
-    secretmanager = None
-    gcp_exceptions = None
+    # secretmanager and gcp_exceptions remain None
     logger.warning(
         "google-cloud-secret-manager not installed. GCP secret functionality will be disabled."
     )
 
 # Local imports
-from ..models import GCPSecretConfig  # Assuming models.py is one level up
+from src.config.config_models import (
+    GCPSecretConfig,
+)  # Assuming models.py is one level up
 
 # Patterns for sensitive data detection (Improved)
 SENSITIVE_PATTERNS = {
@@ -145,6 +153,7 @@ class SecurityManager:
                 derived_key_raw = kdf.derive(key.encode("utf-8"))
                 # Fernet needs the base64 encoded version of the raw key
                 key_bytes_for_fernet = base64.urlsafe_b64encode(derived_key_raw)
+
         elif isinstance(key, bytes):
             # Assume bytes are already urlsafe-base64-encoded
             key_bytes_for_fernet = key
@@ -168,7 +177,7 @@ class SecurityManager:
         self,
         type: str,
         value: str,
-        metadata: Dict[str, Any] = None,
+        metadata: Optional[Dict[str, Any]] = None,  # Changed to Optional
         expiry: Optional[int] = None,
     ) -> str:
         """
@@ -312,28 +321,38 @@ class SecurityManager:
             logger.debug(
                 f"Attempting to access secret: {secret_name} for env var: {env_var}"
             )
-            try:
-                request = secretmanager.AccessSecretVersionRequest(name=secret_name)
-                # Use the synchronous client method directly as SDK doesn't provide async access method
-                # This will block the event loop briefly for each secret access.
-                # If many secrets are needed frequently, consider running in a thread pool executor.
-                response = self._gcp_secret_client.access_secret_version(
-                    request=request
-                )
-                secret_value = response.payload.data.decode("UTF-8")
-                resolved_secrets[env_var] = secret_value
-                logger.debug(f"Successfully resolved GCP secret for env var: {env_var}")
-            except gcp_exceptions.NotFound:
-                logger.error(f"GCP Secret not found: {secret_name}")
-                # Skip this secret and continue
-            except gcp_exceptions.PermissionDenied:
+            # Add check to satisfy mypy for Optional[ModuleType]
+            if secretmanager and gcp_exceptions:  # Check modules are available
+                try:
+                    request = secretmanager.AccessSecretVersionRequest(name=secret_name)
+                    # Use the synchronous client method directly as SDK doesn't provide async access method
+                    # This will block the event loop briefly for each secret access.
+                    # Running in a thread pool executor using anyio.to_thread.run_sync
+                    response = await anyio.to_thread.run_sync(
+                        self._gcp_secret_client.access_secret_version, request
+                    )
+                    secret_value = response.payload.data.decode("UTF-8")
+                    resolved_secrets[env_var] = secret_value
+                    logger.debug(
+                        f"Successfully resolved GCP secret for env var: {env_var}"
+                    )
+                except gcp_exceptions.NotFound:
+                    logger.error(f"GCP Secret not found: {secret_name}")
+                    # Skip this secret and continue
+                except gcp_exceptions.PermissionDenied:
+                    logger.error(
+                        f"Permission denied accessing GCP secret: {secret_name}. Check IAM roles for ADC."
+                    )
+                    # Skip this secret and continue
+                except Exception as e:
+                    logger.error(f"Failed to access GCP secret {secret_name}: {e}")
+                    # Skip this secret and continue
+            else:
                 logger.error(
-                    f"Permission denied accessing GCP secret: {secret_name}. Check IAM roles for ADC."
+                    "GCP libraries unavailable despite client being initialized. Skipping secret."
                 )
-                # Skip this secret and continue
-            except Exception as e:
-                logger.error(f"Failed to access GCP secret {secret_name}: {e}")
-                # Skip this secret and continue
+                # Continue to next secret in the loop
+                continue
 
         logger.info(
             f"Resolved {len(resolved_secrets)} out of {len(secrets_config)} requested GCP secrets."
@@ -342,7 +361,7 @@ class SecurityManager:
 
     async def shutdown(self):
         """Shutdown the security manager"""
-        logger.info("Shutting down security manager")
+        logger.debug("Shutting down security manager")
 
         # Clear credentials and tokens from memory
         self._credentials.clear()

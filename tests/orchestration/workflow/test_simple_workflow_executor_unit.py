@@ -3,22 +3,40 @@ Unit tests for the SimpleWorkflowExecutor.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, call, MagicMock  # Added MagicMock
+from unittest.mock import AsyncMock, call, MagicMock  # Added MagicMock
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.workflows.simple_workflow import SimpleWorkflowExecutor
-from src.host.models import WorkflowConfig, AgentConfig
+from src.config.config_models import WorkflowConfig, AgentConfig
 from src.agents.agent import Agent  # Needed for mocking
 from anthropic.types import Message  # Added Message
+from src.llm.base_client import BaseLLM  # For mocking llm_client
+from src.execution.facade import ExecutionFacade  # For mocking facade
 
 # Import shared fixtures
 
 # --- Fixtures ---
 
 # Removed local mock_mcp_host fixture - using shared one
+
+
+@pytest.fixture
+def mock_llm_client() -> MagicMock:
+    """Provides a mock BaseLLM client."""
+    return MagicMock(spec=BaseLLM)
+
+
+@pytest.fixture
+def mock_execution_facade() -> MagicMock:
+    """Provides a mock ExecutionFacade."""
+    mock_facade = MagicMock(spec=ExecutionFacade)
+    # Configure any necessary default behaviors for the facade mock if needed by the executor
+    # For example, if the executor calls facade.get_agent_config(), mock that.
+    # For now, a basic MagicMock should suffice for the __init__ call.
+    return mock_facade
 
 
 @pytest.fixture
@@ -43,7 +61,9 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,
+        mock_mcp_host: AsyncMock,  # Keep this if used by shared fixtures or other parts
+        mock_llm_client: MagicMock,  # Add new fixture
+        mock_execution_facade: MagicMock,  # Add new fixture
     ):
         """
         Test successful initialization of SimpleWorkflowExecutor.
@@ -53,11 +73,15 @@ class TestSimpleWorkflowExecutorUnit:
             executor = SimpleWorkflowExecutor(
                 config=sample_workflow_config,
                 agent_configs=sample_agent_configs,
-                host_instance=mock_mcp_host,
+                # host_instance=mock_mcp_host, # Removed
+                # llm_client=mock_llm_client,  # Removed
+                facade=mock_execution_facade,
             )
             assert executor.config == sample_workflow_config
             assert executor._agent_configs == sample_agent_configs
-            assert executor._host == mock_mcp_host
+            # assert executor._host == mock_mcp_host # Removed
+            # assert executor._llm_client == mock_llm_client # Removed
+            assert executor.facade == mock_execution_facade
             print("Assertions passed.")
         except Exception as e:
             pytest.fail(f"SimpleWorkflowExecutor initialization failed: {e}")
@@ -69,7 +93,9 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,
+        mock_mcp_host: AsyncMock,  # Keep this
+        mock_llm_client: MagicMock,  # Add new fixture
+        mock_execution_facade: MagicMock,  # Add new fixture
     ):
         """
         Test successful execution of a simple workflow with multiple steps.
@@ -98,57 +124,63 @@ class TestSimpleWorkflowExecutorUnit:
         mock_agent_instance_2 = AsyncMock(spec=Agent)
         mock_agent_instance_2.execute_agent = AsyncMock(return_value=agent2_result)
 
-        # Use patch to mock the Agent class within the executor's module scope
-        # We need side_effect to return different mocks for each call
-        with patch(
-            "src.workflows.simple_workflow.Agent",
-            side_effect=[mock_agent_instance_1, mock_agent_instance_2],
-        ) as mock_agent_class:
-            executor = SimpleWorkflowExecutor(
-                config=sample_workflow_config,
-                agent_configs=sample_agent_configs,
-                host_instance=mock_mcp_host,
-            )
+        # The Agent class is no longer directly instantiated by SimpleWorkflowExecutor.
+        # Instead, facade.run_agent is called, which is already mocked.
+        # So, the patch for "src.workflows.simple_workflow.Agent" is removed.
 
-            # --- Execute the workflow ---
-            result = await executor.execute(initial_input=initial_input)
+        # Mock the facade's run_agent method
+        # It should be an async method
+        mock_execution_facade.run_agent = AsyncMock(
+            side_effect=[
+                {
+                    "final_response": {
+                        "content": [{"type": "text", "text": agent1_output_text}]
+                    },
+                    "error": None,
+                },  # Result for Agent1
+                {
+                    "final_response": {
+                        "content": [{"type": "text", "text": agent2_output_text}]
+                    },
+                    "error": None,
+                },  # Result for Agent2
+            ]
+        )
 
-            print(f"Execution Result: {result}")
+        executor = SimpleWorkflowExecutor(
+            config=sample_workflow_config,
+            agent_configs=sample_agent_configs,
+            facade=mock_execution_facade,
+        )
 
-            # --- Assertions ---
-            # Check Agent class was instantiated twice with correct configs
-            assert mock_agent_class.call_count == 2
-            mock_agent_class.assert_has_calls(
-                [
-                    call(config=sample_agent_configs["Agent1"]),
-                    call(config=sample_agent_configs["Agent2"]),
-                ]
-            )
+        # --- Execute the workflow ---
+        result = await executor.execute(initial_input=initial_input)
 
-            # Check execute_agent was called on each mock instance with correct inputs
-            mock_agent_instance_1.execute_agent.assert_awaited_once_with(
-                user_message=initial_input,  # First agent gets initial input
-                host_instance=mock_mcp_host,
-            )
-            # Second agent gets the extracted text content from the first agent's result
-            mock_agent_instance_2.execute_agent.assert_awaited_once_with(
-                user_message=agent1_output_text,  # Expecting the extracted text
-                host_instance=mock_mcp_host,
-            )
+        print(f"Execution Result: {result}")
 
-            # Check the final result structure
-            assert result["status"] == "completed"
-            assert (
-                result["final_message"] == agent2_output_text
-            )  # Final message is the text from last agent
-            assert result["error"] is None
-            # Removed assertions for step_results as it's not returned by the executor
-            # assert "step_results" in result
-            # assert len(result["step_results"]) == 2
-            # assert result["step_results"]["Agent1"] == agent1_result
-            # assert result["step_results"]["Agent2"] == agent2_result
+        # --- Assertions ---
+        # Check facade.run_agent was called correctly
+        assert mock_execution_facade.run_agent.await_count == 2
+        mock_execution_facade.run_agent.assert_has_awaits(
+            [
+                call(agent_name="Agent1", user_message=initial_input),
+                call(agent_name="Agent2", user_message=agent1_output_text),
+            ]
+        )
 
-            print("Assertions passed.")
+        # Check the final result structure
+        assert result["status"] == "completed"
+        assert (
+            result["final_message"] == agent2_output_text
+        )  # Final message is the text from last agent
+        assert result["error"] is None
+        # Removed assertions for step_results as it's not returned by the executor
+        # assert "step_results" in result
+        # assert len(result["step_results"]) == 2
+        # assert result["step_results"]["Agent1"] == agent1_result
+        # assert result["step_results"]["Agent2"] == agent2_result
+
+        print("Assertions passed.")
 
         print("--- Test Finished: test_simple_executor_execute_success ---")
 
@@ -157,10 +189,13 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,
+        mock_mcp_host: AsyncMock,  # Keep
+        mock_llm_client: MagicMock,  # Add
+        mock_execution_facade: MagicMock,  # Add
     ):
         """
         Test workflow execution fails when an agent in steps is not found in agent_configs.
+        (This test might need adjustment if facade handles agent lookup failure)
         """
         print("\n--- Running Test: test_simple_executor_agent_not_found ---")
         initial_input = "Start the workflow"
@@ -168,63 +203,70 @@ class TestSimpleWorkflowExecutorUnit:
         invalid_workflow_config = sample_workflow_config.copy(deep=True)
         invalid_workflow_config.steps.append("NonExistentAgent")
 
-        executor = SimpleWorkflowExecutor(
-            config=invalid_workflow_config,
-            agent_configs=sample_agent_configs,  # Does not contain NonExistentAgent
-            host_instance=mock_mcp_host,
+        # Mock facade.run_agent to simulate successful calls for existing agents
+        # and then raise an error or return an error structure when NonExistentAgent is called.
+        agent1_output_text = "Result from Agent1"
+        agent2_output_text = "Result from Agent2"
+
+        async def mock_run_agent_for_not_found(*args, **kwargs):
+            agent_name = kwargs.get("agent_name")
+            if agent_name == "Agent1":
+                return {
+                    "final_response": {
+                        "content": [{"type": "text", "text": agent1_output_text}]
+                    },
+                    "error": None,
+                }
+            elif agent_name == "Agent2":
+                return {
+                    "final_response": {
+                        "content": [{"type": "text", "text": agent2_output_text}]
+                    },
+                    "error": None,
+                }
+            elif agent_name == "NonExistentAgent":
+                # Simulate facade indicating agent not found, which SimpleWorkflowExecutor should handle
+                return {
+                    "final_response": None,
+                    "error": f"Agent '{agent_name}' configuration not found by facade.",
+                }
+            return {"final_response": None, "error": "Unknown agent in mock"}
+
+        mock_execution_facade.run_agent = AsyncMock(
+            side_effect=mock_run_agent_for_not_found
         )
 
-        # --- Execute the workflow ---
-        # We only need to mock the first agent to let the workflow proceed to the invalid step
-        agent1_output_text = "Result from Agent1"
-        mock_agent1_message = MagicMock(spec=Message)
-        mock_agent1_message.content = [MagicMock(type="text", text=agent1_output_text)]
-        agent1_result = {"final_response": mock_agent1_message}
-        mock_agent_instance_1 = AsyncMock(spec=Agent)
-        mock_agent_instance_1.execute_agent = AsyncMock(return_value=agent1_result)
+        executor = SimpleWorkflowExecutor(
+            config=invalid_workflow_config,
+            agent_configs=sample_agent_configs,
+            # host_instance=mock_mcp_host, # Removed
+            # llm_client=mock_llm_client, # Removed
+            facade=mock_execution_facade,
+        )
 
-        # --- Mock Agent Instantiation and Execution for preceding steps ---
-        agent1_output_text = "Result from Agent1"
-        mock_agent1_message = MagicMock(spec=Message)
-        mock_agent1_message.content = [MagicMock(type="text", text=agent1_output_text)]
-        agent1_result = {"final_response": mock_agent1_message}
-        mock_agent_instance_1 = AsyncMock(spec=Agent)
-        mock_agent_instance_1.execute_agent = AsyncMock(return_value=agent1_result)
-
-        agent2_output_text = "Result from Agent2"  # Need output for step 2 as well
-        mock_agent2_message = MagicMock(spec=Message)
-        mock_agent2_message.content = [MagicMock(type="text", text=agent2_output_text)]
-        agent2_result = {"final_response": mock_agent2_message}
-        mock_agent_instance_2 = AsyncMock(spec=Agent)
-        mock_agent_instance_2.execute_agent = AsyncMock(return_value=agent2_result)
-
-        # Patch Agent class to return mocks for Agent1 and Agent2
-        with patch(
-            "src.workflows.simple_workflow.Agent",
-            side_effect=[mock_agent_instance_1, mock_agent_instance_2],
-        ) as mock_agent_class:
-            result = await executor.execute(initial_input=initial_input)
-
+        result = await executor.execute(initial_input=initial_input)
         print(f"Execution Result: {result}")
 
         # --- Assertions ---
-        # Agent should be instantiated twice (for Agent1 & Agent2) before the KeyError
-        assert mock_agent_class.call_count == 2
-        mock_agent_class.assert_has_calls(
+        # facade.run_agent should be called for Agent1, Agent2, and then NonExistentAgent
+        assert mock_execution_facade.run_agent.await_count == 3
+        mock_execution_facade.run_agent.assert_has_awaits(
             [
-                call(config=sample_agent_configs["Agent1"]),
-                call(config=sample_agent_configs["Agent2"]),
+                call(agent_name="Agent1", user_message=initial_input),
+                call(agent_name="Agent2", user_message=agent1_output_text),
+                call(agent_name="NonExistentAgent", user_message=agent2_output_text),
             ]
         )
-        mock_agent_instance_1.execute_agent.assert_awaited_once()
-        mock_agent_instance_2.execute_agent.assert_awaited_once()
 
         # Check the final result structure for failure
         assert result["status"] == "failed"
         assert result["final_message"] is None
         assert result["error"] is not None
         assert "NonExistentAgent" in result["error"]
-        assert "not found in provided agent configurations" in result["error"]
+        # The error message now comes from the facade mock or how SimpleWorkflowExecutor processes it
+        assert (
+            "configuration not found by facade" in result["error"]
+        )  # Updated expected error message
 
         print("Assertions passed.")
         print("--- Test Finished: test_simple_executor_agent_not_found ---")
@@ -234,57 +276,52 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,
+        mock_mcp_host: AsyncMock,  # Keep
+        mock_llm_client: MagicMock,  # Add
+        mock_execution_facade: MagicMock,  # Add
     ):
         """
         Test workflow execution fails when an agent step execution raises an error.
         """
         print("\n--- Running Test: test_simple_executor_agent_execution_failure ---")
         initial_input = "Start the workflow"
-        agent_execution_error = RuntimeError("Agent failed internally")
+        agent_execution_error_text = "Agent failed internally via facade"
 
-        # --- Mock Agent Instantiation and Execution ---
-        mock_agent_instance_1 = AsyncMock(spec=Agent)
-        # Make the first agent raise an error during execution
-        mock_agent_instance_1.execute_agent = AsyncMock(
-            side_effect=agent_execution_error
+        # Mock facade.run_agent to return an error for the first agent
+        mock_execution_facade.run_agent = AsyncMock(
+            return_value={"final_response": None, "error": agent_execution_error_text}
         )
 
-        # We don't need the second mock instance as the workflow should fail on the first step
+        executor = SimpleWorkflowExecutor(
+            config=sample_workflow_config,
+            agent_configs=sample_agent_configs,
+            # host_instance=mock_mcp_host, # Removed
+            # llm_client=mock_llm_client, # Removed
+            facade=mock_execution_facade,
+        )
 
-        with patch(
-            "src.workflows.simple_workflow.Agent", return_value=mock_agent_instance_1
-        ) as mock_agent_class:
-            executor = SimpleWorkflowExecutor(
-                config=sample_workflow_config,
-                agent_configs=sample_agent_configs,
-                host_instance=mock_mcp_host,
-            )
+        # --- Execute the workflow ---
+        result = await executor.execute(initial_input=initial_input)
 
-            # --- Execute the workflow ---
-            result = await executor.execute(initial_input=initial_input)
+        print(f"Execution Result: {result}")
 
-            print(f"Execution Result: {result}")
+        # --- Assertions ---
+        # facade.run_agent called once for Agent1
+        mock_execution_facade.run_agent.assert_awaited_once_with(
+            agent_name="Agent1", user_message=initial_input
+        )
 
-            # --- Assertions ---
-            # Agent class instantiated once
-            mock_agent_class.assert_called_once_with(
-                config=sample_agent_configs["Agent1"]
-            )
-            # execute_agent called once (and raised error)
-            mock_agent_instance_1.execute_agent.assert_awaited_once_with(
-                user_message=initial_input,
-                host_instance=mock_mcp_host,
-            )
+        # Check the final result structure for failure
+        assert result["status"] == "failed"
+        assert result["final_message"] is None
+        assert result["error"] is not None
+        # The error message should now reflect what SimpleWorkflowExecutor constructs
+        # based on the error returned by the facade.
+        expected_error_msg_from_executor = (
+            f"Agent 'Agent1' (step 1) failed: {agent_execution_error_text}"
+        )
+        assert result["error"] == expected_error_msg_from_executor
 
-            # Check the final result structure for failure
-            assert result["status"] == "failed"
-            assert result["final_message"] is None
-            assert result["error"] is not None
-            # Check the exact error message constructed by the executor
-            expected_error_msg = f"Unexpected error during agent 'Agent1' (step 1) execution within workflow '{sample_workflow_config.name}': {agent_execution_error}"
-            assert result["error"] == expected_error_msg
-
-            print("Assertions passed.")
+        print("Assertions passed.")
 
         print("--- Test Finished: test_simple_executor_agent_execution_failure ---")

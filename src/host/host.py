@@ -2,7 +2,6 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
-import os  # Added os import
 import logging  # Removed importlib, inspect, Path
 from contextlib import AsyncExitStack
 from typing import (
@@ -12,17 +11,18 @@ from typing import (
     Optional,
 )  # Kept Any, Dict, List, Optional as they are used elsewhere
 
-from mcp import (
-    ClientSession,
-    StdioServerParameters,
-    stdio_client,
-)
+import anyio # Import anyio
 import mcp.types as types
 
 # Foundation layer
-from .foundation import SecurityManager, RootManager, MessageRouter
+from .foundation import (
+    SecurityManager,
+    RootManager,
+    MessageRouter,
+    ClientManager,
+)  # Added ClientManager
 from .filtering import FilteringManager
-from .models import (
+from src.config.config_models import (
     AgentConfig,
     ClientConfig,
     HostConfig,
@@ -46,7 +46,7 @@ class MCPHost:
     def __init__(
         self,
         config: HostConfig,
-        agent_configs: Optional[Dict[str, AgentConfig]] = None,
+        # agent_configs: Optional[Dict[str, AgentConfig]] = None, # Removed
         # Removed workflow_configs parameter
         # Removed custom_workflow_configs parameter
         encryption_key: Optional[str] = None,
@@ -74,11 +74,17 @@ class MCPHost:
 
         # State management
         self._config = config
-        self._agent_configs = agent_configs or {}
+        # self._agent_configs = agent_configs or {} # Removed
         # Removed self._workflow_configs initialization
         # Removed self._custom_workflow_configs initialization
-        self._clients: Dict[str, ClientSession] = {}
-        self._exit_stack = AsyncExitStack()
+        # self._clients: Dict[str, ClientSession] = {} # Removed
+
+        # MCPHost's main exit stack for managing its own resources, including the client runners task group
+        self._main_exit_stack = AsyncExitStack()
+        self._client_runners_task_group: Optional[anyio.TaskGroup] = None
+        self._client_cancel_scopes: Dict[str, anyio.CancelScope] = {}
+
+        self.client_manager = ClientManager()  # Updated instantiation
 
         # Create property accessors for resource layer managers
         self.prompts = self._prompt_manager
@@ -87,7 +93,7 @@ class MCPHost:
 
     async def initialize(self):
         """Initialize the host and all configured clients"""
-        logger.info("Initializing MCP Host...")  # Keep high-level start as INFO
+        logger.debug("Initializing MCP Host...")  # Changed to DEBUG
 
         # Initialize subsystems in layer order
 
@@ -106,62 +112,57 @@ class MCPHost:
         await self._resource_manager.initialize()
         await self._tool_manager.initialize()
 
+        # Create and enter the main task group for client runners
+        if self._client_runners_task_group is None: # Should always be None here unless initialize is called multiple times
+            self._client_runners_task_group = await self._main_exit_stack.enter_async_context(anyio.create_task_group())
+            logger.debug("Main client runners task group created and entered.")
+        else:
+            logger.warning("Initialize called but _client_runners_task_group already exists.")
+
+
         # Initialize each configured client
         for client_config in self._config.clients:
             await self._initialize_client(client_config)
+
+        num_clients = len(self.client_manager.active_clients)
+        # MCPHost uses HostConfig (self._config). If HostConfig were to hold agent configurations,
+        # it would likely be under an 'agents' attribute, similar to ProjectConfig.
+        num_agent_configs = (
+            len(self._config.agents)
+            if hasattr(self._config, "agents") and self._config.agents
+            else 0
+        )
+        logger.info(
+            f"Host initialized {num_clients} clients and loaded {num_agent_configs} agent configs."
+        )
 
         logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
-        logger.debug(f"Initializing client: {config.client_id}")  # INFO -> DEBUG
+        logger.debug(f"Initializing client: {config.client_id}")
 
         try:
-            # Resolve GCP secrets if configured
-            client_env = os.environ.copy()  # Start with current environment
-            if (
-                config.gcp_secrets and self._security_manager
-            ):  # Check if SecurityManager exists and secrets are configured
-                logger.info(f"Resolving GCP secrets for client: {config.client_id}")
-                try:
-                    # Await the resolution method
-                    resolved_env_vars = (
-                        await self._security_manager.resolve_gcp_secrets(
-                            config.gcp_secrets
-                        )
-                    )
-                    if resolved_env_vars:
-                        # Update the environment dictionary for the subprocess
-                        client_env.update(resolved_env_vars)
-                        logger.info(
-                            f"Injecting {len(resolved_env_vars)} secrets into environment for client: {config.client_id}"
-                        )
-                        # Optional: Log the keys being injected for debugging (DO NOT log values)
-                        # Log keys at DEBUG level only if needed
-                        # logger.debug(
-                        #     f"Injecting env vars: {list(resolved_env_vars.keys())}"
-                        # )
-                except Exception as e:
-                    # Log error but allow host to continue initialization without injected secrets
-                    logger.error(
-                        f"Failed to resolve or inject GCP secrets for client {config.client_id}: {e}. Proceeding without injected secrets."
-                    )  # Keep error as ERROR
+            if self._client_runners_task_group is None:
+                # This should not happen if initialize was called correctly
+                logger.error("_initialize_client called before _client_runners_task_group was created.")
+                raise RuntimeError("Client runners task group not initialized.")
 
-            # Setup transport with potentially updated environment
-            server_params = StdioServerParameters(
-                command="python",
-                args=[str(config.server_path)],
-                env=client_env,  # Pass the modified env
-            )
+            client_id = config.client_id
+            client_scope = anyio.CancelScope()
+            self._client_cancel_scopes[client_id] = client_scope
 
-            # Create transport using context manager
-            transport = await self._exit_stack.enter_async_context(
-                stdio_client(server_params)
+            logger.debug(f"Starting client lifecycle task for {client_id} in task group.")
+            session = await self._client_runners_task_group.start(
+                self.client_manager.manage_client_lifecycle,
+                config,
+                self._security_manager,
+                client_scope
+                # task_status is implicitly handled by tg.start()
             )
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(transport[0], transport[1])
-            )
+            logger.debug(f"Client session for {client_id} obtained from lifecycle task.")
 
+            # --- Communication and Registration (using the session returned by the lifecycle task) ---
             # Initialize with capabilities using proper types
             init_request = types.InitializeRequest(
                 method="initialize",
@@ -174,20 +175,22 @@ class MCPHost:
                         roots=types.RootsCapability(listChanged=True)
                         if "roots" in config.capabilities
                         else None,
-                        sampling={} if "sampling" in config.capabilities else None,
+                        sampling=types.SamplingCapability()  # Instantiate capability object
+                        if "sampling" in config.capabilities
+                        else None,
                         experimental={},
-                        prompts={} if "prompts" in config.capabilities else None,
-                        resources={} if "resources" in config.capabilities else None,
+                        # Removed prompts and resources as they are not ClientCapabilities
                     ),
                 ),
             )
-            await session.send_request(init_request, types.InitializeResult)
+            await session.send_request(init_request, types.InitializeResult)  # type: ignore[arg-type]
 
             # Send initialized notification
             init_notification = types.InitializedNotification(
-                method="notifications/initialized", params={}
+                method="notifications/initialized",
+                params=None,  # Pass None instead of {}
             )
-            await session.send_notification(init_notification)
+            await session.send_notification(init_notification)  # type: ignore[arg-type]
 
             # Register roots
             if "roots" in config.capabilities:
@@ -200,8 +203,8 @@ class MCPHost:
                 weight=config.routing_weight,
             )
 
-            # Store client session
-            self._clients[config.client_id] = session
+            # Client session is stored in self.client_manager.active_clients
+            # self._clients[config.client_id] = session # Removed
 
             # Discover and register components based on capabilities, applying exclusions
             tool_names = []
@@ -252,10 +255,11 @@ class MCPHost:
                 )
                 resource_names = [r.name for r in registered_resources]
 
-            logger.info(
+            logger.debug(  # Changed to DEBUG
                 f"Client '{config.client_id}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
-            )  # Keep client summary as INFO
+            )
+            # --- End of restored section ---
 
         except Exception as e:
             logger.error(
@@ -265,7 +269,8 @@ class MCPHost:
 
     def is_client_registered(self, client_id: str) -> bool:
         """Checks if a client with the given ID is registered."""
-        return client_id in self._clients
+        # Check in ClientManager's active clients
+        return client_id in self.client_manager.active_clients
 
     async def get_prompt(
         self,
@@ -311,8 +316,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists (basic check)
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the prompt
             providing_clients = await self._message_router.get_clients_for_prompt(
@@ -404,24 +409,7 @@ class MCPHost:
             )
             return None
 
-    def get_agent_config(self, agent_name: str) -> AgentConfig:
-        """
-        Retrieves the configuration for a specific agent by name.
-
-        Args:
-            agent_name: The name of the agent whose configuration is needed.
-
-        Returns:
-            The AgentConfig object for the specified agent.
-
-        Raises:
-            KeyError: If no agent with the given name is found.
-        """
-        if agent_name not in self._agent_configs:
-            logger.error(f"Agent configuration not found for name: {agent_name}")
-            raise KeyError(f"Agent configuration not found for name: {agent_name}")
-        return self._agent_configs[agent_name]
-
+    # Removed get_agent_config method
     # Removed get_workflow_config method
     # Removed get_custom_workflow_config method
     # Removed execute_custom_workflow method
@@ -462,8 +450,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the tool
             providing_clients = await self._message_router.get_clients_for_tool(
@@ -591,8 +579,8 @@ class MCPHost:
 
         # 1. Determine potential clients
         if client_name:
-            # Validate specified client exists
-            if client_name not in self._clients:
+            # Validate specified client exists (using new method)
+            if not self.is_client_registered(client_name):
                 raise ValueError(f"Specified client '{client_name}' is not registered.")
             # Check if this client provides the resource
             providing_clients = await self._message_router.get_clients_for_resource(
@@ -716,13 +704,13 @@ class MCPHost:
             Exception: Propagates exceptions from the underlying client initialization process.
         """
         logger.info(f"Attempting to dynamically register client: {config.client_id}")
-        if config.client_id in self._clients:
+        # Check using the new method
+        if self.is_client_registered(config.client_id):
             logger.error(f"Client ID '{config.client_id}' already registered.")
             raise ValueError(f"Client ID '{config.client_id}' already registered.")
 
         try:
-            # Reuse the existing internal initialization logic
-            # This will add the client to self._clients and manage its lifecycle via self._exit_stack
+            # Reuse the existing internal initialization logic, which now uses ClientManager
             await self._initialize_client(config)
             logger.info(
                 f"Client '{config.client_id}' dynamically registered and initialized successfully."
@@ -742,27 +730,138 @@ class MCPHost:
         # Shutdown managers first, in reverse layer order, before closing connections
 
         # Layer 3: Resource management layer
-        logger.info("Shutting down resource management layer...")
+        logger.debug("Shutting down resource management layer...")  # Changed to DEBUG
         await self._prompt_manager.shutdown()
         await self._resource_manager.shutdown()
         await self._tool_manager.shutdown()
 
         # Layer 2: Communication layer
-        logger.info("Shutting down communication layer...")
+        logger.debug("Shutting down communication layer...")  # Changed to DEBUG
         await self._message_router.shutdown()
 
         # Layer 1: Foundation layer
-        logger.info("Shutting down foundation layer...")
+        logger.debug("Shutting down foundation layer...")  # Changed to DEBUG
         await self._security_manager.shutdown()
         await self._root_manager.shutdown()
 
-        # Now, close all client connections and resources using the exit stack
-        logger.info("Closing client connections via AsyncExitStack...")
-        await self._exit_stack.aclose()
+        # Call shutdown_all_clients to unregister components and cancel individual client scopes
+        logger.debug(
+            "Calling shutdown_all_clients to unregister components and cancel individual client scopes..."
+        )
+        await self.shutdown_all_clients()
 
-        # Clear stored agent configs
-        self._agent_configs.clear()
+        # Cancel the main client runners task group itself.
+        # This will wait for all tasks within it (the client lifecycle tasks) to finish their cancellation.
+        if self._client_runners_task_group:
+            logger.debug("Cancelling main client runners task group...")
+            self._client_runners_task_group.cancel_scope.cancel()
+            # The waiting for this task group to actually finish happens when _main_exit_stack is closed,
+            # as the task group was entered into it.
+        else:
+            logger.debug("No main client runners task group to cancel.")
+
+        # Now, close the main exit stack. This will await the _client_runners_task_group
+        # if it was entered, and any other resources MCPHost might manage in it.
+        logger.debug("Closing main AsyncExitStack for MCPHost...")
+        await self._main_exit_stack.aclose()
+
+        # Clear any remaining state related to client scopes, just in case
+        self._client_cancel_scopes.clear()
+        self._client_runners_task_group = None # Ensure it's reset
+
+        # self._agent_configs.clear() # Removed, as _agent_configs is removed
         # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 
         logger.info("MCP Host shutdown complete")
+
+    # --- New Client Lifecycle Methods ---
+
+    async def client_shutdown(self, client_id: str):
+        """
+        Shuts down a specific client by ID.
+
+        Args:
+            client_id: The ID of the client to shut down.
+        """
+        logger.debug(  # Changed to DEBUG
+            f"MCPHost requesting ClientManager to shut down client: {client_id}"
+        )
+        # Unregister components from managers *before* shutting down the client session
+        logger.debug(f"Unregistering components for client '{client_id}'...")
+        await self._tool_manager.unregister_client_tools(client_id)
+        await self._prompt_manager.unregister_client_prompts(client_id)
+        await self._resource_manager.unregister_client_resources(client_id)
+        await self._message_router.unregister_server(client_id)
+        logger.debug(f"Component unregistration complete for client '{client_id}'.")
+
+        # Now request ClientManager to shut down the client session and process
+        # await self.client_manager.shutdown_client(client_id) # Removed, ClientManager no longer has this
+
+        # Cancel the specific client's task scope
+        client_scope = self._client_cancel_scopes.pop(client_id, None)
+        if client_scope:
+            client_scope.cancel()
+            logger.debug(f"Cancelled client task scope for {client_id}.")
+        else:
+            logger.warning(f"No cancel scope found for client {client_id} during shutdown.")
+
+        # Remove the client from the ClientManager's active list
+        if client_id in self.client_manager.active_clients:
+            del self.client_manager.active_clients[client_id]
+            logger.debug(f"Removed client {client_id} from ClientManager active list.")
+        else:
+            # This might happen if shutdown is called multiple times or after an error
+            logger.warning(f"Client {client_id} not found in ClientManager active list during shutdown.")
+
+        # TODO: Add logic here to unregister tools/prompts/resources from managers # This TODO is now addressed above
+        # Example (needs implementation in managers):
+        # await self._tool_manager.unregister_client_tools(client_id) # Addressed above
+        # await self._prompt_manager.unregister_client_prompts(client_id)
+        # await self._resource_manager.unregister_client_resources(client_id)
+        # await self._message_router.unregister_server(client_id)
+        logger.debug(
+            f"MCPHost completed shutdown request for client: {client_id}"
+        )  # Changed to DEBUG
+
+    async def shutdown_all_clients(self):
+        """
+        Shuts down all currently active clients managed by the ClientManager.
+        """
+        logger.debug(
+            "MCPHost requesting ClientManager to shut down all clients..."
+        )  # Changed to DEBUG
+
+        # Get a list of client IDs for which we have cancel scopes
+        # Iterate over a copy of keys if modifying the dict during iteration (pop)
+        client_ids_to_shutdown = list(self._client_cancel_scopes.keys())
+        logger.debug(f"Shutting down and unregistering components for clients: {client_ids_to_shutdown}")
+
+        for client_id in client_ids_to_shutdown:
+            logger.debug(f"Unregistering components for client '{client_id}' during shutdown_all_clients...")
+            await self._tool_manager.unregister_client_tools(client_id)
+            await self._prompt_manager.unregister_client_prompts(client_id)
+            await self._resource_manager.unregister_client_resources(client_id)
+            await self._message_router.unregister_server(client_id)
+            logger.debug(f"Component unregistration complete for client '{client_id}'.")
+
+            # Cancel the specific client's task scope
+            client_scope = self._client_cancel_scopes.pop(client_id, None)
+            if client_scope:
+                client_scope.cancel()
+                logger.debug(f"Cancelled client task scope for {client_id} during shutdown_all_clients.")
+            else:
+                # This case should ideally not happen if _client_cancel_scopes is managed correctly
+                logger.warning(f"No cancel scope found for client {client_id} during shutdown_all_clients.")
+
+        # ClientManager no longer has shutdown_all_clients.
+        # The cancellation of individual scopes above, followed by the cancellation
+        # of _client_runners_task_group in MCPHost.shutdown(), handles this.
+
+        # TODO: Add logic here to unregister all components from managers # This TODO is now addressed above
+        # Example (needs implementation in managers):
+        # await self._tool_manager.unregister_all_client_tools() # Addressed above
+        # ... etc for prompts, resources, router
+        logger.debug(
+            "MCPHost completed shutdown request for all clients."
+        )  # Changed to DEBUG

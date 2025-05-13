@@ -66,95 +66,84 @@ class ExampleCustomWorkflow:
             agent_error = None
             workflow_status = "failed"  # Default to failed unless explicitly successful
 
+            agent_error = None
+            final_text_content = "Agent execution failed or returned unexpected format."
+            workflow_status = "failed"  # Default to failed
+
             if isinstance(agent_result, dict):
                 agent_error = agent_result.get("error")
                 if not agent_error:
-                    # Attempt extraction only if no agent error
-                    final_message = "No text content found in agent response."  # Default if no error but no text found
-                    try:
-                        # Check structure carefully before accessing attributes
-                        if (
-                            agent_result.get("final_response")
-                            and hasattr(agent_result["final_response"], "content")
-                            and isinstance(agent_result["final_response"].content, list)
-                        ):
-                            # Find the first text block safely
-                            text_block = next(
+                    # Agent call succeeded, try to extract text
+                    final_response_dict = agent_result.get("final_response")
+                    if final_response_dict and isinstance(final_response_dict, dict):
+                        content_list = final_response_dict.get("content", [])
+                        if isinstance(content_list, list):
+                            # Find the first text block using dictionary access
+                            text_block_dict = next(
                                 (
                                     block
-                                    for block in agent_result["final_response"].content
-                                    if hasattr(block, "type")
-                                    and block.type == "text"
-                                    and hasattr(block, "text")
+                                    for block in content_list
+                                    if isinstance(block, dict)
+                                    and block.get("type") == "text"
                                 ),
                                 None,
                             )
-                            if text_block:
-                                final_message = text_block.text
-                                workflow_status = (
-                                    "completed"  # Mark as completed only if text found
-                                )
+                            if text_block_dict and "text" in text_block_dict:
+                                final_text_content = text_block_dict.get("text", "")
+                                workflow_status = "completed"  # Success!
                                 logger.info(
                                     "Successfully extracted text from agent response."
                                 )
                             else:
-                                logger.warning(
+                                final_text_content = (
                                     "No text block found in agent response content."
                                 )
-                                # Keep workflow_status as failed if no text? Or completed? Let's mark completed but message indicates no text.
+                                logger.warning(final_text_content)
+                                # Consider this success as the agent ran, but didn't return text
                                 workflow_status = "completed"
                         else:
-                            logger.warning(
-                                "Agent result missing expected final_response or content structure."
+                            final_text_content = (
+                                "Agent final_response content is not a list."
                             )
-                            # Keep workflow_status as failed
-                    except Exception as extraction_err:
-                        # Catch potential errors during extraction itself
-                        logger.error(
-                            f"Error extracting text from agent result: {extraction_err}",
-                            exc_info=True,
+                            logger.warning(final_text_content)
+                    else:
+                        final_text_content = (
+                            "Agent result missing or invalid final_response structure."
                         )
-                        final_message = (
-                            f"Error processing agent response: {extraction_err}"
-                        )
-                        # Keep workflow_status as failed
+                        logger.warning(final_text_content)
                 else:
                     # Agent returned an error
-                    final_message = f"Agent execution failed: {agent_error}"
-                    logger.error(final_message)
-                    # Keep workflow_status as failed
+                    final_text_content = f"Agent execution failed: {agent_error}"
+                    logger.error(final_text_content)
             else:
                 # agent_result was not a dict
-                logger.error(
+                final_text_content = (
                     f"Agent returned unexpected result format: {type(agent_result)}"
                 )
-                # Keep workflow_status as failed and final_message as default
+                logger.error(final_text_content)
 
             # Log final status before returning
             if workflow_status == "completed":
-                logger.info("ExampleCustomWorkflow finished successfully.")
+                logger.info(
+                    f"ExampleCustomWorkflow finished with status: {workflow_status}"
+                )
             else:
                 logger.error(
-                    f"ExampleCustomWorkflow finished with status: {workflow_status}. Message: {final_message}"
+                    f"ExampleCustomWorkflow finished with status: {workflow_status}. Message: {final_text_content}"
                 )
 
-            # --- DEBUG LOGGING ---
-            logger.debug(f"Final determined workflow_status: {workflow_status}")
-            logger.debug(f"Final determined agent_error: {agent_error}")
-            logger.debug(f"Final determined final_message: {final_message}")
-            # --- END DEBUG LOGGING ---
-
-            # Return structure based on workflow_status
+            # Return structure - the outer 'status' reflects the workflow's success in running
+            # The inner 'result' contains details including the extracted text or error message.
             return {
-                "status": workflow_status,
-                "error": agent_error
-                if workflow_status == "failed"
-                else None,  # Return agent error if workflow failed due to it
+                "status": workflow_status,  # Outer status reflects workflow completion
+                "error": agent_error if workflow_status == "failed" else None,
                 "result": {
-                    "status": "success",  # Keep internal success marker
+                    "status": "success"
+                    if workflow_status == "completed"
+                    else "failed",  # Inner status reflects outcome
                     "message": f"Example custom workflow executed for {city}.",
                     "input_received": initial_input,
-                    "agent_result_text": final_message,
+                    "agent_result_text": final_text_content,  # Contains extracted text or error info
                 },
             }
 

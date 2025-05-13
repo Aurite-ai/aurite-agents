@@ -19,7 +19,7 @@ import pytest
 import os  # Import os for environment variable check
 
 # Assuming models and executors are importable
-from src.host.models import CustomWorkflowConfig
+from src.config.config_models import CustomWorkflowConfig
 from src.workflows.custom_workflow import CustomWorkflowExecutor
 from src.host_manager import HostManager  # For host_manager fixture
 from src.config import PROJECT_ROOT_DIR
@@ -152,9 +152,26 @@ async def test_custom_executor_basic_execution(host_manager: HostManager):
             assert "agent_result_text" in inner_result
             assert isinstance(inner_result["agent_result_text"], str)
             assert len(inner_result["agent_result_text"]) > 0
-            assert (
-                "Paris" in inner_result["agent_result_text"]
-            )  # Check if city was used
+            # Parse the JSON output from the agent and check values
+            try:
+                import json
+
+                agent_output_json = json.loads(inner_result["agent_result_text"])
+                assert isinstance(agent_output_json, dict)
+                assert isinstance(agent_output_json.get("temperature"), dict)
+                assert (
+                    agent_output_json["temperature"].get("value") == 20
+                )  # Default temp
+                assert agent_output_json["temperature"].get("unit") == "celsius"
+            except json.JSONDecodeError:
+                pytest.fail(
+                    f"Agent result text was not valid JSON: {inner_result['agent_result_text']}"
+                )
+            except AssertionError as ae:
+                pytest.fail(
+                    f"JSON structure or values incorrect: {ae}. JSON: {inner_result['agent_result_text']}"
+                )
+
             print("Success assertions passed.")
         else:
             # Unexpected status

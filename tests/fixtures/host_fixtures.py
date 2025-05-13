@@ -3,16 +3,26 @@ Pytest fixtures related to MCPHost configuration and mocking.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import (
+    Mock,
+    AsyncMock,
+)  # Ensure patch and MagicMock are here
+import logging  # Added logging import
 
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.host.models import HostConfig
+# Import necessary models
+from src.config.config_models import (
+    HostConfig,
+)  # Ensure ProjectConfig and ClientConfig are here
 from src.host.host import MCPHost
-from src.host_manager import HostManager  # Import HostManager
-from src.host.resources import ToolManager, PromptManager  # Added ResourceManager
+from src.host_manager import HostManager
+from src.host.resources import ToolManager, PromptManager
 from src.config import PROJECT_ROOT_DIR  # Import project root
+
+# Define logger for this fixtures module
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -75,42 +85,28 @@ def mock_mcp_host() -> Mock:
 # --- Integration Fixture ---
 
 
-@pytest.fixture(scope="module")  # Changed scope to module
+@pytest.fixture(scope="function")  # <<< Reverted scope back to function
 async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
     """
     Provides an initialized HostManager instance for testing, based on
     the testing_config.json file. Handles setup and teardown.
     """
-    # Define path to the test config file relative to project root
-    test_config_path = PROJECT_ROOT_DIR / "config/testing_config.json"
+    # Define path to the test config file relative to the project root
+    test_config_path = (
+        PROJECT_ROOT_DIR / "config/projects/testing_config.json"  # Updated path
+    )  # Use PROJECT_ROOT_DIR directly
 
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Check if the referenced server path exists to avoid unnecessary setup failure
-    # This requires loading the config partially or making assumptions.
-    # Let's load it quickly just to check the server path for skipping.
-    try:
-        import json
-
-        with open(test_config_path, "r") as f:
-            raw_config = json.load(f)
-        first_client_path_str = raw_config.get("clients", [{}])[0].get("server_path")
-        if first_client_path_str:
-            first_client_path = (PROJECT_ROOT_DIR / first_client_path_str).resolve()
-            if not first_client_path.exists():
-                pytest.skip(
-                    f"Test server path in config does not exist: {first_client_path}"
-                )
-        else:
-            pytest.fail("Could not read first client server_path from testing config.")
-    except Exception as e:
-        pytest.fail(f"Failed to pre-check server path in testing config: {e}")
-
-    # Instantiate HostManager
+    # Instantiate HostManager - This will use the real ProjectManager now
+    # The ProjectManager, when loading the project during manager.initialize(),
+    # will resolve client string references to full ClientConfig objects
+    # using the ComponentManager. Path validation for servers will occur
+    # during MCPHost and ClientManager initialization.
     manager = HostManager(config_path=test_config_path)
 
-    # Initialize (this loads configs and starts MCPHost/clients)
+    # Initialize (this loads configs via real ProjectManager and starts MCPHost/clients)
     try:
         await manager.initialize()
     except Exception as init_e:
@@ -125,22 +121,39 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
 
     # Teardown: Shutdown the manager (which shuts down the host)
     try:
-        await manager.shutdown()
-    except RuntimeError as e:
-        # Catch and log the specific "Event loop is closed" error during teardown
-        if "Event loop is closed" in str(e):
-            print(
-                f"\n[WARN] Suppressed known teardown error in host_manager fixture: {e}"
-            )
+        if manager:
+            if manager.execution and hasattr(manager.execution, "aclose"):
+                logger.debug("HostManager Fixture: Attempting to aclose ExecutionFacade...")
+                await manager.execution.aclose()
+                logger.debug("HostManager Fixture: ExecutionFacade aclosed.")
+            if manager.host: # Check if manager and host exist before shutdown
+                logger.debug(f"HostManager Fixture: Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
+                await manager.shutdown() # Attempt shutdown
+                logger.debug(f"HostManager Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
+            else:
+                logger.debug("HostManager Fixture: Host not available on manager for shutdown in teardown.")
         else:
-            # Re-raise other RuntimeErrors
-            print(
-                f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}"
-            )
-            raise  # Re-raise unexpected RuntimeErrors
+            logger.debug("HostManager Fixture: Manager not available for shutdown in teardown.")
+    except ExceptionGroup as eg:
+        # Specifically catch ExceptionGroup, likely from TaskGroup/AsyncExitStack issues
+        # Check if the known ProcessLookupError is within the group
+        if any(isinstance(e, ProcessLookupError) for e in eg.exceptions):
+             print(f"\n[WARN] Suppressed known ProcessLookupError during teardown in host_manager fixture: {eg}")
+        else:
+             # Re-raise other unexpected ExceptionGroups
+             print(f"\n[ERROR] Unexpected ExceptionGroup during HostManager shutdown in fixture: {eg}")
+             raise
+    except RuntimeError as e:
+        # Keep handling for specific RuntimeErrors like "Event loop is closed"
+        if "Event loop is closed" in str(e) or "Cannot run shutdown() while loop is stopping" in str(e):
+            print(f"\n[WARN] Suppressed known RuntimeError teardown error in host_manager fixture: {e}")
+        else:
+            print(f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}")
+            raise # Re-raise other RuntimeErrors
     except Exception as shutdown_e:
-        # Log or handle other teardown errors if necessary
-        print(f"\n[ERROR] Error during HostManager shutdown in fixture: {shutdown_e}")
+        # Catch any other unexpected exceptions during shutdown
+        print(f"\n[ERROR] Unexpected generic Exception during HostManager shutdown in fixture: {shutdown_e}")
+        raise # Re-raise other exceptions
 
 
 # Note: The old real_host_and_manager fixture is removed as host_manager replaces it.

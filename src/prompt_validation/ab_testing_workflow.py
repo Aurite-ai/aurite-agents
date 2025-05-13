@@ -6,13 +6,16 @@ from typing import Any
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.host.host import MCPHost
 from src.prompt_validation.prompt_validation_helper import (
     run_iterations,
     evaluate_results_ab,
     load_config,
 )
-
+from typing import TYPE_CHECKING
+# Type hint for ExecutionFacade to avoid circular import
+if TYPE_CHECKING:
+    from src.execution.facade import ExecutionFacade
+    
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +24,7 @@ class ABTestingWorkflow:
     Custom workflow for A/B testing
     """
 
-    async def execute_workflow(self, initial_input: Any, host_instance: MCPHost) -> Any:
+    async def execute_workflow(self, initial_input: Any, executor: "ExecutionFacade") -> Any:
         """
         Executes the A/B testing workflow.
 
@@ -41,10 +44,10 @@ class ABTestingWorkflow:
 
             results = await asyncio.gather(
                 run_iterations(
-                    host_instance=host_instance, testing_config=testing_config
+                    executor=executor, testing_config=testing_config
                 ),
                 run_iterations(
-                    host_instance=host_instance,
+                    executor=executor,
                     testing_config=testing_config,
                     override_system_prompt=testing_config.new_prompt,
                 ),
@@ -54,7 +57,7 @@ class ABTestingWorkflow:
 
             # final results based on eval type
             final_result = await evaluate_results_ab(
-                host_instance, testing_config, formatted_results
+                executor, testing_config, formatted_results
             )
 
             return_value = {

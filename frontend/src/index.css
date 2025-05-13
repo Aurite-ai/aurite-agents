@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Minimal base styles. Most styling should be done via Tailwind utility classes. */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh; /* Ensures body takes full viewport height */
+  /* Background color and text color will be applied by Tailwind's
+     bg-dracula-background and text-dracula-foreground on the main layout div or body tag via Tailwind. */
+}
+
+/* Remove default h1, button, a styling to let Tailwind control them. */
+/* If specific global overrides are needed, they can be added here, but prefer utility classes. */
+
+/* ChatScope UI Kit Overrides */
+/* Remove default borders/outlines from ChatScope containers */
+.cs-main-container,
+.cs-chat-container {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Message List Background */
+.cs-message-list__scroll-wrapper {
+  background-color: theme('colors.dracula-background') !important;
+  padding-top: theme('spacing.4') !important; /* Equivalent to pt-4 */
+}
+
+/* MessageInput Container */
+.cs-message-input {
+  background-color: theme(
+    'colors.dracula-current-line'
+  ) !important; /* Darker background for the whole bar */
+  border-top: 1px solid theme('colors.dracula-comment') !important; /* Lighter border for separation */
+  padding: 0.375rem 0.5rem !important; /* Add some padding to the main bar (py-1.5 px-2 equivalent) */
+  display: flex; /* Helps align items if tools/buttons are complex */
+  align-items: center; /* Vertically align items in the input bar */
+}
+
+/* MessageInput Editor Wrapper - this will contain the editor */
+.cs-message-input__content-editor-wrapper {
+  background-color: theme(
+    'colors.dracula-comment'
+  ) !important; /* Re-asserting, should be #6272a4 */
+  border-radius: theme('borderRadius.md') !important;
+  padding: 0 !important;
+  flex-grow: 1;
+  /* display: flex; Removed to simplify block behavior */
+}
+
+/* MessageInput Editor Field - Direct targeting */
+.cs-message-input__content-editor {
+  /* Removed wrapper from selector for potentially higher specificity */
+  background: none !important;
+  background-color: transparent !important; /* Assuming the light blue is from here or its wrapper */
+  color: theme(
+    'colors.dracula-background'
+  ) !important; /* CHANGED to dark text */
+  border-radius: theme('borderRadius.md'); /* Match wrapper's radius */
+  padding: 0.5rem 0.75rem !important; /* py-2 px-3 for the text area */
+  width: 100%; /* Ensure it fills the wrapper */
+  /* flex-grow: 1; Removed as parent wrapper is no longer display:flex directly for this child */
+  outline: none !important; /* Remove default focus outline if any */
+  box-shadow: none !important; /* Remove default box shadow if any */
+}
+
+.cs-message-input__content-editor-wrapper
+  .cs-message-input__content-editor::placeholder {
+  color: theme(
+    'colors.dracula-comment' /* Darker placeholder for light blue background */
+  ) !important;
+  opacity: 0.7 !important; /* Adjust opacity as needed */
+}
+
+/* Send Button - Targeting SVG path */
+.cs-button.cs-button--send svg path {
+  fill: theme('colors.dracula-cyan') !important;
+}
+.cs-button.cs-button--send:hover svg path {
+  fill: theme('colors.dracula-pink') !important;
+}
+
+/* Message Bubbles - Examples, inspect for actual classes */
+/* Outgoing (User) Messages */
+.cs-message--outgoing .cs-message__content {
+  background-color: theme('colors.dracula-comment') !important;
+  color: theme('colors.dracula-foreground') !important;
+  border-radius: theme('borderRadius.lg'); /* Example */
+}
+
+/* Incoming (Assistant) Messages */
+.cs-message--incoming .cs-message__content {
+  background-color: theme(
+    'colors.dracula-current-line'
+  ) !important; /* Changed from dracula-selection */
+  color: theme('colors.dracula-foreground') !important;
+  border-radius: theme('borderRadius.lg'); /* Example */
+}
+
+/* Ensure StructuredResponseView within a message doesn't have conflicting background if bubble has one */
+.cs-message--incoming
+  .cs-message__custom-content
+  > div[class*='StructuredResponseView'] {
+  /* If the .cs-message__content gets a background, StructuredResponseView might not need its own, or make it transparent */
+  /* background-color: transparent !important; */
+  /* padding: 0 !important; */ /* If bubble provides padding */
+}

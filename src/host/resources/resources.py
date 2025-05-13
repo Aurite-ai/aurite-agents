@@ -13,7 +13,7 @@ from ..foundation.roots import RootManager
 
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
-from ..models import ClientConfig
+from src.config.config_models import ClientConfig
 from ..foundation import MessageRouter  # Import MessageRouter
 
 
@@ -95,7 +95,7 @@ class ResourceManager:
         if client_id:
             return list(self._resources.get(client_id, {}).values())
 
-        all_resources = []
+        all_resources: List[types.Resource] = []
         for client_resources in self._resources.values():
             all_resources.extend(client_resources.values())
         return all_resources
@@ -147,8 +147,26 @@ class ResourceManager:
             f"Resource {uri_str} is not accessible within client {client_id}'s roots"
         )
 
+    async def unregister_client_resources(self, client_id: str):
+        """
+        Removes all resource registrations associated with a specific client ID.
+
+        Args:
+            client_id: The ID of the client whose resources should be unregistered.
+        """
+        if client_id in self._resources:
+            removed_resources = list(self._resources[client_id].keys())
+            del self._resources[client_id]
+            logger.debug(
+                f"Unregistered {len(removed_resources)} resources for client '{client_id}': {removed_resources}"
+            )
+        else:
+            logger.debug(
+                f"No resources found to unregister for client '{client_id}'."
+            )
+
     async def shutdown(self):
         """Shutdown the resource manager"""
-        logger.info("Shutting down resource manager")
+        logger.debug("Shutting down resource manager")  # Changed to DEBUG
         self._resources.clear()
         # _subscriptions removed
