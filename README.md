@@ -105,13 +105,17 @@ The framework follows a layered architecture:
 *   **Layer 3: Host Infrastructure:** The `MCPHost` manages connections and low-level MCP interactions.
 *   **Layer 2.5: Execution Facade & Executors:** The `ExecutionFacade` provides a unified interface for running components, delegating to specific executors (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`). It also passes the `StorageManager` instance (if available) to the `Agent` during execution.
 *   **Layer 2: Orchestration:** The `HostManager` loads configuration, manages the `MCPHost` and optional `StorageManager` lifecycle, handles dynamic registration (syncing to DB if enabled), and owns the `ExecutionFacade`.
-*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces interact with the `HostManager` (and through it, the `ExecutionFacade`).
+*   **Layer 1: Entrypoints:** API (now modularized into `src/bin/api/api.py` and `src/bin/api/routes/`), CLI, and Worker interfaces interact with the `HostManager` (and through it, the `ExecutionFacade`).
 
-For more details, see `docs/architecture_overview.md` and `docs/framework_overview.md`.
+The framework is built upon a layered architecture. For a comprehensive understanding of the architecture and how these layers interact, please see `docs/framework_overview.md`. Detailed information on each specific layer can be found in:
+*   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md)
+*   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md)
+*   [`docs/layers/3_host.md`](docs/layers/3_host.md)
+*   (Note: `docs/architecture_overview.md` and the old `docs/framework_overview.md` may be outdated or superseded by the new `framework_overview.md` and individual layer documents.)
 
 ## Configuration
 
-The framework uses Pydantic models for configuration (`src/host/models.py`):
+The framework uses Pydantic models for configuration (defined in `src/config/config_models.py`):
 
 *   **`HostConfig`**: Defines the host name and a list of `ClientConfig` objects.
 *   **`ClientConfig`**: Defines settings for connecting to a specific MCP server, including its path, capabilities, roots, optional GCP secrets, and global component exclusions (`exclude`).
@@ -119,7 +123,7 @@ The framework uses Pydantic models for configuration (`src/host/models.py`):
 *   **`WorkflowConfig`**: Defines a simple workflow as a named sequence of agent names (`steps`).
 *   **`CustomWorkflowConfig`**: Defines a custom workflow by pointing to its Python module path and class name.
 
-Configuration for the entire system (Host, Clients, Agents, Workflows) is loaded from a single JSON file specified by the `HOST_CONFIG_PATH` environment variable. The `HostManager` uses `src/config.py` to parse this file during initialization. See `config/testing_config.json` for an example structure.
+Configuration for the entire system (Host, Clients, Agents, Workflows) is loaded from a single JSON file specified by the `HOST_CONFIG_PATH` environment variable. The `HostManager`, through its internal configuration managers (primarily `ProjectManager` and `ComponentManager` located in `src/config/`), parses this file during initialization. See `config/projects/testing_config.json` for an example structure (note the path change for example configs).
 
 Database persistence for agent configurations and conversation history can be enabled by setting the `AURITE_ENABLE_DB=true` environment variable and configuring the database connection via other `AURITE_DB_*` variables (see `src/storage/db_connection.py`).
 
@@ -204,7 +208,7 @@ Listens to a Redis stream for tasks (registration or execution requests).
 
 The project uses `pytest` for testing, with tests categorized into unit, integration, and end-to-end (E2E). A prompt validation system is also included for testing agent outputs against rubrics.
 
-See `docs/testing_strategy.md` and `tests/README.md` for detailed instructions on running tests and understanding the testing structure.
+Testing strategies for each layer are detailed within their respective documentation in `docs/layers/`. For information on running tests, see `tests/README.md`.
 
 ## Directory Structure
 
@@ -214,13 +218,13 @@ See `docs/testing_strategy.md` and `tests/README.md` for detailed instructions o
     *   `src/host_manager.py`: Orchestration layer managing Host, Agents, and Workflows.
     *   `src/storage/`: Database connection, models, and management (`db_connection.py`, `db_models.py`, `db_manager.py`).
     *   `src/packaged_servers/`: Example and pre-built MCP server implementations.
-    *   `src/config.py`: Configuration loading utilities.
+    *   `src/config/`: Contains Pydantic configuration models (`config_models.py`), core configuration managers (`project_manager.py`, `component_manager.py`), and loading utilities (`config_utils.py`).
     *   `src/bin/`: Entrypoint scripts (API, CLI, Worker).
 *   **`tests/`**: Contains all automated tests (unit, integration, e2e).
     *   `tests/fixtures/`: Reusable pytest fixtures and mock servers.
     *   `tests/mocks/`: Mock objects for external services (e.g., Anthropic API).
-*   **`config/`**: Contains JSON configuration files defining hosts, clients, agents, and workflows.
-*   **`docs/`**: Project documentation, including architecture, guides, and plans.
+*   **`config/`**: Contains JSON configuration files defining default components (e.g., `config/agents/default_agents.json`), and project configurations (e.g., `config/projects/default.json`).
+*   **`docs/`**: Project documentation, including architecture (`framework_overview.md`, layer-specific docs in `docs/layers/`), guides, and plans.
 
 ## Contributing
 

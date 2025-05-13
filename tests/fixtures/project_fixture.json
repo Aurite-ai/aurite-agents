@@ -34,14 +34,14 @@
           "temperature": {
             "type": "object",
             "properties": {
-              "value": {"type": "number"},
-              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+              "value": { "type": "number" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
             },
             "required": ["value", "unit"]
           },
           "recommendations": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": { "type": "string" },
             "description": "Recommendations based on the weather."
           }
         },
@@ -132,26 +132,6 @@
       "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
       "class_name": "ExampleCustomWorkflow",
       "description": "An example custom workflow for testing."
-    }
-  ],
-  "llms": [
-    {
-      "llm_id": "anthropic_claude_3_opus",
-      "provider": "anthropic",
-      "model_name": "claude-3-opus-20240229",
-      "temperature": 0.7,
-      "max_tokens": 4096,
-      "default_system_prompt": "You are Claude, a large language model trained by Anthropic. Your job is to assist the user in the task provided.",
-      "api_key_env_var": "ANTHROPIC_API_KEY"
-    },
-    {
-      "llm_id": "anthropic_claude_3_haiku",
-      "provider": "anthropic",
-      "model_name": "claude-3-haiku-20240307",
-      "temperature": 0.5,
-      "max_tokens": 2048,
-      "default_system_prompt": "You are Claude Haiku, a concise and fast assistant by Anthropic.",
-      "api_key_env_var": "ANTHROPIC_API_KEY"
     }
   ]
 }

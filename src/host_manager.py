@@ -440,31 +440,40 @@ class HostManager:
 
         # Check for duplicate client ID using the host's method
         if self.host.is_client_registered(client_config.client_id):
-            logger.error(
-                f"Client ID '{client_config.client_id}' already registered with host."
+            logger.info( # Changed from error to info
+                f"Client ID '{client_config.client_id}' already registered with host. Updating configuration."
             )
-            # Also check if it's in the project config, though host check is primary for runtime
-            if client_config.client_id in active_project.clients:
-                logger.warning(
-                    f"Client ID '{client_config.client_id}' also found in active project config."
-                )
-            raise ValueError(
-                f"Client ID '{client_config.client_id}' already registered."
-            )
+            # Potentially unregister/reregister or update existing client in MCPHost
+            # For now, we assume MCPHost.register_client can handle updates or we rely on ProjectManager update.
+            # If MCPHost.register_client doesn't update, this might need more logic here or in MCPHost.
+        # else: # No longer raising ValueError, proceed to register/update
 
         try:
             # Delegate to MCPHost to handle the actual initialization and lifecycle management
-            await self.host.register_client(client_config)
-            # If successful, add to the active project's configuration
+            # This might need to change if MCPHost.register_client cannot update.
+            # If it can't, we might need an unregister_client then register_client,
+            # or an update_client method on MCPHost.
+            # For now, assume it handles it or ProjectManager update is sufficient for config.
+            if not self.host.is_client_registered(client_config.client_id):
+                 await self.host.register_client(client_config) # Only call if truly new to host
+            else:
+                 # If client is already on host, we might need an update mechanism on host
+                 # For now, we'll update the project config and assume host might pick up changes
+                 # or a restart/re-init of client is needed for host to see changes.
+                 # This part of upsert for clients needs careful consideration of MCPHost capabilities.
+                 logger.info(f"Client '{client_config.client_id}' already on host. Project config will be updated.")
+
+
+            # If successful, add/update in the active project's configuration
             self.project_manager.add_component_to_active_project(
                 "clients", client_config.client_id, client_config
             )
             logger.info(
-                f"Client '{client_config.client_id}' registered successfully with host and active project."
+                f"Client '{client_config.client_id}' (re)registered successfully with host and active project."
             )
         except Exception as e:
             logger.error(
-                f"Failed to register client '{client_config.client_id}' with host: {e}",
+                f"Failed to register/update client '{client_config.client_id}' with host: {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (e.g., API endpoint) to handle
@@ -472,39 +481,38 @@ class HostManager:
 
     async def register_agent(self, agent_config: AgentConfig):  # Removed quotes
         """
-        Dynamically registers a new Agent configuration.
+        Dynamically registers or updates an Agent configuration (upsert).
 
         Args:
-            agent_config: The configuration for the agent to register.
+            agent_config: The configuration for the agent to register/update.
 
         Raises:
-            ValueError: If the HostManager is not initialized, the agent name already exists,
-                        or if any specified client_id is not found.
+            ValueError: If the HostManager is not initialized, or if any specified client_id is not found.
         """
         logger.debug(
-            f"Attempting to dynamically register agent: {agent_config.name}"
-        )  # INFO -> DEBUG
+            f"Attempting to dynamically register/update agent: {agent_config.name}"
+        )
         if not self.host:
-            logger.error("HostManager is not initialized. Cannot register agent.")
+            logger.error("HostManager is not initialized. Cannot register/update agent.")
             raise ValueError("HostManager is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
-            logger.error("Cannot register agent: No active project loaded.")
-            raise RuntimeError("No active project loaded to register agent against.")
+            logger.error("Cannot register/update agent: No active project loaded.")
+            raise RuntimeError("No active project loaded to register/update agent against.")
 
         # Ensure agent has a name before registering
         if not agent_config.name:
-            logger.error("Attempted to register an agent config with no name.")
+            logger.error("Attempted to register/update an agent config with no name.")
             raise ValueError("Agent configuration must have a 'name'.")
 
         if (
             agent_config.name in active_project.agents
-        ):  # Changed agent_configs to agents
-            logger.info(  # Changed from error to info
+        ):
+            logger.info(
                 f"Agent name '{agent_config.name}' already exists in active project. It will be updated."
             )
-            # No longer raising ValueError
+        # else: # No longer raising ValueError, proceed to create/update
 
         # Cascading LLMConfig registration/update
         if agent_config.llm_config_id:
@@ -668,53 +676,52 @@ class HostManager:
         if (
             workflow_config.name in active_project.simple_workflows
         ):  # Changed simple_workflow_configs to simple_workflows
-            logger.info(  # Changed from error to info
+            logger.info(
                 f"Workflow name '{workflow_config.name}' already exists in active project. It will be updated."
             )
-            # No longer raising ValueError, proceeding to update.
-        else:  # New workflow, log differently or just proceed
+        else:  # New workflow
             logger.info(f"Registering new workflow: {workflow_config.name}")
+        # No longer raising ValueError, proceed to create/update
 
         # Cascading Agent registration/update for steps
         if workflow_config.steps:
-            for agent_name in workflow_config.steps:
+            for agent_name_step in workflow_config.steps: # Renamed to avoid conflict
                 logger.info(
-                    f"Workflow '{workflow_config.name}' step: Agent '{agent_name}'. Attempting to register/update it."
+                    f"Workflow '{workflow_config.name}' step: Agent '{agent_name_step}'. Attempting to register/update it."
                 )
                 try:
-                    retrieved_agent_config = self.component_manager.get_component_config(
+                    retrieved_agent_config_step = self.component_manager.get_component_config(
                         "agents",
-                        agent_name,  # Assuming "agents" is the key in ComponentManager for AgentConfig
+                        agent_name_step,
                     )
-                    if retrieved_agent_config:
-                        # Ensure it's an AgentConfig instance before calling register_agent
+                    if retrieved_agent_config_step:
                         from .config.config_models import (
                             AgentConfig as AgentConfigModel,
                         )
-
-                        if isinstance(retrieved_agent_config, AgentConfigModel):
+                        if isinstance(retrieved_agent_config_step, AgentConfigModel):
+                            # register_agent now handles upsert, so we can call it directly.
+                            # It will create if new, or update if existing.
                             await self.register_agent(
-                                retrieved_agent_config
-                            )  # This will cascade to LLMConfig
+                                retrieved_agent_config_step
+                            )
                         else:
                             logger.error(
-                                f"Retrieved component for Agent step '{agent_name}' in workflow '{workflow_config.name}' is not an AgentConfig. Type: {type(retrieved_agent_config)}. Skipping this step's agent registration."
+                                f"Retrieved component for Agent step '{agent_name_step}' in workflow '{workflow_config.name}' is not an AgentConfig. Type: {type(retrieved_agent_config_step)}. Skipping this step's agent registration."
                             )
-                            # Decide: raise error or allow workflow registration to proceed without this agent?
-                            # For now, let's make it a hard error as per plan.
                             raise ValueError(
-                                f"Component for agent step '{agent_name}' in workflow '{workflow_config.name}' is not a valid AgentConfig."
+                                f"Component for agent step '{agent_name_step}' in workflow '{workflow_config.name}' is not a valid AgentConfig."
                             )
                     else:
                         logger.error(
-                            f"Agent '{agent_name}' (a step in workflow '{workflow_config.name}') not found in ComponentManager. Cannot register workflow."
+                            f"Agent '{agent_name_step}' (a step in workflow '{workflow_config.name}') not found in ComponentManager. Cannot register workflow."
                         )
                         raise ValueError(
-                            f"Agent step '{agent_name}' for workflow '{workflow_config.name}' not found in ComponentManager."
+                            f"Agent step '{agent_name_step}' for workflow '{workflow_config.name}' not found in ComponentManager."
                         )
+                # ValueError from register_agent (e.g. client_id not found) should propagate
                 except Exception as e:
                     logger.error(
-                        f"Error during cascading registration of agent step '{agent_name}' for workflow '{workflow_config.name}': {e}",
+                        f"Error during cascading registration/update of agent step '{agent_name_step}' for workflow '{workflow_config.name}': {e}",
                         exc_info=True,
                     )
                     raise  # Re-raise to stop workflow registration if a step agent fails

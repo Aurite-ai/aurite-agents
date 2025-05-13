@@ -72,7 +72,6 @@ class LoadComponentsRequest(BaseModel):
 
 
 # --- Endpoints ---
-# Add to your project_api.py (e.g., after get_project_file_content)
 
 
 @router.get(
@@ -114,7 +113,7 @@ async def get_active_project_component_config(
     elif project_component_type == "custom_workflows":
         component_dict_attribute_name = "custom_workflows"
     elif project_component_type == "llm_configs":
-        component_dict_attribute_name = "llm_configs"
+        component_dict_attribute_name = "llms"  # Corrected attribute name
     elif project_component_type == "clients":
         component_dict_attribute_name = "clients"
     else:
@@ -211,9 +210,6 @@ async def change_project(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {str(e)}",
         )
-
-
-# TODO: Add /new_project endpoint in Step 3.3 (This comment seems outdated based on current plan)
 
 
 @router.post(
