@@ -1,17 +1,22 @@
 import logging
 from typing import Any, Optional
+import json  # Added json import
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
+from fastapi.responses import StreamingResponse  # Added StreamingResponse
 from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
 from ....host_manager import HostManager
-from ....host.models import (
+from ....config.config_models import (
     ClientConfig,
     AgentConfig,
     WorkflowConfig,
+    CustomWorkflowConfig,
+    LLMConfig,  # Added LLMConfig for the new endpoint
 )
+from typing import List  # Added for response model
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,11 @@ async def execute_agent_endpoint(
     Executes a configured agent by name using the HostManager.
     """
     logger.info(f"Received request to execute agent: {agent_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     # Use the ExecutionFacade via the manager
     result = await manager.execution.run_agent(
         agent_name=agent_name,
@@ -77,6 +87,62 @@ async def execute_agent_endpoint(
     )
     logger.info(f"Agent '{agent_name}' execution finished successfully via manager.")
     return result
+
+
+@router.get("/agents/{agent_name}/execute-stream")  # Changed to GET for EventSource
+async def stream_agent_endpoint(
+    agent_name: str,
+    # user_message and system_prompt will be query parameters, matching ExecuteAgentRequest fields
+    user_message: str,  # Made individual query params
+    system_prompt: Optional[str] = None,  # Made individual query params
+    manager: HostManager = Depends(get_host_manager),
+):
+    """
+    Executes a configured agent by name using the HostManager and streams events via GET.
+    """
+    logger.info(
+        f"Received request to STREAM agent (GET): {agent_name} with message: '{user_message}'"
+    )
+    if not manager.execution:  # Check if facade is available
+        logger.error("ExecutionFacade not available on HostManager for streaming.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
+
+    async def event_generator():
+        try:
+            # Use the query parameters directly
+            async for event in manager.stream_agent_run_via_facade(
+                agent_name=agent_name,
+                user_message=user_message,
+                system_prompt=system_prompt,
+            ):
+                event_type = event.get(
+                    "event_type", "message"
+                )  # Default to "message" if no specific type
+                event_data_json = json.dumps(event.get("data", {}))
+                # SSE format:
+                # event: event_name\n
+                # data: json_payload\n
+                # id: optional_id\n
+                # retry: optional_retry_timeout\n
+                # \n (extra newline to terminate)
+                sse_formatted_event = (
+                    f"event: {event_type}\ndata: {event_data_json}\n\n"
+                )
+                logger.debug(
+                    f"SSE Event Yielding: {repr(sse_formatted_event)}"
+                )  # Log the exact SSE string
+                yield sse_formatted_event
+        except Exception as e:
+            logger.error(
+                f"Error during agent streaming for '{agent_name}': {e}", exc_info=True
+            )
+            # Yield a final error event to the client if the generator itself fails
+            error_event_data = json.dumps({"type": "critical_error", "message": str(e)})
+            yield f"event: error\ndata: {error_event_data}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.post(
@@ -92,6 +158,11 @@ async def execute_workflow_endpoint(
     Executes a configured simple workflow by name using the HostManager.
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_simple_workflow(
         workflow_name=workflow_name,
         initial_input=request_body.initial_user_message,
@@ -119,6 +190,11 @@ async def execute_custom_workflow_endpoint(
 ):
     """Executes a configured custom Python workflow by name using the HostManager."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
+    if not manager.execution:
+        logger.error("ExecutionFacade not available on HostManager.")
+        raise HTTPException(
+            status_code=503, detail="Execution subsystem not available."
+        )
     result = await manager.execution.run_custom_workflow(
         workflow_name=workflow_name,
         initial_input=request_body.initial_input,
@@ -176,3 +252,69 @@ async def register_workflow_endpoint(
     logger.info(f"Received request to register workflow: {workflow_config.name}")
     await manager.register_workflow(workflow_config)
     return {"status": "success", "workflow_name": workflow_config.name}
+
+
+@router.post("/llm-configs/register", status_code=201)
+async def register_llm_config_endpoint(
+    llm_config: LLMConfig,  # Use LLMConfig model for request body
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Dynamically registers a new LLM configuration."""
+    logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
+    await manager.register_llm_config(llm_config)
+    return {"status": "success", "llm_id": llm_config.llm_id}
+
+@router.post("/custom_workflows/register", status_code=201)
+async def register_custom_workflow_endpoint(
+    custom_workflow_config: CustomWorkflowConfig,
+    # api_key: str = Depends(get_api_key), # Dependency moved to router level
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Dynamically registers a new custom workflow configuration."""
+    logger.info(f"Received request to register custom workflow: {custom_workflow_config.name}")
+    await manager.register_custom_workflow(custom_workflow_config)
+    return {"status": "success", "workflow_name": custom_workflow_config.name}
+
+
+# --- Listing Endpoints for Registered Components ---
+
+
+@router.get("/components/agents", response_model=List[str])
+async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
+    """Lists the names of all currently registered agents from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if (
+        not active_project or not active_project.agents
+    ):  # Changed agent_configs to agents
+        return []
+    return list(active_project.agents.keys())  # Changed agent_configs to agents
+
+
+@router.get("/components/workflows", response_model=List[str])
+async def list_registered_simple_workflows(
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Lists the names of all currently registered simple workflows from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if (
+        not active_project or not active_project.simple_workflows
+    ):  # Changed simple_workflow_configs to simple_workflows
+        return []
+    return list(
+        active_project.simple_workflows.keys()
+    )  # Changed simple_workflow_configs to simple_workflows
+
+
+@router.get("/components/custom_workflows", response_model=List[str])
+async def list_registered_custom_workflows(
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Lists the names of all currently registered custom workflows from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if (
+        not active_project or not active_project.custom_workflows
+    ):  # Changed custom_workflow_configs to custom_workflows
+        return []
+    return list(
+        active_project.custom_workflows.keys()
+    )  # Changed custom_workflow_configs to custom_workflows

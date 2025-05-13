@@ -22,12 +22,14 @@ from sqlalchemy import (
 # Use generic JSON type for broader compatibility (SQLite unit tests)
 # It falls back to TEXT on SQLite but uses native JSON/JSONB on PostgreSQL
 # from sqlalchemy.dialects.postgresql import JSONB # Keep commented out or remove
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase  # Changed import
 
 logger = logging.getLogger(__name__)
 
+
 # Create a base class for declarative models
-Base = declarative_base()
+class Base(DeclarativeBase):  # Changed definition
+    pass
 
 
 class AgentConfigDB(Base):
@@ -94,6 +96,28 @@ class CustomWorkflowConfigDB(Base):
 
     def __repr__(self):
         return f"<CustomWorkflowConfigDB(name='{self.name}')>"
+
+
+class LLMConfigDB(Base):
+    """SQLAlchemy model for storing LLM configurations."""
+
+    __tablename__ = "llm_configs"
+
+    # Use llm_id as primary key
+    llm_id = Column(String, primary_key=True, index=True)
+    provider = Column(String, nullable=False, default="anthropic")
+    model_name = Column(String, nullable=False)
+    temperature = Column(Float, nullable=True)
+    max_tokens = Column(Integer, nullable=True)
+    default_system_prompt = Column(Text, nullable=True)
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_updated = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self):
+        return f"<LLMConfigDB(llm_id='{self.llm_id}', model_name='{self.model_name}')>"
 
 
 class AgentHistoryDB(Base):

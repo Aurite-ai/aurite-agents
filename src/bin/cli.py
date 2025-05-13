@@ -10,7 +10,9 @@ import os
 import sys
 
 import typer
-from typing import Callable, Coroutine, Any  # Added imports
+from typing import Callable, Coroutine, Any, cast  # Added cast
+
+# Import models needed for request bodies, even if commands aren't fully implemented
 
 # Import models needed for request bodies, even if commands aren't fully implemented
 import json
@@ -141,7 +143,12 @@ async def _execute_agent_async_logic(agent_name: str, message: str):
     """Contains the actual async logic for executing an agent via API."""
     # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/agents/{agent_name}/execute"
-    headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
+    # Assign key to local var first to help mypy
+    api_key_value = cast(str, state["api_key"])
+    headers = {
+        "X-API-Key": api_key_value,
+        "Content-Type": "application/json",
+    }
     payload = {"user_message": message}
 
     logger.info(f"Sending request to API: POST {api_url}")
@@ -186,7 +193,12 @@ async def _execute_workflow_async_logic(workflow_name: str, message: str):
     """Contains the actual async logic for executing a simple workflow via API."""
     # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/workflows/{workflow_name}/execute"
-    headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
+    # Assign key to local var first to help mypy
+    api_key_value = cast(str, state["api_key"])
+    headers = {
+        "X-API-Key": api_key_value,
+        "Content-Type": "application/json",
+    }
     # Correct payload key for simple workflows
     payload = {"initial_user_message": message}
 
@@ -240,7 +252,12 @@ async def _execute_custom_workflow_async_logic(
     """Contains the actual async logic for executing a custom workflow via API."""
     # TODO (Refactor): Update to use ExecutionFacade if CLI interacts directly with manager/facade in the future
     api_url = f"{state['api_base_url']}/custom_workflows/{workflow_name}/execute"
-    headers = {"X-API-Key": state["api_key"], "Content-Type": "application/json"}
+    # Assign key to local var first to help mypy
+    api_key_value = cast(str, state["api_key"])
+    headers = {
+        "X-API-Key": api_key_value,
+        "Content-Type": "application/json",
+    }
 
     # Parse the input JSON string
     try:

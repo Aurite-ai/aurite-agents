@@ -9,73 +9,66 @@ The goals of this design discussion are to:
 - Provide a more robust and developer-friendly way to handle agent outputs.
 - Enhance the modularity and extensibility of the framework, particularly for supporting different LLM providers and configurations.
 
-## 2. Current State
+## 2. Current State (Post Phase 2 Refactoring)
 
-### 2.1. `AgentConfig` (`src/host/models.py`)
+### 2.1. `AgentConfig` (`src/config/config_models.py`)
 
--   **Purpose:** Defines the configuration for an individual `Agent` instance. It specifies agent-specific settings, LLM parameters, and its relationship with the MCP Host for accessing tools and resources.
+-   **Purpose:** Defines the configuration for an individual `Agent` instance. It specifies agent-specific settings, LLM parameters (potentially referencing a shared `LLMConfig`), and its relationship with the MCP Host for accessing tools and resources.
 -   **Key Fields:**
     -   `name: Optional[str]`: An optional name for the agent instance.
     -   `client_ids: Optional[List[str]]`: A list of MCP `ClientConfig` IDs that this agent is allowed to use. This filters the tools and resources available to the agent via the `MCPHost`.
-    -   `system_prompt: Optional[str]`: The default system prompt for the agent.
-    -   `schema: Optional[dict]`: A JSON schema used to validate the agent's output if provided. The agent will attempt to ensure its responses conform to this schema.
-    -   `model: Optional[str]`: The specific LLM model to be used (e.g., "claude-3-opus-20240229").
-    -   `temperature: Optional[float]`: The sampling temperature for the LLM.
-    -   `max_tokens: Optional[int]`: The maximum number of tokens the LLM should generate.
+    -   `llm_config_id: Optional[str]`: (Optional) ID of an `LLMConfig` to use as a base for LLM settings.
+    -   `system_prompt: Optional[str]`: Agent-specific system prompt. Overrides `LLMConfig.default_system_prompt` if `llm_config_id` is also set.
+    -   `config_validation_schema: Optional[dict]`: (Renamed from `schema`) A JSON schema used to validate the agent's final text output if provided.
+    -   `model: Optional[str]`: Agent-specific LLM model. Overrides `LLMConfig.model_name` if `llm_config_id` is also set.
+    -   `temperature: Optional[float]`: Agent-specific temperature. Overrides `LLMConfig.temperature` if `llm_config_id` is also set.
+    -   `max_tokens: Optional[int]`: Agent-specific max tokens. Overrides `LLMConfig.max_tokens` if `llm_config_id` is also set.
     -   `max_iterations: Optional[int]`: The maximum number of turns in a conversation loop (LLM call -> tool use -> LLM call) before the agent stops.
-    -   `include_history: Optional[bool]`: If `True`, the agent attempts to load and save conversation history using a `StorageManager`.
+    -   `include_history: Optional[bool]`: If `True`, the `ExecutionFacade` attempts to load and save conversation history using a `StorageManager`.
     -   `exclude_components: Optional[List[str]]`: A list of specific component names (tools, prompts, resources) to exclude for this agent, even if provided by its allowed `client_ids`.
     -   `evaluation: Optional[str]`: (Currently used by prompt validation) Specifies an evaluation mechanism.
--   **Usage:** An `AgentConfig` instance is passed to the `Agent` class during its initialization.
+-   **Usage:** An `AgentConfig` instance is passed to the `Agent` class during its initialization by the `ExecutionFacade`. The `ExecutionFacade` resolves the appropriate `LLMClient` and potentially an `LLMConfig` (for overrides) based on the `AgentConfig`.
 
 ### 2.2. `Agent` Class (`src/agents/agent.py`)
 
--   **Purpose:** The `Agent` class is the core component responsible for orchestrating interactions with an LLM, managing conversation flow, handling tool execution via an `MCPHost`, and managing conversation history (if configured).
+-   **Purpose:** The `Agent` class orchestrates the multi-turn conversation flow for an agent, managing the message history, loop iterations, and interactions with the `AgentTurnProcessor`. It receives an initialized LLM client and configuration. (This class now incorporates the logic previously in `ConversationManager`).
 -   **Initialization (`__init__`)**:
-    -   Takes an `AgentConfig` object.
-    -   Initializes an `AsyncAnthropic` client using the `ANTHROPIC_API_KEY` environment variable.
--   **Key External Method (`execute_agent`)**:
-    -   **Inputs:**
-        -   `user_message: str`: The user's input to the agent.
-        -   `host_instance: MCPHost`: The MCPHost instance providing access to tools and resources.
-        -   `storage_manager: Optional["StorageManager"]`: (Optional) For loading/saving conversation history.
-        -   `system_prompt: Optional[str]`: (Optional) Allows overriding the agent's default system prompt for a specific execution.
-        -   `session_id: Optional[str]`: (Optional) Used as a key for loading/saving conversation history.
-    -   **Outputs:** Returns a Python dictionary with the following keys:
-        -   `"conversation"`: A list of message dictionaries representing the full conversation history. The content of these messages (especially assistant messages) is serialized from Anthropic Pydantic models into plain Python dictionaries/lists using `_serialize_content_blocks`.
-        -   `"final_response"`: A Python dictionary representing the serialized form of the final `anthropic.types.Message` object from the LLM (or `None` if an error occurred before a final response). This serialization is done by `_serialize_content_blocks`.
-        -   `"tool_uses"`: A list of dictionaries detailing any tools used in the last turn of the conversation that led to the `final_response`.
-        -   `"error"`: An error message string if an agent execution error occurred, otherwise `None`.
+    -   Takes `config: AgentConfig`, `llm_client: BaseLLM`, `host_instance: MCPHost`, `initial_messages: List[MessageParam]`, `system_prompt_override: Optional[str]`, and `llm_config_for_override: Optional[LLMConfig]`.
+    -   Stores these parameters. It does **not** initialize the LLM client itself; that is handled by the `ExecutionFacade`.
+-   **Key External Method (`run_conversation`)**:
+    -   **Inputs:** None (uses initialized state).
+    -   **Outputs:** Returns an `AgentExecutionResult` Pydantic model instance.
     -   **Core Logic:**
-        1.  Validates the `host_instance`.
-        2.  Determines LLM parameters (model, temperature, max_tokens, system_prompt) from its `AgentConfig`, allowing overrides from the `system_prompt` argument.
-        3.  Retrieves formatted tool definitions from the `host_instance` using `host_instance.get_formatted_tools(agent_config=self.config)`, which respects `client_ids` and `exclude_components` from the `AgentConfig`.
-        4.  Initializes the message history. If `include_history` is true and `storage_manager` and `session_id` are provided, it attempts to load past messages.
-        5.  Appends the current `user_message` to the history.
-        6.  Enters a conversation loop (up to `max_iterations`):
-            a.  Calls `_make_llm_call` to get a response from the LLM.
-            b.  Appends the LLM's raw response (as `MessageParam`) to the history for the next turn.
-            c.  Checks the LLM response's `stop_reason`:
-                i.  If not `"tool_use"`:
-                    -   Extracts text content.
-                    -   If `self.config.schema` is defined, it attempts to parse the text as JSON and validate it against the schema. If parsing or validation fails, it appends a corrective message to the history and continues the loop to ask the LLM to fix its output.
-                    -   If schema validation passes (or no schema is defined), this response is considered the `final_response`, and the loop breaks.
-                ii. If `"tool_use"`:
-                    -   Iterates through `ToolUseBlock`s in the LLM response.
-                    -   For each tool call, it executes the tool using `host_instance.execute_tool()`.
-                    -   Appends the tool results (or error messages if tool execution failed) to the message history for the next LLM call.
-        7.  If `include_history` is true and `storage_manager` and `session_id` are provided, it attempts to save the full (serialized) conversation history.
-        8.  Constructs and returns the output dictionary, ensuring `conversation` and `final_response` contents are serialized using `_serialize_content_blocks`.
--   **Key Internal Method (`_make_llm_call`)**:
-    -   **Inputs:** `messages`, `system_prompt`, `tools` (Anthropic format), `model`, `temperature`, `max_tokens`.
-    -   **Outputs:** An `anthropic.types.Message` object.
-    -   **Core Logic:**
-        -   If `self.config.schema` is present, it injects the JSON schema definition and instructions for JSON output into the `system_prompt`.
-        -   Constructs the arguments for the `self.anthropic_client.messages.create()` call.
-        -   Makes the asynchronous API call to Anthropic.
--   **Helper Function (`_serialize_content_blocks`)**:
-    -   **Purpose:** Recursively traverses nested structures (lists, dicts) and converts Anthropic Pydantic model instances (like `Message`, `TextBlock`, `ToolUseBlock`) into their JSON-serializable dictionary representations using their `.model_dump(mode="json")` method. Handles primitive types directly.
--   **Dependencies:** `AgentConfig`, `MCPHost`, `StorageManager` (optional), `anthropic` SDK (AsyncAnthropic, Message, MessageParam, ToolUseBlock), `jsonschema` (if schema validation is used).
+        1.  Determines the effective system prompt for the conversation (using `system_prompt_override` or `self.config.system_prompt`).
+        2.  Retrieves formatted tool definitions from the `host_instance` using `host_instance.get_formatted_tools(agent_config=self.config)`.
+        3.  Enters a conversation loop (up to `self.config.max_iterations`):
+            a.  Instantiates `AgentTurnProcessor`, passing the current state (`config`, `llm_client`, `host_instance`, current `messages`, `tools_data`, `effective_system_prompt`, `llm_config_for_override`).
+            b.  Calls `await turn_processor.process_turn()` to execute one turn (LLM call, optional tool execution).
+            c.  Receives the results from the turn processor: `turn_final_response`, `turn_tool_results_params`, `is_final_turn`.
+            d.  Updates the internal message list (`self.messages`) for the *next* LLM call by appending the assistant's response (from `turn_processor.get_last_llm_response()`) and any tool results (`turn_tool_results_params`).
+            e.  Updates the full conversation log (`self.conversation_history`) with the assistant's response and tool results (as dictionaries).
+            f.  Checks `is_final_turn`. If `True`, stores `turn_final_response` as the final result and breaks the loop.
+            g.  If `is_final_turn` is `False` and no tool results were returned (indicating a schema validation failure signaled by the turn processor), appends a correction message to `self.messages` and `self.conversation_history` and continues the loop.
+        4.  Handles the case where `max_iterations` is reached.
+        5.  Calls `_prepare_agent_result` to construct and validate the final `AgentExecutionResult` object.
+-   **Key Internal Method (`_prepare_agent_result`)**:
+    -   Constructs the `AgentExecutionResult` Pydantic model from the final state (`self.conversation_history`, `self.final_response`, `self.tool_uses_in_last_turn`, `execution_error`).
+    -   Handles validation and potential fallback creation if validation fails.
+-   **Dependencies:** `AgentConfig`, `LLMConfig`, `BaseLLM`, `MCPHost`, `AgentTurnProcessor`, `AgentExecutionResult`, `AgentOutputMessage`, `MessageParam`.
+
+### 2.3. `AgentTurnProcessor` Class (`src/agents/agent_turn_processor.py`)
+
+-   **Purpose:** Handles the logic for a *single turn* within the agent's loop, including the LLM call, response parsing, schema validation, and tool execution coordination.
+-   **Initialization (`__init__`)**: Takes `config`, `llm_client`, `host_instance`, `current_messages`, `tools_data`, `effective_system_prompt`, and `llm_config_for_override`.
+-   **Key Method (`process_turn`)**:
+    -   Makes the LLM call via `self.llm.create_message()`, passing `llm_config_override`.
+    -   Parses the `AgentOutputMessage` response.
+    -   If `stop_reason` is `tool_use`, calls `_process_tool_calls` to execute tools via `self.host.execute_tool()` and prepares tool result messages (`List[MessageParam]`). Returns `(None, tool_results, False)`.
+    -   If `stop_reason` is not `tool_use`, calls `_handle_final_response`.
+        -   `_handle_final_response` performs schema validation if `self.config.config_validation_schema` is set.
+        -   If validation passes (or no schema), returns the original LLM response. `process_turn` returns `(validated_response, None, True)`.
+        -   If validation fails, returns `None`. `process_turn` returns `(None, None, False)` to signal a correction is needed.
+-   **Dependencies:** `AgentConfig`, `LLMConfig`, `BaseLLM`, `MCPHost`, `AgentOutputMessage`, `MessageParam`, `jsonschema`.
 
 ## 3. Proposed `AgentExecutionResult` Pydantic Model
 
@@ -172,11 +165,11 @@ To improve modularity and support for various LLM providers, we propose abstract
 To be defined in `src/host/models.py` or a new `src/llm/models.py`.
 
 ```python
-# Example LLMConfig
+# Example LLMConfig (Reflects current model in src/config/config_models.py)
 class LLMConfig(BaseModel):
     llm_id: str = Field(description="Unique identifier for this LLM configuration.")
     provider: str = Field(default="anthropic", description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').")
-    model_name: str = Field(description="The specific model name for the provider.")
+    model_name: Optional[str] = Field(None, description="The specific model name for the provider.") # Now optional
 
     # Common LLM parameters
     temperature: Optional[float] = Field(None, description="Default sampling temperature.")
@@ -199,57 +192,63 @@ class LLMConfig(BaseModel):
     -   The existing `model`, `temperature`, `max_tokens`, `system_prompt` fields in `AgentConfig` will then act as **overrides** to the values from the chosen `LLMConfig`.
 -   If `llm_config_id` is NOT provided, the agent falls back to using the direct `model`, `temperature`, etc., fields in `AgentConfig` (as it does now), potentially with hardcoded defaults for the provider (e.g., Anthropic).
 
-### 4.3. New `LLMClient` / `LLMService` (e.g., in `src/llm/client.py`)
+### 4.3. `BaseLLM` and Provider Clients (e.g., `src/llm/base_client.py`, `src/llm/providers/anthropic_client.py`)
 
 -   **Purpose:** Abstract the direct interaction with a specific LLM provider's API.
--   **Structure (Conceptual):**
+-   **Current Implementation:**
+    -   `BaseLLM` defines the abstract interface (`__init__`, `create_message`).
+    -   `AnthropicLLM` implements `BaseLLM`.
+    -   `create_message` now accepts an optional `llm_config_override: Optional[LLMConfig]` parameter.
+    -   If `llm_config_override` is provided, its values (model, temp, tokens, prompt) take precedence over the client's instance defaults for that specific API call.
+    -   The client handles converting the provider's response into the standardized `AgentOutputMessage`.
+-   **Structure (Current):**
     ```python
-    # In src/llm/client.py
+    # In src/llm/base_client.py
     from abc import ABC, abstractmethod
-    # from .models import LLMConfig # (if LLMConfig is in src/llm/models.py)
-    # from src.host.models import AgentOutputMessage # Or a more generic LLMMessage model
+    from src.config.config_models import LLMConfig
+    from src.agents.agent_models import AgentOutputMessage
 
-    class BaseLLMClient(ABC):
+    class BaseLLM(ABC):
         def __init__(self, model_name: str, temperature: Optional[float], max_tokens: Optional[int], system_prompt: Optional[str]):
-            self.model_name = model_name
-            self.temperature = temperature if temperature is not None else 0.7 # Default
-            self.max_tokens = max_tokens if max_tokens is not None else 4096 # Default
-            self.system_prompt = system_prompt if system_prompt is not None else "You are a helpful assistant." # Default
+            # ... initialization with defaults ...
 
         @abstractmethod
         async def create_message(
             self,
-            messages: List[Dict[str, Any]], # Standardized message format
-            tools: Optional[List[Dict[str, Any]]], # Standardized tool format
-            system_prompt_override: Optional[str] = None # Allow overriding the default/configured system prompt
-        ) -> AgentOutputMessage: # Returns our standardized message model
+            messages: List[Dict[str, Any]],
+            tools: Optional[List[Dict[str, Any]]],
+            system_prompt_override: Optional[str] = None,
+            schema: Optional[Dict[str, Any]] = None,
+            llm_config_override: Optional[LLMConfig] = None, # Added
+        ) -> AgentOutputMessage:
             pass
 
-    class AnthropicLLMClient(BaseLLMClient):
-        def __init__(self, model_name: str, temperature: Optional[float], max_tokens: Optional[int], system_prompt: Optional[str], api_key: str):
-            super().__init__(model_name, temperature, max_tokens, system_prompt)
-            self.anthropic_sdk_client = AsyncAnthropic(api_key=api_key)
+    # In src/llm/providers/anthropic_client.py
+    from ..base_client import BaseLLM
+    from ...config.config_models import LLMConfig
+    from ...agents.agent_models import AgentOutputMessage
+
+    class AnthropicLLM(BaseLLM):
+        # ... __init__ ...
 
         async def create_message(
             self,
-            messages: List[Dict[str, Any]], # Expects list of {'role': ..., 'content': ...}
-            tools: Optional[List[Dict[str, Any]]], # Expects Anthropic tool format
-            system_prompt_override: Optional[str] = None
-        ) -> AgentOutputMessage: # Returns our AgentOutputMessage
-            # 1. Determine final system prompt (override or self.system_prompt)
-            # 2. Convert input messages and tools to Anthropic's specific format if necessary.
-            #    (Our AgentOutputMessage.content might need to be transformed to Anthropic's MessageParam content)
-            # 3. Make the call using self.anthropic_sdk_client.messages.create(...)
-            # 4. Convert Anthropic's response (anthropic.types.Message)
-            #    into our AgentOutputMessage Pydantic model.
-            #    This involves mapping fields and serializing content blocks into AgentOutputContentBlock.
-            # Example (highly simplified):
-            # anthropic_response = await self.anthropic_sdk_client.messages.create(...)
-            # return AgentOutputMessage.model_validate(_serialize_content_blocks(anthropic_response)) # Assuming _serialize_content_blocks output matches AgentOutputMessage structure
-            pass # Placeholder for actual implementation
-
-    # Factory function or LLMManager to get/create clients based on LLMConfig
-    # def get_llm_client(config: LLMConfig) -> BaseLLMClient:
+            messages: List[Dict[str, Any]],
+            tools: Optional[List[Dict[str, Any]]],
+            system_prompt_override: Optional[str] = None,
+            schema: Optional[Dict[str, Any]] = None,
+            llm_config_override: Optional[LLMConfig] = None, # Added
+        ) -> AgentOutputMessage:
+            # 1. Resolve effective model, temp, tokens, system_prompt using llm_config_override and instance defaults.
+            # 2. Inject schema into resolved system_prompt if needed.
+            # 3. Make the call using self.anthropic_sdk_client.messages.create(...) with resolved parameters.
+            # 4. Convert Anthropic's response into our AgentOutputMessage.
+            pass # Placeholder for actual implementation details shown in the file
+    ```
+-   **LLM Client Instantiation:** Currently handled by `ExecutionFacade.run_agent`, which resolves parameters from `AgentConfig` and `LLMConfig` before creating the `AnthropicLLM` instance. A dedicated factory function or manager (`get_llm_client`) is still a potential future improvement.
+    ```python
+    # Example Factory (Conceptual - Not yet implemented)
+    # def get_llm_client(config: LLMConfig) -> BaseLLM:
     #     if config.provider == "anthropic":
     #         api_key = os.environ.get("ANTHROPIC_API_KEY") # Or from LLMConfig if designed that way
     #         if not api_key: raise ValueError("Anthropic API key not found")
@@ -292,20 +291,18 @@ class LLMConfig(BaseModel):
 
 ## 5. Impact and Next Steps
 
--   **Impact:**
-    -   Requires defining new Pydantic models (`AgentExecutionResult`, `LLMConfig`, etc.).
-    -   Requires creating the `LLMClient` interface and initial `AnthropicLLMClient` implementation.
-    -   Significant changes to `Agent.__init__` and `Agent._make_llm_call` (or its replacement).
-    -   `HostManager` might need to be aware of `LLMConfig`s if they are to be centrally managed and referenced by ID.
-    -   Configuration files might need updating to include `llm_config_id` in `AgentConfig`s.
-    -   All consumers of `Agent.execute_agent()` (including tests and workflows) will need to be updated to handle the new `AgentExecutionResult` Pydantic model instead of a raw dictionary.
--   **Next Steps:**
-    1.  Review and refine this design document.
-    2.  Prioritize:
-        a.  Implement `AgentExecutionResult` and update `Agent.execute_agent()` to return it. (This addresses the immediate need for better output handling).
-        b.  Then, proceed with the `LLMConfig` and `LLMClient` refactoring.
-    3.  Create detailed implementation plans for each prioritized step.
-    4.  Implement the changes iteratively, with testing at each stage.
+-   **Impact (of Phase 2 changes):**
+    -   `ConversationManager` class removed and logic merged into `Agent`.
+    -   `Agent` class signature and responsibilities changed significantly.
+    -   `AgentTurnProcessor` introduced to handle single-turn logic.
+    -   `BaseLLM` and `AnthropicLLM` updated to support `llm_config_override`.
+    -   `ExecutionFacade` updated to instantiate the new `Agent` class and handle `LLMConfig` resolution for overrides.
+    -   Consumers of agent execution (like `SimpleWorkflowExecutor`) now interact via `ExecutionFacade.run_agent` which returns a dictionary representation of `AgentExecutionResult`.
+    -   Tests updated for `Agent`, `AnthropicLLM`, and `ExecutionFacade` interactions.
+-   **Next Steps (Post Phase 2):**
+    1.  Proceed with Phase 3: Advanced Configuration Features & Client Lifecycle Management.
+    2.  Consider further LLM refactoring (e.g., dedicated `LLMManager`, support for more providers) as outlined in Section 4.
+    3.  Refine error handling and reporting throughout the agent execution flow.
 
 ## 6. Discussion Points
 

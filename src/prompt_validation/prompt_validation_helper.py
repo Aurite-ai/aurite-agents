@@ -6,11 +6,13 @@ import os
 from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
+
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from src.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
+
 
 class ValidationCriteria(BaseModel):
     name: str
@@ -256,7 +258,7 @@ async def improve_prompt(
             # TODO: call as an agent once gemini is added to models
             client = genai.Client()
 
-            response = client.models.generate_content(
+            response = clientsrc.config.config_models.generate_content(
                 model="gemini-2.5-pro-preview-03-25",
                 config=genai.types.GenerateContentConfig(
                     system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
@@ -362,6 +364,7 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
     if errors:
         result["errors"] = errors
     return result
+
 
 def generate_config(
     agent_name: str, user_input: str, testing_prompt: str
@@ -507,15 +510,25 @@ async def _get_agent_result(
                 )
                 # ---- START DEBUG LOGGING ----
                 if testing_config.name == "Planning Agent":
-                    logger.info(f"DEBUG: Planning Agent full_output type: {type(full_output)}")
-                    logger.info(f"DEBUG: Planning Agent full_output content: {full_output}")
+                    logger.info(
+                        f"DEBUG: Planning Agent full_output type: {type(full_output)}"
+                    )
+                    logger.info(
+                        f"DEBUG: Planning Agent full_output content: {full_output}"
+                    )
                     try:
                         # Attempt to dump as JSON if it's a Pydantic model
-                        logger.info(f"DEBUG: Planning Agent full_output model_dump_json: {full_output.model_dump_json(indent=2)}")
+                        logger.info(
+                            f"DEBUG: Planning Agent full_output model_dump_json: {full_output.model_dump_json(indent=2)}"
+                        )
                     except AttributeError:
-                        logger.info("DEBUG: Planning Agent full_output is not a Pydantic model or model_dump_json failed.")
+                        logger.info(
+                            "DEBUG: Planning Agent full_output is not a Pydantic model or model_dump_json failed."
+                        )
                     except Exception as e:
-                        logger.info(f"DEBUG: Error during model_dump_json for Planning Agent full_output: {e}")
+                        logger.info(
+                            f"DEBUG: Error during model_dump_json for Planning Agent full_output: {e}"
+                        )
                 # ---- END DEBUG LOGGING ----
             case "workflow":
                 full_output = await executor.run_simple_workflow(
@@ -537,10 +550,16 @@ async def _get_agent_result(
 
         if final_response_dict and isinstance(final_response_dict, dict):
             content_list = final_response_dict.get("content")
-            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+            if (
+                content_list
+                and isinstance(content_list, list)
+                and len(content_list) > 0
+            ):
                 first_block = content_list[0]
                 if isinstance(first_block, dict) and first_block.get("type") == "text":
-                    output = first_block.get("text", "")  # Default to empty string if 'text' key is missing
+                    output = first_block.get(
+                        "text", ""
+                    )  # Default to empty string if 'text' key is missing
                 else:
                     logger.warning(
                         f"First content block in final_response is not a text block or not a dict: {first_block}"
@@ -590,11 +609,17 @@ async def _run_single_iteration(
 
         # Extract text from the Quality Assurance Agent's response
         analysis_final_response_dict = analysis_output.get("final_response")
-        analysis_text_output = "" # Default to empty string
+        analysis_text_output = ""  # Default to empty string
 
-        if analysis_final_response_dict and isinstance(analysis_final_response_dict, dict):
+        if analysis_final_response_dict and isinstance(
+            analysis_final_response_dict, dict
+        ):
             content_list = analysis_final_response_dict.get("content")
-            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+            if (
+                content_list
+                and isinstance(content_list, list)
+                and len(content_list) > 0
+            ):
                 first_block = content_list[0]
                 if isinstance(first_block, dict) and first_block.get("type") == "text":
                     analysis_text_output = first_block.get("text", "")
@@ -602,7 +627,9 @@ async def _run_single_iteration(
                     logger.warning(
                         f"QA Agent: First content block in final_response is not a text block or not a dict: {first_block}"
                     )
-                    analysis_text_output = str(first_block) if first_block is not None else ""
+                    analysis_text_output = (
+                        str(first_block) if first_block is not None else ""
+                    )
             else:
                 logger.warning(
                     f"QA Agent: final_response content is empty, not a list, or not found: {content_list}"

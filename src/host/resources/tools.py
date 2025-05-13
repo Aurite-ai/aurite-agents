@@ -8,7 +8,7 @@ This module provides a ToolManager class that handles:
 4. Integration with agent frameworks
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 import logging
 # import asyncio # No longer needed after removing _active_requests
 
@@ -17,7 +17,7 @@ import mcp.types as types
 # Import from lower layers for dependencies
 from ..foundation import RootManager, MessageRouter
 from ..filtering import FilteringManager  # Added import
-from ..models import ClientConfig, AgentConfig  # Added imports
+from src.config.config_models import ClientConfig, AgentConfig  # Added imports
 
 logger = logging.getLogger(__name__)
 
@@ -389,13 +389,18 @@ class ToolManager:
         allowed_clients = None
         if agent_config:
             # Get all client IDs that have registered *any* tool
-            clients_with_tools = {
-                meta.get("client_id")
-                for meta in all_tools_metadata
-                if meta.get("client_id")
-            }
+            # Ensure clients_with_tools_str_set is Set[str]
+            clients_with_tools_str_set: Set[str] = set()
+            for meta_item in all_tools_metadata:
+                client_id_val = meta_item.get("client_id")
+                if client_id_val is not None:
+                    # We expect client_id_val to be a string or stringifiable to a non-empty string
+                    s_client_id = str(client_id_val)
+                    if s_client_id:  # Ensure it's a non-empty string after conversion
+                        clients_with_tools_str_set.add(s_client_id)
+
             allowed_clients = filtering_manager.filter_clients_for_request(
-                list(clients_with_tools), agent_config
+                list(clients_with_tools_str_set), agent_config
             )
 
         # 3. Filter tools based on allowed clients
@@ -506,9 +511,53 @@ class ToolManager:
             "content": content_list,  # Ensure content is a list
         }
 
+    async def unregister_client_tools(self, client_id: str):
+        """
+        Removes tool registrations associated with a specific client ID.
+        If a tool definition is only registered to this client, it's removed entirely.
+
+        Args:
+            client_id: The ID of the client whose tools should be unregistered.
+        """
+        if client_id not in self._clients:
+            logger.debug(
+                f"Client '{client_id}' not found in ToolManager, cannot unregister tools."
+            )
+            return
+
+        # Get the set of tools registered specifically for this client from the router
+        tools_registered_by_client = (
+            await self._message_router.get_tools_for_client(client_id)
+        )
+        removed_tool_definitions = []
+
+        for tool_name in tools_registered_by_client:
+            # Check how many clients provide this tool
+            providers = await self._message_router.get_clients_for_tool(tool_name)
+            # If this client is the *only* provider left after it's removed conceptually
+            # (or if it was the only one to begin with)
+            if len(providers) <= 1 and client_id in providers:
+                # Remove the tool definition itself
+                self._tools.pop(tool_name, None)
+                self._tool_metadata.pop(tool_name, None)
+                removed_tool_definitions.append(tool_name)
+                logger.debug(
+                    f"Removed tool definition '{tool_name}' as client '{client_id}' was the last provider."
+                )
+
+        # Remove the client session itself
+        self._clients.pop(client_id, None)
+
+        logger.debug(
+            f"Unregistered client '{client_id}' from ToolManager. "
+            f"Removed definitions for tools: {removed_tool_definitions}"
+        )
+        # Note: The MessageRouter's unregister_server method handles removing the client
+        # from the router's perspective (called separately in MCPHost).
+
     async def shutdown(self):
         """Shutdown the tool manager"""
-        logger.info("Shutting down tool manager")
+        logger.debug("Shutting down tool manager")  # Changed to DEBUG
 
         # _active_requests removed
 

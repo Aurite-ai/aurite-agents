@@ -337,7 +337,7 @@ async def test_get_resources_for_client(message_router: MessageRouter):
     assert resources_c3 == set()
 
 
-# --- Server Management Tests ---
+# --- Server Management Tests (Including Unregistration) ---
 
 
 async def test_get_server_capabilities(message_router: MessageRouter):
@@ -370,8 +370,8 @@ async def test_update_server_weight_not_registered(message_router: MessageRouter
         await message_router.update_server_weight("non_existent", 2.0)
 
 
-async def test_remove_server(message_router: MessageRouter):
-    """Test removing a server and all its associated registrations."""
+async def test_unregister_server(message_router: MessageRouter):
+    """Test unregistering a server and removing all its associated registrations."""
     s1 = "server1"
     s2 = "server2"
     tool_a = "tool_A"
@@ -401,8 +401,8 @@ async def test_remove_server(message_router: MessageRouter):
     assert s1 in message_router._client_prompts
     assert s1 in message_router._client_resources
 
-    # Remove server 1
-    await message_router.remove_server(s1)
+    # Unregister server 1
+    await message_router.unregister_server(s1)
 
     # Verify s1 is removed
     assert s1 not in message_router._server_capabilities
@@ -422,7 +422,7 @@ async def test_remove_server(message_router: MessageRouter):
     assert s2 in message_router._server_capabilities
 
 
-async def test_remove_non_existent_server(message_router: MessageRouter):
-    """Test removing a non-existent server does nothing and doesn't raise error."""
+async def test_unregister_non_existent_server(message_router: MessageRouter):
+    """Test unregistering a non-existent server does nothing and doesn't raise error."""
     # Should execute without error
-    await message_router.remove_server("non_existent")
+    await message_router.unregister_server("non_existent")

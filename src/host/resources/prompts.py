@@ -8,7 +8,7 @@ import mcp.types as types
 
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
-from ..models import ClientConfig
+from src.config.config_models import ClientConfig
 from ..foundation import MessageRouter  # Import MessageRouter
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class PromptManager:
         if client_id:
             return list(self._prompts.get(client_id, {}).values())
 
-        all_prompts = []
+        all_prompts: List[types.Prompt] = []
         for client_prompts in self._prompts.values():
             all_prompts.extend(client_prompts.values())
         # Ensure unique prompts if the same one is registered by multiple clients?
@@ -138,8 +138,26 @@ class PromptManager:
 
     # validate_prompt_arguments method removed.
 
+    async def unregister_client_prompts(self, client_id: str):
+        """
+        Removes all prompt registrations associated with a specific client ID.
+
+        Args:
+            client_id: The ID of the client whose prompts should be unregistered.
+        """
+        if client_id in self._prompts:
+            removed_prompts = list(self._prompts[client_id].keys())
+            del self._prompts[client_id]
+            logger.debug(
+                f"Unregistered {len(removed_prompts)} prompts for client '{client_id}': {removed_prompts}"
+            )
+        else:
+            logger.debug(
+                f"No prompts found to unregister for client '{client_id}'."
+            )
+
     async def shutdown(self):
         """Shutdown the prompt manager"""
-        logger.info("Shutting down prompt manager")
+        logger.debug("Shutting down prompt manager")  # Changed to DEBUG
         self._prompts.clear()
         # _subscriptions removed

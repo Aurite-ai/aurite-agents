@@ -9,7 +9,7 @@ import logging
 from typing import List, Dict, Any
 
 # Import necessary types and models
-from .models import ClientConfig, AgentConfig
+from src.config.config_models import ClientConfig, AgentConfig
 from .foundation import MessageRouter  # Assuming MessageRouter is needed
 
 logger = logging.getLogger(__name__)

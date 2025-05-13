@@ -10,6 +10,8 @@ from fastapi.security import APIKeyHeader
 # Import config/models needed by dependencies
 from ..config import ServerConfig
 from ..host_manager import HostManager  # Needed for get_host_manager
+from ..config.component_manager import ComponentManager  # Added for new dependency
+from ..config.project_manager import ProjectManager  # Added for new dependency
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,8 @@ def get_server_config() -> ServerConfig:
     Uses lru_cache to load only once.
     """
     try:
-        config = ServerConfig()
-        logger.info("Server configuration loaded successfully.")
+        config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
+        logger.debug("Server configuration loaded successfully.")  # Changed to DEBUG
         logging.getLogger().setLevel(config.LOG_LEVEL.upper())
         return config
     except Exception as e:  # Catch generic Exception during config load
@@ -44,19 +46,31 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
 async def get_api_key(
+    request: Request,  # Added Request to access query_params
     server_config: ServerConfig = Depends(get_server_config),
     api_key_header_value: Optional[str] = Security(api_key_header),
 ) -> str:
     """
-    Dependency to verify the API key provided in the request header.
+    Dependency to verify the API key.
+    Checks X-API-Key header first, then 'api_key' query parameter.
     Uses secrets.compare_digest for timing attack resistance.
     """
-    if not api_key_header_value:
-        logger.warning("API key missing from request header.")
-        raise HTTPException(
-            status_code=401,
-            detail="API key required in X-API-Key header",
-        )
+    provided_api_key: Optional[str] = api_key_header_value
+    source = "header"
+
+    if not provided_api_key:
+        # Try to get from query parameter if not in header
+        provided_api_key = request.query_params.get("api_key")
+        if provided_api_key:
+            source = "query parameter"
+        else:
+            logger.warning("API key missing from request header and query parameters.")
+            raise HTTPException(
+                status_code=401,
+                detail="API key required in X-API-Key header or as 'api_key' query parameter.",
+            )
+
+    logger.debug(f"API key provided via {source}.")
 
     # Ensure API_KEY is loaded correctly
     expected_api_key = getattr(server_config, "API_KEY", None)
@@ -66,13 +80,13 @@ async def get_api_key(
             status_code=500, detail="Server configuration error: API Key not set."
         )
 
-    if not secrets.compare_digest(api_key_header_value, expected_api_key):
-        logger.warning("Invalid API key received.")
+    if not secrets.compare_digest(provided_api_key, expected_api_key):
+        logger.warning(f"Invalid API key received via {source}.")
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",
         )
-    return api_key_header_value
+    return provided_api_key
 
 
 # --- HostManager Dependency ---
@@ -90,3 +104,41 @@ async def get_host_manager(request: Request) -> HostManager:
         )
     # Removed debug log from here, keep it in api.py if needed upon retrieval
     return manager
+
+
+# --- ComponentManager Dependency ---
+async def get_component_manager(
+    host_manager: HostManager = Depends(get_host_manager),
+) -> ComponentManager:
+    """
+    Dependency function to get the ComponentManager instance from the HostManager.
+    """
+    if not host_manager.component_manager:
+        # This case should ideally not happen if HostManager is initialized correctly
+        logger.error(
+            "ComponentManager not found on HostManager instance. This indicates an initialization issue."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="ComponentManager is not available due to an internal error.",
+        )
+    return host_manager.component_manager
+
+
+# --- ProjectManager Dependency ---
+async def get_project_manager(
+    host_manager: HostManager = Depends(get_host_manager),
+) -> ProjectManager:
+    """
+    Dependency function to get the ProjectManager instance from the HostManager.
+    """
+    if not host_manager.project_manager:
+        # This case should ideally not happen if HostManager is initialized correctly
+        logger.error(
+            "ProjectManager not found on HostManager instance. This indicates an initialization issue."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="ProjectManager is not available due to an internal error.",
+        )
+    return host_manager.project_manager

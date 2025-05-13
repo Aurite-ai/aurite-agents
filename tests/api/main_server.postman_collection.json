@@ -618,6 +618,240 @@
           }
         }
       ]
+    },
+    {
+      "name": "Change Project and Verify Agents",
+      "item": [
+        {
+          "name": "List Agents (Initial - Default Project)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 for initial agent list\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Initial agents list is correct for default project\", function () {",
+                  "    let initialAgents = pm.response.json();",
+                  "    pm.expect(initialAgents).to.be.an('array').that.includes('Weather Agent');",
+                  "    pm.expect(initialAgents).to.be.an('array').not.that.includes('Minimal Test Agent');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/components/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "components",
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Project to Minimal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 for project change to minimal\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response message indicates successful change to minimal project\", function () {",
+                  "    let changeData = pm.response.json();",
+                  "    pm.expect(changeData.status).to.eql('success');",
+                  "    pm.expect(changeData.message).to.include('Successfully changed project to Minimal Test Project');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"project_config_path\": \"config/projects/minimal_project_for_test.json\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/projects/change",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "change"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Agents (After Minimal Project Load)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 for agent list after minimal project change\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Agents list reflects minimal project\", function () {",
+                  "    let agentsAfterMinimal = pm.response.json();",
+                  "    pm.expect(agentsAfterMinimal).to.be.an('array').that.includes('Minimal Test Agent');",
+                  "    pm.expect(agentsAfterMinimal).to.be.an('array').not.that.includes('Weather Agent');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/components/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "components",
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Project back to Default",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 for project change back to default\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response message indicates successful change back to default project\", function () {",
+                  "    let changeBackData = pm.response.json();",
+                  "    pm.expect(changeBackData.status).to.eql('success');",
+                  "    pm.expect(changeBackData.message).to.include('Successfully changed project to DefaultMCPHost');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"project_config_path\": \"config/testing_config.json\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/projects/change",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "projects",
+                "change"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Agents (After Reverting to Default)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 for agent list after reverting to default\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Agents list reflects default project after reverting\", function () {",
+                  "    let agentsAfterRevert = pm.response.json();",
+                  "    pm.expect(agentsAfterRevert).to.be.an('array').that.includes('Weather Agent');",
+                  "    pm.expect(agentsAfterRevert).to.be.an('array').not.that.includes('Minimal Test Agent');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/components/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "components",
+                "agents"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "A sequence of requests to test changing projects and verifying agent lists."
     }
   ],
   "variable": [

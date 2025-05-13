@@ -10,7 +10,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
 from src.workflows.custom_workflow import CustomWorkflowExecutor
-from src.host.models import CustomWorkflowConfig
+from src.config.config_models import CustomWorkflowConfig
 from src.execution.facade import ExecutionFacade  # Needed for type hint
 
 # Import shared fixtures
