@@ -258,7 +258,7 @@ async def improve_prompt(
             # TODO: call as an agent once gemini is added to models
             client = genai.Client()
 
-            response = clientsrc.config.config_models.generate_content(
+            response = client.models.generate_content(
                 model="gemini-2.5-pro-preview-03-25",
                 config=genai.types.GenerateContentConfig(
                     system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."

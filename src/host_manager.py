@@ -197,6 +197,9 @@ class HostManager:
                 current_project=active_project,
                 storage_manager=self.storage_manager,
             )
+            
+            # 5. Load additional config
+            await self.load_components_from_project(Path("config/projects/prompt_validation_config.json"))
 
             logger.info(
                 "HostManager initialization complete."
