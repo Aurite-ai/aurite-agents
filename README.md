@@ -137,17 +137,8 @@ These are the primary building blocks you'll work with:
                 user_message=str(initial_input), # Ensure message is a string
                 session_id=session_id # Pass session_id if agent uses history
             )
-            # Assuming agent_result is a dict-like structure or an object
-            # and final_response has content with a text block.
-            processed_data = None
-            if agent_result and hasattr(agent_result, 'final_response') and agent_result.final_response:
-                if hasattr(agent_result.final_response, 'content') and agent_result.final_response.content:
-                    if hasattr(agent_result.final_response.content[0], 'text'):
-                         processed_data = agent_result.final_response.content[0].text
 
-
-            if not processed_data:
-                return {"status": "error", "message": "Agent did not return data"}
+            processed_data = agent_result.final_response.content[0].text
 
             # Example: Call a simple workflow
             simple_workflow_result = await executor.run_simple_workflow(
@@ -156,13 +147,31 @@ These are the primary building blocks you'll work with:
                 # session_id for simple workflows is not directly used by the workflow itself,
                 # but could be relevant if agents within that simple workflow use history.
             )
-            final_output = simple_workflow_result.get("final_message")
+            simple_workflow_output = simple_workflow_result.get("final_message")
 
-            # Example: Conditional logic
-            if "complete" in (final_output or "").lower():
-                return {"status": "success", "result": final_output, "custom_message": "Orchestration complete!"}
-            else:
-                return {"status": "pending", "details": final_output}
+            # You can even run other Custom Workflows
+            custom_workflow_result = await executor.run_custom_workflow(custom_workflow_name="MyCustomWorkflow", initial_input=simple_workflow_output)
+
+            return custom_workflow_result
+    ```
+    # To use this custom workflow:
+    # 1. Save this code into a Python file (e.g., in src/my_custom_workflows/basic_executor_example.py).
+    # 2. In your project's JSON configuration (e.g., config/projects/default.json), add or update
+    #    a custom_workflow entry like this:
+    #    {
+    #      "custom_workflows": [
+    #        {
+    #          "name": "MyBasicWorkflowExample",  // A unique name for this workflow
+    #          "module_path": "src.my_custom_workflows.basic_executor_example", // Path to your .py file
+    #          "class_name": "BasicExecutorExampleWorkflow", // The class name defined above
+    #          "description": "A basic example demonstrating custom workflow executor usage."
+    #        }
+    #        // ... any other custom workflows
+    #      ]
+    #    }
+    #    (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
+    # 3. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code)
+    #    is also defined in the 'agents' section of your project configuration.
     ```
 
 ### 3. LLM Configurations
