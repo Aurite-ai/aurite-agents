@@ -136,7 +136,7 @@ class MCPHost:
             f"Host initialized {num_clients} clients and loaded {num_agent_configs} agent configs."
         )
 
-        logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
+        logger.debug("MCP Host initialization complete")  # Keep high-level end as INFO
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
@@ -725,7 +725,7 @@ class MCPHost:
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
-        logger.info("Shutting down MCP Host...")
+        logger.debug("Shutting down MCP Host...")
 
         # Shutdown managers first, in reverse layer order, before closing connections
 
@@ -773,8 +773,7 @@ class MCPHost:
         # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 
-        logger.info("MCP Host shutdown complete")
-
+        logger.debug("MCP Host shutdown complete")
     # --- New Client Lifecycle Methods ---
 
     async def client_shutdown(self, client_id: str):

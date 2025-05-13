@@ -60,13 +60,13 @@ USER appuser
 
 # Set environment variables
 # - PYTHONPATH ensures modules in /app are found
-# - HOST_CONFIG_PATH points to the desired config file
+# - PROJECT_CONFIG_PATH points to the desired config file
 # - Other vars as needed
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     ENV=development \
     CACHE_DIR=/app/cache \
-    HOST_CONFIG_PATH=/app/config/deployment_testing.json \
+    PROJECT_CONFIG_PATH=/app/config/deployment_testing.json \
     LOG_LEVEL=DEBUG
 
 # Expose the correct port (default 8000 for the API)

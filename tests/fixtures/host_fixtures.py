@@ -93,7 +93,7 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     """
     # Define path to the test config file relative to the project root
     test_config_path = (
-        PROJECT_ROOT_DIR / "config/projects/testing_config.json"  # Updated path
+        PROJECT_ROOT_DIR / "tests/fixtures/project_fixture.json"  # Updated path
     )  # Use PROJECT_ROOT_DIR directly
 
     if not test_config_path.exists():
