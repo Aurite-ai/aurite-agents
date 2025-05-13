@@ -104,15 +104,21 @@ These are the primary building blocks you'll work with:
 
 ### 1. Environment Variables
 
-Create a `.env` file in the project root to store sensitive information and essential configurations:
+Before running the system, you need to set up your environment variables.
 
+1.  **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
+    ```bash
+    cp .env.example .env
+    ```
+2.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
+
+Key variables you'll need to configure in your `.env` file include:
+
+*   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `/path/to/your/aurite-agents/config/projects/default.json`).
 *   `API_KEY`: A secret key to secure the FastAPI endpoints. Generate a strong random key.
-*   `HOST_CONFIG_PATH`: Path to your active project configuration JSON file (e.g., `config/projects/default.json`). This tells the system which project to load.
 *   `ANTHROPIC_API_KEY` (or other LLM provider keys): Required if your agents use specific LLMs like Anthropic's Claude.
 
-Optional variables for database persistence (see Configuration Overview below):
-*   `AURITE_ENABLE_DB=true`
-*   `AURITE_DB_URL="postgresql+psycopg2://user:pass@host:port/dbname"`
+The `.env` file also contains settings for Redis, optional database persistence (`AURITE_ENABLE_DB`, `AURITE_DB_URL`, etc.), and other service configurations. Review all entries marked with `#REPLACE`.
 
 ### 2. Running the API Server
 
@@ -136,7 +142,7 @@ By default, it starts on `http://0.0.0.0:8000`. You can then send requests to it
 
 ## Configuration Overview (User Perspective)
 
-*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `HOST_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) then references other JSON files for specific components like agents, clients, and LLMs.
+*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) then references other JSON files for specific components like agents, clients, and LLMs.
 *   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`).
 *   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
 *   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
@@ -160,7 +166,7 @@ Key directories for users:
     *   `docs/framework_overview.md`: For a deep dive into the architecture.
     *   `docs/layers/`: Detailed documentation for each architectural layer.
 *   **`tests/`**: Automated tests. See `tests/README.md` for instructions on running tests.
-*   **`.env`**: (You create this) For environment variables like API keys and `HOST_CONFIG_PATH`.
+*   **`.env`**: (You create this) For environment variables like API keys and `PROJECT_CONFIG_PATH`.
 
 ## Further Documentation
 

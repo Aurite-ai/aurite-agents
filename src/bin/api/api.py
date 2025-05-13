@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
         # Instantiate HostManager
         # Ensure HostManager path is correct relative to project root if needed
         # Assuming HostManager itself handles path resolution correctly based on CWD or PROJECT_ROOT
-        manager_instance = HostManager(config_path=server_config.HOST_CONFIG_PATH)
+        manager_instance = HostManager(config_path=server_config.PROJECT_CONFIG_PATH)
 
         # Initialize HostManager (loads configs, initializes MCPHost)
         await manager_instance.initialize()

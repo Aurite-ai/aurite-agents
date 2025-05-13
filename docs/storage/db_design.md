@@ -42,7 +42,7 @@
 ### 2.4. Configuration Storage
 
 - **Initial Load:**
-    - `HostManager` still loads the primary configuration from the JSON file specified by `HOST_CONFIG_PATH`.
+    - `HostManager` still loads the primary configuration from the JSON file specified by `PROJECT_CONFIG_PATH`.
     - If `AURITE_ENABLE_DB` is true, after successful loading and validation from JSON, `HostManager` uses `StorageManager` to **sync** these configurations to the database (e.g., `storage_manager.sync_configs(agents=self.agent_configs, ...)`). This could involve inserting or updating records based on component names.
 - **Dynamic Registration:**
     - When `HostManager.register_client/agent/workflow` is called:

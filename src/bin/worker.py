@@ -311,9 +311,9 @@ async def main():
     manager: Optional[HostManager] = None
     try:
         logger.info(
-            f"Initializing HostManager with config: {config.HOST_CONFIG_PATH}..."
+            f"Initializing HostManager with config: {config.PROJECT_CONFIG_PATH}..."
         )
-        manager = HostManager(config_path=config.HOST_CONFIG_PATH)
+        manager = HostManager(config_path=config.PROJECT_CONFIG_PATH)
         await manager.initialize()
         logger.info("HostManager initialized successfully.")
     except Exception as e:

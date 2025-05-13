@@ -34,7 +34,7 @@
 
 ## 3. Prerequisites (Optional)
 *   Layers 2 and 3 refactoring, testing, and documentation are considered complete and stable.
-*   Environment variables (e.g., `API_KEY`, `HOST_CONFIG_PATH`) are correctly set up for running the API and tests.
+*   Environment variables (e.g., `API_KEY`, `PROJECT_CONFIG_PATH`) are correctly set up for running the API and tests.
 
 ## 4. Implementation Steps
 
