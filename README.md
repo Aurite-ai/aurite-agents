@@ -156,9 +156,9 @@ These are the primary building blocks you'll work with:
     {
       "custom_workflows": [
         {
-          "name": "MyBasicWorkflowExample",  // A unique name for this workflow
-          "module_path": "src.my_custom_workflows.basic_executor_example", // Path to your .py file
-          "class_name": "BasicExecutorExampleWorkflow", // The class name defined above
+          "name": "MyBasicWorkflowExample",
+          "module_path": "src.my_custom_workflows.basic_executor_example",
+          "class_name": "BasicExecutorExampleWorkflow",
           "description": "A basic example demonstrating custom workflow executor usage."
         }
         // ... any other custom workflows
