@@ -4,7 +4,6 @@ Unit tests for the ExecutionFacade.
 
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Add patch
-from typing import List  # Add missing import
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
@@ -24,12 +23,9 @@ from src.agents.agent import Agent
 # )
 from src.agents.agent_models import (
     AgentExecutionResult,
-    AgentOutputMessage,
-    AgentOutputContentBlock,
 )  # Import result models
 from src.llm.base_client import BaseLLM  # Import BaseLLM for type hint
 from src.host.host import MCPHost  # Needed for type hinting if used
-from anthropic.types import MessageParam  # Import MessageParam
 
 # --- Fixtures ---
 
