@@ -70,9 +70,10 @@ class RootManager:
 
     async def validate_access(self, client_id: str) -> bool:
         """
-        Placeholder validation method. Currently always returns True.
-        Original logic checked tool-specific root requirements, which have been removed.
-        This method is kept for potential future use or more basic checks if needed.
+        Performs a basic validation check for a client.
+        Currently, this checks if the client is known to the RootManager (i.e., has any roots registered).
+        This method is typically called by ToolManager as a preliminary check before tool execution.
+        Actual resource URI validation against specific roots is handled by ResourceManager.
         """
         # Check if the client is known to the RootManager (i.e., has roots registered).
         # This is a basic validation step called by ToolManager before execution.

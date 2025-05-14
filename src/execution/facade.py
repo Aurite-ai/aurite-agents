@@ -50,7 +50,7 @@ from ..workflows.custom_workflow import CustomWorkflowExecutor
 # Import default LLM client for SimpleWorkflowExecutor instantiation
 from ..llm.providers.anthropic_client import (
     AnthropicLLM,
-)  # TODO: Refactor LLM client resolution
+)
 
 logger = logging.getLogger(__name__)
 

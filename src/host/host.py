@@ -46,9 +46,6 @@ class MCPHost:
     def __init__(
         self,
         config: HostConfig,
-        # agent_configs: Optional[Dict[str, AgentConfig]] = None, # Removed
-        # Removed workflow_configs parameter
-        # Removed custom_workflow_configs parameter
         encryption_key: Optional[str] = None,
     ):
         # Layer 1: Foundation layer
@@ -57,9 +54,7 @@ class MCPHost:
 
         # Layer 2: Communication layer
         self._message_router = MessageRouter()
-        self._filtering_manager = FilteringManager(
-            message_router=self._message_router
-        )  # Added instantiation
+        self._filtering_manager = FilteringManager()  # Removed message_router argument
 
         # Layer 3: Resource management layer
         self._prompt_manager = PromptManager(
@@ -121,22 +116,41 @@ class MCPHost:
 
 
         # Initialize each configured client
-        for client_config in self._config.clients:
-            await self._initialize_client(client_config)
+        successful_initializations = 0
+        num_configured_clients = len(self._config.clients)
 
-        num_clients = len(self.client_manager.active_clients)
-        # MCPHost uses HostConfig (self._config). If HostConfig were to hold agent configurations,
-        # it would likely be under an 'agents' attribute, similar to ProjectConfig.
+        for client_config in self._config.clients:
+            try:
+                await self._initialize_client(client_config)
+                successful_initializations += 1
+            except Exception as e:
+                logger.error(
+                    f"Failed to initialize client '{client_config.client_id}'. "
+                    f"This client will be unavailable. Error: {e}",
+                    exc_info=True
+                )
+                # Continue to the next client
+
+        num_active_clients = len(self.client_manager.active_clients) # Should reflect successfully started ones
         num_agent_configs = (
             len(self._config.agents)
             if hasattr(self._config, "agents") and self._config.agents
             else 0
         )
         logger.info(
-            f"Host initialized {num_clients} clients and loaded {num_agent_configs} agent configs."
+            f"MCP Host initialization attempt finished. "
+            f"Successfully initialized {num_active_clients}/{num_configured_clients} configured clients. "
+            f"Loaded {num_agent_configs} agent configs."
         )
 
-        logger.info("MCP Host initialization complete")  # Keep high-level end as INFO
+        if num_active_clients < num_configured_clients:
+            logger.warning(
+                f"{num_configured_clients - num_active_clients} client(s) failed to initialize. "
+                "Check error logs for details. Host will continue with available clients."
+            )
+            logger.debug("MCP Host initialization partially complete.")
+        else:
+            logger.debug("MCP Host initialization fully complete for all clients.")
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
@@ -725,7 +739,7 @@ class MCPHost:
 
     async def shutdown(self):
         """Shutdown the host and cleanup all resources"""
-        logger.info("Shutting down MCP Host...")
+        logger.debug("Shutting down MCP Host...")
 
         # Shutdown managers first, in reverse layer order, before closing connections
 
@@ -773,8 +787,7 @@ class MCPHost:
         # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 
-        logger.info("MCP Host shutdown complete")
-
+        logger.debug("MCP Host shutdown complete")
     # --- New Client Lifecycle Methods ---
 
     async def client_shutdown(self, client_id: str):

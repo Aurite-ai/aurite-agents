@@ -65,6 +65,6 @@
   },
   "[dockerfile]": {
     // Keep existing specific settings
-    "editor.formatOnSave": false
+    "editor.formatOnSave":false
   },
 }

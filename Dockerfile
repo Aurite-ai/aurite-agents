@@ -60,13 +60,14 @@ USER appuser
 
 # Set environment variables
 # - PYTHONPATH ensures modules in /app are found
-# - HOST_CONFIG_PATH points to the desired config file
+# - PROJECT_CONFIG_PATH points to the desired config file
 # - Other vars as needed
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
-    ENV=development \
+    ENV=production \
     CACHE_DIR=/app/cache \
-    HOST_CONFIG_PATH=/app/config/deployment_testing.json \
+    PROJECT_CONFIG_PATH=/app/config/projects/testing_config.json \
+    AURITE_ALLOW_DYNAMIC_REGISTRATION=true \
     LOG_LEVEL=INFO
 
 # Expose the correct port (default 8000 for the API)
@@ -80,4 +81,4 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
 # Command to run the development server with auto-reload
 # Point to the correct app location: src.bin.api:app
 # Use port 8000
-CMD ["python", "-m", "uvicorn", "src.bin.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "src.bin.api.api:app", "--host", "0.0.0.0", "--port", "8000"]

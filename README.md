@@ -1,227 +1,346 @@
 # Aurite Agents Framework
 
-**Aurite Agents** is a Python framework for building AI agents that leverage the Model Context Protocol (MCP) for interacting with tools, prompts, and resources provided by external MCP servers.
+**Aurite Agents** is a Python framework designed for building and orchestrating AI agents. These agents can interact with a variety of external tools, prompts, and resources through the Model Context Protocol (MCP), enabling them to perform complex tasks.
 
-It provides three core components:
+Whether you're looking to create sophisticated AI assistants, automate processes, or experiment with agentic workflows, Aurite Agents provides the building blocks and infrastructure to get you started.
 
-1.  **MCP Host (`src/host/host.py`)**: The core infrastructure layer. Manages connections to MCP servers (clients), handles component registration (tools, prompts, resources), enforces security/access boundaries, and provides a unified interface for interaction via specialized managers.
-2.  **Host Manager (`src/host_manager.py`)**: The orchestration layer. Manages the lifecycle of the `MCPHost`, loads configurations from JSON, and handles the registration and execution of Agents, Simple Workflows, and Custom Workflows.
-3.  **Agent Framework (`src/agents/agent.py`)**: Provides the `Agent` class for implementing LLM interaction logic. Agents use an injected `MCPHost` instance (managed by the `HostManager`) to access tools and accomplish tasks.
+## Getting Started
 
-## Key Concepts
+Follow these steps to set up the Aurite Agents framework on your local machine.
 
-*   **MCP (Model Context Protocol):** A standardized way for AI models/agents to interact with external tools, prompts, and resources. See `docs/official-mcp/` for protocol details.
-*   **MCP Host:** The infrastructure layer connecting to and managing MCP servers.
-*   **Host Manager:** The orchestration layer managing the Host, Agents, and Workflows.
-*   **MCP Server/Client:** An external process implementing the MCP protocol to provide specific capabilities (e.g., a weather tool server, a planning tool server). The Host connects to these servers, referring to them as clients.
-*   **Agent:** An AI entity (powered by an LLM) configured via `AgentConfig` that uses the `MCPHost` to access tools and information. Can optionally persist conversation history using the Storage Manager (requires `session_id` during execution).
-*   **Simple Workflow:** A sequence of Agents defined in `WorkflowConfig`, executed sequentially via the `ExecutionFacade`. (Note: Session history is not automatically propagated to agents within a simple workflow currently).
-*   **Custom Workflow:** A Python class defined in `CustomWorkflowConfig`, allowing flexible orchestration logic. Its `execute_workflow` method receives an `ExecutionFacade` instance and an optional `session_id`. If calling agents that use history, the `session_id` must be passed along.
-*   **Storage Manager (`src/storage/db_manager.py`):** Handles database interactions, including persisting agent configurations and conversation history (keyed by `agent_name` and `session_id`) if enabled.
+### Prerequisites
 
-## Architecture
+*   Python >= 3.12
+*   `pip` (Python package installer)
+*   `redis-server` (Required if you plan to use the asynchronous task worker)
 
-The framework follows a layered architecture:
+### Installation
 
-```text
-+-----------------------------------------------------------------+
-| Layer 1: Entrypoints (src/bin)                                  |
-| +--------------+   +----------------+   +---------------------+ |
-| | CLI          |   | API Server     |   | Worker              | |
-| | (cli.py)     |   | (api.py)       |   | (worker.py)         | |
-| +--------------+   +----------------+   +---------------------+ |
-|        |                 |                  |                   |
-|        +-------+---------+--------+---------+                   |
-|                v                  v                             |
-+----------------|------------------|-----------------------------+
-                 |                  |
-                 v                  v
-+----------------+------------------+-----------------------------+
-| Layer 2: Orchestration                                          |
-| +-------------------------------------------------------------+ |
-| | Host Manager (host_manager.py)                              | |
-| |-------------------------------------------------------------| |
-| | Purpose:                                                    | |
-| | - Load Host JSON Config                                     | |
-| | - Init/Shutdown MCP Host & Storage Manager (optional)       | |
-| | - Holds Agent/Workflow Configs                              | |
-| | - Dynamic Registration & DB Sync (optional)                 | |
-| | - Owns ExecutionFacade                                      | |
-| +-------------------------------------------------------------+ |
-|                       |                                         |
-|                       v                                         |
-+-----------------------+-----------------------------------------+
-                        |
-                        v
-+-----------------------+-----------------------------------------+
-| Layer 2.5: Execution Facade & Executors                       |
-| +-------------------------------------------------------------+ |
-| | ExecutionFacade (execution/facade.py)                       | |
-| |-------------------------------------------------------------| |
-| | Purpose: Unified interface (run_agent, run_simple_workflow, | |
-| |          run_custom_workflow) for execution.                | |
-| | Delegates to specific Executors.                            | |
-| | Passes Storage Manager to Agent execution if available.     | |
-| +-------------------------------------------------------------+ |
-| | Agent (agents/agent.py) - Executes itself                   | |
-| | SimpleWorkflowExecutor (workflows/simple_workflow.py)       | |
-| | CustomWorkflowExecutor (workflows/custom_workflow.py)       | |
-| +-------------------------------------------------------------+ |
-|                       |                                         |
-|                       v (Uses MCP Host & Storage Manager)       |
-+-----------------------+-----------------------------------------+
-                        |
-                        v
-+-----------------------+-----------------------------------------+
-| Layer 3: Host Infrastructure (MCP Host System)                  |
-| +-------------------------------------------------------------+ |
-| | MCP Host (host.py)                                          | |
-| |-------------------------------------------------------------| |
-| | Purpose:                                                    | |
-| | - Manage Client Connections                                 | |
-| | - Handle Roots/Security                                     | |
-| | - Register/Execute Tools, Prompts, Resources                | |
-| | - Component Discovery/Filtering                             | |
-| +-------------------------------------------------------------+ |
-|                       |                                         |
-|                       v                                         |
-+-----------------------+-----------------------------------------+
-                        |
-                        v
-+-----------------------+-----------------------------------------+
-| Layer 4: External Capabilities                                  |
-| +-------------------------------------------------------------+ |
-| | MCP Servers (e.g., src/packaged_servers/, external)         | |
-| |-------------------------------------------------------------| |
-| | Purpose:                                                    | |
-| | - Implement MCP Protocol                                    | |
-| | - Provide Tools, Prompts, Resources                         | |
-| | - Handle Discovery (ListTools, etc.)                        | |
-| +-------------------------------------------------------------+ |
-+-----------------------------------------------------------------+
-```
-
-*   **Layer 4: External Capabilities:** MCP Servers providing tools/prompts/resources.
-*   **Layer 3: Host Infrastructure:** The `MCPHost` manages connections and low-level MCP interactions.
-*   **Layer 2.5: Execution Facade & Executors:** The `ExecutionFacade` provides a unified interface for running components, delegating to specific executors (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`). It also passes the `StorageManager` instance (if available) to the `Agent` during execution.
-*   **Layer 2: Orchestration:** The `HostManager` loads configuration, manages the `MCPHost` and optional `StorageManager` lifecycle, handles dynamic registration (syncing to DB if enabled), and owns the `ExecutionFacade`.
-*   **Layer 1: Entrypoints:** API, CLI, and Worker interfaces interact with the `HostManager` (and through it, the `ExecutionFacade`).
-
-For more details, see `docs/architecture_overview.md` and `docs/framework_overview.md`.
-
-## Configuration
-
-The framework uses Pydantic models for configuration (`src/host/models.py`):
-
-*   **`HostConfig`**: Defines the host name and a list of `ClientConfig` objects.
-*   **`ClientConfig`**: Defines settings for connecting to a specific MCP server, including its path, capabilities, roots, optional GCP secrets, and global component exclusions (`exclude`).
-*   **`AgentConfig`**: Defines settings for an `Agent` instance, including LLM parameters (model, temperature, etc.), filtering rules (`client_ids`, `exclude_components`), and an optional `include_history` flag (boolean) to enable conversation history persistence via the database.
-*   **`WorkflowConfig`**: Defines a simple workflow as a named sequence of agent names (`steps`).
-*   **`CustomWorkflowConfig`**: Defines a custom workflow by pointing to its Python module path and class name.
-
-Configuration for the entire system (Host, Clients, Agents, Workflows) is loaded from a single JSON file specified by the `HOST_CONFIG_PATH` environment variable. The `HostManager` uses `src/config.py` to parse this file during initialization. See `config/testing_config.json` for an example structure.
-
-Database persistence for agent configurations and conversation history can be enabled by setting the `AURITE_ENABLE_DB=true` environment variable and configuring the database connection via other `AURITE_DB_*` variables (see `src/storage/db_connection.py`).
-
-## Installation
-
-1.  **Prerequisites:** Python >= 3.12, `pip`, `redis-server` (for worker).
-2.  **Clone the repository:**
+1.  **Clone the Repository:**
     ```bash
-    git clone <repository-url>
+    git clone <your-repository-url> aurite-agents
     cd aurite-agents
     ```
-3.  **Create and activate a virtual environment (recommended):**
+
+2.  **Create and Activate a Virtual Environment (Recommended):**
     ```bash
     python -m venv .venv
-    source .venv/bin/activate # On Windows use `.venv\Scripts\activate`
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
     ```
-4.  **Install dependencies:**
+
+3.  **Install Dependencies:**
+    The project uses `pyproject.toml` for dependency management. Install the framework and its dependencies (the `[dev]` is for dev dependencies like pytest) in editable mode:
     ```bash
-    pip install -e .
+    pip install -e .[dev]
     ```
-    This installs the package in editable mode along with all dependencies listed in `pyproject.toml`.
+    This command allows you to make changes to the source code and have them immediately reflected without needing to reinstall.
 
-## Usage
+## Architecture Overview
 
-The framework now provides multiple entrypoints located in `src/bin/`:
+The framework follows a layered architecture, illustrated below:
 
-### 1. API Server (`src/bin/api.py`)
+```mermaid
+graph TD
+    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
+    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
+    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
 
-Runs a FastAPI application providing HTTP endpoints for executing and dynamically registering components.
+    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
+    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
+    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
+    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
+```
 
-1.  **Set Environment Variables:** Create a `.env` file in the project root and define required variables, especially:
-    *   `API_KEY`: An API key for securing the FastAPI endpoints.
-    *   `HOST_CONFIG_PATH`: Path to the desired host configuration JSON file (e.g., `config/agents/testing_config.json`).
-    *   `ANTHROPIC_API_KEY`: Required by the `Agent` class for LLM calls.
-    *   `AURITE_MCP_ENCRYPTION_KEY` (Optional): For the `SecurityManager`. If not set, a temporary one will be generated.
-    *   `AURITE_ENABLE_DB` (Optional): Set to `true` to enable database persistence. Defaults to `false`.
-    *   `AURITE_DB_URL` (Required if DB enabled): Full database connection URL (e.g., `postgresql+psycopg2://user:pass@host:port/dbname`).
-    *   Other `AURITE_DB_*` variables (Optional): For specific database connection parameters if not using `AURITE_DB_URL`.
-2.  **Run the server:**
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/framework_overview.md`](docs/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
+
+## Core Concepts for Users
+
+Understanding these concepts will help you configure and use the Aurite Agents framework effectively.
+
+### 1. Projects
+
+A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
+*   The name and description of the project.
+*   Which LLM configurations to use (`llm_configs`).
+*   Which MCP Servers (Clients) to connect to (`clients`).
+*   Which Agents, Simple Workflows, and Custom Workflows are part of this project.
+
+The active project configuration tells the `HostManager` what components to load and make available.
+
+### 2. Agentic Components
+
+These are the primary building blocks you'll work with:
+
+*   **Agents (`src/agents/agent.py`):**
+    *   LLM-powered entities that can engage in conversations, use tools, and optionally maintain history.
+    *   Configured via `AgentConfig` models, typically stored in JSON files (e.g., `config/agents/my_weather_agent.json`) and referenced in your project file.
+    *   Key settings include the LLM to use, system prompts, and rules for accessing tools/clients.
+
+    ```mermaid
+    graph TD
+        Agent["Agent <br/> (src/agents/agent.py)"] --> LLM["LLM <br/> (e.g., Claude, GPT)"];
+        Agent --> Clients["MCP Clients <br/> (Connections to Servers)"];
+
+        Clients --> MCP1["MCP Server 1 <br/> (e.g., Weather Tool)"];
+        Clients --> MCP2["MCP Server 2 <br/> (e.g., Database)"];
+        Clients --> MCP3["MCP Server 3 <br/> (e.g., Custom API)"];
+
+        style Agent fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style LLM fill:#FFFFE0,stroke:#B8860B,stroke-width:2px,color:#333333
+        style Clients fill:#E6E6FA,stroke:#483D8B,stroke-width:2px,color:#333333
+        style MCP1 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+        style MCP2 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+        style MCP3 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
+    ```
+
+*   **Simple Workflows (`src/workflows/simple_workflow.py`):**
+    *   Define a sequence of Agents to be executed one after another.
+    *   Configured via `WorkflowConfig` models (e.g., `config/workflows/my_simple_sequence.json`).
+    *   Useful for straightforward, multi-step tasks where the output of one agent becomes the input for the next.
+
+    ```mermaid
+    graph LR
+        Agent1["Agent A"] -->|Input/Output| Agent2["Agent B"];
+        Agent2 -->|Input/Output| Agent3["Agent C"];
+
+        style Agent1 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style Agent2 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+        style Agent3 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
+    ```
+
+*   **Custom Workflows (`src/workflows/custom_workflow.py`):**
+    *   Allow you to define complex orchestration logic using custom Python classes.
+    *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class.
+    *   Provide maximum flexibility for intricate interactions and conditional logic. Here's a conceptual example of what a custom workflow class might look like:
+    ```python
+    # Example: src/my_custom_workflows/my_orchestrator.py class definition
+    class MyCustomOrchestrator:
+        async def execute_workflow(
+            self,
+            initial_input: Any,
+            executor: "ExecutionFacade", # Type hint for the passed executor
+            session_id: Optional[str] = None # Optional session_id
+        ) -> Any:
+
+            # --- Your custom Python orchestration logic here ---
+            # You can call other agents, simple workflows, or even other custom workflows
+            # using the 'executor' instance.
+
+            # Example: Call an agent
+            agent_result = await executor.run_agent(
+                agent_name="MyProcessingAgent",
+                user_message=str(initial_input), # Ensure message is a string
+                session_id=session_id # Pass session_id if agent uses history
+            )
+
+            processed_data = agent_result.final_response.content[0].text
+
+            # Example: Call a simple workflow
+            simple_workflow_result = await executor.run_simple_workflow(
+                workflow_name="MyFollowUpWorkflow",
+                initial_input=processed_data
+                # session_id for simple workflows is not directly used by the workflow itself,
+                # but could be relevant if agents within that simple workflow use history.
+            )
+            simple_workflow_output = simple_workflow_result.get("final_message")
+
+            # You can even run other Custom Workflows
+            custom_workflow_result = await executor.run_custom_workflow(custom_workflow_name="MyCustomWorkflow", initial_input=simple_workflow_output)
+
+            return custom_workflow_result
+    ```
+    To use this custom workflow:
+      1. Save this code into a Python file (e.g., in src/my_custom_workflows/basic_executor_example.py).
+      2. In your project's JSON configuration (e.g., config/projects/default.json), add or update a custom_workflow entry like this:
+    ```json
+    {
+      "custom_workflows": [
+        {
+          "name": "MyBasicWorkflowExample",
+          "module_path": "src.my_custom_workflows.basic_executor_example",
+          "class_name": "BasicExecutorExampleWorkflow",
+          "description": "A basic example demonstrating custom workflow executor usage."
+        }
+        // ... any other custom workflows
+      ]
+    }
+    ```
+    * (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
+    3. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code) is also defined in the 'agents' section of your project configuration.
+
+### 3. LLM Configurations
+
+*   Define settings for different Large Language Models (e.g., model name, temperature, max tokens).
+*   Managed by `LLMConfig` models, typically stored in `config/llms/default_llms.json` or a custom file.
+*   Agents reference these LLM configurations by their `llm_id`, allowing you to easily switch or share LLM settings.
+*   The core LLM client abstraction is `src/llm/base_client.py`.
+
+### 4. MCP Servers (as Clients)
+
+*   External processes that provide tools, prompts, or resources according to the Model Context Protocol (MCP).
+*   The Aurite framework connects to these servers, referring to them as "Clients."
+*   Configured via `ClientConfig` models (e.g., `config/clients/default_clients.json`), specifying the server's path, capabilities, and access rules.
+*   An example MCP server is `src/packaged_servers/weather_mcp_server.py`.
+
+## Basic Usage: Running the System
+
+### 1. Environment Variables
+
+Before running the system, you need to set up your environment variables.
+
+1.  **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
     ```bash
-    python -m src.bin.api
+    cp .env.example .env
     ```
-    The server will start (default: `http://0.0.0.0:8000`). You can interact with it using tools like Postman (see `tests/api/main_server.postman_collection.json`) or `curl`.
+2.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
 
-### 2. Command-Line Interface (`src/bin/cli.py`)
+Key variables you'll need to configure in your `.env` file include:
 
-Provides commands to interact with the framework from the terminal.
+*   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `/path/to/your/aurite-agents/config/projects/default.json`).
+*   `API_KEY`: A secret key to secure the FastAPI endpoints. Generate a strong random key.
+*   `ANTHROPIC_API_KEY` (or other LLM provider keys): Required if your agents use specific LLMs like Anthropic's Claude.
 
-1.  **Set Environment Variables:** Ensure `ANTHROPIC_API_KEY` is set if executing agents/workflows that use it.
-2.  **Run commands:** Requires specifying the host configuration file (`-c` or `--config`).
+The `.env` file also contains settings for Redis, optional database persistence (`AURITE_ENABLE_DB`, `AURITE_DB_URL`, etc.), and other service configurations. Review all entries marked with `#REPLACE`.
+
+#### Important Security Note: Encryption Key
+
+*   **`AURITE_MCP_ENCRYPTION_KEY`**: This environment variable is used by the framework's `SecurityManager` to encrypt sensitive data.
+    *   If not set, a key will be **auto-generated on startup**. This is convenient for quick local testing.
+    *   **However, for any persistent deployment, or if you intend to use features that rely on encrypted storage (even for development), it is critical to set this to a strong, persistent, URL-safe base64-encoded 32-byte key.**
+    *   Relying on an auto-generated key means that any encrypted data may become inaccessible if the application restarts and generates a new key.
+    *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
+
+### 2. Running the API Server
+
+The primary way to interact with the framework is through its FastAPI server:
+```bash
+python -m src.bin.api.api
+```
+or use the `pyproject.toml` script:
+```bash
+start-api
+```
+
+By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
+
+### 3. Other Entrypoints
+
+*   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
     ```bash
-    # Example: Execute an agent
-    python -m src.bin.cli -c config/agents/testing_config.json execute agent "Weather Agent" --message "Weather in London?"
+    # Example: Execute an agent (ensure API server is running)
+    # Assumes API_KEY environment variable is set.
+    run-cli execute agent "Weather Agent" "What is the weather in London?"
 
-    # Example: Register a client (pass config as JSON string)
-    python -m src.bin.cli -c config/agents/testing_config.json register client \
-      '{"client_id": "cli_client", "server_path": "tests/fixtures/servers/weather_mcp_server.py", "capabilities": ["tools"], "roots": []}'
+    # Example: Execute a simple workflow
+    run-cli execute workflow "main" "What should I wear in San Francisco today?"
 
-    # Example: List commands
-    python -m src.bin.cli --help
-    python -m src.bin.cli register --help
-    python -m src.bin.cli execute --help
+    # Example: Execute a custom workflow (input must be a valid JSON string)
+    run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
     ```
-
-### 3. Redis Worker (`src/bin/worker.py`)
-
-Listens to a Redis stream for tasks (registration or execution requests).
-
-1.  **Prerequisites:** Ensure Redis server is running and accessible.
-2.  **Set Environment Variables:**
-    *   `HOST_CONFIG_PATH`: Path to the host configuration JSON file.
-    *   `ANTHROPIC_API_KEY` (if needed by components).
-    *   `AURITE_ENABLE_DB` and `AURITE_DB_*` variables (if database persistence is desired).
-    *   `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_STREAM_NAME` (defaults are provided in `src/config.py` but can be overridden via `.env`).
-3.  **Run the worker:**
+*   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up).
     ```bash
     python -m src.bin.worker
     ```
-    The worker will connect to Redis and wait for messages on the configured stream (default: `aurite:tasks`). Messages should be JSON strings in a field named `task_data`, specifying `action`, `component_type`, and `data`.
+*
+## Configuration Overview (User Perspective)
 
-## Testing
+*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) defines configurations or references other JSON files for specific components like agents, clients, and LLMs. For example, a project file might look like this:
+    ```json
+    {
+        "llms": [
+        {
+        "llm_id": "anthropic_claude_3_opus",
+        "provider": "anthropic",
+        "model_name": "claude-3-opus-20240229",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "max_iterations": 10,
+        "include_history": true,
+        "exclude_components": ["current_time"]
+        }
+        ],
+        "clients": [
+            {
+            "client_id": "weather_server",
+            "server_path": "src/packaged_servers/weather_mcp_server.py",
+            "capabilities": ["tools", "prompts"],
+            "timeout": 15.0,
+            "routing_weight": 1.0,
+            "roots": []
+            },
+            "planning_server",
+            "address_server"
+        ],
+        "agents": [
+            {
+            "name": "Weather Agent",
+            "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
+            "client_ids": ["weather_server"],
+            "llm_id": "anthropic_claude_3_opus",
+            "exclude_components": ["current_time"]
+            },
+            {
+            "name": "Weather Planning Workflow Step 2",
+            "system_prompt": "You have been provided with weather information in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information.",
+            "client_ids": ["planning_server"],
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "max_iterations": 10,
+            "include_history": true
+            }
+        ],
+        "workflows": [
+            {
+            "name": "A second testing workflow using weather and planning servers",
+            "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
+            "description": "Updated workflow to test simple workflow execution using agents."
+            }
+        ],
+        "custom_workflows": [
+            {
+            "name": "Prompt Validation Workflow",
+            "module_path": "src/prompt_validation/prompt_validation_workflow.py",
+            "class_name": "PromptValidationWorkflow",
+            "description": "A custom workflow built to test agentic components."
+            }
+        ]
+    }
+    ```
+*   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`). You can reference these components by their ID as seen in the `planning_server` and `address_server` references in the `clients` section of the example project json file above.
+*   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
+*   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
+*
+## Simplified Directory Structure
 
-The project uses `pytest` for testing, with tests categorized into unit, integration, and end-to-end (E2E). A prompt validation system is also included for testing agent outputs against rubrics.
+Key directories for users:
 
-See `docs/testing_strategy.md` and `tests/README.md` for detailed instructions on running tests and understanding the testing structure.
+*   **`config/`**: This is where you'll spend most of your time defining configurations.
+    *   `config/projects/`: Contains your main project JSON files.
+    *   `config/agents/`: JSON files for Agent configurations.
+    *   `config/clients/`: JSON files for MCP Server (Client) configurations.
+    *   `config/llms/`: JSON files for LLM configurations.
+    *   `config/workflows/`: JSON files for Simple Workflow configurations.
+    *   `config/custom_workflows/`: JSON files for Custom Workflow configurations.
+*   **`src/bin/`**: Entrypoint scripts (API, CLI, Worker).
+*   **`src/agents/`**: Core `Agent` class implementation.
+*   **`src/workflows/`**: Implementations for `SimpleWorkflowExecutor` and `CustomWorkflowExecutor`.
+*   **`src/packaged_servers/`**: Example MCP server implementations.
+*   **`docs/`**: Contains all project documentation.
+    *   `docs/framework_overview.md`: For a deep dive into the architecture.
+    *   `docs/layers/`: Detailed documentation for each architectural layer.
+*   **`tests/`**: Automated tests. See `tests/README.md` for instructions on running tests.
+*   **`.env`**: (You create this) For environment variables like API keys and `PROJECT_CONFIG_PATH`.
 
-## Directory Structure
+## Further Documentation
 
-*   **`src/`**: Contains the core source code.
-    *   `src/host/`: Implementation of the MCP Host system (`host.py`) and its managers.
-    *   `src/agents/`: Implementation of the Agent framework (`agent.py`).
-    *   `src/host_manager.py`: Orchestration layer managing Host, Agents, and Workflows.
-    *   `src/storage/`: Database connection, models, and management (`db_connection.py`, `db_models.py`, `db_manager.py`).
-    *   `src/packaged_servers/`: Example and pre-built MCP server implementations.
-    *   `src/config.py`: Configuration loading utilities.
-    *   `src/bin/`: Entrypoint scripts (API, CLI, Worker).
-*   **`tests/`**: Contains all automated tests (unit, integration, e2e).
-    *   `tests/fixtures/`: Reusable pytest fixtures and mock servers.
-    *   `tests/mocks/`: Mock objects for external services (e.g., Anthropic API).
-*   **`config/`**: Contains JSON configuration files defining hosts, clients, agents, and workflows.
-*   **`docs/`**: Project documentation, including architecture, guides, and plans.
+*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/framework_overview.md`](docs/framework_overview.md).
+*   **Layer-Specific Details:**
+    *   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md) (API, CLI, Worker)
+    *   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
+    *   [`docs/layers/3_host.md`](docs/layers/3_host.md) (MCPHost System)
+*   **MCP Protocol:** For details on the Model Context Protocol itself, refer to `docs/official-mcp/`.
+*   **Testing:** Information on running tests can be found in `tests/README.md`. Testing strategies for each layer are also detailed within their respective documentation in `docs/layers/`.
 
 ## Contributing
 
-Contributions are welcome. Please follow standard fork/pull request workflows. Ensure tests pass and documentation is updated for any changes.
+Contributions are welcome! Please follow standard fork/pull request workflows. Ensure tests pass and documentation is updated for any changes.

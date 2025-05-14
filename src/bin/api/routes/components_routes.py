@@ -318,3 +318,34 @@ async def list_registered_custom_workflows(
     return list(
         active_project.custom_workflows.keys()
     )  # Changed custom_workflow_configs to custom_workflows
+
+
+@router.get("/components/clients", response_model=List[str])
+async def list_registered_clients(manager: HostManager = Depends(get_host_manager)):
+    """Lists the client_ids of all currently registered clients from the active project."""
+    active_project = manager.project_manager.get_active_project_config()
+    if not active_project or not active_project.clients:
+        return []
+    # Client IDs are stored directly in the list if string, or as client_id attribute if ClientConfig object
+    client_ids = []
+    for client_entry in active_project.clients:
+        if isinstance(client_entry, str):
+            client_ids.append(client_entry)
+        elif hasattr(client_entry, 'client_id'): # Check if it's a ClientConfig model
+            client_ids.append(client_entry.client_id)
+    return client_ids
+
+
+@router.get("/components/llm-configs", response_model=List[str])
+async def list_registered_llm_configs(
+    manager: HostManager = Depends(get_host_manager),
+):
+    """Lists the llm_ids of all currently registered LLM configurations from the active project."""
+    # LLM configs are managed by the ComponentManager, accessed via ProjectManager
+    if (
+        not manager.project_manager
+        or not manager.project_manager.component_manager
+        or not manager.project_manager.component_manager.llm_configs
+    ):
+        return []
+    return list(manager.project_manager.component_manager.llm_configs.keys())

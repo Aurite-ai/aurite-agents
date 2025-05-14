@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aurite-agents"
 version = "0.2.0"
-description = "Aurite Agent Framework with MCP"
+description = "Aurite Agent Development and Runtime Framework"
 readme = "README.md"
 requires-python = ">=3.12"
 
@@ -50,16 +50,14 @@ dependencies = [
     "packaging>=24.2",
     "pandas>=2.2.3",
     "pluggy>=1.5.0",
-    "psycopg2-binary>=2.9.10", # Already exists!
-    "alembic>=1.13.1", # Added for DB migrations
+    "psycopg2-binary>=2.9.10",
+    "alembic>=1.13.1",
     "pycparser>=2.22",
     "pydantic>=2.10.6",
     "pydantic-settings>=2.8.1",
     "pydantic_core>=2.27.2",
     "pydub>=0.25.1",
     "PyMySQL>=1.1.1",
-    "pytest>=8.3.5",
-    # "pytest-asyncio>=0.25.3", # Removed for anyio plugin
     "python-dateutil>=2.9.0.post0",
     "python-dotenv>=1.0.1",
     # "click-async", # Removed - unnecessary with Click 8+/Typer 0.4+
@@ -86,6 +84,7 @@ dev = [
     "mypy>=1.15.0",
     "types-PyYAML",
     "types-pytz",
+    "pytest>=8.3.5",
 ]
 
 [tool.setuptools.package-data]

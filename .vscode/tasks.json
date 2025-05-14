@@ -12,7 +12,6 @@
         "panel": "dedicated",
         "reveal": "always"
       },
-      "runOptions": { "runOn": "folderOpen" }
     },
     {
       "label": "Run Frontend",
@@ -28,7 +27,6 @@
         "panel": "dedicated",
         "reveal": "always"
       },
-      "runOptions": { "runOn": "folderOpen" }
     },
     {
       // ...existing code...

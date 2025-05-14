@@ -1,24 +1,28 @@
 {
   "name": "Testing Dynamic Config",
+  "llms": [
+    {
+      "llm_id": "anthropic_claude_3_opus",
+      "provider": "anthropic",
+      "model_name": "claude-3-opus-20240229",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": true,
+      "exclude_components": ["current_time"]
+    }
+  ],
   "clients": [
     {
-      "client_id": "env_check_server",
-      "server_path": "src/packaged_servers/env_check_server.py",
-      "capabilities": [],
-      "timeout": 5.0,
+      "client_id": "weather_server",
+      "server_path": "src/packaged_servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
       "routing_weight": 1.0,
-      "roots": [],
-      "gcp_secrets": [
-        {
-          "secret_id": "projects/aurite-dev/secrets/TEST_SECRET_1_ID/versions/latest",
-          "env_var_name": "TEST_SECRET_1"
-        },
-        {
-          "secret_id": "projects/aurite-dev/secrets/TEST_DB_PASSWORD_ID/versions/latest",
-          "env_var_name": "TEST_SECRET_DB_PASSWORD"
-        }
-      ]
-    }
+      "roots": []
+    },
+    "planning_server",
+    "address_server"
   ],
   "agents": [
     {
@@ -31,15 +35,22 @@
       "max_iterations": 10,
       "include_history": "True",
       "exclude_components": ["current_time"]
+    },
+    {
+      "name": "Weather Planning Workflow Step 2",
+      "system_prompt": "You have been provided with weather information in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. \\n\\nCRITICAL: \\n1. ONLY use the 'save_plan' tool. Do NOT use any other tools (like weather_lookup or current_time).\\n2. When calling 'save_plan', ensure the 'tags' argument is provided as a JSON list of strings (e.g., [\"weather\", \"clothing\", \"san francisco\"]).\\n3. If the user message does NOT contain clear weather information (temperature, condition), respond with the text 'Cannot create plan, weather data missing.' and do NOT attempt to use any tools.",
+      "client_ids": ["planning_server"],
+      "model": "claude-3-opus-20240229",
+      "temperature": "0.7",
+      "max_tokens": 4096,
+      "max_iterations": 10,
+      "include_history": "True"
     }
   ],
   "workflows": [
     {
       "name": "A second testing workflow using weather and planning servers",
-      "steps": [
-        "Weather Planning Workflow Step 1",
-        "Weather Planning Workflow Step 2"
-      ],
+      "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
       "description": "Updated workflow to test simple workflow execution using agents."
     }
   ],

@@ -46,15 +46,7 @@ def main_callback(
         show_default=True,
     ),
     # Try reading API_KEY from environment, prompt if missing
-    api_key: str = typer.Option(
-        lambda: os.environ.get("API_KEY"),  # Use lambda to read env var at runtime
-        "--api-key",
-        "-k",
-        help="API key for the API server. Reads API_KEY env var if not provided.",
-        prompt="API Key",
-        hide_input=True,
-        show_default=False,  # Don't show default lambda
-    ),
+    api_key: str = os.environ.get("API_KEY"),
     log_level: str = typer.Option(
         "INFO",
         "--log-level",
