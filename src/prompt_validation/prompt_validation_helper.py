@@ -6,6 +6,7 @@ import os
 from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
+from src.agents.agent_models import AgentExecutionResult
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -657,12 +658,12 @@ async def _run_single_iteration(
     return analysis_json, agent_response
 
 
-def _extract_tool_calls(agent_response) -> list[dict]:
+def _extract_tool_calls(agent_response: AgentExecutionResult) -> list[dict]:
     """Extract a list of tool calls from agent response"""
     tool_calls = []
-    for item in agent_response.get("conversation", []):
-        if item.get("role") == "assistant":
-            for c in item.get("content", []):
+    for item in agent_response.conversation:
+        if item.role == "assistant":
+            for c in item.content:
                 if c.type == "tool_use":
                     tool_calls.append({"name": c.name, "input": c.input})
 
