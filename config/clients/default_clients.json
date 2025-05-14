@@ -28,7 +28,7 @@
     },
     {
       "client_id": "address_server",
-      "server_path": "tests/prompt_validation/dummy_mcp_server.py",
+      "server_path": "",
       "roots": [],
       "capabilities": ["tools", "prompts", "resources"],
       "timeout": 30.0,

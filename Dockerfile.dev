@@ -51,6 +51,8 @@ COPY --from=builder /build/src/ ./src/
 COPY --from=builder /build/config/ ./config/
 # Copy pyproject.toml (might be needed by runtime tools or for reference)
 COPY --from=builder /build/pyproject.toml .
+COPY --from=builder /build/tests/ ./tests/
+# Copy the tests directory (if needed for runtime or testing)
 
 # Create cache directory with proper permissions
 # Ensure the directory exists before changing ownership
