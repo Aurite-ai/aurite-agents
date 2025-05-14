@@ -158,51 +158,64 @@
     *   **Action:** Verify that all internal dictionaries and sets are cleared on shutdown.
     *   **Verification:** Code inspection.
 
-**Phase 2: `src/host/host.py` (MCPHost) Orchestration Review**
+**Phase 2: MCPHost Orchestration & Supporting Managers Review (`host.py`, `filtering.py`, `clients.py`)**
 
-1.  **Step 2.1: Interaction with Foundation Layer (SecurityManager, RootManager, MessageRouter)**
+1.  **Step 2.1: `MCPHost` - Interaction with Foundation Layer**
     *   **File(s):** `src/host/host.py`
     *   **Action:**
         *   Review how `MCPHost` initializes and utilizes `SecurityManager`, `RootManager`, and `MessageRouter`.
         *   Ensure calls to these managers are correct based on their reviewed functionalities (from Phase 1).
-        *   Pay special attention to how resolved secrets from `SecurityManager` are handled and potentially passed during client initialization.
+        *   Pay special attention to how resolved secrets from `SecurityManager` are handled.
     *   **Verification:** Code inspection, cross-referencing with Phase 1 findings.
 
-2.  **Step 2.2: Environment Variable Injection for MCP Servers**
-    *   **File(s):** `src/host/host.py` (orchestration), `src/host/foundation/clients.py` (likely implementation via `ClientManager.manage_client_lifecycle`)
+2.  **Step 2.2: `FilteringManager` (`src/host/filtering.py`) - Logic Review**
+    *   **File(s):** `src/host/filtering.py`, relevant sections of `src/config/config_models.py` (for `ClientConfig.exclude`, `AgentConfig.client_ids`, `AgentConfig.exclude_components`).
     *   **Action:**
-        *   Investigate how environment variables (especially resolved secrets) are passed to MCP server subprocesses. This is critical.
-        *   Check if these variables are logged insecurely during the process.
-        *   Assess the risk of leakage if an MCP server process is compromised or misbehaves.
-        *   (This may require tracing the call from `MCPHost._initialize_client` to `ClientManager.manage_client_lifecycle` and its interaction with `mcp.stdio_client` or direct subprocess creation).
-    *   **Verification:**
-        *   Code inspection of `MCPHost`, `ClientManager`, and potentially `mcp.stdio_client` if source is available or its usage pattern.
-        *   Review logs generated during MCP server startup with dummy secrets to check for leakage.
+        *   Review `is_registration_allowed` (for `ClientConfig.exclude`).
+        *   Review `filter_clients_for_request` (for `AgentConfig.client_ids`).
+        *   Review `is_component_allowed_for_agent` and `filter_component_list` (for `AgentConfig.exclude_components`).
+        *   Ensure the logic correctly implements the intended filtering rules based on these configurations.
+    *   **Verification:** Code inspection. Assess if the filtering provides adequate access control granularity for "good enough" open source.
 
-2.  **Step 2.2: Error Handling & Information Leakage in Logs**
+3.  **Step 2.3: `ClientManager` (`src/host/foundation/clients.py`) - Lifecycle & Environment Variable Handling**
+    *   **File(s):** `src/host/foundation/clients.py`, `src/host/host.py` (for context of how `manage_client_lifecycle` is called).
+    *   **Action:**
+        *   Focus on `manage_client_lifecycle`.
+        *   Investigate how environment variables (especially resolved secrets from `SecurityManager`, passed via `MCPHost`) are prepared and passed to the `StdioServerParameters` for the MCP server subprocess. This is critical.
+        *   Assess risks of leakage during this process (e.g., logging of env vars, exposure if subprocess creation fails insecurely).
+        *   Review error handling during client startup and shutdown within `ClientManager`.
+    *   **Verification:** Code inspection. Review logs generated during MCP server startup with dummy secrets if necessary.
+
+4.  **Step 2.4: `MCPHost` (`src/host/host.py`) - Client Initialization (`_initialize_client`)**
     *   **File(s):** `src/host/host.py`
     *   **Action:**
-        *   Review all `logger.error`, `logger.warning`, and `logger.info` calls.
-        *   Ensure no sensitive data (e.g., parts of unresolved secrets, full internal file paths that are not intended for exposure) is inadvertently logged.
-    *   **Verification:**
-        *   Code inspection.
+        *   Review the overall client initialization flow within `MCPHost._initialize_client`.
+        *   Analyze how it orchestrates `ClientManager.manage_client_lifecycle`, `SecurityManager` (for secrets), `RootManager` (for roots), `MessageRouter` (for server capabilities), and the resource managers (`ToolManager`, `PromptManager`, `ResourceManager`) in conjunction with `FilteringManager` for component registration.
+        *   Focus on the sequence of operations, data flow (especially of `ClientConfig` and resolved secrets), and error handling.
+    *   **Verification:** Code inspection.
 
-3.  **Step 2.3: Input Validation Review**
+5.  **Step 2.5: `MCPHost` (`src/host/host.py`) - Runtime Request Handling (e.g., `get_prompt`, `execute_tool`, `read_resource`)**
     *   **File(s):** `src/host/host.py`
     *   **Action:**
-        *   Confirm that Pydantic models (`ClientConfig`, `HostConfig`) are the primary source of input validation for configurations passed to `MCPHost`.
-        *   Check if any direct parameters to public methods of `MCPHost` (e.g., `execute_tool`, `get_prompt`) might need additional validation beyond what types provide, though this is less likely to be a major issue.
-    *   **Verification:**
-        *   Code inspection.
+        *   Review how `MCPHost` uses `MessageRouter` and `FilteringManager` (with `AgentConfig`) to determine target clients and apply agent-specific permissions for incoming requests.
+        *   Check for potential race conditions or bypasses in the filtering and routing logic.
+    *   **Verification:** Code inspection.
 
-4.  **Step 2.4: Efficiency Review (MCPHost)**
+6.  **Step 2.6: `MCPHost` (`src/host/host.py`) - Dynamic Client Registration (`register_client`)**
     *   **File(s):** `src/host/host.py`
     *   **Action:**
-        *   Review initialization (`initialize`, `_initialize_client`): Assess concurrency patterns (`anyio.TaskGroup`) and potential bottlenecks for large numbers of clients.
-        *   Review runtime operations (`get_prompt`, `execute_tool`, `read_resource`): Confirm reliance on `MessageRouter` and `FilteringManager` is efficient for typical use cases.
-        *   Logging Levels: Confirm `logger.debug` is used for verbose logs and that the default operational logging level would be `INFO` or higher to avoid performance issues in standard use.
-    *   **Verification:**
-        *   Code inspection and reasoning about performance.
+        *   Review the security implications of allowing dynamic client registration.
+        *   Ensure it reuses the same secure initialization path (`_initialize_client`) and correctly updates all relevant managers.
+    *   **Verification:** Code inspection.
+
+7.  **Step 2.7: `MCPHost` (`src/host/host.py`) - General Security/Efficiency (Error Handling, Logging, Input Validation, Shutdown)**
+    *   **File(s):** `src/host/host.py`
+    *   **Action:**
+        *   Review overall error logging for sensitive data leakage.
+        *   Confirm Pydantic models (`HostConfig`, `ClientConfig` as part of `HostConfig`) are the primary input validation for its own configuration.
+        *   Assess overall efficiency of `MCPHost` operations (initialization, runtime requests, shutdown).
+        *   Review the `shutdown` sequence in `MCPHost` to ensure all managers and client tasks are properly terminated.
+    *   **Verification:** Code inspection and reasoning about performance/security.
 
 **Phase 3: Documentation & Reporting**
 
@@ -232,4 +245,4 @@
     *   **Mitigation:** Focus on the `MCPHost` and `ClientManager` side of the interaction. Document assumptions if full insight into the `mcp` library's behavior isn't feasible.
 
 ## 7. Open Questions & Discussion Points (Optional)
-*   How are MCP server subprocesses actually created and how are environment variables passed? (To be investigated in Step 2.1)
+*   How are MCP server subprocesses actually created and how are environment variables passed? (To be investigated in Step 2.3 and 2.4)

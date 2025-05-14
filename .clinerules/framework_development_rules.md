@@ -49,3 +49,4 @@ src/
 ├── servers/      # More complex/managed MCP server implementations (e.g., management, memory)
 ├── storage/      # Database interaction (models, manager, connection)
 └── workflows/    # Simple and Custom workflow implementations
+```

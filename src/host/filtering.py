@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 
 # Import necessary types and models
 from src.config.config_models import ClientConfig, AgentConfig
-from .foundation import MessageRouter  # Assuming MessageRouter is needed
+# from .foundation import MessageRouter  # MessageRouter is not used
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +25,11 @@ class FilteringManager:
     - Agent-level component exclusions during runtime (`AgentConfig.exclude_components`).
     """
 
-    def __init__(self, message_router: MessageRouter):
+    def __init__(self):
         """
         Initialize the FilteringManager.
-
-        Args:
-            message_router: The MessageRouter instance to query client capabilities.
         """
-        self._message_router = message_router
+        # self._message_router = message_router # Removed as it's not used by current methods
         logger.debug("FilteringManager initialized.")  # INFO -> DEBUG
 
     def is_registration_allowed(

@@ -18,7 +18,7 @@ Key responsibilities include:
 *   Managing security aspects like credential encryption and GCP secret resolution (`SecurityManager`).
 *   Routing requests to the appropriate client based on component availability, agent permissions, and routing weights (`MessageRouter`).
 *   Enforcing access control based on defined MCP roots (`RootManager`).
-*   Storing `AgentConfig` instances for use in filtering and discovery by Layer 2.
+*   Utilizing `AgentConfig` instances (passed by Layer 2) for applying filtering rules during runtime requests.
 
 The Host System is structured internally into two sub-layers:
 *   **Foundation Layer:** Provides core services like security, routing, and root management.
@@ -88,10 +88,10 @@ This layer provides the core infrastructure for interacting with MCP servers.
 
 *   **`host/host.py` (`MCPHost`):**
     *   Orchestrates the initialization and shutdown sequence for all managers and client connections.
-    *   Holds the main `HostConfig` and the dictionary of `AgentConfig`s.
+    *   Holds the main `HostConfig`. Receives `AgentConfig` instances from Layer 2 for runtime request processing and filtering.
     *   Provides public methods (`get_prompt`, `execute_tool`, `read_resource`, `get_formatted_tools`, `register_client`) that act as the primary interface for Layer 2.
     *   Integrates `MessageRouter` and `FilteringManager` to apply routing and filtering rules before delegating tasks to Resource Managers.
-    *   Manages client sessions (`_clients`) and the `AsyncExitStack` for cleanup.
+    *   Orchestrates client lifecycles via `ClientManager` and `anyio.TaskGroup`, managing individual client cancel scopes and the `AsyncExitStack` for cleanup.
 *   **`host/models.py`:**
     *   Defines core Pydantic models used by Layer 3: `HostConfig`, `ClientConfig`, `RootConfig`, `GCPSecretConfig`.
     *   Also defines `AgentConfig`, which is stored and used for filtering here, but primarily acted upon by Layer 2/2.5.
@@ -103,7 +103,7 @@ This layer provides the core infrastructure for interacting with MCP servers.
     *   `filter_component_list`: Filters lists of components based on `AgentConfig.exclude_components`.
 *   **`host/foundation/security.py` (`SecurityManager`):**
     *   Manages encryption key (`AURITE_MCP_ENCRYPTION_KEY` or generated). It is crucial for production environments to explicitly set the `AURITE_MCP_ENCRYPTION_KEY` environment variable to ensure persistent and secure encryption, rather than relying on an auto-generated key.
-    *   Provides methods for encrypting/decrypting credentials (though not heavily used by `MCPHost` currently, available for future use).
+    *   Provides methods for encrypting/decrypting credentials (though not heavily used by `MCPHost` currently, available for future use). The credential storage mechanism is currently an in-memory store suitable for development/testing; for production environments handling highly sensitive credentials directly through this manager, integration with a secure vault service would be recommended.
     *   Handles resolution of GCP secrets specified in `ClientConfig.gcp_secrets` using `google-cloud-secret-manager`.
 *   **`host/foundation/routing.py` (`MessageRouter`):**
     *   Maintains mappings of components (tools, prompts, resources) to the client IDs that provide them.
