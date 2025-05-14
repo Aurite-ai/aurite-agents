@@ -102,6 +102,20 @@ When `MCPHost` initializes an MCP client (which typically runs as a separate Pyt
     *   **MCP Server Script Responsibility:** Once the MCP server subprocess is launched with these environment variables, it is the responsibility of the MCP server script itself to handle them securely (e.g., not logging them, not writing them to insecure locations). The Aurite Agents framework provides them to the script in a standard way; the script must then maintain their confidentiality.
     *   **Least Privilege:** Ensure that any secrets configured via `ClientConfig.gcp_secrets` (and the IAM permissions for the ADC identity) grant only the necessary permissions required by that specific MCP server.
 
+### 7. Dynamic Registration Control (`AURITE_ALLOW_DYNAMIC_REGISTRATION`)
+
+The `HostManager` (`src/host_manager.py`) provides methods for dynamically registering new components (Clients, Agents, LLMs, Workflows) at runtime, typically via API endpoints.
+
+*   **Purpose:** This environment variable allows administrators to globally enable or disable these dynamic registration capabilities.
+*   **Environment Variable:** `AURITE_ALLOW_DYNAMIC_REGISTRATION`
+    *   Set to `"true"` (case-insensitive) to enable dynamic registration.
+    *   If set to any other value, or if not set, dynamic registration will be **disabled by default**.
+*   **Behavior When Disabled:** If an attempt is made to call a dynamic registration method (e.g., `HostManager.register_agent()`) while this feature is disabled, the method will raise a `PermissionError`.
+*   **Security Implication:**
+    *   Disabling dynamic registration provides an important security hardening measure, especially in production environments or where API endpoints might be exposed. It prevents unauthorized or accidental changes to the running configuration of the Aurite Agents framework.
+    *   If dynamic registration is required, ensure that the API endpoints or other mechanisms that trigger these `HostManager` methods are adequately secured with authentication and authorization.
+*   **Recommendation:** For most production deployments, it is recommended to set `AURITE_ALLOW_DYNAMIC_REGISTRATION="false"` unless dynamic updates to the configuration are a specific operational requirement and the calling interfaces are secured.
+
 ## Supported Versions
 
 *(Placeholder: Detail which versions of Aurite Agents are currently supported with security updates.)*
