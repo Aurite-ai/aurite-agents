@@ -214,8 +214,13 @@ The `.env` file also contains settings for Redis, optional database persistence 
 
 The primary way to interact with the framework is through its FastAPI server:
 ```bash
-python -m src.bin.api
+python -m src.bin.api.api
 ```
+or use the `pyproject.toml` script:
+```bash
+start-api
+```
+
 By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
 
 ### 3. Other Entrypoints

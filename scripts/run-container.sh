@@ -15,8 +15,8 @@ else
 fi
 
 # Build the Docker image
-IMAGE_NAME="aurite-agents:latest"
-DOCKERFILE_PATH="$PROJECT_ROOT/Dockerfile"
+IMAGE_NAME="aurite-agents-dev:latest"
+DOCKERFILE_PATH="$PROJECT_ROOT/Dockerfile.dev"
 docker build -t "$IMAGE_NAME" -f "$DOCKERFILE_PATH" "$PROJECT_ROOT"
 
 # Run the Docker container
