@@ -8,7 +8,9 @@ from unittest.mock import (
     AsyncMock,
 )  # Ensure patch and MagicMock are here
 import logging  # Added logging import
-
+import os
+from dotenv import load_dotenv
+from pathlib import Path
 # import pytest_asyncio # Removed - Use standard pytest fixture with anyio plugin
 
 # Use relative imports assuming tests run from aurite-mcp root
@@ -19,11 +21,11 @@ from src.config.config_models import (
 from src.host.host import MCPHost
 from src.host_manager import HostManager
 from src.host.resources import ToolManager, PromptManager
-from src.config import PROJECT_ROOT_DIR  # Import project root
 
 # Define logger for this fixtures module
 logger = logging.getLogger(__name__)
 
+load_dotenv()
 
 @pytest.fixture
 def mock_host_config() -> HostConfig:
@@ -92,9 +94,9 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     the testing_config.json file. Handles setup and teardown.
     """
     # Define path to the test config file relative to the project root
-    test_config_path = (
-        PROJECT_ROOT_DIR / "config/projects/testing_config.json"  # Updated path
-    )  # Use PROJECT_ROOT_DIR directly
+    test_config_path = Path(
+        os.getenv("HOST_CONFIG_PATH") # use the config file defined in the .env
+    )
 
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
