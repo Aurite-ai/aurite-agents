@@ -6,7 +6,7 @@ The Aurite Agents team and community take the security of the framework seriousl
 
 Please **DO NOT** report security vulnerabilities through public GitHub issues.
 
-Instead, please report them by sending an email to `[REPLACE_WITH_SECURITY_EMAIL_ALIAS]`.
+Instead, please report them by sending an email to `ryan@aurite.ai`.
 
 Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
 
@@ -141,11 +141,3 @@ The `HostManager` (`src/host_manager.py`) provides methods for dynamically regis
     *   Disabling dynamic registration provides an important security hardening measure, especially in production environments or where API endpoints might be exposed. It prevents unauthorized or accidental changes to the running configuration of the Aurite Agents framework.
     *   If dynamic registration is required, ensure that the API endpoints or other mechanisms that trigger these `HostManager` methods are adequately secured with authentication and authorization.
 *   **Recommendation:** For most production deployments, it is recommended to set `AURITE_ALLOW_DYNAMIC_REGISTRATION="false"` unless dynamic updates to the configuration are a specific operational requirement and the calling interfaces are secured.
-
-## Supported Versions
-
-*(Placeholder: Detail which versions of Aurite Agents are currently supported with security updates.)*
-
----
-
-*This document is a work in progress and will be updated as the security review progresses.*
