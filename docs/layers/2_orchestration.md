@@ -89,6 +89,7 @@ This layer orchestrates the core agentic capabilities of the framework.
     *   Handles `tool_use` via `MCPHost`.
     *   Applies filtering via `MCPHost`.
     *   If `config.include_history` is true and a `StorageManager` is provided, loads previous history and saves the full history after execution.
+    *   **Streaming SSE Indexing:** When streaming agent responses, the `Agent` (via `AgentTurnProcessor`) now primarily passes through the LLM provider's original content block indices for Server-Sent Events. This simplifies backend logic compared to previous custom index mapping.
 *   **`workflows/simple_workflow.py` (`SimpleWorkflowExecutor`):**
     *   Executes a sequence of agents defined in `WorkflowConfig`.
     *   Uses `ExecutionFacade` to run each agent step.

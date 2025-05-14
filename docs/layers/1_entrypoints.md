@@ -40,7 +40,7 @@ Describes how the entrypoints provide access to the framework's capabilities.
     *   `src/bin/cli.py`: Does *not* directly initialize `HostManager`. It relies on a running API server instance.
 *   **Configuration & Dependencies:**
     *   The main `ServerConfig` (API Key, Redis details, Host Config Path, DB settings, etc.) is loaded via `get_server_config()` from `src/bin/dependencies.py`. This function is used by `api.py` (indirectly via other dependencies) and `worker.py`.
-    *   API route files (in `src/bin/api/routes/`) use FastAPI dependency injection (`Depends`, `Security`) provided by `src/bin/dependencies.py` to get instances of `HostManager`, `ComponentManager`, `ProjectManager`, `ServerConfig`, and to validate the API key (`X-API-Key` header or `api_key` query parameter).
+    *   API route files (in `src/bin/api/routes/`) use FastAPI dependency injection (`Depends`, `Security`) provided by `src/bin/dependencies.py` to get instances of `HostManager`, `ComponentManager`, `ProjectManager`, `ServerConfig`, and to validate the API key (via the `X-API-Key` header).
 *   **Registration Flow (API):**
     1.  API receives registration request (HTTP POST).
         *   For component registration (agents, workflows, clients, LLM configs): Requests are typically routed to `src/bin/api/routes/components_routes.py`.

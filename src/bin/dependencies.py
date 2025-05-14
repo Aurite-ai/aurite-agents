@@ -46,31 +46,23 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
 async def get_api_key(
-    request: Request,  # Added Request to access query_params
+    # request: Request, # REMOVED
     server_config: ServerConfig = Depends(get_server_config),
     api_key_header_value: Optional[str] = Security(api_key_header),
 ) -> str:
     """
     Dependency to verify the API key.
-    Checks X-API-Key header first, then 'api_key' query parameter.
+    Checks X-API-Key header.
     Uses secrets.compare_digest for timing attack resistance.
     """
-    provided_api_key: Optional[str] = api_key_header_value
-    source = "header"
+    if not api_key_header_value:
+        logger.warning("API key missing from X-API-Key header.")
+        raise HTTPException(
+            status_code=401,
+            detail="API key required in X-API-Key header.",
+        )
 
-    if not provided_api_key:
-        # Try to get from query parameter if not in header
-        provided_api_key = request.query_params.get("api_key")
-        if provided_api_key:
-            source = "query parameter"
-        else:
-            logger.warning("API key missing from request header and query parameters.")
-            raise HTTPException(
-                status_code=401,
-                detail="API key required in X-API-Key header or as 'api_key' query parameter.",
-            )
-
-    logger.debug(f"API key provided via {source}.")
+    # logger.debug("API key provided via header.") # Optional: can be uncommented if needed
 
     # Ensure API_KEY is loaded correctly
     expected_api_key = getattr(server_config, "API_KEY", None)
@@ -80,13 +72,13 @@ async def get_api_key(
             status_code=500, detail="Server configuration error: API Key not set."
         )
 
-    if not secrets.compare_digest(provided_api_key, expected_api_key):
-        logger.warning(f"Invalid API key received via {source}.")
+    if not secrets.compare_digest(api_key_header_value, expected_api_key):
+        logger.warning("Invalid API key received via X-API-Key header.")
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",
         )
-    return provided_api_key
+    return api_key_header_value
 
 
 # --- HostManager Dependency ---

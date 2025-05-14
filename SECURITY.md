@@ -102,9 +102,35 @@ When `MCPHost` initializes an MCP client (which typically runs as a separate Pyt
     *   **MCP Server Script Responsibility:** Once the MCP server subprocess is launched with these environment variables, it is the responsibility of the MCP server script itself to handle them securely (e.g., not logging them, not writing them to insecure locations). The Aurite Agents framework provides them to the script in a standard way; the script must then maintain their confidentiality.
     *   **Least Privilege:** Ensure that any secrets configured via `ClientConfig.gcp_secrets` (and the IAM permissions for the ADC identity) grant only the necessary permissions required by that specific MCP server.
 
-### 7. Dynamic Registration Control (`AURITE_ALLOW_DYNAMIC_REGISTRATION`)
+### 7. Custom Workflow Execution (`CustomWorkflowExecutor`)
 
-The `HostManager` (`src/host_manager.py`) provides methods for dynamically registering new components (Clients, Agents, LLMs, Workflows) at runtime, typically via API endpoints.
+The Aurite Agents framework allows for the execution of custom Python-based workflows via the `CustomWorkflowExecutor` (`src/workflows/custom_workflow.py`). This feature provides significant flexibility but carries inherent security implications due to the execution of arbitrary Python code.
+
+*   **Nature of Risk:** Custom workflows execute Python code defined in modules specified by `CustomWorkflowConfig`. The primary risk is that this code could be insecure, whether unintentionally or maliciously.
+*   **Path Restriction (Mitigation):**
+    *   A critical security control is that the `module_path` for custom workflow code **must reside within the defined `PROJECT_ROOT_DIR`**. This restriction is enforced by both `CustomWorkflowExecutor` during execution and `HostManager` during dynamic registration of new custom workflows. This prevents loading code from arbitrary, potentially unsafe system locations.
+*   **Dynamic Registration Control (Mitigation):**
+    *   The `AURITE_ALLOW_DYNAMIC_REGISTRATION` environment variable (see Section 9 of this document) globally controls whether new custom workflows (and other components) can be registered at runtime. Setting this to `"false"` (recommended for production) prevents the addition of new custom workflow configurations beyond those defined in the initial project setup.
+*   **Trust Model:** The framework inherently trusts the Python code within the modules specified for custom workflows. Developers using this feature are responsible for the security, correctness, and resource management of their custom workflow code.
+*   **Capabilities Granted:** Custom workflows are passed an instance of the `ExecutionFacade`. This allows them to orchestrate other components within the Aurite Agents framework, such as running agents or other workflows. This power means that a compromised custom workflow could potentially misuse these capabilities.
+*   **Input/Output:** Custom workflows can define arbitrary inputs and outputs. Validation and sanitization of these are the responsibility of the custom workflow's implementation and its calling context.
+
+### 8. Data Persistence Security Considerations
+
+If database persistence is enabled (via `AURITE_ENABLE_DB="true"`), the `StorageManager` (`src/storage/db_manager.py`) handles saving and loading certain configurations and agent conversation history.
+
+*   **Agent Conversation History:**
+    *   Agent conversation history is stored in the database if `AgentConfig.include_history` is true and a `session_id` is provided.
+    *   The content of these conversations (stored in the `AgentHistoryDB.content_json` column) is saved as-is by the `StorageManager` (typically as plaintext JSON).
+    *   **Security Implication:** If agents handle or discuss sensitive information, this data will be stored in plaintext within the database. The security of this sensitive data then relies heavily on the security measures applied to the database system itself (e.g., access controls, network security, encryption at rest at the database/filesystem level). The Aurite Agents framework does not currently perform application-level encryption of conversation history before storage.
+    *   **Recommendation:** Ensure your database instance is appropriately secured if sensitive information is anticipated in agent conversations.
+*   **Configuration Storage:**
+    *   Component configurations (Agents, LLMs, Workflows) are also synced to the database. These configurations generally do not contain direct secrets like API keys (which are typically handled via environment variables for the respective clients or via GCP Secret Manager integration). They are stored as-is.
+*   **SQL Injection:** The `StorageManager` uses SQLAlchemy ORM for database interactions, which inherently protects against SQL injection vulnerabilities when used correctly.
+
+### 9. Dynamic Registration Control (`AURITE_ALLOW_DYNAMIC_REGISTRATION`)
+
+The `HostManager` (`src/host_manager.py`) provides methods for dynamically registering new components (Clients, Agents, LLMs, Simple Workflows, and Custom Workflows) at runtime, typically via API endpoints.
 
 *   **Purpose:** This environment variable allows administrators to globally enable or disable these dynamic registration capabilities.
 *   **Environment Variable:** `AURITE_ALLOW_DYNAMIC_REGISTRATION`
