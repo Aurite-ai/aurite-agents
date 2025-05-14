@@ -52,7 +52,6 @@ htmlcov/
 # Documentation
 docs/
 *.md
-!README.md
 
 # Local development
 .env.local

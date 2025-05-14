@@ -66,7 +66,8 @@ ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     ENV=development \
     CACHE_DIR=/app/cache \
-    PROJECT_CONFIG_PATH=/app/config/deployment_testing.json \
+    PROJECT_CONFIG_PATH=/app/config/projects/testing_config.json \
+    AURITE_ALLOW_DYNAMIC_REGISTRATION=true \
     LOG_LEVEL=DEBUG
 
 # Expose the correct port (default 8000 for the API)
