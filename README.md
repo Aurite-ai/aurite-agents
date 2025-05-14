@@ -222,8 +222,15 @@ By default, it starts on `http://0.0.0.0:8000`. You can then send requests to it
 
 *   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
     ```bash
-    # Example: Execute an agent (ensure API server is running or configure CLI for direct mode if applicable)
-    python -m src.bin.cli execute agent "MyAgentName" "Hello there!" --api-url http://localhost:8000 --api-key YOUR_API_KEY
+    # Example: Execute an agent (ensure API server is running)
+    # Assumes API_KEY environment variable is set.
+    run-cli execute agent "Weather Agent" "What is the weather in London?"
+
+    # Example: Execute a simple workflow
+    run-cli execute workflow "main" "What should I wear in San Francisco today?"
+
+    # Example: Execute a custom workflow (input must be a valid JSON string)
+    run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
     ```
 *   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up).
     ```bash
