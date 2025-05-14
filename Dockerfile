@@ -19,10 +19,10 @@ COPY pyproject.toml .
 # Copy source code needed for editable install
 COPY src/ ./src/
 COPY config/ ./config/
-COPY tests/ ./tests/
+# tests/ directory is not needed for production build
 
-# Install the package in editable mode with dev dependencies
-RUN pip install --no-cache-dir -e .[dev]
+# Install the package in editable mode (runtime dependencies only)
+RUN pip install --no-cache-dir -e .
 
 # Runtime stage
 FROM python:3.12-slim
@@ -51,7 +51,7 @@ COPY --from=builder /build/src/ ./src/
 COPY --from=builder /build/config/ ./config/
 # Copy pyproject.toml (might be needed by runtime tools or for reference)
 COPY --from=builder /build/pyproject.toml .
-COPY --from=builder /build/tests/ ./tests/
+# tests/ directory is not copied to the production image
 
 # Create cache directory with proper permissions
 # Ensure the directory exists before changing ownership
