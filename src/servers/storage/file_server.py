@@ -35,21 +35,21 @@ def read_file(filepath: str) -> str:
         return "File not found"
 
 @mcp.tool()
-def read_file_by_id(id: int) -> str:
-    """Read a file by id and return the string content
+def read_file_by_index(index: int) -> str:
+    """Read a file by index and return the string content
 
     Args:
-        id: The id of the file to be read. Must be on the list of allowed filepaths (use list_filepaths())
+        index: The index of the file to be read. Must be on the list of allowed filepaths (use list_filepaths())
     """
     
-    if id >= len(FILES) or id < 0:
-        return "Invalid id"
+    if index >= len(FILES) or index < 0:
+        return "Invalid index"
     
-    return read_file(FILES[id])
+    return read_file(FILES[index])
 
 @mcp.tool()
 def list_filepaths() -> list[str]:
-    """Return a list of file paths to documentation files. They will be of the format 'id: filepath'"""
+    """Return a list of file paths to documentation files. They will be of the format 'index: filepath'"""
     
     file_str = "\n".join([f"{i}: {FILES[i]}" for i in range(len(FILES))])
 
