@@ -82,6 +82,13 @@ class HostManager:
             self.component_manager
         )  # Pass component manager
 
+        # Check if dynamic registration is allowed
+        self._dynamic_registration_enabled = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
+        if self._dynamic_registration_enabled:
+            logger.info("Dynamic registration is ENABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION.")
+        else:
+            logger.info("Dynamic registration is DISABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION. Registration methods will raise an error if called.")
+
         # Instantiate StorageManager if DB is enabled
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
             logger.info(
@@ -424,8 +431,13 @@ class HostManager:
 
         Raises:
             ValueError: If the HostManager is not initialized, or if the client ID already exists.
+            PermissionError: If dynamic registration is disabled.
             Exception: Propagates exceptions from the underlying MCPHost client initialization.
         """
+        if not self._dynamic_registration_enabled:
+            logger.error("Dynamic registration is disabled. Cannot register client.")
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+
         logger.debug(
             f"Attempting to dynamically register client: {client_config.client_id}"
         )
@@ -488,7 +500,12 @@ class HostManager:
 
         Raises:
             ValueError: If the HostManager is not initialized, or if any specified client_id is not found.
+            PermissionError: If dynamic registration is disabled.
         """
+        if not self._dynamic_registration_enabled:
+            logger.error("Dynamic registration is disabled. Cannot register agent.")
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+
         logger.debug(
             f"Attempting to dynamically register/update agent: {agent_config.name}"
         )
@@ -605,7 +622,12 @@ class HostManager:
         Raises:
             ValueError: If the HostManager is not initialized or the llm_id already exists.
             RuntimeError: If no active project is loaded.
+            PermissionError: If dynamic registration is disabled.
         """
+        if not self._dynamic_registration_enabled:
+            logger.error("Dynamic registration is disabled. Cannot register LLM config.")
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+
         logger.debug(
             f"Attempting to dynamically register LLM config: {llm_config.llm_id}"
         )
@@ -660,7 +682,12 @@ class HostManager:
         Raises:
             ValueError: If the HostManager is not initialized, the workflow name already exists,
                         or if any agent name in the steps is not found.
+            PermissionError: If dynamic registration is disabled.
         """
+        if not self._dynamic_registration_enabled:
+            logger.error("Dynamic registration is disabled. Cannot register workflow.")
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+
         logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register workflow: {workflow_config.name}"
         )
@@ -759,8 +786,13 @@ class HostManager:
 
         Raises:
             ValueError: If the HostManager is not initialized, the custom workflow name already exists,
-                        or the module_path is invalid
+                        or the module_path is invalid.
+            PermissionError: If dynamic registration is disabled.
         """
+        if not self._dynamic_registration_enabled:
+            logger.error("Dynamic registration is disabled. Cannot register custom workflow.")
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+
         logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register workflow: {custom_workflow_config.name}"
         )

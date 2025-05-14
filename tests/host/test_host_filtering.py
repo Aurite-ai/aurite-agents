@@ -27,7 +27,7 @@ def mock_message_router() -> MessageRouter:
 @pytest.fixture
 def filtering_manager(mock_message_router: MessageRouter) -> FilteringManager:
     """Fixture for a FilteringManager instance with a mocked router."""
-    return FilteringManager(message_router=mock_message_router)
+    return FilteringManager()
 
 
 @pytest.fixture

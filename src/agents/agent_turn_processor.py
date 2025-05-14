@@ -174,19 +174,20 @@ class AgentTurnProcessor:
         logger.debug("Streaming conversation turn...")
         self._tool_uses_this_turn = []  # Reset for this turn
 
-        # --- Refactor for Frontend SSE Index (V2.1 Plan) ---
-        frontend_sse_index_allocator = 0
-        # Maps LLM's original block index to the frontend index *first assigned* to that LLM block instance.
-        llm_block_original_idx_to_frontend_idx: Dict[int, int] = {}
-        # Maps a tool_id to its assigned frontend_sse_index.
-        tool_id_to_frontend_idx: Dict[str, int] = {}
-        # Tracks the frontend index for the *currently open conceptual text block*.
-        active_frontend_idx_for_current_text_stream: Optional[int] = None
-        # --- End Refactor ---
-
+        # active_tool_calls stores information about tools the LLM has started to use in the current turn.
+        # The key is the LLM's original content_block_index for the tool_use block.
         active_tool_calls: Dict[
             int, Dict[str, Any]
-        ] = {}  # To store info about tools being called, indexed by content_block_index
+        ] = {}
+
+        # SSE Event Indexing Strategy:
+        # The 'index' field in the yielded event_data for events like text_block_start, text_delta,
+        # tool_use_start, tool_use_input_delta, and content_block_stop will directly correspond to
+        # the LLM provider's original content_block.index.
+        # For tool_result and tool_execution_error events, the 'index' will also be the
+        # original content_block.index of the tool_use block that triggered the tool execution.
+        # The frontend primarily uses tool_use_id to associate results with their calls for placement.
+        # This approach simplifies backend logic by removing custom frontend-specific index allocation.
 
         try:
             async for llm_event in self.llm.stream_message(
@@ -198,249 +199,49 @@ class AgentTurnProcessor:
             ):
                 event_type = llm_event.get("event_type")
                 event_data = llm_event.get("data", {}).copy() # Use a copy for modification
-                llm_event_original_index = event_data.get("index") # LLM's original index
+                llm_event_original_index = event_data.get("index")
 
-                # --- Frontend SSE Index Assignment (V2.1 Plan) ---
-                final_frontend_idx_to_yield: Optional[int] = None
-                # Get LLM's original index from the original data, before event_data (the copy) is modified.
-                # Note: llm_event_original_index was already defined above as event_data.get("index")
-                # which is fine as event_data is a copy of llm_event.get("data", {}) at this point.
-                # To be explicit with V2 plan, let's use a clear variable from original data if needed,
-                # but current llm_event_original_index is effectively from original data at this stage.
-
-                if event_type == "text_block_start":
-                    assigned_frontend_idx = frontend_sse_index_allocator
-                    frontend_sse_index_allocator += 1
-                    active_frontend_idx_for_current_text_stream = assigned_frontend_idx
-                    final_frontend_idx_to_yield = assigned_frontend_idx
+                if event_type == "tool_use_start":
                     if llm_event_original_index is not None:
-                        llm_block_original_idx_to_frontend_idx[llm_event_original_index] = assigned_frontend_idx
-                    logger.debug(f"text_block_start: llm_idx={llm_event_original_index}, assigned_fidx={assigned_frontend_idx}, active_text_fidx={active_frontend_idx_for_current_text_stream}")
-
-                elif event_type == "tool_use_start":
-                    assigned_frontend_idx = frontend_sse_index_allocator
-                    frontend_sse_index_allocator += 1
-                    final_frontend_idx_to_yield = assigned_frontend_idx
-                    active_frontend_idx_for_current_text_stream = None # Tool use is not a text stream
-
-                    tool_id = event_data.get("tool_id") # event_data is still original here for tool_id
-                    if tool_id:
-                        tool_id_to_frontend_idx[tool_id] = assigned_frontend_idx
-                    else:
-                        logger.error(f"Tool_use_start event missing 'tool_id'. Cannot map to frontend index. Data: {event_data}")
-
-                    if llm_event_original_index is not None:
-                        llm_block_original_idx_to_frontend_idx[llm_event_original_index] = assigned_frontend_idx
-                    logger.debug(f"tool_use_start: llm_idx={llm_event_original_index}, tool_id={tool_id}, assigned_fidx={assigned_frontend_idx}")
-
-                elif event_type == "text_delta":
-                    # 1. Try to use mapping if llm_event_original_index is present and mapped
-                    if llm_event_original_index is not None and llm_event_original_index in llm_block_original_idx_to_frontend_idx:
-                        final_frontend_idx_to_yield = llm_block_original_idx_to_frontend_idx[llm_event_original_index]
-                        # Ensure active_frontend_idx_for_current_text_stream is aligned
-                        if active_frontend_idx_for_current_text_stream != final_frontend_idx_to_yield:
-                            logger.debug(f"text_delta for llm_idx {llm_event_original_index} (mapped to fidx {final_frontend_idx_to_yield}) aligns active_text_fidx from {active_frontend_idx_for_current_text_stream}.")
-                            active_frontend_idx_for_current_text_stream = final_frontend_idx_to_yield
-                    # 2. Else, if a text stream is already active, continue it
-                    elif active_frontend_idx_for_current_text_stream is not None:
-                        final_frontend_idx_to_yield = active_frontend_idx_for_current_text_stream
-                    # 3. Else, this delta starts a new conceptual block
-                    else:
-                        assigned_frontend_idx = frontend_sse_index_allocator
-                        frontend_sse_index_allocator += 1
-                        active_frontend_idx_for_current_text_stream = assigned_frontend_idx
-                        final_frontend_idx_to_yield = assigned_frontend_idx
-                        if llm_event_original_index is not None: # If this new block's delta has an original LLM index, map it.
-                            llm_block_original_idx_to_frontend_idx[llm_event_original_index] = assigned_frontend_idx
-                        logger.info(
-                            f"text_delta initiating new conceptual block (active_text_fidx was None and llm_idx {llm_event_original_index} not mapped). "
-                            f"Assigned_fidx={assigned_frontend_idx}"
-                        )
-                    logger.debug(f"text_delta: llm_idx={llm_event_original_index}, using_fidx={final_frontend_idx_to_yield}, active_text_fidx={active_frontend_idx_for_current_text_stream}")
-
-                elif event_type == "tool_use_input_delta":
-                    # This event is part of a tool_use block, which should have its llm_event_original_index mapped.
-                    if llm_event_original_index is not None and llm_event_original_index in llm_block_original_idx_to_frontend_idx:
-                        final_frontend_idx_to_yield = llm_block_original_idx_to_frontend_idx[llm_event_original_index]
-                    else:
-                        logger.error(f"tool_use_input_delta for unmapped or None llm_idx={llm_event_original_index}. Critical error if tool relies on this. Fallback to last allocated or 0.")
-                        final_frontend_idx_to_yield = frontend_sse_index_allocator - 1 if frontend_sse_index_allocator > 0 else 0
-                    logger.debug(f"tool_use_input_delta: llm_idx={llm_event_original_index}, using_fidx={final_frontend_idx_to_yield}")
-
-                elif event_type == "content_block_stop":
-                    # This event refers to an LLM block index that should have been previously mapped.
-                    fidx_of_stopped_block = None
-                    if llm_event_original_index is not None:
-                        fidx_of_stopped_block = llm_block_original_idx_to_frontend_idx.get(llm_event_original_index)
-
-                    final_frontend_idx_to_yield = fidx_of_stopped_block
-
-                    if fidx_of_stopped_block is not None:
-                        # If this stop event corresponds to the currently active text stream, clear it.
-                        if fidx_of_stopped_block == active_frontend_idx_for_current_text_stream:
-                            active_frontend_idx_for_current_text_stream = None
-                            logger.debug(f"content_block_stop for llm_idx={llm_event_original_index}: Matched active_text_fidx {fidx_of_stopped_block}. Cleared active_text_fidx.")
-                        # If it's stopping a tool_use block, active_frontend_idx_for_current_text_stream would be None already.
-                        # If it's stopping an older text block (not the current active one), that's also fine.
-                    elif active_frontend_idx_for_current_text_stream is not None and event_data.get("content_type") != "tool_use": # Check if it's not a tool_use stop without an index
-                        # Fallback: LLM index was None or not in map, but a text stream was active. Assume this stop event is for it.
-                        logger.warning(f"content_block_stop for unmapped/None LLM index {llm_event_original_index} (type: {event_data.get('content_type')}). Assuming it stops current text stream with fidx {active_frontend_idx_for_current_text_stream}.")
-                        final_frontend_idx_to_yield = active_frontend_idx_for_current_text_stream
-                        active_frontend_idx_for_current_text_stream = None
-                    else:
-                        # If llm_event_original_index is None or not mapped, and no active text stream,
-                        # or if it's a tool_use stop without a mapped index (which shouldn't happen if tool_use_start worked).
-                        logger.error(f"content_block_stop for unmapped/None LLM index {llm_event_original_index} (type: {event_data.get('content_type')}) and no active text stream or unhandled tool. Cannot determine frontend index reliably. Fallback.")
-                        final_frontend_idx_to_yield = frontend_sse_index_allocator - 1 if frontend_sse_index_allocator > 0 else 0
-                    logger.debug(f"content_block_stop: llm_idx={llm_event_original_index}, using_fidx={final_frontend_idx_to_yield}, active_text_fidx={active_frontend_idx_for_current_text_stream}")
-
-                # For other event types like message_start, message_delta (message level), llm_call_completed, ping, error from LLM
-                # final_frontend_idx_to_yield will remain None by default, so their original index (if any) from event_data is preserved.
-
-                if final_frontend_idx_to_yield is not None:
-                    event_data["index"] = final_frontend_idx_to_yield
-                # --- End Frontend SSE Index Assignment (V2.1 Plan) ---
-
-
-                if event_type == "message_start":
-                    # Forward message_start if needed, or just log
-                    logger.info(f"Stream started: {event_data}")
-                    # message_start usually doesn't have an index related to content blocks
-                    yield {"event_type": event_type, "data": event_data}
-
-                elif event_type == "text_block_start":
-                    # Useful for frontend to know a text block is beginning
-                    yield {"event_type": event_type, "data": event_data}
-
-                elif event_type == "text_delta":
-                    yield {"event_type": event_type, "data": event_data} # Forward text chunks
-
-                elif event_type == "tool_use_start":
-                    if llm_event_original_index is not None: # Check if original index exists
-                        active_tool_calls[llm_event_original_index] = { # Use original index for map key
-                            "id": event_data.get("tool_id"), # Get from potentially modified event_data
+                        active_tool_calls[llm_event_original_index] = {
+                            "id": event_data.get("tool_id"),
                             "name": event_data.get("tool_name"),
-                            "input_str": "",  # Initialize buffer for input JSON
-                            # No longer storing frontend_index here, will use tool_id_to_frontend_idx
+                            "input_str": "",
                         }
                     else:
-                        # This was already logged above if llm_event_original_index is None for tool_use_start
-                        # but specifically for active_tool_calls, it's critical.
-                        logger.error(f"Tool_use_start event is missing 'llm_event_original_index'. Cannot track in active_tool_calls. Data: {event_data}")
-                    yield {"event_type": event_type, "data": event_data}  # Forward to frontend
+                        logger.error(f"Tool_use_start event is missing 'index'. Cannot track tool call. Data: {event_data}")
+                    yield {"event_type": event_type, "data": event_data}
 
                 elif event_type == "tool_use_input_delta":
-                    logger.debug(
-                        f"ATP: Received tool_use_input_delta event. Full event_data: {event_data}"
-                    )
-                    # Use llm_event_original_index to find the tool call in active_tool_calls
                     if llm_event_original_index is not None and llm_event_original_index in active_tool_calls:
                         json_chunk_data = event_data.get("json_chunk")
-                        # Ensure chunk_to_add is a string
-                        chunk_to_add = (
-                            str(json_chunk_data) if json_chunk_data is not None else ""
-                        )
-
-                        logger.debug(
-                            f"ATP: Tool input delta for index {llm_event_original_index}. Current input_str: '{active_tool_calls[llm_event_original_index]['input_str']}'. Chunk to add (type {type(chunk_to_add)}): '{chunk_to_add}'"
-                        )
+                        chunk_to_add = str(json_chunk_data) if json_chunk_data is not None else ""
                         active_tool_calls[llm_event_original_index]["input_str"] += chunk_to_add
-                        logger.debug(
-                            f"ATP: Tool input delta for index {llm_event_original_index}. New input_str: '{active_tool_calls[llm_event_original_index]['input_str']}'"
-                        )
                     else:
                         logger.warning(
-                            f"ATP: Received tool_use_input_delta for index {llm_event_original_index} (from event_data: {event_data.get('index')}) but not found in active_tool_calls ({list(active_tool_calls.keys())}) or index is None."
+                            f"ATP: Received tool_use_input_delta for index {llm_event_original_index} but not found in active_tool_calls or index is None."
                         )
-                    yield {"event_type": event_type, "data": event_data}  # Forward to frontend
+                    yield {"event_type": event_type, "data": event_data}
 
                 elif event_type == "content_block_stop":
-                    # No need to add to stopped_llm_indices anymore
-                    yield {"event_type": event_type, "data": event_data}  # Forward to frontend
+                    yield {"event_type": event_type, "data": event_data} # Yield first
 
-                    # Use llm_event_original_index to find the tool call in active_tool_calls
                     if llm_event_original_index is not None and llm_event_original_index in active_tool_calls:
-                        # This signifies the LLM is done specifying this tool call
-                        tool_call_info = active_tool_calls.pop(
-                            llm_event_original_index # Use original index
-                        )  # Process this tool call
+                        tool_call_info = active_tool_calls.pop(llm_event_original_index)
                         tool_id = tool_call_info.get("id")
                         tool_name = tool_call_info.get("name")
                         tool_input_str = tool_call_info.get("input_str", "")
-
-                        # V2 Plan: Retrieve frontend_idx using tool_id
-                        retrieved_tool_frontend_idx = None
-                        if tool_id:
-                            retrieved_tool_frontend_idx = tool_id_to_frontend_idx.get(tool_id)
-
-                        if retrieved_tool_frontend_idx is None:
-                            logger.error(f"Could not find frontend SSE index for tool_id '{tool_id}'. Using block's assigned index {event_data.get('index')} as fallback.")
-                            # Fallback to the index assigned to the content_block_stop event itself if tool-specific one not found
-                            retrieved_tool_frontend_idx = event_data.get("index", 0)
-
-
                         logger.info(
-                            f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}, frontend_index: {retrieved_tool_frontend_idx}"
+                            f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
-                        logger.debug(
-                            f"ATP: Attempting to parse tool_input_str (repr): {repr(tool_input_str)}"
-                        )
-
-                        # Store tool use details (already done in non-streaming, ensure consistency if needed)
-                        # self._tool_uses_this_turn.append(...)
-
                         try:
-                            # Strip whitespace just in case, though json.loads usually handles it.
-                            cleaned_tool_input_str = (
-                                tool_input_str.strip() if tool_input_str else ""
-                            )
-                            # Aggressively remove potential null bytes or other non-printable ASCII that might break json.loads
+                            cleaned_tool_input_str = tool_input_str.strip() if tool_input_str else ""
                             sanitized_tool_input_str = "".join(
-                                c
-                                for c in cleaned_tool_input_str
-                                if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
-                            )  # Allow common whitespace
-                            if (
-                                not sanitized_tool_input_str and cleaned_tool_input_str
-                            ):  # If stripping all made it empty, it was likely bad
-                                logger.warning(
-                                    f"ATP: tool_input_str became empty after sanitization. Original: {repr(cleaned_tool_input_str)}"
-                                )
-                                # Decide: raise error or try to parse original? For now, try original if sanitization empties it.
-                                # Or, more safely, if sanitization changes the string, log both and parse sanitized.
-                                if sanitized_tool_input_str != cleaned_tool_input_str:
-                                    logger.debug(
-                                        f"ATP: Sanitized tool_input_str for parsing: {repr(sanitized_tool_input_str)}. Original cleaned: {repr(cleaned_tool_input_str)}"
-                                    )
-                                # Use the sanitized string for parsing if it's not empty, otherwise use cleaned if that wasn't empty.
-                                string_to_parse = (
-                                    sanitized_tool_input_str
-                                    if sanitized_tool_input_str
-                                    else cleaned_tool_input_str
-                                )
-                            else:
-                                string_to_parse = cleaned_tool_input_str  # Default to cleaned if sanitization didn't change or wasn't needed
-
-                            logger.debug(
-                                f"ATP: Final string for json.loads: {repr(string_to_parse)}"
+                                c for c in cleaned_tool_input_str if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
                             )
-                            parsed_input = (
-                                json.loads(string_to_parse) if string_to_parse else {}
-                            )
+                            string_to_parse = sanitized_tool_input_str if sanitized_tool_input_str else cleaned_tool_input_str
+                            parsed_input = json.loads(string_to_parse) if string_to_parse else {}
 
-                            # Yield an event indicating the tool input is finalized
-                            # Ensure this event also uses the correct frontend_index
-                            tool_input_complete_data = {
-                                "index": retrieved_tool_frontend_idx, # Use the frontend index for this tool
-                                "tool_id": tool_id,
-                                "input": parsed_input,
-                            }
-                            yield {
-                                "event_type": "tool_use_input_complete",
-                                "data": tool_input_complete_data
-                            }
-
-                            # Tool execution logic
                             tool_result_content = await self.host.execute_tool(
                                 tool_name=tool_name,
                                 arguments=parsed_input,
@@ -449,8 +250,6 @@ class AgentTurnProcessor:
                             logger.debug(
                                 f"Tool '{tool_name}' executed successfully via stream."
                             )
-
-                            # Ensure tool_result_content is JSON serializable
                             serializable_output: Any
                             if isinstance(tool_result_content, str):
                                 serializable_output = tool_result_content
@@ -458,139 +257,77 @@ class AgentTurnProcessor:
                                 serializable_output = []
                                 for item in tool_result_content:
                                     if hasattr(item, "model_dump"):
-                                        # Ensure exclude_none=True for nested models
-                                        item_dump = item.model_dump(
-                                            mode="json", exclude_none=True
-                                        )
-                                        # Anthropic expects tool result content text blocks to NOT have 'id' or 'name'
+                                        item_dump = item.model_dump(mode="json", exclude_none=True)
                                         if item_dump.get("type") == "text":
-                                            item_dump = {
-                                                "type": "text",
-                                                "text": item_dump.get("text", ""),
-                                            }  # Keep only type and text
+                                            item_dump = {"type": "text", "text": item_dump.get("text", "")}
                                         serializable_output.append(item_dump)
                                     else:
                                         serializable_output.append(str(item))
-                            elif hasattr(
-                                tool_result_content, "model_dump"
-                            ):  # Pydantic model
-                                serializable_output = tool_result_content.model_dump(
-                                    mode="json", exclude_none=True
-                                )
-                                # If the top-level result is a single text block, ensure it's clean
+                            elif hasattr(tool_result_content, "model_dump"):
+                                serializable_output = tool_result_content.model_dump(mode="json", exclude_none=True)
                                 if serializable_output.get("type") == "text":
-                                    serializable_output = {
-                                        "type": "text",
-                                        "text": serializable_output.get("text", ""),
-                                    }
-                            elif (
-                                isinstance(
-                                    tool_result_content, (dict, int, float, bool)
-                                )
-                                or tool_result_content is None
-                            ):
+                                    serializable_output = {"type": "text", "text": serializable_output.get("text", "")}
+                            elif isinstance(tool_result_content, (dict, int, float, bool)) or tool_result_content is None:
                                 serializable_output = tool_result_content
                             else:
-                                logger.warning(
-                                    f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string."
-                                )
+                                logger.warning(f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string.")
                                 serializable_output = str(tool_result_content)
 
                             tool_result_data = {
-                                "index": retrieved_tool_frontend_idx,  # Use the frontend index for this tool
+                                "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "status": "success",
                                 "output": serializable_output,
                                 "is_error": False,
                             }
-                            yield {
-                                "event_type": "tool_result",
-                                "data": tool_result_data,
-                            }
-                        except json.JSONDecodeError as json_err: # Dedented
-                            logger.error(
-                                f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
-                            )
+                            yield {"event_type": "tool_result", "data": tool_result_data}
+                        except json.JSONDecodeError as json_err:
+                            logger.error(f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}")
                             tool_error_data = {
-                                "index": retrieved_tool_frontend_idx,  # Use the frontend index
+                                "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": f"Invalid JSON input for tool: {str(json_err)}",
                             }
-                            yield {
-                                "event_type": "tool_execution_error",
-                                "data": tool_error_data,
-                            }
-                        except Exception as e: # Dedented
-                            logger.error(
-                                f"Error executing tool {tool_name} via stream: {e}",
-                                exc_info=True,
-                            )
+                            yield {"event_type": "tool_execution_error", "data": tool_error_data}
+                        except Exception as e:
+                            logger.error(f"Error executing tool {tool_name} via stream: {e}", exc_info=True)
                             tool_error_data = {
-                                "index": retrieved_tool_frontend_idx,  # Use the frontend index
+                                "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": str(e),
                             }
-                            yield {
-                                "event_type": "tool_execution_error",
-                                "data": tool_error_data,
-                            }
-                    elif llm_event_original_index is None:
-                        logger.warning(f"Content_block_stop event missing 'index', cannot process associated tool call if any. Data: {event_data}")
+                            yield {"event_type": "tool_execution_error", "data": tool_error_data}
+                    elif llm_event_original_index is None and event_data.get("content_type") == "tool_use":
+                        logger.warning(f"Content_block_stop for tool_use event missing 'index'. Cannot process tool call. Data: {event_data}")
 
-
-                elif event_type == "message_delta":
-                    # Contains stop_reason, usage. Could be part of stream_end or separate.
-                    # For now, let Agent handle the final stop_reason from message_stop.
-                    # This event type usually doesn't have a block-specific index.
-                    yield {"event_type": event_type, "data": event_data}
-
-                elif (
-                    event_type
-                    == "stream_end"  # This event now comes from anthropic_client with stop_reason
-                ):
+                elif event_type == "stream_end":
                     llm_call_stop_reason = event_data.get("stop_reason")
                     logger.info(
                         f"LLM stream call processing finished by ATP. LLM Stop Reason: {llm_call_stop_reason}"
                     )
-
-                    # This event signifies the end of the current LLM call from the LLM's perspective.
-                    # AgentTurnProcessor's role for *this specific LLM call* is complete.
-                    # It needs to inform the Agent class about the outcome of this LLM call.
-                    # If tools were used, the Agent class will decide to loop.
-                    # If it was 'end_turn', the Agent class will decide to stop.
-                    # AgentTurnProcessor itself does not yield the *final* stream_end to the client.
-                    # It yields an event indicating this LLM part of the turn is done.
                     yield {
-                        "event_type": "llm_call_completed",  # New, specific event for Agent class
-                        "data": { # Ensure this data is also a copy if modified
+                        "event_type": "llm_call_completed",
+                        "data": {
                             "stop_reason": llm_call_stop_reason,
-                            "original_event_data": event_data, # This is already a copy
+                            "original_event_data": event_data,
                         },
                     }
-                    break  # Stop processing events from this specific LLM stream call; ATP's job for this LLM call is done.
+                    break
 
-                elif (
-                    event_type == "ping"
-                    or event_type == "error" # General LLM error, not tool execution error
-                    or event_type == "unknown"
-                ):
-                    # These events usually don't have a block-specific index or don't need it modified.
+                else: # Handles message_start, text_block_start, text_delta, message_delta, ping, error, unknown
                     yield {"event_type": event_type, "data": event_data}
 
         except Exception as e:
             logger.error(f"Error during agent turn streaming: {e}", exc_info=True)
             yield {
-                "event_type": "error",  # A general error for the stream processing itself
+                "event_type": "error",
                 "data": {"message": f"Agent turn processing error: {str(e)}"},
             }
         finally:
             logger.debug("Finished streaming conversation turn.")
-            # Ensure a final stream_end is yielded if not already by LLM, though LLM should handle it.
-            # This might be redundant if LLM always sends message_stop.
-            # For safety, one could add a check here if a stream_end wasn't the last thing yielded.
 
     async def _process_tool_calls(
         self, llm_response: AgentOutputMessage
