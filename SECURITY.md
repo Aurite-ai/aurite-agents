@@ -89,9 +89,18 @@ Controlled access to tools, prompts, and resources is managed through a combinat
 
 *   **Security Implication:** This layered approach ensures that agents can only access clients and specific components they are explicitly permissioned for via their `AgentConfig`, providing a critical access control mechanism.
 
-### 6. Environment Variable Handling for MCP Servers
+### 6. Environment Variable Handling for MCP Server Subprocesses
 
-*(Placeholder for details on how secrets and other environment variables are securely passed to MCP server subprocesses. To be detailed after `MCPHost` and `ClientManager` review.)*
+When `MCPHost` initializes an MCP client (which typically runs as a separate Python subprocess via `mcp.stdio_client`), it takes care to prepare the environment for that subprocess:
+
+*   **Base Environment:** The subprocess inherits a copy of the environment from the main Aurite Agents host process.
+*   **GCP Secret Injection:** If `ClientConfig.gcp_secrets` are defined and `USE_SECRETS_MANAGER` is enabled, the `SecurityManager` resolves these secrets, and they are then **added to or overwrite existing variables in the environment specific to that MCP server subprocess.** This is handled by `ClientManager` before launching the subprocess.
+*   **Mechanism:** These environment variables are passed to the subprocess using standard operating system mechanisms for process creation (typically via the `env` parameter in Python's `subprocess` module, which is used by `anyio` and `mcp.stdio_client`).
+*   **Security Considerations:**
+    *   **Isolation:** Environment variables are generally isolated to the specific child process they are passed to. They are not directly accessible by other MCP server subprocesses or the host process after launch (unless the host process explicitly reads them back, which it doesn't).
+    *   **Logging:** The Aurite Agents framework (specifically `ClientManager` and `MCPHost`) **does not log the values of these environment variables** (including resolved secrets) during the startup process. It logs that secrets *are* being injected and how many, but not their content.
+    *   **MCP Server Script Responsibility:** Once the MCP server subprocess is launched with these environment variables, it is the responsibility of the MCP server script itself to handle them securely (e.g., not logging them, not writing them to insecure locations). The Aurite Agents framework provides them to the script in a standard way; the script must then maintain their confidentiality.
+    *   **Least Privilege:** Ensure that any secrets configured via `ClientConfig.gcp_secrets` (and the IAM permissions for the ADC identity) grant only the necessary permissions required by that specific MCP server.
 
 ## Supported Versions
 
