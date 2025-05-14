@@ -42,6 +42,11 @@ from .config.component_manager import ComponentManager
 from .config.project_manager import ProjectManager
 
 
+class DuplicateClientIdError(ValueError):
+    """Custom exception for duplicate client ID registration attempts."""
+    pass
+
+
 class HostManager:
     """
     Manages the lifecycle of MCPHost and orchestrates the execution of
@@ -450,42 +455,32 @@ class HostManager:
             logger.error("Cannot register client: No active project loaded.")
             raise RuntimeError("No active project loaded to register client against.")
 
-        # Check for duplicate client ID using the host's method
-        if self.host.is_client_registered(client_config.client_id):
-            logger.info( # Changed from error to info
-                f"Client ID '{client_config.client_id}' already registered with host. Updating configuration."
+        # Check if client_id already exists in the active project's client configurations
+        # OR if it's currently active on the host.
+        if client_config.client_id in active_project.clients or \
+           (self.host and self.host.is_client_registered(client_config.client_id)):
+            logger.error(
+                f"Attempt to register duplicate client ID '{client_config.client_id}'. This is not allowed as it's already configured in the project or active on the host."
             )
-            # Potentially unregister/reregister or update existing client in MCPHost
-            # For now, we assume MCPHost.register_client can handle updates or we rely on ProjectManager update.
-            # If MCPHost.register_client doesn't update, this might need more logic here or in MCPHost.
-        # else: # No longer raising ValueError, proceed to register/update
+            raise DuplicateClientIdError(
+                f"Client ID '{client_config.client_id}' is already registered or configured in the active project. Duplicate client registration is not allowed."
+            )
 
+        # If not a duplicate, proceed with registration
         try:
             # Delegate to MCPHost to handle the actual initialization and lifecycle management
-            # This might need to change if MCPHost.register_client cannot update.
-            # If it can't, we might need an unregister_client then register_client,
-            # or an update_client method on MCPHost.
-            # For now, assume it handles it or ProjectManager update is sufficient for config.
-            if not self.host.is_client_registered(client_config.client_id):
-                 await self.host.register_client(client_config) # Only call if truly new to host
-            else:
-                 # If client is already on host, we might need an update mechanism on host
-                 # For now, we'll update the project config and assume host might pick up changes
-                 # or a restart/re-init of client is needed for host to see changes.
-                 # This part of upsert for clients needs careful consideration of MCPHost capabilities.
-                 logger.info(f"Client '{client_config.client_id}' already on host. Project config will be updated.")
+            await self.host.register_client(client_config)
 
-
-            # If successful, add/update in the active project's configuration
+            # If successful, add to the active project's configuration
             self.project_manager.add_component_to_active_project(
                 "clients", client_config.client_id, client_config
             )
             logger.info(
-                f"Client '{client_config.client_id}' (re)registered successfully with host and active project."
+                f"Client '{client_config.client_id}' registered successfully with host and active project."
             )
         except Exception as e:
             logger.error(
-                f"Failed to register/update client '{client_config.client_id}' with host: {e}",
+                f"Failed to register client '{client_config.client_id}' with host: {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (e.g., API endpoint) to handle
@@ -600,6 +595,10 @@ class HostManager:
         logger.info(
             f"Agent '{agent_config.name}' registered successfully in active project."
         )
+        # Also update ComponentManager's in-memory store
+        if self.component_manager and hasattr(self.component_manager, 'agents'):
+            self.component_manager.agents[agent_config.name] = agent_config
+            logger.info(f"Agent '{agent_config.name}' also updated in ComponentManager's in-memory store.")
 
         # Sync to DB if enabled
         if self.storage_manager:
