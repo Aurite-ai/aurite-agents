@@ -81,4 +81,4 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
 # Command to run the development server with auto-reload
 # Point to the correct app location: src.bin.api:app
 # Use port 8000
-CMD ["python", "-m", "uvicorn", "src.bin.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "src.bin.api.api:app", "--host", "0.0.0.0", "--port", "8000"]
