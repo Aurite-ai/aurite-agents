@@ -1,5 +1,5 @@
 test_type: custom_workflow
-name: ExampleCustom
+name: ExampleCustomWorkflow
 user_input:
   city: San Francisco
 iterations: 1
