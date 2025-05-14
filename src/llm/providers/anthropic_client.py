@@ -14,6 +14,7 @@ from ...agents.agent_models import (
     AgentOutputContentBlock,
 )
 
+import httpx # Added import
 from anthropic import AsyncAnthropic, APIConnectionError, RateLimitError
 from anthropic._types import NOT_GIVEN
 from anthropic.types import (
@@ -56,10 +57,24 @@ class AnthropicLLM(BaseLLM):
                 "Anthropic API key not provided or found in ANTHROPIC_API_KEY environment variable."
             )
             raise ValueError("Anthropic API key is required.")
+
         try:
-            self.anthropic_sdk_client = AsyncAnthropic(api_key=resolved_api_key)
+            # Create an httpx.AsyncClient configured to prefer HTTP/1.1
+            # We also increase the default timeouts slightly as a precaution,
+            # though the main test is http1.
+            http1_client = httpx.AsyncClient(
+                http2=False,  # Force HTTP/1.1
+                timeout=httpx.Timeout(15.0, connect=5.0) # 15s total, 5s connect
+            )
+
+            self.anthropic_sdk_client = AsyncAnthropic(
+                api_key=resolved_api_key,
+                http_client=http1_client, # Pass the pre-configured client
+                timeout=30.0, # Explicitly set SDK-level timeout (seconds)
+                max_retries=3 # Explicitly set SDK-level retries
+            )
             logger.info(
-                f"AnthropicLLM client initialized successfully for model {self.model_name}."
+                f"AnthropicLLM client initialized successfully for model {self.model_name} using HTTP/1.1 client with extended timeouts/retries."
             )
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic SDK client: {e}")
