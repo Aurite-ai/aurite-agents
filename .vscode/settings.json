@@ -10,6 +10,7 @@
     "**/*.pyw": true,
     "**/.obsidian/**": true,
     "**/.pytest_cache/**": true,
+    "**/__pycache__/**": true,
     "**/.ruff_cache/**": true,
     "**/.python-version/**": true,
     "**/.venv/**": true,
