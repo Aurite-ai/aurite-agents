@@ -141,3 +141,15 @@ The `HostManager` (`src/host_manager.py`) provides methods for dynamically regis
     *   Disabling dynamic registration provides an important security hardening measure, especially in production environments or where API endpoints might be exposed. It prevents unauthorized or accidental changes to the running configuration of the Aurite Agents framework.
     *   If dynamic registration is required, ensure that the API endpoints or other mechanisms that trigger these `HostManager` methods are adequately secured with authentication and authorization.
 *   **Recommendation:** For most production deployments, it is recommended to set `AURITE_ALLOW_DYNAMIC_REGISTRATION="false"` unless dynamic updates to the configuration are a specific operational requirement and the calling interfaces are secured.
+
+### 10. API Authentication (FastAPI Server)
+
+The FastAPI server (`src/bin/api/api.py`) provides the primary programmatic interface to the Aurite Agents framework. Access to its endpoints is controlled via an API key.
+
+*   **Mechanism:** API key authentication is enforced by a dependency (`get_api_key` in `src/bin/dependencies.py`) applied to protected routes.
+*   **Transmission:** The API key **must** be provided in the `X-API-Key` HTTP header of the request. Transmitting the API key via query parameters is **not supported** to enhance security (as URLs, including query parameters, can be logged in various places).
+*   **Configuration:** The server-side expected API key is configured via the `API_KEY` environment variable (see `.env.example`).
+*   **Security Best Practices:**
+    *   The framework uses `secrets.compare_digest` for comparing the provided API key against the expected key, which helps protect against timing attacks.
+    *   It is crucial to generate a strong, unique, and random string for your `API_KEY`.
+    *   Treat the `API_KEY` as a sensitive secret and manage it accordingly (e.g., using environment variables, secrets management tools, and not committing it to version control).
