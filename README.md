@@ -202,6 +202,14 @@ Key variables you'll need to configure in your `.env` file include:
 
 The `.env` file also contains settings for Redis, optional database persistence (`AURITE_ENABLE_DB`, `AURITE_DB_URL`, etc.), and other service configurations. Review all entries marked with `#REPLACE`.
 
+#### Important Security Note: Encryption Key
+
+*   **`AURITE_MCP_ENCRYPTION_KEY`**: This environment variable is used by the framework's `SecurityManager` to encrypt sensitive data.
+    *   If not set, a key will be **auto-generated on startup**. This is convenient for quick local testing.
+    *   **However, for any persistent deployment, or if you intend to use features that rely on encrypted storage (even for development), it is critical to set this to a strong, persistent, URL-safe base64-encoded 32-byte key.**
+    *   Relying on an auto-generated key means that any encrypted data may become inaccessible if the application restarts and generates a new key.
+    *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
+
 ### 2. Running the API Server
 
 The primary way to interact with the framework is through its FastAPI server:

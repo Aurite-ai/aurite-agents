@@ -102,7 +102,7 @@ This layer provides the core infrastructure for interacting with MCP servers.
     *   `is_component_allowed_for_agent`: Checks `AgentConfig.exclude_components` for single requests.
     *   `filter_component_list`: Filters lists of components based on `AgentConfig.exclude_components`.
 *   **`host/foundation/security.py` (`SecurityManager`):**
-    *   Manages encryption key (`AURITE_MCP_ENCRYPTION_KEY` or generated).
+    *   Manages encryption key (`AURITE_MCP_ENCRYPTION_KEY` or generated). It is crucial for production environments to explicitly set the `AURITE_MCP_ENCRYPTION_KEY` environment variable to ensure persistent and secure encryption, rather than relying on an auto-generated key.
     *   Provides methods for encrypting/decrypting credentials (though not heavily used by `MCPHost` currently, available for future use).
     *   Handles resolution of GCP secrets specified in `ClientConfig.gcp_secrets` using `google-cloud-secret-manager`.
 *   **`host/foundation/routing.py` (`MessageRouter`):**
