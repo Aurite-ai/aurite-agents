@@ -87,6 +87,12 @@ class HostManager:
             self.component_manager
         )  # Pass component manager
 
+        # --- BEGIN TEMPORARY DEBUG LOGGING ---
+        logger.info(f"DEBUG: All environment variables at HostManager init: {os.environ}")
+        aurite_dyn_reg_env_val = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION")
+        logger.info(f"DEBUG: Value of AURITE_ALLOW_DYNAMIC_REGISTRATION from os.getenv: '{aurite_dyn_reg_env_val}'")
+        # --- END TEMPORARY DEBUG LOGGING ---
+
         # Check if dynamic registration is allowed
         self._dynamic_registration_enabled = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
         if self._dynamic_registration_enabled:
