@@ -16,7 +16,12 @@ echo.
 echo %YELLOW_COLOR%Checking prerequisites...%NC%
 docker --version >nul 2>&1
 if errorlevel 1 (
-    echo %RED_COLOR%ERROR: Docker could not be found. Please install Docker.%NC%
+    echo %RED_COLOR%ERROR: Docker CLI could not be found. Please install Docker.%NC%
+    goto :eof
+)
+docker ps >nul 2>&1
+if errorlevel 1 (
+    echo %RED_COLOR%ERROR: Docker daemon is not responding. Please ensure Docker Desktop is running.%NC%
     goto :eof
 )
 docker compose version >nul 2>&1
@@ -31,7 +36,7 @@ if errorlevel 1 (
 ) else (
     set DOCKER_COMPOSE_CMD=docker compose
 )
-echo %GREEN_COLOR%Docker and Docker Compose found.%NC%
+echo %GREEN_COLOR%Docker daemon responding and Docker Compose found.%NC%
 
 REM Handle .env file
 echo.
@@ -43,15 +48,15 @@ set NEW_API_KEY_VALUE=
 if exist "%ENV_FILE%" (
     echo %YELLOW_COLOR%WARNING: An existing '%ENV_FILE%' file was found.%NC%
     set /p confirm_replace="Do you want to replace it with values from '%ENV_EXAMPLE_FILE%' and user inputs? (y/N): "
-    if /i not "%confirm_replace%"=="y" (
-        echo Skipping .env file modification.
-    ) else (
+    if /i "%confirm_replace%"=="y" (
         echo Backing up existing .env to .env.bak
         if exist "%ENV_FILE%.bak" del "%ENV_FILE%.bak"
         ren "%ENV_FILE%" ".env.bak"
         copy "%ENV_EXAMPLE_FILE%" "%ENV_FILE%" >nul
         echo "'%ENV_FILE%' has been replaced with '%ENV_EXAMPLE_FILE%'.
         call :configure_env_vars
+    ) else (
+        echo Skipping .env file modification.
     )
 ) else (
     copy "%ENV_EXAMPLE_FILE%" "%ENV_FILE%" >nul
