@@ -161,7 +161,6 @@ __package_previews__
 .store
 .cursor
 privatePackages/store
-yarn.lock
 RELEASE.md
 .jest-cache
 .verdaccio-cache
