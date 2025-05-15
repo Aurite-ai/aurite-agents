@@ -95,7 +95,7 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     """
     # Define path to the test config file relative to the project root
     test_config_path = Path(
-        os.getenv("HOST_CONFIG_PATH") # use the config file defined in the .env
+        os.getenv("PROJECT_CONFIG_PATH") # use the config file defined in the .env
     )
 
     if not test_config_path.exists():
