@@ -5,7 +5,6 @@ ClientManager for handling MCP client subprocesses and sessions.
 import logging
 import os
 from typing import Dict, Optional
-import os # Ensure os is imported
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client # Import streamablehttp_client

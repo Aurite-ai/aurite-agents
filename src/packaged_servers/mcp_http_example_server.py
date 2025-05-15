@@ -62,7 +62,7 @@ try:
     logger.info(f"Tools available: {[tool.name for tool in tools_registry.values()]}")
 except AttributeError:
     logger.warning("Could not determine how to list tools directly from FastMCP instance for logging.")
-logger.info(f"Mounting MCP application at /mcp_stream_example/") # Added trailing slash here too for logging consistency
+logger.info("Mounting MCP application at /mcp_stream_example/") # Added trailing slash here too for logging consistency
 
 if __name__ == "__main__":
     logger.info("Starting Uvicorn server for MCP HTTP Example Server...")

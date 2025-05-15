@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from ..llm.providers.anthropic_client import AnthropicLLM
 
 # Actual runtime imports
-from ..config.config_models import AgentConfig, ClientConfig, LLMConfig # Ensure LLMConfig is imported for direct use at runtime
+from ..config.config_models import AgentConfig, LLMConfig # Ensure LLMConfig is imported for direct use at runtime
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent

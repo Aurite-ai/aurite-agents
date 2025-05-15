@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import anyio
 from mcp.client.sse import sse_client

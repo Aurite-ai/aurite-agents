@@ -1,7 +1,6 @@
 import asyncio
 from fastapi import FastAPI, Request
 from sse_starlette.sse import EventSourceResponse
-import json
 import logging
 
 logging.basicConfig(level=logging.INFO)
