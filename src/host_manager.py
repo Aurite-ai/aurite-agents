@@ -87,12 +87,6 @@ class HostManager:
             self.component_manager
         )  # Pass component manager
 
-        # --- BEGIN TEMPORARY DEBUG LOGGING ---
-        logger.info(f"DEBUG: All environment variables at HostManager init: {os.environ}")
-        aurite_dyn_reg_env_val = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION")
-        logger.info(f"DEBUG: Value of AURITE_ALLOW_DYNAMIC_REGISTRATION from os.getenv: '{aurite_dyn_reg_env_val}'")
-        # --- END TEMPORARY DEBUG LOGGING ---
-
         # Check if dynamic registration is allowed
         self._dynamic_registration_enabled = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
         if self._dynamic_registration_enabled:
@@ -215,7 +209,7 @@ class HostManager:
                 current_project=active_project,
                 storage_manager=self.storage_manager,
             )
-            
+
             # 5. Load additional config
             prompt_validation_path = Path("config/projects/prompt_validation_config.json")
             if not prompt_validation_path.is_file():
