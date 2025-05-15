@@ -51,7 +51,6 @@ set NEW_API_KEY_VALUE=
 if exist "%ENV_FILE%" (
     echo %YELLOW_COLOR%WARNING: An existing '%ENV_FILE%' file was found.%NC%
     set /p confirm_replace="Do you want to replace it with values from '%ENV_EXAMPLE_FILE%' and user inputs? (Y/n): "
-    echo DEBUG: confirm_replace is [%confirm_replace%]
     if /i "%confirm_replace:~0,1%"=="n" (
         echo Skipping .env file modification.
     ) else (
@@ -94,7 +93,6 @@ goto :after_env_config
     set CONFIG_PROJECTS_DIR=config\projects
     echo Available project configurations in '%CONFIG_PROJECTS_DIR%':
     set i=0
-    setlocal enabledelayedexpansion
     for %%f in ("%CONFIG_PROJECTS_DIR%\*.json") do (
         set "current_file=%%~nxf"
         echo   !i!) !current_file!
@@ -120,7 +118,6 @@ goto :after_env_config
             )
         )
     )
-    endlocal
     echo %GREEN_COLOR%Note: For the backend Docker container to connect to the PostgreSQL Docker container, AURITE_DB_HOST in '.env' should be 'postgres' ^(which is the default from .env.example^).%NC%
 goto :eof
 
