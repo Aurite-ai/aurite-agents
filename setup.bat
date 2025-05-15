@@ -114,7 +114,7 @@ goto :after_env_config
                 if !project_choice! LSS %i% (
                 set "selected_project_file_name=!projects[%project_choice%]!"
                 set "rel_project_config_path=config/projects/!selected_project_file_name!"
-                powershell -Command "& {param($envFileParam, $newProjPathParam) (Get-Content $envFileParam) -replace '^PROJECT_CONFIG_PATH=.*', ('PROJECT_CONFIG_PATH=' + $newProjPathParam) | Set-Content $envFileParam}" -args "%ENV_FILE%" "!rel_project_config_path!"
+                powershell -Command "& {param([string]$envFileParam, [string]$newProjPathParam) (Get-Content $envFileParam) -replace '^PROJECT_CONFIG_PATH=.*', ('PROJECT_CONFIG_PATH=' + $newProjPathParam) | Set-Content $envFileParam}" -args "%ENV_FILE%" "!rel_project_config_path!"
                 if errorlevel 1 (
                     echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%. PowerShell exit code: %errorlevel%%NC%
                 ) else (
