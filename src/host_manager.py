@@ -206,7 +206,13 @@ class HostManager:
             )
             
             # 5. Load additional config
-            await self.load_components_from_project(Path("config/projects/prompt_validation_config.json"))
+            prompt_validation_path = Path("config/projects/prompt_validation_config.json")
+            if not prompt_validation_path.is_file():
+                logger.warning(
+                    f"Prompt validation config not found. Expected at {prompt_validation_path}"
+                )
+            else:
+                await self.load_components_from_project(prompt_validation_path)
 
             logger.info(
                 "HostManager initialization complete."
