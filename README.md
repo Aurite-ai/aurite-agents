@@ -12,8 +12,8 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 
 *   Python >= 3.12 (if running locally without Docker for all services)
 *   `pip` (Python package installer)
-*   Node.js (LTS version recommended, for frontend development if run locally)
-*   Yarn (Package manager for frontend, if run locally)
+*   Node.js (LTS version recommended, for frontend development if run locally without Docker)
+*   Yarn (Package manager for frontend, if run locally without Docker)
 *   Docker & Docker Compose (for the quickstart script and containerized setup)
 *   `redis-server` (Required if you plan to use the asynchronous task worker, whether locally or if you add it to Docker Compose)
 
@@ -88,7 +88,7 @@ If you prefer to set up and run components manually or without Docker for all se
 
     Key variables you'll need to configure in your `.env` file include:
 
-    *   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `/path/to/your/aurite-agents/config/projects/default.json`).
+    *   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `config/projects/default.json`).
     *   `API_KEY`: A secret key to secure the FastAPI endpoints. Generate a strong random key.
     *   `ANTHROPIC_API_KEY` (or other LLM provider keys): Required if your agents use specific LLMs like Anthropic's Claude.
 
