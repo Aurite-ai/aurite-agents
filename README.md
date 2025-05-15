@@ -10,13 +10,14 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 
 ### Prerequisites
 
-*   Python >= 3.12
+*   Python >= 3.12 (if running locally without Docker for all services)
 *   `pip` (Python package installer)
-*   Node.js (LTS version recommended, for frontend development)
-*   Yarn (Package manager for frontend, can be installed via npm/Node.js)
-*   `redis-server` (Required if you plan to use the asynchronous task worker)
+*   Node.js (LTS version recommended, for frontend development if run locally)
+*   Yarn (Package manager for frontend, if run locally)
+*   Docker & Docker Compose (for the quickstart script and containerized setup)
+*   `redis-server` (Required if you plan to use the asynchronous task worker, whether locally or if you add it to Docker Compose)
 
-### Installation & Backend Setup
+### Installation
 
 1.  **Clone the Repository:**
     ```bash
@@ -24,20 +25,59 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
     cd aurite-agents
     ```
 
-2.  **Create and Activate a Virtual Environment (Recommended):**
+### Quickstart with Docker (Recommended)
+
+The fastest way to get the entire Aurite Agents environment (Backend API, Frontend UI, and PostgreSQL database) up and running is by using the provided setup script with Docker.
+
+1.  **Ensure Docker is running.**
+2.  **Run the appropriate setup script for your operating system:**
+    *   **For Linux/macOS:**
+        In the project root directory (`aurite-agents`), execute:
+        ```bash
+        ./setup.sh
+        ```
+    *   **For Windows:**
+        In the project root directory (`aurite-agents`), execute:
+        ```bat
+        setup.bat
+        ```
+    These scripts will:
+    *   Check for Docker and Docker Compose.
+    *   Guide you through creating and configuring your `.env` file (including API keys and project selection).
+    *   Ask if you want to install optional ML dependencies for your local Python environment (useful if you plan to run or develop certain MCP Servers locally that require them).
+    *   Build and start all services using Docker Compose.
+
+    Once complete, the backend API will typically be available at `http://localhost:8000` and the frontend UI at `http://localhost:5173`. The script will display the generated API key needed for the UI.
+
+#### Running Docker Compose Directly (Alternative to Setup Scripts)
+
+If you prefer to manage your `.env` file manually or if the setup scripts encounter issues, you can still use Docker Compose:
+
+1.  **Create/Configure `.env` File:** Ensure you have a valid `.env` file in the project root. You can copy `.env.example` to `.env` and fill in the necessary values (especially `ANTHROPIC_API_KEY`, `API_KEY`, and `PROJECT_CONFIG_PATH`).
+2.  **Run Docker Compose:**
+    ```bash
+    docker compose up -d --build
+    ```
+    (Use `docker-compose` if you have an older standalone version).
+
+### Manual Installation & Backend Setup
+
+If you prefer to set up and run components manually or without Docker for all services:
+
+1.  **Create and Activate a Virtual Environment (Recommended):**
     ```bash
     python -m venv .venv
     source .venv/bin/activate  # On Windows: .venv\Scripts\activate
     ```
 
-3.  **Install Dependencies:**
+2.  **Install Dependencies:**
     The project uses `pyproject.toml` for dependency management. Install the framework and its dependencies (the `[dev]` is for dev dependencies like pytest) in editable mode:
     ```bash
     pip install -e .[dev]
     ```
     This command allows you to make changes to the source code and have them immediately reflected without needing to reinstall.
 
-4.  **Environment Variables Setup:**
+3.  **Environment Variables Setup:**
     Before running the system, you need to set up your environment variables.
 
     a.  **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
@@ -62,7 +102,7 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
         *   Relying on an auto-generated key means that any encrypted data may become inaccessible if the application restarts and generates a new key.
         *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
 
-5.  **Running the Backend API Server:**
+4.  **Running the Backend API Server:**
     The primary way to interact with the framework is through its FastAPI server:
     ```bash
     python -m src.bin.api.api
@@ -77,7 +117,7 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 
 To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
 
-**Note:** Ensure the backend API server (Step 5 above) is running before starting the frontend.
+**Note:** Ensure the backend API server (Step 4 in Manual Setup above) is running before starting the frontend if you are not using the Docker quickstart.
 
 1.  **Navigate to the Frontend Directory:**
     Open a new terminal or use your existing one to change into the `frontend` directory:
