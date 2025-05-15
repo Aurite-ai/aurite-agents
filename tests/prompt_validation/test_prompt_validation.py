@@ -22,9 +22,6 @@ class TestPromptValidation:
         else:
             pytest.skip("No json config specified. Use --config=[filename]")
 
-        # moved to host_manager initialize()
-        # await host_manager.register_config_file("config/prompt_validation_config.json")
-
         result = await host_manager.execution.run_custom_workflow(
             workflow_name="Prompt Validation Workflow",
             initial_input={"config_path": testing_config_path},

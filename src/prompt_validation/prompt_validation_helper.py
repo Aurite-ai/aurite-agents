@@ -6,6 +6,7 @@ import os
 from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
+from src.agents.agent_models import AgentExecutionResult
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -258,7 +259,7 @@ async def improve_prompt(
             # TODO: call as an agent once gemini is added to models
             client = genai.Client()
 
-            response = clientsrc.config.config_models.generate_content(
+            response = client.models.generate_content(
                 model="gemini-2.5-pro-preview-03-25",
                 config=genai.types.GenerateContentConfig(
                     system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
@@ -408,7 +409,7 @@ def _prepare_prompts(testing_config: ValidationConfig):
         )
 
     qa_system_prompt = f"""You are a Quality Assurance Agent, your job is to review the output from the {testing_config.name} based on a given input.
-    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a pass or fail grade based on the system prompt.
+    You have been provided with a prompt explaining how you should evaluate it. Your final output should be your analysis of its performance and a grade based on the system prompt.
     Here is the system prompt provided: "{testing_config.testing_prompt}"
     {f"You have also been provided a rubric containing criteria to use in your evaluation: {testing_config.rubric.model_dump_json()}" if testing_config.rubric else ""}
 
@@ -417,10 +418,49 @@ def _prepare_prompts(testing_config: ValidationConfig):
         "grade": {type_prompts[evaluation_type]}
     }}
     """
-
+    
+    match evaluation_type:
+        case "default":
+            grade_schema = {
+                "type": "string",
+                "description": "The final PASS or FAIL grade",
+                "enum": ["PASS", "FAIL"]
+            }
+        case "numeric":
+            if testing_config.rubric:
+                grade_schema = {
+                    "type": "object",
+                    "properties": {},
+                    "required": [criteria.name for criteria in testing_config.rubric.criteria],
+                }
+                for criteria in testing_config.rubric.criteria:
+                    grade_schema["properties"][criteria.name] = {
+                        "type": "number",
+                        "description": criteria.description,
+                        "minimum": 0,
+                        "maximum": 10,
+                    }
+            else:
+                raise ValueError("Rubric not found when evaluation type is numeric")
+        case _:
+            raise ValueError(f"Evaluation type not recognized: {evaluation_type}")
+    
+    qa_schema = {
+        "type": "object",
+        "properties": {
+          "analysis": {
+            "type": "string",
+            "description": "Your analysis of the performace"
+          },
+          "grade": grade_schema,
+        },
+        "required": ["analysis", "grade"]
+    }
+    
     return {
         "type_prompts": type_prompts,
         "qa_system_prompt": qa_system_prompt,
+        "qa_schema": qa_schema,
     }
 
 
@@ -560,7 +600,7 @@ async def _run_single_iteration(
         executor, testing_config, test_input, override_system_prompt
     )
 
-    if testing_config.analysis:
+    if testing_config.analysis:        
         # analyze the agent/workflow output, overriding system prompt
         analysis_output = await executor.run_agent(
             agent_name="Quality Assurance Agent",
@@ -618,14 +658,14 @@ async def _run_single_iteration(
     return analysis_json, agent_response
 
 
-def _extract_tool_calls(agent_response) -> list[dict]:
+def _extract_tool_calls(agent_response: AgentExecutionResult) -> list[dict]:
     """Extract a list of tool calls from agent response"""
     tool_calls = []
     for item in agent_response.get("conversation", []):
         if item.get("role") == "assistant":
             for c in item.get("content", []):
-                if c.type == "tool_use":
-                    tool_calls.append({"name": c.name, "input": c.input})
+                if c.get("type") == "tool_use":
+                    tool_calls.append({"name": c.get("name"), "input": c.get("input")})
 
     return tool_calls
 
