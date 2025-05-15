@@ -7,6 +7,8 @@ import os
 from typing import Dict, Optional
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamablehttp_client # Import streamablehttp_client
+# from mcp.client.sse import sse_client # Comment out sse_client
 
 # Assuming SecurityManager and ClientConfig are accessible for import
 import anyio # Import anyio
@@ -51,40 +53,58 @@ class ClientManager:
         session_instance = None  # To hold the session if successfully created
 
         try:
-            with client_cancel_scope: # Enter the passed-in cancel scope
-                logger.debug(f"Task for client {client_id}: Starting stdio_client and ClientSession.")
+            with client_cancel_scope:  # Enter the passed-in cancel scope
+                logger.debug(f"Task for client {client_id}: Establishing transport and ClientSession.")
 
-                client_env = os.environ.copy()
-                if client_config.gcp_secrets and security_manager:
-                    logger.debug(f"Resolving GCP secrets for client: {client_id}")
-                    try:
-                        resolved_env_vars = await security_manager.resolve_gcp_secrets(
-                            client_config.gcp_secrets
-                        )
-                        if resolved_env_vars:
-                            client_env.update(resolved_env_vars)
-                            logger.debug(
-                                f"Injected {len(resolved_env_vars)} secrets into environment for client: {client_id}"
+                transport_context = None
+                if client_config.transport_type == "stdio":
+                    if not client_config.server_path:
+                        raise ValueError("server_path is required for stdio transport")
+
+                    client_env = os.environ.copy()
+                    if client_config.gcp_secrets and security_manager:
+                        logger.debug(f"Resolving GCP secrets for client: {client_id}")
+                        try:
+                            resolved_env_vars = await security_manager.resolve_gcp_secrets(
+                                client_config.gcp_secrets
                             )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to resolve GCP secrets for client {client_id}: {e}. Proceeding without them.",
-                            exc_info=True,
-                        )
+                            if resolved_env_vars:
+                                client_env.update(resolved_env_vars)
+                                logger.debug(
+                                    f"Injected {len(resolved_env_vars)} secrets into environment for client: {client_id}"
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to resolve GCP secrets for client {client_id}: {e}. Proceeding without them.",
+                                exc_info=True,
+                            )
 
-                server_params = StdioServerParameters(
-                    command="python",
-                    args=[str(client_config.server_path.resolve())], # Ensure path is resolved
-                    env=client_env,
-                    cwd=str(client_config.server_path.parent.resolve()) # Set CWD to server's directory
-                )
-                logger.debug(
-                    f"Attempting to start stdio_client for {client_id} with command: "
-                    f"{server_params.command} {' '.join(server_params.args)} in CWD: {server_params.cwd}"
-                )
+                    server_params = StdioServerParameters(
+                        command="python",  # Or make this configurable if needed
+                        args=[str(client_config.server_path.resolve())],
+                        env=client_env,
+                        cwd=str(client_config.server_path.parent.resolve())
+                    )
+                    logger.debug(
+                        f"Attempting to start stdio_client for {client_id} with command: "
+                        f"{server_params.command} {' '.join(server_params.args)} in CWD: {server_params.cwd}"
+                    )
+                    transport_context = stdio_client(server_params)
 
-                async with stdio_client(server_params) as (reader, writer):
-                    logger.debug(f"stdio_client transport acquired for {client_id}.")
+                elif client_config.transport_type == "http_stream": # Use http_stream
+                    if not client_config.http_endpoint: # Use http_endpoint
+                        raise ValueError("http_endpoint is required for http_stream transport")
+
+                    logger.debug(f"Attempting to connect streamablehttp_client for {client_id} to URL: {client_config.http_endpoint}")
+                    transport_context = streamablehttp_client(client_config.http_endpoint) # Use streamablehttp_client
+
+                else:
+                    raise ValueError(f"Unsupported transport_type: {client_config.transport_type}")
+
+                async with transport_context as transport_streams: # streamablehttp_client yields (reader, writer, get_session_id_callback)
+                    reader, writer = transport_streams[0], transport_streams[1]
+                    # get_session_id_callback = transport_streams[2] # We don't need this for ClientSession
+                    logger.debug(f"{client_config.transport_type} transport acquired for {client_id}.")
                     async with ClientSession(reader, writer) as session:
                         session_instance = session
                         self.active_clients[client_id] = session
@@ -95,7 +115,13 @@ class ClientManager:
                         logger.debug(f"Task for client {client_id}: Session established and reported. Running until cancelled.")
 
                         # Keep the task alive until its cancel scope is cancelled
-                        await anyio.sleep_forever()
+                        # await anyio.sleep_forever() # Replaced with an event
+                        # Create an event that will never be set, to wait for cancellation
+                        # This is a cleaner way to wait for cancellation than sleep_forever
+                        # in some contexts, though sleep_forever should also work with cancellation.
+                        never_set_event = anyio.Event()
+                        await never_set_event.wait()
+
 
         except anyio.get_cancelled_exc_class():
             logger.debug(f"Client lifecycle task for {client_id} cancelled.")

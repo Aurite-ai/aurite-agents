@@ -9,9 +9,9 @@ This module provides:
 """
 
 import logging
-from typing import Any, List, Optional, Dict  # Added Dict
+from typing import Any, List, Optional, Dict, Literal  # Added Dict and Literal
 from pathlib import Path
-from pydantic import BaseModel, Field  # Added Field
+from pydantic import BaseModel, Field, root_validator  # Added Field and root_validator
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,9 @@ class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
     client_id: str
-    server_path: Path
+    transport_type: Literal["stdio", "http_stream"] = "stdio" # Use http_stream
+    server_path: Optional[Path] = None
+    http_endpoint: Optional[str] = None # Use http_endpoint
     roots: List[RootConfig]
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
@@ -52,6 +54,23 @@ class ClientConfig(BaseModel):
         None,
         description="List of GCP secrets to resolve and inject into the server environment",
     )
+
+    @root_validator(pre=False, skip_on_failure=True)
+    def check_transport_specific_fields(cls, values):
+        transport_type = values.get("transport_type")
+        server_path = values.get("server_path")
+        http_endpoint = values.get("http_endpoint") # Use http_endpoint
+
+        if transport_type == "stdio":
+            if server_path is None:
+                raise ValueError("server_path is required for stdio transport type")
+        elif transport_type == "http_stream": # Use http_stream
+            if http_endpoint is None:
+                raise ValueError("http_endpoint is required for http_stream transport type")
+            # Basic URL validation
+            if not (http_endpoint.startswith("http://") or http_endpoint.startswith("https://")):
+                raise ValueError("http_endpoint must be a valid HTTP/HTTPS URL")
+        return values
 
 
 class HostConfig(BaseModel):

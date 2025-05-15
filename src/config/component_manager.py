@@ -54,7 +54,7 @@ class ComponentManager:
     def __init__(self):
         """Initializes the ComponentManager by loading all components from disk."""
         self.clients: Dict[str, ClientConfig] = {}
-        self.llm_configs: Dict[str, LLMConfig] = {}
+        self.llms: Dict[str, LLMConfig] = {}
         self.agents: Dict[str, AgentConfig] = {}
         self.simple_workflows: Dict[str, WorkflowConfig] = {}
         self.custom_workflows: Dict[str, CustomWorkflowConfig] = {}
@@ -63,7 +63,7 @@ class ComponentManager:
         # Store components in a structured way for easier access
         self._component_stores = {
             "clients": self.clients,
-            "llm_configs": self.llm_configs,
+            "llms": self.llms,
             "agents": self.agents,
             "simple_workflows": self.simple_workflows,
             "custom_workflows": self.custom_workflows,
@@ -270,8 +270,8 @@ class ComponentManager:
     def get_client(self, client_id: str) -> Optional[ClientConfig]:
         return self.get_component_config("clients", client_id)  # type: ignore
 
-    def get_llm_config(self, llm_id: str) -> Optional[LLMConfig]:
-        return self.get_component_config("llm_configs", llm_id)  # type: ignore
+    def get_llm(self, llm_id: str) -> Optional[LLMConfig]:
+        return self.get_component_config("llms", llm_id)  # type: ignore
 
     def get_agent(self, agent_name: str) -> Optional[AgentConfig]:
         return self.get_component_config("agents", agent_name)  # type: ignore
@@ -296,8 +296,8 @@ class ComponentManager:
     def list_clients(self) -> List[ClientConfig]:
         return self.list_components("clients")  # type: ignore
 
-    def list_llm_configs(self) -> List[LLMConfig]:
-        return self.list_components("llm_configs")  # type: ignore
+    def list_llms(self) -> List[LLMConfig]:
+        return self.list_components("llms")  # type: ignore
 
     def list_agents(self) -> List[AgentConfig]:
         return self.list_components("agents")  # type: ignore

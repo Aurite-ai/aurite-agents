@@ -538,7 +538,7 @@ class HostManager:
             )
             try:
                 retrieved_llm_config = self.component_manager.get_component_config(
-                    "llm_configs", agent_config.llm_config_id
+                    "llms", agent_config.llm_config_id
                 )
                 if retrieved_llm_config:
                     # Type cast to LLMConfig if get_component_config returns BaseModel
@@ -657,7 +657,7 @@ class HostManager:
         self.project_manager.add_component_to_active_project(
             "llms",
             llm_config.llm_id,
-            llm_config,  # Changed "llm_configs" to "llms"
+            llm_config,
         )
         logger.info(
             f"LLM config '{llm_config.llm_id}' registered successfully in active project."

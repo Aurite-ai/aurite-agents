@@ -139,7 +139,7 @@ fi
 
 # Run Docker Compose
 echo -e "\n${YELLOW}Starting services with Docker Compose...${NC}"
-$DOCKER_COMPOSE_CMD up -d --build
+$DOCKER_COMPOSE_CMD up --build --abort-on-container-exit
 
 if [ $? -eq 0 ]; then
     echo -e "\n${GREEN}Services started successfully!${NC}"
@@ -150,7 +150,6 @@ if [ $? -eq 0 ]; then
       echo -e "\n${YELLOW}Remember your API Key for the frontend UI: ${GREEN}${NEW_API_KEY_VALUE}${NC}"
     fi
 else
-    echo -e "\n${RED}ERROR: Docker Compose failed to start services. Check the output above.${NC}"
     exit 1
 fi
 

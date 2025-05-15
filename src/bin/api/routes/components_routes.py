@@ -288,8 +288,8 @@ async def register_workflow_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error during workflow registration.")
 
 
-@router.post("/llm-configs/register", status_code=201)
-async def register_llm_config_endpoint(
+@router.post("/llms/register", status_code=201)
+async def register_llm_endpoint(
     llm_config: LLMConfig,  # Use LLMConfig model for request body
     manager: HostManager = Depends(get_host_manager),
 ):

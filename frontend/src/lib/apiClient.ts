@@ -124,7 +124,7 @@ export async function listConfigFiles(componentType: string): Promise<string[]> 
     url = '/projects/list_files';
   } else {
     if (componentType === 'llms') {
-      apiPathType = 'llm-configs';
+      apiPathType = 'llms';
     } else if (componentType === 'simple_workflows') {
       apiPathType = 'simple-workflows';
     } else if (componentType === 'custom_workflows') {
@@ -147,7 +147,7 @@ export async function getConfigFileContent(componentType: string, filename: stri
     url = `/projects/file/${filename}`;
   } else {
     if (componentType === 'llms') {
-      apiPathType = 'llm-configs';
+      apiPathType = 'llms';
     } else if (componentType === 'simple_workflows') {
       apiPathType = 'simple-workflows';
     } else if (componentType === 'custom_workflows') {
@@ -170,7 +170,7 @@ export async function saveConfigFileContent(componentType: string, filename: str
     url = `/projects/file/${filename}`;
   } else {
     if (componentType === 'llms') {
-      apiPathType = 'llm-configs';
+      apiPathType = 'llms';
     } else if (componentType === 'simple_workflows') {
       apiPathType = 'simple-workflows';
     } else if (componentType === 'custom_workflows') {
@@ -192,7 +192,7 @@ export async function saveConfigFileContent(componentType: string, filename: str
 export async function getSpecificComponentConfig(componentType: string, idOrName: string): Promise<any> {
   let apiPathType = componentType;
   if (componentType === 'llms') {
-    apiPathType = 'llm-configs';
+    apiPathType = 'llms';
   } else if (componentType === 'simple_workflows') {
     apiPathType = 'simple-workflows';
   } else if (componentType === 'custom_workflows') {
@@ -253,7 +253,7 @@ export async function listRegisteredCustomWorkflows(): Promise<string[]> {
 }
 
 export async function registerLlmConfigAPI(llmConfig: LLMConfig): Promise<any> { // Changed type from any
-  const response = await apiClient('/llm-configs/register', {
+  const response = await apiClient('/llms/register', {
     method: 'POST',
     body: llmConfig, // The whole llmConfig object is the body
   });
@@ -353,7 +353,7 @@ export async function getActiveProjectComponentConfig(projectComponentType: stri
 
 export async function saveNewConfigFile(componentApiType: string, filename: string, configData: object): Promise<any> {
   // componentApiType should be the direct path segment expected by the backend API
-  // e.g., "agents", "llm-configs", "simple-workflows", "custom-workflows", "clients"
+  // e.g., "agents", "llms", "simple-workflows", "custom-workflows", "clients"
   const encodedFilename = encodeURIComponent(filename);
   const url = `/configs/${componentApiType}/${encodedFilename}`;
 

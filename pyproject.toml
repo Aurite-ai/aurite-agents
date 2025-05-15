@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    "mcp>=1.4.1",
+    "mcp>=1.8.1",
     "httpx>=0.28.1",
     "anyio>=4.8.0",
     "sqlalchemy>=2.0.39",
