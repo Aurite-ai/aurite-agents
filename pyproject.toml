@@ -67,7 +67,6 @@ dependencies = [
     "six>=1.17.0",
     "sniffio>=1.3.1",
     "jsonschema",
-    "sentence-transformers>=4.1.0",
     "sse-starlette>=2.2.1",
     "starlette>=0.46.1",
     "typing_extensions>=4.12.2",
@@ -85,6 +84,9 @@ dev = [
     "types-PyYAML",
     "types-pytz",
     "pytest>=8.3.5",
+]
+ml = [
+    "sentence-transformers>=4.1.0",
 ]
 
 [tool.setuptools.package-data]

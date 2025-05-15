@@ -10,8 +10,8 @@ services:
       POSTGRES_DB: ${AURITE_DB_NAME:-aurite_storage}   # Use .env or default
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${AURITE_DB_PORT:-5432}:5432" # Expose DB port if needed externally
+    # ports: # Not exposing to host by default to avoid conflicts
+      # - "${POSTGRES_HOST_PORT:-5432}:5432"
     networks:
       - aurite_network
     restart: unless-stopped
