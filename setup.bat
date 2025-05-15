@@ -95,7 +95,7 @@ goto :after_env_config
     set i=0
     for %%f in ("%CONFIG_PROJECTS_DIR%\*.json") do (
         set "current_file=%%~nxf"
-        echo   !i!) !current_file!
+        echo   !i!^) !current_file!
         set "projects[!i!]=!current_file!"
         set /a i+=1
     )
