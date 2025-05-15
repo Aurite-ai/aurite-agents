@@ -48,7 +48,7 @@ set NEW_API_KEY_VALUE=
 if exist "%ENV_FILE%" (
     echo %YELLOW_COLOR%WARNING: An existing '%ENV_FILE%' file was found.%NC%
     set /p confirm_replace="Do you want to replace it with values from '%ENV_EXAMPLE_FILE%' and user inputs? (y/N): "
-    if /i "%confirm_replace%"=="y" (
+    if /i "%confirm_replace:~0,1%"=="y" (
         echo Backing up existing .env to .env.bak
         if exist "%ENV_FILE%.bak" del "%ENV_FILE%.bak"
         ren "%ENV_FILE%" ".env.bak"
