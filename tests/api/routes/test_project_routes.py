@@ -2,13 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 import json
 from pathlib import Path
-from typing import Any # Added Any
-from unittest.mock import patch, MagicMock
 
 # Import the FastAPI app instance and dependencies
-from src.bin.api.api import app  # Assuming app is accessible for TestClient
 from src.config import PROJECT_ROOT_DIR
-from src.config.config_models import ProjectConfig
 
 # Marker for API integration tests, specifically for project routes
 pytestmark = [

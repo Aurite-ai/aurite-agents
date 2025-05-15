@@ -1,10 +1,8 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
-import re
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.servers.storage.file_server import list_filepaths, read_file
 from src.servers.storage.vector.pgvector_server import search
 from typing import TYPE_CHECKING, Optional, Any
 # Type hint for ExecutionFacade to avoid circular import

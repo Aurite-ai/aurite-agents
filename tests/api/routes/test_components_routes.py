@@ -496,7 +496,6 @@ def test_list_registered_custom_workflows_unauthorized(api_client: TestClient):
 # The endpoints themselves return [] if manager.*_configs is empty, which is implicitly tested.
 import json # Ensure json is imported for SSE parsing
 from typing import Dict, Any, AsyncGenerator, List # For SSE parsing, FakeLLMClient, and List type hint
-from tests.mocks.fake_llm_client import FakeLLMClient # Import the fake client
 
 # Helper for parsing SSE
 async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> List[Dict[str, Any]]:
