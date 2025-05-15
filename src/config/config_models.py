@@ -142,6 +142,10 @@ class AgentConfig(BaseModel):
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
     client_ids: Optional[List[str]] = None
+    auto: Optional[bool] = Field(
+        False,
+        description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
+    )
     # --- LLM Selection ---
     llm_config_id: Optional[str] = Field(
         None, description="ID of the LLMConfig to use for this agent."

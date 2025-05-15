@@ -35,7 +35,7 @@ router = APIRouter(
 API_TO_CM_TYPE_MAP = {
     "agents": "agents",
     "clients": "clients",
-    "llm-configs": "llm_configs",
+    "llms": "llms",  # Changed from "llm-configs": "llm_configs" to align with ComponentManager
     "simple-workflows": "simple_workflows",
     "custom-workflows": "custom_workflows",
 }
