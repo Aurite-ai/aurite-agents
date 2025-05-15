@@ -87,8 +87,9 @@ goto :after_env_config
     set i=0
     setlocal enabledelayedexpansion
     for %%f in ("%CONFIG_PROJECTS_DIR%\*.json") do (
-        echo   !i!) %%~nxf
-        set "projects[!i!]=%%~nxf"
+        set "current_file=%%~nxf"
+        echo   !i!) !current_file!
+        set "projects[!i!]=!current_file!"
         set /a i+=1
     )
     if %i% equ 0 (
