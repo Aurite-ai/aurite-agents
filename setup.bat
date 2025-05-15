@@ -111,28 +111,6 @@ goto :eof
 echo.
 echo %GREEN_COLOR%Environment setup phase complete.%NC%
 
-REM Ask to install optional ML dependencies
-echo.
-echo %YELLOW_COLOR%Optional ML Dependencies...%NC%
-set ML_REQUIREMENTS_FILE=ml_requirements.txt
-if exist "%ML_REQUIREMENTS_FILE%" (
-    set /p install_ml_deps="Some MCP servers require additional ML packages (e.g., sentence-transformers). Do you want to install them now from '%ML_REQUIREMENTS_FILE%'? (y/N): "
-    if /i "%install_ml_deps%"=="y" (
-        echo Installing ML dependencies from '%ML_REQUIREMENTS_FILE%'...
-        python -m pip install -r "%ML_REQUIREMENTS_FILE%"
-        if errorlevel 1 (
-            echo %RED_COLOR%ERROR: Failed to install ML dependencies. Please check the output and try manually.%NC%
-        ) else (
-            echo %GREEN_COLOR%ML dependencies installed successfully.%NC%
-        )
-    ) else (
-        echo Skipping installation of optional ML dependencies.
-        echo If you need them later, you can install them with: pip install -e .[ml] or pip install -r %ML_REQUIREMENTS_FILE%
-    )
-) else (
-    echo Optional ML requirements file '%ML_REQUIREMENTS_FILE%' not found. Skipping this step.
-)
-
 REM Run Docker Compose
 echo.
 echo %YELLOW_COLOR%Starting services with Docker Compose...%NC%
