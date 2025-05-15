@@ -4,7 +4,7 @@ import re
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from src.servers.storage.file_server import list_filepaths, read_file
+from src.servers.storage.file_server import FILES, read_file
 from src.servers.storage.vector.pgvector_server import batch_store, clear_database
 from typing import TYPE_CHECKING, Optional, Any
 # Type hint for ExecutionFacade to avoid circular import
@@ -70,7 +70,7 @@ class InitializeDocsWorkflow:
                         
             count = 0
             
-            for path in list_filepaths():
+            for path in FILES:
                 file = read_file(path)
             
                 paragraphs = [
