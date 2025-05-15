@@ -90,20 +90,20 @@ goto :after_env_config
     echo Your new API_KEY for the frontend UI is: %GREEN_COLOR%%NEW_API_KEY_VALUE%%NC%
     echo %YELLOW_COLOR%Please copy this key. You will need it to authenticate with the API via the UI.%NC%
 
-    set desired_project_config_path=
-    set /p desired_project_config_path="Enter desired PROJECT_CONFIG_PATH (e.g., config/projects/default.json) or press Enter to keep default: "
-    if defined desired_project_config_path (
-        REM Ensure forward slashes for consistency if user uses backslashes
-        set "desired_project_config_path=!desired_project_config_path:\=/!"
-        powershell -Command "(Get-Content %ENV_FILE%) -replace '^PROJECT_CONFIG_PATH=.*', 'PROJECT_CONFIG_PATH=!desired_project_config_path!' ^| Set-Content %ENV_FILE%"
-        if errorlevel 1 (
-            echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%.%NC%
-        ) else (
-            echo %GREEN_COLOR%PROJECT_CONFIG_PATH updated to '!desired_project_config_path!' in '%ENV_FILE%'.%NC%
-        )
-    ) else (
-        echo Skipping PROJECT_CONFIG_PATH update (no value provided).
-    )
+    @REM set desired_project_config_path=
+    @REM set /p desired_project_config_path="Enter desired PROJECT_CONFIG_PATH (e.g., config/projects/default.json) or press Enter to keep default: "
+    @REM if defined desired_project_config_path (
+    @REM     REM Ensure forward slashes for consistency if user uses backslashes
+    @REM     set "desired_project_config_path=!desired_project_config_path:\=/!"
+    @REM     powershell -Command "(Get-Content %ENV_FILE%) -replace '^PROJECT_CONFIG_PATH=.*', 'PROJECT_CONFIG_PATH=!desired_project_config_path!' ^| Set-Content %ENV_FILE%"
+    @REM     if errorlevel 1 (
+    @REM         echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%.%NC%
+    @REM     ) else (
+    @REM         echo %GREEN_COLOR%PROJECT_CONFIG_PATH updated to '!desired_project_config_path!' in '%ENV_FILE%'.%NC%
+    @REM     )
+    @REM ) else (
+    @REM     echo Skipping PROJECT_CONFIG_PATH update (no value provided).
+    @REM )
     echo %GREEN_COLOR%Note: For the backend Docker container to connect to the PostgreSQL Docker container, AURITE_DB_HOST in '.env' should be 'postgres' ^(which is the default from .env.example^).%NC%
 goto :eof
 
