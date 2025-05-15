@@ -1,12 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Define some colors (won't work in all Windows terminals, but good for those that support ANSI)
-set BLUE_COLOR=\033[0;34m
-set GREEN_COLOR=\033[0;32m
-set YELLOW_COLOR=\033[0;33m
-set RED_COLOR=\033[0;31m
-set NC=\033[0m
+REM Define ESC character
+for /F "tokens=1 delims=#" %%a in ('"prompt #$E# & echo on & for %%b in (1) do rem"') do set "ESC=%%a"
+
+REM Define some colors
+set BLUE_COLOR=%ESC%[0;34m
+set GREEN_COLOR=%ESC%[0;32m
+set YELLOW_COLOR=%ESC%[0;33m
+set RED_COLOR=%ESC%[0;31m
+set NC=%ESC%[0m
 
 echo %BLUE_COLOR%Aurite Agents Setup Script (Windows)%NC%
 echo %BLUE_COLOR%====================================%NC%
@@ -47,17 +50,17 @@ set NEW_API_KEY_VALUE=
 
 if exist "%ENV_FILE%" (
     echo %YELLOW_COLOR%WARNING: An existing '%ENV_FILE%' file was found.%NC%
-    set /p confirm_replace="Do you want to replace it with values from '%ENV_EXAMPLE_FILE%' and user inputs? (y/N): "
+    set /p confirm_replace="Do you want to replace it with values from '%ENV_EXAMPLE_FILE%' and user inputs? (Y/n): "
     echo DEBUG: confirm_replace is [%confirm_replace%]
-    if /i "%confirm_replace:~0,1%"=="y" (
+    if /i "%confirm_replace:~0,1%"=="n" (
+        echo Skipping .env file modification.
+    ) else (
         echo Backing up existing .env to .env.bak
         if exist "%ENV_FILE%.bak" del "%ENV_FILE%.bak"
         ren "%ENV_FILE%" ".env.bak"
         copy "%ENV_EXAMPLE_FILE%" "%ENV_FILE%" >nul
         echo "'%ENV_FILE%' has been replaced with '%ENV_EXAMPLE_FILE%'.
         call :configure_env_vars
-    ) else (
-        echo Skipping .env file modification.
     )
 ) else (
     copy "%ENV_EXAMPLE_FILE%" "%ENV_FILE%" >nul
@@ -150,7 +153,7 @@ if exist "%ML_REQUIREMENTS_FILE%" (
 REM Run Docker Compose
 echo.
 echo %YELLOW_COLOR%Starting services with Docker Compose...%NC%
-%DOCKER_COMPOSE_CMD% up -d --build
+%DOCKER_COMPOSE_CMD% up --build --abort-on-container-exit --remove-orphans
 
 if errorlevel 1 (
     echo %RED_COLOR%ERROR: Docker Compose failed to start services. Check the output above.%NC%
