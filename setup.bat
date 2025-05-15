@@ -23,7 +23,7 @@ docker compose version >nul 2>&1
 if errorlevel 1 (
     docker-compose version >nul 2>&1
     if errorlevel 1 (
-        echo %RED_COLOR%ERROR: Docker Compose (V2 plugin or standalone) could not be found. Please install Docker Compose.%NC%
+        echo %RED_COLOR%ERROR: Docker Compose ^(V2 plugin or standalone^) could not be found. Please install Docker Compose.%NC%
         goto :eof
     ) else (
         set DOCKER_COMPOSE_CMD=docker-compose
@@ -66,7 +66,7 @@ goto :after_env_config
         powershell -Command "(Get-Content %ENV_FILE%) -replace '^ANTHROPIC_API_KEY=.*', 'ANTHROPIC_API_KEY=%anthropic_key%' | Set-Content %ENV_FILE%"
         echo %GREEN_COLOR%ANTHROPIC_API_KEY updated in '%ENV_FILE%'.%NC%
     ) else (
-        echo Skipping ANTHROPIC_API_KEY update (no value provided).
+        echo Skipping ANTHROPIC_API_KEY update ^(no value provided^).
     )
 
     echo Generating a new local API_KEY...
@@ -111,7 +111,7 @@ goto :after_env_config
         )
     )
     endlocal
-    echo %GREEN_COLOR%Note: For the backend Docker container to connect to the PostgreSQL Docker container, AURITE_DB_HOST in '.env' should be 'postgres' (which is the default from .env.example).%NC%
+    echo %GREEN_COLOR%Note: For the backend Docker container to connect to the PostgreSQL Docker container, AURITE_DB_HOST in '.env' should be 'postgres' ^(which is the default from .env.example^).%NC%
 goto :eof
 
 :after_env_config
