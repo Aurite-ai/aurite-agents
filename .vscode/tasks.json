@@ -29,16 +29,13 @@
       },
     },
     {
-      // ...existing code...
       "label": "Run Dev",
       "dependsOn": ["Run Backend", "Run Frontend"],
       "dependsOrder": "parallel", // This should now work as expected
       "group": {
-        // ...existing code...
       },
       "problemMatcher": [],
       "presentation": {
-        // ...existing code...
       }
     }
   ]
