@@ -1,0 +1,17 @@
+{
+    "name": "Testing LLMs",
+    "client_ids": [
+        "new_client"
+    ],
+    "auto": false,
+    "llm_config_id": "my_test_llm",
+    "system_prompt": "Help the user figure out the weather",
+    "config_validation_schema": null,
+    "model": null,
+    "temperature": null,
+    "max_tokens": null,
+    "max_iterations": 10,
+    "include_history": null,
+    "exclude_components": null,
+    "evaluation": null
+}

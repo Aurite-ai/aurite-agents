@@ -53,7 +53,7 @@ const LLMBuildView: React.FC = () => {
     const filename = llmId.trim().replace(/\s+/g, '_') + ".json";
 
     try {
-      await saveNewConfigFile("llm-configs", filename, configToSave);
+      await saveNewConfigFile("llms", filename, configToSave);
       setSaveSuccess(`LLM Config "${llmId}" saved successfully as ${filename}.`);
       // Optionally reset form
       // setLlmId('');

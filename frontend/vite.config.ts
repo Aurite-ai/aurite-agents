@@ -18,9 +18,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Proxy API requests
-      // Requests to e.g. /api/agents/Weather%20Agent/execute will be proxied to http://backend:8000/agents/Weather%20Agent/execute
+      // Requests to e.g. /api/agents/Weather%20Agent/execute will be proxied to the target specified by VITE_API_PROXY_TARGET
       '/api': {
-        target: 'http://backend:8000', // 'backend' will be the service name in docker-compose.yml
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000', // Default to localhost:8000 for local dev
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '') // Remove the /api prefix before forwarding
       },

@@ -50,6 +50,8 @@ services:
       - ./frontend/src:/app/src # For hot reloading of frontend source
       - ./frontend/public:/app/public
       # Add other necessary volume mounts for development if any
+    environment:
+      - VITE_API_PROXY_TARGET=http://backend:8000
     depends_on:
       - backend
     networks:

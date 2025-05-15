@@ -114,8 +114,6 @@ async def get_active_project_component_config(
         component_dict_attribute_name = "custom_workflows"
     elif project_component_type == "llms":
         component_dict_attribute_name = "llms"
-    elif project_component_type == "llm_configs":
-        component_dict_attribute_name = "llms"
     elif project_component_type == "clients":
         component_dict_attribute_name = "clients"
     else:
