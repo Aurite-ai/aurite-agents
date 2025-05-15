@@ -103,14 +103,17 @@ goto :after_env_config
         echo No project JSON files found in %CONFIG_PROJECTS_DIR%.
     ) else (
         set /p project_choice="Select a project configuration by number (or press Enter to skip): "
-        REM Basic number validation
-        echo !project_choice! | findstr /r /c:"^[0-9][0-9]*$" >nul
-        if errorlevel 1 (
-            echo Skipping project configuration selection or invalid input.
+        if not defined project_choice (
+            echo Skipping project configuration selection (no input).
         ) else (
-            if !project_choice! LSS %i% (
-                set "selected_project_file_name=!projects[%project_choice%]!"
-                set "rel_project_config_path=config/projects/!selected_project_file_name!"
+            REM Basic number validation
+            echo !project_choice! | findstr /r /c:"^[0-9][0-9]*$" >nul
+            if errorlevel 1 (
+                echo Skipping project configuration selection or invalid input '!project_choice!'.
+            ) else (
+                if !project_choice! LSS %i% (
+                    set "selected_project_file_name=!projects[%project_choice%]!"
+                    set "rel_project_config_path=config/projects/!selected_project_file_name!"
                 powershell -Command "& {param($envFileParam, $newProjPathParam) (Get-Content $envFileParam) -replace '^PROJECT_CONFIG_PATH=.*', ('PROJECT_CONFIG_PATH=' + $newProjPathParam) | Set-Content $envFileParam}" -args "%ENV_FILE%", "!rel_project_config_path!"
                 if errorlevel 1 (
                     echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%. PowerShell exit code: %errorlevel%%NC%
