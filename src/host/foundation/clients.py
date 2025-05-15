@@ -5,6 +5,7 @@ ClientManager for handling MCP client subprocesses and sessions.
 import logging
 import os
 from typing import Dict, Optional
+import os # Ensure os is imported
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client # Import streamablehttp_client
@@ -95,8 +96,19 @@ class ClientManager:
                     if not client_config.http_endpoint: # Use http_endpoint
                         raise ValueError("http_endpoint is required for http_stream transport")
 
-                    logger.debug(f"Attempting to connect streamablehttp_client for {client_id} to URL: {client_config.http_endpoint}")
-                    transport_context = streamablehttp_client(client_config.http_endpoint) # Use streamablehttp_client
+                    endpoint_url = client_config.http_endpoint
+                    # Check for DOCKER_ENV environment variable
+                    if os.environ.get("DOCKER_ENV", "false").lower() == "true":
+                        if endpoint_url.startswith("http://localhost"):
+                            endpoint_url = endpoint_url.replace("http://localhost", "http://host.docker.internal", 1)
+                            logger.info(f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}")
+                        elif endpoint_url.startswith("https://localhost"): # Also handle https if necessary
+                            endpoint_url = endpoint_url.replace("https://localhost", "https://host.docker.internal", 1)
+                            logger.info(f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}")
+
+
+                    logger.debug(f"Attempting to connect streamablehttp_client for {client_id} to URL: {endpoint_url}")
+                    transport_context = streamablehttp_client(endpoint_url) # Use streamablehttp_client
 
                 else:
                     raise ValueError(f"Unsupported transport_type: {client_config.transport_type}")

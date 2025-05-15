@@ -408,4 +408,26 @@ export function streamAgentExecution(
   return new EventSource(fullUrl);
 }
 
+export async function listActiveHostClients(): Promise<string[]> {
+  const response = await apiClient('/host/clients/active', { method: 'GET' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    throw { message: errorData.detail || errorData.message || 'Failed to list active host clients', status: response.status, details: errorData } as ApiError;
+  }
+  return response.json() as Promise<string[]>;
+}
+
+export async function registerClientAPI(clientConfig: any): Promise<any> { // Using 'any' for now, refine with ClientConfig if available
+  const response = await apiClient('/clients/register', {
+    method: 'POST',
+    body: clientConfig,
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+    // Try to access errorData.detail for FastAPI's common error structure
+    throw { message: errorData.detail || errorData.message || 'Failed to register client', status: response.status, details: errorData } as ApiError;
+  }
+  return response.json();
+}
+
 // TODO: Add listRegisteredSimpleWorkflows etc. when needed

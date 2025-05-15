@@ -10,17 +10,7 @@
       "routing_weight": 1.0,
       "roots": []
     },
-    "planning_server",
-    {
-      "client_id": "http_stream_example_client",
-      "transport_type": "http_stream",
-      "http_endpoint": "http://localhost:8083/mcp_stream_example/mcp",
-      "roots": [],
-      "capabilities": ["tools"],
-      "timeout": 10.0,
-      "routing_weight": 1.0,
-      "exclude": null
-    }
+    "planning_server"
   ],
   "agents": [
     {
@@ -114,16 +104,6 @@
       "include_history": "True",
       "exclude_components": ["current_time"],
       "evaluation": "planning_agent_multiple.json"
-    },
-    {
-      "name": "SSE Test Agent",
-      "system_prompt": "You have one tool: uppercase_text. Use it to convert the user's message to uppercase.",
-      "client_ids": ["http_stream_example_client"],
-      "model": "claude-3-haiku-20240307",
-      "temperature": 0.1,
-      "max_tokens": 100,
-      "max_iterations": 1,
-      "include_history": false
     }
   ],
   "simple_workflows": [

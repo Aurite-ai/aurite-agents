@@ -403,3 +403,16 @@ async def list_registered_llms(
     ):
         return []
     return list(manager.project_manager.component_manager.llms.keys())
+
+
+@router.get("/host/clients/active", response_model=List[str], tags=["Host Status"])
+async def list_active_host_clients(manager: HostManager = Depends(get_host_manager)):
+    """Lists the client_ids of all clients currently active and running on the MCPHost instance."""
+    if not manager.host or not manager.host.client_manager:
+        logger.warning("Host or ClientManager not available for listing active clients.")
+        return []
+    # Ensure active_clients is accessible and is a dictionary
+    if not hasattr(manager.host.client_manager, 'active_clients') or not isinstance(manager.host.client_manager.active_clients, dict):
+        logger.error("ClientManager.active_clients is not available or not a dict.")
+        return []
+    return list(manager.host.client_manager.active_clients.keys())

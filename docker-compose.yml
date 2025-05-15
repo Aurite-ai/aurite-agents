@@ -29,10 +29,14 @@ services:
       # Add other necessary volume mounts for development if any
     env_file:
       - .env # Load environment variables from .env file
+    environment: # Add DOCKER_ENV here
+      - DOCKER_ENV=true
     depends_on:
       - postgres
     networks:
       - aurite_network
+    extra_hosts: # This section should exist
+      - "host.docker.internal:host-gateway" # Map host.docker.internal to the host's IP
     restart: unless-stopped
     # Ensure PROJECT_CONFIG_PATH in .env is relative to /app inside container if not absolute
     # Or ensure it's an absolute path that's valid inside the container.
