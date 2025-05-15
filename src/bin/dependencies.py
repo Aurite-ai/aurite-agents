@@ -46,28 +46,41 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
 async def get_api_key(
-    # request: Request, # REMOVED
+    request: Request,
     server_config: ServerConfig = Depends(get_server_config),
     api_key_header_value: Optional[str] = Security(api_key_header),
 ) -> str:
     """
     Dependency to verify the API key.
-    Checks X-API-Key header.
+    For /agents/.../execute-stream, it first checks the 'api_key' query parameter.
+    Otherwise, or as a fallback, it checks the X-API-Key header.
     Uses secrets.compare_digest for timing attack resistance.
     """
-    if not api_key_header_value:
-        logger.warning("API key missing from X-API-Key header.")
+    provided_api_key: Optional[str] = None
+    auth_source: str = ""
+
+    # Check query parameter first for specific streaming endpoint
+    if "/agents/" in request.url.path and request.url.path.endswith("/execute-stream"):
+        query_api_key = request.query_params.get("api_key")
+        if query_api_key:
+            provided_api_key = query_api_key
+            auth_source = "query parameter"
+            logger.debug("API key provided via query parameter for streaming.")
+
+    # Fallback to header if not found in query for streaming, or for any other endpoint
+    if not provided_api_key and api_key_header_value:
+        provided_api_key = api_key_header_value
+        auth_source = "X-API-Key header"
+        logger.debug("API key provided via header.")
+
+    if not provided_api_key:
+        logger.warning(f"API key missing. Attempted sources: query (for stream), header.")
         raise HTTPException(
             status_code=401,
-            detail="API key required in X-API-Key header.",
+            detail="API key required either in X-API-Key header or as 'api_key' query parameter for streaming endpoints.",
         )
 
-    # logger.debug("API key provided via header.") # Optional: can be uncommented if needed
-
-    # Ensure API_KEY is loaded correctly
     expected_api_key = getattr(server_config, "API_KEY", None)
-
-    # END TEMPORARY DEBUG LOGGING
 
     if not expected_api_key:
         logger.error("API_KEY not found in server configuration.")
@@ -75,13 +88,14 @@ async def get_api_key(
             status_code=500, detail="Server configuration error: API Key not set."
         )
 
-    if not secrets.compare_digest(api_key_header_value, expected_api_key):
-        logger.warning(f"Invalid API key. Header: '{api_key_header_value}', Expected: '{expected_api_key}'") # Enhanced log
+    if not secrets.compare_digest(provided_api_key, expected_api_key):
+        logger.warning(f"Invalid API key. Source: {auth_source}, Provided: '{provided_api_key}', Expected: '{expected_api_key[:4]}...{expected_api_key[-4:]}'") # Enhanced log, avoid logging full expected key
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",
         )
-    return api_key_header_value
+    logger.debug(f"API key validated successfully from {auth_source}.")
+    return provided_api_key
 
 
 # --- HostManager Dependency ---

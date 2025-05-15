@@ -380,4 +380,32 @@ export async function getActiveProjectFullConfig(): Promise<ProjectConfig> {
   return response.json() as Promise<ProjectConfig>;
 }
 
+export function streamAgentExecution(
+  agentName: string,
+  userMessage: string,
+  systemPrompt?: string
+): EventSource {
+  const { apiKey } = useAuthStore.getState();
+  const encodedAgentName = encodeURIComponent(agentName);
+  const baseUrl = `/api/agents/${encodedAgentName}/execute-stream`;
+
+  const params = new URLSearchParams();
+  params.append('user_message', userMessage);
+
+  if (systemPrompt) {
+    params.append('system_prompt', systemPrompt);
+  }
+
+  if (apiKey) {
+    params.append('api_key', apiKey);
+  } else {
+    console.warn(
+      'API key is missing. Agent streaming request might fail.'
+    );
+  }
+
+  const fullUrl = `${baseUrl}?${params.toString()}`;
+  return new EventSource(fullUrl);
+}
+
 // TODO: Add listRegisteredSimpleWorkflows etc. when needed
