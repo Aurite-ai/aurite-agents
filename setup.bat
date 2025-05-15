@@ -90,40 +90,19 @@ goto :after_env_config
     echo Your new API_KEY for the frontend UI is: %GREEN_COLOR%%NEW_API_KEY_VALUE%%NC%
     echo %YELLOW_COLOR%Please copy this key. You will need it to authenticate with the API via the UI.%NC%
 
-    set CONFIG_PROJECTS_DIR=config\projects
-    echo Available project configurations in '%CONFIG_PROJECTS_DIR%':
-    set i=0
-    for %%f in ("%CONFIG_PROJECTS_DIR%\*.json") do (
-        set "current_file=%%~nxf"
-        echo   !i!^) !current_file!
-        set "projects[!i!]=!current_file!"
-        set /a i+=1
-    )
-    if %i% equ 0 (
-        echo No project JSON files found in %CONFIG_PROJECTS_DIR%.
-    ) else (
-        set /p project_choice="Select a project configuration by number (or press Enter to skip): "
-        if not defined project_choice (
-            echo Skipping project configuration selection (no input).
+    set desired_project_config_path=
+    set /p desired_project_config_path="Enter desired PROJECT_CONFIG_PATH (e.g., config/projects/default.json) or press Enter to keep default: "
+    if defined desired_project_config_path (
+        REM Ensure forward slashes for consistency if user uses backslashes
+        set "desired_project_config_path=!desired_project_config_path:\=/!"
+        powershell -Command "(Get-Content %ENV_FILE%) -replace '^PROJECT_CONFIG_PATH=.*', 'PROJECT_CONFIG_PATH=!desired_project_config_path!' | Set-Content %ENV_FILE%"
+        if errorlevel 1 (
+            echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%.%NC%
         ) else (
-            REM Basic number validation
-            echo !project_choice! | findstr /r /c:"^[0-9][0-9]*$" >nul
-            if errorlevel 1 (
-                echo Skipping project configuration selection or invalid input '!project_choice!'.
-            ) else (
-                if !project_choice! LSS %i% (
-                set "selected_project_file_name=!projects[%project_choice%]!"
-                set "rel_project_config_path=config/projects/!selected_project_file_name!"
-                powershell -ExecutionPolicy Bypass -Command "& {param([string]$envFile, [string]$projectPath) $newContent = (Get-Content -LiteralPath $envFile) -replace '^PROJECT_CONFIG_PATH=.*', ('PROJECT_CONFIG_PATH=' + $projectPath); Set-Content -LiteralPath $envFile -Value $newContent}" -args "%ENV_FILE%" "!rel_project_config_path!"
-                if errorlevel 1 (
-                    echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%. PowerShell exit code: %errorlevel%%NC%
-                ) else (
-                    echo PROJECT_CONFIG_PATH set to '!rel_project_config_path!' in '%ENV_FILE%'.
-                )
-            ) else (
-                echo Invalid selection. Skipping project configuration.
-            )
+            echo %GREEN_COLOR%PROJECT_CONFIG_PATH updated to '!desired_project_config_path!' in '%ENV_FILE%'.%NC%
         )
+    ) else (
+        echo Skipping PROJECT_CONFIG_PATH update (no value provided).
     )
     echo %GREEN_COLOR%Note: For the backend Docker container to connect to the PostgreSQL Docker container, AURITE_DB_HOST in '.env' should be 'postgres' ^(which is the default from .env.example^).%NC%
 goto :eof
