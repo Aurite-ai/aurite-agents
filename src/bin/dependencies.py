@@ -67,9 +67,6 @@ async def get_api_key(
     # Ensure API_KEY is loaded correctly
     expected_api_key = getattr(server_config, "API_KEY", None)
 
-    # TEMPORARY DEBUG LOGGING - REMOVE AFTER DEBUGGING
-    logger.info(f"DEBUG: Expected API Key from config: '{expected_api_key}'")
-    logger.info(f"DEBUG: Received API Key from header: '{api_key_header_value}'")
     # END TEMPORARY DEBUG LOGGING
 
     if not expected_api_key:
