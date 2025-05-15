@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import HostManager
+from ....host_manager import HostManager, DuplicateClientIdError
 from ....config.config_models import (
     ClientConfig,
     AgentConfig,
@@ -226,8 +226,22 @@ async def register_client_endpoint(
 ):
     """Dynamically registers a new MCP client."""
     logger.info(f"Received request to register client: {client_config.client_id}")
-    await manager.register_client(client_config)
-    return {"status": "success", "client_id": client_config.client_id}
+    # HostManager.register_client handles upsert logic and potential errors
+    try:
+        await manager.register_client(client_config)
+        return {"status": "success", "client_id": client_config.client_id}
+    except DuplicateClientIdError as e: # Specific catch for 409
+        logger.error(f"Duplicate client ID error registering client {client_config.client_id}: {e}")
+        raise HTTPException(status_code=409, detail=str(e))
+    except PermissionError as e:
+        logger.error(f"Permission error registering client {client_config.client_id}: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e: # General ValueErrors still 400
+        logger.error(f"Value error registering client {client_config.client_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error registering client {client_config.client_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during client registration.")
 
 
 @router.post("/agents/register", status_code=201)
@@ -238,8 +252,18 @@ async def register_agent_endpoint(
 ):
     """Dynamically registers a new agent configuration."""
     logger.info(f"Received request to register agent: {agent_config.name}")
-    await manager.register_agent(agent_config)
-    return {"status": "success", "agent_name": agent_config.name}
+    try:
+        await manager.register_agent(agent_config)
+        return {"status": "success", "agent_name": agent_config.name}
+    except PermissionError as e:
+        logger.error(f"Permission error registering agent {agent_config.name}: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        logger.error(f"Value error registering agent {agent_config.name}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error registering agent {agent_config.name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during agent registration.")
 
 
 @router.post("/workflows/register", status_code=201)
@@ -250,8 +274,18 @@ async def register_workflow_endpoint(
 ):
     """Dynamically registers a new simple workflow configuration."""
     logger.info(f"Received request to register workflow: {workflow_config.name}")
-    await manager.register_workflow(workflow_config)
-    return {"status": "success", "workflow_name": workflow_config.name}
+    try:
+        await manager.register_workflow(workflow_config)
+        return {"status": "success", "workflow_name": workflow_config.name}
+    except PermissionError as e:
+        logger.error(f"Permission error registering workflow {workflow_config.name}: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e: # This will catch agent not found errors from manager.register_workflow
+        logger.error(f"Value error registering workflow {workflow_config.name}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error registering workflow {workflow_config.name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during workflow registration.")
 
 
 @router.post("/llm-configs/register", status_code=201)
@@ -261,8 +295,18 @@ async def register_llm_config_endpoint(
 ):
     """Dynamically registers a new LLM configuration."""
     logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
-    await manager.register_llm_config(llm_config)
-    return {"status": "success", "llm_id": llm_config.llm_id}
+    try:
+        await manager.register_llm_config(llm_config)
+        return {"status": "success", "llm_id": llm_config.llm_id}
+    except PermissionError as e:
+        logger.error(f"Permission error registering LLM config {llm_config.llm_id}: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        logger.error(f"Value error registering LLM config {llm_config.llm_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error registering LLM config {llm_config.llm_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during LLM config registration.")
 
 @router.post("/custom_workflows/register", status_code=201)
 async def register_custom_workflow_endpoint(
@@ -272,8 +316,18 @@ async def register_custom_workflow_endpoint(
 ):
     """Dynamically registers a new custom workflow configuration."""
     logger.info(f"Received request to register custom workflow: {custom_workflow_config.name}")
-    await manager.register_custom_workflow(custom_workflow_config)
-    return {"status": "success", "workflow_name": custom_workflow_config.name}
+    try:
+        await manager.register_custom_workflow(custom_workflow_config)
+        return {"status": "success", "workflow_name": custom_workflow_config.name}
+    except PermissionError as e:
+        logger.error(f"Permission error registering custom workflow {custom_workflow_config.name}: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        logger.error(f"Value error registering custom workflow {custom_workflow_config.name}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error registering custom workflow {custom_workflow_config.name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during custom workflow registration.")
 
 
 # --- Listing Endpoints for Registered Components ---

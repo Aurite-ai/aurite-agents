@@ -10,8 +10,7 @@
       "routing_weight": 1.0,
       "roots": []
     },
-    "planning_server",
-    "address_server"
+    "planning_server"
   ],
   "agents": [
     {
@@ -104,16 +103,6 @@
       "include_history": "True",
       "exclude_components": ["current_time"],
       "evaluation": "planning_agent_multiple.json"
-    },
-    {
-      "name": "Mapping Agent",
-      "system_prompt": "You are a helpful assistant specializing in maps and directions. Use the tools to help the user with their requests.",
-      "client_ids": ["address_server"],
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.1",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True"
     }
   ],
   "simple_workflows": [

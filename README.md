@@ -12,6 +12,8 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 
 *   Python >= 3.12
 *   `pip` (Python package installer)
+*   Node.js (LTS version recommended, for frontend development)
+*   Yarn (Package manager for frontend, can be installed via npm/Node.js)
 *   `redis-server` (Required if you plan to use the asynchronous task worker)
 
 ### Installation
@@ -34,6 +36,31 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
     pip install -e .[dev]
     ```
     This command allows you to make changes to the source code and have them immediately reflected without needing to reinstall.
+
+### Frontend UI Setup
+
+To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
+
+1.  **Navigate to the Frontend Directory:**
+    Open a new terminal or use your existing one to change into the `frontend` directory:
+    ```bash
+    cd frontend
+    ```
+
+2.  **Install Frontend Dependencies:**
+    If you don't have Yarn installed, you can install it by following the instructions on the [official Yarn website](https://classic.yarnpkg.com/en/docs/install).
+
+    Inside the `frontend` directory, install the necessary Node.js packages using Yarn:
+    ```bash
+    yarn install
+    ```
+
+3.  **Start the Frontend Development Server:**
+    Once dependencies are installed, start the Vite development server:
+    ```bash
+    yarn dev
+    ```
+    The frontend UI will typically be available in your web browser at `http://localhost:5173`.
 
 ## Architecture Overview
 

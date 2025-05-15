@@ -66,6 +66,12 @@ async def get_api_key(
 
     # Ensure API_KEY is loaded correctly
     expected_api_key = getattr(server_config, "API_KEY", None)
+
+    # TEMPORARY DEBUG LOGGING - REMOVE AFTER DEBUGGING
+    logger.info(f"DEBUG: Expected API Key from config: '{expected_api_key}'")
+    logger.info(f"DEBUG: Received API Key from header: '{api_key_header_value}'")
+    # END TEMPORARY DEBUG LOGGING
+
     if not expected_api_key:
         logger.error("API_KEY not found in server configuration.")
         raise HTTPException(
@@ -73,7 +79,7 @@ async def get_api_key(
         )
 
     if not secrets.compare_digest(api_key_header_value, expected_api_key):
-        logger.warning("Invalid API key received via X-API-Key header.")
+        logger.warning(f"Invalid API key. Header: '{api_key_header_value}', Expected: '{expected_api_key}'") # Enhanced log
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",

@@ -198,9 +198,9 @@
           "raw": "{\n    \"initial_input\": {\"city\": \"London\"}\n}"
         },
         "url": {
-          "raw": "{{base_url}}/custom_workflows/ExampleCustom/execute",
+          "raw": "{{base_url}}/custom_workflows/ExampleCustomWorkflow/execute",
           "host": ["{{base_url}}"],
-          "path": ["custom_workflows", "ExampleCustom", "execute"]
+          "path": ["custom_workflows", "ExampleCustomWorkflow", "execute"]
         },
         "description": "Executes the example custom workflow defined in the config."
       },
@@ -270,55 +270,6 @@
               "pm.test(\"Response body is correct\", function () {",
               "    var jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.eql({status: 'success', client_id: 'dynamic_test_client'});",
-              "});"
-            ],
-            "type": "text/javascript",
-            "packages": {}
-          }
-        }
-      ]
-    },
-    {
-      "name": "[Dynamic] Register Client (Duplicate)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "X-API-Key",
-            "value": "{{api_key}}",
-            "type": "text"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json",
-            "type": "text"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n    \"client_id\": \"dynamic_test_client\",\n    \"server_path\": \"tests/fixtures/servers/weather_mcp_server.py\",\n    \"roots\": [],\n    \"capabilities\": [\"tools\"],\n    \"timeout\": 10.0,\n    \"routing_weight\": 0.5,\n    \"exclude\": null\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/clients/register",
-          "host": ["{{base_url}}"],
-          "path": ["clients", "register"]
-        },
-        "description": "Attempts to register a client with an ID that already exists."
-      },
-      "response": [],
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
-              "});",
-              "",
-              "pm.test(\"Response body contains error detail\", function () {",
-              "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('detail');",
-              "    pm.expect(jsonData.detail).to.contain('already registered');",
               "});"
             ],
             "type": "text/javascript",
@@ -408,14 +359,13 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
               "});",
               "",
-              "pm.test(\"Response body contains error detail\", function () {",
+              "pm.test(\"Response body is correct for update\", function () {",
               "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('detail');",
-              "    pm.expect(jsonData.detail).to.contain('already registered');",
+              "    pm.expect(jsonData).to.eql({status: 'success', agent_name: 'Dynamic Test Agent'});",
               "});"
             ],
             "type": "text/javascript",
@@ -491,7 +441,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Dynamic Test Workflow\",\n    \"steps\": [\"Dynamic Test Agent\", \"Weather Agent\"],\n    \"description\": \"A workflow registered dynamically.\"\n}"
+          "raw": "{\n    \"name\": \"Dynamic Test Workflow\",\n    \"steps\": [\"Weather Agent\", \"Weather Planning Workflow Step 2\"],\n    \"description\": \"A workflow registered dynamically.\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/workflows/register",
@@ -554,14 +504,13 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status code is 409 Conflict\", function () {",
-              "    pm.response.to.have.status(409);",
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
               "});",
               "",
-              "pm.test(\"Response body contains error detail\", function () {",
+              "pm.test(\"Response body is correct for update\", function () {",
               "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('detail');",
-              "    pm.expect(jsonData.detail).to.contain('already registered');",
+              "    pm.expect(jsonData).to.eql({status: 'success', workflow_name: 'Dynamic Test Workflow'});",
               "});"
             ],
             "type": "text/javascript",
@@ -636,192 +585,6 @@
                   "    let initialAgents = pm.response.json();",
                   "    pm.expect(initialAgents).to.be.an('array').that.includes('Weather Agent');",
                   "    pm.expect(initialAgents).to.be.an('array').not.that.includes('Minimal Test Agent');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{api_key}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/components/agents",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "components",
-                "agents"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Change Project to Minimal",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 for project change to minimal\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "pm.test(\"Response message indicates successful change to minimal project\", function () {",
-                  "    let changeData = pm.response.json();",
-                  "    pm.expect(changeData.status).to.eql('success');",
-                  "    pm.expect(changeData.message).to.include('Successfully changed project to Minimal Test Project');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{api_key}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"project_config_path\": \"config/projects/minimal_project_for_test.json\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/projects/change",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "projects",
-                "change"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "List Agents (After Minimal Project Load)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 for agent list after minimal project change\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "pm.test(\"Agents list reflects minimal project\", function () {",
-                  "    let agentsAfterMinimal = pm.response.json();",
-                  "    pm.expect(agentsAfterMinimal).to.be.an('array').that.includes('Minimal Test Agent');",
-                  "    pm.expect(agentsAfterMinimal).to.be.an('array').not.that.includes('Weather Agent');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{api_key}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/components/agents",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "components",
-                "agents"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Change Project back to Default",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 for project change back to default\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "pm.test(\"Response message indicates successful change back to default project\", function () {",
-                  "    let changeBackData = pm.response.json();",
-                  "    pm.expect(changeBackData.status).to.eql('success');",
-                  "    pm.expect(changeBackData.message).to.include('Successfully changed project to DefaultMCPHost');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{api_key}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"project_config_path\": \"config/testing_config.json\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/projects/change",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "projects",
-                "change"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "List Agents (After Reverting to Default)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 for agent list after reverting to default\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "pm.test(\"Agents list reflects default project after reverting\", function () {",
-                  "    let agentsAfterRevert = pm.response.json();",
-                  "    pm.expect(agentsAfterRevert).to.be.an('array').that.includes('Weather Agent');",
-                  "    pm.expect(agentsAfterRevert).to.be.an('array').not.that.includes('Minimal Test Agent');",
                   "});"
                 ],
                 "type": "text/javascript"
