@@ -29,7 +29,7 @@ The Host System is structured internally into two sub-layers:
 | File Path                          | Primary Class(es)        | Core Responsibility                                                                 |
 | :--------------------------------- | :----------------------- | :---------------------------------------------------------------------------------- |
 | `src/host/host.py`                 | `MCPHost`                | Main entrypoint, orchestrates managers, client connections, stores AgentConfigs     |
-| `src/host/models.py`               | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
+| `src/config/config_models.py`      | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
 | `src/host/filtering.py`            | `FilteringManager`       | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules     |
 | **Foundation Layer**               |                          |                                                                                     |
 | `src/host/foundation/clients.py`   | `ClientManager`          | Manages client configurations, active sessions, and orchestrates client lifecycle tasks within `MCPHost`. |
@@ -92,7 +92,7 @@ This layer provides the core infrastructure for interacting with MCP servers.
     *   Provides public methods (`get_prompt`, `execute_tool`, `read_resource`, `get_formatted_tools`, `register_client`) that act as the primary interface for Layer 2.
     *   Integrates `MessageRouter` and `FilteringManager` to apply routing and filtering rules before delegating tasks to Resource Managers.
     *   Orchestrates client lifecycles via `ClientManager` and `anyio.TaskGroup`, managing individual client cancel scopes and the `AsyncExitStack` for cleanup.
-*   **`host/models.py`:**
+*   **`host/models.py` moved to `src/config/config_models.py`:**
     *   Defines core Pydantic models used by Layer 3: `HostConfig`, `ClientConfig`, `RootConfig`, `GCPSecretConfig`.
     *   Also defines `AgentConfig`, which is stored and used for filtering here, but primarily acted upon by Layer 2/2.5.
 *   **`host/filtering.py` (`FilteringManager`):**

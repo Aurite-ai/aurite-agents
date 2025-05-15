@@ -311,10 +311,6 @@ class HostManager:
 
         # Clear internal state regardless of shutdown success/failure
         self.host = None
-        # self.agent_configs.clear() # Removed
-        # self.workflow_configs.clear() # Removed
-        # self.custom_workflow_configs.clear() # Removed
-        # self.llm_configs.clear()  # Removed
         # Dispose the engine if it was created
         if self._db_engine:
             try:
@@ -878,8 +874,8 @@ class HostManager:
     def get_llm_config(self, llm_config_id: str) -> Optional[LLMConfig]:
         """Retrieves the configuration for a specific LLM config by ID from the active project."""
         active_project = self.project_manager.get_active_project_config()
-        if active_project and active_project.llms:  # Changed llm_configs to llms
-            return active_project.llms.get(llm_config_id)  # Changed llm_configs to llms
+        if active_project and active_project.llms:
+            return active_project.llms.get(llm_config_id)
         return None
 
     # Add getters for simple_workflows and custom_workflows if needed later

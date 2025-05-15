@@ -390,8 +390,8 @@ async def list_registered_clients(manager: HostManager = Depends(get_host_manage
     return client_ids
 
 
-@router.get("/components/llm-configs", response_model=List[str])
-async def list_registered_llm_configs(
+@router.get("/components/llms", response_model=List[str])
+async def list_registered_llms(
     manager: HostManager = Depends(get_host_manager),
 ):
     """Lists the llm_ids of all currently registered LLM configurations from the active project."""
@@ -399,7 +399,7 @@ async def list_registered_llm_configs(
     if (
         not manager.project_manager
         or not manager.project_manager.component_manager
-        or not manager.project_manager.component_manager.llm_configs
+        or not manager.project_manager.component_manager.llms
     ):
         return []
-    return list(manager.project_manager.component_manager.llm_configs.keys())
+    return list(manager.project_manager.component_manager.llms.keys())

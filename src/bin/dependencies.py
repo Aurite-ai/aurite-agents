@@ -74,7 +74,7 @@ async def get_api_key(
         logger.debug("API key provided via header.")
 
     if not provided_api_key:
-        logger.warning(f"API key missing. Attempted sources: query (for stream), header.")
+        logger.warning("API key missing. Attempted sources: query (for stream), header.")
         raise HTTPException(
             status_code=401,
             detail="API key required either in X-API-Key header or as 'api_key' query parameter for streaming endpoints.",

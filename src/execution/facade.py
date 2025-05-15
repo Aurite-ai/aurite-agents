@@ -462,13 +462,13 @@ class ExecutionFacade:
 
             # 2.a. LLMConfig Lookup (Base values)
             if agent_config.llm_config_id:
-                if not self._current_project.llms:  # Changed llm_configs to llms
+                if not self._current_project.llms:
                     logger.warning(
                         f"LLM configurations not found in current project for agent '{agent_name}'."
                     )
                 else:
                     llm_config_for_override_obj = (
-                        self._current_project.llms.get(  # Changed llm_configs to llms
+                        self._current_project.llms.get(
                             agent_config.llm_config_id
                         )
                     )  # Store the object

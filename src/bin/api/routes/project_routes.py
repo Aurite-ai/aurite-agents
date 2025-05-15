@@ -108,12 +108,14 @@ async def get_active_project_component_config(
         component_dict_attribute_name = (
             "agents"  # Assuming ProjectConfig has active_project.agents
         )
-    elif project_component_type == "simple_workflows":
+    elif project_component_type == "simple_workflows": # this code made more sense when the names were different I'll refactor at some point
         component_dict_attribute_name = "simple_workflows"
     elif project_component_type == "custom_workflows":
         component_dict_attribute_name = "custom_workflows"
+    elif project_component_type == "llms":
+        component_dict_attribute_name = "llms"
     elif project_component_type == "llm_configs":
-        component_dict_attribute_name = "llms"  # Corrected attribute name
+        component_dict_attribute_name = "llms"
     elif project_component_type == "clients":
         component_dict_attribute_name = "clients"
     else:

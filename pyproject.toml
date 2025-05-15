@@ -14,7 +14,7 @@ authors = [
     { name = "Patrick W", email = "patrick@aurite.ai" },
 ]
 
-license-files = ["LICENSE"] # Use recommended field
+license-files = ["LICENSE"]
 
 keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
 classifiers = [
@@ -155,5 +155,3 @@ follow_imports = "silent"
 start-api = "src.bin.api.api:start"
 start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
 run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
-# run-container = "bash scripts/run-container.sh" # Script to build and run the Docker container
-# test-api = "bash scripts/test-api.sh" # Script to test the API using Postman

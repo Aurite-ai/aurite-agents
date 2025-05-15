@@ -29,7 +29,7 @@ except ImportError:
 # Duplicated from old ConfigManager - consider utils.py later if needed elsewhere
 COMPONENT_TYPES_DIRS = {
     "clients": PROJECT_ROOT_DIR / "config/clients",
-    "llm_configs": PROJECT_ROOT_DIR / "config/llms",
+    "llms": PROJECT_ROOT_DIR / "config/llms",
     "agents": PROJECT_ROOT_DIR / "config/agents",
     "simple_workflows": PROJECT_ROOT_DIR / "config/workflows",
     "custom_workflows": PROJECT_ROOT_DIR / "config/custom_workflows",
@@ -38,7 +38,7 @@ COMPONENT_TYPES_DIRS = {
 # Mapping component type to its model class and ID field name
 COMPONENT_META = {
     "clients": (ClientConfig, "client_id"),
-    "llm_configs": (LLMConfig, "llm_id"),
+    "llms": (LLMConfig, "llm_id"),
     "agents": (AgentConfig, "name"),
     "simple_workflows": (WorkflowConfig, "name"),
     "custom_workflows": (CustomWorkflowConfig, "name"),

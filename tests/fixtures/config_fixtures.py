@@ -192,7 +192,7 @@ VALID_CONFIG_DATA_WITH_LLM = {
     "name": "TestHostWithLLM",
     "clients": [],
     "agents": [],
-    "llm_configs": [
+    "llms": [
         {
             "llm_id": "llm_1",
             "provider": "anthropic",
@@ -212,7 +212,7 @@ INVALID_CONFIG_DATA_LLM_MISSING_ID = {
     "name": "TestHostInvalidLLM_NoID",
     "clients": [],
     "agents": [],
-    "llm_configs": [
+    "llms": [
         {
             # "llm_id": "missing_id",
             "provider": "anthropic",
@@ -225,7 +225,7 @@ INVALID_CONFIG_DATA_LLM_BAD_TYPE = {
     "name": "TestHostInvalidLLM_BadType",
     "clients": [],
     "agents": [],
-    "llm_configs": [
+    "llms": [
         {
             "llm_id": "bad_temp_llm",
             "provider": "anthropic",
