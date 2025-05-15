@@ -14,21 +14,17 @@ export default defineConfig({
     css: true, // if you want to process CSS during tests
   },
   server: {
+    host: '0.0.0.0', // Exposes server to the network, crucial for Docker
+    port: 5173,
     proxy: {
-      // Proxy API requests (adjust the path prefix if necessary)
-      // Using a generic '/api' prefix for now.
-      // Requests to e.g. /api/agents/Weather%20Agent/execute will be proxied to http://localhost:8000/agents/Weather%20Agent/execute
+      // Proxy API requests
+      // Requests to e.g. /api/agents/Weather%20Agent/execute will be proxied to http://backend:8000/agents/Weather%20Agent/execute
       '/api': {
-        target: 'http://localhost:8000', // Your backend FastAPI server
+        target: 'http://backend:8000', // 'backend' will be the service name in docker-compose.yml
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '') // Remove the /api prefix before forwarding
       },
-      // If you were still serving old static files from FastAPI and needed direct access:
-      // '/static': {
-      //   target: 'http://localhost:8000',
-      //   changeOrigin: true,
-      // }
-    }
+    },
   },
   css: {
     postcss: {

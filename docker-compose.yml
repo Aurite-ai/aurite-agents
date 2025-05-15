@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: aurite_postgres
+    environment:
+      POSTGRES_USER: ${AURITE_DB_USER:-postgres_user} # Use .env or default
+      POSTGRES_PASSWORD: ${AURITE_DB_PASSWORD:-postgres_password} # Use .env or default
+      POSTGRES_DB: ${AURITE_DB_NAME:-aurite_storage}   # Use .env or default
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${AURITE_DB_PORT:-5432}:5432" # Expose DB port if needed externally
+    networks:
+      - aurite_network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: aurite_backend
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      # Add other necessary volume mounts for development if any
+    env_file:
+      - .env # Load environment variables from .env file
+    depends_on:
+      - postgres
+    networks:
+      - aurite_network
+    restart: unless-stopped
+    # Ensure PROJECT_CONFIG_PATH in .env is relative to /app inside container if not absolute
+    # Or ensure it's an absolute path that's valid inside the container.
+    # Dockerfile.dev sets PROJECT_CONFIG_PATH=/app/config/projects/testing_config.json
+    # This will be overridden by .env if .env has PROJECT_CONFIG_PATH.
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile # Uses frontend/Dockerfile created in Step 2.1
+    container_name: aurite_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src # For hot reloading of frontend source
+      - ./frontend/public:/app/public
+      # Add other necessary volume mounts for development if any
+    depends_on:
+      - backend
+    networks:
+      - aurite_network
+    restart: unless-stopped
+
+networks:
+  aurite_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

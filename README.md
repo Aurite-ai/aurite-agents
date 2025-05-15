@@ -16,7 +16,7 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 *   Yarn (Package manager for frontend, can be installed via npm/Node.js)
 *   `redis-server` (Required if you plan to use the asynchronous task worker)
 
-### Installation
+### Installation & Backend Setup
 
 1.  **Clone the Repository:**
     ```bash
@@ -37,9 +37,47 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
     ```
     This command allows you to make changes to the source code and have them immediately reflected without needing to reinstall.
 
+4.  **Environment Variables Setup:**
+    Before running the system, you need to set up your environment variables.
+
+    a.  **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
+        ```bash
+        cp .env.example .env
+        ```
+    b.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
+
+    Key variables you'll need to configure in your `.env` file include:
+
+    *   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `/path/to/your/aurite-agents/config/projects/default.json`).
+    *   `API_KEY`: A secret key to secure the FastAPI endpoints. Generate a strong random key.
+    *   `ANTHROPIC_API_KEY` (or other LLM provider keys): Required if your agents use specific LLMs like Anthropic's Claude.
+
+    The `.env` file also contains settings for Redis, optional database persistence (`AURITE_ENABLE_DB`, `AURITE_DB_URL`, etc.), and other service configurations. Review all entries marked with `#REPLACE`.
+
+    **Important Security Note: Encryption Key**
+
+    *   **`AURITE_MCP_ENCRYPTION_KEY`**: This environment variable is used by the framework's `SecurityManager` to encrypt sensitive data.
+        *   If not set, a key will be **auto-generated on startup**. This is convenient for quick local testing.
+        *   **However, for any persistent deployment, or if you intend to use features that rely on encrypted storage (even for development), it is critical to set this to a strong, persistent, URL-safe base64-encoded 32-byte key.**
+        *   Relying on an auto-generated key means that any encrypted data may become inaccessible if the application restarts and generates a new key.
+        *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
+
+5.  **Running the Backend API Server:**
+    The primary way to interact with the framework is through its FastAPI server:
+    ```bash
+    python -m src.bin.api.api
+    ```
+    or use the `pyproject.toml` script:
+    ```bash
+    start-api
+    ```
+    By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
+
 ### Frontend UI Setup
 
 To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
+
+**Note:** Ensure the backend API server (Step 5 above) is running before starting the frontend.
 
 1.  **Navigate to the Frontend Directory:**
     Open a new terminal or use your existing one to change into the `frontend` directory:
@@ -209,67 +247,7 @@ These are the primary building blocks you'll work with:
 *   Configured via `ClientConfig` models (e.g., `config/clients/default_clients.json`), specifying the server's path, capabilities, and access rules.
 *   An example MCP server is `src/packaged_servers/weather_mcp_server.py`.
 
-## Basic Usage: Running the System
-
-### 1. Environment Variables
-
-Before running the system, you need to set up your environment variables.
-
-1.  **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
-    ```bash
-    cp .env.example .env
-    ```
-2.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
-
-Key variables you'll need to configure in your `.env` file include:
-
-*   `PROJECT_CONFIG_PATH`: **Crucial!** Set this to the absolute path of the main JSON project configuration file you want the server to load on startup (e.g., `/path/to/your/aurite-agents/config/projects/default.json`).
-*   `API_KEY`: A secret key to secure the FastAPI endpoints. Generate a strong random key.
-*   `ANTHROPIC_API_KEY` (or other LLM provider keys): Required if your agents use specific LLMs like Anthropic's Claude.
-
-The `.env` file also contains settings for Redis, optional database persistence (`AURITE_ENABLE_DB`, `AURITE_DB_URL`, etc.), and other service configurations. Review all entries marked with `#REPLACE`.
-
-#### Important Security Note: Encryption Key
-
-*   **`AURITE_MCP_ENCRYPTION_KEY`**: This environment variable is used by the framework's `SecurityManager` to encrypt sensitive data.
-    *   If not set, a key will be **auto-generated on startup**. This is convenient for quick local testing.
-    *   **However, for any persistent deployment, or if you intend to use features that rely on encrypted storage (even for development), it is critical to set this to a strong, persistent, URL-safe base64-encoded 32-byte key.**
-    *   Relying on an auto-generated key means that any encrypted data may become inaccessible if the application restarts and generates a new key.
-    *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
-
-### 2. Running the API Server
-
-The primary way to interact with the framework is through its FastAPI server:
-```bash
-python -m src.bin.api.api
-```
-or use the `pyproject.toml` script:
-```bash
-start-api
-```
-
-By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
-
-### 3. Other Entrypoints
-
-*   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
-    ```bash
-    # Example: Execute an agent (ensure API server is running)
-    # Assumes API_KEY environment variable is set.
-    run-cli execute agent "Weather Agent" "What is the weather in London?"
-
-    # Example: Execute a simple workflow
-    run-cli execute workflow "main" "What should I wear in San Francisco today?"
-
-    # Example: Execute a custom workflow (input must be a valid JSON string)
-    run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
-    ```
-*   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up).
-    ```bash
-    python -m src.bin.worker
-    ```
-*
-## Configuration Overview (User Perspective)
+## Configuration System Overview (User Perspective)
 
 *   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) defines configurations or references other JSON files for specific components like agents, clients, and LLMs. For example, a project file might look like this:
     ```json
@@ -337,6 +315,28 @@ By default, it starts on `http://0.0.0.0:8000`. You can then send requests to it
 *   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
 *   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
 *
+
+## Other Entrypoints
+
+Besides the main API server, the framework offers other ways to interact:
+
+*   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
+    ```bash
+    # Example: Execute an agent (ensure API server is running)
+    # Assumes API_KEY environment variable is set.
+    run-cli execute agent "Weather Agent" "What is the weather in London?"
+
+    # Example: Execute a simple workflow
+    run-cli execute workflow "main" "What should I wear in San Francisco today?"
+
+    # Example: Execute a custom workflow (input must be a valid JSON string)
+    run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
+    ```
+*   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up and `redis-server` is running).
+    ```bash
+    python -m src.bin.worker
+    ```
+
 ## Simplified Directory Structure
 
 Key directories for users:
