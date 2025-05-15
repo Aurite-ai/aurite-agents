@@ -95,7 +95,7 @@ goto :after_env_config
     if defined desired_project_config_path (
         REM Ensure forward slashes for consistency if user uses backslashes
         set "desired_project_config_path=!desired_project_config_path:\=/!"
-        powershell -Command "(Get-Content %ENV_FILE%) -replace '^PROJECT_CONFIG_PATH=.*', 'PROJECT_CONFIG_PATH=!desired_project_config_path!' | Set-Content %ENV_FILE%"
+        powershell -Command "(Get-Content %ENV_FILE%) -replace '^PROJECT_CONFIG_PATH=.*', 'PROJECT_CONFIG_PATH=!desired_project_config_path!' ^| Set-Content %ENV_FILE%"
         if errorlevel 1 (
             echo %RED_COLOR%ERROR: Failed to update PROJECT_CONFIG_PATH in %ENV_FILE%.%NC%
         ) else (
