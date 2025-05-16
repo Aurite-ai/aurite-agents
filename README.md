@@ -21,7 +21,7 @@ Follow these steps to set up the Aurite Agents framework on your local machine.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url> aurite-agents
+    git clone https://github.com/Aurite-ai/aurite-agents.git
     cd aurite-agents
     ```
 
