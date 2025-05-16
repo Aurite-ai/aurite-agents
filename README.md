@@ -49,6 +49,8 @@ The fastest way to get the entire Aurite Agents environment (Backend API, Fronte
 
     Once complete, the backend API will typically be available at `http://localhost:8000` and the frontend UI at `http://localhost:5173`. The script will display the generated API key needed for the UI.
 
+    **Note on Initial Startup:** The backend container might take a few moments to start up completely, especially the first time, as it initializes MCP servers. During this time, the frontend UI might show a temporary connection error. Please allow a minute or two for all services to become fully operational.
+
 #### Running Docker Compose Directly (Alternative to Setup Scripts)
 
 If you prefer to manage your `.env` file manually or if the setup scripts encounter issues, you can still use Docker Compose:
@@ -111,6 +113,8 @@ If you prefer to set up and run components manually or without Docker for all se
     ```bash
     start-api
     ```
+    (This script is available after running `pip install -e .[dev]` as described in the Manual Installation section. If using Docker, the API starts automatically within its container.)
+
     By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
 
 ### Frontend UI Setup
@@ -357,6 +361,7 @@ These are the primary building blocks you'll work with:
 Besides the main API server, the framework offers other ways to interact:
 
 *   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
+    The `run-cli` script is available after performing the Manual Installation and running `pip install -e .[dev]`.
     ```bash
     # Example: Execute an agent (ensure API server is running)
     # Assumes API_KEY environment variable is set.
@@ -368,6 +373,12 @@ Besides the main API server, the framework offers other ways to interact:
     # Example: Execute a custom workflow (input must be a valid JSON string)
     run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
     ```
+    **Using CLI with Docker:** If you are using the Docker setup, these CLI commands need to be run *inside* the backend service container. You can do this by first finding your backend container ID or name (e.g., using `docker ps`) and then executing the command:
+    ```bash
+    docker exec -it <your_backend_container_name_or_id> run-cli execute agent "Weather Agent" "What is the weather in London?"
+    ```
+    Ensure the `API_KEY` environment variable is set within the container's environment (it should be if you used the setup scripts or configured your `.env` file correctly).
+
 *   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up and `redis-server` is running).
     ```bash
     python -m src.bin.worker
