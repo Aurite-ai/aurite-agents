@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+
 @pytest.fixture
 def mock_host_config() -> HostConfig:
     """Provides a mock HostConfig."""
@@ -95,7 +96,7 @@ async def host_manager(anyio_backend) -> Aurite:  # Add anyio_backend argument
     """
     # Define path to the test config file relative to the project root
     test_config_path = Path(
-        os.getenv("PROJECT_CONFIG_PATH") # use the config file defined in the .env
+        os.getenv("PROJECT_CONFIG_PATH")  # use the config file defined in the .env
     )
 
     if not test_config_path.exists():
@@ -128,34 +129,54 @@ async def host_manager(anyio_backend) -> Aurite:  # Add anyio_backend argument
                 logger.debug("Aurite Fixture: Attempting to aclose ExecutionFacade...")
                 await manager.execution.aclose()
                 logger.debug("Aurite Fixture: ExecutionFacade aclosed.")
-            if manager.host: # Check if manager and host exist before shutdown
-                logger.debug(f"Aurite Fixture: Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
-                await manager.shutdown() # Attempt shutdown
-                logger.debug(f"Aurite Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
+            if manager.host:  # Check if manager and host exist before shutdown
+                logger.debug(
+                    f"Aurite Fixture: Attempting shutdown for host: {manager.host._config.name}"
+                )  # Log before shutdown
+                await manager.shutdown()  # Attempt shutdown
+                logger.debug(
+                    f"Aurite Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}"
+                )  # Log after successful shutdown
             else:
-                logger.debug("Aurite Fixture: Host not available on manager for shutdown in teardown.")
+                logger.debug(
+                    "Aurite Fixture: Host not available on manager for shutdown in teardown."
+                )
         else:
-            logger.debug("Aurite Fixture: Manager not available for shutdown in teardown.")
+            logger.debug(
+                "Aurite Fixture: Manager not available for shutdown in teardown."
+            )
     except ExceptionGroup as eg:
         # Specifically catch ExceptionGroup, likely from TaskGroup/AsyncExitStack issues
         # Check if the known ProcessLookupError is within the group
         if any(isinstance(e, ProcessLookupError) for e in eg.exceptions):
-             print(f"\n[WARN] Suppressed known ProcessLookupError during teardown in host_manager fixture: {eg}")
+            print(
+                f"\n[WARN] Suppressed known ProcessLookupError during teardown in host_manager fixture: {eg}"
+            )
         else:
-             # Re-raise other unexpected ExceptionGroups
-             print(f"\n[ERROR] Unexpected ExceptionGroup during Aurite shutdown in fixture: {eg}")
-             raise
+            # Re-raise other unexpected ExceptionGroups
+            print(
+                f"\n[ERROR] Unexpected ExceptionGroup during Aurite shutdown in fixture: {eg}"
+            )
+            raise
     except RuntimeError as e:
         # Keep handling for specific RuntimeErrors like "Event loop is closed"
-        if "Event loop is closed" in str(e) or "Cannot run shutdown() while loop is stopping" in str(e):
-            print(f"\n[WARN] Suppressed known RuntimeError teardown error in host_manager fixture: {e}")
+        if "Event loop is closed" in str(
+            e
+        ) or "Cannot run shutdown() while loop is stopping" in str(e):
+            print(
+                f"\n[WARN] Suppressed known RuntimeError teardown error in host_manager fixture: {e}"
+            )
         else:
-            print(f"\n[ERROR] Unexpected RuntimeError during Aurite shutdown in fixture: {e}")
-            raise # Re-raise other RuntimeErrors
+            print(
+                f"\n[ERROR] Unexpected RuntimeError during Aurite shutdown in fixture: {e}"
+            )
+            raise  # Re-raise other RuntimeErrors
     except Exception as shutdown_e:
         # Catch any other unexpected exceptions during shutdown
-        print(f"\n[ERROR] Unexpected generic Exception during Aurite shutdown in fixture: {shutdown_e}")
-        raise # Re-raise other exceptions
+        print(
+            f"\n[ERROR] Unexpected generic Exception during Aurite shutdown in fixture: {shutdown_e}"
+        )
+        raise  # Re-raise other exceptions
 
 
 # Note: The old real_host_and_manager fixture is removed as host_manager replaces it.

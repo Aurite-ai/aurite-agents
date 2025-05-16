@@ -14,7 +14,7 @@ from ...agents.agent_models import (
     AgentOutputContentBlock,
 )
 
-import httpx # Added import
+import httpx  # Added import
 from anthropic import AsyncAnthropic, APIConnectionError, RateLimitError
 from anthropic._types import NOT_GIVEN
 from anthropic.types import (
@@ -64,14 +64,14 @@ class AnthropicLLM(BaseLLM):
             # though the main test is http1.
             http1_client = httpx.AsyncClient(
                 http2=False,  # Force HTTP/1.1
-                timeout=httpx.Timeout(15.0, connect=5.0) # 15s total, 5s connect
+                timeout=httpx.Timeout(15.0, connect=5.0),  # 15s total, 5s connect
             )
 
             self.anthropic_sdk_client = AsyncAnthropic(
                 api_key=resolved_api_key,
-                http_client=http1_client, # Pass the pre-configured client
-                timeout=30.0, # Explicitly set SDK-level timeout (seconds)
-                max_retries=3 # Explicitly set SDK-level retries
+                http_client=http1_client,  # Pass the pre-configured client
+                timeout=30.0,  # Explicitly set SDK-level timeout (seconds)
+                max_retries=3,  # Explicitly set SDK-level retries
             )
             logger.info(
                 f"AnthropicLLM client initialized successfully for model {self.model_name} using HTTP/1.1 client with extended timeouts/retries."

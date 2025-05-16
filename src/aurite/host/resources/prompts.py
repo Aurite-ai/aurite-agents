@@ -152,9 +152,7 @@ class PromptManager:
                 f"Unregistered {len(removed_prompts)} prompts for client '{client_id}': {removed_prompts}"
             )
         else:
-            logger.debug(
-                f"No prompts found to unregister for client '{client_id}'."
-            )
+            logger.debug(f"No prompts found to unregister for client '{client_id}'.")
 
     async def shutdown(self):
         """Shutdown the prompt manager"""

@@ -436,7 +436,9 @@ async def test_unregister_client_prompts(
         filtering_manager=mock_filtering_manager,
     )
     # Register prompts for client B
-    mock_filtering_manager.is_registration_allowed.side_effect = None # Reset for next call
+    mock_filtering_manager.is_registration_allowed.side_effect = (
+        None  # Reset for next call
+    )
     mock_filtering_manager.is_registration_allowed.return_value = True
     await prompt_manager.register_client_prompts(
         client_id=client_id_b,
@@ -452,9 +454,9 @@ async def test_unregister_client_prompts(
     await prompt_manager.unregister_client_prompts(client_id_a)
 
     assert client_id_a not in prompt_manager._prompts
-    assert client_id_b in prompt_manager._prompts # Client B should remain
+    assert client_id_b in prompt_manager._prompts  # Client B should remain
     assert "prompt_a1" not in prompt_manager._prompts.get(client_id_b, {})
 
     # Unregister prompts for a non-existent client (should not error)
     await prompt_manager.unregister_client_prompts("non_existent_client")
-    assert client_id_b in prompt_manager._prompts # Client B should still remain
+    assert client_id_b in prompt_manager._prompts  # Client B should still remain

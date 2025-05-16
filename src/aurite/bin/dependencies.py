@@ -74,7 +74,9 @@ async def get_api_key(
         logger.debug("API key provided via header.")
 
     if not provided_api_key:
-        logger.warning("API key missing. Attempted sources: query (for stream), header.")
+        logger.warning(
+            "API key missing. Attempted sources: query (for stream), header."
+        )
         raise HTTPException(
             status_code=401,
             detail="API key required either in X-API-Key header or as 'api_key' query parameter for streaming endpoints.",
@@ -89,7 +91,9 @@ async def get_api_key(
         )
 
     if not secrets.compare_digest(provided_api_key, expected_api_key):
-        logger.warning(f"Invalid API key. Source: {auth_source}, Provided: '{provided_api_key}', Expected: '{expected_api_key[:4]}...{expected_api_key[-4:]}'") # Enhanced log, avoid logging full expected key
+        logger.warning(
+            f"Invalid API key. Source: {auth_source}, Provided: '{provided_api_key}', Expected: '{expected_api_key[:4]}...{expected_api_key[-4:]}'"
+        )  # Enhanced log, avoid logging full expected key
         raise HTTPException(
             status_code=403,
             detail="Invalid API Key",

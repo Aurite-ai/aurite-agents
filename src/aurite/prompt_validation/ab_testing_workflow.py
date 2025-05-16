@@ -12,6 +12,7 @@ from aurite.prompt_validation.prompt_validation_helper import (
     load_config,
 )
 from typing import TYPE_CHECKING
+
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from aurite.execution.facade import ExecutionFacade
@@ -24,7 +25,9 @@ class ABTestingWorkflow:
     Custom workflow for A/B testing
     """
 
-    async def execute_workflow(self, initial_input: Any, executor: "ExecutionFacade") -> Any:
+    async def execute_workflow(
+        self, initial_input: Any, executor: "ExecutionFacade"
+    ) -> Any:
         """
         Executes the A/B testing workflow.
 
@@ -43,9 +46,7 @@ class ABTestingWorkflow:
             testing_config = load_config(testing_config_path)
 
             results = await asyncio.gather(
-                run_iterations(
-                    executor=executor, testing_config=testing_config
-                ),
+                run_iterations(executor=executor, testing_config=testing_config),
                 run_iterations(
                     executor=executor,
                     testing_config=testing_config,

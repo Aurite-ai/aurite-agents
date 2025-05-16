@@ -15,8 +15,8 @@ from typing import (
     cast,
     AsyncGenerator,  # Added AsyncGenerator
 )
-import json # Added for dynamic tool selection
-import copy # Added for copying agent_config
+import json  # Added for dynamic tool selection
+import copy  # Added for copying agent_config
 
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
@@ -28,18 +28,25 @@ if TYPE_CHECKING:
     from ..workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
     from ..config.config_models import ProjectConfig
+
     # AgentConfig, ClientConfig, LLMConfig will be imported outside TYPE_CHECKING
     from ..llm.base_client import BaseLLM
     from ..llm.providers.anthropic_client import AnthropicLLM
 
 # Actual runtime imports
-from ..config.config_models import AgentConfig, LLMConfig # Ensure LLMConfig is imported for direct use at runtime
+from ..config.config_models import (
+    AgentConfig,
+    LLMConfig,
+)  # Ensure LLMConfig is imported for direct use at runtime
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
 
 # Import AgentExecutionResult for type hinting the result
-from ..agents.agent_models import AgentExecutionResult, AgentOutputMessage # Added AgentOutputMessage
+from ..agents.agent_models import (
+    AgentExecutionResult,
+    AgentOutputMessage,
+)  # Added AgentOutputMessage
 
 # Import MessageParam for constructing initial messages
 from anthropic.types import MessageParam
@@ -89,8 +96,8 @@ class ExecutionFacade:
         self._host = host_instance
         self._current_project = current_project
         self._storage_manager = storage_manager
-        self._llm_client_cache: Dict[str, BaseLLM] = {} # LLM Client Cache
-        self._is_shut_down = False # Flag to prevent double shutdown
+        self._llm_client_cache: Dict[str, BaseLLM] = {}  # LLM Client Cache
+        self._is_shut_down = False  # Flag to prevent double shutdown
         logger.debug(
             f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
         )
@@ -103,9 +110,13 @@ class ExecutionFacade:
         Handles provider selection and API key resolution (basic for now).
         """
         provider = llm_config.provider.lower()
-        model_name = llm_config.model_name or "claude-3-haiku-20240307" # Default if not specified in config
+        model_name = (
+            llm_config.model_name or "claude-3-haiku-20240307"
+        )  # Default if not specified in config
 
-        logger.debug(f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})")
+        logger.debug(
+            f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})"
+        )
 
         if provider == "anthropic":
             # API key resolution could be enhanced here (e.g., check env vars specified in config)
@@ -113,21 +124,28 @@ class ExecutionFacade:
             try:
                 return AnthropicLLM(
                     model_name=model_name,
-                    temperature=llm_config.temperature, # Pass None if not set, client handles default
-                    max_tokens=llm_config.max_tokens,   # Pass None if not set, client handles default
-                    system_prompt=llm_config.default_system_prompt # Pass None if not set, client handles default
+                    temperature=llm_config.temperature,  # Pass None if not set, client handles default
+                    max_tokens=llm_config.max_tokens,  # Pass None if not set, client handles default
+                    system_prompt=llm_config.default_system_prompt,  # Pass None if not set, client handles default
                     # api_key=resolved_api_key # Example if key resolution happened here
                 )
             except Exception as e:
-                logger.error(f"Failed to instantiate AnthropicLLM for config '{llm_config.llm_id}': {e}", exc_info=True)
+                logger.error(
+                    f"Failed to instantiate AnthropicLLM for config '{llm_config.llm_id}': {e}",
+                    exc_info=True,
+                )
                 raise ValueError(f"Failed to create Anthropic client: {e}") from e
         # Add other providers here
         # elif provider == "openai":
         #     # ... implementation ...
         #     pass
         else:
-            logger.error(f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}")
-            raise NotImplementedError(f"LLM provider '{provider}' is not currently supported.")
+            logger.error(
+                f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}"
+            )
+            raise NotImplementedError(
+                f"LLM provider '{provider}' is not currently supported."
+            )
 
     async def aclose(self):
         """Closes all cached LLM clients."""
@@ -148,27 +166,31 @@ class ExecutionFacade:
                 )
         self._llm_client_cache.clear()
         self._is_shut_down = True
-        logger.debug("ExecutionFacade LLM client cache cleared and facade marked as shut down.")
+        logger.debug(
+            "ExecutionFacade LLM client cache cleared and facade marked as shut down."
+        )
 
     # --- Private Helper for Dynamic Tool Selection ---
 
     async def _get_llm_selected_client_ids(
         self,
-        agent_config: AgentConfig, # For context, logging, or future use
+        agent_config: AgentConfig,  # For context, logging, or future use
         user_message: str,
-        system_prompt_for_agent: Optional[str]
+        system_prompt_for_agent: Optional[str],
     ) -> Optional[List[str]]:
         """
         Uses an LLM to dynamically select client_ids for an agent based on the user message,
         agent's system prompt, and available tools.
         """
-        logger.debug(f"Attempting to dynamically select client_ids for agent '{agent_config.name}'.")
+        logger.debug(
+            f"Attempting to dynamically select client_ids for agent '{agent_config.name}'."
+        )
 
         tool_selector_llm_config = LLMConfig(
-            llm_id="internal_dynamic_tool_selector_haiku", # Specific ID for caching
+            llm_id="internal_dynamic_tool_selector_haiku",  # Specific ID for caching
             provider="anthropic",
-            model_name="claude-3-haiku-20240307", # Fast and cost-effective model
-            temperature=0.2, # Lower temperature for more deterministic selection
+            model_name="claude-3-haiku-20240307",  # Fast and cost-effective model
+            temperature=0.2,  # Lower temperature for more deterministic selection
             default_system_prompt=(
                 "You are an expert AI assistant responsible for selecting the most relevant set of tools (MCP Clients) "
                 "for another AI agent to accomplish a given task.\n"
@@ -178,24 +200,36 @@ class ExecutionFacade:
                 "3. A list of available tool sets (MCP Clients) with their capabilities.\n"
                 "Your goal is to choose the minimal set of tool sets that will provide the necessary capabilities "
                 "for the agent to best respond to the user's message, guided by its system prompt.\n"
-                "Respond with a JSON object containing a single key \"selected_client_ids\", which is a list of strings "
+                'Respond with a JSON object containing a single key "selected_client_ids", which is a list of strings '
                 "representing the IDs of the chosen tool sets.\n"
-                "If no tool sets are relevant or necessary, return an empty list for \"selected_client_ids\"."
-            )
+                'If no tool sets are relevant or necessary, return an empty list for "selected_client_ids".'
+            ),
         )
 
-        tool_selector_llm_client = self._llm_client_cache.get(tool_selector_llm_config.llm_id)
+        tool_selector_llm_client = self._llm_client_cache.get(
+            tool_selector_llm_config.llm_id
+        )
         if not tool_selector_llm_client:
             try:
-                tool_selector_llm_client = self._create_llm_client(tool_selector_llm_config)
-                self._llm_client_cache[tool_selector_llm_config.llm_id] = tool_selector_llm_client
-                logger.debug(f"Created and cached LLM client for tool selection: {tool_selector_llm_config.llm_id}")
+                tool_selector_llm_client = self._create_llm_client(
+                    tool_selector_llm_config
+                )
+                self._llm_client_cache[tool_selector_llm_config.llm_id] = (
+                    tool_selector_llm_client
+                )
+                logger.debug(
+                    f"Created and cached LLM client for tool selection: {tool_selector_llm_config.llm_id}"
+                )
             except Exception as e:
-                logger.error(f"Failed to create LLM client for tool selection: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to create LLM client for tool selection: {e}",
+                    exc_info=True,
+                )
                 return None
         else:
-            logger.debug(f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.llm_id}")
-
+            logger.debug(
+                f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.llm_id}"
+            )
 
         available_clients = self._current_project.clients
         client_info_parts = ["Available Tool Sets (MCP Clients):"]
@@ -209,7 +243,11 @@ class ExecutionFacade:
                     client_capabilities.update(root.capabilities or [])
                     root_names.append(root.name)
 
-                cap_string = ", ".join(sorted(list(client_capabilities))) if client_capabilities else "None"
+                cap_string = (
+                    ", ".join(sorted(list(client_capabilities)))
+                    if client_capabilities
+                    else "None"
+                )
                 roots_string = ", ".join(root_names) if root_names else "N/A"
                 client_info_parts.append(
                     f"---\nTool Set ID: {client_id}\nCapabilities: {cap_string}\nRoot Names: {roots_string}"
@@ -222,9 +260,11 @@ class ExecutionFacade:
             system_prompt_for_agent or "No system prompt provided for the agent.",
             "\nUser's Message to Agent:",
             user_message,
-            "\nBased on the Agent's System Prompt and the User's Message, which tool sets should be selected?"
+            "\nBased on the Agent's System Prompt and the User's Message, which tool sets should be selected?",
         ]
-        prompt_content_for_tool_selection = "\n".join(prompt_for_tool_selection_llm_parts)
+        prompt_content_for_tool_selection = "\n".join(
+            prompt_for_tool_selection_llm_parts
+        )
 
         # Define the schema for the expected JSON output
         tool_selection_schema = {
@@ -233,19 +273,23 @@ class ExecutionFacade:
                 "selected_client_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "A list of client_ids that should be selected for the agent."
+                    "description": "A list of client_ids that should be selected for the agent.",
                 }
             },
-            "required": ["selected_client_ids"]
+            "required": ["selected_client_ids"],
         }
 
         try:
-            logger.debug(f"Calling tool selection LLM. Prompt content:\n{prompt_content_for_tool_selection[:500]}...") # Log truncated prompt
+            logger.debug(
+                f"Calling tool selection LLM. Prompt content:\n{prompt_content_for_tool_selection[:500]}..."
+            )  # Log truncated prompt
             response_message: AgentOutputMessage = await tool_selector_llm_client.create_message(
-                messages=[{"role": "user", "content": prompt_content_for_tool_selection}],
-                tools=None, # No tools for the tool selector LLM itself
-                schema=tool_selection_schema, # Pass schema for JSON enforcement
-                llm_config_override=tool_selector_llm_config # Use the specific config for this call
+                messages=[
+                    {"role": "user", "content": prompt_content_for_tool_selection}
+                ],
+                tools=None,  # No tools for the tool selector LLM itself
+                schema=tool_selection_schema,  # Pass schema for JSON enforcement
+                llm_config_override=tool_selector_llm_config,  # Use the specific config for this call
             )
 
             if not response_message.content or not response_message.content[0].text:
@@ -259,8 +303,12 @@ class ExecutionFacade:
                 parsed_response = json.loads(llm_response_text)
                 selected_ids_from_llm = parsed_response.get("selected_client_ids")
 
-                if selected_ids_from_llm is None or not isinstance(selected_ids_from_llm, list):
-                    logger.error(f"Tool selection LLM response missing 'selected_client_ids' list or invalid format: {llm_response_text}")
+                if selected_ids_from_llm is None or not isinstance(
+                    selected_ids_from_llm, list
+                ):
+                    logger.error(
+                        f"Tool selection LLM response missing 'selected_client_ids' list or invalid format: {llm_response_text}"
+                    )
                     return None
 
                 # Validate selected IDs
@@ -268,22 +316,33 @@ class ExecutionFacade:
                 all_available_client_ids = set(available_clients.keys())
                 for client_id in selected_ids_from_llm:
                     if not isinstance(client_id, str):
-                        logger.warning(f"Tool selection LLM returned a non-string client_id: {client_id}. Skipping.")
+                        logger.warning(
+                            f"Tool selection LLM returned a non-string client_id: {client_id}. Skipping."
+                        )
                         continue
                     if client_id in all_available_client_ids:
                         valid_selected_ids.append(client_id)
                     else:
-                        logger.warning(f"Tool selection LLM selected non-existent client_id '{client_id}'. It will be ignored.")
+                        logger.warning(
+                            f"Tool selection LLM selected non-existent client_id '{client_id}'. It will be ignored."
+                        )
 
-                logger.info(f"Dynamically selected client_ids: {valid_selected_ids} (Agent: {agent_config.name})")
+                logger.info(
+                    f"Dynamically selected client_ids: {valid_selected_ids} (Agent: {agent_config.name})"
+                )
                 return valid_selected_ids
 
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response from tool selection LLM: {e}\nResponse: {llm_response_text}", exc_info=True)
+                logger.error(
+                    f"Failed to parse JSON response from tool selection LLM: {e}\nResponse: {llm_response_text}",
+                    exc_info=True,
+                )
                 return None
 
         except Exception as e:
-            logger.error(f"Error during LLM call for dynamic tool selection: {e}", exc_info=True)
+            logger.error(
+                f"Error during LLM call for dynamic tool selection: {e}", exc_info=True
+            )
             return None
 
     # --- Private Execution Helper ---
@@ -419,25 +478,33 @@ class ExecutionFacade:
                 raise KeyError(f"Agent configuration '{agent_name}' not found.")
 
             # --- Dynamic Tool Selection (New Step for streaming) ---
-            processed_agent_config = agent_config # Start with the original
+            processed_agent_config = agent_config  # Start with the original
             if agent_config.auto:
-                logger.info(f"Agent '{agent_name}' (streaming) has 'auto=True'. Attempting dynamic tool selection.")
+                logger.info(
+                    f"Agent '{agent_name}' (streaming) has 'auto=True'. Attempting dynamic tool selection."
+                )
                 # Determine the system prompt to pass to the tool selector LLM
                 system_prompt_for_tool_selector = agent_config.system_prompt
                 if not system_prompt_for_tool_selector and agent_config.llm_config_id:
-                    temp_llm_config_for_prompt = self._current_project.llms.get(agent_config.llm_config_id)
+                    temp_llm_config_for_prompt = self._current_project.llms.get(
+                        agent_config.llm_config_id
+                    )
                     if temp_llm_config_for_prompt:
-                        system_prompt_for_tool_selector = temp_llm_config_for_prompt.default_system_prompt
+                        system_prompt_for_tool_selector = (
+                            temp_llm_config_for_prompt.default_system_prompt
+                        )
 
                 selected_client_ids = await self._get_llm_selected_client_ids(
-                    agent_config=agent_config, # Pass original for context
+                    agent_config=agent_config,  # Pass original for context
                     user_message=user_message,
-                    system_prompt_for_agent=system_prompt_for_tool_selector
+                    system_prompt_for_agent=system_prompt_for_tool_selector,
                 )
                 if selected_client_ids is not None:
                     processed_agent_config = copy.deepcopy(agent_config)
                     processed_agent_config.client_ids = selected_client_ids
-                    logger.info(f"Dynamically selected client_ids for agent '{agent_name}' (streaming): {selected_client_ids}")
+                    logger.info(
+                        f"Dynamically selected client_ids for agent '{agent_name}' (streaming): {selected_client_ids}"
+                    )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}' (streaming). "
@@ -474,9 +541,13 @@ class ExecutionFacade:
                 effective_temperature = processed_agent_config.temperature
             if processed_agent_config.max_tokens is not None:
                 effective_max_tokens = processed_agent_config.max_tokens
-            if processed_agent_config.system_prompt is not None: # This is agent's own default system prompt
-                effective_system_prompt_for_llm_client = processed_agent_config.system_prompt
-            if not effective_model_name: # Fallback if no model specified anywhere
+            if (
+                processed_agent_config.system_prompt is not None
+            ):  # This is agent's own default system prompt
+                effective_system_prompt_for_llm_client = (
+                    processed_agent_config.system_prompt
+                )
+            if not effective_model_name:  # Fallback if no model specified anywhere
                 effective_model_name = "claude-3-haiku-20240307"
 
             # Note: The `system_prompt` argument to `stream_agent_run` is an override for THIS RUN.
@@ -491,32 +562,48 @@ class ExecutionFacade:
                 cache_key = llm_config_for_override_obj.llm_id
                 llm_client_instance = self._llm_client_cache.get(cache_key)
                 if not llm_client_instance:
-                    logger.debug(f"Facade: LLM client for '{cache_key}' not in cache. Creating...")
-                    llm_client_instance = self._create_llm_client(llm_config_for_override_obj)
+                    logger.debug(
+                        f"Facade: LLM client for '{cache_key}' not in cache. Creating..."
+                    )
+                    llm_client_instance = self._create_llm_client(
+                        llm_config_for_override_obj
+                    )
                     self._llm_client_cache[cache_key] = llm_client_instance
                     logger.debug(f"Facade: Cached LLM client for '{cache_key}'.")
                 else:
-                    logger.debug(f"Facade: Reusing cached LLM client for '{cache_key}'.")
+                    logger.debug(
+                        f"Facade: Reusing cached LLM client for '{cache_key}'."
+                    )
             else:
                 # No LLMConfig ID - create temporary config and non-cached client
-                logger.warning(f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client.")
+                logger.warning(
+                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client."
+                )
                 temp_llm_config = LLMConfig(
-                    llm_id=f"temp_{agent_name}", # Temporary ID
-                    provider="anthropic", # Assuming default provider
+                    llm_id=f"temp_{agent_name}",  # Temporary ID
+                    provider="anthropic",  # Assuming default provider
                     model_name=effective_model_name,
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
-                    default_system_prompt=effective_system_prompt_for_llm_client
+                    default_system_prompt=effective_system_prompt_for_llm_client,
                 )
-                llm_client_instance = self._create_llm_client(temp_llm_config) # Do not cache
+                llm_client_instance = self._create_llm_client(
+                    temp_llm_config
+                )  # Do not cache
 
             if not llm_client_instance:
-                 # This should ideally not happen if _create_llm_client raises errors
-                 raise RuntimeError(f"Failed to obtain LLM client instance for agent '{agent_name}'.")
+                # This should ideally not happen if _create_llm_client raises errors
+                raise RuntimeError(
+                    f"Failed to obtain LLM client instance for agent '{agent_name}'."
+                )
 
             # 3. Prepare Initial Messages (using processed_agent_config)
             initial_messages_for_agent: List[MessageParam] = []
-            if processed_agent_config.include_history and self._storage_manager and session_id:
+            if (
+                processed_agent_config.include_history
+                and self._storage_manager
+                and session_id
+            ):
                 try:
                     loaded_history = self._storage_manager.load_history(
                         agent_name, session_id
@@ -537,7 +624,7 @@ class ExecutionFacade:
 
             # 4. Instantiate Agent (using processed_agent_config)
             agent_instance = Agent(
-                config=processed_agent_config, # Use the potentially modified config
+                config=processed_agent_config,  # Use the potentially modified config
                 llm_client=llm_client_instance,
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
@@ -612,27 +699,39 @@ class ExecutionFacade:
             )
 
             # --- Dynamic Tool Selection (New Step) ---
-            processed_agent_config = agent_config # Start with the original
+            processed_agent_config = agent_config  # Start with the original
             if agent_config.auto:
-                logger.info(f"Agent '{agent_name}' has 'auto=True'. Attempting dynamic tool selection.")
+                logger.info(
+                    f"Agent '{agent_name}' has 'auto=True'. Attempting dynamic tool selection."
+                )
                 # Determine the system prompt to pass to the tool selector LLM
                 # This logic mirrors how the agent's own system prompt is resolved later
-                system_prompt_for_tool_selector = agent_config.system_prompt # Agent's specific system prompt
+                system_prompt_for_tool_selector = (
+                    agent_config.system_prompt
+                )  # Agent's specific system prompt
                 if not system_prompt_for_tool_selector and agent_config.llm_config_id:
-                    temp_llm_config_for_prompt = self._current_project.llms.get(agent_config.llm_config_id)
+                    temp_llm_config_for_prompt = self._current_project.llms.get(
+                        agent_config.llm_config_id
+                    )
                     if temp_llm_config_for_prompt:
-                        system_prompt_for_tool_selector = temp_llm_config_for_prompt.default_system_prompt
+                        system_prompt_for_tool_selector = (
+                            temp_llm_config_for_prompt.default_system_prompt
+                        )
 
                 selected_client_ids = await self._get_llm_selected_client_ids(
                     agent_config=agent_config,
                     user_message=user_message,
-                    system_prompt_for_agent=system_prompt_for_tool_selector # Pass the resolved system prompt
+                    system_prompt_for_agent=system_prompt_for_tool_selector,  # Pass the resolved system prompt
                 )
-                if selected_client_ids is not None: # Can be an empty list if LLM chose no tools
+                if (
+                    selected_client_ids is not None
+                ):  # Can be an empty list if LLM chose no tools
                     # Create a copy to modify for this run
                     processed_agent_config = copy.deepcopy(agent_config)
                     processed_agent_config.client_ids = selected_client_ids
-                    logger.info(f"Dynamically selected client_ids for agent '{agent_name}': {selected_client_ids}")
+                    logger.info(
+                        f"Dynamically selected client_ids for agent '{agent_name}': {selected_client_ids}"
+                    )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}'. "
@@ -645,12 +744,12 @@ class ExecutionFacade:
             effective_model_name: Optional[str] = None
             effective_temperature: Optional[float] = None
             effective_max_tokens: Optional[int] = None
-            effective_system_prompt_for_llm_client: Optional[str] = ( # Renamed from effective_system_prompt
+            effective_system_prompt_for_llm_client: Optional[
+                str
+            ] = (  # Renamed from effective_system_prompt
                 None
             )
-            llm_config_for_override_obj: Optional[LLMConfig] = (
-                None
-            )
+            llm_config_for_override_obj: Optional[LLMConfig] = None
 
             # 2.a. LLMConfig Lookup (Base values from processed_agent_config)
             if processed_agent_config.llm_config_id:
@@ -659,10 +758,8 @@ class ExecutionFacade:
                         f"LLM configurations not found in current project for agent '{agent_name}'."
                     )
                 else:
-                    llm_config_for_override_obj = (
-                        self._current_project.llms.get(
-                            processed_agent_config.llm_config_id
-                        )
+                    llm_config_for_override_obj = self._current_project.llms.get(
+                        processed_agent_config.llm_config_id
                     )
                 if llm_config_for_override_obj:
                     logger.debug(
@@ -702,14 +799,18 @@ class ExecutionFacade:
             # Prioritize agent_config.system_prompt, then llm_config.default_system_prompt.
             # The `system_prompt` argument to `run_agent` is handled by the Agent class itself.
             if processed_agent_config.system_prompt is not None:
-                effective_system_prompt_for_llm_client = processed_agent_config.system_prompt
+                effective_system_prompt_for_llm_client = (
+                    processed_agent_config.system_prompt
+                )
                 logger.debug(
                     "Facade: AgentConfig provides default system prompt for LLM client instantiation."
                 )
             # If agent_config.system_prompt is None, effective_system_prompt_for_llm_client
             # will retain the value from LLMConfig (if any) or be None.
 
-            if not effective_model_name and not llm_config_for_override_obj: # Check based on llm_config_for_override_obj from processed_agent_config
+            if (
+                not effective_model_name and not llm_config_for_override_obj
+            ):  # Check based on llm_config_for_override_obj from processed_agent_config
                 logger.warning(
                     f"Facade: No model name resolved for agent '{agent_name}' (no LLMConfig ID and no direct override). LLM client factory will use its default."
                 )
@@ -722,39 +823,51 @@ class ExecutionFacade:
                 cache_key = llm_config_for_override_obj.llm_id
                 llm_client_instance = self._llm_client_cache.get(cache_key)
                 if not llm_client_instance:
-                    logger.debug(f"Facade: LLM client for '{cache_key}' not in cache. Creating...")
+                    logger.debug(
+                        f"Facade: LLM client for '{cache_key}' not in cache. Creating..."
+                    )
                     # Use the resolved LLMConfig object to create the client
-                    llm_client_instance = self._create_llm_client(llm_config_for_override_obj)
+                    llm_client_instance = self._create_llm_client(
+                        llm_config_for_override_obj
+                    )
                     self._llm_client_cache[cache_key] = llm_client_instance
                     logger.debug(f"Facade: Cached LLM client for '{cache_key}'.")
                 else:
-                    logger.debug(f"Facade: Reusing cached LLM client for '{cache_key}'.")
+                    logger.debug(
+                        f"Facade: Reusing cached LLM client for '{cache_key}'."
+                    )
             else:
                 # No LLMConfig ID - create temporary config and non-cached client
-                logger.warning(f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client.")
+                logger.warning(
+                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client."
+                )
                 # Create a temporary LLMConfig based on resolved effective parameters
                 temp_llm_config = LLMConfig(
-                    llm_id=f"temp_{agent_name}", # Temporary ID
-                    provider="anthropic", # Assuming default provider for now
-                    model_name=effective_model_name, # Use resolved name
+                    llm_id=f"temp_{agent_name}",  # Temporary ID
+                    provider="anthropic",  # Assuming default provider for now
+                    model_name=effective_model_name,  # Use resolved name
                     temperature=effective_temperature,
                     max_tokens=effective_max_tokens,
-                    default_system_prompt=effective_system_prompt_for_llm_client # Correct variable
+                    default_system_prompt=effective_system_prompt_for_llm_client,  # Correct variable
                 )
-                llm_client_instance = self._create_llm_client(temp_llm_config) # Do not cache
+                llm_client_instance = self._create_llm_client(
+                    temp_llm_config
+                )  # Do not cache
 
             if not llm_client_instance:
-                 # This should ideally not happen if _create_llm_client raises errors
-                 raise RuntimeError(f"Failed to obtain LLM client instance for agent '{agent_name}'.")
+                # This should ideally not happen if _create_llm_client raises errors
+                raise RuntimeError(
+                    f"Failed to obtain LLM client instance for agent '{agent_name}'."
+                )
 
             # 4. Prepare Initial Messages (Load History + User Message, using processed_agent_config)
             initial_messages_for_agent: List[MessageParam] = []
             load_history = (
-                processed_agent_config.include_history and self._storage_manager and session_id
+                processed_agent_config.include_history
+                and self._storage_manager
+                and session_id
             )
-            if (
-                load_history and self._storage_manager
-            ):
+            if load_history and self._storage_manager:
                 try:
                     loaded_history = self._storage_manager.load_history(
                         agent_name, session_id
@@ -779,7 +892,7 @@ class ExecutionFacade:
 
             # 5. Instantiate the new Agent class (using processed_agent_config)
             agent_instance = Agent(
-                config=processed_agent_config, # Use the potentially modified config
+                config=processed_agent_config,  # Use the potentially modified config
                 llm_client=llm_client_instance,
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
@@ -800,9 +913,7 @@ class ExecutionFacade:
                 and session_id
                 and not agent_result.has_error
             )
-            if (
-                save_history and self._storage_manager
-            ):
+            if save_history and self._storage_manager:
                 try:
                     # AgentExecutionResult.conversation is List[AgentOutputMessage]
                     # Convert to List[Dict] for storage

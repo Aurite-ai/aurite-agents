@@ -41,7 +41,9 @@ class ProjectManager:
             raise TypeError("component_manager must be an instance of ComponentManager")
         self.component_manager = component_manager
         self.active_project_config: Optional[ProjectConfig] = None
-        self.current_project_root: Optional[Path] = None # For storing the root of the active project
+        self.current_project_root: Optional[Path] = (
+            None  # For storing the root of the active project
+        )
         component_counts = self.component_manager.get_component_counts()
         count_str = ", ".join(
             f"{count} {ctype}" for ctype, count in component_counts.items()
@@ -51,7 +53,10 @@ class ProjectManager:
         )
 
     def _parse_and_resolve_project_data(
-        self, project_data: Dict[str, Any], project_identifier_for_logging: str, current_project_root_for_inline_res: Path
+        self,
+        project_data: Dict[str, Any],
+        project_identifier_for_logging: str,
+        current_project_root_for_inline_res: Path,
     ) -> ProjectConfig:
         """
         Parses a dictionary of project data, resolving component references
@@ -84,7 +89,7 @@ class ProjectManager:
             "client_id",
             "Client",
             "clients",
-            current_project_root_for_inline_res
+            current_project_root_for_inline_res,
         )
         resolved_llm_configs = self._resolve_components(
             project_data,
@@ -94,7 +99,7 @@ class ProjectManager:
             "llm_id",
             "LLMConfig",
             "llm_configs",  # COMPONENT_META key for llms is 'llm_configs'
-            current_project_root_for_inline_res
+            current_project_root_for_inline_res,
         )
         resolved_agents = self._resolve_components(
             project_data,
@@ -104,7 +109,7 @@ class ProjectManager:
             "name",
             "Agent",
             "agents",  # COMPONENT_META key for agents is 'agents'
-            current_project_root_for_inline_res
+            current_project_root_for_inline_res,
         )
         resolved_simple_workflows = self._resolve_components(
             project_data,
@@ -114,7 +119,7 @@ class ProjectManager:
             "name",
             "SimpleWorkflow",
             "simple_workflows",  # COMPONENT_META key for simple_workflows is 'simple_workflows'
-            current_project_root_for_inline_res
+            current_project_root_for_inline_res,
         )
         resolved_custom_workflows = self._resolve_components(
             project_data,
@@ -124,7 +129,7 @@ class ProjectManager:
             "name",
             "CustomWorkflow",
             "custom_workflows",  # COMPONENT_META key for custom_workflows is 'custom_workflows'
-            current_project_root_for_inline_res
+            current_project_root_for_inline_res,
         )
 
         try:
@@ -238,7 +243,9 @@ class ProjectManager:
         # Parse the project file. This will use components already loaded into ComponentManager
         # (both packaged and project-specific) for resolving string references.
         # Inline definitions in the project file will use current_project_root for their path resolution.
-        project_config = self.parse_project_file(project_config_file_path) # parse_project_file now handles current_project_root
+        project_config = self.parse_project_file(
+            project_config_file_path
+        )  # parse_project_file now handles current_project_root
 
         # Now set the parsed and validated project_config as the active one
         self.active_project_config = project_config
@@ -253,7 +260,7 @@ class ProjectManager:
                 f"Unloading active project '{self.active_project_config.name}' from ProjectManager."
             )
             self.active_project_config = None
-            self.current_project_root = None # Clear current_project_root as well
+            self.current_project_root = None  # Clear current_project_root as well
         else:
             logger.info("No active project to unload from ProjectManager.")
 
@@ -308,7 +315,7 @@ class ProjectManager:
         id_field: str,
         type_name: str,  # User-friendly type name for logging, e.g., "Client", "Agent"
         cm_component_type_key: str,  # Exact key for ComponentManager, e.g., "clients", "agents"
-        current_project_root_for_inline_res: Path # Added to pass to resolve_path_fields
+        current_project_root_for_inline_res: Path,  # Added to pass to resolve_path_fields
     ) -> Dict[str, Any]:
         """
         Helper function to resolve component references or use inline definitions

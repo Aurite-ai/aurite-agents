@@ -106,7 +106,9 @@ async def get_active_project_component_config(
         component_dict_attribute_name = (
             "agents"  # Assuming ProjectConfig has active_project.agents
         )
-    elif project_component_type == "simple_workflows": # this code made more sense when the names were different I'll refactor at some point
+    elif (
+        project_component_type == "simple_workflows"
+    ):  # this code made more sense when the names were different I'll refactor at some point
         component_dict_attribute_name = "simple_workflows"
     elif project_component_type == "custom_workflows":
         component_dict_attribute_name = "custom_workflows"
@@ -319,6 +321,7 @@ async def get_active_project_config(
         )
 
     return active_project
+
 
 @router.get("/file/{filename:path}", response_model=Any)
 async def get_project_file_content(filename: str):

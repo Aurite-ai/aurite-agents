@@ -3,7 +3,7 @@ Unit tests for the AgentTurnProcessor class.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock # Added patch
+from unittest.mock import MagicMock, AsyncMock  # Added patch
 from typing import List  # Import List
 
 # Import necessary types and classes
@@ -29,7 +29,7 @@ def mock_agent_config() -> AgentConfig:
 @pytest.fixture
 def mock_llm_client() -> MagicMock:
     """Provides a simplified mock LLM client for focused testing."""
-    mock_client = MagicMock() # No spec for now to simplify stream_message mocking
+    mock_client = MagicMock()  # No spec for now to simplify stream_message mocking
     mock_client.create_message = AsyncMock()
     # stream_message will be configured directly in the test
     return mock_client
@@ -39,7 +39,9 @@ def mock_llm_client() -> MagicMock:
 class FakeLLMClient:
     def __init__(self, event_sequence: List[dict]):
         self.event_sequence = event_sequence
-        self.create_message = AsyncMock() # Keep create_message as an AsyncMock if other tests use it
+        self.create_message = (
+            AsyncMock()
+        )  # Keep create_message as an AsyncMock if other tests use it
         # stream_message will be a real async def method returning an async generator
         self.stream_message_call_args = None
         self.stream_message_call_count = 0
@@ -49,6 +51,7 @@ class FakeLLMClient:
         self.stream_message_call_count += 1
         for event in self.event_sequence:
             yield event
+
 
 @pytest.fixture
 def mock_mcp_host() -> MagicMock:
@@ -534,23 +537,45 @@ class TestAgentTurnProcessorUnit:
             {"event_type": "text_block_start", "data": {"index": 0, "text": ""}},
             {"event_type": "text_delta", "data": {"index": 0, "delta": "Thinking..."}},
             {"event_type": "content_block_stop", "data": {"index": 0}},
-
             # Block 2: Tool Use (LLM index 1, tool_id T1) -> Expected Frontend Index 1
-            {"event_type": "tool_use_start", "data": {"index": 1, "tool_id": "T1", "tool_name": "test_tool", "input_json_schema": {}}},
-            {"event_type": "tool_use_input_delta", "data": {"index": 1, "json_chunk": '{"param":'}},
-            {"event_type": "tool_use_input_delta", "data": {"index": 1, "json_chunk": ' "value"}'}},
-            {"event_type": "content_block_stop", "data": {"index": 1}}, # LLM signals end of tool_use block specification
-
+            {
+                "event_type": "tool_use_start",
+                "data": {
+                    "index": 1,
+                    "tool_id": "T1",
+                    "tool_name": "test_tool",
+                    "input_json_schema": {},
+                },
+            },
+            {
+                "event_type": "tool_use_input_delta",
+                "data": {"index": 1, "json_chunk": '{"param":'},
+            },
+            {
+                "event_type": "tool_use_input_delta",
+                "data": {"index": 1, "json_chunk": ' "value"}'},
+            },
+            {
+                "event_type": "content_block_stop",
+                "data": {"index": 1},
+            },  # LLM signals end of tool_use block specification
             # Block 3: Final Response (LLM index 0 again) -> Expected Frontend Index 2
-            {"event_type": "text_block_start", "data": {"index": 0, "text": ""}}, # LLM reuses index 0
-            {"event_type": "text_delta", "data": {"index": 0, "delta": '{"result": "done"}'}},
+            {
+                "event_type": "text_block_start",
+                "data": {"index": 0, "text": ""},
+            },  # LLM reuses index 0
+            {
+                "event_type": "text_delta",
+                "data": {"index": 0, "delta": '{"result": "done"}'},
+            },
             {"event_type": "content_block_stop", "data": {"index": 0}},
-
             # End of LLM stream
-            {"event_type": "stream_end", "data": {"stop_reason": "end_turn"}}
+            {"event_type": "stream_end", "data": {"stop_reason": "end_turn"}},
         ]
 
-        async def mock_llm_stream_generator_func(*args, **kwargs): # Add *args, **kwargs to accept any call signature
+        async def mock_llm_stream_generator_func(
+            *args, **kwargs
+        ):  # Add *args, **kwargs to accept any call signature
             for event in llm_event_sequence:
                 yield event
 
@@ -561,17 +586,20 @@ class TestAgentTurnProcessorUnit:
         mock_mcp_host.execute_tool.return_value = {"tool_output": "success"}
         # Mock the tool result block creation (simplified)
         mock_mcp_host.tools.create_tool_result_blocks.return_value = {
-            "type": "tool_result", "tool_use_id": "T1", "content": "mock tool result"
+            "type": "tool_result",
+            "tool_use_id": "T1",
+            "content": "mock tool result",
         }
-
 
         # 4. Instantiate AgentTurnProcessor with the FakeLLMClient
         turn_processor = AgentTurnProcessor(
             config=mock_agent_config,
-            llm_client=fake_llm_client, # Use the fake client
+            llm_client=fake_llm_client,  # Use the fake client
             host_instance=mock_mcp_host,
             current_messages=initial_messages,
-            tools_data=[{"name": "test_tool", "description": "A test tool", "input_schema": {}}], # Ensure tool is in tools_data
+            tools_data=[
+                {"name": "test_tool", "description": "A test tool", "input_schema": {}}
+            ],  # Ensure tool is in tools_data
             effective_system_prompt="You are helpful.",
         )
 
@@ -588,7 +616,9 @@ class TestAgentTurnProcessorUnit:
 
         # Verify tool execution if a tool was used
         mock_mcp_host.execute_tool.assert_awaited_once_with(
-            tool_name="test_tool", arguments={"param": "value"}, agent_config=mock_agent_config
+            tool_name="test_tool",
+            arguments={"param": "value"},
+            agent_config=mock_agent_config,
         )
 
         # Expected frontend indices for conceptual blocks
@@ -604,55 +634,93 @@ class TestAgentTurnProcessorUnit:
 
         # Event 0: text_block_start (Thinking)
         assert collected_sse_events[0]["event_type"] == "text_block_start"
-        assert collected_sse_events[0]["data"]["index"] == expected_frontend_indices["thinking_block_llm_idx_0"]
+        assert (
+            collected_sse_events[0]["data"]["index"]
+            == expected_frontend_indices["thinking_block_llm_idx_0"]
+        )
 
         # Event 1: text_delta (Thinking)
         assert collected_sse_events[1]["event_type"] == "text_delta"
-        assert collected_sse_events[1]["data"]["index"] == expected_frontend_indices["thinking_block_llm_idx_0"]
+        assert (
+            collected_sse_events[1]["data"]["index"]
+            == expected_frontend_indices["thinking_block_llm_idx_0"]
+        )
 
         # Event 2: content_block_stop (Thinking)
         assert collected_sse_events[2]["event_type"] == "content_block_stop"
-        assert collected_sse_events[2]["data"]["index"] == expected_frontend_indices["thinking_block_llm_idx_0"]
+        assert (
+            collected_sse_events[2]["data"]["index"]
+            == expected_frontend_indices["thinking_block_llm_idx_0"]
+        )
 
         # Event 3: tool_use_start (Tool T1)
         assert collected_sse_events[3]["event_type"] == "tool_use_start"
-        assert collected_sse_events[3]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[3]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
         assert collected_sse_events[3]["data"]["tool_id"] == "T1"
 
         # Event 4: tool_use_input_delta (Tool T1)
         assert collected_sse_events[4]["event_type"] == "tool_use_input_delta"
-        assert collected_sse_events[4]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[4]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
 
         # Event 5: tool_use_input_delta (Tool T1)
         assert collected_sse_events[5]["event_type"] == "tool_use_input_delta"
-        assert collected_sse_events[5]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[5]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
 
         # Event 6: content_block_stop (Tool T1 specification by LLM)
         assert collected_sse_events[6]["event_type"] == "content_block_stop"
-        assert collected_sse_events[6]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[6]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
 
         # Event 7: tool_use_input_complete (Generated by ATP after parsing tool input)
         assert collected_sse_events[7]["event_type"] == "tool_result"
-        assert collected_sse_events[7]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[7]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
         assert collected_sse_events[7]["data"]["input"] == {"param": "value"}
 
         # Event 8: tool_result (Generated by ATP after tool execution)
         assert collected_sse_events[8]["event_type"] == "tool_result"
-        assert collected_sse_events[8]["data"]["index"] == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        assert (
+            collected_sse_events[8]["data"]["index"]
+            == expected_frontend_indices["tool_block_llm_idx_1_id_T1"]
+        )
         assert collected_sse_events[8]["data"]["tool_use_id"] == "T1"
-        assert collected_sse_events[8]["data"]["output"] == {"tool_output": "success"} # From mock_mcp_host
+        assert collected_sse_events[8]["data"]["output"] == {
+            "tool_output": "success"
+        }  # From mock_mcp_host
 
         # Event 9: text_block_start (Final Response, LLM reuses index 0)
         assert collected_sse_events[9]["event_type"] == "text_block_start"
-        assert collected_sse_events[9]["data"]["index"] == expected_frontend_indices["final_response_block_llm_idx_0"]
+        assert (
+            collected_sse_events[9]["data"]["index"]
+            == expected_frontend_indices["final_response_block_llm_idx_0"]
+        )
 
         # Event 10: text_delta (Final Response)
         assert collected_sse_events[10]["event_type"] == "text_delta"
-        assert collected_sse_events[10]["data"]["index"] == expected_frontend_indices["final_response_block_llm_idx_0"]
+        assert (
+            collected_sse_events[10]["data"]["index"]
+            == expected_frontend_indices["final_response_block_llm_idx_0"]
+        )
 
         # Event 11: content_block_stop (Final Response)
         assert collected_sse_events[11]["event_type"] == "content_block_stop"
-        assert collected_sse_events[11]["data"]["index"] == expected_frontend_indices["final_response_block_llm_idx_0"]
+        assert (
+            collected_sse_events[11]["data"]["index"]
+            == expected_frontend_indices["final_response_block_llm_idx_0"]
+        )
 
         # Event 12: llm_call_completed (Generated by ATP from LLM's stream_end)
         assert collected_sse_events[12]["event_type"] == "llm_call_completed"

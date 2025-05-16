@@ -80,9 +80,7 @@ class TestAuriteAgentRegistration:
         )
 
     # @pytest.mark.asyncio # Removed
-    async def test_register_agent_duplicate_name(
-        self, unit_test_host_manager: Aurite
-    ):
+    async def test_register_agent_duplicate_name(self, unit_test_host_manager: Aurite):
         """Verify registration fails if agent name already exists."""
         manager = unit_test_host_manager
         agent_config1 = AgentConfig(name="DuplicateAgent")
@@ -90,18 +88,19 @@ class TestAuriteAgentRegistration:
 
         # Register first time
         await manager.register_agent(agent_config1)
-        assert (
-            "DuplicateAgent"
-            in manager.project_manager.active_project_config.agents
+        assert "DuplicateAgent" in manager.project_manager.active_project_config.agents
+        original_agent_config_in_project = (
+            manager.project_manager.active_project_config.agents["DuplicateAgent"]
         )
-        original_agent_config_in_project = manager.project_manager.active_project_config.agents["DuplicateAgent"]
-        assert original_agent_config_in_project.model is None # From agent_config1
+        assert original_agent_config_in_project.model is None  # From agent_config1
 
         # Register again with the same name but different model
         await manager.register_agent(agent_config2)
 
         # Ensure the config was updated
-        updated_agent_config_in_project = manager.project_manager.active_project_config.agents["DuplicateAgent"]
+        updated_agent_config_in_project = (
+            manager.project_manager.active_project_config.agents["DuplicateAgent"]
+        )
         assert updated_agent_config_in_project == agent_config2
         assert updated_agent_config_in_project.model == "different-model"
 
@@ -167,37 +166,28 @@ class TestAuriteAgentRegistration:
         )
 
         assert (
-            "AgentValidClients"
-            in manager.project_manager.active_project_config.agents
+            "AgentValidClients" in manager.project_manager.active_project_config.agents
         )
         assert (
-            manager.project_manager.active_project_config.agents[
-                "AgentValidClients"
-            ]
+            manager.project_manager.active_project_config.agents["AgentValidClients"]
             == agent_config
         )
 
     # @pytest.mark.asyncio # Removed
-    async def test_register_agent_no_client_ids(
-        self, unit_test_host_manager: Aurite
-    ):
+    async def test_register_agent_no_client_ids(self, unit_test_host_manager: Aurite):
         """Verify successful registration when client_ids is None or empty."""
         manager = unit_test_host_manager
 
         # Test with None client_ids
         agent_config_none = AgentConfig(name="AgentNoClients")
         await manager.register_agent(agent_config_none)
-        assert (
-            "AgentNoClients"
-            in manager.project_manager.active_project_config.agents
-        )
+        assert "AgentNoClients" in manager.project_manager.active_project_config.agents
 
         # Test with empty list client_ids
         agent_config_empty = AgentConfig(name="AgentEmptyClients", client_ids=[])
         await manager.register_agent(agent_config_empty)
         assert (
-            "AgentEmptyClients"
-            in manager.project_manager.active_project_config.agents
+            "AgentEmptyClients" in manager.project_manager.active_project_config.agents
         )
 
 
@@ -216,7 +206,11 @@ class TestAuriteWorkflowRegistration:
 
         # Configure component_manager mock to return the agent_config
         # when get_component_config is called for this agent.
-        manager.component_manager.get_component_config = MagicMock(side_effect = lambda type, id: agent_config if type == "agents" and id == agent_name_for_step else None)
+        manager.component_manager.get_component_config = MagicMock(
+            side_effect=lambda type, id: agent_config
+            if type == "agents" and id == agent_name_for_step
+            else None
+        )
 
         # Now, Aurite.register_agent will be called internally by register_workflow's cascading logic.
         # We don't need to call it explicitly here anymore for the purpose of this test's setup for register_workflow.
@@ -225,13 +219,25 @@ class TestAuriteWorkflowRegistration:
         # or mock get_component_config to also handle LLMConfig lookup if needed.
         # Let's assume no llm_config_id for AgentForWorkflow for this specific test.
 
-        workflow_config = WorkflowConfig(name="NewWorkflow", steps=[agent_name_for_step])
+        workflow_config = WorkflowConfig(
+            name="NewWorkflow", steps=[agent_name_for_step]
+        )
         await manager.register_workflow(workflow_config)
 
-        assert "NewWorkflow" in manager.project_manager.active_project_config.simple_workflows
-        assert manager.project_manager.active_project_config.simple_workflows["NewWorkflow"] == workflow_config
+        assert (
+            "NewWorkflow"
+            in manager.project_manager.active_project_config.simple_workflows
+        )
+        assert (
+            manager.project_manager.active_project_config.simple_workflows[
+                "NewWorkflow"
+            ]
+            == workflow_config
+        )
         # Also assert that the agent was indeed registered in the active_project by the cascading call
-        assert agent_name_for_step in manager.project_manager.active_project_config.agents
+        assert (
+            agent_name_for_step in manager.project_manager.active_project_config.agents
+        )
 
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_duplicate_name(
@@ -243,26 +249,52 @@ class TestAuriteWorkflowRegistration:
         agent_config = AgentConfig(name=agent_name_for_step)
 
         # Configure component_manager mock
-        manager.component_manager.get_component_config = MagicMock(side_effect = lambda type, id: agent_config if type == "agents" and id == agent_name_for_step else None)
+        manager.component_manager.get_component_config = MagicMock(
+            side_effect=lambda type, id: agent_config
+            if type == "agents" and id == agent_name_for_step
+            else None
+        )
 
         workflow_config1 = WorkflowConfig(
-            name="DuplicateWorkflow", steps=[agent_name_for_step], description="First version"
+            name="DuplicateWorkflow",
+            steps=[agent_name_for_step],
+            description="First version",
         )
         workflow_config2 = WorkflowConfig(
-            name="DuplicateWorkflow", steps=[agent_name_for_step], description="Second version" # Same steps, different description
+            name="DuplicateWorkflow",
+            steps=[agent_name_for_step],
+            description="Second version",  # Same steps, different description
         )
 
         # Register first time
         await manager.register_workflow(workflow_config1)
-        assert "DuplicateWorkflow" in manager.project_manager.active_project_config.simple_workflows
-        assert manager.project_manager.active_project_config.simple_workflows["DuplicateWorkflow"].description == "First version"
+        assert (
+            "DuplicateWorkflow"
+            in manager.project_manager.active_project_config.simple_workflows
+        )
+        assert (
+            manager.project_manager.active_project_config.simple_workflows[
+                "DuplicateWorkflow"
+            ].description
+            == "First version"
+        )
 
         # Register again with the same name - should update
         await manager.register_workflow(workflow_config2)
 
         # Ensure the config was updated
-        assert manager.project_manager.active_project_config.simple_workflows["DuplicateWorkflow"] == workflow_config2
-        assert manager.project_manager.active_project_config.simple_workflows["DuplicateWorkflow"].description == "Second version"
+        assert (
+            manager.project_manager.active_project_config.simple_workflows[
+                "DuplicateWorkflow"
+            ]
+            == workflow_config2
+        )
+        assert (
+            manager.project_manager.active_project_config.simple_workflows[
+                "DuplicateWorkflow"
+            ].description
+            == "Second version"
+        )
 
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_unknown_agent_step(
@@ -275,7 +307,10 @@ class TestAuriteWorkflowRegistration:
             name="WorkflowBadStep", steps=["UnknownAgentStep"]
         )
 
-        with pytest.raises(ValueError, match=f"Agent step '{workflow_config.steps[0]}' for workflow '{workflow_config.name}' not found in ComponentManager."):
+        with pytest.raises(
+            ValueError,
+            match=f"Agent step '{workflow_config.steps[0]}' for workflow '{workflow_config.name}' not found in ComponentManager.",
+        ):
             await manager.register_workflow(workflow_config)
 
         assert (
@@ -294,9 +329,7 @@ class TestAuriteWorkflowRegistration:
             await manager.register_workflow(workflow_config)
 
     # @pytest.mark.asyncio # Removed
-    async def test_register_workflow_empty_steps(
-        self, unit_test_host_manager: Aurite
-    ):
+    async def test_register_workflow_empty_steps(self, unit_test_host_manager: Aurite):
         """Verify successful registration with empty steps list."""
         manager = unit_test_host_manager
         workflow_config = WorkflowConfig(name="WorkflowEmptySteps", steps=[])

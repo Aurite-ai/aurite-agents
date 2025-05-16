@@ -40,9 +40,9 @@ class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
     client_id: str
-    transport_type: Literal["stdio", "http_stream"] = "stdio" # Use http_stream
+    transport_type: Literal["stdio", "http_stream"] = "stdio"  # Use http_stream
     server_path: Optional[Path] = None
-    http_endpoint: Optional[str] = None # Use http_endpoint
+    http_endpoint: Optional[str] = None  # Use http_endpoint
     roots: Optional[List[RootConfig]] = None
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
@@ -59,16 +59,21 @@ class ClientConfig(BaseModel):
     def check_transport_specific_fields(cls, values):
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
-        http_endpoint = values.get("http_endpoint") # Use http_endpoint
+        http_endpoint = values.get("http_endpoint")  # Use http_endpoint
 
         if transport_type == "stdio":
             if server_path is None:
                 raise ValueError("server_path is required for stdio transport type")
-        elif transport_type == "http_stream": # Use http_stream
+        elif transport_type == "http_stream":  # Use http_stream
             if http_endpoint is None:
-                raise ValueError("http_endpoint is required for http_stream transport type")
+                raise ValueError(
+                    "http_endpoint is required for http_stream transport type"
+                )
             # Basic URL validation
-            if not (http_endpoint.startswith("http://") or http_endpoint.startswith("https://")):
+            if not (
+                http_endpoint.startswith("http://")
+                or http_endpoint.startswith("https://")
+            ):
                 raise ValueError("http_endpoint must be a valid HTTP/HTTPS URL")
         return values
 

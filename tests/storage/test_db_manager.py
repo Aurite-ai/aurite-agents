@@ -13,7 +13,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Assuming models and manager are importable
-from aurite.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from aurite.config.config_models import (
+    AgentConfig,
+    WorkflowConfig,
+    CustomWorkflowConfig,
+)
 from aurite.storage.db_manager import StorageManager
 from aurite.storage.db_models import (
     Base,

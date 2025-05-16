@@ -176,9 +176,7 @@ class AgentTurnProcessor:
 
         # active_tool_calls stores information about tools the LLM has started to use in the current turn.
         # The key is the LLM's original content_block_index for the tool_use block.
-        active_tool_calls: Dict[
-            int, Dict[str, Any]
-        ] = {}
+        active_tool_calls: Dict[int, Dict[str, Any]] = {}
 
         # SSE Event Indexing Strategy:
         # The 'index' field in the yielded event_data for events like text_block_start, text_delta,
@@ -198,7 +196,9 @@ class AgentTurnProcessor:
                 llm_config_override=self.llm_config_for_override,
             ):
                 event_type = llm_event.get("event_type")
-                event_data = llm_event.get("data", {}).copy() # Use a copy for modification
+                event_data = llm_event.get(
+                    "data", {}
+                ).copy()  # Use a copy for modification
                 llm_event_original_index = event_data.get("index")
 
                 if event_type == "tool_use_start":
@@ -209,14 +209,23 @@ class AgentTurnProcessor:
                             "input_str": "",
                         }
                     else:
-                        logger.error(f"Tool_use_start event is missing 'index'. Cannot track tool call. Data: {event_data}")
+                        logger.error(
+                            f"Tool_use_start event is missing 'index'. Cannot track tool call. Data: {event_data}"
+                        )
                     yield {"event_type": event_type, "data": event_data}
 
                 elif event_type == "tool_use_input_delta":
-                    if llm_event_original_index is not None and llm_event_original_index in active_tool_calls:
+                    if (
+                        llm_event_original_index is not None
+                        and llm_event_original_index in active_tool_calls
+                    ):
                         json_chunk_data = event_data.get("json_chunk")
-                        chunk_to_add = str(json_chunk_data) if json_chunk_data is not None else ""
-                        active_tool_calls[llm_event_original_index]["input_str"] += chunk_to_add
+                        chunk_to_add = (
+                            str(json_chunk_data) if json_chunk_data is not None else ""
+                        )
+                        active_tool_calls[llm_event_original_index]["input_str"] += (
+                            chunk_to_add
+                        )
                     else:
                         logger.warning(
                             f"ATP: Received tool_use_input_delta for index {llm_event_original_index} but not found in active_tool_calls or index is None."
@@ -224,9 +233,12 @@ class AgentTurnProcessor:
                     yield {"event_type": event_type, "data": event_data}
 
                 elif event_type == "content_block_stop":
-                    yield {"event_type": event_type, "data": event_data} # Yield first
+                    yield {"event_type": event_type, "data": event_data}  # Yield first
 
-                    if llm_event_original_index is not None and llm_event_original_index in active_tool_calls:
+                    if (
+                        llm_event_original_index is not None
+                        and llm_event_original_index in active_tool_calls
+                    ):
                         tool_call_info = active_tool_calls.pop(llm_event_original_index)
                         tool_id = tool_call_info.get("id")
                         tool_name = tool_call_info.get("name")
@@ -235,12 +247,22 @@ class AgentTurnProcessor:
                             f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
                         try:
-                            cleaned_tool_input_str = tool_input_str.strip() if tool_input_str else ""
-                            sanitized_tool_input_str = "".join(
-                                c for c in cleaned_tool_input_str if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
+                            cleaned_tool_input_str = (
+                                tool_input_str.strip() if tool_input_str else ""
                             )
-                            string_to_parse = sanitized_tool_input_str if sanitized_tool_input_str else cleaned_tool_input_str
-                            parsed_input = json.loads(string_to_parse) if string_to_parse else {}
+                            sanitized_tool_input_str = "".join(
+                                c
+                                for c in cleaned_tool_input_str
+                                if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
+                            )
+                            string_to_parse = (
+                                sanitized_tool_input_str
+                                if sanitized_tool_input_str
+                                else cleaned_tool_input_str
+                            )
+                            parsed_input = (
+                                json.loads(string_to_parse) if string_to_parse else {}
+                            )
 
                             tool_result_content = await self.host.execute_tool(
                                 tool_name=tool_name,
@@ -257,20 +279,37 @@ class AgentTurnProcessor:
                                 serializable_output = []
                                 for item in tool_result_content:
                                     if hasattr(item, "model_dump"):
-                                        item_dump = item.model_dump(mode="json", exclude_none=True)
+                                        item_dump = item.model_dump(
+                                            mode="json", exclude_none=True
+                                        )
                                         if item_dump.get("type") == "text":
-                                            item_dump = {"type": "text", "text": item_dump.get("text", "")}
+                                            item_dump = {
+                                                "type": "text",
+                                                "text": item_dump.get("text", ""),
+                                            }
                                         serializable_output.append(item_dump)
                                     else:
                                         serializable_output.append(str(item))
                             elif hasattr(tool_result_content, "model_dump"):
-                                serializable_output = tool_result_content.model_dump(mode="json", exclude_none=True)
+                                serializable_output = tool_result_content.model_dump(
+                                    mode="json", exclude_none=True
+                                )
                                 if serializable_output.get("type") == "text":
-                                    serializable_output = {"type": "text", "text": serializable_output.get("text", "")}
-                            elif isinstance(tool_result_content, (dict, int, float, bool)) or tool_result_content is None:
+                                    serializable_output = {
+                                        "type": "text",
+                                        "text": serializable_output.get("text", ""),
+                                    }
+                            elif (
+                                isinstance(
+                                    tool_result_content, (dict, int, float, bool)
+                                )
+                                or tool_result_content is None
+                            ):
                                 serializable_output = tool_result_content
                             else:
-                                logger.warning(f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string.")
+                                logger.warning(
+                                    f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string."
+                                )
                                 serializable_output = str(tool_result_content)
 
                             tool_result_data = {
@@ -281,27 +320,46 @@ class AgentTurnProcessor:
                                 "output": serializable_output,
                                 "is_error": False,
                             }
-                            yield {"event_type": "tool_result", "data": tool_result_data}
+                            yield {
+                                "event_type": "tool_result",
+                                "data": tool_result_data,
+                            }
                         except json.JSONDecodeError as json_err:
-                            logger.error(f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}")
+                            logger.error(
+                                f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
+                            )
                             tool_error_data = {
                                 "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": f"Invalid JSON input for tool: {str(json_err)}",
                             }
-                            yield {"event_type": "tool_execution_error", "data": tool_error_data}
+                            yield {
+                                "event_type": "tool_execution_error",
+                                "data": tool_error_data,
+                            }
                         except Exception as e:
-                            logger.error(f"Error executing tool {tool_name} via stream: {e}", exc_info=True)
+                            logger.error(
+                                f"Error executing tool {tool_name} via stream: {e}",
+                                exc_info=True,
+                            )
                             tool_error_data = {
                                 "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": str(e),
                             }
-                            yield {"event_type": "tool_execution_error", "data": tool_error_data}
-                    elif llm_event_original_index is None and event_data.get("content_type") == "tool_use":
-                        logger.warning(f"Content_block_stop for tool_use event missing 'index'. Cannot process tool call. Data: {event_data}")
+                            yield {
+                                "event_type": "tool_execution_error",
+                                "data": tool_error_data,
+                            }
+                    elif (
+                        llm_event_original_index is None
+                        and event_data.get("content_type") == "tool_use"
+                    ):
+                        logger.warning(
+                            f"Content_block_stop for tool_use event missing 'index'. Cannot process tool call. Data: {event_data}"
+                        )
 
                 elif event_type == "stream_end":
                     llm_call_stop_reason = event_data.get("stop_reason")
@@ -317,7 +375,7 @@ class AgentTurnProcessor:
                     }
                     break
 
-                else: # Handles message_start, text_block_start, text_delta, message_delta, ping, error, unknown
+                else:  # Handles message_start, text_block_start, text_delta, message_delta, ping, error, unknown
                     yield {"event_type": event_type, "data": event_data}
 
         except Exception as e:

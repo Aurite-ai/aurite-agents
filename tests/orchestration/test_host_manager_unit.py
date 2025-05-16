@@ -81,9 +81,7 @@ class TestAuriteClientRegistration:
         manager.host.register_client.assert_awaited_once_with(client_config)
 
     @pytest.mark.skip(reason="Not yet implemented")
-    async def test_register_client_duplicate_id(
-        self, unit_test_host_manager: Aurite
-    ):
+    async def test_register_client_duplicate_id(self, unit_test_host_manager: Aurite):
         # Simulate host.register_client raising ValueError for duplicate
         manager = unit_test_host_manager
         manager.host.register_client.side_effect = ValueError(

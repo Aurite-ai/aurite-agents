@@ -22,7 +22,7 @@ from ...host_manager import (
 from .routes import (
     config_routes,
     components_routes,
-    evaluation_api, # evaluation_api is not being renamed as per plan
+    evaluation_api,  # evaluation_api is not being renamed as per plan
     project_routes,
 )
 
@@ -138,7 +138,7 @@ async def get_status(
 # Include the routers
 app.include_router(config_routes.router)
 app.include_router(components_routes.router)
-app.include_router(evaluation_api.router) # evaluation_api is not being renamed
+app.include_router(evaluation_api.router)  # evaluation_api is not being renamed
 app.include_router(project_routes.router)
 
 # --- Custom Exception Handlers ---

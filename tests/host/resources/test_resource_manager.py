@@ -540,13 +540,16 @@ async def test_unregister_client_resources(
     resource_manager: ResourceManager,
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
-    sample_client_config: ClientConfig, # Client R
+    sample_client_config: ClientConfig,  # Client R
 ):
     """Test unregistering resources for a specific client."""
     client_id_r = sample_client_config.client_id
     client_id_s = "client_S"
     client_config_s = ClientConfig(
-        client_id=client_id_s, server_path="path/s", capabilities=["resources"], roots=[]
+        client_id=client_id_s,
+        server_path="path/s",
+        capabilities=["resources"],
+        roots=[],
     )
 
     resource_r1 = types.Resource(uri="file:///data/r1.txt", name="r1")
@@ -560,7 +563,9 @@ async def test_unregister_client_resources(
         filtering_manager=mock_filtering_manager,
     )
     # Register resources for client S
-    mock_filtering_manager.is_registration_allowed.side_effect = None # Reset for next call
+    mock_filtering_manager.is_registration_allowed.side_effect = (
+        None  # Reset for next call
+    )
     mock_filtering_manager.is_registration_allowed.return_value = True
     await resource_manager.register_client_resources(
         client_id=client_id_s,
@@ -576,9 +581,9 @@ async def test_unregister_client_resources(
     await resource_manager.unregister_client_resources(client_id_r)
 
     assert client_id_r not in resource_manager._resources
-    assert client_id_s in resource_manager._resources # Client S should remain
+    assert client_id_s in resource_manager._resources  # Client S should remain
     assert str(resource_r1.uri) not in resource_manager._resources.get(client_id_s, {})
 
     # Unregister resources for a non-existent client (should not error)
     await resource_manager.unregister_client_resources("non_existent_client")
-    assert client_id_s in resource_manager._resources # Client S should still remain
+    assert client_id_s in resource_manager._resources  # Client S should still remain

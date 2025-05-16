@@ -1,6 +1,7 @@
 """MCP server for reading files"""
+
 import os
-from pathlib import Path # Added Path import
+from pathlib import Path  # Added Path import
 
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
@@ -40,7 +41,7 @@ def read_file(filepath: str) -> str:
 
     # Tentative change: make it relative to CWD for now, or expect absolute.
     # This server's utility in a packaged context is limited without further refactoring.
-    target_path = Path(filepath) # Assume filepath could be absolute or relative to CWD
+    target_path = Path(filepath)  # Assume filepath could be absolute or relative to CWD
     if not target_path.is_absolute():
         # This is a placeholder; a real server would need a defined content root.
         # For now, let's assume it's relative to where the server is run.
@@ -49,12 +50,12 @@ def read_file(filepath: str) -> str:
         # For now, let's make it try to resolve from CWD.
         target_path = Path.cwd() / filepath
 
-
-    if os.path.exists(target_path): # Use target_path
-        with open(target_path, "r") as file: # Use target_path
+    if os.path.exists(target_path):  # Use target_path
+        with open(target_path, "r") as file:  # Use target_path
             return file.read()
     else:
         return "File not found"
+
 
 @mcp.tool()
 def read_file_by_index(index: int) -> str:
@@ -68,6 +69,7 @@ def read_file_by_index(index: int) -> str:
         return "Invalid index"
 
     return read_file(FILES[index])
+
 
 @mcp.tool()
 def list_filepaths() -> list[str]:
