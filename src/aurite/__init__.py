@@ -7,7 +7,7 @@ It exposes the core classes and functions for users to build and run AI agents.
 """
 
 # Core classes for users
-from .host_manager import HostManager
+from .host_manager import Aurite
 
 # Configuration models
 from .config.config_models import (
@@ -26,7 +26,7 @@ from .config.config_models import (
 # from .some_utility_module import useful_function
 
 __all__ = [
-    "HostManager",
+    "Aurite",
     "AgentConfig",
     "ClientConfig",
     "CustomWorkflowConfig",

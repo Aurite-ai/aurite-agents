@@ -20,7 +20,7 @@ from aurite.agents.agent_models import (
     AgentOutputContentBlock,
 )
 from aurite.llm.base_client import BaseLLM  # For mocking
-from aurite.host_manager import HostManager  # For host_manager fixture type hint
+from aurite.host_manager import Aurite  # For host_manager fixture type hint
 
 # Import shared fixtures if needed (host_manager is usually sufficient)
 # from ..fixtures.host_fixtures import host_manager # Assuming host_manager is available globally
@@ -34,7 +34,7 @@ class TestAgentIntegration:
     @pytest.mark.anyio
     async def test_agent_integration_tool_call_mock_llm(
         self,
-        host_manager: HostManager,  # Use the real host manager fixture
+        host_manager: Aurite,  # Use the real host manager fixture
     ):
         """
         Tests agent execution that involves calling a tool via the real MCPHost,
@@ -186,7 +186,7 @@ class TestAgentIntegration:
     @pytest.mark.anyio
     async def test_agent_integration_schema_validation_mock_llm(
         self,
-        host_manager: HostManager,
+        host_manager: Aurite,
     ):
         """
         Tests agent execution with schema validation where the LLM provides
@@ -273,7 +273,7 @@ class TestAgentIntegration:
     @pytest.mark.anyio
     async def test_agent_integration_real_llm(
         self,
-        host_manager: HostManager,
+        host_manager: Aurite,
     ):
         """
         Tests agent execution using the real LLM API (Anthropic).

@@ -1,5 +1,5 @@
 """
-Tests for the HostManager class.
+Tests for the Aurite class.
 """
 
 import pytest
@@ -9,7 +9,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
 
 # Assuming tests run from project root
-from aurite.host_manager import HostManager
+from aurite.host_manager import Aurite
 from aurite.host.host import MCPHost
 from aurite.config.config_models import (
     AgentConfig,
@@ -25,18 +25,18 @@ EXPECTED_WORKFLOW_COUNT = 1
 EXPECTED_CUSTOM_WORKFLOW_COUNT = 1
 
 
-@pytest.mark.integration  # Tests HostManager with real ProjectManager and real MCPHost/clients
-class TestHostManagerInitialization:
-    """Tests related to HostManager initialization."""
+@pytest.mark.integration  # Tests Aurite with real ProjectManager and real MCPHost/clients
+class TestAuriteInitialization:
+    """Tests related to Aurite initialization."""
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     # @pytest.mark.xfail( # Assuming the event loop issue might be resolved or less prevalent with mocks
     #     reason="Known 'Event loop is closed' error during host_manager fixture teardown"
     # ) # Keep xfail for now if it persists, but test with it removed first.
-    async def test_host_manager_initialization_success(self, host_manager: HostManager):
+    async def test_host_manager_initialization_success(self, host_manager: Aurite):
         """
         Verify that the host_manager fixture successfully initializes the
-        HostManager using the mocked ProjectManager, loads configurations,
+        Aurite using the mocked ProjectManager, loads configurations,
         and initializes the MCPHost.
         """
         # Assertions using the host_manager fixture instance
@@ -98,7 +98,7 @@ class TestHostManagerInitialization:
         # Check if tool manager seems populated (via host property)
         # This depends on the servers actually starting and registering tools.
         # The dummy_server1.py, weather_mcp_server.py, planning_server.py would need to be runnable.
-        # For a more robust unit/integration test of HostManager with mocked ProjectManager,
+        # For a more robust unit/integration test of Aurite with mocked ProjectManager,
         # we might not need to assert specific tools if client init is complex.
         # However, if the dummy client paths in mock_project_config_object are valid and runnable,
         # we can expect some tools.

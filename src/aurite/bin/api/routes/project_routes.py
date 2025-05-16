@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, ValidationError  # Added ValidationError
 
 # Import dependencies (adjust relative paths as needed)
 from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import HostManager
+from ....host_manager import Aurite
 from ....config.config_models import ProjectConfig  # For response model and validation
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ class LoadComponentsRequest(BaseModel):
 async def get_active_project_component_config(
     project_component_type: str,
     component_name: str,
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
     Retrieves the full configuration of a specific component
@@ -158,7 +158,7 @@ async def get_active_project_component_config(
 # @router.post("/change", status_code=status.HTTP_200_OK)
 # async def change_project(
 #     request: ChangeProjectRequest,
-#     manager: HostManager = Depends(get_host_manager),
+#     manager: Aurite = Depends(get_host_manager),
 # ):
 #     """
 #     Unloads the current project and loads a new one specified by the path.
@@ -166,7 +166,7 @@ async def get_active_project_component_config(
 #     logger.info(f"Received request to change project to: {request.project_config_path}")
 #     try:
 #         # Convert string path to Path object. Assume it might be relative to project root.
-#         # HostManager's change_project method should handle final resolution if needed.
+#         # Aurite's change_project method should handle final resolution if needed.
 #         # For robustness, let's resolve it here relative to PROJECT_ROOT if not absolute.
 #         from aurite.config import PROJECT_ROOT_DIR  # Corrected import path
 
@@ -197,7 +197,7 @@ async def get_active_project_component_config(
 #             detail=f"Project configuration file not found: {str(e)}",
 #         )
 #     except (RuntimeError, ValueError) as e:
-#         # Catch errors from HostManager's unload/initialize process
+#         # Catch errors from Aurite's unload/initialize process
 #         logger.error(f"Error changing project: {e}", exc_info=True)
 #         raise HTTPException(
 #             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -216,7 +216,7 @@ async def get_active_project_component_config(
 )
 async def create_project_file(
     request: CreateProjectFileRequest,
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
     Creates a new project JSON file with minimal content (name and description).
@@ -238,7 +238,7 @@ async def create_project_file(
 @router.post("/load_components", status_code=status.HTTP_200_OK)
 async def load_components_from_project_file(
     request: LoadComponentsRequest,
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
     Loads components from a specified project file into the active configuration.
@@ -249,7 +249,7 @@ async def load_components_from_project_file(
         f"Request to load components from project file: {request.project_config_path}"
     )
     try:
-        # HostManager's load_components_from_project handles path resolution
+        # Aurite's load_components_from_project handles path resolution
         # relative to PROJECT_ROOT_DIR if the path is not absolute.
         await manager.load_components_from_project(Path(request.project_config_path))
         active_project_config = manager.project_manager.get_active_project_config()
@@ -283,7 +283,7 @@ async def load_components_from_project_file(
 
 @router.get("/list_files", response_model=List[str])
 async def list_project_files(
-    # No HostManager needed here, can directly access filesystem
+    # No Aurite needed here, can directly access filesystem
 ):
     """
     Lists all project JSON files in the 'config/projects/' directory.
@@ -304,7 +304,7 @@ async def list_project_files(
 # --- Project File Content Endpoints (View & Edit) ---
 @router.get("/get_active_project_config", response_model=ProjectConfig)
 async def get_active_project_config(
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
     Retrieves the currently active project configuration.
@@ -345,7 +345,7 @@ class ProjectFileContent(BaseModel):
 async def update_project_file_content(
     filename: str,
     body: ProjectFileContent,
-    manager: HostManager = Depends(get_host_manager),  # Added HostManager dependency
+    manager: Aurite = Depends(get_host_manager),  # Added Aurite dependency
 ):
     """Updates the content of a specific project file."""
     logger.info(f"Request to update content of project file: {filename}")

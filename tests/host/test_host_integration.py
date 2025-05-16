@@ -10,7 +10,7 @@ import pytest
 import logging
 
 # Use relative imports assuming tests run from aurite-mcp root
-from aurite.host_manager import HostManager  # Import HostManager
+from aurite.host_manager import Aurite  # Import Aurite
 
 # Configure logging for debugging E2E tests if needed
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class TestHostBasicE2E:
     """E2E tests for basic MCPHost state and communication."""
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
-    async def test_host_is_running_after_initialize(self, host_manager: HostManager):
+    async def test_host_is_running_after_initialize(self, host_manager: Aurite):
         """Verify the host reports as running after the fixture initializes it."""
         # Use host_manager fixture which initializes the host
         host = host_manager.host
@@ -52,7 +52,7 @@ class TestHostBasicE2E:
             pytest.fail(f"Calling host.get_status() failed: {e}")
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
-    async def test_host_basic_communication(self, host_manager: HostManager):
+    async def test_host_basic_communication(self, host_manager: Aurite):
         """Verify basic list_tools/list_prompts communication via the initialized host."""
         # Use host_manager fixture
         host = host_manager.host

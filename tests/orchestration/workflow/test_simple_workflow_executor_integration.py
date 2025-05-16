@@ -29,7 +29,7 @@ SAMPLE_AGENT_CONFIGS: Dict[str, AgentConfig] = {
 
 # SAMPLE_WORKFLOW_CONFIG constant removed - using fixture now
 
-from aurite.host_manager import HostManager  # Import HostManager
+from aurite.host_manager import Aurite  # Import Aurite
 # Import the shared fixture
 
 
@@ -38,7 +38,7 @@ from aurite.host_manager import HostManager  # Import HostManager
     reason="Known ExceptionGroup error during host_manager fixture teardown"
 )
 async def test_simple_executor_init(
-    host_manager: HostManager,
+    host_manager: Aurite,
     sample_workflow_config: WorkflowConfig,  # Add fixture argument
 ):
     """
@@ -47,7 +47,7 @@ async def test_simple_executor_init(
     """
     print("\n--- Running Test: test_simple_executor_init ---")
     host_instance = host_manager.host  # Get host from manager
-    assert host_instance is not None, "Host instance not found in HostManager"
+    assert host_instance is not None, "Host instance not found in Aurite"
     print(f"Host instance type: {type(host_instance)}")
     print(f"Agent configs: {SAMPLE_AGENT_CONFIGS}")
     print(f"Workflow config: {sample_workflow_config}")  # Use fixture
@@ -76,7 +76,7 @@ async def test_simple_executor_init(
 @pytest.mark.xfail(
     reason="Known 'Event loop is closed' error during host_manager fixture setup/teardown"
 )
-async def test_simple_executor_basic_execution(host_manager: HostManager):
+async def test_simple_executor_basic_execution(host_manager: Aurite):
     """
     Test Case 2: Verify basic execution of a simple workflow.
     Uses agents defined in the testing_config.json loaded by the host_manager fixture.
@@ -84,7 +84,7 @@ async def test_simple_executor_basic_execution(host_manager: HostManager):
     """
     print("\n--- Running Test: test_simple_executor_basic_execution ---")
     host_instance = host_manager.host
-    assert host_instance is not None, "Host instance not found in HostManager"
+    assert host_instance is not None, "Host instance not found in Aurite"
 
     # Use agents defined in testing_config.json (e.g., Weather Agent)
     # Ensure these agent names exist in host_manager.agent_configs
@@ -147,14 +147,14 @@ async def test_simple_executor_basic_execution(host_manager: HostManager):
 @pytest.mark.xfail(
     reason="Known ExceptionGroup error during host_manager fixture teardown"
 )
-async def test_simple_executor_agent_not_found(host_manager: HostManager):
+async def test_simple_executor_agent_not_found(host_manager: Aurite):
     """
     Test Case 3: Verify execution fails gracefully when an agent in steps is not found.
     (Marked xfail due to known ExceptionGroup issue in fixture teardown)
     """
     print("\n--- Running Test: test_simple_executor_agent_not_found ---")
     host_instance = host_manager.host
-    assert host_instance is not None, "Host instance not found in HostManager"
+    assert host_instance is not None, "Host instance not found in Aurite"
 
     # Use only an invalid agent name
     invalid_agent_name = "NonExistentAgent"

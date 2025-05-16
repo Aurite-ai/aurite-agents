@@ -11,12 +11,12 @@ import json  # Add json import
 pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
-from aurite.host_manager import HostManager  # For host_manager fixture
+from aurite.host_manager import Aurite  # For host_manager fixture
 
 # Test Cases
 
 
-async def test_facade_run_agent(host_manager: HostManager):
+async def test_facade_run_agent(host_manager: Aurite):
     """
     Test Case 4.2: Verify ExecutionFacade.run_agent executes a basic agent.
     Requires ANTHROPIC_API_KEY.
@@ -109,7 +109,7 @@ async def test_facade_run_agent(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_agent ---")
 
 
-async def test_facade_run_simple_workflow(host_manager: HostManager):
+async def test_facade_run_simple_workflow(host_manager: Aurite):
     """
     Test Case 4.3: Verify ExecutionFacade.run_simple_workflow executes a workflow.
     Requires ANTHROPIC_API_KEY.
@@ -161,7 +161,7 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
 @pytest.mark.xfail(
     reason="Known 'Event loop is closed' error during host_manager fixture teardown or httpx client aclose"
 )
-async def test_facade_run_custom_workflow(host_manager: HostManager):
+async def test_facade_run_custom_workflow(host_manager: Aurite):
     """
     Test Case 4.4: Verify ExecutionFacade.run_custom_workflow executes and passes facade.
     Requires ANTHROPIC_API_KEY.
@@ -265,7 +265,7 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_custom_workflow ---")
 
 
-async def test_facade_run_agent_not_found(host_manager: HostManager):
+async def test_facade_run_agent_not_found(host_manager: Aurite):
     """
     Test Case 4.5a: Verify facade handles non-existent agent name gracefully.
     """
@@ -309,7 +309,7 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
 @pytest.mark.xfail(
     reason="Known 'Event loop is closed' error during host_manager fixture teardown"
 )
-async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
+async def test_facade_run_simple_workflow_not_found(host_manager: Aurite):
     """
     Test Case 4.5b: Verify facade handles non-existent simple workflow name gracefully.
     (Marked xfail due to known event loop issue in fixture teardown)
@@ -356,7 +356,7 @@ async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_simple_workflow_not_found ---")
 
 
-async def test_facade_run_custom_workflow_not_found(host_manager: HostManager):
+async def test_facade_run_custom_workflow_not_found(host_manager: Aurite):
     """
     Test Case 4.5c: Verify facade handles non-existent custom workflow name gracefully.
     """

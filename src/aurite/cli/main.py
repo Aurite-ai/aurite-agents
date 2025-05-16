@@ -106,6 +106,17 @@ def init(
         # Create an empty __init__.py in custom_workflow_src to make it a package
         (project_path / "custom_workflow_src" / "__init__.py").touch()
 
+        logger("Copying example workflow and MCP server...")
+        copy_packaged_example(
+            "example_custom_workflow_src/example_workflow.py",
+            project_path / "custom_workflow_src",
+            "example_workflow.py"
+        )
+        copy_packaged_example(
+            "example_mcp_servers/weather_mcp_server.py",
+            project_path / "mcp_servers",
+            "weather_mcp_server.py"
+        )
 
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger(f"\nNext steps:")
@@ -114,6 +125,10 @@ def init(
         logger(f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}")
         logger(f"3. Start defining your components in the 'config/' subdirectories.")
         logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflow_src/'.")
+        logger(f"5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
+        logger(f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/).")
+        logger(f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing")
+        logger(f"   custom workflows/MCP servers outside './{project_path.name}/', use '../' in your config paths to navigate correctly.")
 
     except Exception as e:
         logger(f"Error during project initialization: {e}")

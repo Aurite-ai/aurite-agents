@@ -50,7 +50,7 @@ class DuplicateClientIdError(ValueError):
     pass
 
 
-class HostManager:
+class Aurite:
     """
     Manages the lifecycle of MCPHost and orchestrates the execution of
     agents, simple workflows, and custom workflows based on loaded configurations.
@@ -58,7 +58,7 @@ class HostManager:
 
     def __init__(self, config_path: Path):
         """
-        Initializes the HostManager.
+        Initializes the Aurite Aurite.
 
         Args:
             config_path: The path to the main JSON configuration file.
@@ -125,7 +125,7 @@ class HostManager:
             )
 
         logger.debug(
-            f"HostManager initialized with config path: {self.config_path}"
+            f"Aurite initialized with config path: {self.config_path}"
         )  # INFO -> DEBUG
 
     # --- Lifecycle Methods ---
@@ -138,7 +138,7 @@ class HostManager:
             RuntimeError: If configuration loading or host initialization fails.
         """
         logger.debug(  # Changed to DEBUG
-            f"Initializing HostManager with project config: {self.config_path}..."
+            f"Initializing Aurite with project config: {self.config_path}..."
         )
         try:
             # 1. Load Project Configuration using ProjectManager
@@ -260,7 +260,7 @@ class HostManager:
 
 
             logger.info(
-                "HostManager initialization complete."
+                "Aurite initialization complete."
             )  # Keep this high-level INFO
 
         except FileNotFoundError as e:
@@ -270,7 +270,7 @@ class HostManager:
             ) from e
         except (RuntimeError, ValueError, TypeError, KeyError) as e:
             # Catch errors from load_host_config_from_json or MCPHost instantiation
-            logger.error(f"Error during HostManager initialization: {e}", exc_info=True)
+            logger.error(f"Error during Aurite initialization: {e}", exc_info=True)
             # Clean up partially initialized host if necessary
             if self.host:
                 try:
@@ -280,11 +280,11 @@ class HostManager:
                         f"Error shutting down host after initialization failure: {shutdown_err}"
                     )
             self.host = None  # Ensure host is None if init failed
-            raise RuntimeError(f"HostManager initialization failed: {e}") from e
+            raise RuntimeError(f"Aurite initialization failed: {e}") from e
         except Exception as e:
             # Catch unexpected errors during host.initialize() or other steps
             logger.error(
-                f"Unexpected error during HostManager initialization: {e}",
+                f"Unexpected error during Aurite initialization: {e}",
                 exc_info=True,
             )
             if self.host:
@@ -296,7 +296,7 @@ class HostManager:
                     )
             self.host = None
             # Ensure a more specific error message if this generic block is hit
-            detailed_error_msg = f"HostManager.initialize failed in generic exception handler: {type(e).__name__}: {str(e)}"
+            detailed_error_msg = f"Aurite.initialize failed in generic exception handler: {type(e).__name__}: {str(e)}"
             logger.error(detailed_error_msg, exc_info=True)
             raise RuntimeError(detailed_error_msg) from e
 
@@ -304,7 +304,7 @@ class HostManager:
         """
         Shuts down the managed MCPHost and cleans up resources.
         """
-        logger.debug("Shutting down HostManager...")  # Changed to DEBUG
+        logger.debug("Shutting down Aurite...")  # Changed to DEBUG
         if self.host:
             try:
                 await self.host.shutdown()
@@ -360,8 +360,8 @@ class HostManager:
                 logger.error(f"Error disposing database engine: {e}", exc_info=True)
         self._db_engine = None
         self.storage_manager = None  # Clear storage manager too
-        logger.debug("HostManager internal state cleared.")  # Changed to DEBUG
-        logger.info("HostManager shutdown complete.")
+        logger.debug("Aurite internal state cleared.")  # Changed to DEBUG
+        logger.info("Aurite shutdown complete.")
 
     async def unload_project(self):
         """
@@ -431,7 +431,7 @@ class HostManager:
 
     async def change_project(self, new_project_config_path: Path):
         """
-        Unloads the current project and initializes the HostManager with a new project configuration.
+        Unloads the current project and initializes the Aurite with a new project configuration.
 
         Args:
             new_project_config_path: The absolute path to the new project's JSON configuration file.
@@ -449,7 +449,7 @@ class HostManager:
 
         # Update the config path for the next initialization
         self.config_path = new_project_config_path
-        logger.info(f"HostManager config path updated to: {self.config_path}")
+        logger.info(f"Aurite config path updated to: {self.config_path}")
 
         # Initialize with the new project config
         # This will load the new project, create a new MCPHost, connect clients, etc.
@@ -460,7 +460,7 @@ class HostManager:
             )
         except Exception as e:
             logger.error(
-                f"Failed to initialize HostManager after changing project to {self.config_path}: {e}",
+                f"Failed to initialize Aurite after changing project to {self.config_path}: {e}",
                 exc_info=True,
             )
             # Ensure state is clean even after failed initialization
@@ -480,7 +480,7 @@ class HostManager:
             client_config: The configuration for the client to register.
 
         Raises:
-            ValueError: If the HostManager is not initialized, or if the client ID already exists.
+            ValueError: If the Aurite is not initialized, or if the client ID already exists.
             PermissionError: If dynamic registration is disabled.
             Exception: Propagates exceptions from the underlying MCPHost client initialization.
         """
@@ -492,8 +492,8 @@ class HostManager:
             f"Attempting to dynamically register client: {client_config.client_id}"
         )
         if not self.host:
-            logger.error("HostManager is not initialized. Cannot register client.")
-            raise ValueError("HostManager is not initialized.")
+            logger.error("Aurite is not initialized. Cannot register client.")
+            raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
@@ -539,7 +539,7 @@ class HostManager:
             agent_config: The configuration for the agent to register/update.
 
         Raises:
-            ValueError: If the HostManager is not initialized, or if any specified client_id is not found.
+            ValueError: If the Aurite is not initialized, or if any specified client_id is not found.
             PermissionError: If dynamic registration is disabled.
         """
         if not self._dynamic_registration_enabled:
@@ -550,8 +550,8 @@ class HostManager:
             f"Attempting to dynamically register/update agent: {agent_config.name}"
         )
         if not self.host:
-            logger.error("HostManager is not initialized. Cannot register/update agent.")
-            raise ValueError("HostManager is not initialized.")
+            logger.error("Aurite is not initialized. Cannot register/update agent.")
+            raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
@@ -664,7 +664,7 @@ class HostManager:
             llm_config: The configuration for the LLM to register.
 
         Raises:
-            ValueError: If the HostManager is not initialized or the llm_id already exists.
+            ValueError: If the Aurite is not initialized or the llm_id already exists.
             RuntimeError: If no active project is loaded.
             PermissionError: If dynamic registration is disabled.
         """
@@ -676,8 +676,8 @@ class HostManager:
             f"Attempting to dynamically register LLM config: {llm_config.llm_id}"
         )
         if not self.host:  # Check self.host, implies manager is initialized
-            logger.error("HostManager is not initialized. Cannot register LLM config.")
-            raise ValueError("HostManager is not initialized.")
+            logger.error("Aurite is not initialized. Cannot register LLM config.")
+            raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
@@ -724,7 +724,7 @@ class HostManager:
             workflow_config: The configuration for the workflow to register.
 
         Raises:
-            ValueError: If the HostManager is not initialized, the workflow name already exists,
+            ValueError: If the Aurite is not initialized, the workflow name already exists,
                         or if any agent name in the steps is not found.
             PermissionError: If dynamic registration is disabled.
         """
@@ -736,8 +736,8 @@ class HostManager:
             f"Attempting to dynamically register workflow: {workflow_config.name}"
         )
         if not self.host:
-            logger.error("HostManager is not initialized. Cannot register workflow.")
-            raise ValueError("HostManager is not initialized.")
+            logger.error("Aurite is not initialized. Cannot register workflow.")
+            raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
@@ -829,7 +829,7 @@ class HostManager:
             custom_workflow_config: The configuration for the custom workflow to register.
 
         Raises:
-            ValueError: If the HostManager is not initialized, the custom workflow name already exists,
+            ValueError: If the Aurite is not initialized, the custom workflow name already exists,
                         or the module_path is invalid.
             PermissionError: If dynamic registration is disabled.
         """
@@ -842,9 +842,9 @@ class HostManager:
         )
         if not self.host:
             logger.error(
-                "HostManager is not initialized. Cannot register custom workflow."
+                "Aurite is not initialized. Cannot register custom workflow."
             )
-            raise ValueError("HostManager is not initialized.")
+            raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
@@ -943,7 +943,7 @@ class HostManager:
         Streams an agent run by delegating to the ExecutionFacade.
         """
         if not self.execution:
-            logger.error("ExecutionFacade not available on HostManager for streaming.")
+            logger.error("ExecutionFacade not available on Aurite for streaming.")
             # Yield an error event or raise an exception
             # For now, let's yield an error event consistent with facade's stream_agent_run
             yield {
@@ -956,7 +956,7 @@ class HostManager:
             return
 
         logger.debug(
-            f"HostManager delegating streaming run for agent '{agent_name}' to ExecutionFacade."
+            f"Aurite delegating streaming run for agent '{agent_name}' to ExecutionFacade."
         )
         async for event in self.execution.stream_agent_run(
             agent_name=agent_name,
@@ -970,7 +970,7 @@ class HostManager:
         """
         Loads components from a specified project configuration file and adds them
         to the active project. If no project is active, this will initialize
-        the HostManager with the specified project.
+        the Aurite with the specified project.
 
         Args:
             project_config_path: Path to the project JSON file to load components from.
@@ -979,7 +979,7 @@ class HostManager:
             f"Attempting to load components from project: {project_config_path}"
         )
         # Path resolution for project_config_path should be handled by the caller (e.g., API endpoint)
-        # or be an absolute path. HostManager assumes it receives a valid, resolvable path.
+        # or be an absolute path. Aurite assumes it receives a valid, resolvable path.
         # For internal calls like from initialize(), we construct it carefully.
         # If it's relative, it's relative to CWD if not handled by caller.
         # For the packaged prompt_validation_config, we used importlib.resources.
@@ -1022,7 +1022,7 @@ class HostManager:
                 self.config_path = project_config_path
                 await self.initialize()
                 logger.info(
-                    f"HostManager initialized with project: {parsed_config.name}"
+                    f"Aurite initialized with project: {parsed_config.name}"
                 )
                 return  # Initialization handles everything
 

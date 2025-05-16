@@ -6,7 +6,7 @@ from pathlib import Path
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from aurite.host_manager import HostManager
+from aurite.host_manager import Aurite
 
 # from aurite.host.host import MCPHost # No longer needed directly, mock provides spec
 from aurite.config.config_models import (
@@ -19,14 +19,14 @@ from aurite.config.config_models import (
 @pytest.fixture
 def unit_test_host_manager(
     mock_mcp_host: MagicMock,
-) -> HostManager:  # Use shared fixture
+) -> Aurite:  # Use shared fixture
     """
-    Provides a HostManager instance initialized for unit testing.
+    Provides a Aurite instance initialized for unit testing.
     It uses a mock config path and has the shared mocked MCPHost instance injected.
     """
     # Use a dummy config path for initialization, as loading is bypassed
     dummy_config_path = Path("/fake/unit_test_config.json")
-    manager = HostManager(config_path=dummy_config_path)
+    manager = Aurite(config_path=dummy_config_path)
 
     # Manually inject the mock host
     manager.host = mock_mcp_host  # Inject the shared mock
@@ -48,7 +48,7 @@ def unit_test_host_manager(
     mock_project_config.clients = {}
     mock_project_config.name = "Unit Test Project"  # Give it a name for logging
 
-    # Set this mock project config as the active one in the HostManager's ProjectManager
+    # Set this mock project config as the active one in the Aurite's ProjectManager
     # This bypasses needing to mock load_project and file system interactions for these unit tests.
     manager.project_manager.active_project_config = mock_project_config
 
@@ -58,11 +58,11 @@ def unit_test_host_manager(
     return manager
 
 
-class TestHostManagerAgentRegistration:
-    """Tests for HostManager.register_agent."""
+class TestAuriteAgentRegistration:
+    """Tests for Aurite.register_agent."""
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
-    async def test_register_agent_success(self, unit_test_host_manager: HostManager):
+    async def test_register_agent_success(self, unit_test_host_manager: Aurite):
         """Verify successful registration of a new agent."""
         manager = unit_test_host_manager
         agent_config = AgentConfig(name="NewAgent", client_ids=["existing_client_1"])
@@ -81,7 +81,7 @@ class TestHostManagerAgentRegistration:
 
     # @pytest.mark.asyncio # Removed
     async def test_register_agent_duplicate_name(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify registration fails if agent name already exists."""
         manager = unit_test_host_manager
@@ -107,7 +107,7 @@ class TestHostManagerAgentRegistration:
 
     # @pytest.mark.asyncio # Removed
     async def test_register_agent_invalid_client_id(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify registration fails if client_ids reference non-existent clients."""
         manager = unit_test_host_manager
@@ -135,17 +135,17 @@ class TestHostManagerAgentRegistration:
     async def test_register_agent_no_host_instance(self):
         """Verify registration fails if manager.host is None (not initialized)."""
         # Create a manager without injecting the mock host
-        manager = HostManager(config_path=Path("/fake/path.json"))
+        manager = Aurite(config_path=Path("/fake/path.json"))
         manager.host = None  # Explicitly set host to None
 
         agent_config = AgentConfig(name="AgentNoHost")
 
-        with pytest.raises(ValueError, match="HostManager is not initialized."):
+        with pytest.raises(ValueError, match="Aurite is not initialized."):
             await manager.register_agent(agent_config)
 
     # @pytest.mark.asyncio # Removed
     async def test_register_agent_with_valid_client_ids(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify successful registration when valid client_ids are provided."""
         manager = unit_test_host_manager
@@ -179,7 +179,7 @@ class TestHostManagerAgentRegistration:
 
     # @pytest.mark.asyncio # Removed
     async def test_register_agent_no_client_ids(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify successful registration when client_ids is None or empty."""
         manager = unit_test_host_manager
@@ -204,11 +204,11 @@ class TestHostManagerAgentRegistration:
 # --- Placeholder Test Classes for Other Registration Methods ---
 
 
-class TestHostManagerWorkflowRegistration:
-    """Tests for HostManager.register_workflow."""
+class TestAuriteWorkflowRegistration:
+    """Tests for Aurite.register_workflow."""
 
     # @pytest.mark.asyncio # Removed
-    async def test_register_workflow_success(self, unit_test_host_manager: HostManager):
+    async def test_register_workflow_success(self, unit_test_host_manager: Aurite):
         """Verify successful registration of a new simple workflow."""
         manager = unit_test_host_manager
         agent_name_for_step = "AgentForWorkflow"
@@ -218,7 +218,7 @@ class TestHostManagerWorkflowRegistration:
         # when get_component_config is called for this agent.
         manager.component_manager.get_component_config = MagicMock(side_effect = lambda type, id: agent_config if type == "agents" and id == agent_name_for_step else None)
 
-        # Now, HostManager.register_agent will be called internally by register_workflow's cascading logic.
+        # Now, Aurite.register_agent will be called internally by register_workflow's cascading logic.
         # We don't need to call it explicitly here anymore for the purpose of this test's setup for register_workflow.
         # However, the cascading register_agent will still need the component_manager to "find" the LLMConfig if specified.
         # For simplicity in this unit test, assume AgentForWorkflow does not specify an llm_config_id,
@@ -235,7 +235,7 @@ class TestHostManagerWorkflowRegistration:
 
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_duplicate_name(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify registration updates if workflow name already exists."""
         manager = unit_test_host_manager
@@ -266,7 +266,7 @@ class TestHostManagerWorkflowRegistration:
 
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_unknown_agent_step(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify registration fails if steps reference non-existent agents."""
         manager = unit_test_host_manager
@@ -286,16 +286,16 @@ class TestHostManagerWorkflowRegistration:
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_no_host_instance(self):
         """Verify registration fails if manager.host is None."""
-        manager = HostManager(config_path=Path("/fake/path.json"))
+        manager = Aurite(config_path=Path("/fake/path.json"))
         manager.host = None
         workflow_config = WorkflowConfig(name="WorkflowNoHost", steps=[])
 
-        with pytest.raises(ValueError, match="HostManager is not initialized."):
+        with pytest.raises(ValueError, match="Aurite is not initialized."):
             await manager.register_workflow(workflow_config)
 
     # @pytest.mark.asyncio # Removed
     async def test_register_workflow_empty_steps(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify successful registration with empty steps list."""
         manager = unit_test_host_manager
@@ -315,8 +315,8 @@ class TestHostManagerWorkflowRegistration:
         )
 
 
-class TestHostManagerCustomWorkflowRegistration:
-    """Tests for HostManager.register_custom_workflow."""
+class TestAuriteCustomWorkflowRegistration:
+    """Tests for Aurite.register_custom_workflow."""
 
     # @pytest.mark.asyncio # Removed
     # Use patch to control Path methods for this test
@@ -326,7 +326,7 @@ class TestHostManagerCustomWorkflowRegistration:
         "src.host_manager.PROJECT_ROOT_DIR", Path("/fake/project/root")
     )  # Mock project root
     async def test_register_custom_workflow_success(
-        self, mock_resolve, mock_exists, unit_test_host_manager: HostManager
+        self, mock_resolve, mock_exists, unit_test_host_manager: Aurite
     ):
         """Verify successful registration of a new custom workflow."""
         manager = unit_test_host_manager
@@ -365,7 +365,7 @@ class TestHostManagerCustomWorkflowRegistration:
         self,
         mock_path_resolve,  # Mock for Path.resolve class method
         mock_project_root_dir_obj,  # Mock for the PROJECT_ROOT_DIR constant object
-        unit_test_host_manager: HostManager,
+        unit_test_host_manager: Aurite,
     ):
         """Verify registration fails if module_path resolves outside project root."""
         manager = unit_test_host_manager
@@ -421,7 +421,7 @@ class TestHostManagerCustomWorkflowRegistration:
         mock_path_exists,  # Mock for Path.exists
         mock_path_resolve,  # Mock for Path.resolve
         mock_project_root_dir_obj,  # Mock for PROJECT_ROOT_DIR
-        unit_test_host_manager: HostManager,
+        unit_test_host_manager: Aurite,
     ):
         """Verify registration fails if module_path does not exist."""
         manager = unit_test_host_manager
@@ -469,7 +469,7 @@ class TestHostManagerCustomWorkflowRegistration:
     # @pytest.mark.asyncio # Removed
     async def test_register_custom_workflow_no_host_instance(self):
         """Verify registration fails if manager.host is None."""
-        manager = HostManager(config_path=Path("/fake/path.json"))
+        manager = Aurite(config_path=Path("/fake/path.json"))
         manager.host = None
         cwf_config = CustomWorkflowConfig(
             name="CustomWFNoHost",
@@ -477,5 +477,5 @@ class TestHostManagerCustomWorkflowRegistration:
             class_name="Dummy",
         )
 
-        with pytest.raises(ValueError, match="HostManager is not initialized."):
+        with pytest.raises(ValueError, match="Aurite is not initialized."):
             await manager.register_custom_workflow(cwf_config)

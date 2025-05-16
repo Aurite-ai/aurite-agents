@@ -257,15 +257,15 @@ def test_filter_component_list_empty_input(
 # Mark all tests in this class to be run by the anyio plugin and as integration tests
 pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
-# Import HostManager for the fixture
-from aurite.host_manager import HostManager
+# Import Aurite for the fixture
+from aurite.host_manager import Aurite
 
 
 class TestHostFilteringIntegration:
     """Integration tests using the host_manager fixture."""
 
     async def test_get_formatted_tools_filters_by_client_id(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_formatted_tools only returns tools from clients specified
@@ -308,7 +308,7 @@ class TestHostFilteringIntegration:
         # We don't assert get_current_time is present here, as it might be excluded
 
     async def test_get_formatted_tools_filters_by_exclude_components(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_formatted_tools excludes tools specified in
@@ -337,7 +337,7 @@ class TestHostFilteringIntegration:
         assert "weather_lookup" in tool_names
 
     async def test_get_formatted_tools_filters_combined(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_formatted_tools applies both client_ids and exclude_components
@@ -376,7 +376,7 @@ class TestHostFilteringIntegration:
             assert tool_name not in tool_names
 
     async def test_execute_tool_fails_on_excluded_component(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify execute_tool raises ValueError when trying to execute a tool
@@ -401,7 +401,7 @@ class TestHostFilteringIntegration:
         assert "is excluded for agent 'Weather Agent'" in str(excinfo.value)
 
     async def test_execute_tool_fails_on_disallowed_client(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify execute_tool raises ValueError when trying to execute a tool
@@ -430,7 +430,7 @@ class TestHostFilteringIntegration:
         # assert "'weather_lookup' not found on any registered client" in str(excinfo.value)
 
     async def test_get_prompt_fails_on_excluded_component(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_prompt raises ValueError when trying to get a prompt
@@ -455,7 +455,7 @@ class TestHostFilteringIntegration:
         assert "is excluded for agent 'Filtering Test Agent'" in str(excinfo.value)
 
     async def test_get_prompt_fails_on_disallowed_client(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_prompt raises ValueError or returns None when trying to get
@@ -490,7 +490,7 @@ class TestHostFilteringIntegration:
         # assert "but none are allowed for agent 'Filtering Test Agent'" in str(excinfo.value)
 
     async def test_read_resource_fails_on_excluded_component(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify read_resource raises ValueError when trying to read a resource
@@ -518,7 +518,7 @@ class TestHostFilteringIntegration:
         assert resource_result is None
 
     async def test_read_resource_fails_on_disallowed_client(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify read_resource returns None when trying to read a resource

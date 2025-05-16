@@ -734,7 +734,7 @@ class MCPHost:
                 f"Failed to dynamically register client '{config.client_id}': {e}",
                 exc_info=True,
             )
-            # Re-raise the exception for the caller (HostManager) to handle
+            # Re-raise the exception for the caller (Aurite) to handle
             raise
 
     async def shutdown(self):

@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
 
 # Adjust imports for new location (src/bin -> src)
 from ...host_manager import (
-    HostManager,
+    Aurite,
 )  # Corrected relative import (up two levels from src/bin/api)
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
@@ -45,27 +45,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# --- Configuration Dependency, Security Dependency, HostManager Dependency (Moved to dependencies.py) ---
+# --- Configuration Dependency, Security Dependency, Aurite Dependency (Moved to dependencies.py) ---
 
 
 # --- FastAPI Lifecycle ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle FastAPI lifecycle events: initialize HostManager on startup, shutdown on exit."""
-    manager_instance: Optional[HostManager] = None
+    """Handle FastAPI lifecycle events: initialize Aurite on startup, shutdown on exit."""
+    manager_instance: Optional[Aurite] = None
     try:
-        logger.info("Starting FastAPI server and initializing HostManager...")
+        logger.info("Starting FastAPI server and initializing Aurite...")
         # Load server config
         server_config = get_server_config()
 
-        # Instantiate HostManager
-        # Ensure HostManager path is correct relative to project root if needed
-        # Assuming HostManager itself handles path resolution correctly based on CWD or PROJECT_ROOT
-        manager_instance = HostManager(config_path=server_config.PROJECT_CONFIG_PATH)
+        # Instantiate Aurite
+        # Ensure Aurite path is correct relative to project root if needed
+        # Assuming Aurite itself handles path resolution correctly based on CWD or PROJECT_ROOT
+        manager_instance = Aurite(config_path=server_config.PROJECT_CONFIG_PATH)
 
-        # Initialize HostManager (loads configs, initializes MCPHost)
+        # Initialize Aurite (loads configs, initializes MCPHost)
         await manager_instance.initialize()
-        logger.debug("HostManager initialized successfully.")
+        logger.debug("Aurite initialized successfully.")
 
         # Store manager instance in app state
         app.state.host_manager = manager_instance
@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
 
     except Exception as e:
         logger.error(
-            f"Error during HostManager initialization or server startup: {e}",
+            f"Error during Aurite initialization or server startup: {e}",
             exc_info=True,
         )
         # Ensure manager (and its host) is cleaned up if initialization partially succeeded
@@ -87,17 +87,17 @@ async def lifespan(app: FastAPI):
                 )
         raise  # Re-raise the original exception to prevent server from starting improperly
     finally:
-        # Shutdown HostManager on application exit
+        # Shutdown Aurite on application exit
         final_manager_instance = getattr(app.state, "host_manager", None)
         if final_manager_instance:
-            logger.info("Shutting down HostManager...")
+            logger.info("Shutting down Aurite...")
             try:
                 await final_manager_instance.shutdown()
-                logger.debug("HostManager shutdown complete.")
+                logger.debug("Aurite shutdown complete.")
             except Exception as e:
-                logger.error(f"Error during HostManager shutdown: {e}")
+                logger.error(f"Error during Aurite shutdown: {e}")
         else:
-            logger.info("HostManager was not initialized or already shut down.")
+            logger.info("Aurite was not initialized or already shut down.")
 
         # Clear manager from state
         if hasattr(app.state, "host_manager"):
@@ -127,9 +127,9 @@ async def health_check():
 async def get_status(
     # Use Security instead of Depends for the API key
     api_key: str = Security(get_api_key),
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
-    """Endpoint to check the status of the HostManager and its underlying MCPHost."""
+    """Endpoint to check the status of the Aurite and its underlying MCPHost."""
     # The get_host_manager dependency ensures the manager and host are initialized
     # We can add more detailed status checks later if needed (e.g., check manager.host)
     return {"status": "initialized", "manager_status": "active"}
@@ -172,10 +172,10 @@ async def value_error_exception_handler(request: Request, exc: ValueError):
         logger.warning(
             f"Conflict during registration: {exc} for request {request.url.path}"
         )
-    elif "hostmanager is not initialized" in exc_str:
+    elif "Aurite is not initialized" in exc_str:
         status_code = 503  # Service Unavailable
         logger.error(
-            f"Service unavailable (HostManager not init): {exc} for request {request.url.path}"
+            f"Service unavailable (Aurite not init): {exc} for request {request.url.path}"
         )
     elif "not found for agent" in exc_str or "not found for workflow" in exc_str:
         status_code = (
