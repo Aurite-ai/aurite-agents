@@ -8,7 +8,6 @@
             "prompts"
         ],
         "timeout": 15.0,
-        "routing_weight": 1.0,
         "exclude": null,
         "gcp_secrets": null
     }
