@@ -3,12 +3,11 @@ API routes for managing projects (loading, creating, viewing, editing, etc.).
 """
 
 import logging
-import json  # For loading/dumping JSON
 from pathlib import Path
 from typing import List, Optional, Any, Dict  # Added Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, ValidationError  # Added ValidationError
+from pydantic import BaseModel, Field  # Added ValidationError
 
 # Import dependencies (adjust relative paths as needed)
 from ...dependencies import get_api_key, get_host_manager

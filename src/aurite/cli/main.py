@@ -187,13 +187,13 @@ def init(
         )
 
         logger(f"\nProject '{project_path.name}' initialized successfully!")
-        logger(f"\nNext steps:")
+        logger("\nNext steps:")
         logger(f"1. Navigate into your project: cd {project_path.name}")
         logger(f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path).")
         logger(f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}")
-        logger(f"3. Start defining your components in the 'config/' subdirectories.")
-        logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.") # Corrected path
-        logger(f"5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
+        logger("3. Start defining your components in the 'config/' subdirectories.")
+        logger("4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.") # Corrected path
+        logger("5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
         logger(f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/).")
         logger(f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing")
         logger(f"   custom workflows/MCP servers outside './{project_path.name}/', use '../' in your config paths to navigate correctly.")

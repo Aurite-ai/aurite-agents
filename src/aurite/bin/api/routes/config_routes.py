@@ -1,6 +1,5 @@
 import logging
 from typing import List, Any  # Added Any, Union
-import json  # Added json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
@@ -13,7 +12,6 @@ from ...dependencies import (
 from aurite.config.component_manager import (
     ComponentManager,  # Not directly used by get_config_file anymore, but by others
     COMPONENT_META,
-    COMPONENT_SUBDIRS,
 )
 
 logger = logging.getLogger(__name__)
