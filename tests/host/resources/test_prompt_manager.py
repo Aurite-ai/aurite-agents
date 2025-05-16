@@ -6,11 +6,11 @@ import pytest
 from unittest.mock import MagicMock, call
 
 # Import the class to test and dependencies/models
-from src.host.resources.prompts import PromptManager
+from aurite.host.resources.prompts import PromptManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.config.config_models import ClientConfig  # Updated import path
+from aurite.config.config_models import ClientConfig  # Updated import path
 
 # Import mcp types
 import mcp.types as types

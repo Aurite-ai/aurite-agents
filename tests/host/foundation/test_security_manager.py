@@ -9,8 +9,8 @@ import time  # Add missing import
 from unittest.mock import patch, MagicMock
 
 # Import the class to test and dependent models
-from src.host.foundation.security import SecurityManager
-from src.config.config_models import GCPSecretConfig  # Import the model
+from aurite.host.foundation.security import SecurityManager
+from aurite.config.config_models import GCPSecretConfig  # Import the model
 
 # Mark tests as host_unit
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]  # Add anyio marker

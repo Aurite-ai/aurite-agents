@@ -7,11 +7,11 @@ from unittest.mock import MagicMock, call
 from typing import List  # Added List import
 
 # Import the class to test and dependencies/models
-from src.host.resources.resources import ResourceManager
+from aurite.host.resources.resources import ResourceManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.config.config_models import ClientConfig, RootConfig  # Updated import path
+from aurite.config.config_models import ClientConfig, RootConfig  # Updated import path
 
 # Import mcp types
 import mcp.types as types

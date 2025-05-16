@@ -10,7 +10,7 @@ import pytest
 import logging
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.host_manager import HostManager  # Import HostManager
+from aurite.host_manager import HostManager  # Import HostManager
 
 # Configure logging for debugging E2E tests if needed
 logger = logging.getLogger(__name__)

@@ -6,8 +6,8 @@ import pytest
 import logging # Import logging
 
 # Import the class to test and dependent models
-from src.host.foundation.roots import RootManager
-from src.config.config_models import RootConfig
+from aurite.host.foundation.roots import RootManager
+from aurite.config.config_models import RootConfig
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]

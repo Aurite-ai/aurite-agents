@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, call, MagicMock  # Added MagicMock
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from src.workflows.simple_workflow import SimpleWorkflowExecutor
-from src.config.config_models import WorkflowConfig, AgentConfig
-from src.agents.agent import Agent  # Needed for mocking
+from aurite.workflows.simple_workflow import SimpleWorkflowExecutor
+from aurite.config.config_models import WorkflowConfig, AgentConfig
+from aurite.agents.agent import Agent  # Needed for mocking
 from anthropic.types import Message  # Added Message
-from src.llm.base_client import BaseLLM  # For mocking llm_client
-from src.execution.facade import ExecutionFacade  # For mocking facade
+from aurite.llm.base_client import BaseLLM  # For mocking llm_client
+from aurite.execution.facade import ExecutionFacade  # For mocking facade
 
 # Import shared fixtures
 

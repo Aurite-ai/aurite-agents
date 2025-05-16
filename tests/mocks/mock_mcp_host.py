@@ -7,8 +7,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, Mock  # Added Mock
 
 # Import the class we are mocking to ensure the mock spec matches
-from src.host.host import MCPHost
-from src.host.resources import ToolManager  # Import ToolManager for spec
+from aurite.host.host import MCPHost
+from aurite.host.resources import ToolManager  # Import ToolManager for spec
 
 
 @pytest.fixture

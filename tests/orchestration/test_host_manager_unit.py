@@ -11,10 +11,10 @@ from pathlib import Path
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from src.host_manager import HostManager
+from aurite.host_manager import HostManager
 
-# from src.host.host import MCPHost # No longer needed directly, mock provides spec
-from src.config.config_models import (
+# from aurite.host.host import MCPHost # No longer needed directly, mock provides spec
+from aurite.config.config_models import (
     ClientConfig,
 )
 
@@ -40,8 +40,8 @@ def unit_test_host_manager(
     # To simulate an initialized state for unit tests of registration methods,
     # we need to ensure project_manager has an active_project_config.
     # Create a mock ProjectConfig.
-    # We need to import ProjectConfig from src.config.config_models
-    from src.config.config_models import ProjectConfig
+    # We need to import ProjectConfig from aurite.config.config_models
+    from aurite.config.config_models import ProjectConfig
 
     mock_project_config = MagicMock(spec=ProjectConfig)
     # Initialize the dictionaries within the mock_project_config spec

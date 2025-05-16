@@ -1,5 +1,5 @@
 """
-Initialization for the src package (aurite_agents).
+Initialization for the src package (aurite).
 Exposes key public interfaces.
 """
 

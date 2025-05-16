@@ -7,9 +7,9 @@ import pytest
 from pathlib import Path
 
 # Import the class to test and dependencies/models
-from src.host.host import MCPHost
-from src.config.config_models import ClientConfig  # Updated import path
-from src.host_manager import HostManager  # For type hinting fixture
+from aurite.host.host import MCPHost
+from aurite.config.config_models import ClientConfig  # Updated import path
+from aurite.host_manager import HostManager  # For type hinting fixture
 
 # Mark tests as host_integration and async
 pytestmark = [pytest.mark.host_integration, pytest.mark.anyio]

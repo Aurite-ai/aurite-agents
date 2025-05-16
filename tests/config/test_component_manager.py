@@ -2,15 +2,15 @@ import pytest
 import json
 from pathlib import Path
 
-from src.config.component_manager import (
+from aurite.config.component_manager import (
     ComponentManager,
     COMPONENT_TYPES_DIRS,
 )
-from src.config.config_models import (
+from aurite.config.config_models import (
     ClientConfig,
     AgentConfig,
 )  # Import specific models for type checking
-from src.config import PROJECT_ROOT_DIR  # To help with asserting path conversions
+from aurite.config import PROJECT_ROOT_DIR  # To help with asserting path conversions
 
 # Fixtures from tests.fixtures.config_fixtures
 from ..fixtures.config_fixtures import (
@@ -63,7 +63,7 @@ def component_manager_empty(temp_config_root: Path, monkeypatch) -> ComponentMan
     # For ComponentManager itself, it uses the patched COMPONENT_TYPES_DIRS.
     # The main concern for PROJECT_ROOT_DIR is if fixture data contains paths
     # like "fixtures/servers/dummy_server.py" which are relative to the *actual* project root.
-    # The config_utils.resolve_path_fields will use the PROJECT_ROOT_DIR from src.config.
+    # The config_utils.resolve_path_fields will use the PROJECT_ROOT_DIR from aurite.config.
     # For tests, this should be fine as long as the fixture paths are valid relative to the real project root.
 
     cm = ComponentManager()  # Will load from the (empty) temp dirs

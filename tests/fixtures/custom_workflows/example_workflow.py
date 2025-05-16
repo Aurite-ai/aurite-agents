@@ -4,13 +4,13 @@ from typing import Any, Optional  # Added Optional
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-# from src.host.host import MCPHost # No longer needed directly
-# from src.agents.agent import Agent # Agent execution handled by facade
+# from aurite.host.host import MCPHost # No longer needed directly
+# from aurite.agents.agent import Agent # Agent execution handled by facade
 from typing import TYPE_CHECKING
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
-    from src.execution.facade import ExecutionFacade
+    from aurite.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
 

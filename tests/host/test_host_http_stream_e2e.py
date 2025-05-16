@@ -5,7 +5,7 @@ End-to-end tests for MCPHost focusing on HTTP Stream client interactions.
 import pytest
 import anyio # Import anyio
 
-from src.host.host import MCPHost
+from aurite.host.host import MCPHost
 
 # Assuming host_manager fixture is available from conftest.py or host_fixtures.py
 # and it loads the 'testing_config.json' which now includes an http_stream_example_client.

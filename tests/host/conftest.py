@@ -9,8 +9,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 
 # Import foundation classes being mocked
-from src.host.foundation import MessageRouter, RootManager
-from src.host.filtering import FilteringManager
+from aurite.host.foundation import MessageRouter, RootManager
+from aurite.host.filtering import FilteringManager
 
 # --- Shared Mock Manager Fixtures ---
 

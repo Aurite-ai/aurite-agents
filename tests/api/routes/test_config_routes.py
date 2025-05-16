@@ -5,10 +5,10 @@ import json
 from pathlib import Path
 
 # Import the FastAPI app instance and dependencies
-from src.bin.api.api import app
-from src.bin.dependencies import get_component_manager
-from src.config.component_manager import ComponentManager, COMPONENT_TYPES_DIRS
-from src.config.config_models import (
+from aurite.bin.api.api import app
+from aurite.bin.dependencies import get_component_manager
+from aurite.config.component_manager import ComponentManager, COMPONENT_TYPES_DIRS
+from aurite.config.config_models import (
     AgentConfig,
     ClientConfig,
 )  # Import models for mocking
@@ -91,7 +91,7 @@ def test_list_configs_success(
     assert response.json() == expected_files
     # Verify mock was called with the correctly mapped internal type key
     # This requires knowing the mapping used in the route (_get_cm_component_type)
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP
 
     expected_cm_type = API_TO_CM_TYPE_MAP[component_type]
     mock_cm.list_component_files.assert_called_once_with(expected_cm_type)
@@ -144,7 +144,7 @@ def test_list_configs_unauthorized(api_client: TestClient):
 @pytest.mark.parametrize("component_type_api", VALID_API_COMPONENT_TYPES)
 def test_get_specific_component_config_by_id_success(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
     """Tests successfully getting a component by ID using mocked CM."""
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 
@@ -525,7 +525,7 @@ def test_create_config_list_payload_invalid_content(api_client: TestClient, mock
     filename = f"invalid_list_{component_type_api}.json"
     # Valid item, then an invalid one (e.g., missing required field for that component type)
     # This requires knowing the ID field for each component type
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 
@@ -742,7 +742,7 @@ def test_update_config_validation_error(api_client: TestClient, mock_cm: MagicMo
 def test_update_config_list_payload_invalid_content(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
     """Tests updating a config file with a list payload containing invalid items."""
     filename = f"invalid_update_list_{component_type_api}.json"
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 

@@ -9,23 +9,23 @@ from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Add patch
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from src.execution.facade import ExecutionFacade
-from src.config.config_models import (
+from aurite.execution.facade import ExecutionFacade
+from aurite.config.config_models import (
     AgentConfig,
     LLMConfig,
     ProjectConfig,
 )  # Added ProjectConfig
-from src.host_manager import HostManager
-from src.agents.agent import Agent
+from aurite.host_manager import HostManager
+from aurite.agents.agent import Agent
 
-# from src.agents.conversation_manager import ( # Removed ConversationManager import
+# from aurite.agents.conversation_manager import ( # Removed ConversationManager import
 #     ConversationManager,
 # )
-from src.agents.agent_models import (
+from aurite.agents.agent_models import (
     AgentExecutionResult,
 )  # Import result models
-from src.llm.base_client import BaseLLM  # Import BaseLLM for type hint
-from src.host.host import MCPHost  # Needed for type hinting if used
+from aurite.llm.base_client import BaseLLM  # Import BaseLLM for type hint
+from aurite.host.host import MCPHost  # Needed for type hinting if used
 
 # --- Fixtures ---
 

@@ -3,10 +3,10 @@ from fastapi.testclient import TestClient
 import os
 
 # Import the FastAPI app instance from its new location
-from src.bin.api.api import app
+from aurite.bin.api.api import app
 
 # Import dependencies from their location
-from src.bin.dependencies import get_server_config
+from aurite.bin.dependencies import get_server_config
 
 # Marker for API integration tests (can be defined here or in main conftest)
 # pytestmark = pytest.mark.api_integration
@@ -35,7 +35,7 @@ def api_client(monkeypatch):
     # Clear lru_cache for get_server_config to ensure it re-reads env vars for each test
     get_server_config.cache_clear()
     # If HostManager or other components use caching that depends on env vars, clear them too
-    # e.g., from src.config import load_host_config_from_json; load_host_config_from_json.cache_clear()
+    # e.g., from aurite.config import load_host_config_from_json; load_host_config_from_json.cache_clear()
 
     # --- Create Test Client ---
     # TestClient handles the application lifespan (startup/shutdown)

@@ -15,12 +15,12 @@ from pathlib import Path
 
 # Use relative imports assuming tests run from aurite-mcp root
 # Import necessary models
-from src.config.config_models import (
+from aurite.config.config_models import (
     HostConfig,
 )  # Ensure ProjectConfig and ClientConfig are here
-from src.host.host import MCPHost
-from src.host_manager import HostManager
-from src.host.resources import ToolManager, PromptManager
+from aurite.host.host import MCPHost
+from aurite.host_manager import HostManager
+from aurite.host.resources import ToolManager, PromptManager
 
 # Define logger for this fixtures module
 logger = logging.getLogger(__name__)

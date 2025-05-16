@@ -9,9 +9,9 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
 
 
 # Assuming tests run from project root
-from src.host_manager import HostManager
-from src.host.host import MCPHost
-from src.config.config_models import (
+from aurite.host_manager import HostManager
+from aurite.host.host import MCPHost
+from aurite.config.config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,

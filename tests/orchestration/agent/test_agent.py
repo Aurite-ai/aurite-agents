@@ -10,18 +10,18 @@ from typing import List
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-# from src.agents.agent import Agent # Old agent import removed
-from src.agents.agent import Agent  # New consolidated agent class
+# from aurite.agents.agent import Agent # Old agent import removed
+from aurite.agents.agent import Agent  # New consolidated agent class
 
-# from src.agents.conversation_manager import ConversationManager # Removed
-from src.agents.agent_models import (
+# from aurite.agents.conversation_manager import ConversationManager # Removed
+from aurite.agents.agent_models import (
     AgentExecutionResult,
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
-from src.config.config_models import AgentConfig  # Added LLMConfig
-from src.llm.base_client import BaseLLM
-from src.host.host import MCPHost
+from aurite.config.config_models import AgentConfig  # Added LLMConfig
+from aurite.llm.base_client import BaseLLM
+from aurite.host.host import MCPHost
 from anthropic.types import MessageParam
 
 # --- Fixtures ---
