@@ -378,7 +378,7 @@ def start():
 
     # Update the app path for uvicorn to point to the new location
     uvicorn.run(
-        "src.bin.api.api:app",  # Updated path
+        "aurite.bin.api.api:app",  # Updated path
         host=config.HOST,
         port=config.PORT,
         workers=config.WORKERS,

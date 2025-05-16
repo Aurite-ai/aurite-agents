@@ -4,7 +4,7 @@ import json
 import shutil
 import importlib.resources
 
-app = typer.Typer()
+app = typer.Typer(name="aurite") # Added name to Typer app
 
 logger = typer.echo # Use typer.echo for CLI output
 

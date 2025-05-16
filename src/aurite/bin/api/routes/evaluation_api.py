@@ -4,7 +4,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
 from pydantic import BaseModel
 
-from aurite.config import PROJECT_ROOT_DIR
+# from aurite.config import PROJECT_ROOT_DIR # Removed: PROJECT_ROOT_DIR is deprecated
 
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
@@ -57,29 +57,44 @@ async def execute_prompt_validation_file(
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
-    result = await manager.execution.run_custom_workflow(
-        workflow_name="Prompt Validation Workflow",
-        initial_input={
-            "config_path": PROJECT_ROOT_DIR
-            / f"config/testing/{request_body.config_file}"
-        },
+
+    # TODO: Refactor path resolution for "config_path".
+    # This endpoint needs access to current_project_root from ProjectManager
+    # to correctly resolve config/testing/{request_body.config_file}.
+    # For now, marking as not implemented to allow server startup.
+    logger.warning(
+        "The /evaluation/prompt_validation/file endpoint is temporarily non-functional "
+        "and requires refactoring for the new path resolution model."
     )
-    logger.info("Prompt Validation Workflow executed successfully via manager.")
-    if isinstance(result, dict) and result.get("status") == "failed":
-        logger.error(
-            f"Prompt Validation Workflow execution failed (reported by facade): {result.get('error')}"
-        )
-        return ExecuteCustomWorkflowResponse(
-            workflow_name="Prompt Validation Workflow",
-            status="failed",
-            error=result.get("error", "Unknown execution error"),
-        )
-    else:
-        return ExecuteCustomWorkflowResponse(
-            workflow_name="Prompt Validation Workflow",
-            status="completed",
-            result=result,
-        )
+    raise HTTPException(
+        status_code=501,
+        detail="Endpoint temporarily unavailable, requires path resolution refactoring.",
+    )
+
+    # Original logic (commented out until refactored):
+    # result = await manager.execution.run_custom_workflow(
+    #     workflow_name="Prompt Validation Workflow",
+    #     initial_input={
+    #         "config_path": PROJECT_ROOT_DIR  # This needs to be current_project_root
+    #         / f"config/testing/{request_body.config_file}"
+    #     },
+    # )
+    # logger.info("Prompt Validation Workflow executed successfully via manager.")
+    # if isinstance(result, dict) and result.get("status") == "failed":
+    #     logger.error(
+    #         f"Prompt Validation Workflow execution failed (reported by facade): {result.get('error')}"
+    #     )
+    #     return ExecuteCustomWorkflowResponse(
+    #         workflow_name="Prompt Validation Workflow",
+    #         status="failed",
+    #         error=result.get("error", "Unknown execution error"),
+    #     )
+    # else:
+    #     return ExecuteCustomWorkflowResponse(
+    #         workflow_name="Prompt Validation Workflow",
+    #         status="completed",
+    #         result=result,
+    #     )
 
 
 @router.post(

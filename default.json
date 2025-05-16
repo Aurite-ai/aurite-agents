@@ -4,7 +4,7 @@
   "clients": [
     {
       "client_id": "weather_server",
-      "server_path": "src/aurite/packaged/servers/weather_mcp_server.py",
+      "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
       "routing_weight": 1.0,
@@ -33,14 +33,14 @@
           "temperature": {
             "type": "object",
             "properties": {
-              "value": {"type": "number"},
-              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+              "value": { "type": "number" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
             },
             "required": ["value", "unit"]
           },
           "recommendations": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": { "type": "string" },
             "description": "Recommendations based on the weather."
           }
         },
@@ -48,10 +48,8 @@
       }
     }
   ],
-  "simple_workflows": [
-  ],
-  "custom_workflows": [
-  ],
+  "simple_workflows": [],
+  "custom_workflows": [],
   "llms": [
     {
       "llm_id": "anthropic_claude_3_opus",

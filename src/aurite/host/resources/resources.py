@@ -13,7 +13,7 @@ from ..foundation.roots import RootManager
 
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
-from aurite.config.config_models import ClientConfig
+from ...config.config_models import ClientConfig # Changed to relative import
 from ..foundation import MessageRouter  # Import MessageRouter
 
 

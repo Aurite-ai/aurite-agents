@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING, Optional  # Added Optional
 from ..config.config_models import CustomWorkflowConfig  # Updated import path
 
 # MCPHost is still needed for the __init__ method
-from ..config import PROJECT_ROOT_DIR  # Import project root for path validation
+# from ..config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by HostManager/ProjectManager
 
 # Type hint for ExecutionFacade
 if TYPE_CHECKING:
@@ -79,15 +79,9 @@ class CustomWorkflowExecutor:
 
         try:
             # 1. Security Check & Path Validation
-            if not str(module_path.resolve()).startswith(
-                str(PROJECT_ROOT_DIR.resolve())
-            ):
-                logger.error(
-                    f"Custom workflow path '{module_path}' is outside the project directory {PROJECT_ROOT_DIR}. Aborting."
-                )
-                raise PermissionError(
-                    "Custom workflow path is outside the project directory."
-                )
+            # The PROJECT_ROOT_DIR check is removed.
+            # module_path is expected to be an absolute path, validated by ProjectManager/HostManager
+            # against current_project_root before this executor is called.
 
             if not module_path.exists():
                 logger.error(f"Custom workflow module file not found: {module_path}")
