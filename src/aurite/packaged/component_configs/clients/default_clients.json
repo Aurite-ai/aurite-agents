@@ -1,14 +1,11 @@
 [
-    {
-        "client_id": "weather_server",
-        "server_path": "example_mcp_servers/weather_mcp_server.py",
-        "roots": [],
-        "capabilities": [
-            "tools",
-            "prompts"
-        ],
-        "timeout": 15.0,
-        "exclude": null,
-        "gcp_secrets": null
-    }
+  {
+    "client_id": "weather_server",
+    "server_path": "example_mcp_servers/weather_mcp_server.py",
+    "roots": [],
+    "capabilities": ["tools", "prompts"],
+    "timeout": 15.0,
+    "exclude": null,
+    "gcp_secrets": null
+  }
 ]
