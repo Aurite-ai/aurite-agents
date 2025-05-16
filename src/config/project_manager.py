@@ -17,14 +17,9 @@ from .config_models import (
 from .component_manager import ComponentManager
 from .config_utils import resolve_path_fields  # Import the utility
 
-# Import PROJECT_ROOT_DIR from the package __init__
-try:
-    from src.config import PROJECT_ROOT_DIR
-except ImportError:
-    # Define logger earlier if needed here
-    # logger = logging.getLogger(__name__) # Define logger if needed before use
-    # logger.error("Could not import PROJECT_ROOT_DIR from src.config.")
-    PROJECT_ROOT_DIR = Path(".")  # Fallback
+# PROJECT_ROOT_DIR is no longer used here.
+# Path resolution will be based on current_project_root (for user project files)
+# or handled by ComponentManager using importlib.resources (for packaged defaults).
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +41,7 @@ class ProjectManager:
             raise TypeError("component_manager must be an instance of ComponentManager")
         self.component_manager = component_manager
         self.active_project_config: Optional[ProjectConfig] = None
+        self.current_project_root: Optional[Path] = None # For storing the root of the active project
         component_counts = self.component_manager.get_component_counts()
         count_str = ", ".join(
             f"{count} {ctype}" for ctype, count in component_counts.items()
@@ -55,7 +51,7 @@ class ProjectManager:
         )
 
     def _parse_and_resolve_project_data(
-        self, project_data: Dict[str, Any], project_identifier_for_logging: str
+        self, project_data: Dict[str, Any], project_identifier_for_logging: str, current_project_root_for_inline_res: Path
     ) -> ProjectConfig:
         """
         Parses a dictionary of project data, resolving component references
@@ -88,6 +84,7 @@ class ProjectManager:
             "client_id",
             "Client",
             "clients",
+            current_project_root_for_inline_res
         )
         resolved_llm_configs = self._resolve_components(
             project_data,
@@ -97,6 +94,7 @@ class ProjectManager:
             "llm_id",
             "LLMConfig",
             "llm_configs",  # COMPONENT_META key for llms is 'llm_configs'
+            current_project_root_for_inline_res
         )
         resolved_agents = self._resolve_components(
             project_data,
@@ -106,6 +104,7 @@ class ProjectManager:
             "name",
             "Agent",
             "agents",  # COMPONENT_META key for agents is 'agents'
+            current_project_root_for_inline_res
         )
         resolved_simple_workflows = self._resolve_components(
             project_data,
@@ -115,6 +114,7 @@ class ProjectManager:
             "name",
             "SimpleWorkflow",
             "simple_workflows",  # COMPONENT_META key for simple_workflows is 'simple_workflows'
+            current_project_root_for_inline_res
         )
         resolved_custom_workflows = self._resolve_components(
             project_data,
@@ -124,6 +124,7 @@ class ProjectManager:
             "name",
             "CustomWorkflow",
             "custom_workflows",  # COMPONENT_META key for custom_workflows is 'custom_workflows'
+            current_project_root_for_inline_res
         )
 
         try:
@@ -196,8 +197,15 @@ class ProjectManager:
             raise RuntimeError(f"Error parsing project configuration file: {e}") from e
 
         # Use the new internal method to do the actual parsing and resolution
+        # Establish current_project_root before calling _parse_and_resolve_project_data
+        current_project_root = project_config_file_path.parent
+        # Load project-specific components from user's project structure
+        # This needs to happen *before* _parse_and_resolve_project_data if it relies on these components
+        # being available in ComponentManager for string-based lookups.
+        self.component_manager.load_project_components(current_project_root)
+
         return self._parse_and_resolve_project_data(
-            project_data_dict, str(project_config_file_path)
+            project_data_dict, str(project_config_file_path), current_project_root
         )
 
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
@@ -219,12 +227,22 @@ class ProjectManager:
         logger.debug(
             f"Loading project configuration from: {project_config_file_path} and setting as active."
         )
-        # Parse the project file without setting it as active yet
-        project_config = self.parse_project_file(project_config_file_path)
+        # Establish current_project_root
+        self.current_project_root = project_config_file_path.parent
+        logger.debug(f"Current project root set to: {self.current_project_root}")
+
+        # Load project-specific components from the user's project structure.
+        # This allows user components to override packaged defaults.
+        self.component_manager.load_project_components(self.current_project_root)
+
+        # Parse the project file. This will use components already loaded into ComponentManager
+        # (both packaged and project-specific) for resolving string references.
+        # Inline definitions in the project file will use current_project_root for their path resolution.
+        project_config = self.parse_project_file(project_config_file_path) # parse_project_file now handles current_project_root
 
         # Now set the parsed and validated project_config as the active one
         self.active_project_config = project_config
-        logger.info(  # Changed to info for this significant state change
+        logger.info(
             f"Project '{project_config.name}' loaded and set as active in ProjectManager."
         )
         return project_config
@@ -235,6 +253,7 @@ class ProjectManager:
                 f"Unloading active project '{self.active_project_config.name}' from ProjectManager."
             )
             self.active_project_config = None
+            self.current_project_root = None # Clear current_project_root as well
         else:
             logger.info("No active project to unload from ProjectManager.")
 
@@ -289,6 +308,7 @@ class ProjectManager:
         id_field: str,
         type_name: str,  # User-friendly type name for logging, e.g., "Client", "Agent"
         cm_component_type_key: str,  # Exact key for ComponentManager, e.g., "clients", "agents"
+        current_project_root_for_inline_res: Path # Added to pass to resolve_path_fields
     ) -> Dict[str, Any]:
         """
         Helper function to resolve component references or use inline definitions
@@ -337,7 +357,7 @@ class ProjectManager:
 
                     # Resolve paths for the inline definition using the utility function
                     data_to_validate = resolve_path_fields(
-                        item_ref, model_class, PROJECT_ROOT_DIR
+                        item_ref, model_class, current_project_root_for_inline_res
                     )
 
                     # Validate the inline definition
