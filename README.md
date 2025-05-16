@@ -246,9 +246,9 @@ These are the primary building blocks you'll work with:
             )
             simple_workflow_output = simple_workflow_result.get("final_message")
 
-            # You can even run other Custom Workflows
+            # Example: Call a custom workflow
             custom_workflow_result = await executor.run_custom_workflow(custom_workflow_name="MyCustomWorkflow", initial_input=simple_workflow_output)
-w
+
             return custom_workflow_result
     ```
     To use this custom workflow:
@@ -297,7 +297,6 @@ w
         "temperature": 0.7,
         "max_tokens": 4096,
         "max_iterations": 10,
-        "include_history": true,
         "exclude_components": ["current_time"]
         }
         ],
@@ -402,7 +401,6 @@ Key directories for users:
     *   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md) (API, CLI, Worker)
     *   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
     *   [`docs/layers/3_host.md`](docs/layers/3_host.md) (MCPHost System)
-*   **MCP Protocol:** For details on the Model Context Protocol itself, refer to `docs/official-mcp/`.
 *   **Testing:** Information on running tests can be found in `tests/README.md`. Testing strategies for each layer are also detailed within their respective documentation in `docs/layers/`.
 
 ## Contributing
