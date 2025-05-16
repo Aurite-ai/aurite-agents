@@ -11,19 +11,5 @@
         "routing_weight": 1.0,
         "exclude": null,
         "gcp_secrets": null
-    },
-    {
-        "client_id": "planning_server",
-        "server_path": "src/packaged/servers/planning_server.py",
-        "roots": [],
-        "capabilities": [
-            "tools",
-            "prompts",
-            "resources"
-        ],
-        "timeout": 15.0,
-        "routing_weight": 1.0,
-        "exclude": null,
-        "gcp_secrets": null
     }
 ]

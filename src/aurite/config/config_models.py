@@ -43,7 +43,7 @@ class ClientConfig(BaseModel):
     transport_type: Literal["stdio", "http_stream"] = "stdio" # Use http_stream
     server_path: Optional[Path] = None
     http_endpoint: Optional[str] = None # Use http_endpoint
-    roots: List[RootConfig]
+    roots: Optional[List[RootConfig]] = None
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
     routing_weight: float = 1.0  # Weight for server selection

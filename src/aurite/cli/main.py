@@ -59,14 +59,57 @@ def init(
         # 2. Create a default project configuration file (e.g., aurite_config.json)
         default_project_config_name = "aurite_config.json"
         project_config_content = {
-            "name": project_path.name,
-            "description": f"A new Aurite Agents project: {project_path.name}",
-            "clients": [],
-            "llms": [],
-            "agents": [],
-            "simple_workflows": [],
-            "custom_workflows": [],
+            "name": "my_project",
+            "description": "This is just an example to show you how to set up a project. Replace these values with your own. You may define configurations directly in here, or reference them from the component folders.",
+            "llms": [
+                {
+                    "llm_id": "anthropic_claude_3_opus",
+                    "provider": "anthropic",
+                    "model_name": "claude-3-opus-20240229",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                    "default_system_prompt": "You are Claude, a large language model trained by Anthropic. Your job is to assist the user in the task provided.",
+                }
+            ],
+            "clients": [
+                "weather_server",
+                {
+                    "client_id": "planning_server",
+                    "server_path": "mcp_servers/planning_server.py",
+                    "capabilities": ["tools", "prompts", "resources"],
+                    "timeout": 15.0,
+                },
+            ],
+            "agents": [
+                {
+                    "name": "Weather Agent",
+                    "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
+                    "client_ids": ["weather_server"],
+                    "llm_config_id": "anthropic_claude_3_opus",
+                },
+                {
+                    "name": "Weather Planning Workflow Step 2",
+                    "client_ids": ["planning_server"],
+                    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
+                },
+            ],
+            "simple_workflows": [
+                {
+                    "name": "Weather Planning Workflow",
+                    "description": "A simple workflow to plan based on weather data.",
+                    "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
+                }
+            ],
+            "custom_workflows": [
+                {
+                    "name": "ExampleProcessingWorkflow",
+                    "module_path": "custom_workflows/example_workflow.py",
+                    "class_name": "ExampleCustomWorkflow",
+                    "description": "Test workflow using Weather Agent and Weather MCP server.",
+                }
+            ],
         }
+
         project_config_file_path = project_path / default_project_config_name
         with open(project_config_file_path, "w") as f:
             json.dump(project_config_content, f, indent=4)
@@ -80,11 +123,11 @@ def init(
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
             project_path / "mcp_servers",
-            project_path / "custom_workflow_src",
+            project_path / "custom_workflows",
         ]
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
-        logger("Created standard subdirectories: config/*, mcp_servers/, custom_workflow_src/")
+        logger("Created standard subdirectories: config/*, mcp_servers/, custom_workflows/")
 
         # 4. Optionally, copy basic example files
         logger("Copying example configuration files...")
@@ -103,13 +146,13 @@ def init(
             project_path / "config" / "agents",
             "example_agent.json" # Renaming for user project
         )
-        # Create an empty __init__.py in custom_workflow_src to make it a package
-        (project_path / "custom_workflow_src" / "__init__.py").touch()
+        # Create an empty __init__.py in custom_workflows to make it a package
+        (project_path / "custom_workflows" / "__init__.py").touch()
 
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
-            "example_custom_workflow_src/example_workflow.py",
-            project_path / "custom_workflow_src",
+            "example_custom_workflows/example_workflow.py",
+            project_path / "custom_workflows",
             "example_workflow.py"
         )
         copy_packaged_example(
@@ -124,7 +167,7 @@ def init(
         logger(f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path).")
         logger(f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}")
         logger(f"3. Start defining your components in the 'config/' subdirectories.")
-        logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflow_src/'.")
+        logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.")
         logger(f"5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
         logger(f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/).")
         logger(f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing")
