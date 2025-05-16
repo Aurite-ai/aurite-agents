@@ -1,0 +1,5 @@
+{
+    "name": "MyTestAgent",
+    "system_prompt": "You are a helpful test agent.",
+    "llm_id": "default_claude_opus"
+}
