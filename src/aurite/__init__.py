@@ -20,10 +20,8 @@ from .config.config_models import (
     WorkflowConfig,
     # Add other config models if they are part of the public API
 )
-
-# Potentially other key components or utilities
-# from .execution.facade import ExecutionFacade # If users need to type hint it directly
-# from .some_utility_module import useful_function
+from .agents.agent_models import AgentOutputContentBlock, AgentOutputMessage, AgentExecutionResult
+from .execution.facade import ExecutionFacade
 
 __all__ = [
     "Aurite",
@@ -34,6 +32,10 @@ __all__ = [
     "LLMConfig",
     "ProjectConfig",
     "WorkflowConfig",
+    "ExecutionFacade",
+    "AgentOutputContentBlock",
+    "AgentOutputMessage",
+    "AgentExecutionResult",
     # Add other exposed names to __all__
 ]
 
