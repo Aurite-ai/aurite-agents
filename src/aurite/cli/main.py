@@ -4,7 +4,15 @@ import json
 import shutil
 import importlib.resources
 
-app = typer.Typer(name="aurite") # Added name to Typer app
+app = typer.Typer()
+
+@app.callback(invoke_without_command=True)
+def main_callback():
+    """
+    Aurite CLI main entry point.
+    Use 'aurite init --help' for information on initializing a project.
+    """
+    pass
 
 logger = typer.echo # Use typer.echo for CLI output
 
@@ -26,7 +34,7 @@ def copy_packaged_example(packaged_path_str: str, user_project_path: Path, filen
         logger(f"  Warning: Could not copy example {filename}: {e}")
 
 
-@app.command()
+@app.command("init") # Explicitly name the command
 def init(
     project_directory_name: str = typer.Argument(
         ..., help="The name of the new project directory to create."

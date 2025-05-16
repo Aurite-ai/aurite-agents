@@ -1,0 +1,9 @@
+{
+    "name": "new_project_test",
+    "description": "A new Aurite Agents project: new_project_test",
+    "clients": [],
+    "llms": [],
+    "agents": [],
+    "simple_workflows": [],
+    "custom_workflows": []
+}

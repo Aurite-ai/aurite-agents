@@ -1,5 +1,5 @@
 [{
-    "name": "test_list_workflows",
+    "name": "test_weather_workflow",
     "steps": [
         "Weather Planning Workflow Step 1",
         "Weather Planning Workflow Step 2"

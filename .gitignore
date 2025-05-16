@@ -37,7 +37,7 @@ src/agents/planning/plans/* # Corrected path relative to aurite-mcp
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
+aurite_test_env/
 # Unit test / coverage reports
 htmlcov/
 .tox/
