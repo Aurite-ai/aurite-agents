@@ -123,6 +123,7 @@ def init(
             project_path / "config" / "clients",
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
+            project_path / "config" / "testing",
             project_path / "mcp_servers",
             project_path / "custom_workflows", # Corrected from custom_workflows to custom_workflows
         ]
@@ -147,12 +148,23 @@ def init(
             project_path / "config" / "agents",
             "agents.json" # Renaming for user project
         )
+
+        copy_packaged_example(
+            "component_configs/workflows/example_simple_workflow.json",
+            project_path / "config" / "workflows",
+            "workflows.json" # Renaming for user project
+        )
         # Create an empty __init__.py in custom_workflows to make it a package
         (project_path / "custom_workflows" / "__init__.py").touch() # Corrected path
 
+        copy_packaged_example(
+            "testing/planning_agent_multiple.json",
+            project_path / "config" / "testing",
+            "planning_agent_test.json" # Renaming for user project
+        )
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
-            "example_custom_workflows/example_workflow.py", # Corrected source path
+            "component_configs/custom_workflows/example_workflow.py", # Corrected source path
             project_path / "custom_workflows", # Corrected destination path
             "example_workflow.py"
         )
