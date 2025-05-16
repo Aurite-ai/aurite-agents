@@ -15,12 +15,12 @@ from typing import Dict, Any
 pytestmark = [pytest.mark.orchestration, pytest.mark.integration, pytest.mark.anyio]
 
 # Imports from the project
-from src.agents.agent_models import (
+from aurite.agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
-from src.llm.base_client import BaseLLM  # For mocking
-from src.host_manager import HostManager  # For host_manager fixture type hint
+from aurite.llm.base_client import BaseLLM  # For mocking
+from aurite.host_manager import HostManager  # For host_manager fixture type hint
 
 # Import shared fixtures if needed (host_manager is usually sufficient)
 # from ..fixtures.host_fixtures import host_manager # Assuming host_manager is available globally

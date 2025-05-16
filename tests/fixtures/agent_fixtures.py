@@ -5,7 +5,7 @@ Pytest fixtures related to Agent configuration and setup.
 import pytest
 
 # Use relative imports assuming tests run from aurite-mcp root
-from src.config.config_models import AgentConfig
+from aurite.config.config_models import AgentConfig
 
 
 @pytest.fixture

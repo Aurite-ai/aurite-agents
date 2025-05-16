@@ -19,10 +19,10 @@ import pytest
 import os  # Import os for environment variable check
 
 # Assuming models and executors are importable
-from src.config.config_models import CustomWorkflowConfig
-from src.workflows.custom_workflow import CustomWorkflowExecutor
-from src.host_manager import HostManager  # For host_manager fixture
-from src.config import PROJECT_ROOT_DIR
+from aurite.config.config_models import CustomWorkflowConfig
+from aurite.workflows.custom_workflow import CustomWorkflowExecutor
+from aurite.host_manager import HostManager  # For host_manager fixture
+from aurite.config import PROJECT_ROOT_DIR
 
 # Setup logger for this test module
 logger = logging.getLogger(__name__)

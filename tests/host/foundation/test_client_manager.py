@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock
 
 
 # Adjust imports based on your project structure
-from src.host.foundation.clients import ClientManager
-from src.config.config_models import ClientConfig, GCPSecretConfig
-from src.host.foundation.security import SecurityManager
+from aurite.host.foundation.clients import ClientManager
+from aurite.config.config_models import ClientConfig, GCPSecretConfig
+from aurite.host.foundation.security import SecurityManager
 from mcp import ClientSession
 
 

@@ -11,7 +11,7 @@ import json  # Add json import
 pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
-from src.host_manager import HostManager  # For host_manager fixture
+from aurite.host_manager import HostManager  # For host_manager fixture
 
 # Test Cases
 

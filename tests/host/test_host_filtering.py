@@ -10,9 +10,9 @@ pytestmark = pytest.mark.orchestration
 
 
 # Import components to test and dependencies
-from src.host.filtering import FilteringManager
-from src.config.config_models import AgentConfig, ClientConfig
-from src.host.foundation import MessageRouter
+from aurite.host.filtering import FilteringManager
+from aurite.config.config_models import AgentConfig, ClientConfig
+from aurite.host.foundation import MessageRouter
 
 
 # --- Fixtures ---
@@ -258,7 +258,7 @@ def test_filter_component_list_empty_input(
 pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
 # Import HostManager for the fixture
-from src.host_manager import HostManager
+from aurite.host_manager import HostManager
 
 
 class TestHostFilteringIntegration:

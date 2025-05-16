@@ -16,9 +16,9 @@ from anthropic.types import (
     Usage,
 )
 
-from src.llm.providers.anthropic_client import AnthropicLLM, BASE_DEFAULT_MAX_TOKENS
-from src.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
-from src.config.config_models import LLMConfig  # Added import
+from aurite.llm.providers.anthropic_client import AnthropicLLM, BASE_DEFAULT_MAX_TOKENS
+from aurite.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
+from aurite.config.config_models import LLMConfig  # Added import
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"

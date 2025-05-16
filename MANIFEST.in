@@ -1,16 +1,13 @@
 include README.md
 include LICENSE
-graft src/aurite_agents/packaged
+graft src/aurite/packaged
 graft frontend/dist
 recursive-include src *.pyi # For type stubs if any
-include src/aurite_agents/py.typed # For PEP 561 compliance if src/aurite_agents is the package dir
+include src/aurite/py.typed # For PEP 561 compliance if src/aurite is the package dir
 
-# If your package directory is just 'aurite_agents' directly under 'src/'
+# If your package directory is just 'aurite' directly under 'src/'
 # and 'src' itself is not part of the package name installed in site-packages,
-# then py.typed should be in 'src/aurite_agents/py.typed'.
-# The [tool.setuptools.packages.find] where = ["."] include = ["src*"]
-# suggests that 'src' is part of the structure found, and 'aurite_agents' would be inside 'src'.
-# So, if the actual package installed is 'aurite_agents', then 'src/aurite_agents/py.typed' is correct.
-# If the package installed is 'src.aurite_agents', then 'src/py.typed' might be what you'd aim for,
-# but that's less common. Given the include = ["src*"], it's likely setuptools correctly
-# identifies 'src/aurite_agents' as the package 'aurite_agents'.
+# then py.typed should be in 'src/aurite/py.typed'.
+# The [tool.setuptools.packages.find] where = ["src"] include = ["aurite*"]
+# and package_dir = {"" = "src"} in pyproject.toml ensures 'src/aurite'
+# is treated as the 'aurite' package.

@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from src.config.project_manager import ProjectManager
-from src.config.component_manager import ComponentManager
-from src.config.config_models import (
+from aurite.config.project_manager import ProjectManager
+from aurite.config.component_manager import ComponentManager
+from aurite.config.config_models import (
     ProjectConfig,
     ClientConfig,
     AgentConfig,
@@ -14,7 +14,7 @@ from src.config.config_models import (
     CustomWorkflowConfig,
     HostConfig,  # Added for new tests
     )
-from src.config import PROJECT_ROOT_DIR
+from aurite.config import PROJECT_ROOT_DIR
 
 # Fixtures from tests.fixtures.config_fixtures
 from ..fixtures.config_fixtures import (

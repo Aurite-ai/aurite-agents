@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, AsyncMock
 from typing import List, Dict, Any
 
 # Import the class to test and dependencies/models
-from src.host.resources.tools import ToolManager
+from aurite.host.resources.tools import ToolManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.config.config_models import ClientConfig, RootConfig, AgentConfig
+from aurite.config.config_models import ClientConfig, RootConfig, AgentConfig
 
 # Import shared fixtures
 # Import mcp types and session for mocking

@@ -18,8 +18,8 @@ Mocks are avoided for core components (Executor, Agent, Host).
 import pytest
 
 # Assuming models and executors are importable
-from src.config.config_models import WorkflowConfig, AgentConfig
-from src.workflows.simple_workflow import SimpleWorkflowExecutor
+from aurite.config.config_models import WorkflowConfig, AgentConfig
+from aurite.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Placeholder configurations - replace with actual fixture/data later if needed
 SAMPLE_AGENT_CONFIGS: Dict[str, AgentConfig] = {
@@ -29,7 +29,7 @@ SAMPLE_AGENT_CONFIGS: Dict[str, AgentConfig] = {
 
 # SAMPLE_WORKFLOW_CONFIG constant removed - using fixture now
 
-from src.host_manager import HostManager  # Import HostManager
+from aurite.host_manager import HostManager  # Import HostManager
 # Import the shared fixture
 
 

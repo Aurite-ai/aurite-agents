@@ -31,7 +31,7 @@ This strategy combines package-internal defaults with project-local user configu
 
 ### 3.1. Package-Internal Default/Example Components
 
-*   **Location:** A new top-level directory, `src/aurite_agents/packaged/`, will be created within the `aurite-agents` package source. This directory will contain subdirectories for different types of bundled resources:
+*   **Location:** A new top-level directory, `src/aurite/packaged/`, will be created within the `aurite-agents` package source. This directory will contain subdirectories for different types of bundled resources:
     *   `component_configs/`: For all component JSON definition files.
         *   `agents/`
         *   `clients/`
@@ -42,7 +42,7 @@ This strategy combines package-internal defaults with project-local user configu
     *   `example_custom_workflow_src/`: For example custom workflow Python module files.
 *   **Content:** These directories will house a curated set of default/example component JSON configurations, example MCP server scripts, and example custom workflow Python modules.
 *   **Access & Loading:**
-    *   The `ComponentManager` will use `importlib.resources.files('aurite_agents.packaged')` as the base. For example, to access agent JSON configurations, it would use `.joinpath('component_configs/agents')`.
+    *   The `ComponentManager` will use `importlib.resources.files('aurite.packaged')` as the base. For example, to access agent JSON configurations, it would use `.joinpath('component_configs/agents')`.
     *   These components serve as a read-only baseline, providing out-of-the-box functionality and examples.
     *   They are loaded first by the `ComponentManager`.
 
@@ -82,9 +82,9 @@ This strategy combines package-internal defaults with project-local user configu
 
 *   **`src.config.PROJECT_ROOT_DIR`:** This static variable, and its usage for locating the `config/` subdirectories, will be removed or refactored.
 *   **`ComponentManager` (`src/config/component_manager.py`):**
-    *   The constructor (`__init__`) will load package-internal default component JSONs from `src/aurite_agents/packaged/component_configs/` using `importlib.resources`.
+    *   The constructor (`__init__`) will load package-internal default component JSONs from `src/aurite/packaged/component_configs/` using `importlib.resources`.
     *   A new method, e.g., `load_project_components(self, project_root_path: Path)`, will be added. This method will scan for user-defined component JSON files in subdirectories (e.g., `project_root_path / 'config' / 'agents'`) relative to the provided `project_root_path`.
-    *   The `COMPONENT_TYPES_DIRS` dictionary will be adapted to define sub-paths (e.g., `config/agents` for user projects, and `component_configs/agents` relative to the `src/aurite_agents/packaged/` base for internal defaults).
+    *   The `COMPONENT_TYPES_DIRS` dictionary will be adapted to define sub-paths (e.g., `config/agents` for user projects, and `component_configs/agents` relative to the `src/aurite/packaged/` base for internal defaults).
     *   File CRUD operations (`save_component_config`, `delete_component_config`, etc.) will operate on paths relative to the `project_root_path` passed to them (likely via `ProjectManager`).
 *   **`ProjectManager` (`src/config/project_manager.py`):**
     *   When `load_project(project_config_file_path)` is called, `project_config_file_path.parent` will be stored as the `current_project_root`.
@@ -108,7 +108,7 @@ This strategy combines package-internal defaults with project-local user configu
 ## 6. PyPI Packaging Details (High-Level)
 
 *   **`pyproject.toml`:** Will be updated with all necessary metadata for PyPI (name, version, author, description, classifiers, dependencies).
-*   **Package Data:** The `src/aurite_agents/packaged/` directory and all its contents (including subdirectories like `component_configs`, `example_mcp_servers`, `example_custom_workflow_src`) must be included in the built distributions (sdist and wheel). This will be configured in `pyproject.toml` (e.g., via `setuptools` `package_data` or `include_package_data` and `MANIFEST.in`).
+*   **Package Data:** The `src/aurite/packaged/` directory and all its contents (including subdirectories like `component_configs`, `example_mcp_servers`, `example_custom_workflow_src`) must be included in the built distributions (sdist and wheel). This will be configured in `pyproject.toml` (e.g., via `setuptools` `package_data` or `include_package_data` and `MANIFEST.in`).
 *   **Entry Points:** CLI entry points for `aurite-agents init` (and potentially other future commands) will be defined in `pyproject.toml`.
 *   **Build Process:** Standard `python -m build` will be used.
 *   **Publishing:** `twine` will be used for uploading to TestPyPI and then PyPI.

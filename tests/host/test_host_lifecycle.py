@@ -6,8 +6,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Import the class to test and dependencies
-from src.host.host import MCPHost
-from src.config.config_models import HostConfig, ClientConfig, RootConfig
+from aurite.host.host import MCPHost
+from aurite.config.config_models import HostConfig, ClientConfig, RootConfig
 import mcp.client.session  # To mock ClientSession
 
 # Mark tests as host_unit and async

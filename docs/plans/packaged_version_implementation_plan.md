@@ -16,11 +16,11 @@
 
 *   **In Scope:**
     *   Modifications to `src/config/component_manager.py`, `src/config/project_manager.py`, `src/config/config_utils.py`.
-    *   Creation of `src/aurite_agents/packaged/` directory and its subdirectories (`component_configs`, `example_mcp_servers`, `example_custom_workflow_src`, `project_templates`) and populating them with example/default files.
+    *   Creation of `src/aurite/packaged/` directory and its subdirectories (`component_configs`, `example_mcp_servers`, `example_custom_workflow_src`, `project_templates`) and populating them with example/default files.
     *   Modifications to `src/bin/dependencies.py` regarding `PROJECT_ROOT`.
     *   Creation of a new CLI command `aurite-agents init`.
     *   Updates to `pyproject.toml` for packaging, CLI entry points, and exposing the public API.
-    *   Updates to `src/aurite_agents/__init__.py` to define the public API.
+    *   Updates to `src/aurite/__init__.py` to define the public API.
     *   Creation of a `MANIFEST.in` if necessary for including package data.
     *   Unit tests for new/modified logic.
 *   **Out of Scope (for this plan):**
@@ -37,11 +37,11 @@
 
 **Phase 1: Setup Package Structure & Default Configurations**
 
-1.  **Step 1.1: Create `src/aurite_agents/packaged/` Directory Structure**
-    *   **File(s):** New directory `src/aurite_agents/packaged/`
+1.  **Step 1.1: Create `src/aurite/packaged/` Directory Structure**
+    *   **File(s):** New directory `src/aurite/packaged/`
     *   **Action:**
-        *   Create the directory `src/aurite_agents/packaged/`.
-        *   Inside `src/aurite_agents/packaged/`, create subdirectories:
+        *   Create the directory `src/aurite/packaged/`.
+        *   Inside `src/aurite/packaged/`, create subdirectories:
             *   `component_configs/`
                 *   `agents/`
                 *   `clients/`
@@ -54,13 +54,13 @@
     *   **Verification:** Directory structure exists as specified.
 
 2.  **Step 1.2: Populate `packaged/` Subdirectories with Examples and Templates**
-    *   **File(s):** JSON files within `src/aurite_agents/packaged/component_configs/` subdirectories (including `projects/`), Python scripts in `src/aurite_agents/packaged/example_mcp_servers/`, and Python modules in `src/aurite_agents/packaged/example_custom_workflow_src/`.
+    *   **File(s):** JSON files within `src/aurite/packaged/component_configs/` subdirectories (including `projects/`), Python scripts in `src/aurite/packaged/example_mcp_servers/`, and Python modules in `src/aurite/packaged/example_custom_workflow_src/`.
     *   **Action:**
-        *   Copy representative example JSON component definitions from the current `config/` subdirectories into the corresponding `src/aurite_agents/packaged/component_configs/` subdirectories.
-        *   Move `config/projects/prompt_validation_config.json` to `src/aurite_agents/packaged/component_configs/projects/prompt_validation_config.json`.
-        *   Place example MCP server Python scripts (e.g., a simplified weather server) into `src/aurite_agents/packaged/example_mcp_servers/`.
-        *   Place example custom workflow Python modules into `src/aurite_agents/packaged/example_custom_workflow_src/`.
-        *   Ensure paths within example JSONs (e.g., `server_path` in a client config, `module_path` in a custom workflow config) correctly point to these packaged examples, relative to the `src/aurite_agents/packaged/` directory (e.g., `../example_mcp_servers/weather.py` if the client JSON is in `component_configs/clients/`). The `resolve_path_fields` will need to handle this using `importlib.resources.files('aurite_agents.packaged')` as its base.
+        *   Copy representative example JSON component definitions from the current `config/` subdirectories into the corresponding `src/aurite/packaged/component_configs/` subdirectories.
+        *   Move `config/projects/prompt_validation_config.json` to `src/aurite/packaged/component_configs/projects/prompt_validation_config.json`.
+        *   Place example MCP server Python scripts (e.g., a simplified weather server) into `src/aurite/packaged/example_mcp_servers/`.
+        *   Place example custom workflow Python modules into `src/aurite/packaged/example_custom_workflow_src/`.
+        *   Ensure paths within example JSONs (e.g., `server_path` in a client config, `module_path` in a custom workflow config) correctly point to these packaged examples, relative to the `src/aurite/packaged/` directory (e.g., `../example_mcp_servers/weather.py` if the client JSON is in `component_configs/clients/`). The `resolve_path_fields` will need to handle this using `importlib.resources.files('aurite.packaged')` as its base.
     *   **Verification:** Example files are present, parsable, and internal path references are consistent with the new packaged structure. `prompt_validation_config.json` is moved.
 
 3.  **Step 1.3: Refactor `PROJECT_ROOT` Definitions**
@@ -76,12 +76,12 @@
     *   **File(s):** `src/config/component_manager.py`
     *   **Action:**
         *   Import `importlib.resources`.
-        *   Modify `_load_all_components` (or a new internal method called by `__init__`) to first load component JSONs from `src/aurite_agents/packaged/component_configs/`.
-        *   Use `importlib.resources.files('aurite_agents.packaged').joinpath('component_configs', sub_dir_name)` to get the path to each component type's subdirectory (e.g., `agents`, `llms`).
+        *   Modify `_load_all_components` (or a new internal method called by `__init__`) to first load component JSONs from `src/aurite/packaged/component_configs/`.
+        *   Use `importlib.resources.files('aurite.packaged').joinpath('component_configs', sub_dir_name)` to get the path to each component type's subdirectory (e.g., `agents`, `llms`).
         *   Iterate through JSON files in these packaged directories and parse them using the existing `_parse_component_file` logic.
-        *   When calling `_parse_component_file` (and subsequently `resolve_path_fields`) for these packaged defaults, the `base_path_for_resolution` should be `importlib.resources.files('aurite_agents.packaged')`. This allows paths within default component JSONs (like a `server_path` pointing to `../example_mcp_servers/server.py`) to be resolved correctly relative to the `packaged` directory root.
+        *   When calling `_parse_component_file` (and subsequently `resolve_path_fields`) for these packaged defaults, the `base_path_for_resolution` should be `importlib.resources.files('aurite.packaged')`. This allows paths within default component JSONs (like a `server_path` pointing to `../example_mcp_servers/server.py`) to be resolved correctly relative to the `packaged` directory root.
         *   Store these loaded defaults in the respective component dictionaries (e.g., `self.clients`, `self.llms`).
-    *   **Verification:** Unit tests to confirm that `ComponentManager` loads default components from `src/aurite_agents/packaged/component_configs/` upon initialization, and that any internal paths (e.g., to example servers) are correctly resolved.
+    *   **Verification:** Unit tests to confirm that `ComponentManager` loads default components from `src/aurite/packaged/component_configs/` upon initialization, and that any internal paths (e.g., to example servers) are correctly resolved.
 
 2.  **Step 2.2: Adapt `COMPONENT_TYPES_DIRS` and Path Logic**
     *   **File(s):** `src/config/component_manager.py`
@@ -146,7 +146,7 @@
 4.  **Step 3.4: Update `HostManager` for `prompt_validation_config.json` and Custom Workflow Path Validation**
     *   **File(s):** `src/host_manager.py`
     *   **Action:**
-        *   Modify `HostManager.initialize`: Instead of loading `prompt_validation_path` with a hardcoded relative path, load it from `src/aurite_agents/packaged/component_configs/projects/prompt_validation_config.json` using `importlib.resources` to get its path, then call `self.project_manager.parse_project_file()` and integrate its components, or ensure these components are part of the default load.
+        *   Modify `HostManager.initialize`: Instead of loading `prompt_validation_path` with a hardcoded relative path, load it from `src/aurite/packaged/component_configs/projects/prompt_validation_config.json` using `importlib.resources` to get its path, then call `self.project_manager.parse_project_file()` and integrate its components, or ensure these components are part of the default load.
         *   Modify `HostManager.register_custom_workflow`: Update the `module_path` validation to use `self.project_manager.current_project_root` instead of the old static `PROJECT_ROOT_DIR`.
     *   **Verification:** `prompt_validation_config.json` is loaded correctly from its new packaged location. Custom workflow registration validates paths against the correct project root.
 
@@ -170,7 +170,7 @@
 **Phase 5: Implement `aurite-agents init` CLI Command**
 
 1.  **Step 5.1: Create CLI Script**
-    *   **File(s):** New file, e.g., `src/aurite_agents_cli/init_command.py` (or integrate into `src/bin/cli.py` if structure allows).
+    *   **File(s):** New file, e.g., `src/aurite/cli/main.py` (or integrate into `src/bin/cli.py` if structure allows).
     *   **Action:**
         *   Use a library like `click` or `argparse` for command-line argument parsing.
         *   Implement the logic described in Design Document section 3.5:
@@ -178,7 +178,7 @@
             *   Create the directory.
             *   Create a default project JSON file (e.g., `aurite_config.json`) with minimal content.
             *   Create subdirectories: `config/agents`, `config/llms`, etc., `mcp_servers`, `custom_workflow_src`.
-            *   Optionally, copy basic example files (e.g., from `src/aurite_agents/packaged/component_configs/`, `src/aurite_agents/packaged/example_mcp_servers/` or new minimal templates) into these user directories.
+            *   Optionally, copy basic example files (e.g., from `src/aurite/packaged/component_configs/`, `src/aurite/packaged/example_mcp_servers/` or new minimal templates) into these user directories.
     *   **Verification:** Manually run the CLI command and verify the directory structure and files are created as expected.
 
 2.  **Step 5.2: Add Entry Point in `pyproject.toml`**
@@ -187,7 +187,7 @@
         *   Add a console script entry point:
           ```toml
           [project.scripts]
-          aurite-agents = "aurite_agents_cli.main:cli_entry_point" # Adjust module:function path
+          aurite-agents = "aurite.cli.main:cli_entry_point" # Adjust module:function path
           ```
     *   **Verification:** After installing the package (locally editable for now), check if `aurite-agents init` command is available and works.
 
@@ -204,32 +204,32 @@
 2.  **Step 6.2: Configure Inclusion of `packaged_configs`**
     *   **File(s):** `pyproject.toml` and potentially `MANIFEST.in` (if using setuptools and `include_package_data`).
     *   **Action:**
-        *   Ensure that the entire `src/aurite_agents/packaged/` directory (and all its subdirectories and files) is included in the built package.
+        *   Ensure that the entire `src/aurite/packaged/` directory (and all its subdirectories and files) is included in the built package.
         *   If the developer UI (`frontend/dist/`) is to be bundled, ensure it's also included.
         *   For setuptools, this might involve `include_package_data = true` in `pyproject.toml`'s `[tool.setuptools]` section and a `MANIFEST.in` file:
             ```
-            recursive-include src/aurite_agents/packaged *
+            recursive-include src/aurite/packaged *
             # If bundling frontend:
             # recursive-include frontend/dist *
             ```
         *   Or, using `package_data` directly in `pyproject.toml` if preferred by the build backend.
     *   **Verification:** Build the sdist and wheel (`python -m build`). Inspect the contents of the built wheel (it's a zip file) to ensure the full `packaged/` directory structure and its contents (and `frontend/dist` if applicable) are present.
 
-2.  **Step 6.3: Define Public API in `src/aurite_agents/__init__.py`**
-    *   **File(s):** `src/aurite_agents/__init__.py`
+2.  **Step 6.3: Define Public API in `src/aurite/__init__.py`**
+    *   **File(s):** `src/aurite/__init__.py`
     *   **Action:**
         *   Import and expose key public classes and functions that users of the library will need. This should include at least:
             *   `HostManager` from `src.host_manager`
             *   Configuration models like `AgentConfig`, `ClientConfig`, `LLMConfig`, `WorkflowConfig`, `CustomWorkflowConfig`, `ProjectConfig` from `src.config.config_models`.
             *   Potentially other relevant types or utilities.
         *   Use `__all__` to explicitly define the public API if desired.
-    *   **Verification:** After local installation, confirm that `from aurite_agents import HostManager` (and other key classes) works.
+    *   **Verification:** After local installation, confirm that `from aurite import HostManager` (and other key classes) works.
 
 **Phase 7: Initial Testing and Documentation Notes**
 
 1.  **Step 7.1: Local Installation and Basic Test**
     *   **Action:**
-        *   In a clean virtual environment, install the locally built wheel (`pip install dist/aurite_agents-*.whl`).
+        *   In a clean virtual environment, install the locally built wheel (`pip install dist/aurite-*.whl`).
         *   Run `aurite-agents init test_project`.
         *   Navigate into `test_project`.
         *   Create a simple agent config in `test_project/config/agents/my_test_agent.json`.
@@ -265,7 +265,7 @@
 ## 6. Potential Risks & Mitigation
 
 *   **Path Resolution Complexity:** Ensuring all edge cases for path resolution (absolute paths in configs, symlinks, etc.) are handled correctly. Mitigation: Thorough unit testing of `config_utils.py` and path-related logic in managers.
-*   **Packaging `packaged/` directory:** Ensuring all necessary data files and example scripts within `src/aurite_agents/packaged/` are correctly included in sdist and wheel. Mitigation: Inspecting built artifacts; testing installation from the wheel.
+*   **Packaging `packaged/` directory:** Ensuring all necessary data files and example scripts within `src/aurite/packaged/` are correctly included in sdist and wheel. Mitigation: Inspecting built artifacts; testing installation from the wheel.
 *   **CLI Dependencies:** Ensuring CLI dependencies (like `click`) are correctly specified. Mitigation: Testing the CLI in a clean environment.
 
 ## 7. Open Questions & Discussion Points

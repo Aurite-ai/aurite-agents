@@ -13,9 +13,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Assuming models and manager are importable
-from src.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
-from src.storage.db_manager import StorageManager
-from src.storage.db_models import (
+from aurite.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
+from aurite.storage.db_manager import StorageManager
+from aurite.storage.db_models import (
     Base,
     AgentConfigDB,
     WorkflowConfigDB,
@@ -23,7 +23,7 @@ from src.storage.db_models import (
 )
 
 # Import only what's needed now: get_db_session and the new create_db_engine
-from src.storage.db_connection import get_db_session
+from aurite.storage.db_connection import get_db_session
 
 # Use pytest-asyncio for async tests if needed, but manager methods are sync for now
 # pytestmark = pytest.mark.anyio

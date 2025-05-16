@@ -2,8 +2,8 @@ import anyio
 import logging
 from pathlib import Path
 
-from src.host.host import MCPHost
-from src.config.config_models import (
+from aurite.host.host import MCPHost
+from aurite.config.config_models import (
     HostConfig,
     ClientConfig,  # Added RootConfig as it's needed by ClientConfig
 )

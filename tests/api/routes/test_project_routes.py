@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 # Import the FastAPI app instance and dependencies
-from src.config import PROJECT_ROOT_DIR
+from aurite.config import PROJECT_ROOT_DIR
 
 # Marker for API integration tests, specifically for project routes
 pytestmark = [
