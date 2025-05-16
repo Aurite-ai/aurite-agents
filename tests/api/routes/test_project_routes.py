@@ -437,7 +437,7 @@ def test_get_active_project_component_config_unauthorized(api_client: TestClient
 #     payload = {"project_config_path": f"config/projects/{other_project_filename}"} # Path relative to PROJECT_ROOT
 #     headers = {"X-API-Key": api_client.test_api_key}
 
-#     # Mock HostManager.register_client and register_agent to track calls if needed,
+#     # Mock Aurite.register_client and register_agent to track calls if needed,
 #     # or rely on checking the active config after the call.
 #     # For simplicity, we'll check the active config.
 

@@ -2,7 +2,7 @@
 Redis Stream Worker for the Aurite Agent Framework.
 
 Listens to a Redis stream for tasks (register/execute components)
-and processes them using the HostManager.
+and processes them using the Aurite.
 """
 
 import asyncio
@@ -17,7 +17,7 @@ import redis.asyncio as redis
 from pydantic import ValidationError
 
 # Adjust imports for new location (src/bin -> src)
-from ..host_manager import HostManager
+from ..host_manager import Aurite
 from ..config import ServerConfig
 from ..config.config_models import (
     ClientConfig,
@@ -60,22 +60,22 @@ def _handle_signal(sig, frame):
     shutdown_event.set()
 
 
-async def _shutdown_manager(manager: Optional[HostManager]):
-    """Shuts down the HostManager if it exists."""
+async def _shutdown_manager(manager: Optional[Aurite]):
+    """Shuts down the Aurite if it exists."""
     if manager:
-        logger.info("Shutting down HostManager...")
+        logger.info("Shutting down Aurite...")
         try:
             await manager.shutdown()
-            logger.info("HostManager shutdown complete.")
+            logger.info("Aurite shutdown complete.")
         except Exception as e:
-            logger.error(f"Error during HostManager shutdown: {e}", exc_info=True)
+            logger.error(f"Error during Aurite shutdown: {e}", exc_info=True)
             # Don't exit here, just log the error
 
 
 # --- Worker Logic ---
 
 
-async def process_message(manager: HostManager, message_id: bytes, message_data: dict):
+async def process_message(manager: Aurite, message_id: bytes, message_data: dict):
     """Processes a single message received from the Redis stream."""
     try:
         logger.info(f"Processing message ID: {message_id.decode()}")
@@ -128,7 +128,7 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
             # Add check for execution facade before using it
             if not manager.execution:
                 logger.error(
-                    "ExecutionFacade not available on HostManager. Cannot execute."
+                    "ExecutionFacade not available on Aurite. Cannot execute."
                 )
                 return
 
@@ -198,7 +198,7 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
         logger.error(
             f"Data validation/parsing error for message {message_id.decode()}: {e}"
         )
-    except ValueError as e:  # Catches duplicates, missing refs from HostManager
+    except ValueError as e:  # Catches duplicates, missing refs from Aurite
         logger.error(f"Processing error for message {message_id.decode()}: {e}")
     except FileNotFoundError as e:  # For client/custom workflow paths
         logger.error(
@@ -212,7 +212,7 @@ async def process_message(manager: HostManager, message_id: bytes, message_data:
     # Consider adding XACK here if using consumer groups, or XDEL if not.
 
 
-async def worker_loop(config: ServerConfig, manager: HostManager):
+async def worker_loop(config: ServerConfig, manager: Aurite):
     """Main worker loop connecting to Redis and processing messages."""
     redis_url = f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
     logger.info(f"Connecting to Redis at {redis_url}...")
@@ -307,17 +307,17 @@ async def main():
     except RuntimeError:
         sys.exit(1)  # Exit if config fails
 
-    # Initialize HostManager
-    manager: Optional[HostManager] = None
+    # Initialize Aurite
+    manager: Optional[Aurite] = None
     try:
         logger.info(
-            f"Initializing HostManager with config: {config.PROJECT_CONFIG_PATH}..."
+            f"Initializing Aurite with config: {config.PROJECT_CONFIG_PATH}..."
         )
-        manager = HostManager(config_path=config.PROJECT_CONFIG_PATH)
+        manager = Aurite(config_path=config.PROJECT_CONFIG_PATH)
         await manager.initialize()
-        logger.info("HostManager initialized successfully.")
+        logger.info("Aurite initialized successfully.")
     except Exception as e:
-        logger.error(f"Failed to initialize HostManager: {e}", exc_info=True)
+        logger.error(f"Failed to initialize Aurite: {e}", exc_info=True)
         sys.exit(1)
 
     # Set up signal handlers for graceful shutdown
@@ -339,7 +339,7 @@ async def main():
     except asyncio.CancelledError:
         logger.info("Worker task successfully cancelled.")
 
-    # Shutdown HostManager
+    # Shutdown Aurite
     if manager:
         await _shutdown_manager(manager)  # Reuse shutdown helper
 

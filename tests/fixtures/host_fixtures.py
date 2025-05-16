@@ -19,7 +19,7 @@ from aurite.config.config_models import (
     HostConfig,
 )  # Ensure ProjectConfig and ClientConfig are here
 from aurite.host.host import MCPHost
-from aurite.host_manager import HostManager
+from aurite.host_manager import Aurite
 from aurite.host.resources import ToolManager, PromptManager
 
 # Define logger for this fixtures module
@@ -88,9 +88,9 @@ def mock_mcp_host() -> Mock:
 
 
 @pytest.fixture(scope="function")  # <<< Reverted scope back to function
-async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argument
+async def host_manager(anyio_backend) -> Aurite:  # Add anyio_backend argument
     """
-    Provides an initialized HostManager instance for testing, based on
+    Provides an initialized Aurite instance for testing, based on
     the testing_config.json file. Handles setup and teardown.
     """
     # Define path to the test config file relative to the project root
@@ -101,12 +101,12 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     if not test_config_path.exists():
         pytest.skip(f"Test host config file not found at {test_config_path}")
 
-    # Instantiate HostManager - This will use the real ProjectManager now
+    # Instantiate Aurite - This will use the real ProjectManager now
     # The ProjectManager, when loading the project during manager.initialize(),
     # will resolve client string references to full ClientConfig objects
     # using the ComponentManager. Path validation for servers will occur
     # during MCPHost and ClientManager initialization.
-    manager = HostManager(config_path=test_config_path)
+    manager = Aurite(config_path=test_config_path)
 
     # Initialize (this loads configs via real ProjectManager and starts MCPHost/clients)
     try:
@@ -117,7 +117,7 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
             await manager.shutdown()
         except Exception:
             pass  # Ignore shutdown errors after init failure
-        pytest.fail(f"HostManager initialization failed in fixture: {init_e}")
+        pytest.fail(f"Aurite initialization failed in fixture: {init_e}")
 
     yield manager  # Provide the initialized manager to the test
 
@@ -125,17 +125,17 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
     try:
         if manager:
             if manager.execution and hasattr(manager.execution, "aclose"):
-                logger.debug("HostManager Fixture: Attempting to aclose ExecutionFacade...")
+                logger.debug("Aurite Fixture: Attempting to aclose ExecutionFacade...")
                 await manager.execution.aclose()
-                logger.debug("HostManager Fixture: ExecutionFacade aclosed.")
+                logger.debug("Aurite Fixture: ExecutionFacade aclosed.")
             if manager.host: # Check if manager and host exist before shutdown
-                logger.debug(f"HostManager Fixture: Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
+                logger.debug(f"Aurite Fixture: Attempting shutdown for host: {manager.host._config.name}") # Log before shutdown
                 await manager.shutdown() # Attempt shutdown
-                logger.debug(f"HostManager Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
+                logger.debug(f"Aurite Fixture: Finished shutdown for host: {manager.host._config.name if manager.host else 'N/A'}") # Log after successful shutdown
             else:
-                logger.debug("HostManager Fixture: Host not available on manager for shutdown in teardown.")
+                logger.debug("Aurite Fixture: Host not available on manager for shutdown in teardown.")
         else:
-            logger.debug("HostManager Fixture: Manager not available for shutdown in teardown.")
+            logger.debug("Aurite Fixture: Manager not available for shutdown in teardown.")
     except ExceptionGroup as eg:
         # Specifically catch ExceptionGroup, likely from TaskGroup/AsyncExitStack issues
         # Check if the known ProcessLookupError is within the group
@@ -143,18 +143,18 @@ async def host_manager(anyio_backend) -> HostManager:  # Add anyio_backend argum
              print(f"\n[WARN] Suppressed known ProcessLookupError during teardown in host_manager fixture: {eg}")
         else:
              # Re-raise other unexpected ExceptionGroups
-             print(f"\n[ERROR] Unexpected ExceptionGroup during HostManager shutdown in fixture: {eg}")
+             print(f"\n[ERROR] Unexpected ExceptionGroup during Aurite shutdown in fixture: {eg}")
              raise
     except RuntimeError as e:
         # Keep handling for specific RuntimeErrors like "Event loop is closed"
         if "Event loop is closed" in str(e) or "Cannot run shutdown() while loop is stopping" in str(e):
             print(f"\n[WARN] Suppressed known RuntimeError teardown error in host_manager fixture: {e}")
         else:
-            print(f"\n[ERROR] Unexpected RuntimeError during HostManager shutdown in fixture: {e}")
+            print(f"\n[ERROR] Unexpected RuntimeError during Aurite shutdown in fixture: {e}")
             raise # Re-raise other RuntimeErrors
     except Exception as shutdown_e:
         # Catch any other unexpected exceptions during shutdown
-        print(f"\n[ERROR] Unexpected generic Exception during HostManager shutdown in fixture: {shutdown_e}")
+        print(f"\n[ERROR] Unexpected generic Exception during Aurite shutdown in fixture: {shutdown_e}")
         raise # Re-raise other exceptions
 
 

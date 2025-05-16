@@ -9,7 +9,7 @@ from fastapi.security import APIKeyHeader
 
 # Import config/models needed by dependencies
 from ..config import ServerConfig
-from ..host_manager import HostManager  # Needed for get_host_manager
+from ..host_manager import Aurite  # Needed for get_host_manager
 from ..config.component_manager import ComponentManager  # Added for new dependency
 from ..config.project_manager import ProjectManager  # Added for new dependency
 
@@ -98,18 +98,18 @@ async def get_api_key(
     return provided_api_key
 
 
-# --- HostManager Dependency ---
+# --- Aurite Dependency ---
 # Moved from api.py - might be needed by multiple routers
-async def get_host_manager(request: Request) -> HostManager:
+async def get_host_manager(request: Request) -> Aurite:
     """
-    Dependency function to get the initialized HostManager instance from app state.
+    Dependency function to get the initialized Aurite instance from app state.
     """
-    manager: Optional[HostManager] = getattr(request.app.state, "host_manager", None)
+    manager: Optional[Aurite] = getattr(request.app.state, "host_manager", None)
     if not manager:
-        logger.error("HostManager not initialized or not found in app state.")
+        logger.error("Aurite not initialized or not found in app state.")
         raise HTTPException(
             status_code=503,
-            detail="HostManager is not available or not initialized.",
+            detail="Aurite is not available or not initialized.",
         )
     # Removed debug log from here, keep it in api.py if needed upon retrieval
     return manager
@@ -117,15 +117,15 @@ async def get_host_manager(request: Request) -> HostManager:
 
 # --- ComponentManager Dependency ---
 async def get_component_manager(
-    host_manager: HostManager = Depends(get_host_manager),
+    host_manager: Aurite = Depends(get_host_manager),
 ) -> ComponentManager:
     """
-    Dependency function to get the ComponentManager instance from the HostManager.
+    Dependency function to get the ComponentManager instance from the Aurite.
     """
     if not host_manager.component_manager:
-        # This case should ideally not happen if HostManager is initialized correctly
+        # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
-            "ComponentManager not found on HostManager instance. This indicates an initialization issue."
+            "ComponentManager not found on Aurite instance. This indicates an initialization issue."
         )
         raise HTTPException(
             status_code=503,
@@ -136,15 +136,15 @@ async def get_component_manager(
 
 # --- ProjectManager Dependency ---
 async def get_project_manager(
-    host_manager: HostManager = Depends(get_host_manager),
+    host_manager: Aurite = Depends(get_host_manager),
 ) -> ProjectManager:
     """
-    Dependency function to get the ProjectManager instance from the HostManager.
+    Dependency function to get the ProjectManager instance from the Aurite.
     """
     if not host_manager.project_manager:
-        # This case should ideally not happen if HostManager is initialized correctly
+        # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
-            "ProjectManager not found on HostManager instance. This indicates an initialization issue."
+            "ProjectManager not found on Aurite instance. This indicates an initialization issue."
         )
         raise HTTPException(
             status_code=503,

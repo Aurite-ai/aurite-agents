@@ -62,7 +62,7 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
-        "orchestration: marks tests related to the Orchestration Layer (HostManager, Facade, Executors, Agent)",
+        "orchestration: marks tests related to the Orchestration Layer (Aurite, Facade, Executors, Agent)",
     )
     # Setup can be expanded as needed
 

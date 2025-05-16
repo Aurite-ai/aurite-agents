@@ -98,7 +98,7 @@ def test_storage_manager_init_no_db(monkeypatch):
     # No globals to reset
 
     # Instantiate StorageManager without an engine. Since AURITE_ENABLE_DB is false,
-    # HostManager wouldn't normally call create_db_engine. To simulate this for
+    # Aurite wouldn't normally call create_db_engine. To simulate this for
     # direct StorageManager instantiation, patch create_db_engine *where it's called*.
     with patch(
         "src.storage.db_manager.create_db_engine", return_value=None

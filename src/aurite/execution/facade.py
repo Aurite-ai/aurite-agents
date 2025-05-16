@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 class ExecutionFacade:
     """
     A facade that simplifies the execution of different component types
-    (Agents, Simple Workflows, Custom Workflows) managed by the HostManager.
+    (Agents, Simple Workflows, Custom Workflows) managed by the Aurite.
 
     It uses the appropriate executor for each component type and passes
     the StorageManager if available.

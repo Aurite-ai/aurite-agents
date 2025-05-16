@@ -1,5 +1,5 @@
 """
-Unit tests for the HostManager class, focusing on registration logic.
+Unit tests for the Aurite class, focusing on registration logic.
 """
 
 import pytest
@@ -11,7 +11,7 @@ from pathlib import Path
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from aurite.host_manager import HostManager
+from aurite.host_manager import Aurite
 
 # from aurite.host.host import MCPHost # No longer needed directly, mock provides spec
 from aurite.config.config_models import (
@@ -24,14 +24,14 @@ from aurite.config.config_models import (
 @pytest.fixture
 def unit_test_host_manager(
     mock_mcp_host: MagicMock,
-) -> HostManager:  # Use shared fixture
+) -> Aurite:  # Use shared fixture
     """
-    Provides a HostManager instance initialized for unit testing.
+    Provides a Aurite instance initialized for unit testing.
     It uses a mock config path and has the shared mocked MCPHost instance injected.
     """
     # Use a dummy config path for initialization, as loading is bypassed
     dummy_config_path = Path("/fake/unit_test_config.json")
-    manager = HostManager(config_path=dummy_config_path)
+    manager = Aurite(config_path=dummy_config_path)
 
     # Manually inject the mock host
     manager.host = mock_mcp_host  # Inject the shared mock
@@ -53,7 +53,7 @@ def unit_test_host_manager(
     mock_project_config.clients = {}
     mock_project_config.name = "Unit Test Project"  # Give it a name for logging
 
-    # Set this mock project config as the active one in the HostManager's ProjectManager
+    # Set this mock project config as the active one in the Aurite's ProjectManager
     # This bypasses needing to mock load_project and file system interactions for these unit tests.
     manager.project_manager.active_project_config = mock_project_config
 
@@ -66,12 +66,12 @@ def unit_test_host_manager(
 # --- Test Class for Agent Registration ---
 
 
-class TestHostManagerClientRegistration:
-    """Tests for HostManager.register_client."""
+class TestAuriteClientRegistration:
+    """Tests for Aurite.register_client."""
 
     # TODO: Implement unit tests for client registration
     @pytest.mark.skip(reason="Not yet implemented")
-    async def test_register_client_success(self, unit_test_host_manager: HostManager):
+    async def test_register_client_success(self, unit_test_host_manager: Aurite):
         # This mainly tests delegation to host.register_client
         manager = unit_test_host_manager
         client_config = ClientConfig(
@@ -82,7 +82,7 @@ class TestHostManagerClientRegistration:
 
     @pytest.mark.skip(reason="Not yet implemented")
     async def test_register_client_duplicate_id(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         # Simulate host.register_client raising ValueError for duplicate
         manager = unit_test_host_manager
@@ -100,23 +100,23 @@ class TestHostManagerClientRegistration:
 
     @pytest.mark.skip(reason="Not yet implemented")
     async def test_register_client_no_host_instance(self):
-        manager = HostManager(config_path=Path("/fake/path.json"))
+        manager = Aurite(config_path=Path("/fake/path.json"))
         manager.host = None
         client_config = ClientConfig(
             client_id="ClientNoHost", server_path=Path("/fake/server.py"), roots=[]
         )
-        with pytest.raises(ValueError, match="HostManager is not initialized."):
+        with pytest.raises(ValueError, match="Aurite is not initialized."):
             await manager.register_client(client_config)
 
 
 # --- Test Class for Unload Project ---
 
 
-class TestHostManagerUnloadProject:
-    """Tests for HostManager.unload_project."""
+class TestAuriteUnloadProject:
+    """Tests for Aurite.unload_project."""
 
     async def test_unload_project_clears_state_and_shuts_down_host(
-        self, unit_test_host_manager: HostManager
+        self, unit_test_host_manager: Aurite
     ):
         """Verify unload_project calls host shutdown and clears project state."""
         manager = unit_test_host_manager
@@ -138,7 +138,7 @@ class TestHostManagerUnloadProject:
         assert manager.execution is None  # Check that facade is cleared
         manager.project_manager.unload_active_project.assert_called_once()  # Check PM interaction
 
-    async def test_unload_project_no_host(self, unit_test_host_manager: HostManager):
+    async def test_unload_project_no_host(self, unit_test_host_manager: Aurite):
         """Verify unload_project works correctly when host is already None."""
         manager = unit_test_host_manager
         manager.host = None  # Ensure host is None initially
@@ -160,20 +160,20 @@ class TestHostManagerUnloadProject:
 # --- Test Class for Change Project ---
 
 
-class TestHostManagerChangeProject:
-    """Tests for HostManager.change_project."""
+class TestAuriteChangeProject:
+    """Tests for Aurite.change_project."""
 
     @patch.object(
-        HostManager, "unload_project", new_callable=MagicMock
+        Aurite, "unload_project", new_callable=MagicMock
     )  # Use MagicMock for async def
     @patch.object(
-        HostManager, "initialize", new_callable=MagicMock
+        Aurite, "initialize", new_callable=MagicMock
     )  # Use MagicMock for async def
     async def test_change_project_calls_unload_and_initialize(
         self,
         mock_initialize: MagicMock,
         mock_unload_project: MagicMock,
-        unit_test_host_manager: HostManager,
+        unit_test_host_manager: Aurite,
     ):
         """Verify change_project calls unload_project then initialize, and updates config_path."""
         manager = unit_test_host_manager
@@ -197,15 +197,15 @@ class TestHostManagerChangeProject:
         # Verify the order of calls if possible (might need more complex mocking or call list inspection)
         # For now, individual calls are verified.
 
-    @patch.object(HostManager, "unload_project", new_callable=MagicMock)
+    @patch.object(Aurite, "unload_project", new_callable=MagicMock)
     @patch.object(
-        HostManager, "initialize", side_effect=RuntimeError("Init failed")
+        Aurite, "initialize", side_effect=RuntimeError("Init failed")
     )  # Simulate init failure
     async def test_change_project_handles_initialization_failure(
         self,
         mock_initialize_fails: MagicMock,
         mock_unload_project_on_fail: MagicMock,
-        unit_test_host_manager: HostManager,
+        unit_test_host_manager: Aurite,
     ):
         """Verify change_project calls unload_project again if initialize fails."""
         manager = unit_test_host_manager

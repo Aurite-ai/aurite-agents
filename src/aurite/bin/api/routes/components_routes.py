@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import HostManager, DuplicateClientIdError
+from ....host_manager import Aurite, DuplicateClientIdError
 from ....config.config_models import (
     ClientConfig,
     AgentConfig,
@@ -68,14 +68,14 @@ async def execute_agent_endpoint(
     agent_name: str,
     request_body: ExecuteAgentRequest,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
-    Executes a configured agent by name using the HostManager.
+    Executes a configured agent by name using the Aurite.
     """
     logger.info(f"Received request to execute agent: {agent_name}")
     if not manager.execution:
-        logger.error("ExecutionFacade not available on HostManager.")
+        logger.error("ExecutionFacade not available on Aurite.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
@@ -95,16 +95,16 @@ async def stream_agent_endpoint(
     # user_message and system_prompt will be query parameters, matching ExecuteAgentRequest fields
     user_message: str,  # Made individual query params
     system_prompt: Optional[str] = None,  # Made individual query params
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
-    Executes a configured agent by name using the HostManager and streams events via GET.
+    Executes a configured agent by name using the Aurite and streams events via GET.
     """
     logger.info(
         f"Received request to STREAM agent (GET): {agent_name} with message: '{user_message}'"
     )
     if not manager.execution:  # Check if facade is available
-        logger.error("ExecutionFacade not available on HostManager for streaming.")
+        logger.error("ExecutionFacade not available on Aurite for streaming.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
@@ -152,14 +152,14 @@ async def execute_workflow_endpoint(
     workflow_name: str,
     request_body: ExecuteWorkflowRequest,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """
-    Executes a configured simple workflow by name using the HostManager.
+    Executes a configured simple workflow by name using the Aurite.
     """
     logger.info(f"Received request to execute workflow: {workflow_name}")
     if not manager.execution:
-        logger.error("ExecutionFacade not available on HostManager.")
+        logger.error("ExecutionFacade not available on Aurite.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
@@ -186,12 +186,12 @@ async def execute_custom_workflow_endpoint(
     workflow_name: str,
     request_body: ExecuteCustomWorkflowRequest,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
-    """Executes a configured custom Python workflow by name using the HostManager."""
+    """Executes a configured custom Python workflow by name using the Aurite."""
     logger.info(f"Received request to execute custom workflow: {workflow_name}")
     if not manager.execution:
-        logger.error("ExecutionFacade not available on HostManager.")
+        logger.error("ExecutionFacade not available on Aurite.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
@@ -222,11 +222,11 @@ async def execute_custom_workflow_endpoint(
 async def register_client_endpoint(
     client_config: ClientConfig,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new MCP client."""
     logger.info(f"Received request to register client: {client_config.client_id}")
-    # HostManager.register_client handles upsert logic and potential errors
+    # Aurite.register_client handles upsert logic and potential errors
     try:
         await manager.register_client(client_config)
         return {"status": "success", "client_id": client_config.client_id}
@@ -248,7 +248,7 @@ async def register_client_endpoint(
 async def register_agent_endpoint(
     agent_config: AgentConfig,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new agent configuration."""
     logger.info(f"Received request to register agent: {agent_config.name}")
@@ -270,7 +270,7 @@ async def register_agent_endpoint(
 async def register_workflow_endpoint(
     workflow_config: WorkflowConfig,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new simple workflow configuration."""
     logger.info(f"Received request to register workflow: {workflow_config.name}")
@@ -291,7 +291,7 @@ async def register_workflow_endpoint(
 @router.post("/llms/register", status_code=201)
 async def register_llm_endpoint(
     llm_config: LLMConfig,  # Use LLMConfig model for request body
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new LLM configuration."""
     logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
@@ -312,7 +312,7 @@ async def register_llm_endpoint(
 async def register_custom_workflow_endpoint(
     custom_workflow_config: CustomWorkflowConfig,
     # api_key: str = Depends(get_api_key), # Dependency moved to router level
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new custom workflow configuration."""
     logger.info(f"Received request to register custom workflow: {custom_workflow_config.name}")
@@ -334,7 +334,7 @@ async def register_custom_workflow_endpoint(
 
 
 @router.get("/components/agents", response_model=List[str])
-async def list_registered_agents(manager: HostManager = Depends(get_host_manager)):
+async def list_registered_agents(manager: Aurite = Depends(get_host_manager)):
     """Lists the names of all currently registered agents from the active project."""
     active_project = manager.project_manager.get_active_project_config()
     if (
@@ -346,7 +346,7 @@ async def list_registered_agents(manager: HostManager = Depends(get_host_manager
 
 @router.get("/components/workflows", response_model=List[str])
 async def list_registered_simple_workflows(
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Lists the names of all currently registered simple workflows from the active project."""
     active_project = manager.project_manager.get_active_project_config()
@@ -361,7 +361,7 @@ async def list_registered_simple_workflows(
 
 @router.get("/components/custom_workflows", response_model=List[str])
 async def list_registered_custom_workflows(
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Lists the names of all currently registered custom workflows from the active project."""
     active_project = manager.project_manager.get_active_project_config()
@@ -375,7 +375,7 @@ async def list_registered_custom_workflows(
 
 
 @router.get("/components/clients", response_model=List[str])
-async def list_registered_clients(manager: HostManager = Depends(get_host_manager)):
+async def list_registered_clients(manager: Aurite = Depends(get_host_manager)):
     """Lists the client_ids of all currently registered clients from the active project."""
     active_project = manager.project_manager.get_active_project_config()
     if not active_project or not active_project.clients:
@@ -392,7 +392,7 @@ async def list_registered_clients(manager: HostManager = Depends(get_host_manage
 
 @router.get("/components/llms", response_model=List[str])
 async def list_registered_llms(
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Lists the llm_ids of all currently registered LLM configurations from the active project."""
     # LLM configs are managed by the ComponentManager, accessed via ProjectManager
@@ -406,7 +406,7 @@ async def list_registered_llms(
 
 
 @router.get("/host/clients/active", response_model=List[str], tags=["Host Status"])
-async def list_active_host_clients(manager: HostManager = Depends(get_host_manager)):
+async def list_active_host_clients(manager: Aurite = Depends(get_host_manager)):
     """Lists the client_ids of all clients currently active and running on the MCPHost instance."""
     if not manager.host or not manager.host.client_manager:
         logger.warning("Host or ClientManager not available for listing active clients.")

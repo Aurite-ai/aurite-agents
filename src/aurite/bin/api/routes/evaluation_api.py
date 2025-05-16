@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import HostManager
+from ....host_manager import Aurite
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +48,12 @@ class PromptValidationSimpleRequest(BaseModel):
 )
 async def execute_prompt_validation_file(
     request_body: PromptValidationFileRequest,
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Executes the prompt validation workflow from a config file."""
     logger.info("Received request to execute prompt validation workflow")
     if not manager.execution:
-        logger.error("ExecutionFacade not available on HostManager.")
+        logger.error("ExecutionFacade not available on Aurite.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
@@ -103,12 +103,12 @@ async def execute_prompt_validation_file(
 )
 async def execute_prompt_validation_simple(
     request_body: PromptValidationSimpleRequest,
-    manager: HostManager = Depends(get_host_manager),
+    manager: Aurite = Depends(get_host_manager),
 ):
     """Executes the prompt validation workflow with simplified input."""
     logger.info("Received request to execute prompt validation workflow")
     if not manager.execution:
-        logger.error("ExecutionFacade not available on HostManager.")
+        logger.error("ExecutionFacade not available on Aurite.")
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )

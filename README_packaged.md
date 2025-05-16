@@ -45,7 +45,21 @@ your_project_name/
 └── mcp_servers/              # Scripts for any custom MCP servers
 ```
 
-### 2. Understanding `aurite_config.json`
+### 2. Understanding Project Root and Path Resolution
+
+Aurite determines the **root of your project (`current_project_root`)** as the directory containing the `aurite_config.json` file that you specify via the `PROJECT_CONFIG_PATH` environment variable.
+
+Paths for component configurations (e.g., in `config/agents/`), custom workflow Python modules (`module_path`), and MCP server scripts (`server_path`) defined within your `aurite_config.json` or individual component JSON files are **resolved relative to this `current_project_root`**.
+
+**Example:** If `PROJECT_CONFIG_PATH` is `/path/to/your_project_name/aurite_config.json`, then `current_project_root` is `/path/to/your_project_name/`. A `module_path` like `custom_workflow_src/my_flow.py` will resolve to `/path/to/your_project_name/custom_workflow_src/my_flow.py`.
+
+**Integrating into Existing Projects (Nested `aurite_config.json`):**
+
+If you are integrating Aurite into an existing project and choose to place your `aurite_config.json` file in a subdirectory (e.g., `my_existing_app/aurite_setup/aurite_config.json`), then `current_project_root` will be `my_existing_app/aurite_setup/`.
+
+To reference files outside this specific `current_project_root` (e.g., an MCP server script located at `my_existing_app/scripts/my_server.py`), you will need to use `../` in your path strings within the configuration files. For instance, the `server_path` would be `../scripts/my_server.py`.
+
+### 3. Understanding `aurite_config.json`
 
 The `aurite_config.json` file at the root of your new project is the central configuration file. It defines the project's name, description, and lists the agents, LLMs, clients (MCP servers), simple workflows, and custom workflows that are part of this project.
 
@@ -71,6 +85,8 @@ The Aurite framework needs to know where your main project configuration file is
 export PROJECT_CONFIG_PATH=/path/to/your_project_name/aurite_config.json
 ```
 *(Adjust the path accordingly. You can use `$(pwd)/aurite_config.json` if you are inside `your_project_name` directory.)*
+
+Remember, all relative paths specified in your configurations will be based on the directory containing this `aurite_config.json` file.
 
 ## Example: Setting up a Custom Workflow with an Agent
 
@@ -146,6 +162,13 @@ class MyWorkflow:
 
 ```
 *Remember to make `custom_workflow_src` a package by ensuring it has an `__init__.py` file (which `aurite init` creates).*
+
+**Note on Imports within your Custom Workflow:**
+*   **Internal Imports (within `custom_workflow_src`):** For imports within your workflow file that refer to other Python files in the same `custom_workflow_src` directory (e.g., utility modules), use relative imports: `from . import my_utils` or `from .my_utils import some_function`. These work automatically because `custom_workflow_src` is a package.
+*   **External Imports (from your broader project):** If your custom workflow needs to import modules from other parts of your project (e.g., from your application's main `src` folder located outside the `your_project_name` directory created by `aurite init`), you must ensure those modules are discoverable by Python. This typically involves:
+    *   Adding your project's main source directory (e.g., `path/to/your_actual_project_root/src`) to the `PYTHONPATH` environment variable.
+    *   Or, if your broader project is a package, installing it in editable mode (`pip install -e .` from that project's root).
+    *   Or, ensuring you run your Aurite application from a directory that Python considers a root for your project's packages.
 
 ### Step 4: Define your Custom Workflow Configuration
 

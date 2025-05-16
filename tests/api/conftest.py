@@ -34,7 +34,7 @@ def api_client(monkeypatch):
     # --- Cache Clearing ---
     # Clear lru_cache for get_server_config to ensure it re-reads env vars for each test
     get_server_config.cache_clear()
-    # If HostManager or other components use caching that depends on env vars, clear them too
+    # If Aurite or other components use caching that depends on env vars, clear them too
     # e.g., from aurite.config import load_host_config_from_json; load_host_config_from_json.cache_clear()
 
     # --- Create Test Client ---

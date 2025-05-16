@@ -15,7 +15,7 @@ from aurite.config.config_models import (
     LLMConfig,
     ProjectConfig,
 )  # Added ProjectConfig
-from aurite.host_manager import HostManager
+from aurite.host_manager import Aurite
 from aurite.agents.agent import Agent
 
 # from aurite.agents.conversation_manager import ( # Removed ConversationManager import
@@ -32,8 +32,8 @@ from aurite.host.host import MCPHost  # Needed for type hinting if used
 
 @pytest.fixture
 def mock_host_manager() -> Mock:
-    """Provides a mock HostManager."""
-    manager = Mock(spec=HostManager)
+    """Provides a mock Aurite."""
+    manager = Mock(spec=Aurite)
     manager.host = AsyncMock(spec=MCPHost)  # Mock the host instance within the manager
     manager.agent_configs = {}
     manager.llm_configs = {}  # Add llm_configs dict
@@ -46,7 +46,7 @@ def mock_host_manager() -> Mock:
 @pytest.fixture
 def execution_facade(mock_host_manager: Mock) -> ExecutionFacade:
     """
-    Provides an ExecutionFacade instance initialized with a mock HostManager,
+    Provides an ExecutionFacade instance initialized with a mock Aurite,
     from which we derive a mock MCPHost and a mock ProjectConfig.
     """
     # Mock the necessary attributes and methods that ExecutionFacade will expect
@@ -529,7 +529,7 @@ class TestExecutionFacadeUnit:
         user_message = "Hello Agent"
         instantiation_error = ValueError("LLM Client Init Failed")
 
-        # --- Mock HostManager Configs ---
+        # --- Mock Aurite Configs ---
         # Need valid configs up to the point of LLM instantiation
         mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
         mock_llm_config = LLMConfig(
@@ -659,7 +659,7 @@ class TestExecutionFacadeUnit:
         user_message = "Hello Agent"
         execution_error = RuntimeError("Conversation failed")
 
-        # --- Mock HostManager Configs ---
+        # --- Mock Aurite Configs ---
         mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
         mock_llm_config = LLMConfig(
             llm_id="test_llm", provider="anthropic", model_name="test-model"

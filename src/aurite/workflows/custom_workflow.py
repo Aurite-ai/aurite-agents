@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING, Optional  # Added Optional
 from ..config.config_models import CustomWorkflowConfig  # Updated import path
 
 # MCPHost is still needed for the __init__ method
-# from ..config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by HostManager/ProjectManager
+# from ..config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by Aurite/ProjectManager
 
 # Type hint for ExecutionFacade
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ class CustomWorkflowExecutor:
         try:
             # 1. Security Check & Path Validation
             # The PROJECT_ROOT_DIR check is removed.
-            # module_path is expected to be an absolute path, validated by ProjectManager/HostManager
+            # module_path is expected to be an absolute path, validated by ProjectManager/Aurite
             # against current_project_root before this executor is called.
 
             if not module_path.exists():

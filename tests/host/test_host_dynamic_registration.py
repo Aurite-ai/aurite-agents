@@ -9,7 +9,7 @@ from pathlib import Path
 # Import the class to test and dependencies/models
 from aurite.host.host import MCPHost
 from aurite.config.config_models import ClientConfig  # Updated import path
-from aurite.host_manager import HostManager  # For type hinting fixture
+from aurite.host_manager import Aurite  # For type hinting fixture
 
 # Mark tests as host_integration and async
 pytestmark = [pytest.mark.host_integration, pytest.mark.anyio]
@@ -19,7 +19,7 @@ pytestmark = [pytest.mark.host_integration, pytest.mark.anyio]
 
 
 # Removed timeout marker
-async def test_register_client_success(host_manager: HostManager):
+async def test_register_client_success(host_manager: Aurite):
     """Test dynamically registering a new client successfully using weather_mcp_server."""
     host: MCPHost = host_manager.host  # Get the MCPHost instance
 
@@ -61,7 +61,7 @@ async def test_register_client_success(host_manager: HostManager):
     assert "weather_server" in clients_for_tool
 
 
-async def test_register_client_duplicate_id(host_manager: HostManager):
+async def test_register_client_duplicate_id(host_manager: Aurite):
     """Test that registering a client with a duplicate ID raises an error."""
     host: MCPHost = host_manager.host
 
@@ -87,7 +87,7 @@ async def test_register_client_duplicate_id(host_manager: HostManager):
 
 
 # Removed xfail marker - relying on fixture teardown suppression
-async def test_dynamic_client_registration_and_unregistration(host_manager: HostManager):
+async def test_dynamic_client_registration_and_unregistration(host_manager: Aurite):
     """
     Test dynamically registering a client, verifying its components,
     then unregistering it and verifying components are removed.
