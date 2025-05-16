@@ -77,6 +77,10 @@ dependencies = [
     "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
 ]
 
+[project.urls]
+Homepage = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+Repository = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+
 [project.optional-dependencies]
 dev = [
     "pytest-timeout>=2.3.1", # Added for test timeouts
@@ -89,11 +93,13 @@ ml = [
     "sentence-transformers>=4.1.0",
 ]
 
-[tool.setuptools.package-data]
-# Include py.typed for all packages found
-"*" = ["py.typed"]
-# Specifically include the packaged server scripts within the 'src' package
-"src" = ["packaged_servers/*.py"]
+[tool.setuptools]
+include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
+
+# [tool.setuptools.package-data] # This section can be used if not relying solely on MANIFEST.in
+# # For example, to ensure py.typed is included if MANIFEST.in doesn't cover it:
+# # "*" = ["py.typed"]
+# # We will rely on MANIFEST.in for data files.
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -157,3 +163,4 @@ follow_imports = "silent"
 start-api = "src.bin.api.api:start"
 start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
 run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
+aurite-agents = "aurite_agents.cli.main:app"

@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_path_fields(
-    data: Dict[str, Any], model_class: Type, project_root_dir: Path
+    data: Dict[str, Any], model_class: Type, base_path: Path
 ) -> Dict[str, Any]:
     """
     Resolves string path fields in a data dictionary to absolute Path objects.
 
     Identifies known path fields (e.g., 'server_path', 'module_path') based
     on the provided Pydantic model_class and converts their string values
-    to resolved, absolute Path objects relative to project_root_dir if they
+    to resolved, absolute Path objects relative to base_path if they
     are not already absolute.
 
     Args:
         data: The raw data dictionary (e.g., from JSON).
         model_class: The target Pydantic model class to identify path fields.
-        project_root_dir: The project's root directory for resolving relative paths.
+        base_path: The base directory for resolving relative paths.
 
     Returns:
         A new dictionary with path fields resolved to Path objects.
@@ -40,7 +40,7 @@ def resolve_path_fields(
         if isinstance(sp_val, str):  # Only process if it's a string
             sp = Path(sp_val)
             resolved_data["server_path"] = (
-                (project_root_dir / sp).resolve()
+                (base_path / sp).resolve()
                 if not sp.is_absolute()
                 else sp.resolve()
             )
@@ -52,7 +52,7 @@ def resolve_path_fields(
         if isinstance(mp_val, str):  # Only process if it's a string
             mp = Path(mp_val)
             resolved_data["module_path"] = (
-                (project_root_dir / mp).resolve()
+                (base_path / mp).resolve()
                 if not mp.is_absolute()
                 else mp.resolve()
             )
@@ -66,20 +66,20 @@ def resolve_path_fields(
 
 
 def relativize_path_fields(
-    data: Dict[str, Any], model_class: Type, project_root_dir: Path
+    data: Dict[str, Any], model_class: Type, base_path: Path
 ) -> Dict[str, Any]:
     """
     Converts absolute Path object fields in a data dictionary to relative string paths.
 
     Identifies Path object fields based on the model_class and converts them
-    to string paths relative to project_root_dir if possible. If a path cannot
+    to string paths relative to base_path if possible. If a path cannot
     be made relative (e.g., it's on a different drive on Windows), it's
     converted to an absolute string path.
 
     Args:
         data: The data dictionary (e.g., from model.model_dump()).
         model_class: The Pydantic model class to identify path fields.
-        project_root_dir: The project's root directory for creating relative paths.
+        base_path: The base directory for creating relative paths.
 
     Returns:
         A new dictionary with Path fields converted to string paths.
@@ -99,11 +99,11 @@ def relativize_path_fields(
         if isinstance(sp_val, Path):
             try:
                 relativized_data["server_path"] = str(
-                    sp_val.relative_to(project_root_dir)
+                    sp_val.relative_to(base_path)
                 )
             except ValueError:
                 logger.warning(
-                    f"Could not make server_path relative to project root for "
+                    f"Could not make server_path relative to base_path for "
                     f"{model_class.__name__} '{component_id_for_log}'. Storing absolute path: {sp_val}"
                 )
                 relativized_data["server_path"] = str(sp_val.resolve())
@@ -116,11 +116,11 @@ def relativize_path_fields(
         if isinstance(mp_val, Path):
             try:
                 relativized_data["module_path"] = str(
-                    mp_val.relative_to(project_root_dir)
+                    mp_val.relative_to(base_path)
                 )
             except ValueError:
                 logger.warning(
-                    f"Could not make module_path relative to project root for "
+                    f"Could not make module_path relative to base_path for "
                     f"{model_class.__name__} '{component_id_for_log}'. Storing absolute path: {mp_val}"
                 )
                 relativized_data["module_path"] = str(mp_val.resolve())
