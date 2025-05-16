@@ -13,7 +13,7 @@ from ...dependencies import (
 from aurite.config.component_manager import (
     ComponentManager,  # Not directly used by get_config_file anymore, but by others
     COMPONENT_META,
-    COMPONENT_TYPES_DIRS,  # Need this for directory lookup
+    COMPONENT_SUBDIRS,
 )
 
 logger = logging.getLogger(__name__)
@@ -178,66 +178,35 @@ async def get_config_file(  # Removed cm: ComponentManager dependency for this s
         f"Request received to get raw config file content: {component_type}/{filename}"
     )
     try:
-        # Validate component_type and get the ComponentManager's internal type key
-        # _get_cm_component_type can still be used for validation even if not using cm_component_type directly for CM lookup
-        cm_component_type_validated = _get_cm_component_type(component_type)
+        # Validate component_type - this part is fine.
+        _ = _get_cm_component_type(component_type)
 
-        # Get the base directory for this component type
-        # COMPONENT_TYPES_DIRS is imported from component_manager
-        config_dir = COMPONENT_TYPES_DIRS.get(cm_component_type_validated)
-        if not config_dir:
-            # This case should ideally be caught by _get_cm_component_type if API_TO_CM_TYPE_MAP and COMPONENT_TYPES_DIRS are aligned
-            logger.error(
-                f"No directory configured for component type '{cm_component_type_validated}'. This is an internal configuration issue."
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Internal server error: Directory not configured for type '{component_type}'.",
-            )
-
-        file_path = (config_dir / filename).resolve()
-
-        # Security check: ensure the resolved path is within the intended config directory
-        if not str(file_path).startswith(str(config_dir.resolve())):
-            logger.error(
-                f"Path traversal attempt detected or invalid filename for {component_type}/{filename}. Resolved to {file_path}, expected under {config_dir.resolve()}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid filename or path.",
-            )
-
-        if not file_path.is_file():
-            logger.warning(f"Configuration file not found at path: {file_path}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Configuration file '{filename}' not found.",
-            )
-
-        with open(file_path, "r") as f:
-            raw_json_content = json.load(f)  # Parse JSON from file
-
-        return raw_json_content  # Return the parsed Python object/list
-
-    except json.JSONDecodeError:
-        logger.error(
-            f"Invalid JSON format in file {component_type}/{filename} at {file_path}",
-            exc_info=True,
+        # The get_config_file endpoint needs significant refactoring to work with the new
+        # project-centric path model (requiring current_project_root).
+        # For now, to allow the API server to start, we will mark this endpoint as
+        # not implemented. This avoids runtime errors due to changed variable meanings
+        # (COMPONENT_SUBDIRS vs old COMPONENT_TYPES_DIRS) and missing context (current_project_root).
+        logger.warning(
+            f"The GET /configs/{component_type}/{filename} endpoint is temporarily non-functional "
+            "and requires refactoring for the new packaged structure."
         )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,  # Or 400 if client could upload malformed
-            detail=f"File '{filename}' contains invalid JSON.",
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=(
+                f"The endpoint to get raw config file for type '{component_type}' and file '{filename}' "
+                "is temporarily unavailable and requires refactoring."
+            ),
         )
-    except HTTPException as http_exc:  # Re-raise our own HTTPExceptions (like 404 or from _get_cm_component_type)
+    except HTTPException as http_exc:  # Re-raise our own HTTPExceptions (e.g., from _get_cm_component_type or the 501)
         raise http_exc
     except Exception as e:  # Catch other unexpected errors
         logger.error(
-            f"Error reading config file '{component_type}/{filename}': {e}",
+            f"Unexpected error in GET /configs/{component_type}/{filename}: {e}",
             exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to read configuration file: {str(e)}",
+            detail=f"An unexpected error occurred: {str(e)}",
         )
 
 

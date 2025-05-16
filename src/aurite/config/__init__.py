@@ -1,8 +1,8 @@
 """
-Initialization file for the src.config package.
+Initialization file for the aurite.config package.
 
-This makes 'src/config' a Python package and allows importing
-key configuration elements directly from 'src.config'.
+This makes 'aurite/config' a Python package and allows importing
+key configuration elements directly from 'aurite.config'.
 
 It also defines the ServerConfig (loaded from environment variables)
 and the project's root directory.

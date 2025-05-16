@@ -22,7 +22,7 @@ from .foundation import (
     ClientManager,
 )  # Added ClientManager
 from .filtering import FilteringManager
-from aurite.config.config_models import (
+from ..config.config_models import ( # Changed to relative import
     AgentConfig,
     ClientConfig,
     HostConfig,

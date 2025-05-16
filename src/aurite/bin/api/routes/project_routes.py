@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field, ValidationError  # Added ValidationError
 from ...dependencies import get_api_key, get_host_manager
 from ....host_manager import HostManager
 from ....config.config_models import ProjectConfig  # For response model and validation
-from ....config import PROJECT_ROOT_DIR  # For constructing paths
 
 logger = logging.getLogger(__name__)
 
@@ -224,56 +223,16 @@ async def create_project_file(
     The file will be created in the 'config/projects/' directory.
     """
     logger.info(f"Request to create project file: {request.filename}")
-    if not request.filename.endswith(".json"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename must end with .json.",
-        )
-
-    project_file_path = PROJECT_ROOT_DIR / "config" / "projects" / request.filename
-
-    try:
-        created_project_config = manager.project_manager.create_project_file(
-            project_name=request.project_name,
-            project_file_path=project_file_path,
-            project_description=request.project_description,
-            client_configs=[],  # Minimal project
-            llm_configs=[],
-            agent_configs=[],
-            simple_workflow_configs=[],
-            custom_workflow_configs=[],
-            overwrite=False,  # Do not overwrite by default for POST
-        )
-        return created_project_config
-    except FileExistsError:
-        logger.warning(f"Project file {project_file_path} already exists.")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Project file {project_file_path} already exists. Use a different filename or update if applicable.",
-        )
-    except (
-        TypeError,
-        ValueError,
-    ) as e:  # Catches Pydantic validation errors from create_project_file
-        logger.error(f"Invalid data for creating project file: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid data for project file: {str(e)}",
-        )
-    except IOError as e:
-        logger.error(
-            f"Failed to write project file {project_file_path}: {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to write project file: {str(e)}",
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error creating project file: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}",
-        )
+    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
+    # It needs refactoring to use current_project_root from ProjectManager for path construction.
+    logger.warning(
+        f"The POST /projects/create_file endpoint ({request.filename}) is temporarily non-functional "
+        "and requires refactoring for the new path resolution model."
+    )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Endpoint /projects/create_file temporarily unavailable, requires path refactoring.",
+    )
 
 
 @router.post("/load_components", status_code=status.HTTP_200_OK)
@@ -330,25 +289,16 @@ async def list_project_files(
     Lists all project JSON files in the 'config/projects/' directory.
     """
     logger.info("Request to list project files.")
-    projects_dir = PROJECT_ROOT_DIR / "config" / "projects"
-    if not projects_dir.is_dir():
-        logger.warning(f"Projects directory not found: {projects_dir}")
-        return []  # Return empty list if directory doesn't exist
-
-    try:
-        project_files = [
-            f.name
-            for f in projects_dir.iterdir()
-            if f.is_file() and f.name.endswith(".json")
-        ]
-        logger.info(f"Found {len(project_files)} project files.")
-        return project_files
-    except Exception as e:
-        logger.error(f"Error listing project files: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list project files: {str(e)}",
-        )
+    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
+    # It needs refactoring for path construction using current_project_root.
+    logger.warning(
+        "The GET /projects/list_files endpoint is temporarily non-functional "
+        "and requires refactoring for the new path resolution model."
+    )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Endpoint /projects/list_files temporarily unavailable, requires path refactoring.",
+    )
 
 
 # --- Project File Content Endpoints (View & Edit) ---
@@ -375,48 +325,16 @@ async def get_active_project_config(
 async def get_project_file_content(filename: str):
     """Retrieves the raw JSON content of a specific project file."""
     logger.info(f"Request to get content of project file: {filename}")
-    if not filename.endswith(".json"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename must end with .json.",
-        )
-
-    projects_dir = PROJECT_ROOT_DIR / "config" / "projects"
-    file_path = (projects_dir / filename).resolve()
-
-    # Security check: ensure the path is within the projects directory
-    if not str(file_path).startswith(str(projects_dir.resolve())):
-        logger.error(
-            f"Path traversal attempt or invalid filename for project file: {filename}. Resolved to {file_path}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid project filename or path.",
-        )
-
-    if not file_path.is_file():
-        logger.warning(f"Project file not found: {file_path}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project file '{filename}' not found.",
-        )
-
-    try:
-        with open(file_path, "r") as f:
-            content = json.load(f)
-        return content
-    except json.JSONDecodeError:
-        logger.error(f"Invalid JSON format in project file {file_path}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Project file '{filename}' contains invalid JSON.",
-        )
-    except Exception as e:
-        logger.error(f"Error reading project file {file_path}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to read project file: {str(e)}",
-        )
+    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
+    # It needs refactoring for path construction using current_project_root.
+    logger.warning(
+        f"The GET /projects/file/{filename} endpoint is temporarily non-functional "
+        "and requires refactoring for the new path resolution model."
+    )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=f"Endpoint /projects/file/{filename} temporarily unavailable, requires path refactoring.",
+    )
 
 
 class ProjectFileContent(BaseModel):
@@ -431,89 +349,13 @@ async def update_project_file_content(
 ):
     """Updates the content of a specific project file."""
     logger.info(f"Request to update content of project file: {filename}")
-    if not filename.endswith(".json"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename must end with .json.",
-        )
-
-    projects_dir = PROJECT_ROOT_DIR / "config" / "projects"
-    file_path = (projects_dir / filename).resolve()
-
-    if not str(file_path).startswith(str(projects_dir.resolve())):
-        logger.error(
-            f"Path traversal attempt or invalid filename for project file update: {filename}. Resolved to {file_path}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid project filename or path.",
-        )
-
-    if not isinstance(body.content, dict):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project file content must be a JSON object.",
-        )
-
-    try:
-        # Validate the content by attempting to parse and resolve it using ProjectManager
-        # This leverages the same logic as loading a project, ensuring all references and structures are valid.
-        # _parse_and_resolve_project_data will raise ValueError or RuntimeError on failure.
-        manager.project_manager._parse_and_resolve_project_data(body.content, filename)
-        logger.debug(
-            f"Project file content for {filename} validated successfully by ProjectManager's parsing logic."
-        )
-    except (
-        ValueError,
-        RuntimeError,
-        ValidationError,
-    ) as e:  # Catch errors from _parse_and_resolve_project_data or Pydantic
-        logger.error(
-            f"Validation failed for project file {filename} via ProjectManager parsing: {e}",
-            exc_info=True,
-        )
-        # Provide a more generic error or try to extract useful info from 'e'
-        error_detail = str(e)
-        if isinstance(e, ValidationError):
-            error_detail = f"Invalid project configuration structure: {e.errors()}"
-
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=error_detail,
-        )
-    except Exception as e:  # Catch any other unexpected error during validation
-        logger.error(
-            f"Unexpected error during validation of project file {filename} via ProjectManager: {e}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred during content validation: {str(e)}",
-        )
-
-    # If validation passed, proceed to save the original raw content to the file
-    try:
-        # Ensure the directory exists
-        projects_dir.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w") as f:
-            json.dump(body.content, f, indent=2)  # Save with pretty print
-        logger.info(f"Successfully updated project file: {file_path}")
-        return {
-            "status": "success",
-            "filename": filename,
-            "message": "Project file updated successfully.",
-        }
-    except IOError as e:
-        logger.error(f"Failed to write project file {file_path}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to write project file: {str(e)}",
-        )
-    except Exception as e:
-        logger.error(
-            f"Unexpected error updating project file {file_path}: {e}", exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}",
-        )
+    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
+    # It needs refactoring for path construction using current_project_root.
+    logger.warning(
+        f"The PUT /projects/file/{filename} endpoint is temporarily non-functional "
+        "and requires refactoring for the new path resolution model."
+    )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=f"Endpoint /projects/file/{filename} (update) temporarily unavailable, requires path refactoring.",
+    )
