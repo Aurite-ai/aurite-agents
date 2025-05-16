@@ -52,29 +52,21 @@ class TestAuriteInitialization:
         # Check if configs are loaded into the active_project managed by ProjectManager
         assert len(active_project.agents) == EXPECTED_AGENT_COUNT
         assert all(
-            isinstance(cfg, AgentConfig)
-            for cfg in active_project.agents.values()
+            isinstance(cfg, AgentConfig) for cfg in active_project.agents.values()
         )
         assert "Weather Agent" in active_project.agents  # Check a known agent
         assert "Planning Agent" in active_project.agents  # Check another
 
-        assert (
-            len(active_project.llms) == EXPECTED_LLM_CONFIG_COUNT
-        )  # Should be 0
+        assert len(active_project.llms) == EXPECTED_LLM_CONFIG_COUNT  # Should be 0
 
         assert len(active_project.simple_workflows) == EXPECTED_WORKFLOW_COUNT
         assert all(
             isinstance(cfg, WorkflowConfig)
             for cfg in active_project.simple_workflows.values()
         )
-        assert (
-            "main" in active_project.simple_workflows
-        )  # Check the workflow name
+        assert "main" in active_project.simple_workflows  # Check the workflow name
 
-        assert (
-            len(active_project.custom_workflows)
-            == EXPECTED_CUSTOM_WORKFLOW_COUNT
-        )
+        assert len(active_project.custom_workflows) == EXPECTED_CUSTOM_WORKFLOW_COUNT
         assert all(
             isinstance(cfg, CustomWorkflowConfig)
             for cfg in active_project.custom_workflows.values()

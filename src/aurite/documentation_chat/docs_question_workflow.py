@@ -5,6 +5,7 @@ import logging
 # Assuming tests run from project root, this should work:
 from aurite.servers.storage.vector.pgvector_server import search
 from typing import TYPE_CHECKING, Optional, Any
+
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from aurite.execution.facade import ExecutionFacade

@@ -3,7 +3,7 @@ Unit tests for the RootManager.
 """
 
 import pytest
-import logging # Import logging
+import logging  # Import logging
 
 # Import the class to test and dependent models
 from aurite.host.foundation.roots import RootManager
@@ -116,7 +116,9 @@ async def test_shutdown(root_manager: RootManager):
 async def test_validate_access_client_registered(root_manager: RootManager):
     """Test validate_access returns True for a client with registered roots."""
     client_id = "client_WithRoots"
-    roots_config = [RootConfig(uri="file:///valid", name="Valid", capabilities=["read"])]
+    roots_config = [
+        RootConfig(uri="file:///valid", name="Valid", capabilities=["read"])
+    ]
     await root_manager.register_roots(client_id, roots_config)
     assert await root_manager.validate_access(client_id) is True
 
@@ -133,4 +135,7 @@ async def test_validate_access_client_not_registered(root_manager: RootManager, 
     client_id = "client_NotRegistered"
     with caplog.at_level(logging.WARNING):
         assert await root_manager.validate_access(client_id) is False
-    assert f"validate_access called for unknown or rootless client: {client_id}" in caplog.text
+    assert (
+        f"validate_access called for unknown or rootless client: {client_id}"
+        in caplog.text
+    )

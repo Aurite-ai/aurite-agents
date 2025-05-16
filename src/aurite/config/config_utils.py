@@ -40,9 +40,7 @@ def resolve_path_fields(
         if isinstance(sp_val, str):  # Only process if it's a string
             sp = Path(sp_val)
             resolved_data["server_path"] = (
-                (base_path / sp).resolve()
-                if not sp.is_absolute()
-                else sp.resolve()
+                (base_path / sp).resolve() if not sp.is_absolute() else sp.resolve()
             )
         elif isinstance(sp_val, Path):  # If it's already a Path, ensure it's resolved
             resolved_data["server_path"] = sp_val.resolve()
@@ -52,9 +50,7 @@ def resolve_path_fields(
         if isinstance(mp_val, str):  # Only process if it's a string
             mp = Path(mp_val)
             resolved_data["module_path"] = (
-                (base_path / mp).resolve()
-                if not mp.is_absolute()
-                else mp.resolve()
+                (base_path / mp).resolve() if not mp.is_absolute() else mp.resolve()
             )
         elif isinstance(mp_val, Path):  # If it's already a Path, ensure it's resolved
             resolved_data["module_path"] = mp_val.resolve()
@@ -98,9 +94,7 @@ def relativize_path_fields(
         sp_val = relativized_data["server_path"]
         if isinstance(sp_val, Path):
             try:
-                relativized_data["server_path"] = str(
-                    sp_val.relative_to(base_path)
-                )
+                relativized_data["server_path"] = str(sp_val.relative_to(base_path))
             except ValueError:
                 logger.warning(
                     f"Could not make server_path relative to base_path for "
@@ -115,9 +109,7 @@ def relativize_path_fields(
         mp_val = relativized_data["module_path"]
         if isinstance(mp_val, Path):
             try:
-                relativized_data["module_path"] = str(
-                    mp_val.relative_to(base_path)
-                )
+                relativized_data["module_path"] = str(mp_val.relative_to(base_path))
             except ValueError:
                 logger.warning(
                     f"Could not make module_path relative to base_path for "

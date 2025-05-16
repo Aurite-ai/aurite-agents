@@ -20,7 +20,11 @@ from .config.config_models import (
     WorkflowConfig,
     # Add other config models if they are part of the public API
 )
-from .agents.agent_models import AgentOutputContentBlock, AgentOutputMessage, AgentExecutionResult
+from .agents.agent_models import (
+    AgentOutputContentBlock,
+    AgentOutputMessage,
+    AgentExecutionResult,
+)
 from .execution.facade import ExecutionFacade
 
 __all__ = [
@@ -39,4 +43,4 @@ __all__ = [
     # Add other exposed names to __all__
 ]
 
-__version__ = "0.2.0" # Keep in sync with pyproject.toml
+__version__ = "0.2.0"  # Keep in sync with pyproject.toml

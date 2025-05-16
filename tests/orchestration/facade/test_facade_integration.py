@@ -32,9 +32,9 @@ async def test_facade_run_agent(host_manager: Aurite):
     assert host_manager.project_manager.active_project_config is not None, (
         "Active project not loaded"
     )
-    assert (
-        agent_name in host_manager.project_manager.active_project_config.agents
-    ), f"'{agent_name}' not found for test setup."
+    assert agent_name in host_manager.project_manager.active_project_config.agents, (
+        f"'{agent_name}' not found for test setup."
+    )
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
@@ -168,10 +168,10 @@ async def test_facade_run_custom_workflow(host_manager: Aurite):
     """
     print("\n--- Running Test: test_facade_run_custom_workflow ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
-    facade = host_manager.execution # Corrected indentation
+    facade = host_manager.execution  # Corrected indentation
 
     # Use the custom workflow defined in testing_config.json
-    workflow_name = "ExampleCustomWorkflow" # Correct name from testing_config.json
+    workflow_name = "ExampleCustomWorkflow"  # Correct name from testing_config.json
     initial_input = {"city": "Tokyo"}
     session_id = f"test_custom_session_{uuid.uuid4()}"  # Generate unique session ID
 
@@ -258,7 +258,7 @@ async def test_facade_run_custom_workflow(host_manager: Aurite):
     except Exception as e:
         print(f"Error during facade.run_custom_workflow execution: {e}")
         # Include the actual result in the failure message for better debugging
-        pytest.fail( # Corrected indentation
+        pytest.fail(  # Corrected indentation
             f"facade.run_custom_workflow execution failed: {e}. Result: {result}"
         )
 
@@ -279,8 +279,7 @@ async def test_facade_run_agent_not_found(host_manager: Aurite):
         "Active project not loaded"
     )
     assert (
-        agent_name
-        not in host_manager.project_manager.active_project_config.agents
+        agent_name not in host_manager.project_manager.active_project_config.agents
     ), f"'{agent_name}' should not exist for this test."
 
     try:

@@ -38,21 +38,24 @@ class AgentOutputContentBlock(BaseModel):
         None,
         description="The ID of the tool use this result corresponds to, if block is 'tool_result'.",
     )
-    content: Optional[List["AgentOutputContentBlock"]] = Field( # For tool_result, content can be list of blocks
-        None,
-        description="Nested content, e.g., for tool_result blocks or other container types.",
+    content: Optional[List["AgentOutputContentBlock"]] = (
+        Field(  # For tool_result, content can be list of blocks
+            None,
+            description="Nested content, e.g., for tool_result blocks or other container types.",
+        )
     )
     # Added for tool_result, though ToolResultView handles it via props
-    is_error: Optional[bool] = Field(None, description="Indicates if a tool result is an error.")
+    is_error: Optional[bool] = Field(
+        None, description="Indicates if a tool result is an error."
+    )
 
     # Internal field, not for API
-    index: Optional[int] = Field(None, description="Internal index of the block in a sequence.", exclude=True)
-
+    index: Optional[int] = Field(
+        None, description="Internal index of the block in a sequence.", exclude=True
+    )
 
     class Config:
-        extra = (
-            "allow"
-        )
+        extra = "allow"
 
 
 class AgentOutputMessage(BaseModel):
@@ -88,49 +91,72 @@ class AgentOutputMessage(BaseModel):
         """Converts this AgentOutputMessage to an Anthropic MessageParam compliant dictionary."""
         api_compliant_content_blocks = []
         if self.content:
-            for block in self.content: # block is AgentOutputContentBlock
+            for block in self.content:  # block is AgentOutputContentBlock
                 if block.type == "text":
                     if block.text is not None:
-                        api_compliant_content_blocks.append({"type": "text", "text": block.text})
+                        api_compliant_content_blocks.append(
+                            {"type": "text", "text": block.text}
+                        )
                 elif block.type == "tool_use":
                     # Ensure input is a dict, even if empty, for Anthropic schema
                     tool_input = block.input if isinstance(block.input, dict) else {}
-                    if block.id and block.name: # input can be empty {}
-                        api_compliant_content_blocks.append({
-                            "type": "tool_use",
-                            "id": block.id,
-                            "name": block.name,
-                            "input": tool_input,
-                        })
+                    if block.id and block.name:  # input can be empty {}
+                        api_compliant_content_blocks.append(
+                            {
+                                "type": "tool_use",
+                                "id": block.id,
+                                "name": block.name,
+                                "input": tool_input,
+                            }
+                        )
                 # Add other block type conversions if necessary (e.g. image)
                 # For tool_result content blocks within an assistant message (rare, usually user role):
                 elif block.type == "tool_result":
-                     # This case is primarily for when an assistant might be reflecting on a tool result
-                     # or if a tool_result block is part of its direct output content.
-                     # The content of a tool_result block itself can be complex.
-                    if block.tool_use_id and block.content is not None: # block.content is List[AgentOutputContentBlock]
+                    # This case is primarily for when an assistant might be reflecting on a tool result
+                    # or if a tool_result block is part of its direct output content.
+                    # The content of a tool_result block itself can be complex.
+                    if (
+                        block.tool_use_id and block.content is not None
+                    ):  # block.content is List[AgentOutputContentBlock]
                         inner_api_content = []
                         for inner_block in block.content:
-                            if inner_block.type == "text" and inner_block.text is not None:
-                                inner_api_content.append({"type": "text", "text": inner_block.text})
+                            if (
+                                inner_block.type == "text"
+                                and inner_block.text is not None
+                            ):
+                                inner_api_content.append(
+                                    {"type": "text", "text": inner_block.text}
+                                )
                             # Potentially handle other inner block types if tools can return complex structures
 
-                        api_compliant_content_blocks.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.tool_use_id,
-                            "content": inner_api_content, # This should be List of simple blocks like {"type": "text", "text": ...}
-                            "is_error": block.is_error if block.is_error is not None else False
-                        })
-                    elif block.tool_use_id and block.text is not None: # Simple string content for tool_result
-                         api_compliant_content_blocks.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.tool_use_id,
-                            "content": block.text, # Anthropic allows string content for tool_result
-                            "is_error": block.is_error if block.is_error is not None else False
-                        })
+                        api_compliant_content_blocks.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.tool_use_id,
+                                "content": inner_api_content,  # This should be List of simple blocks like {"type": "text", "text": ...}
+                                "is_error": block.is_error
+                                if block.is_error is not None
+                                else False,
+                            }
+                        )
+                    elif (
+                        block.tool_use_id and block.text is not None
+                    ):  # Simple string content for tool_result
+                        api_compliant_content_blocks.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.tool_use_id,
+                                "content": block.text,  # Anthropic allows string content for tool_result
+                                "is_error": block.is_error
+                                if block.is_error is not None
+                                else False,
+                            }
+                        )
 
-
-        message_param: Dict[str, Any] = {"role": self.role, "content": api_compliant_content_blocks}
+        message_param: Dict[str, Any] = {
+            "role": self.role,
+            "content": api_compliant_content_blocks,
+        }
         # Anthropic doesn't take id, model, stop_reason etc. as part of the MessageParam input list.
         return message_param
 

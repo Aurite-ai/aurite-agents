@@ -424,14 +424,16 @@ def _prepare_prompts(testing_config: ValidationConfig):
             grade_schema = {
                 "type": "string",
                 "description": "The final PASS or FAIL grade",
-                "enum": ["PASS", "FAIL"]
+                "enum": ["PASS", "FAIL"],
             }
         case "numeric":
             if testing_config.rubric:
                 grade_schema = {
                     "type": "object",
                     "properties": {},
-                    "required": [criteria.name for criteria in testing_config.rubric.criteria],
+                    "required": [
+                        criteria.name for criteria in testing_config.rubric.criteria
+                    ],
                 }
                 for criteria in testing_config.rubric.criteria:
                     grade_schema["properties"][criteria.name] = {
@@ -448,13 +450,13 @@ def _prepare_prompts(testing_config: ValidationConfig):
     qa_schema = {
         "type": "object",
         "properties": {
-          "analysis": {
-            "type": "string",
-            "description": "Your analysis of the performace"
-          },
-          "grade": grade_schema,
+            "analysis": {
+                "type": "string",
+                "description": "Your analysis of the performace",
+            },
+            "grade": grade_schema,
         },
-        "required": ["analysis", "grade"]
+        "required": ["analysis", "grade"],
     }
 
     return {

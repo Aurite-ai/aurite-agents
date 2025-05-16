@@ -15,6 +15,7 @@ from mcp import ClientSession
 
 # mock_exit_stack fixture is no longer needed as ClientManager.__init__ changed.
 
+
 @pytest.fixture
 def mock_security_manager():
     """Fixture for a mocked SecurityManager."""
@@ -53,7 +54,7 @@ def sample_client_config_no_secrets():
 @pytest.mark.asyncio
 async def test_client_manager_initialization():
     """Test ClientManager initializes correctly."""
-    manager = ClientManager() # Updated instantiation
+    manager = ClientManager()  # Updated instantiation
     assert manager.active_clients == {}
     # assert manager.client_processes == {} # This attribute was removed
 
@@ -82,24 +83,24 @@ async def test_client_manager_initialization():
 #     mock_task_status = AsyncMock(spec=TaskStatus)
 #     mock_task_status.started = MagicMock()
 
-    # # Mock stdio_client context manager
-    # mock_stdio_cm_instance = AsyncMock()
-    # mock_stdio_cm_instance.__aenter__.return_value = (AsyncMock(), AsyncMock()) # reader, writer
-    # mock_stdio_client.return_value = mock_stdio_cm_instance
+# # Mock stdio_client context manager
+# mock_stdio_cm_instance = AsyncMock()
+# mock_stdio_cm_instance.__aenter__.return_value = (AsyncMock(), AsyncMock()) # reader, writer
+# mock_stdio_client.return_value = mock_stdio_cm_instance
 
-    # # Mock ClientSession context manager
-    # mock_session_instance = AsyncMock(spec=ClientSession)
-    # MockClientSessionCM.return_value.__aenter__.return_value = mock_session_instance
+# # Mock ClientSession context manager
+# mock_session_instance = AsyncMock(spec=ClientSession)
+# MockClientSessionCM.return_value.__aenter__.return_value = mock_session_instance
 
-    # # This test would need to simulate the anyio.TaskGroup.start() behavior
-    # # which is non-trivial.
-    # pass
+# # This test would need to simulate the anyio.TaskGroup.start() behavior
+# # which is non-trivial.
+# pass
 
 
 @pytest.mark.asyncio
-async def test_get_session(sample_client_config): # Removed mock_exit_stack
+async def test_get_session(sample_client_config):  # Removed mock_exit_stack
     """Test retrieving an active session."""
-    manager = ClientManager() # Updated instantiation
+    manager = ClientManager()  # Updated instantiation
     mock_session = AsyncMock(spec=ClientSession)
     manager.active_clients[sample_client_config.client_id] = mock_session
 
@@ -110,9 +111,9 @@ async def test_get_session(sample_client_config): # Removed mock_exit_stack
 
 
 @pytest.mark.asyncio
-async def test_get_all_sessions(sample_client_config): # Removed mock_exit_stack
+async def test_get_all_sessions(sample_client_config):  # Removed mock_exit_stack
     """Test retrieving all active sessions."""
-    manager = ClientManager() # Updated instantiation
+    manager = ClientManager()  # Updated instantiation
     mock_session_1 = AsyncMock(spec=ClientSession)
     manager.active_clients[sample_client_config.client_id] = mock_session_1
 

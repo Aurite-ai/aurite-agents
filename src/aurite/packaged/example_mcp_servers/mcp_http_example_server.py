@@ -12,6 +12,7 @@ logger = logging.getLogger("mcp-http-example-server")
 # you might set it to False (which is the default).
 mcp_app = FastMCP(name="HTTPExampleServer", stateless_http=True)
 
+
 @mcp_app.tool(description="Convert text to uppercase.")
 def uppercase_text(text: str) -> str:
     """
@@ -21,6 +22,7 @@ def uppercase_text(text: str) -> str:
     result = text.upper()
     logger.info(f"Uppercase result: {result}")
     return result
+
 
 @mcp_app.tool(description="Adds two numbers.")
 def add_numbers(a: int, b: int) -> int:
@@ -32,18 +34,21 @@ def add_numbers(a: int, b: int) -> int:
     logger.info(f"Addition result: {result}")
     return result
 
+
 # Create a FastAPI application to mount the MCP server
-import contextlib # Add this import
+import contextlib  # Add this import
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("FastAPI lifespan: Starting session manager...")
-    async with mcp_app.session_manager.run(): # Run the session manager for the mcp_app
+    async with mcp_app.session_manager.run():  # Run the session manager for the mcp_app
         logger.info("FastAPI lifespan: Session manager running.")
         yield
     logger.info("FastAPI lifespan: Session manager stopped.")
 
-app = FastAPI(lifespan=lifespan) # Add lifespan to the FastAPI app
+
+app = FastAPI(lifespan=lifespan)  # Add lifespan to the FastAPI app
 
 # Mount the FastMCP application.
 # The streamable_http_app() method prepares the MCP app to be served via HTTP.
@@ -56,13 +61,17 @@ logger.info(f"MCP HTTP Example Server '{mcp_app.name}' is configured.")
 # This line is for server-side logging only and might need adjustment based on FastMCP's actual API
 try:
     # Common internal names for such registries
-    tools_registry = getattr(mcp_app, '_tools', getattr(mcp_app, 'tools_registry', {}))
-    if not isinstance(tools_registry, dict): # Fallback if it's not a dict
+    tools_registry = getattr(mcp_app, "_tools", getattr(mcp_app, "tools_registry", {}))
+    if not isinstance(tools_registry, dict):  # Fallback if it's not a dict
         tools_registry = {}
     logger.info(f"Tools available: {[tool.name for tool in tools_registry.values()]}")
 except AttributeError:
-    logger.warning("Could not determine how to list tools directly from FastMCP instance for logging.")
-logger.info("Mounting MCP application at /mcp_stream_example/") # Added trailing slash here too for logging consistency
+    logger.warning(
+        "Could not determine how to list tools directly from FastMCP instance for logging."
+    )
+logger.info(
+    "Mounting MCP application at /mcp_stream_example/"
+)  # Added trailing slash here too for logging consistency
 
 if __name__ == "__main__":
     logger.info("Starting Uvicorn server for MCP HTTP Example Server...")

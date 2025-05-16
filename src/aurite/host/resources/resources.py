@@ -13,7 +13,7 @@ from ..foundation.roots import RootManager
 
 # Import necessary types and models for filtering
 from ..filtering import FilteringManager
-from ...config.config_models import ClientConfig # Changed to relative import
+from ...config.config_models import ClientConfig  # Changed to relative import
 from ..foundation import MessageRouter  # Import MessageRouter
 
 
@@ -161,9 +161,7 @@ class ResourceManager:
                 f"Unregistered {len(removed_resources)} resources for client '{client_id}': {removed_resources}"
             )
         else:
-            logger.debug(
-                f"No resources found to unregister for client '{client_id}'."
-            )
+            logger.debug(f"No resources found to unregister for client '{client_id}'.")
 
     async def shutdown(self):
         """Shutdown the resource manager"""

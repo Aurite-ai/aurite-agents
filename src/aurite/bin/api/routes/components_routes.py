@@ -230,18 +230,27 @@ async def register_client_endpoint(
     try:
         await manager.register_client(client_config)
         return {"status": "success", "client_id": client_config.client_id}
-    except DuplicateClientIdError as e: # Specific catch for 409
-        logger.error(f"Duplicate client ID error registering client {client_config.client_id}: {e}")
+    except DuplicateClientIdError as e:  # Specific catch for 409
+        logger.error(
+            f"Duplicate client ID error registering client {client_config.client_id}: {e}"
+        )
         raise HTTPException(status_code=409, detail=str(e))
     except PermissionError as e:
-        logger.error(f"Permission error registering client {client_config.client_id}: {e}")
+        logger.error(
+            f"Permission error registering client {client_config.client_id}: {e}"
+        )
         raise HTTPException(status_code=403, detail=str(e))
-    except ValueError as e: # General ValueErrors still 400
+    except ValueError as e:  # General ValueErrors still 400
         logger.error(f"Value error registering client {client_config.client_id}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error registering client {client_config.client_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during client registration.")
+        logger.error(
+            f"Unexpected error registering client {client_config.client_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Internal server error during client registration."
+        )
 
 
 @router.post("/agents/register", status_code=201)
@@ -262,8 +271,13 @@ async def register_agent_endpoint(
         logger.error(f"Value error registering agent {agent_config.name}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error registering agent {agent_config.name}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during agent registration.")
+        logger.error(
+            f"Unexpected error registering agent {agent_config.name}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Internal server error during agent registration."
+        )
 
 
 @router.post("/workflows/register", status_code=201)
@@ -278,14 +292,24 @@ async def register_workflow_endpoint(
         await manager.register_workflow(workflow_config)
         return {"status": "success", "workflow_name": workflow_config.name}
     except PermissionError as e:
-        logger.error(f"Permission error registering workflow {workflow_config.name}: {e}")
+        logger.error(
+            f"Permission error registering workflow {workflow_config.name}: {e}"
+        )
         raise HTTPException(status_code=403, detail=str(e))
-    except ValueError as e: # This will catch agent not found errors from manager.register_workflow
+    except (
+        ValueError
+    ) as e:  # This will catch agent not found errors from manager.register_workflow
         logger.error(f"Value error registering workflow {workflow_config.name}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error registering workflow {workflow_config.name}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during workflow registration.")
+        logger.error(
+            f"Unexpected error registering workflow {workflow_config.name}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during workflow registration.",
+        )
 
 
 @router.post("/llms/register", status_code=201)
@@ -299,14 +323,23 @@ async def register_llm_endpoint(
         await manager.register_llm_config(llm_config)
         return {"status": "success", "llm_id": llm_config.llm_id}
     except PermissionError as e:
-        logger.error(f"Permission error registering LLM config {llm_config.llm_id}: {e}")
+        logger.error(
+            f"Permission error registering LLM config {llm_config.llm_id}: {e}"
+        )
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         logger.error(f"Value error registering LLM config {llm_config.llm_id}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error registering LLM config {llm_config.llm_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during LLM config registration.")
+        logger.error(
+            f"Unexpected error registering LLM config {llm_config.llm_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during LLM config registration.",
+        )
+
 
 @router.post("/custom_workflows/register", status_code=201)
 async def register_custom_workflow_endpoint(
@@ -315,19 +348,31 @@ async def register_custom_workflow_endpoint(
     manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new custom workflow configuration."""
-    logger.info(f"Received request to register custom workflow: {custom_workflow_config.name}")
+    logger.info(
+        f"Received request to register custom workflow: {custom_workflow_config.name}"
+    )
     try:
         await manager.register_custom_workflow(custom_workflow_config)
         return {"status": "success", "workflow_name": custom_workflow_config.name}
     except PermissionError as e:
-        logger.error(f"Permission error registering custom workflow {custom_workflow_config.name}: {e}")
+        logger.error(
+            f"Permission error registering custom workflow {custom_workflow_config.name}: {e}"
+        )
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
-        logger.error(f"Value error registering custom workflow {custom_workflow_config.name}: {e}")
+        logger.error(
+            f"Value error registering custom workflow {custom_workflow_config.name}: {e}"
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error registering custom workflow {custom_workflow_config.name}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during custom workflow registration.")
+        logger.error(
+            f"Unexpected error registering custom workflow {custom_workflow_config.name}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during custom workflow registration.",
+        )
 
 
 # --- Listing Endpoints for Registered Components ---
@@ -385,7 +430,7 @@ async def list_registered_clients(manager: Aurite = Depends(get_host_manager)):
     for client_entry in active_project.clients:
         if isinstance(client_entry, str):
             client_ids.append(client_entry)
-        elif hasattr(client_entry, 'client_id'): # Check if it's a ClientConfig model
+        elif hasattr(client_entry, "client_id"):  # Check if it's a ClientConfig model
             client_ids.append(client_entry.client_id)
     return client_ids
 
@@ -409,10 +454,14 @@ async def list_registered_llms(
 async def list_active_host_clients(manager: Aurite = Depends(get_host_manager)):
     """Lists the client_ids of all clients currently active and running on the MCPHost instance."""
     if not manager.host or not manager.host.client_manager:
-        logger.warning("Host or ClientManager not available for listing active clients.")
+        logger.warning(
+            "Host or ClientManager not available for listing active clients."
+        )
         return []
     # Ensure active_clients is accessible and is a dictionary
-    if not hasattr(manager.host.client_manager, 'active_clients') or not isinstance(manager.host.client_manager.active_clients, dict):
+    if not hasattr(manager.host.client_manager, "active_clients") or not isinstance(
+        manager.host.client_manager.active_clients, dict
+    ):
         logger.error("ClientManager.active_clients is not available or not a dict.")
         return []
     return list(manager.host.client_manager.active_clients.keys())

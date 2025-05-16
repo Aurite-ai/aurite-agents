@@ -127,9 +127,7 @@ async def process_message(manager: Aurite, message_id: bytes, message_data: dict
 
             # Add check for execution facade before using it
             if not manager.execution:
-                logger.error(
-                    "ExecutionFacade not available on Aurite. Cannot execute."
-                )
+                logger.error("ExecutionFacade not available on Aurite. Cannot execute.")
                 return
 
             if component_type == "agent":
@@ -310,9 +308,7 @@ async def main():
     # Initialize Aurite
     manager: Optional[Aurite] = None
     try:
-        logger.info(
-            f"Initializing Aurite with config: {config.PROJECT_CONFIG_PATH}..."
-        )
+        logger.info(f"Initializing Aurite with config: {config.PROJECT_CONFIG_PATH}...")
         manager = Aurite(config_path=config.PROJECT_CONFIG_PATH)
         await manager.initialize()
         logger.info("Aurite initialized successfully.")

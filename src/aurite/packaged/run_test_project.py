@@ -6,6 +6,7 @@ from aurite import Aurite
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def main():
     aurite = Aurite()
 
@@ -15,13 +16,15 @@ async def main():
 
         logger.info("Aurite initialized successfully.")
 
-        workflow_input = {"city": "London"} # Example input for the workflow
+        workflow_input = {"city": "London"}  # Example input for the workflow
 
-        logger.info(f"Running workflow 'ExampleProcessingWorkflow' with input: {workflow_input}")
-        print(f"Running workflow 'ExampleProcessingWorkflow' with input: {workflow_input}")
+        logger.info(
+            f"Running workflow 'ExampleCustomWorkflow' with input: {workflow_input}"
+        )
+        print(f"Running workflow 'ExampleCustomWorkflow' with input: {workflow_input}")
 
         result = await aurite.execution.run_custom_workflow(
-            workflow_name="ExampleProcessingWorkflow",
+            workflow_name="ExampleCustomWorkflow",
             initial_input=workflow_input,
         )
 
@@ -33,6 +36,7 @@ async def main():
         print(f"An error occurred: {e}")
     finally:
         await aurite.shutdown()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

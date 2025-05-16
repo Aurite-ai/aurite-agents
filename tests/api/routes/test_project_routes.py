@@ -15,21 +15,26 @@ pytestmark = [
 
 # --- Helper Functions ---
 
+
 def _get_project_file_path(filename: str) -> Path:
     return PROJECT_ROOT_DIR / "config" / "projects" / filename
 
+
 # --- Tests for GET /projects/list_files ---
+
 
 def test_list_project_files_success(api_client: TestClient):
     """Tests successfully listing project files."""
     # Ensure at least one known project file exists for the test
-    known_project_file = "default.json" # From the provided file list
+    known_project_file = "default.json"  # From the provided file list
     expected_file_path = _get_project_file_path(known_project_file)
     if not expected_file_path.exists():
         # Create a dummy file if it doesn't exist to ensure the test can run
         expected_file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(expected_file_path, "w") as f:
-            json.dump({"name": "Default Project", "description": "A default project"}, f)
+            json.dump(
+                {"name": "Default Project", "description": "A default project"}, f
+            )
 
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.get("/projects/list_files", headers=headers)
@@ -41,13 +46,15 @@ def test_list_project_files_success(api_client: TestClient):
     for filename in project_files:
         assert filename.endswith(".json")
 
+
 def test_list_project_files_unauthorized(api_client: TestClient):
     """Tests listing project files without API key."""
-    response = api_client.get("/projects/list_files") # No auth header
+    response = api_client.get("/projects/list_files")  # No auth header
     assert response.status_code == 401
 
 
 # --- Tests for POST /projects/create_file ---
+
 
 def test_create_project_file_success(api_client: TestClient, tmp_path):
     """Tests successfully creating a new project file."""
@@ -65,7 +72,9 @@ def test_create_project_file_success(api_client: TestClient, tmp_path):
     # For now, let's assume the endpoint writes to a predictable place and clean up.
 
     projects_dir_in_config = PROJECT_ROOT_DIR / "config" / "projects"
-    projects_dir_in_config.mkdir(parents=True, exist_ok=True) # Ensure actual dir exists
+    projects_dir_in_config.mkdir(
+        parents=True, exist_ok=True
+    )  # Ensure actual dir exists
 
     file_to_create_path = _get_project_file_path(new_project_filename)
 
@@ -85,9 +94,9 @@ def test_create_project_file_success(api_client: TestClient, tmp_path):
     response_data = response.json()
     assert response_data["name"] == project_name
     assert response_data["description"] == project_description
-    assert "clients" in response_data # Minimal project should have empty lists
+    assert "clients" in response_data  # Minimal project should have empty lists
     assert "agents" in response_data
-    assert "llms" in response_data # Check for llms key
+    assert "llms" in response_data  # Check for llms key
     assert "simple_workflows" in response_data
     assert "custom_workflows" in response_data
 
@@ -101,6 +110,7 @@ def test_create_project_file_success(api_client: TestClient, tmp_path):
     if file_to_create_path.exists():
         file_to_create_path.unlink()
 
+
 def test_create_project_file_invalid_filename(api_client: TestClient):
     """Tests creating a project file with an invalid filename (no .json)."""
     payload = {
@@ -111,6 +121,7 @@ def test_create_project_file_invalid_filename(api_client: TestClient):
     response = api_client.post("/projects/create_file", json=payload, headers=headers)
     assert response.status_code == 400
     assert "must end with .json" in response.json()["detail"].lower()
+
 
 def test_create_project_file_already_exists(api_client: TestClient):
     """Tests creating a project file that already exists."""
@@ -129,12 +140,13 @@ def test_create_project_file_already_exists(api_client: TestClient):
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.post("/projects/create_file", json=payload, headers=headers)
 
-    assert response.status_code == 409 # Conflict
+    assert response.status_code == 409  # Conflict
     assert "already exists" in response.json()["detail"].lower()
 
     # Clean up
     if file_path.exists():
         file_path.unlink()
+
 
 def test_create_project_file_unauthorized(api_client: TestClient):
     """Tests creating a project file without API key."""
@@ -142,17 +154,21 @@ def test_create_project_file_unauthorized(api_client: TestClient):
         "filename": "unauth_create.json",
         "project_name": "Unauthorized Create",
     }
-    response = api_client.post("/projects/create_file", json=payload) # No auth header
+    response = api_client.post("/projects/create_file", json=payload)  # No auth header
     assert response.status_code == 401
 
 
 # --- Tests for GET /projects/file/{filename:path} ---
 
+
 def test_get_project_file_content_success(api_client: TestClient):
     """Tests successfully getting the content of a project file."""
     test_filename = "test_get_content.json"
     file_path = _get_project_file_path(test_filename)
-    test_content = {"name": "Test Get Content Project", "description": "Content for GET test."}
+    test_content = {
+        "name": "Test Get Content Project",
+        "description": "Content for GET test.",
+    }
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
@@ -168,12 +184,16 @@ def test_get_project_file_content_success(api_client: TestClient):
     if file_path.exists():
         file_path.unlink()
 
+
 def test_get_project_file_content_not_found(api_client: TestClient):
     """Tests getting content of a non-existent project file."""
     non_existent_filename = "does_not_exist_for_get.json"
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/projects/file/{non_existent_filename}", headers=headers)
+    response = api_client.get(
+        f"/projects/file/{non_existent_filename}", headers=headers
+    )
     assert response.status_code == 404
+
 
 def test_get_project_file_content_invalid_json(api_client: TestClient):
     """Tests getting content of a project file with invalid JSON."""
@@ -182,49 +202,62 @@ def test_get_project_file_content_invalid_json(api_client: TestClient):
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
-        f.write("{'name': 'Invalid JSON',") # Invalid JSON
+        f.write("{'name': 'Invalid JSON',")  # Invalid JSON
 
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.get(f"/projects/file/{test_filename}", headers=headers)
 
-    assert response.status_code == 500 # Server error due to invalid JSON
+    assert response.status_code == 500  # Server error due to invalid JSON
     assert "invalid json" in response.json()["detail"].lower()
 
     # Clean up
     if file_path.exists():
         file_path.unlink()
 
-def test_get_project_file_content_path_traversal(api_client: TestClient):
-    """Tests attempting path traversal when getting project file content."""
-    # This path should be blocked by the security check in the endpoint
-    malicious_filename = "../../../etc/passwd"
-    headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/projects/file/{malicious_filename}", headers=headers)
-    assert response.status_code == 400 # Bad Request due to invalid path
 
-@pytest.mark.xfail(reason="URL normalization by ASGI server likely bypasses this route for path traversal.")
 def test_get_project_file_content_path_traversal(api_client: TestClient):
     """Tests attempting path traversal when getting project file content."""
     # This path should be blocked by the security check in the endpoint
     malicious_filename = "../../../etc/passwd"
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.get(f"/projects/file/{malicious_filename}", headers=headers)
-    assert response.status_code == 400 # Bad Request due to invalid path
+    assert response.status_code == 400  # Bad Request due to invalid path
+
+
+@pytest.mark.xfail(
+    reason="URL normalization by ASGI server likely bypasses this route for path traversal."
+)
+def test_get_project_file_content_path_traversal(api_client: TestClient):
+    """Tests attempting path traversal when getting project file content."""
+    # This path should be blocked by the security check in the endpoint
+    malicious_filename = "../../../etc/passwd"
+    headers = {"X-API-Key": api_client.test_api_key}
+    response = api_client.get(f"/projects/file/{malicious_filename}", headers=headers)
+    assert response.status_code == 400  # Bad Request due to invalid path
+
 
 def test_get_project_file_content_unauthorized(api_client: TestClient):
     """Tests getting project file content without API key."""
-    response = api_client.get("/projects/file/default.json") # No auth header
+    response = api_client.get("/projects/file/default.json")  # No auth header
     assert response.status_code == 401
 
 
 # --- Tests for PUT /projects/file/{filename:path} ---
 
+
 def test_update_project_file_content_success(api_client: TestClient):
     """Tests successfully updating the content of a project file."""
     test_filename = "test_update_content.json"
     file_path = _get_project_file_path(test_filename)
-    initial_content = {"name": "Initial Update Content", "description": "Initial state."}
-    updated_content = {"name": "Updated Content", "description": "Successfully updated!", "agents": []} # Valid ProjectConfig structure
+    initial_content = {
+        "name": "Initial Update Content",
+        "description": "Initial state.",
+    }
+    updated_content = {
+        "name": "Updated Content",
+        "description": "Successfully updated!",
+        "agents": [],
+    }  # Valid ProjectConfig structure
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
@@ -232,7 +265,9 @@ def test_update_project_file_content_success(api_client: TestClient):
 
     payload = {"content": updated_content}
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.put(f"/projects/file/{test_filename}", json=payload, headers=headers)
+    response = api_client.put(
+        f"/projects/file/{test_filename}", json=payload, headers=headers
+    )
 
     assert response.status_code == 200
     assert response.json()["message"] == "Project file updated successfully."
@@ -245,11 +280,16 @@ def test_update_project_file_content_success(api_client: TestClient):
     if file_path.exists():
         file_path.unlink()
 
+
 def test_update_project_file_content_creates_new(api_client: TestClient):
     """Tests that updating a non-existent project file creates it."""
     new_filename = "test_update_creates_new.json"
     file_path = _get_project_file_path(new_filename)
-    new_content = {"name": "Created by Update", "description": "This file was created by PUT.", "agents": []}
+    new_content = {
+        "name": "Created by Update",
+        "description": "This file was created by PUT.",
+        "agents": [],
+    }
 
     # Ensure file does not exist
     if file_path.exists():
@@ -257,9 +297,13 @@ def test_update_project_file_content_creates_new(api_client: TestClient):
 
     payload = {"content": new_content}
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.put(f"/projects/file/{new_filename}", json=payload, headers=headers)
+    response = api_client.put(
+        f"/projects/file/{new_filename}", json=payload, headers=headers
+    )
 
-    assert response.status_code == 200 # The endpoint creates if not found and returns 200
+    assert (
+        response.status_code == 200
+    )  # The endpoint creates if not found and returns 200
     assert file_path.exists()
     with open(file_path, "r") as f:
         created_content = json.load(f)
@@ -269,18 +313,22 @@ def test_update_project_file_content_creates_new(api_client: TestClient):
     if file_path.exists():
         file_path.unlink()
 
+
 def test_update_project_file_content_invalid_payload(api_client: TestClient):
     """Tests updating a project file with invalid content (not a dict)."""
     test_filename = "test_update_invalid_payload.json"
     file_path = _get_project_file_path(test_filename)
     initial_content = {"name": "Valid Initial"}
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(file_path, "w") as f: json.dump(initial_content, f)
+    with open(file_path, "w") as f:
+        json.dump(initial_content, f)
 
-    payload = {"content": "this is not a dictionary"} # Invalid content
+    payload = {"content": "this is not a dictionary"}  # Invalid content
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.put(f"/projects/file/{test_filename}", json=payload, headers=headers)
-    assert response.status_code == 422 # Pydantic validation for request body
+    response = api_client.put(
+        f"/projects/file/{test_filename}", json=payload, headers=headers
+    )
+    assert response.status_code == 422  # Pydantic validation for request body
     # The detail message for this specific Pydantic error might be more complex,
     # let's check for a key part or adjust after seeing the actual error detail if needed.
     # For now, checking that "content" field failed validation is a good start.
@@ -297,12 +345,18 @@ def test_update_project_file_content_validation_error(api_client: TestClient):
     test_filename = "test_update_validation_error.json"
     file_path = _get_project_file_path(test_filename)
     # Initial valid file
-    with open(file_path, "w") as f: json.dump({"name": "Initial Valid"}, f)
+    with open(file_path, "w") as f:
+        json.dump({"name": "Initial Valid"}, f)
 
-    invalid_project_content = {"name": "Test Project", "clients": "not a list"} # Invalid structure
+    invalid_project_content = {
+        "name": "Test Project",
+        "clients": "not a list",
+    }  # Invalid structure
     payload = {"content": invalid_project_content}
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.put(f"/projects/file/{test_filename}", json=payload, headers=headers)
+    response = api_client.put(
+        f"/projects/file/{test_filename}", json=payload, headers=headers
+    )
 
     # Current behavior: The endpoint logs a warning but still writes the file and returns 200.
     # Adjusting test to reflect this. Ideally, the endpoint should return 422.
@@ -322,11 +376,14 @@ def test_update_project_file_content_validation_error(api_client: TestClient):
 def test_update_project_file_content_unauthorized(api_client: TestClient):
     """Tests updating project file content without API key."""
     payload = {"content": {"name": "Unauthorized Update"}}
-    response = api_client.put("/projects/file/default.json", json=payload) # No auth header
+    response = api_client.put(
+        "/projects/file/default.json", json=payload
+    )  # No auth header
     assert response.status_code == 401
 
 
 # --- Tests for GET /projects/get_active_project_config ---
+
 
 def test_get_active_project_config_success(api_client: TestClient):
     """Tests successfully getting the active project configuration."""
@@ -337,15 +394,17 @@ def test_get_active_project_config_success(api_client: TestClient):
 
     assert response.status_code == 200
     project_data = response.json()
-    assert project_data["name"] == "DefaultMCPHost" # Name from project_fixture.json
+    assert project_data["name"] == "DefaultMCPHost"  # Name from project_fixture.json
     assert "clients" in project_data
     assert "agents" in project_data
     # Add more assertions based on the expected structure of project_fixture.json
+
 
 def test_get_active_project_config_unauthorized(api_client: TestClient):
     """Tests getting active project config without API key."""
     response = api_client.get("/projects/get_active_project_config")
     assert response.status_code == 401
+
 
 # --- Tests for GET /projects/active/component/{project_component_type}/{component_name} ---
 
@@ -380,17 +439,26 @@ def test_get_active_project_config_unauthorized(api_client: TestClient):
 #             expected_value = str((PROJECT_ROOT_DIR / expected_value_or_relative_path).resolve())
 #         assert component_data[expected_field] == expected_value
 
-def test_get_active_project_component_config_component_not_found(api_client: TestClient):
+
+def test_get_active_project_component_config_component_not_found(
+    api_client: TestClient,
+):
     """Tests getting a non-existent component from the active project."""
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get("/projects/active/component/agents/NonExistentAgent", headers=headers)
+    response = api_client.get(
+        "/projects/active/component/agents/NonExistentAgent", headers=headers
+    )
     assert response.status_code == 404
+
 
 def test_get_active_project_component_config_invalid_type(api_client: TestClient):
     """Tests getting a component with an invalid type from the active project."""
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get("/projects/active/component/invalid_type/SomeName", headers=headers)
-    assert response.status_code == 400 # Invalid component type
+    response = api_client.get(
+        "/projects/active/component/invalid_type/SomeName", headers=headers
+    )
+    assert response.status_code == 400  # Invalid component type
+
 
 def test_get_active_project_component_config_unauthorized(api_client: TestClient):
     """Tests getting active project component config without API key."""
@@ -474,12 +542,18 @@ def test_get_active_project_component_config_unauthorized(api_client: TestClient
 #     if other_project_full_path.exists():
 #         other_project_full_path.unlink()
 
+
 def test_load_components_from_project_file_not_found(api_client: TestClient):
     """Tests loading components from a non-existent project file."""
-    payload = {"project_config_path": "config/projects/non_existent_project_for_load.json"}
+    payload = {
+        "project_config_path": "config/projects/non_existent_project_for_load.json"
+    }
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.post("/projects/load_components", json=payload, headers=headers)
+    response = api_client.post(
+        "/projects/load_components", json=payload, headers=headers
+    )
     assert response.status_code == 404
+
 
 def test_load_components_from_project_unauthorized(api_client: TestClient):
     """Tests loading components without API key."""

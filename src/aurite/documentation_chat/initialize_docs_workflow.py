@@ -7,6 +7,7 @@ import re
 from aurite.servers.storage.file_server import FILES, read_file
 from aurite.servers.storage.vector.pgvector_server import batch_store, clear_database
 from typing import TYPE_CHECKING, Optional, Any
+
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from aurite.execution.facade import ExecutionFacade
@@ -22,27 +23,27 @@ class InitializeDocsWorkflow:
     def separate_paragraphs(self, input: str) -> list[str]:
         """Split a string into a list of paragraphs"""
 
-        paragraphs = list(filter(lambda x : x != '', input.strip().split('\n\n')))
+        paragraphs = list(filter(lambda x: x != "", input.strip().split("\n\n")))
 
         return [p.strip() for p in paragraphs]
 
     def separate_markdown(self, markdown_content: str) -> list[str]:
         """Split a string into markdown sections (which will each begin with one or more # symbols at the start of a line)"""
-        lines = markdown_content.split('\n')
+        lines = markdown_content.split("\n")
 
         sections = []
         current_section = []
 
         for line in lines:
-            if re.match(r'^#+\s', line):
+            if re.match(r"^#+\s", line):
                 if current_section:
-                    sections.append('\n'.join(current_section))
+                    sections.append("\n".join(current_section))
                     current_section = []
 
             current_section.append(line)
 
         if current_section:
-            sections.append('\n'.join(current_section))
+            sections.append("\n".join(current_section))
 
         return sections
 
@@ -73,10 +74,7 @@ class InitializeDocsWorkflow:
             for path in FILES:
                 file = read_file(path)
 
-                paragraphs = [
-                    paragraph
-                    for paragraph in self.separate_markdown(file)
-                ]
+                paragraphs = [paragraph for paragraph in self.separate_markdown(file)]
 
                 batch_store(paragraphs, {"filepath": path})
 

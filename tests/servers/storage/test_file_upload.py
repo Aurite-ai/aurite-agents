@@ -3,6 +3,7 @@ import logging
 from aurite.servers.storage.vector.pgvector_server import store, delete, search
 from aurite.servers.storage.file_server import list_filepaths, read_file
 
+
 def test_file_upload():
     filepath = list_filepaths()[0]
 
@@ -18,6 +19,7 @@ def test_file_upload():
     assert results[0][0] == file_content
 
     assert delete(results[0][1])
+
 
 def test_file_search():
     results = search("overall architecture")

@@ -49,17 +49,15 @@ class Agent:
         self.system_prompt_override = system_prompt_override
         self.llm_config_for_override = llm_config_for_override
         # Store full AgentOutputMessage for assistant, dicts for others
-        self.conversation_history: List[AgentOutputMessage | Dict[str, Any]] = list(initial_messages)
+        self.conversation_history: List[AgentOutputMessage | Dict[str, Any]] = list(
+            initial_messages
+        )
         self.final_response: Optional[AgentOutputMessage] = None
         self.tool_uses_in_last_turn: List[Dict[str, Any]] = []
-        logger.debug(
-            f"Agent '{self.config.name or 'Unnamed'}' initialized."
-        )
+        logger.debug(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
 
     async def run_conversation(self) -> AgentExecutionResult:
-        logger.debug(
-            f"Agent starting run for agent '{self.config.name or 'Unnamed'}'."
-        )
+        logger.debug(f"Agent starting run for agent '{self.config.name or 'Unnamed'}'.")
         effective_system_prompt = (
             self.system_prompt_override
             or self.config.system_prompt
@@ -98,28 +96,39 @@ class Agent:
                     # Add assistant's response (API compliant) to history
                     # For non-streaming, self.conversation_history stores the full object
                     # while current_messages_for_run gets the API-compliant dict for the next LLM call.
-                    self.conversation_history.append(assistant_message_this_turn) # Store the full object
-                    current_messages_for_run.append(assistant_message_this_turn.to_api_message_param()) # Use dict for next run
+                    self.conversation_history.append(
+                        assistant_message_this_turn
+                    )  # Store the full object
+                    current_messages_for_run.append(
+                        assistant_message_this_turn.to_api_message_param()
+                    )  # Use dict for next run
 
                 if turn_tool_results_params:
                     # Tool results are already dicts (MessageParam)
                     self.conversation_history.extend(turn_tool_results_params)
                     current_messages_for_run.extend(turn_tool_results_params)
                     # Store tool uses from the turn processor
-                    self.tool_uses_in_last_turn = turn_processor.get_tool_uses_this_turn()
+                    self.tool_uses_in_last_turn = (
+                        turn_processor.get_tool_uses_this_turn()
+                    )
 
                 if is_final_turn:
                     self.final_response = turn_final_response
                     break
                 elif not turn_tool_results_params and not is_final_turn:
-                    logger.warning("Schema validation failed. Preparing correction message.")
+                    logger.warning(
+                        "Schema validation failed. Preparing correction message."
+                    )
                     if self.config.config_validation_schema:
                         correction_message_content = f"""Your response must be a valid JSON object matching this schema:
 {json.dumps(self.config.config_validation_schema, indent=2)}
 
 Please correct your previous response to conform to the schema."""
                         correction_message_param: MessageParam = {
-                            "role": "user", "content": [{"type": "text", "text": correction_message_content}]
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": correction_message_content}
+                            ],
                         }
                         # Correction message is a dict (MessageParam)
                         self.conversation_history.append(correction_message_param)
@@ -138,14 +147,23 @@ Please correct your previous response to conform to the schema."""
             logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
             # Find the last AgentOutputMessage in the history
             last_assistant_message_obj = next(
-                (msg for msg in reversed(self.conversation_history) if isinstance(msg, AgentOutputMessage)), None
+                (
+                    msg
+                    for msg in reversed(self.conversation_history)
+                    if isinstance(msg, AgentOutputMessage)
+                ),
+                None,
             )
             if last_assistant_message_obj:
-                 # It's already the correct type
+                # It's already the correct type
                 self.final_response = last_assistant_message_obj
             else:
-                logger.warning("Could not find a final assistant message in history for max iterations fallback.")
-                self.final_response = None # Ensure it's None if no suitable message found
+                logger.warning(
+                    "Could not find a final assistant message in history for max iterations fallback."
+                )
+                self.final_response = (
+                    None  # Ensure it's None if no suitable message found
+                )
 
         logger.info(f"Agent finished run for agent '{self.config.name or 'Unnamed'}'.")
         return self._prepare_agent_result(execution_error=None)
@@ -156,41 +174,78 @@ Please correct your previous response to conform to the schema."""
         logger.debug("Preparing final agent execution result...")
 
         parsed_conversation_history: List[AgentOutputMessage] = []
-        for msg_item in self.conversation_history: # History now contains AgentOutputMessage or dicts
+        for msg_item in (
+            self.conversation_history
+        ):  # History now contains AgentOutputMessage or dicts
             try:
                 if isinstance(msg_item, AgentOutputMessage):
                     # If it's already an AgentOutputMessage, just append it
                     parsed_conversation_history.append(msg_item)
                 elif isinstance(msg_item, dict):
                     # If it's a dict (user message, tool result), validate it
-                    parsed_conversation_history.append(AgentOutputMessage.model_validate(msg_item))
+                    parsed_conversation_history.append(
+                        AgentOutputMessage.model_validate(msg_item)
+                    )
                 else:
                     # Handle unexpected types if necessary
-                    logger.warning(f"Unexpected item type in conversation history: {type(msg_item)}")
-                    parsed_conversation_history.append(AgentOutputMessage(role="unknown", content=[AgentOutputContentBlock(type="text", text=f"Invalid history item: {str(msg_item)}")]))
+                    logger.warning(
+                        f"Unexpected item type in conversation history: {type(msg_item)}"
+                    )
+                    parsed_conversation_history.append(
+                        AgentOutputMessage(
+                            role="unknown",
+                            content=[
+                                AgentOutputContentBlock(
+                                    type="text",
+                                    text=f"Invalid history item: {str(msg_item)}",
+                                )
+                            ],
+                        )
+                    )
             except Exception as e:
-                logger.error(f"Failed to parse message from history for AgentExecutionResult: {msg_item}, error: {e}")
-                role = msg_item.get("role", "unknown") if isinstance(msg_item, dict) else "unknown"
-                parsed_conversation_history.append(AgentOutputMessage(role=role, content=[AgentOutputContentBlock(type="text", text=f"Invalid message in history: {str(msg_item)}")]))
-
+                logger.error(
+                    f"Failed to parse message from history for AgentExecutionResult: {msg_item}, error: {e}"
+                )
+                role = (
+                    msg_item.get("role", "unknown")
+                    if isinstance(msg_item, dict)
+                    else "unknown"
+                )
+                parsed_conversation_history.append(
+                    AgentOutputMessage(
+                        role=role,
+                        content=[
+                            AgentOutputContentBlock(
+                                type="text",
+                                text=f"Invalid message in history: {str(msg_item)}",
+                            )
+                        ],
+                    )
+                )
 
         output_dict_for_validation = {
-            "conversation": parsed_conversation_history, # Use the parsed list
+            "conversation": parsed_conversation_history,  # Use the parsed list
             "final_response": self.final_response,
             "tool_uses_in_final_turn": self.tool_uses_in_last_turn,
             "error": execution_error,
         }
         try:
-            agent_result = AgentExecutionResult.model_validate(output_dict_for_validation)
+            agent_result = AgentExecutionResult.model_validate(
+                output_dict_for_validation
+            )
             if execution_error and not agent_result.error:
                 agent_result.error = execution_error
             elif not execution_error and agent_result.error:
-                logger.info(f"AgentExecutionResult validation failed: {agent_result.error}")
+                logger.info(
+                    f"AgentExecutionResult validation failed: {agent_result.error}"
+                )
             return agent_result
         except ValidationError as e:
             error_msg = f"Failed to validate final AgentExecutionResult: {e}"
             logger.error(error_msg, exc_info=True)
-            final_error_message = f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            final_error_message = (
+                f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            )
             try:
                 return AgentExecutionResult(
                     conversation=parsed_conversation_history,
@@ -199,17 +254,22 @@ Please correct your previous response to conform to the schema."""
                     error=final_error_message,
                 )
             except Exception as fallback_e:
-                logger.error(f"Failed to create even a fallback AgentExecutionResult: {fallback_e}")
+                logger.error(
+                    f"Failed to create even a fallback AgentExecutionResult: {fallback_e}"
+                )
                 return AgentExecutionResult(
                     conversation=[],
                     final_response=None,
                     tool_uses_in_final_turn=self.tool_uses_in_last_turn,
-                    error=final_error_message + f"\nAdditionally, fallback result creation failed: {fallback_e}",
+                    error=final_error_message
+                    + f"\nAdditionally, fallback result creation failed: {fallback_e}",
                 )
         except Exception as e:
             error_msg = f"Unexpected error during final AgentExecutionResult preparation/validation: {type(e).__name__}: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            final_error_message = f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            final_error_message = (
+                f"{execution_error}\n{error_msg}" if execution_error else error_msg
+            )
             return AgentExecutionResult(
                 conversation=[],
                 final_response=None,
@@ -230,7 +290,9 @@ Please correct your previous response to conform to the schema."""
         max_iterations = self.config.max_iterations or 10
         current_iteration = 0
 
-        current_assistant_message_content_blocks_for_history_dicts: List[Dict[str, Any]] = []
+        current_assistant_message_content_blocks_for_history_dicts: List[
+            Dict[str, Any]
+        ] = []
         assistant_message_object_this_turn: Optional[AgentOutputMessage] = None
 
         while current_iteration < max_iterations:
@@ -272,135 +334,227 @@ Please correct your previous response to conform to the schema."""
 
                     elif event_type == "text_block_start":
                         found = False
-                        for block in current_assistant_message_content_blocks_for_history_dicts:
+                        for (
+                            block
+                        ) in current_assistant_message_content_blocks_for_history_dicts:
                             if block.get("index") == event_data.get("index"):
-                                found = True; break
+                                found = True
+                                break
                         if not found:
                             current_assistant_message_content_blocks_for_history_dicts.append(
-                                {"type": "text", "text": "", "index": event_data.get("index")}
+                                {
+                                    "type": "text",
+                                    "text": "",
+                                    "index": event_data.get("index"),
+                                }
                             )
                     elif event_type == "text_delta":
                         found_block = False
-                        for block in current_assistant_message_content_blocks_for_history_dicts:
-                            if block.get("index") == event_data.get("index") and block.get("type") == "text":
-                                block["text"] = block.get("text", "") + event_data.get("text_chunk", "")
-                                found_block = True; break
+                        for (
+                            block
+                        ) in current_assistant_message_content_blocks_for_history_dicts:
+                            if (
+                                block.get("index") == event_data.get("index")
+                                and block.get("type") == "text"
+                            ):
+                                block["text"] = block.get("text", "") + event_data.get(
+                                    "text_chunk", ""
+                                )
+                                found_block = True
+                                break
                         if not found_block:
-                             current_assistant_message_content_blocks_for_history_dicts.append(
-                                {"type": "text", "text": event_data.get("text_chunk", ""), "index": event_data.get("index")}
+                            current_assistant_message_content_blocks_for_history_dicts.append(
+                                {
+                                    "type": "text",
+                                    "text": event_data.get("text_chunk", ""),
+                                    "index": event_data.get("index"),
+                                }
                             )
                     elif event_type == "thinking_block_start":
-                         found = False
-                         for block in current_assistant_message_content_blocks_for_history_dicts:
+                        found = False
+                        for (
+                            block
+                        ) in current_assistant_message_content_blocks_for_history_dicts:
                             if block.get("index") == event_data.get("index"):
-                                found = True; break
-                         if not found:
+                                found = True
+                                break
+                        if not found:
                             current_assistant_message_content_blocks_for_history_dicts.append(
-                                {"type": "text", "text": "", "index": event_data.get("index")}
+                                {
+                                    "type": "text",
+                                    "text": "",
+                                    "index": event_data.get("index"),
+                                }
                             )
                     elif event_type == "tool_use_start":
-                        current_assistant_message_content_blocks_for_history_dicts.append({
-                            "type": "tool_use",
-                            "id": event_data.get("tool_id"),
-                            "name": event_data.get("tool_name"),
-                            "input": {},
-                            "index": event_data.get("index"),
-                        })
+                        current_assistant_message_content_blocks_for_history_dicts.append(
+                            {
+                                "type": "tool_use",
+                                "id": event_data.get("tool_id"),
+                                "name": event_data.get("tool_name"),
+                                "input": {},
+                                "index": event_data.get("index"),
+                            }
+                        )
                     elif event_type == "tool_use_input_complete":
                         tool_id = event_data.get("tool_id")
                         final_input = event_data.get("input")
-                        for block in current_assistant_message_content_blocks_for_history_dicts:
-                            if block.get("type") == "tool_use" and block.get("id") == tool_id:
+                        for (
+                            block
+                        ) in current_assistant_message_content_blocks_for_history_dicts:
+                            if (
+                                block.get("type") == "tool_use"
+                                and block.get("id") == tool_id
+                            ):
                                 block["input"] = final_input
                                 break
 
-                    elif event_type == "tool_result" or event_type == "tool_execution_error":
+                    elif (
+                        event_type == "tool_result"
+                        or event_type == "tool_execution_error"
+                    ):
                         tool_use_id = event_data.get("tool_use_id")
-                        is_error = event_type == "tool_execution_error" or event_data.get("is_error", False)
-                        content_data = event_data.get("output") if not is_error else event_data.get("error_message", "Unknown error")
+                        is_error = (
+                            event_type == "tool_execution_error"
+                            or event_data.get("is_error", False)
+                        )
+                        content_data = (
+                            event_data.get("output")
+                            if not is_error
+                            else event_data.get("error_message", "Unknown error")
+                        )
 
                         tool_result_content_list: List[Dict[str, Any]]
                         if isinstance(content_data, str):
-                            tool_result_content_list = [{"type": "text", "text": content_data}]
+                            tool_result_content_list = [
+                                {"type": "text", "text": content_data}
+                            ]
                         elif isinstance(content_data, list):
                             tool_result_content_list = content_data
                         else:
-                            tool_result_content_list = [{"type": "text", "text": str(content_data)}]
+                            tool_result_content_list = [
+                                {"type": "text", "text": str(content_data)}
+                            ]
 
                         tool_result_param: MessageParam = {
                             "role": "user",
-                            "content": [{
-                                "type": "tool_result",
-                                "tool_use_id": tool_use_id,
-                                "content": tool_result_content_list,
-                                "is_error": is_error,
-                            }],
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_use_id,
+                                    "content": tool_result_content_list,
+                                    "is_error": is_error,
+                                }
+                            ],
                         }
-                        buffered_tool_results_for_this_turn.append(dict(tool_result_param))
+                        buffered_tool_results_for_this_turn.append(
+                            dict(tool_result_param)
+                        )
 
                     elif event_type == "message_delta":
                         if "stop_reason" in event_data:
                             llm_turn_stop_reason = event_data.get("stop_reason")
                         if "output_tokens" in event_data:
-                            if streamed_assistant_usage is None: streamed_assistant_usage = {}
-                            streamed_assistant_usage["output_tokens"] = event_data.get("output_tokens")
+                            if streamed_assistant_usage is None:
+                                streamed_assistant_usage = {}
+                            streamed_assistant_usage["output_tokens"] = event_data.get(
+                                "output_tokens"
+                            )
 
                     elif event_type == "llm_call_completed":
                         llm_turn_stop_reason = event_data.get("stop_reason")
-                        logger.debug(f"Agent: LLM call completed with stop_reason: {llm_turn_stop_reason}")
+                        logger.debug(
+                            f"Agent: LLM call completed with stop_reason: {llm_turn_stop_reason}"
+                        )
 
                         if streamed_assistant_message_id:
                             validated_content_blocks_for_model = []
                             # Use original_llm_content_blocks from the message_stop event if available,
                             # as it contains the fully formed blocks including tool inputs.
-                            original_llm_content_blocks = event_data.get("original_event_data", {}).get("raw_message_stop_event", {}).get("message", {}).get("content", [])
+                            original_llm_content_blocks = (
+                                event_data.get("original_event_data", {})
+                                .get("raw_message_stop_event", {})
+                                .get("message", {})
+                                .get("content", [])
+                            )
 
                             source_blocks_for_validation = current_assistant_message_content_blocks_for_history_dicts
-                            if original_llm_content_blocks: # Prefer original blocks if present
-                                source_blocks_for_validation = original_llm_content_blocks
+                            if (
+                                original_llm_content_blocks
+                            ):  # Prefer original blocks if present
+                                source_blocks_for_validation = (
+                                    original_llm_content_blocks
+                                )
                                 # If using original_llm_content_blocks, ensure they are dicts, not Pydantic models yet
                                 source_blocks_for_validation = [
-                                    block.model_dump(mode="json") if hasattr(block, "model_dump") else block
+                                    block.model_dump(mode="json")
+                                    if hasattr(block, "model_dump")
+                                    else block
                                     for block in source_blocks_for_validation
                                 ]
-
 
                             for block_dict_raw in source_blocks_for_validation:
                                 try:
                                     # Ensure 'input' is present for tool_use, even if empty, before validation
                                     # This is crucial if source_blocks_for_validation is from current_assistant_message_content_blocks_for_history_dicts
-                                    if block_dict_raw.get("type") == "tool_use" and "input" not in block_dict_raw:
+                                    if (
+                                        block_dict_raw.get("type") == "tool_use"
+                                        and "input" not in block_dict_raw
+                                    ):
                                         # Try to find it from tool_use_input_complete if it was missed
                                         # This part is tricky; ideally, current_assistant_message_content_blocks_for_history_dicts
                                         # should have the input updated by tool_use_input_complete.
                                         # If original_llm_content_blocks are used, they should have the input.
-                                        block_dict_raw["input"] = {} # Default if not found
+                                        block_dict_raw[
+                                            "input"
+                                        ] = {}  # Default if not found
 
-                                    validated_content_blocks_for_model.append(AgentOutputContentBlock.model_validate(block_dict_raw))
+                                    validated_content_blocks_for_model.append(
+                                        AgentOutputContentBlock.model_validate(
+                                            block_dict_raw
+                                        )
+                                    )
                                 except Exception as e_val:
-                                    logger.error(f"Error validating block for AgentOutputMessage: {block_dict_raw}, error: {e_val}")
-                                    validated_content_blocks_for_model.append(AgentOutputContentBlock(type="error", text=f"Invalid block: {str(block_dict_raw)}"))
+                                    logger.error(
+                                        f"Error validating block for AgentOutputMessage: {block_dict_raw}, error: {e_val}"
+                                    )
+                                    validated_content_blocks_for_model.append(
+                                        AgentOutputContentBlock(
+                                            type="error",
+                                            text=f"Invalid block: {str(block_dict_raw)}",
+                                        )
+                                    )
 
                             assistant_message_object_this_turn = AgentOutputMessage(
                                 id=streamed_assistant_message_id,
-                                model=streamed_assistant_model or self.config.model or "unknown_stream_model",
+                                model=streamed_assistant_model
+                                or self.config.model
+                                or "unknown_stream_model",
                                 role=streamed_assistant_role,
                                 content=validated_content_blocks_for_model,
                                 stop_reason=llm_turn_stop_reason,
                                 usage=streamed_assistant_usage,
                             )
-                            self.conversation_history.append(assistant_message_object_this_turn.to_api_message_param())
+                            self.conversation_history.append(
+                                assistant_message_object_this_turn.to_api_message_param()
+                            )
 
                         if buffered_tool_results_for_this_turn:
-                            self.conversation_history.extend(buffered_tool_results_for_this_turn)
+                            self.conversation_history.extend(
+                                buffered_tool_results_for_this_turn
+                            )
                             buffered_tool_results_for_this_turn = []
 
                         if llm_turn_stop_reason != "tool_use":
-                            logger.debug(f"Agent: Final response indicated by LLM stop_reason: {llm_turn_stop_reason}. Breaking conversation loop.")
+                            logger.debug(
+                                f"Agent: Final response indicated by LLM stop_reason: {llm_turn_stop_reason}. Breaking conversation loop."
+                            )
                             self.final_response = assistant_message_object_this_turn
                             break
                         else:
-                            logger.debug("Agent: LLM stop_reason was 'tool_use'. Agent loop continues for next turn.")
+                            logger.debug(
+                                "Agent: LLM stop_reason was 'tool_use'. Agent loop continues for next turn."
+                            )
                             current_assistant_message_content_blocks_for_history_dicts = []
                             streamed_assistant_message_id = None
                             streamed_assistant_model = None
@@ -410,14 +564,21 @@ Please correct your previous response to conform to the schema."""
             except Exception as e:
                 error_msg = f"Error during streaming conversation turn {current_iteration}: {type(e).__name__}: {str(e)}"
                 logger.error(error_msg, exc_info=True)
-                yield {"event_type": "error", "data": {"message": error_msg, "turn": current_iteration}}
+                yield {
+                    "event_type": "error",
+                    "data": {"message": error_msg, "turn": current_iteration},
+                }
                 break
 
-            if self.final_response or (llm_turn_stop_reason and llm_turn_stop_reason != "tool_use"):
+            if self.final_response or (
+                llm_turn_stop_reason and llm_turn_stop_reason != "tool_use"
+            ):
                 break
 
             if current_iteration >= max_iterations:
-                logger.warning(f"Reached max iterations ({max_iterations}) in streaming. Aborting.")
+                logger.warning(
+                    f"Reached max iterations ({max_iterations}) in streaming. Aborting."
+                )
                 if not self.final_response and assistant_message_object_this_turn:
                     self.final_response = assistant_message_object_this_turn
                 break
@@ -431,4 +592,7 @@ Please correct your previous response to conform to the schema."""
         elif current_iteration >= max_iterations:
             final_stop_reason_for_stream = "max_iterations_reached"
 
-        yield {"event_type": "stream_end", "data": {"reason": final_stop_reason_for_stream}}
+        yield {
+            "event_type": "stream_end",
+            "data": {"reason": final_stop_reason_for_stream},
+        }

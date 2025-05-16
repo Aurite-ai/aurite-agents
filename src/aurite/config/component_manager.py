@@ -26,7 +26,7 @@ COMPONENT_SUBDIRS = {
     "agents": "agents",
     "simple_workflows": "workflows",
     "custom_workflows": "custom_workflows",
-    "projects": "projects", # For packaged project templates like prompt_validation
+    "projects": "projects",  # For packaged project templates like prompt_validation
 }
 
 # Mapping component type to its model class and ID field name
@@ -158,7 +158,9 @@ class ComponentManager:
             return
 
         if not directory_path.is_dir():
-            logger.debug(f"Directory not found for {component_type}: {directory_path}. Skipping.")
+            logger.debug(
+                f"Directory not found for {component_type}: {directory_path}. Skipping."
+            )
             return
 
         loaded_count_for_type = self.component_counts.get(component_type, 0)
@@ -181,7 +183,9 @@ class ComponentManager:
                 for component_model in parsed_models_from_file:
                     component_id = getattr(component_model, id_field, None)
                     if not component_id or not isinstance(component_id, str):
-                        logger.warning(f"Parsed component from {file_path} has missing/invalid ID. Skipping.")
+                        logger.warning(
+                            f"Parsed component from {file_path} has missing/invalid ID. Skipping."
+                        )
                         error_count += 1
                         continue
 
@@ -192,10 +196,14 @@ class ComponentManager:
                         )
                     else:
                         if component_id in target_dict and is_override_allowed:
-                            logger.info(f"Overriding component '{component_id}' of type '{component_type}' from {file_path}.")
+                            logger.info(
+                                f"Overriding component '{component_id}' of type '{component_type}' from {file_path}."
+                            )
                         target_dict[component_id] = component_model
                         loaded_count_for_type += 1
-                        logger.debug(f"Registered component '{component_id}' of type '{component_type}' from {file_path}")
+                        logger.debug(
+                            f"Registered component '{component_id}' of type '{component_type}' from {file_path}"
+                        )
 
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
@@ -217,7 +225,9 @@ class ComponentManager:
             for component_type, (model_class, id_field) in COMPONENT_META.items():
                 subdir_name = COMPONENT_SUBDIRS.get(component_type)
                 if not subdir_name:
-                    logger.warning(f"No subdir defined for packaged component type '{component_type}'. Skipping.")
+                    logger.warning(
+                        f"No subdir defined for packaged component type '{component_type}'. Skipping."
+                    )
                     continue
 
                 component_dir_path = packaged_configs_dir.joinpath(subdir_name)
@@ -229,8 +239,8 @@ class ComponentManager:
                     model_class,
                     id_field,
                     component_dir_path,
-                    base_path_for_resolution=packaged_root, # Resolve paths relative to "packaged" dir
-                    is_override_allowed=False, # Defaults cannot be overridden by other defaults
+                    base_path_for_resolution=packaged_root,  # Resolve paths relative to "packaged" dir
+                    is_override_allowed=False,  # Defaults cannot be overridden by other defaults
                 )
         except Exception as e:
             logger.error(f"Error loading packaged defaults: {e}", exc_info=True)
@@ -241,17 +251,27 @@ class ComponentManager:
         Loads component configurations from a user's project directory.
         These can override packaged defaults if IDs match.
         """
-        logger.debug(f"Loading project-specific components from: {project_root_path}...")
-        user_config_main_dir = project_root_path / "config" # User components are in project_root/config/
+        logger.debug(
+            f"Loading project-specific components from: {project_root_path}..."
+        )
+        user_config_main_dir = (
+            project_root_path / "config"
+        )  # User components are in project_root/config/
 
         if not user_config_main_dir.is_dir():
-            logger.info(f"User project config directory not found at {user_config_main_dir}. No project-specific components will be loaded.")
+            logger.info(
+                f"User project config directory not found at {user_config_main_dir}. No project-specific components will be loaded."
+            )
             return
 
         for component_type, (model_class, id_field) in COMPONENT_META.items():
             subdir_name = COMPONENT_SUBDIRS.get(component_type)
-            if not subdir_name: # Should not happen if COMPONENT_SUBDIRS is aligned with COMPONENT_META
-                logger.warning(f"No subdir defined for user component type '{component_type}'. Skipping.")
+            if (
+                not subdir_name
+            ):  # Should not happen if COMPONENT_SUBDIRS is aligned with COMPONENT_META
+                logger.warning(
+                    f"No subdir defined for user component type '{component_type}'. Skipping."
+                )
                 continue
 
             component_dir_path = user_config_main_dir.joinpath(subdir_name)
@@ -263,18 +283,23 @@ class ComponentManager:
                 model_class,
                 id_field,
                 component_dir_path,
-                base_path_for_resolution=project_root_path, # Resolve paths relative to user's project root
-                is_override_allowed=True, # User components override packaged defaults
+                base_path_for_resolution=project_root_path,  # Resolve paths relative to user's project root
+                is_override_allowed=True,  # User components override packaged defaults
             )
-        logger.debug(f"Finished loading project-specific components from {project_root_path}.")
+        logger.debug(
+            f"Finished loading project-specific components from {project_root_path}."
+        )
 
-
-    def _get_component_file_path(self, component_type: str, component_id: str, project_root_path: Path) -> Path:
+    def _get_component_file_path(
+        self, component_type: str, component_id: str, project_root_path: Path
+    ) -> Path:
         """Constructs and validates the file path for a component within a user's project."""
         user_config_main_dir = project_root_path / "config"
         subdir_name = COMPONENT_SUBDIRS.get(component_type)
         if not subdir_name:
-            raise ValueError(f"Invalid component type for path construction: {component_type}")
+            raise ValueError(
+                f"Invalid component type for path construction: {component_type}"
+            )
 
         component_dir = user_config_main_dir / subdir_name
         filename = f"{component_id}.json"
@@ -287,15 +312,21 @@ class ComponentManager:
             )
         return file_path
 
-    def _prepare_data_for_save(self, model_instance: Any, base_path_for_relativization: Path) -> Dict[str, Any]:
+    def _prepare_data_for_save(
+        self, model_instance: Any, base_path_for_relativization: Path
+    ) -> Dict[str, Any]:
         """Converts a Pydantic model to a dict, relativizing paths against base_path_for_relativization."""
-        raw_model_dict = model_instance.model_dump(mode="json") # mode="json" handles Path, datetime etc.
+        raw_model_dict = model_instance.model_dump(
+            mode="json"
+        )  # mode="json" handles Path, datetime etc.
         json_data_with_str_paths = relativize_path_fields(
             raw_model_dict, type(model_instance), base_path_for_relativization
         )
         return json_data_with_str_paths
 
-    def get_component_config(self, component_type: str, component_id: str) -> Optional[Any]:
+    def get_component_config(
+        self, component_type: str, component_id: str
+    ) -> Optional[Any]:
         target_dict = self._component_stores.get(component_type)
         if target_dict is not None:
             return target_dict.get(component_id)
@@ -306,23 +337,45 @@ class ComponentManager:
         target_dict = self._component_stores.get(component_type)
         if target_dict is not None:
             return list(target_dict.values())
-        logger.warning(f"Attempted to list components of unknown type: {component_type}")
+        logger.warning(
+            f"Attempted to list components of unknown type: {component_type}"
+        )
         return []
 
     # Convenience accessors
-    def get_client(self, client_id: str) -> Optional[ClientConfig]: return self.get_component_config("clients", client_id) # type: ignore
-    def get_llm(self, llm_id: str) -> Optional[LLMConfig]: return self.get_component_config("llms", llm_id) # type: ignore
-    def get_agent(self, agent_name: str) -> Optional[AgentConfig]: return self.get_component_config("agents", agent_name) # type: ignore
-    def get_simple_workflow(self, workflow_name: str) -> Optional[WorkflowConfig]: return self.get_component_config("simple_workflows", workflow_name) # type: ignore
-    def get_custom_workflow(self, workflow_name: str) -> Optional[CustomWorkflowConfig]: return self.get_component_config("custom_workflows", workflow_name) # type: ignore
+    def get_client(self, client_id: str) -> Optional[ClientConfig]:
+        return self.get_component_config("clients", client_id)  # type: ignore
 
-    def list_clients(self) -> List[ClientConfig]: return self.list_components("clients") # type: ignore
-    def list_llms(self) -> List[LLMConfig]: return self.list_components("llms") # type: ignore
-    def list_agents(self) -> List[AgentConfig]: return self.list_components("agents") # type: ignore
-    def list_simple_workflows(self) -> List[WorkflowConfig]: return self.list_components("simple_workflows") # type: ignore
-    def list_custom_workflows(self) -> List[CustomWorkflowConfig]: return self.list_components("custom_workflows") # type: ignore
+    def get_llm(self, llm_id: str) -> Optional[LLMConfig]:
+        return self.get_component_config("llms", llm_id)  # type: ignore
 
-    def list_component_files(self, component_type: str, project_root_path: Path) -> List[str]:
+    def get_agent(self, agent_name: str) -> Optional[AgentConfig]:
+        return self.get_component_config("agents", agent_name)  # type: ignore
+
+    def get_simple_workflow(self, workflow_name: str) -> Optional[WorkflowConfig]:
+        return self.get_component_config("simple_workflows", workflow_name)  # type: ignore
+
+    def get_custom_workflow(self, workflow_name: str) -> Optional[CustomWorkflowConfig]:
+        return self.get_component_config("custom_workflows", workflow_name)  # type: ignore
+
+    def list_clients(self) -> List[ClientConfig]:
+        return self.list_components("clients")  # type: ignore
+
+    def list_llms(self) -> List[LLMConfig]:
+        return self.list_components("llms")  # type: ignore
+
+    def list_agents(self) -> List[AgentConfig]:
+        return self.list_components("agents")  # type: ignore
+
+    def list_simple_workflows(self) -> List[WorkflowConfig]:
+        return self.list_components("simple_workflows")  # type: ignore
+
+    def list_custom_workflows(self) -> List[CustomWorkflowConfig]:
+        return self.list_components("custom_workflows")  # type: ignore
+
+    def list_component_files(
+        self, component_type: str, project_root_path: Path
+    ) -> List[str]:
         """Lists JSON filenames for a component type within a user's project."""
         user_config_main_dir = project_root_path / "config"
         subdir_name = COMPONENT_SUBDIRS.get(component_type)
@@ -332,7 +385,9 @@ class ComponentManager:
 
         component_dir = user_config_main_dir / subdir_name
         if not component_dir.is_dir():
-            logger.warning(f"Component directory not found for type '{component_type}' at {component_dir}. Returning empty list.")
+            logger.warning(
+                f"Component directory not found for type '{component_type}' at {component_dir}. Returning empty list."
+            )
             return []
         try:
             return sorted([f.name for f in component_dir.glob("*.json") if f.is_file()])
@@ -344,8 +399,8 @@ class ComponentManager:
         self,
         file_path: Path,
         data_to_save: Union[Dict[str, Any], List[Dict[str, Any]]],
-        component_id_for_log: str, # For single save
-        component_type_for_log: str # For single save
+        component_id_for_log: str,  # For single save
+        component_type_for_log: str,  # For single save
     ):
         """Helper to write component data to a file."""
         try:
@@ -357,9 +412,11 @@ class ComponentManager:
             logger.error(f"Failed to write component file {file_path}: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error saving component(s) to {file_path}: {e}", exc_info=True)
+            logger.error(
+                f"Unexpected error saving component(s) to {file_path}: {e}",
+                exc_info=True,
+            )
             raise
-
 
     def save_component_config(
         self, component_type: str, config_data: Dict[str, Any], project_root_path: Path
@@ -373,28 +430,46 @@ class ComponentManager:
         model_class, id_field = meta
         component_id = config_data.get(id_field)
         if not component_id or not isinstance(component_id, str):
-            raise ValueError(f"Missing/invalid ID field '{id_field}' for type '{component_type}'.")
+            raise ValueError(
+                f"Missing/invalid ID field '{id_field}' for type '{component_type}'."
+            )
 
         try:
-            file_path = self._get_component_file_path(component_type, component_id, project_root_path)
-            data_to_validate = resolve_path_fields(config_data, model_class, project_root_path)
+            file_path = self._get_component_file_path(
+                component_type, component_id, project_root_path
+            )
+            data_to_validate = resolve_path_fields(
+                config_data, model_class, project_root_path
+            )
             validated_model = model_class(**data_to_validate)
             json_data = self._prepare_data_for_save(validated_model, project_root_path)
 
-            self._save_component_to_file(file_path, json_data, component_id, component_type)
+            self._save_component_to_file(
+                file_path, json_data, component_id, component_type
+            )
 
-            target_dict[component_id] = validated_model # Update in-memory store
-            self.component_counts[component_type] = self.component_counts.get(component_type, 0) + 1
+            target_dict[component_id] = validated_model  # Update in-memory store
+            self.component_counts[component_type] = (
+                self.component_counts.get(component_type, 0) + 1
+            )
             return validated_model
         except ValidationError as e:
-            logger.error(f"Validation failed for '{component_id}' ({component_type}): {e}")
+            logger.error(
+                f"Validation failed for '{component_id}' ({component_type}): {e}"
+            )
             raise ValueError(f"Config validation failed: {e}") from e
-        except Exception as e: # Catches ValueError from _get_component_file_path, IOError from _save
-            logger.error(f"Error saving component '{component_id}' ({component_type}): {e}", exc_info=True)
+        except (
+            Exception
+        ) as e:  # Catches ValueError from _get_component_file_path, IOError from _save
+            logger.error(
+                f"Error saving component '{component_id}' ({component_type}): {e}",
+                exc_info=True,
+            )
             raise
 
-
-    def delete_component_config(self, component_type: str, component_id: str, project_root_path: Path) -> bool:
+    def delete_component_config(
+        self, component_type: str, component_id: str, project_root_path: Path
+    ) -> bool:
         """Deletes a component config file from the user's project and memory."""
         target_dict = self._component_stores.get(component_type)
         if target_dict is None:
@@ -402,10 +477,14 @@ class ComponentManager:
             return False
 
         try:
-            file_path = self._get_component_file_path(component_type, component_id, project_root_path)
+            file_path = self._get_component_file_path(
+                component_type, component_id, project_root_path
+            )
         except ValueError as e:
-            logger.error(f"Cannot get file path for component '{component_id}' ({component_type}): {e}")
-            return False # If path is invalid, can't proceed with FS deletion
+            logger.error(
+                f"Cannot get file path for component '{component_id}' ({component_type}): {e}"
+            )
+            return False  # If path is invalid, can't proceed with FS deletion
 
         deleted_from_fs = False
         if file_path.is_file():
@@ -414,21 +493,28 @@ class ComponentManager:
                 logger.info(f"Successfully deleted component file: {file_path}")
                 deleted_from_fs = True
             except OSError as e:
-                logger.error(f"Error deleting component file {file_path}: {e}", exc_info=True)
-                return False # If file deletion fails, do not remove from memory
+                logger.error(
+                    f"Error deleting component file {file_path}: {e}", exc_info=True
+                )
+                return False  # If file deletion fails, do not remove from memory
         else:
-            logger.warning(f"Component file not found for deletion at {file_path}. Assuming success for FS part.")
-            deleted_from_fs = True # Treat as success if file wasn't there
+            logger.warning(
+                f"Component file not found for deletion at {file_path}. Assuming success for FS part."
+            )
+            deleted_from_fs = True  # Treat as success if file wasn't there
 
         if component_id in target_dict:
             del target_dict[component_id]
-            self.component_counts[component_type] = self.component_counts.get(component_type, 1) -1
-            logger.info(f"Removed component '{component_id}' ({component_type}) from memory.")
+            self.component_counts[component_type] = (
+                self.component_counts.get(component_type, 1) - 1
+            )
+            logger.info(
+                f"Removed component '{component_id}' ({component_type}) from memory."
+            )
             return True
 
         # If not in memory, but FS operation was considered successful (file deleted or not found)
         return deleted_from_fs
-
 
     def save_components_to_file(
         self,
@@ -455,7 +541,9 @@ class ComponentManager:
         file_path = (component_dir / filename).resolve()
 
         if not str(file_path).startswith(str(component_dir.resolve())):
-            raise ValueError(f"File path '{file_path}' is outside allowed dir '{component_dir}'.")
+            raise ValueError(
+                f"File path '{file_path}' is outside allowed dir '{component_dir}'."
+            )
 
         if not overwrite and file_path.exists():
             raise FileExistsError(f"Component file {file_path} already exists.")
@@ -464,31 +552,51 @@ class ComponentManager:
         data_to_save_list: List[Dict[str, Any]] = []
 
         for item_data_raw in components_data:
-            item_dict = item_data_raw.model_dump(mode="json") if hasattr(item_data_raw, "model_dump") else item_data_raw
-            if not isinstance(item_dict, dict): continue
+            item_dict = (
+                item_data_raw.model_dump(mode="json")
+                if hasattr(item_data_raw, "model_dump")
+                else item_data_raw
+            )
+            if not isinstance(item_dict, dict):
+                continue
 
             try:
-                resolved_item_data = resolve_path_fields(item_dict, model_class, project_root_path)
+                resolved_item_data = resolve_path_fields(
+                    item_dict, model_class, project_root_path
+                )
                 model_instance = model_class(**resolved_item_data)
                 validated_models.append(model_instance)
-                data_for_json = self._prepare_data_for_save(model_instance, project_root_path)
+                data_for_json = self._prepare_data_for_save(
+                    model_instance, project_root_path
+                )
                 data_to_save_list.append(data_for_json)
             except ValidationError as e:
-                logger.error(f"Validation failed for item in '{filename}' ({component_type}): {e}. Skipping.")
+                logger.error(
+                    f"Validation failed for item in '{filename}' ({component_type}): {e}. Skipping."
+                )
             except Exception as e:
-                logger.error(f"Error processing item for '{filename}' ({component_type}): {e}. Skipping.", exc_info=True)
+                logger.error(
+                    f"Error processing item for '{filename}' ({component_type}): {e}. Skipping.",
+                    exc_info=True,
+                )
 
-        if not data_to_save_list and components_data: # Input had data, but all failed
-             logger.warning(f"No valid components to save in {filename} for {component_type}. File not written.")
-             return []
+        if not data_to_save_list and components_data:  # Input had data, but all failed
+            logger.warning(
+                f"No valid components to save in {filename} for {component_type}. File not written."
+            )
+            return []
 
-        self._save_component_to_file(file_path, data_to_save_list, filename, component_type)
+        self._save_component_to_file(
+            file_path, data_to_save_list, filename, component_type
+        )
 
         # Update in-memory store
         for model in validated_models:
             component_id = getattr(model, id_field, None)
             if component_id and isinstance(component_id, str):
                 if component_id not in target_dict:
-                     self.component_counts[component_type] = self.component_counts.get(component_type, 0) + 1
+                    self.component_counts[component_type] = (
+                        self.component_counts.get(component_type, 0) + 1
+                    )
                 target_dict[component_id] = model
         return validated_models

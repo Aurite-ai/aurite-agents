@@ -1,10 +1,10 @@
 import typer
 from pathlib import Path
-import json
 import shutil
 import importlib.resources
 
 app = typer.Typer()
+
 
 @app.callback(invoke_without_command=True)
 def main_callback():
@@ -14,14 +14,20 @@ def main_callback():
     """
     pass
 
-logger = typer.echo # Use typer.echo for CLI output
 
-def copy_packaged_example(packaged_path_str: str, user_project_path: Path, filename: str):
+logger = typer.echo  # Use typer.echo for CLI output
+
+
+def copy_packaged_example(
+    packaged_path_str: str, user_project_path: Path, filename: str
+):
     """Helper to copy a packaged example file to the user's project."""
     try:
         # Access the packaged file using importlib.resources
         # Assuming 'aurite.packaged' is the base for packaged resources
-        source_file_path = importlib.resources.files("aurite.packaged").joinpath(packaged_path_str)
+        source_file_path = importlib.resources.files("aurite.packaged").joinpath(
+            packaged_path_str
+        )
 
         if source_file_path.is_file():
             destination_path = user_project_path / filename
@@ -34,11 +40,12 @@ def copy_packaged_example(packaged_path_str: str, user_project_path: Path, filen
         logger(f"  Warning: Could not copy example {filename}: {e}")
 
 
-@app.command("init") # Explicitly name the command
+@app.command("init")  # Explicitly name the command
 def init(
     project_directory_name: str = typer.Argument(
-        "aurite", help="The name of the new project directory to create. Defaults to 'aurite'."
-    )
+        "aurite",
+        help="The name of the new project directory to create. Defaults to 'aurite'.",
+    ),
 ):
     """
     Initializes a new Aurite project with a default structure and configuration.
@@ -47,7 +54,9 @@ def init(
     project_path = Path(project_directory_name)
 
     if project_path.exists():
-        logger(f"Error: Directory '{project_path.name}' already exists. Please choose a different name or remove the existing directory.")
+        logger(
+            f"Error: Directory '{project_path.name}' already exists. Please choose a different name or remove the existing directory."
+        )
         raise typer.Exit(code=1)
 
     try:
@@ -57,64 +66,12 @@ def init(
         project_path.mkdir(parents=True)
         logger(f"Created project directory: {project_path}")
 
-        # 2. Create a default project configuration file (e.g., aurite_config.json)
         default_project_config_name = "aurite_config.json"
-        project_config_content = {
-            "name": project_path.name, # Use the actual project directory name
-            "description": f"A new Aurite project: {project_path.name}", # Use actual name
-            "llms": [
-                {
-                    "llm_id": "anthropic_claude_3_opus",
-                    "provider": "anthropic",
-                    "model_name": "claude-3-opus-20240229",
-                    "temperature": 0.7,
-                    "max_tokens": 4096,
-                    "default_system_prompt": "You are Claude, a large language model trained by Anthropic. Your job is to assist the user in the task provided.",
-                }
-            ],
-            "clients": [
-                "weather_server",
-                {
-                    "client_id": "planning_server",
-                    "server_path": "mcp_servers/planning_server.py",
-                    "capabilities": ["tools", "prompts", "resources"],
-                    "timeout": 15.0,
-                },
-            ],
-            "agents": [
-                {
-                    "name": "Weather Agent",
-                    "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
-                    "client_ids": ["weather_server"],
-                    "llm_config_id": "anthropic_claude_3_opus",
-                },
-                {
-                    "name": "Weather Planning Workflow Step 2",
-                    "client_ids": ["planning_server"],
-                    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
-                },
-            ],
-            "simple_workflows": [
-                {
-                    "name": "Weather Planning Workflow",
-                    "description": "A simple workflow to plan based on weather data.",
-                    "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
-                }
-            ],
-            "custom_workflows": [
-                {
-                    "name": "ExampleProcessingWorkflow",
-                    "module_path": "custom_workflows/example_workflow.py",
-                    "class_name": "ExampleCustomWorkflow",
-                    "description": "Test workflow using Weather Agent and Weather MCP server.",
-                }
-            ],
-        }
-
-        project_config_file_path = project_path / default_project_config_name
-        with open(project_config_file_path, "w") as f:
-            json.dump(project_config_content, f, indent=4)
-        logger(f"Created main project configuration: {default_project_config_name}")
+        copy_packaged_example(
+            "component_configs/projects/default_project.json",
+            project_path,
+            default_project_config_name,
+        )
 
         # 3. Create recommended subdirectories
         subdirectories_to_create = [
@@ -125,78 +82,99 @@ def init(
             project_path / "config" / "custom_workflows",
             project_path / "config" / "testing",
             project_path / "mcp_servers",
-            project_path / "custom_workflows", # Corrected from custom_workflows to custom_workflows
+            project_path
+            / "custom_workflows",  # Corrected from custom_workflows to custom_workflows
         ]
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
-        logger("Created standard subdirectories: config/*, mcp_servers/, custom_workflows/")
+        logger(
+            "Created standard subdirectories: config/*, mcp_servers/, custom_workflows/"
+        )
 
         # 4. Optionally, copy basic example files
         logger("Copying example configuration files...")
         copy_packaged_example(
             "component_configs/llms/default_llms.json",
             project_path / "config" / "llms",
-            "llms.json"
+            "llms.json",
         )
         copy_packaged_example(
             "component_configs/clients/default_clients.json",
             project_path / "config" / "clients",
-            "clients.json" # Renaming for user project
+            "clients.json",  # Renaming for user project
         )
         copy_packaged_example(
             "component_configs/agents/default_agents.json",
             project_path / "config" / "agents",
-            "agents.json" # Renaming for user project
+            "agents.json",  # Renaming for user project
         )
 
         copy_packaged_example(
             "component_configs/workflows/example_simple_workflow.json",
             project_path / "config" / "workflows",
-            "workflows.json" # Renaming for user project
+            "simple_workflows.json",  # Renaming for user project
+        )
+
+        copy_packaged_example(
+            "component_configs/custom_workflows/example_custom_workflow.json",
+            project_path / "config" / "custom_workflows",
+            "custom_workflows.json",
         )
         # Create an empty __init__.py in custom_workflows to make it a package
-        (project_path / "custom_workflows" / "__init__.py").touch() # Corrected path
+        (project_path / "custom_workflows" / "__init__.py").touch()  # Corrected path
 
         copy_packaged_example(
             "testing/planning_agent_multiple.json",
             project_path / "config" / "testing",
-            "planning_agent_test.json" # Renaming for user project
+            "planning_agent_test.json",  # Renaming for user project
         )
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
-            "component_configs/custom_workflows/example_workflow.py", # Corrected source path
-            project_path / "custom_workflows", # Corrected destination path
-            "example_workflow.py"
+            "example_custom_workflows/example_workflow.py",  # Corrected source path
+            project_path / "custom_workflows",  # Corrected destination path
+            "example_workflow.py",
         )
         copy_packaged_example(
             "example_mcp_servers/weather_mcp_server.py",
             project_path / "mcp_servers",
-            "weather_mcp_server.py"
+            "weather_mcp_server.py",
         )
 
         copy_packaged_example(
             "example_mcp_servers/planning_server.py",
             project_path / "mcp_servers",
-            "planning_server.py"
+            "planning_server.py",
         )
 
         copy_packaged_example(
-            "run_test_project.py",
-            project_path,
-            "run_example_project.py"
+            "run_test_project.py", project_path, "run_example_project.py"
         )
 
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger("\nNext steps:")
         logger(f"1. Navigate into your project: cd {project_path.name}")
-        logger(f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path).")
-        logger(f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}")
+        logger(
+            f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path)."
+        )
+        logger(
+            f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}"
+        )
         logger("3. Start defining your components in the 'config/' subdirectories.")
-        logger("4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.") # Corrected path
-        logger("5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
-        logger(f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/).")
-        logger(f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing")
-        logger(f"   custom workflows/MCP servers outside './{project_path.name}/', use '../' in your config paths to navigate correctly.")
+        logger(
+            "4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
+        )  # Corrected path
+        logger(
+            "5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
+        )
+        logger(
+            f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/)."
+        )
+        logger(
+            f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing"
+        )
+        logger(
+            f"   custom workflows/MCP servers outside './{project_path.name}/', use '../' in your config paths to navigate correctly."
+        )
 
     except Exception as e:
         logger(f"Error during project initialization: {e}")
@@ -204,10 +182,13 @@ def init(
         if project_path.exists():
             try:
                 shutil.rmtree(project_path)
-                logger(f"Cleaned up partially created project directory: {project_path}")
+                logger(
+                    f"Cleaned up partially created project directory: {project_path}"
+                )
             except Exception as cleanup_e:
                 logger(f"Error during cleanup: {cleanup_e}")
         raise typer.Exit(code=1)
+
 
 if __name__ == "__main__":
     app()

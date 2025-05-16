@@ -5,7 +5,7 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 import logging
 import os  # Added for environment variable check
 from pathlib import Path
-import json # Added for loading prompt_validation_config.json
+import json  # Added for loading prompt_validation_config.json
 from typing import (
     Optional,
     AsyncGenerator,
@@ -26,7 +26,7 @@ from .config.config_models import (  # Updated import path
 # Imports needed for execution methods
 # from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
 
-import importlib.resources # For loading packaged project templates
+import importlib.resources  # For loading packaged project templates
 
 # Import the new facade
 from .execution.facade import ExecutionFacade
@@ -47,6 +47,7 @@ from .config.project_manager import ProjectManager
 
 class DuplicateClientIdError(ValueError):
     """Custom exception for duplicate client ID registration attempts."""
+
     pass
 
 
@@ -75,18 +76,26 @@ class Aurite:
         if config_path:  # Priority 1: Direct argument
             final_config_path = Path(config_path)
             determined_path_source = "direct argument"
-            logger.debug(f"Using configuration path from direct argument: {final_config_path}")
+            logger.debug(
+                f"Using configuration path from direct argument: {final_config_path}"
+            )
         else:
             env_config_path_str = os.getenv("PROJECT_CONFIG_PATH")
             if env_config_path_str:  # Priority 2: Environment variable
                 final_config_path = Path(env_config_path_str)
                 determined_path_source = f"PROJECT_CONFIG_PATH environment variable ('{env_config_path_str}')"
-                logger.debug(f"Using configuration path from {determined_path_source}: {final_config_path}")
+                logger.debug(
+                    f"Using configuration path from {determined_path_source}: {final_config_path}"
+                )
             else:  # Priority 3: Default
                 default_filename = "aurite_config.json"
                 final_config_path = Path(default_filename)
-                determined_path_source = f"default ('{default_filename}' in current working directory)"
-                logger.debug(f"Using default configuration path: {final_config_path} (from {determined_path_source})")
+                determined_path_source = (
+                    f"default ('{default_filename}' in current working directory)"
+                )
+                logger.debug(
+                    f"Using default configuration path: {final_config_path} (from {determined_path_source})"
+                )
 
         if not final_config_path:
             # This case should ideally not be reached if logic is correct, but as a safeguard:
@@ -103,9 +112,7 @@ class Aurite:
             logger.debug(f"Resolved absolute configuration path: {final_config_path}")
 
         self.config_path: Path = final_config_path
-        self.host: Optional["MCPHost"] = (
-            None
-        )
+        self.host: Optional["MCPHost"] = None
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
         self._db_engine = None  # Store engine if created
@@ -116,11 +123,17 @@ class Aurite:
         )  # Pass component manager
 
         # Check if dynamic registration is allowed
-        self._dynamic_registration_enabled = os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
+        self._dynamic_registration_enabled = (
+            os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
+        )
         if self._dynamic_registration_enabled:
-            logger.info("Dynamic registration is ENABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION.")
+            logger.info(
+                "Dynamic registration is ENABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION."
+            )
         else:
-            logger.info("Dynamic registration is DISABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION. Registration methods will raise an error if called.")
+            logger.info(
+                "Dynamic registration is DISABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION. Registration methods will raise an error if called."
+            )
 
         # Instantiate StorageManager if DB is enabled
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
@@ -240,9 +253,15 @@ class Aurite:
 
             # 5. Load additional packaged project templates like prompt_validation_config
             try:
-                packaged_project_template_path_obj = importlib.resources.files("aurite.packaged").joinpath("component_configs", "projects", "prompt_validation_config.json")
+                packaged_project_template_path_obj = importlib.resources.files(
+                    "aurite.packaged"
+                ).joinpath(
+                    "component_configs", "projects", "prompt_validation_config.json"
+                )
                 if packaged_project_template_path_obj.is_file():
-                    logger.info(f"Loading components from packaged project template: {packaged_project_template_path_obj}")
+                    logger.info(
+                        f"Loading components from packaged project template: {packaged_project_template_path_obj}"
+                    )
                     # We need to parse this file and add its components to the *active* project.
                     # The existing load_components_from_project is designed for full project loads/switches.
                     # A more granular approach might be needed here if we only want to additively load.
@@ -256,7 +275,7 @@ class Aurite:
                     parsed_template_project = self.project_manager._parse_and_resolve_project_data(
                         json.loads(packaged_project_template_path_obj.read_text()),
                         str(packaged_project_template_path_obj),
-                        packaged_root # base_path for resolving paths *within* this template
+                        packaged_root,  # base_path for resolving paths *within* this template
                     )
 
                     # Add components from this template to the active project
@@ -264,29 +283,45 @@ class Aurite:
                     # For simplicity in this step, we'll log and defer full merge logic if complex.
                     # A simple way is to iterate and register if not present.
                     if parsed_template_project:
-                        for agent_name, agent_cfg in parsed_template_project.agents.items():
-                            if not self.project_manager.get_active_project_config().agents.get(agent_name): # type: ignore
+                        for (
+                            agent_name,
+                            agent_cfg,
+                        ) in parsed_template_project.agents.items():
+                            if not self.project_manager.get_active_project_config().agents.get(
+                                agent_name
+                            ):  # type: ignore
                                 await self.register_agent(agent_cfg)
-                        for client_id, client_cfg in parsed_template_project.clients.items():
-                             if not self.project_manager.get_active_project_config().clients.get(client_id): # type: ignore
+                        for (
+                            client_id,
+                            client_cfg,
+                        ) in parsed_template_project.clients.items():
+                            if not self.project_manager.get_active_project_config().clients.get(
+                                client_id
+                            ):  # type: ignore
                                 try:
                                     await self.register_client(client_cfg)
-                                except DuplicateClientIdError: # It might have been loaded as a default already
-                                    logger.debug(f"Client {client_id} from template already exists, skipping registration.")
+                                except (
+                                    DuplicateClientIdError
+                                ):  # It might have been loaded as a default already
+                                    logger.debug(
+                                        f"Client {client_id} from template already exists, skipping registration."
+                                    )
                         # Add for other component types (llms, workflows) as needed.
-                        logger.info(f"Components from {packaged_project_template_path_obj.name} considered for active project.")
+                        logger.info(
+                            f"Components from {packaged_project_template_path_obj.name} considered for active project."
+                        )
 
                 else:
                     logger.warning(
                         f"Packaged prompt validation config not found at expected location: {packaged_project_template_path_obj}"
                     )
             except Exception as e:
-                logger.error(f"Error loading packaged prompt_validation_config.json: {e}", exc_info=True)
+                logger.error(
+                    f"Error loading packaged prompt_validation_config.json: {e}",
+                    exc_info=True,
+                )
 
-
-            logger.info(
-                "Aurite initialization complete."
-            )  # Keep this high-level INFO
+            logger.info("Aurite initialization complete.")  # Keep this high-level INFO
 
         except FileNotFoundError as e:
             logger.error(f"Configuration file not found: {self.config_path} - {e}")
@@ -527,8 +562,9 @@ class Aurite:
 
         # Check if client_id already exists in the active project's client configurations
         # OR if it's currently active on the host.
-        if client_config.client_id in active_project.clients or \
-           (self.host and self.host.is_client_registered(client_config.client_id)):
+        if client_config.client_id in active_project.clients or (
+            self.host and self.host.is_client_registered(client_config.client_id)
+        ):
             logger.error(
                 f"Attempt to register duplicate client ID '{client_config.client_id}'. This is not allowed as it's already configured in the project or active on the host."
             )
@@ -581,16 +617,16 @@ class Aurite:
         active_project = self.project_manager.get_active_project_config()
         if not active_project:
             logger.error("Cannot register/update agent: No active project loaded.")
-            raise RuntimeError("No active project loaded to register/update agent against.")
+            raise RuntimeError(
+                "No active project loaded to register/update agent against."
+            )
 
         # Ensure agent has a name before registering
         if not agent_config.name:
             logger.error("Attempted to register/update an agent config with no name.")
             raise ValueError("Agent configuration must have a 'name'.")
 
-        if (
-            agent_config.name in active_project.agents
-        ):
+        if agent_config.name in active_project.agents:
             logger.info(
                 f"Agent name '{agent_config.name}' already exists in active project. It will be updated."
             )
@@ -666,9 +702,11 @@ class Aurite:
             f"Agent '{agent_config.name}' registered successfully in active project."
         )
         # Also update ComponentManager's in-memory store
-        if self.component_manager and hasattr(self.component_manager, 'agents'):
+        if self.component_manager and hasattr(self.component_manager, "agents"):
             self.component_manager.agents[agent_config.name] = agent_config
-            logger.info(f"Agent '{agent_config.name}' also updated in ComponentManager's in-memory store.")
+            logger.info(
+                f"Agent '{agent_config.name}' also updated in ComponentManager's in-memory store."
+            )
 
         # Sync to DB if enabled
         if self.storage_manager:
@@ -694,7 +732,9 @@ class Aurite:
             PermissionError: If dynamic registration is disabled.
         """
         if not self._dynamic_registration_enabled:
-            logger.error("Dynamic registration is disabled. Cannot register LLM config.")
+            logger.error(
+                "Dynamic registration is disabled. Cannot register LLM config."
+            )
             raise PermissionError("Dynamic registration is disabled by configuration.")
 
         logger.debug(
@@ -781,25 +821,26 @@ class Aurite:
 
         # Cascading Agent registration/update for steps
         if workflow_config.steps:
-            for agent_name_step in workflow_config.steps: # Renamed to avoid conflict
+            for agent_name_step in workflow_config.steps:  # Renamed to avoid conflict
                 logger.info(
                     f"Workflow '{workflow_config.name}' step: Agent '{agent_name_step}'. Attempting to register/update it."
                 )
                 try:
-                    retrieved_agent_config_step = self.component_manager.get_component_config(
-                        "agents",
-                        agent_name_step,
+                    retrieved_agent_config_step = (
+                        self.component_manager.get_component_config(
+                            "agents",
+                            agent_name_step,
+                        )
                     )
                     if retrieved_agent_config_step:
                         from .config.config_models import (
                             AgentConfig as AgentConfigModel,
                         )
+
                         if isinstance(retrieved_agent_config_step, AgentConfigModel):
                             # register_agent now handles upsert, so we can call it directly.
                             # It will create if new, or update if existing.
-                            await self.register_agent(
-                                retrieved_agent_config_step
-                            )
+                            await self.register_agent(retrieved_agent_config_step)
                         else:
                             logger.error(
                                 f"Retrieved component for Agent step '{agent_name_step}' in workflow '{workflow_config.name}' is not an AgentConfig. Type: {type(retrieved_agent_config_step)}. Skipping this step's agent registration."
@@ -859,16 +900,16 @@ class Aurite:
             PermissionError: If dynamic registration is disabled.
         """
         if not self._dynamic_registration_enabled:
-            logger.error("Dynamic registration is disabled. Cannot register custom workflow.")
+            logger.error(
+                "Dynamic registration is disabled. Cannot register custom workflow."
+            )
             raise PermissionError("Dynamic registration is disabled by configuration.")
 
         logger.debug(  # INFO -> DEBUG
             f"Attempting to dynamically register workflow: {custom_workflow_config.name}"
         )
         if not self.host:
-            logger.error(
-                "Aurite is not initialized. Cannot register custom workflow."
-            )
+            logger.error("Aurite is not initialized. Cannot register custom workflow.")
             raise ValueError("Aurite is not initialized.")
 
         active_project = self.project_manager.get_active_project_config()
@@ -893,14 +934,22 @@ class Aurite:
         module_path = custom_workflow_config.module_path
         # Validate module_path against the current_project_root
         if not self.project_manager.current_project_root:
-            logger.error("Cannot validate custom_workflow module_path: current_project_root is not set in ProjectManager.")
-            raise RuntimeError("Project root not available for custom workflow path validation.")
+            logger.error(
+                "Cannot validate custom_workflow module_path: current_project_root is not set in ProjectManager."
+            )
+            raise RuntimeError(
+                "Project root not available for custom workflow path validation."
+            )
 
-        if not str(module_path.resolve()).startswith(str(self.project_manager.current_project_root.resolve())):
+        if not str(module_path.resolve()).startswith(
+            str(self.project_manager.current_project_root.resolve())
+        ):
             logger.error(
                 f"Custom workflow path '{module_path}' is outside the current project directory {self.project_manager.current_project_root}. Aborting."
             )
-            raise ValueError("Custom workflow path is outside the current project directory.")
+            raise ValueError(
+                "Custom workflow path is outside the current project directory."
+            )
 
         if not module_path.exists():
             logger.error(f"Custom workflow module file not found: {module_path}")
@@ -1013,18 +1062,25 @@ class Aurite:
         # If project_config_path is relative, it will be resolved from CWD by Path.resolve()
         # This behavior might need to be more explicit based on how this method is called externally.
         # For now, assume project_config_path is either absolute or resolvable from CWD.
-        if not project_config_path.is_absolute() and self.project_manager.current_project_root:
-             # If a project is active, try resolving relative to its root.
-             # This is a heuristic and might need refinement.
-             potential_path = (self.project_manager.current_project_root / project_config_path).resolve()
-             if potential_path.is_file():
-                 project_config_path = potential_path
-             else: # Fallback to CWD resolution
-                 project_config_path = project_config_path.resolve()
+        if (
+            not project_config_path.is_absolute()
+            and self.project_manager.current_project_root
+        ):
+            # If a project is active, try resolving relative to its root.
+            # This is a heuristic and might need refinement.
+            potential_path = (
+                self.project_manager.current_project_root / project_config_path
+            ).resolve()
+            if potential_path.is_file():
+                project_config_path = potential_path
+            else:  # Fallback to CWD resolution
+                project_config_path = project_config_path.resolve()
         else:
             project_config_path = project_config_path.resolve()
 
-        logger.debug(f"Attempting to load from resolved project_config_path: {project_config_path}")
+        logger.debug(
+            f"Attempting to load from resolved project_config_path: {project_config_path}"
+        )
 
         if not project_config_path.is_file():
             logger.error(f"Project config file not found at: {project_config_path}")
@@ -1046,9 +1102,7 @@ class Aurite:
                 # We need to set the config_path for initialize to use the correct one.
                 self.config_path = project_config_path
                 await self.initialize()
-                logger.info(
-                    f"Aurite initialized with project: {parsed_config.name}"
-                )
+                logger.info(f"Aurite initialized with project: {parsed_config.name}")
                 return  # Initialization handles everything
 
             # Project is already active, add components additively

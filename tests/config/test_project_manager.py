@@ -13,7 +13,7 @@ from aurite.config.config_models import (
     WorkflowConfig,
     CustomWorkflowConfig,
     HostConfig,  # Added for new tests
-    )
+)
 from aurite.config import PROJECT_ROOT_DIR
 
 # Fixtures from tests.fixtures.config_fixtures

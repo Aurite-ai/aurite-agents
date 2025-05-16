@@ -11,7 +11,7 @@ from typing import (
     Optional,
 )  # Kept Any, Dict, List, Optional as they are used elsewhere
 
-import anyio # Import anyio
+import anyio  # Import anyio
 import mcp.types as types
 
 # Foundation layer
@@ -22,7 +22,7 @@ from .foundation import (
     ClientManager,
 )  # Added ClientManager
 from .filtering import FilteringManager
-from ..config.config_models import ( # Changed to relative import
+from ..config.config_models import (  # Changed to relative import
     AgentConfig,
     ClientConfig,
     HostConfig,
@@ -108,12 +108,19 @@ class MCPHost:
         await self._tool_manager.initialize()
 
         # Create and enter the main task group for client runners
-        if self._client_runners_task_group is None: # Should always be None here unless initialize is called multiple times
-            self._client_runners_task_group = await self._main_exit_stack.enter_async_context(anyio.create_task_group())
+        if (
+            self._client_runners_task_group is None
+        ):  # Should always be None here unless initialize is called multiple times
+            self._client_runners_task_group = (
+                await self._main_exit_stack.enter_async_context(
+                    anyio.create_task_group()
+                )
+            )
             logger.debug("Main client runners task group created and entered.")
         else:
-            logger.warning("Initialize called but _client_runners_task_group already exists.")
-
+            logger.warning(
+                "Initialize called but _client_runners_task_group already exists."
+            )
 
         # Initialize each configured client
         successful_initializations = 0
@@ -127,11 +134,13 @@ class MCPHost:
                 logger.error(
                     f"Failed to initialize client '{client_config.client_id}'. "
                     f"This client will be unavailable. Error: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
                 # Continue to the next client
 
-        num_active_clients = len(self.client_manager.active_clients) # Should reflect successfully started ones
+        num_active_clients = len(
+            self.client_manager.active_clients
+        )  # Should reflect successfully started ones
         num_agent_configs = (
             len(self._config.agents)
             if hasattr(self._config, "agents") and self._config.agents
@@ -159,22 +168,28 @@ class MCPHost:
         try:
             if self._client_runners_task_group is None:
                 # This should not happen if initialize was called correctly
-                logger.error("_initialize_client called before _client_runners_task_group was created.")
+                logger.error(
+                    "_initialize_client called before _client_runners_task_group was created."
+                )
                 raise RuntimeError("Client runners task group not initialized.")
 
             client_id = config.client_id
             client_scope = anyio.CancelScope()
             self._client_cancel_scopes[client_id] = client_scope
 
-            logger.debug(f"Starting client lifecycle task for {client_id} in task group.")
+            logger.debug(
+                f"Starting client lifecycle task for {client_id} in task group."
+            )
             session = await self._client_runners_task_group.start(
                 self.client_manager.manage_client_lifecycle,
                 config,
                 self._security_manager,
-                client_scope
+                client_scope,
                 # task_status is implicitly handled by tg.start()
             )
-            logger.debug(f"Client session for {client_id} obtained from lifecycle task.")
+            logger.debug(
+                f"Client session for {client_id} obtained from lifecycle task."
+            )
 
             # --- Communication and Registration (using the session returned by the lifecycle task) ---
             # Initialize with capabilities using proper types
@@ -781,13 +796,14 @@ class MCPHost:
 
         # Clear any remaining state related to client scopes, just in case
         self._client_cancel_scopes.clear()
-        self._client_runners_task_group = None # Ensure it's reset
+        self._client_runners_task_group = None  # Ensure it's reset
 
         # self._agent_configs.clear() # Removed, as _agent_configs is removed
         # Removed clearing of self._workflow_configs
         # Removed clearing of self._custom_workflow_configs
 
         logger.debug("MCP Host shutdown complete")
+
     # --- New Client Lifecycle Methods ---
 
     async def client_shutdown(self, client_id: str):
@@ -817,7 +833,9 @@ class MCPHost:
             client_scope.cancel()
             logger.debug(f"Cancelled client task scope for {client_id}.")
         else:
-            logger.warning(f"No cancel scope found for client {client_id} during shutdown.")
+            logger.warning(
+                f"No cancel scope found for client {client_id} during shutdown."
+            )
 
         # Remove the client from the ClientManager's active list
         if client_id in self.client_manager.active_clients:
@@ -825,7 +843,9 @@ class MCPHost:
             logger.debug(f"Removed client {client_id} from ClientManager active list.")
         else:
             # This might happen if shutdown is called multiple times or after an error
-            logger.warning(f"Client {client_id} not found in ClientManager active list during shutdown.")
+            logger.warning(
+                f"Client {client_id} not found in ClientManager active list during shutdown."
+            )
 
         # TODO: Add logic here to unregister tools/prompts/resources from managers # This TODO is now addressed above
         # Example (needs implementation in managers):
@@ -848,10 +868,14 @@ class MCPHost:
         # Get a list of client IDs for which we have cancel scopes
         # Iterate over a copy of keys if modifying the dict during iteration (pop)
         client_ids_to_shutdown = list(self._client_cancel_scopes.keys())
-        logger.debug(f"Shutting down and unregistering components for clients: {client_ids_to_shutdown}")
+        logger.debug(
+            f"Shutting down and unregistering components for clients: {client_ids_to_shutdown}"
+        )
 
         for client_id in client_ids_to_shutdown:
-            logger.debug(f"Unregistering components for client '{client_id}' during shutdown_all_clients...")
+            logger.debug(
+                f"Unregistering components for client '{client_id}' during shutdown_all_clients..."
+            )
             await self._tool_manager.unregister_client_tools(client_id)
             await self._prompt_manager.unregister_client_prompts(client_id)
             await self._resource_manager.unregister_client_resources(client_id)
@@ -862,10 +886,14 @@ class MCPHost:
             client_scope = self._client_cancel_scopes.pop(client_id, None)
             if client_scope:
                 client_scope.cancel()
-                logger.debug(f"Cancelled client task scope for {client_id} during shutdown_all_clients.")
+                logger.debug(
+                    f"Cancelled client task scope for {client_id} during shutdown_all_clients."
+                )
             else:
                 # This case should ideally not happen if _client_cancel_scopes is managed correctly
-                logger.warning(f"No cancel scope found for client {client_id} during shutdown_all_clients.")
+                logger.warning(
+                    f"No cancel scope found for client {client_id} during shutdown_all_clients."
+                )
 
         # ClientManager no longer has shutdown_all_clients.
         # The cancellation of individual scopes above, followed by the cancellation

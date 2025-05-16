@@ -1,11 +1,11 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
 import json
-from pathlib import Path # Added Path import
+from pathlib import Path  # Added Path import
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from .prompt_validation_helper import ( # Changed to relative import
+from .prompt_validation_helper import (  # Changed to relative import
     run_iterations,
     evaluate_results,
     improve_prompt,
@@ -13,11 +13,13 @@ from .prompt_validation_helper import ( # Changed to relative import
     ValidationConfig,
     generate_config,
 )
+
 # from aurite.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
 from typing import TYPE_CHECKING, Optional, Any
+
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade # This is now correct
+    from aurite.execution.facade import ExecutionFacade  # This is now correct
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +134,9 @@ class PromptValidationWorkflow:
             else:
                 # If no config_path, write to CWD with a default name
                 output_path = Path("prompt_validation_output.json").resolve()
-                logger.info(f"No config_path provided, will write output to: {output_path}")
+                logger.info(
+                    f"No config_path provided, will write output to: {output_path}"
+                )
 
             logger.info(f"Writing to file: {output}")
 

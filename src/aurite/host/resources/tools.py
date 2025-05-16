@@ -526,8 +526,8 @@ class ToolManager:
             return
 
         # Get the set of tools registered specifically for this client from the router
-        tools_registered_by_client = (
-            await self._message_router.get_tools_for_client(client_id)
+        tools_registered_by_client = await self._message_router.get_tools_for_client(
+            client_id
         )
         removed_tool_definitions = []
 
