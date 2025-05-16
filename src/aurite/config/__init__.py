@@ -9,7 +9,6 @@ and the project's root directory.
 """
 
 import logging
-from pathlib import Path
 from typing import Optional, List
 from pydantic import Field, FilePath
 from pydantic_settings import BaseSettings, SettingsConfigDict
