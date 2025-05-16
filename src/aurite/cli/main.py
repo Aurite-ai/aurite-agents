@@ -37,16 +37,17 @@ def copy_packaged_example(packaged_path_str: str, user_project_path: Path, filen
 @app.command("init") # Explicitly name the command
 def init(
     project_directory_name: str = typer.Argument(
-        ..., help="The name of the new project directory to create."
+        "aurite", help="The name of the new project directory to create. Defaults to 'aurite'."
     )
 ):
     """
-    Initializes a new Aurite Agents project with a default structure and configuration.
+    Initializes a new Aurite project with a default structure and configuration.
+    If no directory name is provided, it defaults to 'aurite'.
     """
     project_path = Path(project_directory_name)
 
     if project_path.exists():
-        logger(f"Error: Directory '{project_path}' already exists. Please choose a different name or remove the existing directory.")
+        logger(f"Error: Directory '{project_path.name}' already exists. Please choose a different name or remove the existing directory.")
         raise typer.Exit(code=1)
 
     try:
@@ -59,8 +60,8 @@ def init(
         # 2. Create a default project configuration file (e.g., aurite_config.json)
         default_project_config_name = "aurite_config.json"
         project_config_content = {
-            "name": "my_project",
-            "description": "This is just an example to show you how to set up a project. Replace these values with your own. You may define configurations directly in here, or reference them from the component folders.",
+            "name": project_path.name, # Use the actual project directory name
+            "description": f"A new Aurite project: {project_path.name}", # Use actual name
             "llms": [
                 {
                     "llm_id": "anthropic_claude_3_opus",
@@ -123,7 +124,7 @@ def init(
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
             project_path / "mcp_servers",
-            project_path / "custom_workflows",
+            project_path / "custom_workflows", # Corrected from custom_workflows to custom_workflows
         ]
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
@@ -134,25 +135,25 @@ def init(
         copy_packaged_example(
             "component_configs/llms/default_llms.json",
             project_path / "config" / "llms",
-            "default_llms.json"
+            "llms.json"
         )
         copy_packaged_example(
             "component_configs/clients/default_clients.json",
             project_path / "config" / "clients",
-            "example_clients.json" # Renaming for user project
+            "clients.json" # Renaming for user project
         )
         copy_packaged_example(
             "component_configs/agents/default_agents.json",
             project_path / "config" / "agents",
-            "example_agent.json" # Renaming for user project
+            "agents.json" # Renaming for user project
         )
         # Create an empty __init__.py in custom_workflows to make it a package
-        (project_path / "custom_workflows" / "__init__.py").touch()
+        (project_path / "custom_workflows" / "__init__.py").touch() # Corrected path
 
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
-            "example_custom_workflows/example_workflow.py",
-            project_path / "custom_workflows",
+            "example_custom_workflows/example_workflow.py", # Corrected source path
+            project_path / "custom_workflows", # Corrected destination path
             "example_workflow.py"
         )
         copy_packaged_example(
@@ -161,13 +162,25 @@ def init(
             "weather_mcp_server.py"
         )
 
+        copy_packaged_example(
+            "example_mcp_servers/planning_server.py",
+            project_path / "mcp_servers",
+            "planning_server.py"
+        )
+
+        copy_packaged_example(
+            "run_test_project.py",
+            project_path,
+            "run_example_project.py"
+        )
+
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger(f"\nNext steps:")
         logger(f"1. Navigate into your project: cd {project_path.name}")
         logger(f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path).")
         logger(f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}")
         logger(f"3. Start defining your components in the 'config/' subdirectories.")
-        logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.")
+        logger(f"4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'.") # Corrected path
         logger(f"5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to")
         logger(f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/).")
         logger(f"   If integrating into an existing project where '{default_project_config_name}' is nested, or if placing")

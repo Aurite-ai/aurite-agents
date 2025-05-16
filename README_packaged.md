@@ -13,7 +13,7 @@ pip install aurite
 
 **From a local wheel file (for current testing):**
 ```bash
-pip install /path/to/your/dist/aurite-0.2.0-py3-none-any.whl
+pip install /path/to/your/aurite-agents/dist/aurite-0.2.0-py3-none-any.whl
 ```
 *(Replace with the actual path and filename of your generated wheel.)*
 
@@ -24,9 +24,9 @@ pip install /path/to/your/dist/aurite-0.2.0-py3-none-any.whl
 After installing the `aurite` package, you can create a new project structure using the CLI:
 
 ```bash
-aurite init your_project_name
+aurite init (optional project name)
 ```
-Replace `your_project_name` with the desired name for your project directory. This command will scaffold a new directory with the following structure:
+This command will scaffold a new directory with the following structure:
 
 ```
 your_project_name/
@@ -77,9 +77,19 @@ Initially, it will look something like this:
 ```
 You will populate the arrays (e.g., `agents`, `custom_workflows`) with references to your component configuration files.
 
-### 3. Set Environment Variable
+### 4. Locating Your Project Configuration
 
-The Aurite framework needs to know where your main project configuration file is located. Set the `PROJECT_CONFIG_PATH` environment variable to point to your `aurite_config.json`:
+When you initialize the Aurite application (e.g., `app = Aurite()`), it determines the path to your main project configuration file (`aurite_config.json`) in the following order:
+
+1.  **Directly Passed Argument:** If you provide a `config_path` when creating an `Aurite` instance (e.g., `Aurite(config_path=Path("my_specific_config.json"))`), that path will be used.
+2.  **`PROJECT_CONFIG_PATH` Environment Variable:** If no `config_path` is passed to the constructor, Aurite checks for the `PROJECT_CONFIG_PATH` environment variable. If set, its value is used.
+    ```bash
+    export PROJECT_CONFIG_PATH=/path/to/your_project_name/aurite_config.json
+    ```
+    *(Adjust the path accordingly. You can use `$(pwd)/aurite_config.json` if you are inside `your_project_name` directory.)*
+3.  **Default:** If neither of the above is provided, Aurite defaults to looking for a file named `aurite_config.json` in the current working directory from where your script is run.
+
+For most cases after running `aurite init your_project_name` and navigating into `your_project_name/`, setting `PROJECT_CONFIG_PATH` or relying on the default (if your script is also in `your_project_name/`) is common.
 
 ```bash
 export PROJECT_CONFIG_PATH=/path/to/your_project_name/aurite_config.json
@@ -217,30 +227,37 @@ Create a Python script (e.g., `run_my_workflow.py` in `your_project_name`) to ex
 import asyncio
 import os
 from pathlib import Path
-from aurite import HostManager # Assuming aurite is installed
+from aurite import Aurite # Changed from HostManager
 
 async def main():
-    project_config_path_str = os.getenv("PROJECT_CONFIG_PATH")
-    if not project_config_path_str:
-        print("Error: PROJECT_CONFIG_PATH environment variable not set.")
+    # Aurite() will automatically use PROJECT_CONFIG_PATH or default to "aurite_config.json"
+    # if no argument is passed. For this example, we'll rely on that.
+    # If you need to specify a different path, you can do:
+    # aurite_app = Aurite(config_path=Path("/custom/path/to/config.json"))
+
+    # Ensure PROJECT_CONFIG_PATH is set if not passing config_path directly
+    # or if not relying on the default "aurite_config.json" in CWD.
+    if not os.getenv("PROJECT_CONFIG_PATH") and not Path("aurite_config.json").exists():
+        print("Error: PROJECT_CONFIG_PATH not set and aurite_config.json not found in current directory.")
+        print("Please set PROJECT_CONFIG_PATH or run this script from your project directory containing aurite_config.json.")
         return
 
-    project_config_path = Path(project_config_path_str)
-    if not project_config_path.is_file():
-        print(f"Error: Project config file not found at {project_config_path}")
-        return
-
-    host_manager = HostManager(config_path=project_config_path)
+    aurite_app = Aurite()
 
     try:
-        await host_manager.initialize()
+        await aurite_app.initialize()
 
         workflow_input = {"query": "What is the weather like in London today?"}
         session_id = "test_session_123" # Optional: for history tracking
 
         print(f"Running workflow 'MainProcessingWorkflow' with input: {workflow_input}")
 
-        result = await host_manager.execution.run_custom_workflow(
+        # Ensure the execution attribute is available after initialization
+        if not aurite_app.execution:
+            print("Error: Execution facade not initialized.")
+            return
+
+        result = await aurite_app.execution.run_custom_workflow(
             workflow_name="MainProcessingWorkflow",
             initial_input=workflow_input,
             session_id=session_id
@@ -252,21 +269,21 @@ async def main():
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        if host_manager.host: # Check if host was initialized
-            await host_manager.shutdown()
+        if aurite_app.host: # Check if host was initialized
+            await aurite_app.shutdown()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
 To run this:
-1.  Ensure `PROJECT_CONFIG_PATH` is set.
+1.  Ensure `PROJECT_CONFIG_PATH` is set (or you are in the directory with `aurite_config.json` if relying on the default).
 2.  Ensure any necessary API keys (e.g., `ANTHROPIC_API_KEY`) are set in your environment.
 3.  Execute: `python your_project_name/run_my_workflow.py`
 
 ## Running the API Server (Optional)
 
-If you want to interact with your Aurite project via a REST API, you can use the `start-api` command (if your `PROJECT_CONFIG_PATH` is set):
+If you want to interact with your Aurite project via a REST API, you can use the `aurite-api` command (this assumes `PROJECT_CONFIG_PATH` is set or `aurite_config.json` is in your CWD):
 
 ```bash
 start-api

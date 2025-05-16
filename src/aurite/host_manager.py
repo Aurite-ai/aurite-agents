@@ -56,30 +56,55 @@ class Aurite:
     agents, simple workflows, and custom workflows based on loaded configurations.
     """
 
-    def __init__(self, config_path: Path):
+    def __init__(self, config_path: Optional[Path] = None):
         """
-        Initializes the Aurite Aurite.
+        Initializes the Aurite application.
+
+        The configuration path is determined in the following order of precedence:
+        1. The `config_path` argument provided to this constructor.
+        2. The `PROJECT_CONFIG_PATH` environment variable.
+        3. A default of "aurite_config.json" in the current working directory.
 
         Args:
-            config_path: The path to the main JSON configuration file.
+            config_path (Optional[Path]): Explicit path to the main JSON project configuration file.
+                                         If None, the path will be determined by environment variable or default.
         """
-        if not isinstance(config_path, Path):
-            # Ensure config_path is a Path object for consistency
-            config_path = Path(config_path)
+        determined_path_source = ""
+        final_config_path: Optional[Path] = None
 
-        if not config_path.is_absolute():
-            logger.warning(
-                f"Configuration path provided is not absolute: {config_path}. "
-                "Resolving relative to current working directory. "
-                "Ensure this is the intended behavior."
+        if config_path:  # Priority 1: Direct argument
+            final_config_path = Path(config_path)
+            determined_path_source = "direct argument"
+            logger.debug(f"Using configuration path from direct argument: {final_config_path}")
+        else:
+            env_config_path_str = os.getenv("PROJECT_CONFIG_PATH")
+            if env_config_path_str:  # Priority 2: Environment variable
+                final_config_path = Path(env_config_path_str)
+                determined_path_source = f"PROJECT_CONFIG_PATH environment variable ('{env_config_path_str}')"
+                logger.debug(f"Using configuration path from {determined_path_source}: {final_config_path}")
+            else:  # Priority 3: Default
+                default_filename = "aurite_config.json"
+                final_config_path = Path(default_filename)
+                determined_path_source = f"default ('{default_filename}' in current working directory)"
+                logger.debug(f"Using default configuration path: {final_config_path} (from {determined_path_source})")
+
+        if not final_config_path:
+            # This case should ideally not be reached if logic is correct, but as a safeguard:
+            err_msg = "Configuration path could not be determined."
+            logger.error(err_msg)
+            raise ValueError(err_msg)
+
+        if not final_config_path.is_absolute():
+            logger.info(
+                f"Configuration path '{final_config_path}' (from {determined_path_source}) is not absolute. "
+                "Resolving relative to current working directory."
             )
-            # Resolve relative paths based on CWD, or consider requiring absolute paths
-            # For now, let's resolve it, but this might need adjustment based on usage context.
-            config_path = config_path.resolve()
+            final_config_path = final_config_path.resolve()
+            logger.debug(f"Resolved absolute configuration path: {final_config_path}")
 
-        self.config_path: Path = config_path
+        self.config_path: Path = final_config_path
         self.host: Optional["MCPHost"] = (
-            None  # Forward reference for type hint if MCPHost is imported later
+            None
         )
         self.storage_manager: Optional["StorageManager"] = None  # Initialize as None
         self.execution: Optional[ExecutionFacade] = None
