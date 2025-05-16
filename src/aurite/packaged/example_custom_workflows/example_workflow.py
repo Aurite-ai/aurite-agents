@@ -92,7 +92,6 @@ class ExampleCustomWorkflow:
             simple_workflow_result = await executor.run_simple_workflow(
                 workflow_name=simple_workflow_name,
                 initial_input=plan_input_data,  # Simple workflows often take string input
-                session_id=session_id,  # Optional session ID
             )
             results["simple_workflow_output"] = simple_workflow_result
             logger.info(f"Simple workflow '{simple_workflow_name}' completed.")
