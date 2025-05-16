@@ -5,6 +5,7 @@ Host Manager for orchestrating MCPHost, Agents, and Workflows.
 import logging
 import os  # Added for environment variable check
 from pathlib import Path
+import json # Added for loading prompt_validation_config.json
 from typing import (
     Optional,
     AsyncGenerator,
@@ -23,7 +24,9 @@ from .config.config_models import (  # Updated import path
 )
 
 # Imports needed for execution methods
-from .config import PROJECT_ROOT_DIR
+# from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
+
+import importlib.resources # For loading packaged project templates
 
 # Import the new facade
 from .execution.facade import ExecutionFacade
@@ -210,14 +213,51 @@ class HostManager:
                 storage_manager=self.storage_manager,
             )
 
-            # 5. Load additional config
-            prompt_validation_path = Path("config/projects/prompt_validation_config.json")
-            if not prompt_validation_path.is_file():
-                logger.warning(
-                    f"Prompt validation config not found. Expected at {prompt_validation_path}"
-                )
-            else:
-                await self.load_components_from_project(prompt_validation_path)
+            # 5. Load additional packaged project templates like prompt_validation_config
+            try:
+                packaged_project_template_path_obj = importlib.resources.files("aurite_agents.packaged").joinpath("component_configs", "projects", "prompt_validation_config.json")
+                if packaged_project_template_path_obj.is_file():
+                    logger.info(f"Loading components from packaged project template: {packaged_project_template_path_obj}")
+                    # We need to parse this file and add its components to the *active* project.
+                    # The existing load_components_from_project is designed for full project loads/switches.
+                    # A more granular approach might be needed here if we only want to additively load.
+                    # For now, let's use parse_project_file and then manually merge/register components.
+                    # This assumes prompt_validation_config.json contains components that should be available globally
+                    # or as part of any project that doesn't explicitly override them.
+
+                    # Ensure current_project_root is available for path resolution within this template,
+                    # using the packaged root as the base for the template itself.
+                    packaged_root = importlib.resources.files("aurite_agents.packaged")
+                    parsed_template_project = self.project_manager._parse_and_resolve_project_data(
+                        json.loads(packaged_project_template_path_obj.read_text()),
+                        str(packaged_project_template_path_obj),
+                        packaged_root # base_path for resolving paths *within* this template
+                    )
+
+                    # Add components from this template to the active project
+                    # This requires careful merging or selective registration.
+                    # For simplicity in this step, we'll log and defer full merge logic if complex.
+                    # A simple way is to iterate and register if not present.
+                    if parsed_template_project:
+                        for agent_name, agent_cfg in parsed_template_project.agents.items():
+                            if not self.project_manager.get_active_project_config().agents.get(agent_name): # type: ignore
+                                await self.register_agent(agent_cfg)
+                        for client_id, client_cfg in parsed_template_project.clients.items():
+                             if not self.project_manager.get_active_project_config().clients.get(client_id): # type: ignore
+                                try:
+                                    await self.register_client(client_cfg)
+                                except DuplicateClientIdError: # It might have been loaded as a default already
+                                    logger.debug(f"Client {client_id} from template already exists, skipping registration.")
+                        # Add for other component types (llms, workflows) as needed.
+                        logger.info(f"Components from {packaged_project_template_path_obj.name} considered for active project.")
+
+                else:
+                    logger.warning(
+                        f"Packaged prompt validation config not found at expected location: {packaged_project_template_path_obj}"
+                    )
+            except Exception as e:
+                logger.error(f"Error loading packaged prompt_validation_config.json: {e}", exc_info=True)
+
 
             logger.info(
                 "HostManager initialization complete."
@@ -826,11 +866,16 @@ class HostManager:
         # )
 
         module_path = custom_workflow_config.module_path
-        if not str(module_path.resolve()).startswith(str(PROJECT_ROOT_DIR.resolve())):
+        # Validate module_path against the current_project_root
+        if not self.project_manager.current_project_root:
+            logger.error("Cannot validate custom_workflow module_path: current_project_root is not set in ProjectManager.")
+            raise RuntimeError("Project root not available for custom workflow path validation.")
+
+        if not str(module_path.resolve()).startswith(str(self.project_manager.current_project_root.resolve())):
             logger.error(
-                f"Custom workflow path '{module_path}' is outside the project directory {PROJECT_ROOT_DIR}. Aborting."
+                f"Custom workflow path '{module_path}' is outside the current project directory {self.project_manager.current_project_root}. Aborting."
             )
-            raise ValueError("Custom workflow path is outside the project directory.")
+            raise ValueError("Custom workflow path is outside the current project directory.")
 
         if not module_path.exists():
             logger.error(f"Custom workflow module file not found: {module_path}")
@@ -933,9 +978,28 @@ class HostManager:
         logger.info(
             f"Attempting to load components from project: {project_config_path}"
         )
-        if not project_config_path.is_absolute():
-            project_config_path = (PROJECT_ROOT_DIR / project_config_path).resolve()
-            logger.debug(f"Resolved relative path to: {project_config_path}")
+        # Path resolution for project_config_path should be handled by the caller (e.g., API endpoint)
+        # or be an absolute path. HostManager assumes it receives a valid, resolvable path.
+        # For internal calls like from initialize(), we construct it carefully.
+        # If it's relative, it's relative to CWD if not handled by caller.
+        # For the packaged prompt_validation_config, we used importlib.resources.
+
+        # The original logic using PROJECT_ROOT_DIR here is removed.
+        # If project_config_path is relative, it will be resolved from CWD by Path.resolve()
+        # This behavior might need to be more explicit based on how this method is called externally.
+        # For now, assume project_config_path is either absolute or resolvable from CWD.
+        if not project_config_path.is_absolute() and self.project_manager.current_project_root:
+             # If a project is active, try resolving relative to its root.
+             # This is a heuristic and might need refinement.
+             potential_path = (self.project_manager.current_project_root / project_config_path).resolve()
+             if potential_path.is_file():
+                 project_config_path = potential_path
+             else: # Fallback to CWD resolution
+                 project_config_path = project_config_path.resolve()
+        else:
+            project_config_path = project_config_path.resolve()
+
+        logger.debug(f"Attempting to load from resolved project_config_path: {project_config_path}")
 
         if not project_config_path.is_file():
             logger.error(f"Project config file not found at: {project_config_path}")

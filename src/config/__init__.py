@@ -17,7 +17,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
 # Define project root relative to this __init__.py file (src/config/__init__.py -> aurite-agents/)
-PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()  # Go up one more level
+# PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()  # Go up one more level
+# This static PROJECT_ROOT_DIR is being replaced by a dynamic `current_project_root`
+# established by ProjectManager based on the main project config file's location.
 
 
 class ServerConfig(BaseSettings):
@@ -64,6 +66,6 @@ class ServerConfig(BaseSettings):
 
 # Expose the key elements for direct import from src.config
 __all__ = [
-    "PROJECT_ROOT_DIR",
+    # "PROJECT_ROOT_DIR", # Removed as it's being replaced by dynamic project root
     "ServerConfig",
 ]
