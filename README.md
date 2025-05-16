@@ -56,7 +56,7 @@ If you prefer to manage your `.env` file manually or if the setup scripts encoun
 1.  **Create/Configure `.env` File:** Ensure you have a valid `.env` file in the project root. You can copy `.env.example` to `.env` and fill in the necessary values (especially `ANTHROPIC_API_KEY`, `API_KEY`, and `PROJECT_CONFIG_PATH`).
 2.  **Run Docker Compose:**
     ```bash
-    docker compose up -d --build
+    docker compose up --build
     ```
     (Use `docker-compose` if you have an older standalone version).
 
@@ -235,7 +235,6 @@ These are the primary building blocks you'll work with:
             agent_result = await executor.run_agent(
                 agent_name="MyProcessingAgent",
                 user_message=str(initial_input), # Ensure message is a string
-                session_id=session_id # Pass session_id if agent uses history
             )
 
             processed_data = agent_result.final_response.content[0].text
@@ -244,14 +243,12 @@ These are the primary building blocks you'll work with:
             simple_workflow_result = await executor.run_simple_workflow(
                 workflow_name="MyFollowUpWorkflow",
                 initial_input=processed_data
-                # session_id for simple workflows is not directly used by the workflow itself,
-                # but could be relevant if agents within that simple workflow use history.
             )
             simple_workflow_output = simple_workflow_result.get("final_message")
 
             # You can even run other Custom Workflows
             custom_workflow_result = await executor.run_custom_workflow(custom_workflow_name="MyCustomWorkflow", initial_input=simple_workflow_output)
-
+w
             return custom_workflow_result
     ```
     To use this custom workflow:
