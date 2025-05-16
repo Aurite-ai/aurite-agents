@@ -124,7 +124,7 @@ class Aurite:
 
         # Check if dynamic registration is allowed
         self._dynamic_registration_enabled = (
-            os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "false").lower() == "true"
+            os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "true").lower() == "true"
         )
         if self._dynamic_registration_enabled:
             logger.info(
