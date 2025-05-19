@@ -43,37 +43,45 @@ class ComponentWorkflow:
         """
         
         try:
-            
             initial_input = ComponentWorkflowInput.model_validate(
                 initial_input, strict=True
             )
             
             current_message = initial_input.input
             
-            for component in initial_input.components:
-                match component.type.lower():
-                    case "agent":
-                        if type(current_message) is dict:
-                            current_message = json.dumps(current_message)
-                        
-                        component_output = executor.run_agent(agent_name=component.name, user_message=current_message)
-                        
-                        current_message = component_output.get("final_response", {}).get("content", [{}])[0].get("text", "")
-                    case "simple_workflow":
-                        component_output = executor.run_simple_workflow(workflow_name=component.name, initial_input=current_message)
-                        
-                        current_message = component_output.get("final_message", "")
-                    case "custom_workflow":
-                        component_output = executor.run_custom_workflow(workflow_name=component.name, initial_input=current_message)
-                        
-                        current_message = component_output
-                    case _:
-                        raise ValueError(f"Component type not recognized: {component.type}")
+            for component in initial_input.workflow:
+                try:
+                    logging.info(f"Component Workflow: {component.name} ({component.type}) operating with input: {current_message}")
+                    match component.type.lower():
+                        case "agent":
+                            if type(current_message) is dict:
+                                current_message = json.dumps(current_message)
+                            
+                            component_output = await executor.run_agent(agent_name=component.name, user_message=current_message)
+                            
+                            current_message = component_output.get("final_response", {}).get("content", [{}])[0].get("text", "")
+                        case "simple_workflow":
+                            component_output = await executor.run_simple_workflow(workflow_name=component.name, initial_input=current_message)
+                            
+                            current_message = component_output.get("final_message", "")
+                        case "custom_workflow":
+                            if type(current_message) is str:
+                                current_message = json.loads(current_message)
+                            
+                            component_output = await executor.run_custom_workflow(workflow_name=component.name, initial_input=current_message)
+                            
+                            current_message = component_output
+                        case _:
+                            raise ValueError(f"Component type not recognized: {component.type}")
+                except Exception as e:
+                    return {"status": "failed", "error": f"Error occured while processing component '{component.name}': {str(e)}"} 
             
             return_value = {
                 "status": "success",
                 "final_message": current_message
             }
+            
+            logging.info(f"Component Workflow returning with {return_value}")
 
             return return_value
         except Exception as e:
