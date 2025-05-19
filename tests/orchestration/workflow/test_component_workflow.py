@@ -9,9 +9,15 @@ class TestComponentWorkflow:
     @pytest.mark.timeout(300)
     async def test_component_workflow(self, request, host_manager: HostManager):
         
+        """
         result = await host_manager.execution.run_custom_workflow(
             workflow_name="ComponentWorkflow",
             initial_input={"workflow": [{"name": "Assistant Agent", "type": "agent"}, {"name": "Formatting Agent", "type": "agent"}, {"name": "ExampleCustomWorkflow", "type": "custom_workflow"}], "input": "Decide on one city in the west coast of America to research the weather in."},
+        )
+        """
+        result = await host_manager.execution.run_custom_workflow(
+            workflow_name="ComponentWorkflow",
+            initial_input={"workflow": ["Assistant Agent", "Formatting Agent", {"name": "ExampleCustomWorkflow", "type": "custom_workflow"}], "input": "Decide on one city in the west coast of America to research the weather in."},
         )
 
         assert "status" in result

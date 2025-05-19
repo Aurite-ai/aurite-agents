@@ -898,3 +898,7 @@ class ExecutionFacade:
             executor=self,  # Pass the facade itself to the custom workflow
             session_id=session_id,  # Pass session_id here
         )
+
+    def get_project_config(self):
+        """Simple getter for project config"""
+        return self._current_project
