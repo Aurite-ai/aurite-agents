@@ -5,25 +5,46 @@ import json
 from pydantic import BaseModel
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Optional, Any, Literal
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from src.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
 
-class Component(BaseModel):
+class WorkflowComponent(BaseModel):
     name: str
-    type: str
+    type: Literal["agent", "simple_workflow", "custom_workflow"]
 
 class ComponentWorkflowInput(BaseModel):
-    workflow: list[Component]
+    workflow: list[WorkflowComponent | str]
     input: Any
 
 class ComponentWorkflow:
     """
     Custom workflow for linear chains of components
     """
+    
+    def _infer_component_type(self, component_name: str, executor: "ExecutionFacade"):
+        """Search through the project's defined components to find the type of a component"""
+        
+        project_config = executor.get_project_config()
+        
+        possible_types = []
+        if component_name in project_config.agents:
+            possible_types.append("agent")
+        if component_name in project_config.simple_workflows:
+            possible_types.append("simple_workflow")
+        if component_name in project_config.custom_workflows:
+            possible_types.append("custom_workflow")
+            
+        if len(possible_types) == 1:
+            return possible_types[0]
+
+        if len(possible_types) > 1:
+            raise ValueError(f"Component with name {component_name} found in multiple types ({', '.join(possible_types)}). Please specify this step with a 'name' and 'type' to remove ambiguity.")
+        
+        raise ValueError(f"No components found with name {component_name}")
 
     async def execute_workflow(
         self, 
@@ -35,7 +56,7 @@ class ComponentWorkflow:
         Executes the prompt validation workflow.
 
         Args:
-            initial_input: An object with "workflow", a list of components to execute which each have a "name" and "type", and "input", the input to give the first of these components
+            initial_input: An object with "workflow", a list of components to execute (either strings for their name or objects which each have a "name" and "type"), and "input", the input to give the first of these components
             executor: The Execution Facade
 
         Returns:
@@ -46,6 +67,11 @@ class ComponentWorkflow:
             initial_input = ComponentWorkflowInput.model_validate(
                 initial_input, strict=True
             )
+            
+            # find the type for all components defined with only a name
+            for i in range(len(initial_input.workflow)):
+                if type(initial_input.workflow[i]) is str:
+                    initial_input.workflow[i] = WorkflowComponent(name=initial_input.workflow[i], type=self._infer_component_type(component_name=initial_input.workflow[i], executor=executor))
             
             current_message = initial_input.input
             
@@ -88,4 +114,4 @@ class ComponentWorkflow:
             logger.error(
                 f"Error within ComponentWorkflow execution: {e}", exc_info=True
             )
-            return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}
+            return {"status": "failed", "error": f"Workflow error: {str(e)}"}
