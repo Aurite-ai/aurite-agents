@@ -81,13 +81,17 @@ class HostConfig(BaseModel):
     description: Optional[str] = None
 
 
+class WorkflowComponent(BaseModel):
+    name: str
+    type: Literal["agent", "simple_workflow", "custom_workflow"]
+
 class WorkflowConfig(BaseModel):
     """
     Configuration for a simple, sequential agent workflow.
     """
 
     name: str
-    steps: List[str]  # List of agent names (must match keys in loaded AgentConfig dict)
+    steps: List[str | WorkflowComponent]  # List of component names, or objects with name and type
     description: Optional[str] = None
 
 

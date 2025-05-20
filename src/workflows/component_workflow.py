@@ -9,12 +9,10 @@ from typing import TYPE_CHECKING, Optional, Any, Literal
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from src.execution.facade import ExecutionFacade
+    
+from src.config.config_models import WorkflowComponent
 
 logger = logging.getLogger(__name__)
-
-class WorkflowComponent(BaseModel):
-    name: str
-    type: Literal["agent", "simple_workflow", "custom_workflow"]
 
 class ComponentWorkflowInput(BaseModel):
     workflow: list[WorkflowComponent | str]
@@ -103,7 +101,7 @@ class ComponentWorkflow:
                     return {"status": "failed", "error": f"Error occured while processing component '{component.name}': {str(e)}"} 
             
             return_value = {
-                "status": "success",
+                "status": "completed",
                 "final_message": current_message
             }
             
