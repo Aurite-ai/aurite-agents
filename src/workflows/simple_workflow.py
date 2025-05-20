@@ -3,16 +3,23 @@ Executor for Simple Sequential Workflows.
 """
 
 import logging
+import json
 from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
+from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ..config.config_models import WorkflowConfig, AgentConfig  # Updated import path
+from ..config.config_models import WorkflowConfig, AgentConfig, WorkflowComponent  # Updated import path
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
     from ..execution.facade import ExecutionFacade  # Added Facade import
 
 logger = logging.getLogger(__name__)
+
+
+class ComponentWorkflowInput(BaseModel):
+    workflow: list[WorkflowComponent | str]
+    input: Any
 
 
 class SimpleWorkflowExecutor:
@@ -70,17 +77,84 @@ class SimpleWorkflowExecutor:
         workflow_name = self.config.name
         logger.info(f"Executing simple workflow: {workflow_name}")
         
-        component_input = {
-            "workflow": self.config.steps,
-            "input": initial_input,
-        }
+        try:
+            workflow = self.config.steps
+            
+            # find the type for all components defined with only a name
+            for i in range(len(workflow)):
+                if type(workflow[i]) is str:
+                    workflow[i] = WorkflowComponent(name=workflow[i], type=self._infer_component_type(component_name=workflow[i]))
+            
+            current_message = initial_input
+            
+            for component in workflow:
+                try:
+                    logging.info(f"Component Workflow: {component.name} ({component.type}) operating with input: {current_message}")
+                    match component.type.lower():
+                        case "agent":
+                            if type(current_message) is dict:
+                                current_message = json.dumps(current_message)
+                            
+                            component_output = await self.facade.run_agent(agent_name=component.name, user_message=current_message)
+                            
+                            current_message = component_output.get("final_response", {}).get("content", [{}])[0].get("text", "")
+                        case "simple_workflow":
+                            component_output = await self.facade.run_simple_workflow(workflow_name=component.name, initial_input=current_message)
+                            
+                            current_message = component_output.get("final_message", "")
+                        case "custom_workflow":
+                            if type(current_message) is str:
+                                current_message = json.loads(current_message)
+                            
+                            component_output = await self.facade.run_custom_workflow(workflow_name=component.name, initial_input=current_message)
+                            
+                            current_message = component_output
+                        case _:
+                            raise ValueError(f"Component type not recognized: {component.type}")
+                except Exception as e:
+                    return {
+                        "workflow_name": workflow_name,
+                        "status": "failed", 
+                        "error": f"Error occured while processing component '{component.name}': {str(e)}",
+                    } 
+            
+            return_value = {
+                "workflow_name": workflow_name,
+                "status": "completed",
+                "final_message": current_message
+            }
+            
+            logging.info(f"Simple Workflow returning with {return_value}")
 
-        result = await self.facade.run_custom_workflow(workflow_name="ComponentWorkflow", initial_input=component_input)
+            return return_value
+        except Exception as e:
+            logger.error(
+                f"Error within simple workflow execution: {e}", exc_info=True
+            )
+            return {
+                "workflow_name": workflow_name,
+                "status": "failed", 
+                "error": f"Workflow error: {str(e)}",
+            }
 
-        # Return final result
-        return {
-            "workflow_name": workflow_name,
-            "status": result.get("status", "failed"),
-            "final_message": result.get("final_message", None),
-            "error": result.get("error", None),
-        }
+
+    def _infer_component_type(self, component_name: str):
+        """Search through the project's defined components to find the type of a component"""
+        
+        project_config = self.facade.get_project_config()
+        
+        possible_types = []
+        if component_name in project_config.agents:
+            possible_types.append("agent")
+        if component_name in project_config.simple_workflows:
+            possible_types.append("simple_workflow")
+        if component_name in project_config.custom_workflows:
+            possible_types.append("custom_workflow")
+            
+        if len(possible_types) == 1:
+            return possible_types[0]
+
+        if len(possible_types) > 1:
+            raise ValueError(f"Component with name {component_name} found in multiple types ({', '.join(possible_types)}). Please specify this step with a 'name' and 'type' to remove ambiguity.")
+        
+        raise ValueError(f"No components found with name {component_name}")
