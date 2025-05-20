@@ -6,7 +6,7 @@ The Aurite Agents team and community take the security of the framework seriousl
 
 Please **DO NOT** report security vulnerabilities through public GitHub issues.
 
-Instead, please report them by sending an email to `ryan@aurite.ai`.
+Instead, please report them by sending an email to `support@aurite.ai`.
 
 Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
 
