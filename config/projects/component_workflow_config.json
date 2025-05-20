@@ -120,6 +120,18 @@
         "Weather Planning Workflow Step 2"
       ],
       "description": "Example workflow to test simple workflow execution using agents."
+    },
+    {
+        "name": "TestWorkflow",
+        "steps": [
+            "Assistant Agent", 
+            "Formatting Agent", 
+            {
+                "name": "ExampleCustomWorkflow", 
+                "type": "custom_workflow"
+            }
+        ],
+        "description": "Workflow for testing component workflow config"
     }
   ],
   "custom_workflows": [
