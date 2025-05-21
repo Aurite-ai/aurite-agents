@@ -140,12 +140,6 @@
       "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
       "class_name": "ExampleCustomWorkflow",
       "description": "An example custom workflow for testing."
-    },
-    {
-      "name": "ComponentWorkflow",
-      "module_path": "src/workflows/component_workflow.py",
-      "class_name": "ComponentWorkflow",
-      "description": "Workflow for linear chains of components"
     }
   ],
   "llms": [

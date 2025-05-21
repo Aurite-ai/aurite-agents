@@ -1043,3 +1043,25 @@ class ExecutionFacade:
     def get_project_config(self):
         """Simple getter for project config"""
         return self._current_project
+    
+    def get_custom_workflow_input_type(self, workflow_name: str):
+        """Get the input type for a custom workflow.
+        
+        Returns:
+            The type, or None if a get_input_type method is not defined"""
+        executor = CustomWorkflowExecutor(
+            config=self._current_project.custom_workflows.get(workflow_name),
+        )
+        
+        return executor.get_input_type()
+    
+    def get_custom_workflow_output_type(self, workflow_name: str):
+        """Get the output type for a custom workflow.
+        
+        Returns:
+            The type, or None if a get_output_type method is not defined"""
+        executor = CustomWorkflowExecutor(
+            config=self._current_project.custom_workflows.get(workflow_name),
+        )
+        
+        return executor.get_output_type()
