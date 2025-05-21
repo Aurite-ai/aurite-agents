@@ -159,3 +159,10 @@ class ExampleCustomWorkflow:
                 f"Error within ExampleCustomWorkflow execution: {e}", exc_info=True
             )
             return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}
+
+
+    def get_input_type():
+        return dict
+    
+    def get_output_type():
+        return dict
