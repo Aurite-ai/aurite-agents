@@ -133,7 +133,7 @@ class CustomWorkflowExecutor:
                 f"Exception during custom workflow '{workflow_name}' execution: {e}"
             ) from e
 
-    def get_input_type(self):
+    async def get_input_type(self):
         """Gets the input type of the custom workflow's execute method, if the get_input_type method is defined
         
         Returns:
@@ -144,7 +144,7 @@ class CustomWorkflowExecutor:
         
         return None
     
-    def get_output_type(self):
+    async def get_output_type(self):
         """Gets the output type of the custom workflow's execute method, if the get_output_type method is defined
         
         Returns:

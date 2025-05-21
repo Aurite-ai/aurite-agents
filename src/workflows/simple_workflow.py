@@ -103,9 +103,9 @@ class SimpleWorkflowExecutor:
                             
                             current_message = component_output.get("final_message", "")
                         case "custom_workflow":
-                            # input_type = self.facade.get_custom_workflow_input_type(workflow_name=component.name)
+                            input_type = await self.facade.get_custom_workflow_input_type(workflow_name=component.name)
                             
-                            #logging.info(f"CUSTOM WORKFLOW TYPE: {input_type}")
+                            logging.info(f"CUSTOM WORKFLOW TYPE: {input_type}")
                             
                             if type(current_message) is str: #and input_type is dict:
                                 current_message = json.loads(current_message)
