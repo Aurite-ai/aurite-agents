@@ -12,11 +12,14 @@ from typing import cast
 from ...agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
+    ConversationHistoryMessage,
+    ToolDefinition
 )
 
 import httpx # Added import
 from typing import Iterable
 from google import genai
+from google.genai import types
 
 from ..base_client import (
     BaseLLM,
@@ -220,3 +223,30 @@ def _convert_gemini_response_to_agent_output_message(gemini_response: Dict[str, 
     )
 
     return output_message
+
+def _convert_tool_definition(tool_def: ToolDefinition):
+    """Convert a ToolDefinition into the Gemini Format"""
+    
+    return types.Tool(function_declarations=[{
+        "name": tool_def.name,
+        "description": tool_def.description,
+        "parameters": tool_def.input_schema,
+    }])
+
+def _convert_message_history(message: ConversationHistoryMessage):
+    """Convert a ConversationHistoryMessage into the Gemini Format"""
+    
+    role_dict = {
+        "user": "user",
+        "assistant": "model",
+    }
+    
+    if message.role in role_dict:
+        return types.Content(
+            role = role_dict[message.role],
+            parts = [
+                types.Part.from_text(text=message.content),
+            ]
+        )
+    else:
+        raise ValueError(f"Unrecognized role when converting ConversationHistoryMessage to Gemini format: {message.role}")
