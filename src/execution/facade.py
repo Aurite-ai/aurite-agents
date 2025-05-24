@@ -54,6 +54,7 @@ from ..workflows.custom_workflow import CustomWorkflowExecutor
 from ..llm.providers.anthropic_client import (
     AnthropicLLM,
 )
+from ..llm.providers.gemini_client import GeminiLLM
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,18 @@ class ExecutionFacade:
             except Exception as e:
                 logger.error(f"Failed to instantiate AnthropicLLM for config '{llm_config.llm_id}': {e}", exc_info=True)
                 raise ValueError(f"Failed to create Anthropic client: {e}") from e
+        elif provider == "gemini":
+            try:
+                return GeminiLLM(
+                    model_name=model_name,
+                    temperature=llm_config.temperature, # Pass None if not set, client handles default
+                    max_tokens=llm_config.max_tokens,   # Pass None if not set, client handles default
+                    system_prompt=llm_config.default_system_prompt # Pass None if not set, client handles default
+                    # api_key=resolved_api_key # Example if key resolution happened here
+                )
+            except Exception as e:
+                logger.error(f"Failed to instantiate GeminiLLM for config '{llm_config.llm_id}': {e}", exc_info=True)
+                raise ValueError(f"Failed to create Gemini client: {e}") from e
         # Add other providers here
         # elif provider == "openai":
         #     # ... implementation ...
