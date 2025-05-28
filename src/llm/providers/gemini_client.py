@@ -7,6 +7,13 @@ import logging
 from typing import List, Optional, Dict, Any, AsyncGenerator
 
 from typing import cast
+from anthropic.types import (
+    Message as AnthropicMessage,
+    TextBlock as AnthropicTextBlock,
+    ToolUseBlock as AnthropicToolUseBlock,
+    MessageParam,
+    ToolParam,
+)
 
 from ...agents.agent_models import (
     AgentOutputMessage,
@@ -88,9 +95,11 @@ class GeminiLLM(BaseLLM):
         tools_for_api = tools if tools else []
         logger.debug(f"Making Gemini API call to model '{model_to_use}'")
         try:
-            typed_messages = [self._convert_message_history(ConversationHistoryMessage.model_validate(m)) for m in messages]
+            typed_messages = cast(Iterable[MessageParam], messages)
+            typed_messages = [self._convert_message_history(m) for m in messages]
             
-            typed_tools = [self._convert_tool_definition(ToolDefinition.model_validate(t)) for t in tools_for_api]
+            typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
+            typed_tools = [self._convert_tool_definition(t) for t in tools_for_api]
             
             if schema:
                 config = types.GenerateContentConfig(
@@ -187,16 +196,16 @@ class GeminiLLM(BaseLLM):
 
         return output_message
 
-    def _convert_tool_definition(self, tool_def: ToolDefinition):
+    def _convert_tool_definition(self, tool_def: ToolParam):
         """Convert a ToolDefinition into the Gemini Format"""
         
         return types.Tool(function_declarations=[{
-            "name": tool_def.name,
-            "description": tool_def.description,
-            "parameters": tool_def.input_schema,
+            "name": tool_def.get("name"),
+            "description": tool_def.get("description"),
+            "parameters": tool_def.get("input_schema"),
         }])
 
-    def _convert_message_history(self, message: ConversationHistoryMessage):
+    def _convert_message_history(self, message: MessageParam):
         """Convert a ConversationHistoryMessage into the Gemini Format"""
         
         role_dict = {
@@ -204,12 +213,22 @@ class GeminiLLM(BaseLLM):
             "assistant": "model",
         }
         
-        if message.role in role_dict:
+        if message.get("role") in role_dict:
             return types.Content(
-                role = role_dict[message.role],
-                parts = [
-                    types.Part.from_text(text=message.content),
-                ]
+                role = role_dict[message.get("role")],
+                parts = self._message_param_to_parts(message.get("content"))
             )
         else:
-            raise ValueError(f"Unrecognized role when converting ConversationHistoryMessage to Gemini format: {message.role}")
+            raise ValueError(f"Unrecognized role when converting ConversationHistoryMessage to Gemini format: {message.get("role")}")
+        
+    def _message_param_to_parts(self, param):
+        if type(param) is str:
+            return [types.Part.from_text(text=param)]
+        
+        parts = []
+        for p in param:
+            if p.get("type") == "text":
+                parts.append(types.Part.from_text(text=p.get("text")))
+            # for now, only works for text
+            # TODO: implement other types
+        return parts

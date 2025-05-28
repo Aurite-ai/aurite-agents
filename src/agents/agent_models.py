@@ -3,6 +3,7 @@ Pydantic models for Agent execution inputs and outputs.
 """
 
 from pydantic import BaseModel, Field
+from anthropic.types import MessageParam
 from typing import List, Optional, Dict, Any
 
 # --- Agent Output Models ---
@@ -177,7 +178,7 @@ class ConversationHistoryMessage(BaseModel):
         description="The role of the message sender (e.g., 'user', 'assistant')."
     )
     content: str = Field(
-        description="The string content of the message"
+        description="The content of the message"
     )
     
     
