@@ -226,7 +226,7 @@ class CustomWorkflowExecutor:
                 # 5. Check for the method name and signature
                 if not hasattr(workflow_instance, method_name):
                     if method.get("optional"):
-                        logger.warn(
+                        logger.warning(
                             f"Method '{method_name}' not found in class '{class_name}' from {module_path}. Skipping"
                         )
                         continue
