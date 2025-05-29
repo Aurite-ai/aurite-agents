@@ -101,9 +101,11 @@ class GeminiLLM(BaseLLM):
             typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
             typed_tools = [self._convert_tool_definition(t) for t in tools_for_api]
             
+            tool = types.Tool(function_declarations=typed_tools)
+            
             if schema:
                 config = types.GenerateContentConfig(
-                    tools=[typed_tools],
+                    tools=[tool],
                     system_instruction=resolved_system_prompt,
                     temperature=temperature_to_use,
                     max_output_tokens=max_tokens_to_use,
@@ -112,13 +114,13 @@ class GeminiLLM(BaseLLM):
                 )
             else:
                 config = types.GenerateContentConfig(
-                    tools=[typed_tools],
+                    tools=[tool],
                     system_instruction=resolved_system_prompt,
                     temperature=temperature_to_use,
                     max_output_tokens=max_tokens_to_use
                 )
             
-            gemini_response = self.client.models.generate_content(
+            gemini_response = self.gemini_client.models.generate_content(
                 model=model_to_use, config=config, contents=typed_messages
             )
             
@@ -199,11 +201,11 @@ class GeminiLLM(BaseLLM):
     def _convert_tool_definition(self, tool_def: ToolParam):
         """Convert a ToolDefinition into the Gemini Format"""
         
-        return types.Tool(function_declarations=[{
-            "name": tool_def.get("name"),
-            "description": tool_def.get("description"),
-            "parameters": tool_def.get("input_schema"),
-        }])
+        return types.FunctionDeclaration(
+            name = tool_def.get("name"),
+            description = tool_def.get("description"),
+            parameters = tool_def.get("input_schema"),
+        )
 
     def _convert_message_history(self, message: MessageParam):
         """Convert a ConversationHistoryMessage into the Gemini Format"""
