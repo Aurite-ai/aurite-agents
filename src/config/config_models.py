@@ -40,9 +40,11 @@ class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
     client_id: str
-    transport_type: Literal["stdio", "http_stream"] = "stdio" # Use http_stream
+    transport_type: Literal["stdio", "http_stream", "local"] = "stdio"
     server_path: Optional[Path] = None
-    http_endpoint: Optional[str] = None # Use http_endpoint
+    http_endpoint: Optional[str] = None
+    command: Optional[str] = None
+    args: Optional[List[str]] = None
     roots: List[RootConfig]
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
@@ -60,6 +62,8 @@ class ClientConfig(BaseModel):
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
         http_endpoint = values.get("http_endpoint") # Use http_endpoint
+        command = values.get("command")
+        args = values.get("args")
 
         if transport_type == "stdio":
             if server_path is None:
@@ -70,6 +74,11 @@ class ClientConfig(BaseModel):
             # Basic URL validation
             if not (http_endpoint.startswith("http://") or http_endpoint.startswith("https://")):
                 raise ValueError("http_endpoint must be a valid HTTP/HTTPS URL")
+        elif transport_type == "local":
+            if command is None:
+                raise ValueError("command is required for local transport type")
+            if args is None:
+                raise ValueError("args is required for local transport type")
         return values
 
 

@@ -4,6 +4,7 @@ ClientManager for handling MCP client subprocesses and sessions.
 
 import logging
 import os
+import re
 from typing import Dict, Optional
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
@@ -108,7 +109,52 @@ class ClientManager:
 
                     logger.debug(f"Attempting to connect streamablehttp_client for {client_id} to URL: {endpoint_url}")
                     transport_context = streamablehttp_client(endpoint_url) # Use streamablehttp_client
-
+                    
+                elif client_config.transport_type == "local":
+                    if not client_config.command:
+                        raise ValueError("command is required for stdio transport")
+                    if not client_config.args:
+                        raise ValueError("args is required for stdio transport")
+                    
+                    client_env = os.environ.copy()
+                    if client_config.gcp_secrets and security_manager:
+                        logger.debug(f"Resolving GCP secrets for client: {client_id}")
+                        try:
+                            resolved_env_vars = await security_manager.resolve_gcp_secrets(
+                                client_config.gcp_secrets
+                            )
+                            if resolved_env_vars:
+                                client_env.update(resolved_env_vars)
+                                logger.debug(
+                                    f"Injected {len(resolved_env_vars)} secrets into environment for client: {client_id}"
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to resolve GCP secrets for client {client_id}: {e}. Proceeding without them.",
+                                exc_info=True,
+                            )
+                            
+                    # update args to replace env values
+                    updated_args = []
+                    for arg in client_config.args:
+                        env_vars = re.findall(r'\{([^}]+)\}', arg)
+                        
+                        for var in env_vars:
+                            if var in client_env:
+                                arg = arg.replace(f'{{{var}}}', client_env[var])
+                        
+                        updated_args.append(arg)
+                    
+                    server_params = StdioServerParameters(
+                        command=client_config.command,
+                        args=updated_args,
+                        env=client_env,
+                    )
+                    logger.debug(
+                        f"Attempting to start local stdio_client for {client_id} with command: "
+                        f"{server_params.command} {' '.join(server_params.args)} in CWD: {server_params.cwd}"
+                    )
+                    transport_context = stdio_client(server_params)
                 else:
                     raise ValueError(f"Unsupported transport_type: {client_config.transport_type}")
 
