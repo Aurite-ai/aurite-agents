@@ -8,9 +8,6 @@ from typing import List, Optional, Dict, Any, AsyncGenerator
 
 from typing import cast
 from anthropic.types import (
-    Message as AnthropicMessage,
-    TextBlock as AnthropicTextBlock,
-    ToolUseBlock as AnthropicToolUseBlock,
     MessageParam,
     ToolParam,
 )
@@ -18,8 +15,6 @@ from anthropic.types import (
 from ...agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
-    ConversationHistoryMessage,
-    ToolDefinition
 )
 
 from typing import Iterable
@@ -162,6 +157,13 @@ class GeminiLLM(BaseLLM):
 
     def _convert_agent_output_message(self, response) -> AgentOutputMessage:
         content_blocks = []
+        num_tools = 0
+        
+        match response.candidates[0].finish_reason:
+            case types.FinishReason.MAX_TOKENS:
+                stop_reason = "max_tokens"
+            case _:
+                stop_reason = "end_turn"
 
         for part in response.candidates[0].content.parts:
             if part.text is not None:
@@ -172,7 +174,7 @@ class GeminiLLM(BaseLLM):
             elif part.function_call is not None:
                 function_call = part.function_call
                 tool_use = {
-                    "id": function_call.id,
+                    "id": function_call.id if function_call.id is not None else f'{function_call.name}_{num_tools}', # use # of tool call as id if not supplied
                     "name": function_call.name,
                     "input": function_call.args
                 }
@@ -182,19 +184,22 @@ class GeminiLLM(BaseLLM):
                     name=tool_use["name"],
                     input=tool_use["input"]
                 ))
-
+                num_tools += 1
+                stop_reason = "tool_use" # overwrite stop reason to tool use if one or more tools are used
+        
         # Create an AgentOutputMessage
         output_message = AgentOutputMessage(
             role="assistant",
             content=content_blocks,
             model=response.model_version,
-            stop_reason=response.candidates[0].finish_reason,
+            stop_reason=stop_reason,
             usage={
                 "input_tokens": response.usage_metadata.prompt_token_count,
                 "output_tokens": response.usage_metadata.candidates_token_count,
                 "total_tokens": response.usage_metadata.total_token_count
             }
         )
+        logger.info(f"Gemini output message: {output_message}")
 
         return output_message
 
@@ -229,8 +234,24 @@ class GeminiLLM(BaseLLM):
         
         parts = []
         for p in param:
-            if p.get("type") == "text":
-                parts.append(types.Part.from_text(text=p.get("text")))
-            # for now, only works for text
-            # TODO: implement other types
+            match p.get("type"):
+                case "text":
+                    parts.append(types.Part.from_text(text=p.get("text")))
+                case "tool_use":
+                    parts.append(types.Part.from_function_call(name=p.get("name"), args=p.get("input")))
+                case "tool_result":
+                    content = p.get("content")
+                    if type(content) is dict:
+                        response = content
+                    elif type(content) is list:
+                        response = content[0]
+                    elif type(content) is str:
+                        response = {"result": content}
+                    else:
+                        raise ValueError(f"Unrecognized tool result content type when converting to Gemini format: {p.get("content")}")
+                    parts.append(types.Part.from_function_response(name=p.get("tool_use_id"), response=response))
+                case _:
+                    raise ValueError(f"Unrecognized message parameter type when converting to Gemini format: {p.get("type")}")
+                
+            # TODO: implement other types if they are used
         return parts
