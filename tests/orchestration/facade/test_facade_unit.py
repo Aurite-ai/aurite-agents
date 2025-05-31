@@ -2,30 +2,30 @@
 Unit tests for the ExecutionFacade.
 """
 
+from unittest.mock import AsyncMock, MagicMock, Mock, patch  # Add patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Add patch
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-# Imports from the project
-from aurite.execution.facade import ExecutionFacade
-from aurite.config.config_models import (
-    AgentConfig,
-    LLMConfig,
-    ProjectConfig,
-)  # Added ProjectConfig
-from aurite.host_manager import Aurite
 from aurite.agents.agent import Agent
 
 # from aurite.agents.conversation_manager import ( # Removed ConversationManager import
 #     ConversationManager,
 # )
-from aurite.agents.agent_models import (
-    AgentExecutionResult,
-)  # Import result models
-from aurite.llm.base_client import BaseLLM  # Import BaseLLM for type hint
+from aurite.agents.agent_models import AgentExecutionResult  # Import result models
+from aurite.config.config_models import (  # Added ProjectConfig
+    AgentConfig,
+    LLMConfig,
+    ProjectConfig,
+)
+
+# Imports from the project
+from aurite.execution.facade import ExecutionFacade
 from aurite.host.host import MCPHost  # Needed for type hinting if used
+from aurite.host_manager import Aurite
+from aurite.llm.base_client import BaseLLM  # Import BaseLLM for type hint
 
 # --- Fixtures ---
 
@@ -87,7 +87,7 @@ class TestExecutionFacadeUnit:
     """Unit tests for ExecutionFacade public methods."""
 
     @pytest.mark.asyncio
-    @patch("src.execution.facade.Agent")
+    @patch("aurite.execution.facade.Agent")
     async def test_run_agent_success_and_caching(
         self,
         MockAgent: MagicMock,
@@ -221,7 +221,7 @@ class TestExecutionFacadeUnit:
         print("--- Test Finished: test_run_agent_success_and_caching ---")
 
     @pytest.mark.asyncio
-    @patch("src.execution.facade.Agent")
+    @patch("aurite.execution.facade.Agent")
     async def test_run_agent_no_llm_config_id(
         self,
         MockAgent: MagicMock,
@@ -294,7 +294,7 @@ class TestExecutionFacadeUnit:
         print("Assertions passed for no_llm_config_id.")
         print("--- Test Finished: test_run_agent_no_llm_config_id ---")
 
-    @patch("src.execution.facade.AnthropicLLM")  # Patch the concrete class
+    @patch("aurite.execution.facade.AnthropicLLM")  # Patch the concrete class
     def test_create_llm_client_factory(
         self, MockAnthropicLLMConstructor: MagicMock, execution_facade: ExecutionFacade
     ):
@@ -588,7 +588,7 @@ class TestExecutionFacadeUnit:
 
         # --- Mock LLM Client Instantiation to raise error ---
         with patch(
-            "src.execution.facade.AnthropicLLM", side_effect=instantiation_error
+            "aurite.execution.facade.AnthropicLLM", side_effect=instantiation_error
         ) as MockLLM:
             # --- Act ---
             result = await execution_facade.run_agent(
@@ -714,12 +714,14 @@ class TestExecutionFacadeUnit:
         execution_facade._current_project.llms = {"test_llm": mock_llm_config}
 
         # --- Mock LLM Client Instantiation (should succeed) ---
-        with patch("src.execution.facade.AnthropicLLM") as MockLLM:
+        with patch("aurite.execution.facade.AnthropicLLM") as MockLLM:
             mock_llm_instance = MagicMock(spec=BaseLLM)
             MockLLM.return_value = mock_llm_instance
 
             # --- Mock Agent to raise error on run_conversation ---
-            with patch("src.execution.facade.Agent") as MockAgent:  # Changed to Agent
+            with patch(
+                "aurite.execution.facade.Agent"
+            ) as MockAgent:  # Changed to Agent
                 mock_agent_instance = MagicMock(spec=Agent)  # Changed to Agent
                 mock_agent_instance.run_conversation = AsyncMock(
                     side_effect=execution_error

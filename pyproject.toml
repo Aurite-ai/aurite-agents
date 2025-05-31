@@ -131,7 +131,7 @@ markers = [
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
 asyncio_default_fixture_loop_scope = "function" # Default scope for asyncio tests
-pythonpath = [".", "src"]
+pythonpath = [".", "src", "aurite"]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
@@ -156,7 +156,7 @@ check_untyped_defs = false # Don't require type hints for functions without them
 disallow_untyped_defs = false # Corresponds to check_untyped_defs
 show_error_codes = true # Makes errors easier to understand/suppress if needed
 disallow_untyped_calls = false # Corresponds to check_untyped_defs
-files=["src/bin/**/*.py", "src/agents/**/*.py", "src/host/**/*.py", "src/storage/**/*.py", "src/workflows/**/*.py", "src/llm/**/*.py", "src/execution/**/*.py", "src/prompt_validation/**/*.py", "src/host_manager.py", "src/config.py"] # Include all source and test files
+files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
 

@@ -22,12 +22,13 @@
     "*.ts": "${capture}.js",
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
     "*.jsx": "${capture}.js",
+    ".env": ".env*",
     "*.tsx": "${capture}.test.tsx, ${capture}.ts",
     "tsconfig.json": "tsconfig.*.json, jest.config.cjs, playwright.config.ts",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb",
     "Dockerfile": "Dockerfile.dev, .dockerignore, docker-compose.yml",
     "pyproject.toml": "justfile, MANIFEST.in, .flake8, .pre-commit-config.yaml, .isort.cfg, .mypy.ini, ml_requirements.txt, setup.bat, setup.sh",
-    "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md"
+    "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md README_packaged.md"
   },
   "files.associations": {
     "*.css": "tailwindcss"

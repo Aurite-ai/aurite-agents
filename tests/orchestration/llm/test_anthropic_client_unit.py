@@ -2,23 +2,17 @@
 Unit tests for the AnthropicLLM client.
 """
 
-import pytest
 import os
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from anthropic import (
-    AsyncAnthropic,
-)  # Added RateLimitError
-from anthropic.types import (
-    Message as AnthropicSDKMessage,
-    TextBlock,
-    ToolUseBlock,
-    Usage,
-)
+import pytest
+from anthropic import AsyncAnthropic  # Added RateLimitError
+from anthropic.types import Message as AnthropicSDKMessage
+from anthropic.types import TextBlock, ToolUseBlock, Usage
 
-from aurite.llm.providers.anthropic_client import AnthropicLLM, BASE_DEFAULT_MAX_TOKENS
-from aurite.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
+from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 from aurite.config.config_models import LLMConfig  # Added import
+from aurite.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"
@@ -354,9 +348,9 @@ class TestAnthropicLLMUnit:
         # This will be the mock for the .create() method
         mock_create_method = AsyncMock(return_value=mock_sdk_response)
 
-        # Patch 'AsyncAnthropic' where it's imported in the module under test (src.llm.providers.anthropic_client)
+        # Patch 'AsyncAnthropic' where it's imported in the module under test (llm.providers.anthropic_client)
         with patch(
-            "src.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
+            "aurite.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
         ) as MockAsyncAnthropicClass:
             # Configure the instance that MockAsyncAnthropicClass() will return when AnthropicLLM initializes it
             mock_sdk_client_instance = MagicMock(spec=AsyncAnthropic)
