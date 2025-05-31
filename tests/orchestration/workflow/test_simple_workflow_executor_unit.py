@@ -2,19 +2,22 @@
 Unit tests for the SimpleWorkflowExecutor.
 """
 
+from unittest.mock import AsyncMock, MagicMock, call  # Added MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, call, MagicMock  # Added MagicMock
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
+from anthropic.types import Message  # Added Message
+
+from aurite.agents.agent import Agent  # Needed for mocking
+from aurite.config.config_models import AgentConfig, WorkflowConfig
+from aurite.execution.facade import ExecutionFacade  # For mocking facade
+from aurite.llm.base_client import BaseLLM  # For mocking llm_client
+
 # Imports from the project
 from aurite.workflows.simple_workflow import SimpleWorkflowExecutor
-from aurite.config.config_models import WorkflowConfig, AgentConfig
-from aurite.agents.agent import Agent  # Needed for mocking
-from anthropic.types import Message  # Added Message
-from aurite.llm.base_client import BaseLLM  # For mocking llm_client
-from aurite.execution.facade import ExecutionFacade  # For mocking facade
 
 # Import shared fixtures
 
@@ -126,7 +129,7 @@ class TestSimpleWorkflowExecutorUnit:
 
         # The Agent class is no longer directly instantiated by SimpleWorkflowExecutor.
         # Instead, facade.run_agent is called, which is already mocked.
-        # So, the patch for "src.workflows.simple_workflow.Agent" is removed.
+        # So, the patch for "workflows.simple_workflow.Agent" is removed.
 
         # Mock the facade's run_agent method
         # It should be an async method

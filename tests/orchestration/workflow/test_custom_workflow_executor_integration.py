@@ -15,22 +15,34 @@ These tests verify the executor's ability to dynamically load and execute
 custom workflow classes, interacting with a real MCPHost.
 """
 
-import pytest
 import os  # Import os for environment variable check
+from pathlib import Path  # Added Path import
+
+import pytest
 
 # Assuming models and executors are importable
 from aurite.config.config_models import CustomWorkflowConfig
-from aurite.workflows.custom_workflow import CustomWorkflowExecutor
 from aurite.host_manager import Aurite  # For host_manager fixture
-from aurite.config import PROJECT_ROOT_DIR
+from aurite.workflows.custom_workflow import CustomWorkflowExecutor
+
+# PROJECT_ROOT_DIR is no longer available from aurite.config
 
 # Setup logger for this test module
 logger = logging.getLogger(__name__)
 
+# Determine the repository root relative to this test file.
+# This file: tests/orchestration/workflow/test_custom_workflow_executor_integration.py
+# .resolve() ensures an absolute path.
+# .parents[0] is the directory of this file (tests/orchestration/workflow/)
+# .parents[1] is tests/orchestration/
+# .parents[2] is tests/
+# .parents[3] is the repository root (e.g., /home/ryan_aurite_ai/workspace/aurite-agents)
+REPO_ROOT_FOR_TESTS = Path(__file__).resolve().parents[3]
+
 # Define path to a valid example custom workflow for testing
 # Using the one from fixtures as per the plan
 VALID_WORKFLOW_PATH = (
-    PROJECT_ROOT_DIR / "tests/fixtures/custom_workflows/example_workflow.py"
+    REPO_ROOT_FOR_TESTS / "tests/fixtures/custom_workflows/example_workflow.py"
 )
 VALID_WORKFLOW_CLASS = "ExampleCustomWorkflow"
 
@@ -192,4 +204,5 @@ async def test_custom_executor_basic_execution(host_manager: Aurite):
 # Other CustomWorkflowExecutor tests (module not found, class not found, etc.)
 # can be added here later or during Phase B testing as needed.
 
+# Add more tests here following the plan (one by one)
 # Add more tests here following the plan (one by one)

@@ -1,23 +1,21 @@
-import pytest
 import json
 from pathlib import Path
 
-from aurite.config.component_manager import (
-    ComponentManager,
-    COMPONENT_TYPES_DIRS,
-)
-from aurite.config.config_models import (
-    ClientConfig,
-    AgentConfig,
-)  # Import specific models for type checking
+import pytest
+
 from aurite.config import PROJECT_ROOT_DIR  # To help with asserting path conversions
+from aurite.config.component_manager import COMPONENT_TYPES_DIRS, ComponentManager
+from aurite.config.config_models import (  # Import specific models for type checking
+    AgentConfig,
+    ClientConfig,
+)
 
 # Fixtures from tests.fixtures.config_fixtures
 from ..fixtures.config_fixtures import (
-    VALID_CLIENT_CONFIG_DATA_MINIMAL,
-    VALID_AGENT_CONFIG_DATA,
-    INVALID_CLIENT_CONFIG_MISSING_ID,
     INVALID_AGENT_CONFIG_BAD_TEMP_TYPE,
+    INVALID_CLIENT_CONFIG_MISSING_ID,
+    VALID_AGENT_CONFIG_DATA,
+    VALID_CLIENT_CONFIG_DATA_MINIMAL,
 )
 
 
@@ -55,7 +53,7 @@ def component_manager_empty(temp_config_root: Path, monkeypatch) -> ComponentMan
 
     # Monkeypatch the global COMPONENT_TYPES_DIRS to use these temporary paths
     monkeypatch.setattr(
-        "src.config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
+        "config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
     )
 
     # Also, ensure PROJECT_ROOT_DIR is patched if tests rely on it for path resolution
@@ -252,7 +250,7 @@ def test_load_all_components_after_creation(temp_config_root: Path, monkeypatch)
         for key in COMPONENT_TYPES_DIRS
     }
     monkeypatch.setattr(
-        "src.config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
+        "config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
     )
 
     # Manually create a component file in the temp location

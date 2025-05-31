@@ -1,19 +1,20 @@
-import pytest
-from unittest.mock import MagicMock, patch, call
 from pathlib import Path
+from unittest.mock import MagicMock, call, patch
+
+import pytest
 
 # Mark all tests in this module as belonging to the Orchestration layer and unit tests
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-# Imports from the project
-from aurite.host_manager import Aurite
-
 # from aurite.host.host import MCPHost # No longer needed directly, mock provides spec
 from aurite.config.config_models import (
     AgentConfig,
-    WorkflowConfig,
     CustomWorkflowConfig,
+    WorkflowConfig,
 )
+
+# Imports from the project
+from aurite.host_manager import Aurite
 
 
 @pytest.fixture
@@ -55,6 +56,10 @@ def unit_test_host_manager(
     # The old manager.agent_configs etc. are gone, so tests will need to be updated
     # to assert against manager.project_manager.active_project_config.agent_configs etc.
 
+    # Set a default current_project_root for the project_manager
+    manager.project_manager.current_project_root = Path(
+        "/fake/project_root_from_fixture"
+    )
     return manager
 
 
@@ -352,23 +357,38 @@ class TestAuriteCustomWorkflowRegistration:
     """Tests for Aurite.register_custom_workflow."""
 
     # @pytest.mark.asyncio # Removed
-    # Use patch to control Path methods for this test
-    @patch("src.host_manager.Path.exists", return_value=True)
-    @patch("pathlib.Path.resolve")  # Patching pathlib directly
-    @patch(
-        "src.host_manager.PROJECT_ROOT_DIR", Path("/fake/project/root")
-    )  # Mock project root
+    @patch("pathlib.Path.exists", return_value=True)  # Corrected target
+    @patch("pathlib.Path.resolve")  # Corrected target
     async def test_register_custom_workflow_success(
-        self, mock_resolve, mock_exists, unit_test_host_manager: Aurite
+        self, mock_path_resolve, mock_path_exists, unit_test_host_manager: Aurite
     ):
         """Verify successful registration of a new custom workflow."""
         manager = unit_test_host_manager
-        # Ensure resolve returns a path starting with the mocked project root
-        mock_resolve.return_value = Path("/fake/project/root/workflows/my_workflow.py")
+
+        # Define a specific project root for this test scenario
+        test_project_root = Path("/fake/project/root")
+        manager.project_manager.current_project_root = test_project_root
+
+        relative_module_path = Path("workflows/my_workflow.py")
+        resolved_module_path = test_project_root / relative_module_path
+
+        # Configure side_effect for Path.resolve
+        def custom_resolve_side_effect(
+            self_path_instance, strict=False
+        ):  # Added self_path_instance and strict
+            if self_path_instance == relative_module_path:
+                return resolved_module_path
+            if self_path_instance == test_project_root:
+                return test_project_root  # Already absolute
+            # Default fallback for any other Path.resolve() calls in the code under test
+            return self_path_instance
+
+        mock_path_resolve.side_effect = custom_resolve_side_effect
+        # mock_path_exists is configured by the decorator to always return True for any call
 
         cwf_config = CustomWorkflowConfig(
             name="NewCustomWF",
-            module_path=Path("workflows/my_workflow.py"),  # Relative path is fine here
+            module_path=relative_module_path,
             class_name="MyWorkflowClass",
         )
 
@@ -378,67 +398,73 @@ class TestAuriteCustomWorkflowRegistration:
             "NewCustomWF"
             in manager.project_manager.active_project_config.custom_workflows
         )
-        # Check that the stored config has the *original* path, not the mocked resolved one
-        assert (
-            manager.project_manager.active_project_config.custom_workflows[
-                "NewCustomWF"
-            ]
-            == cwf_config
-        )
-        assert manager.project_manager.active_project_config.custom_workflows[
+        stored_config = manager.project_manager.active_project_config.custom_workflows[
             "NewCustomWF"
-        ].module_path == Path("workflows/my_workflow.py")
+        ]
+        assert stored_config == cwf_config
+        assert (
+            stored_config.module_path == relative_module_path
+        )  # Ensure original path is stored
+
+        # Verify resolve was called for the module path and project root
+        # Path.resolve(relative_module_path)
+        # Path.resolve(test_project_root)
+        # The side_effect handles instance-specific logic. We verify the outcome.
+        # mock_path_resolve.call_count can be checked if a specific number of resolves is expected.
+
+        # Verify exists was called on the resolved module path
+        # Path.exists(resolved_module_path)
+        mock_path_exists.assert_called_once()
+        assert mock_path_exists.call_args[0][0] == resolved_module_path
 
     # @pytest.mark.asyncio # Removed
-    @patch(
-        "src.host_manager.PROJECT_ROOT_DIR"
-    )  # Mock the constant used in the function
-    @patch("pathlib.Path.resolve")  # Mock the resolve method on the Path class
+    # Note: The auto-formatter corrected a duplicated patch line here previously.
+    # Only one patch for pathlib.Path.resolve is needed.
+    @patch("pathlib.Path.resolve")
     async def test_register_custom_workflow_invalid_path_outside_project(
-        self,
-        mock_path_resolve,  # Mock for Path.resolve class method
-        mock_project_root_dir_obj,  # Mock for the PROJECT_ROOT_DIR constant object
-        unit_test_host_manager: Aurite,
+        self, mock_path_resolve, unit_test_host_manager: Aurite
     ):
         """Verify registration fails if module_path resolves outside project root."""
         manager = unit_test_host_manager
-        project_root_path = Path("/fake/project/root")
-        outside_path = Path("/outside/project/root/evil_workflow.py")
+
+        test_project_root = Path("/fake/project/root")
+        manager.project_manager.current_project_root = test_project_root
+
         # This is the relative path stored in the config
-        relative_evil_path = Path("../outside/project/root/evil_workflow.py")
+        relative_module_path = Path("../outside_project/evil_workflow.py")
+        # This is what module_path.resolve() should return for this test
+        resolved_outside_module_path = Path("/outside_project/evil_workflow.py")
 
-        # --- Configure Mocks ---
-        # 1. Configure the mock object representing the PROJECT_ROOT_DIR constant
-        mock_project_root_dir_obj.resolve.return_value = project_root_path
+        # Configure side_effect for Path.resolve
+        def custom_resolve_side_effect(
+            self_path_instance, strict=False
+        ):  # Added self_path_instance and strict
+            if self_path_instance == relative_module_path:
+                return resolved_outside_module_path
+            if self_path_instance == test_project_root:
+                return test_project_root  # Already absolute
+            return self_path_instance  # Default fallback
 
-        # 2. Create the config object. Pydantic creates a real Path instance internally.
+        mock_path_resolve.side_effect = custom_resolve_side_effect
+
+        # No need to patch Path.exists as the validation should fail before that.
+
         cwf_config = CustomWorkflowConfig(
             name="OutsideProjectWF",
-            module_path=relative_evil_path,  # Pass the relative Path object
+            module_path=relative_module_path,
             class_name="EvilClass",
         )
-        # Get the actual Path instance created by Pydantic inside the config
-        actual_path_instance_in_config = cwf_config.module_path
 
-        # 3. Configure the side_effect for the globally patched Path.resolve
-        #    Since the call seems to arrive without args, we just return the desired path.
-        #    If resolve is called unexpectedly elsewhere, other mocks or assertions might catch it.
-        mock_path_resolve.return_value = outside_path  # Directly set return_value
-
-        # --- Execute and Assert ---
-        # No need to patch exists separately if the path validation fails first.
         with pytest.raises(
             ValueError,
-            match="Custom workflow path is outside the project directory.",
+            match="Custom workflow path is outside the current project directory.",
         ):
             await manager.register_custom_workflow(cwf_config)
 
-        # --- Verify Mock Calls ---
-        # Check that resolve() was called on the mock representing PROJECT_ROOT_DIR
-        mock_project_root_dir_obj.resolve.assert_called_once()
-
-        # Check that the global Path.resolve mock was called once (by module_path.resolve()).
-        mock_path_resolve.assert_called_once()
+        # Verify Path.resolve was called. The side_effect handles instance-specific logic.
+        # We can check call_count if a specific number of resolves is expected.
+        # For example, the logic in register_custom_workflow calls resolve() twice for the startswith check.
+        assert mock_path_resolve.call_count >= 2
 
         assert (
             "OutsideProjectWF"
@@ -446,41 +472,51 @@ class TestAuriteCustomWorkflowRegistration:
         )
 
     # @pytest.mark.asyncio # Removed
-    @patch("src.host_manager.PROJECT_ROOT_DIR")
-    @patch("pathlib.Path.resolve")  # Keep this for now, might need adjustment
-    @patch("pathlib.Path.exists")  # Also patch exists
+    @patch("pathlib.Path.exists")  # Corrected target
+    @patch("pathlib.Path.resolve")  # Corrected target
     async def test_register_custom_workflow_path_does_not_exist(
         self,
-        mock_path_exists,  # Mock for Path.exists
-        mock_path_resolve,  # Mock for Path.resolve
-        mock_project_root_dir_obj,  # Mock for PROJECT_ROOT_DIR
+        mock_path_resolve,  # Corresponds to @patch("pathlib.Path.resolve")
+        mock_path_exists,  # Corresponds to @patch("pathlib.Path.exists")
         unit_test_host_manager: Aurite,
     ):
         """Verify registration fails if module_path does not exist."""
         manager = unit_test_host_manager
-        project_root_path = Path("/fake/project/root")
-        # Path that resolves correctly but doesn't exist
-        resolved_non_existent_path = project_root_path / "non_existent_workflow.py"
-        relative_non_existent_path = Path("non_existent_workflow.py")
 
-        # --- Configure Mocks ---
-        mock_project_root_dir_obj.resolve.return_value = project_root_path
+        test_project_root = Path("/fake/project/root")
+        manager.project_manager.current_project_root = test_project_root
+
+        relative_module_path = Path("non_existent_workflow.py")
+        # This is what module_path.resolve() should return: a path within the project root
+        resolved_module_path_in_project = test_project_root / relative_module_path
+
+        # Configure side_effect for Path.resolve
+        def custom_resolve_side_effect(
+            self_path_instance, strict=False
+        ):  # Added self_path_instance and strict
+            if self_path_instance == relative_module_path:
+                return resolved_module_path_in_project
+            if self_path_instance == test_project_root:
+                return test_project_root  # Already absolute
+            return self_path_instance  # Default fallback
+
+        mock_path_resolve.side_effect = custom_resolve_side_effect
+
+        # Configure side_effect for Path.exists to return False for the specific resolved path
+        def custom_exists_side_effect(self_path_instance):  # Added self_path_instance
+            if self_path_instance == resolved_module_path_in_project:
+                return False
+            return True  # Default to True for other paths if any unexpected calls occur
+
+        mock_path_exists.side_effect = custom_exists_side_effect
 
         cwf_config = CustomWorkflowConfig(
             name="NonExistentWF",
-            module_path=relative_non_existent_path,
+            module_path=relative_module_path,
             class_name="MyClass",
         )
-        actual_path_instance_in_config = cwf_config.module_path
-
-        # Configure resolve to return the correct path (inside project)
-        mock_path_resolve.return_value = resolved_non_existent_path
-
-        # Configure exists to return False when called (it should only be called on the resolved path)
-        mock_path_exists.return_value = False
 
         # --- Execute and Assert ---
-        # Match the actual error message which uses the original path object string representation
         with pytest.raises(
             ValueError,
             match=f"Custom workflow module file not found: {cwf_config.module_path}",
@@ -488,11 +524,14 @@ class TestAuriteCustomWorkflowRegistration:
             await manager.register_custom_workflow(cwf_config)
 
         # --- Verify Mock Calls ---
-        mock_project_root_dir_obj.resolve.assert_called_once()
-        # resolve() is called on the module_path instance
-        mock_path_resolve.assert_called_once()
-        # exists() is called on the *resolved* path in the code under test
-        mock_path_exists.assert_called_once()  # Cannot easily assert args with this patching style
+        # Verify Path.resolve was called. The side_effect handles instance-specific logic.
+        assert (
+            mock_path_resolve.call_count >= 2
+        )  # For module_path.resolve() and current_project_root.resolve()
+
+        # Verify Path.exists was called on the specific resolved module path
+        assert mock_path_exists.call_count == 1
+        assert mock_path_exists.call_args[0][0] == resolved_module_path_in_project
 
         assert (
             "NonExistentWF"

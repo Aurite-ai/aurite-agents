@@ -2,15 +2,17 @@
 Unit tests for the SecurityManager.
 """
 
-import pytest
-import os
 import base64
+import os
 import time  # Add missing import
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from aurite.config.config_models import GCPSecretConfig  # Import the model
 
 # Import the class to test and dependent models
 from aurite.host.foundation.security import SecurityManager
-from aurite.config.config_models import GCPSecretConfig  # Import the model
 
 # Mark tests as host_unit
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]  # Add anyio marker
@@ -32,7 +34,7 @@ def security_manager() -> SecurityManager:
 def test_security_manager_init_with_provided_key():
     """Test initialization with a valid base64 key provided directly."""
     test_key = base64.urlsafe_b64encode(os.urandom(32)).decode("ascii")
-    with patch("src.host.foundation.security.Fernet") as mock_fernet:
+    with patch("aurite.host.foundation.security.Fernet") as mock_fernet:
         manager = SecurityManager(encryption_key=test_key)
         assert manager._encryption_key == test_key
         # Assert Fernet is called with the encoded key bytes
@@ -48,7 +50,7 @@ def test_security_manager_init_with_env_var_key():
     os.environ[env_var] = test_key
     try:
         # Indent the 'with' block under 'try'
-        with patch("src.host.foundation.security.Fernet") as mock_fernet:
+        with patch("aurite.host.foundation.security.Fernet") as mock_fernet:
             manager = SecurityManager()  # No key passed directly
             assert manager._encryption_key == test_key
             # Assert Fernet is called with the encoded key bytes
@@ -77,7 +79,7 @@ def test_security_manager_init_generate_key():
         )
         # ONLY patch Fernet.generate_key
         with patch(
-            "src.host.foundation.security.Fernet.generate_key",
+            "aurite.host.foundation.security.Fernet.generate_key",
             return_value=generated_key_bytes,
         ):
             manager = SecurityManager()
@@ -100,11 +102,11 @@ def test_security_manager_init_derive_key_from_string():
     # Force the initial base64 decode attempt to fail to ensure the except block is hit.
     with (
         patch(
-            "src.host.foundation.security.base64.urlsafe_b64decode",
+            "aurite.host.foundation.security.base64.urlsafe_b64decode",
             side_effect=ValueError("Simulated decode error"),
         ),
-        patch("src.host.foundation.security.PBKDF2HMAC") as mock_kdf_class,
-        patch("src.host.foundation.security.Fernet") as mock_fernet,
+        patch("aurite.host.foundation.security.PBKDF2HMAC") as mock_kdf_class,
+        patch("aurite.host.foundation.security.Fernet") as mock_fernet,
     ):
         # Mock the derive method of the KDF instance
         mock_kdf_instance = MagicMock()
@@ -303,15 +305,15 @@ def test_mask_sensitive_data(
 
 # Mock GCP Secret Manager types if the library isn't installed
 try:
+    from google.api_core import exceptions as gcp_exceptions
     from google.cloud import secretmanager
 
     # Import the actual types needed
     from google.cloud.secretmanager_v1.types import (
-        AccessSecretVersionResponse,
         AccessSecretVersionRequest,
-        SecretPayload as ActualSecretPayload,
+        AccessSecretVersionResponse,
     )
-    from google.api_core import exceptions as gcp_exceptions
+    from google.cloud.secretmanager_v1.types import SecretPayload as ActualSecretPayload
 
     SecretPayload = ActualSecretPayload  # Assign the correct type
 except ImportError:
@@ -380,7 +382,7 @@ def security_manager_with_mock_gcp(mock_gcp_secret_client) -> SecurityManager:
     """Fixture for SecurityManager with mocked GCP client."""
     # Patch the client *before* initializing SecurityManager
     with patch(
-        "src.host.foundation.security.secretmanager.SecretManagerServiceClient",
+        "aurite.host.foundation.security.secretmanager.SecretManagerServiceClient",
         return_value=mock_gcp_secret_client,
     ):
         # We only need to patch the ServiceClient class, not the module variable
@@ -460,8 +462,8 @@ async def test_resolve_gcp_secrets_no_client():
     """Test resolving secrets when the GCP client could not be initialized."""
     # Patch the import check and client init to simulate failure
     with (
-        patch("src.host.foundation.security.secretmanager", None),
-        patch("src.host.foundation.security.gcp_exceptions", None),
+        patch("aurite.host.foundation.security.secretmanager", None),
+        patch("aurite.host.foundation.security.gcp_exceptions", None),
     ):
         manager = SecurityManager()
         assert manager._gcp_secret_client is None

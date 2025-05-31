@@ -2,16 +2,16 @@
 Unit tests for the ClientManager class.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
+from mcp import ClientSession
+
+from aurite.config.config_models import ClientConfig, GCPSecretConfig
 
 # Adjust imports based on your project structure
 from aurite.host.foundation.clients import ClientManager
-from aurite.config.config_models import ClientConfig, GCPSecretConfig
 from aurite.host.foundation.security import SecurityManager
-from mcp import ClientSession
-
 
 # mock_exit_stack fixture is no longer needed as ClientManager.__init__ changed.
 
@@ -65,8 +65,8 @@ async def test_client_manager_initialization():
 # with MCPHost, as it's hard to unit test effectively due to TaskStatus.
 
 # @pytest.mark.asyncio
-# @patch("src.host.foundation.clients.stdio_client") # Example of how a test for manage_client_lifecycle might start
-# @patch("src.host.foundation.clients.ClientSession", new_callable=AsyncMock)
+# @patch("host.foundation.clients.stdio_client") # Example of how a test for manage_client_lifecycle might start
+# @patch("host.foundation.clients.ClientSession", new_callable=AsyncMock)
 # async def test_manage_client_lifecycle_success(
 #     MockClientSessionCM,
 #     mock_stdio_client,

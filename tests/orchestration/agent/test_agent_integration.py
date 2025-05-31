@@ -6,21 +6,19 @@ which connects to mock MCP servers (like the weather server).
 LLM calls are typically mocked to control agent behavior for testing host interactions.
 """
 
-import pytest
 import os  # Import os for environment variable check
-from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.integration, pytest.mark.anyio]
 
 # Imports from the project
-from aurite.agents.agent_models import (
-    AgentOutputMessage,
-    AgentOutputContentBlock,
-)
-from aurite.llm.base_client import BaseLLM  # For mocking
+from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 from aurite.host_manager import Aurite  # For host_manager fixture type hint
+from aurite.llm.base_client import BaseLLM  # For mocking
 
 # Import shared fixtures if needed (host_manager is usually sufficient)
 # from ..fixtures.host_fixtures import host_manager # Assuming host_manager is available globally
@@ -101,7 +99,7 @@ class TestAgentIntegration:
         # but for now, let's patch the specific client class it tries to instantiate.
         # We assume it will try to instantiate AnthropicLLM based on current facade logic.
         with patch(
-            "src.execution.facade.AnthropicLLM", return_value=mock_llm
+            "execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             # Execute agent via the facade
@@ -225,7 +223,7 @@ class TestAgentIntegration:
 
         # Patch LLM client instantiation in the facade
         with patch(
-            "src.execution.facade.AnthropicLLM", return_value=mock_llm
+            "execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             assert host_manager.execution is not None, "Facade not initialized"
