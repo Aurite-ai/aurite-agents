@@ -186,3 +186,4 @@ config/testing/*_output.json
 .flaskenv*
 !.env.project
 !.env.vault
+docs/.copilot
