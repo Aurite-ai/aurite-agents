@@ -9,6 +9,7 @@ k8s/
 # Distribution / packaging
 .Python
 build/
+.python-version
 develop-eggs/
 dist/
 downloads/
