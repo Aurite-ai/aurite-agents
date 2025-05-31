@@ -181,3 +181,8 @@ docs/plans/completed/**
 src/packaged_servers/plans/*
 docs/learning/
 config/testing/*_output.json
+
+.env*
+.flaskenv*
+!.env.project
+!.env.vault

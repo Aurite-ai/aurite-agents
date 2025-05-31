@@ -64,3 +64,8 @@ docs/
 !src/
 !alembic.ini
 !alembic/
+
+.env*
+.flaskenv*
+!.env.project
+!.env.vault
