@@ -357,8 +357,8 @@ class TestAuriteCustomWorkflowRegistration:
     """Tests for Aurite.register_custom_workflow."""
 
     # @pytest.mark.asyncio # Removed
-    @patch("pathlib.Path.exists", return_value=True)  # Corrected target
-    @patch("pathlib.Path.resolve")  # Corrected target
+    @patch("pathlib.Path.exists", autospec=True, return_value=True)
+    @patch("pathlib.Path.resolve", autospec=True)
     async def test_register_custom_workflow_success(
         self, mock_path_resolve, mock_path_exists, unit_test_host_manager: Aurite
     ):
@@ -415,12 +415,13 @@ class TestAuriteCustomWorkflowRegistration:
         # Verify exists was called on the resolved module path
         # Path.exists(resolved_module_path)
         mock_path_exists.assert_called_once()
-        assert mock_path_exists.call_args[0][0] == resolved_module_path
+        # exists() is called on the original relative_module_path instance
+        assert mock_path_exists.call_args[0][0] == relative_module_path
 
     # @pytest.mark.asyncio # Removed
     # Note: The auto-formatter corrected a duplicated patch line here previously.
     # Only one patch for pathlib.Path.resolve is needed.
-    @patch("pathlib.Path.resolve")
+    @patch("pathlib.Path.resolve", autospec=True)
     async def test_register_custom_workflow_invalid_path_outside_project(
         self, mock_path_resolve, unit_test_host_manager: Aurite
     ):
@@ -472,8 +473,8 @@ class TestAuriteCustomWorkflowRegistration:
         )
 
     # @pytest.mark.asyncio # Removed
-    @patch("pathlib.Path.exists")  # Corrected target
-    @patch("pathlib.Path.resolve")  # Corrected target
+    @patch("pathlib.Path.exists", autospec=True)
+    @patch("pathlib.Path.resolve", autospec=True)
     async def test_register_custom_workflow_path_does_not_exist(
         self,
         mock_path_resolve,  # Corresponds to @patch("pathlib.Path.resolve")
@@ -502,9 +503,11 @@ class TestAuriteCustomWorkflowRegistration:
 
         mock_path_resolve.side_effect = custom_resolve_side_effect
 
-        # Configure side_effect for Path.exists to return False for the specific resolved path
+        # Configure side_effect for Path.exists to return False for the specific relative_module_path
         def custom_exists_side_effect(self_path_instance):  # Added self_path_instance
-            if self_path_instance == resolved_module_path_in_project:
+            if (
+                self_path_instance == relative_module_path
+            ):  # Check against the path it's called on
                 return False
             return True  # Default to True for other paths if any unexpected calls occur
 
@@ -531,7 +534,8 @@ class TestAuriteCustomWorkflowRegistration:
 
         # Verify Path.exists was called on the specific resolved module path
         assert mock_path_exists.call_count == 1
-        assert mock_path_exists.call_args[0][0] == resolved_module_path_in_project
+        # exists() is called on the original relative_module_path instance
+        assert mock_path_exists.call_args[0][0] == relative_module_path
 
         assert (
             "NonExistentWF"
