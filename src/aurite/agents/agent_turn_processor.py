@@ -2,29 +2,31 @@
 Helper class for processing a single turn in an Agent's conversation loop.
 """
 
+import json
 import logging
-from typing import (
+from typing import cast  # Added for casting
+from typing import (  # Added AsyncGenerator
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
     List,
     Optional,
     Tuple,
-    Dict,
-    Any,
-    TYPE_CHECKING,
-    AsyncGenerator,
-)  # Added AsyncGenerator
-
-import json
-from jsonschema import validate, ValidationError as JsonSchemaValidationError
+)
 
 # Import necessary types
 from anthropic.types import MessageParam, ToolResultBlockParam
-from typing import cast  # Added for casting
-from .agent_models import AgentOutputMessage
-from ..host.host import MCPHost
-from ..config.config_models import (
+from jsonschema import ValidationError as JsonSchemaValidationError
+from jsonschema import validate
+
+from ..config.config_models import (  # Updated import path, added LLMConfig
     AgentConfig,
     LLMConfig,
-)  # Updated import path, added LLMConfig
+)
+from ..host.host import MCPHost
+from .agent_models import AgentOutputMessage
+
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:
@@ -226,19 +228,74 @@ class AgentTurnProcessor:
                         active_tool_calls[llm_event_original_index]["input_str"] += (
                             chunk_to_add
                         )
+                        # DO NOT YIELD THE tool_use_input_delta EVENT TO THE CLIENT
+                        # logger.debug(f"ATP: Accumulated chunk for tool {active_tool_calls[llm_event_original_index].get('name')}, index {llm_event_original_index}. New input_str: {active_tool_calls[llm_event_original_index]['input_str']}")
                     else:
                         logger.warning(
                             f"ATP: Received tool_use_input_delta for index {llm_event_original_index} but not found in active_tool_calls or index is None."
                         )
-                    yield {"event_type": event_type, "data": event_data}
+                    # REMOVED: yield {"event_type": event_type, "data": event_data}
 
                 elif event_type == "content_block_stop":
-                    yield {"event_type": event_type, "data": event_data}  # Yield first
+                    # We will yield this event, but if it's for a tool, we augment its data first.
+                    # The actual tool execution logic that follows this block remains the same.
 
+                    tool_call_info_for_stop_event = (
+                        None  # Define to avoid UnboundLocalError if conditions not met
+                    )
                     if (
                         llm_event_original_index is not None
                         and llm_event_original_index in active_tool_calls
                     ):
+                        # This content_block_stop corresponds to an active tool call.
+                        # We will retrieve the info to augment the event_data before yielding.
+                        # The tool_call_info will be popped from active_tool_calls later,
+                        # right before tool execution, as it is now.
+                        tool_call_info_for_stop_event = active_tool_calls[
+                            llm_event_original_index
+                        ]
+
+                        # Augment the event_data for the content_block_stop event
+                        event_data_for_client = (
+                            event_data.copy()
+                        )  # Ensure we modify a copy
+                        event_data_for_client["tool_id"] = (
+                            tool_call_info_for_stop_event.get("id")
+                        )
+                        event_data_for_client["full_tool_input"] = (
+                            tool_call_info_for_stop_event.get("input_str", "")
+                        )
+                        event_data_for_client["content_type"] = (
+                            "tool_use"  # Explicitly mark it for client
+                        )
+
+                        logger.debug(
+                            f"ATP: Yielding augmented content_block_stop for tool_id {event_data_for_client['tool_id']} with full_tool_input."
+                        )
+                        yield {"event_type": event_type, "data": event_data_for_client}
+                    else:
+                        # This content_block_stop is not for an active tool call (e.g., for a text block)
+                        # or the tool call was not properly tracked. Yield as is.
+                        # Add content_type if it's a text block for clarity, if not already present
+                        if (
+                            "content_type" not in event_data
+                        ):  # Check if LLM event already has it
+                            # Infer based on what's NOT in active_tool_calls.
+                            # This might need refinement if LLM sends other block types.
+                            # For now, assume if not a tool, it's text or thinking.
+                            # The LLM event itself might have a more direct indicator.
+                            # Let's assume for now the original event_data is sufficient for non-tool stops.
+                            pass  # Or add event_data["content_type"] = "text"; if needed
+
+                        yield {"event_type": event_type, "data": event_data}
+
+                    # The existing logic for tool execution after content_block_stop:
+                    if (
+                        llm_event_original_index is not None
+                        and llm_event_original_index
+                        in active_tool_calls  # Check again, as it's popped here
+                    ):
+                        # Pop it here, after potentially using its data for the yielded event above
                         tool_call_info = active_tool_calls.pop(llm_event_original_index)
                         tool_id = tool_call_info.get("id")
                         tool_name = tool_call_info.get("name")
@@ -531,5 +588,7 @@ class AgentTurnProcessor:
                 return None  # Signal failure on unexpected validation errors
         else:
             # No schema defined, response is considered final and valid
+            logger.debug("No schema defined, skipping validation.")
+            return llm_response
             logger.debug("No schema defined, skipping validation.")
             return llm_response

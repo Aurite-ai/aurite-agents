@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { AgentConfig, ClientConfig, LLMConfig, ProjectConfig } from '../../../types/projectManagement'; // Added ProjectConfig
-import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar'; // For ExecutableItem type
+import type { AgentConfig, ProjectConfig } from '../../../types/projectManagement'; // Added ProjectConfig, Removed ClientConfig, LLMConfig
+// import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar'; // For ExecutableItem type // Removed
 import {
   saveNewConfigFile,
   listConfigFiles,
   getConfigFileContent,
-  getActiveProjectComponentConfig,
-  getSpecificComponentConfig,
+  // getActiveProjectComponentConfig, // Removed
+  // getSpecificComponentConfig, // Removed
   getActiveProjectFullConfig // Added
 } from '../../../lib/apiClient';
-import useUIStore from '../../../store/uiStore';
+// import useUIStore from '../../../store/uiStore'; // Removed
 import MultiSelectModal from '../../../components/common/MultiSelectModal';
 
 // Re-using ExecutableItem from ExecuteView for listing clients/LLMs
