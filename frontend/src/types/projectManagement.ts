@@ -98,7 +98,11 @@ export interface AgentOutputContentBlock {
   is_error?: boolean; // For tool_result, indicating if it's an error result
   parsedJson?: Record<string, any>; // For 'final_response_data' type
   thinkingText?: string; // For 'final_response_data' type (though now largely superseded by 'thinking_finalized')
-  // _originalIndex?: number; // Removed as json_stream is removed
+
+  // Internal frontend-only state properties for streaming management
+  _originalIndex?: number; // To store the LLM's original index for a streaming block
+  _finalized?: boolean;    // To mark if a block (especially text) has been fully processed by content_block_stop
+  _inputFinalized?: boolean; // Specifically for tool_use blocks to mark if their input has been finalized
 }
 
 export interface AgentOutputMessage {
