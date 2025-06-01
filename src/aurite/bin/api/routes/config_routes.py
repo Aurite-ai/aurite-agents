@@ -1,18 +1,21 @@
 import logging
-from typing import List, Any  # Added Any, Union
+from pathlib import Path  # Added Path
+from typing import Any, List  # Added Any, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
 
-# Import dependencies from the new location (relative to parent of routes' parent)
-from ...dependencies import (
-    get_api_key,
-    get_component_manager,  # get_component_manager will still be used for other endpoints
-)
 from aurite.config.component_manager import (
     ComponentManager,  # Not directly used by get_config_file anymore, but by others
-    COMPONENT_META,
 )
+from aurite.config.component_manager import COMPONENT_META
+
+# Import dependencies from the new location (relative to parent of routes' parent)
+from ...dependencies import (
+    get_component_manager,  # get_component_manager will still be used for other endpoints
+)
+from ...dependencies import get_current_project_root  # Added get_current_project_root
+from ...dependencies import get_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -86,16 +89,18 @@ def _extract_component_id(filename: str) -> str:
 @router.get("/{component_type}", response_model=List[str])
 async def list_config_files(
     component_type: str,
-    cm: ComponentManager = Depends(get_component_manager),  # cm is used here
+    cm: ComponentManager = Depends(get_component_manager),
+    current_project_root: Path = Depends(get_current_project_root),
 ):
     """Lists available JSON configuration filenames for a given component type."""
     logger.info(f"Request received to list configs for API type: {component_type}")
     try:
         cm_component_type = _get_cm_component_type(component_type)
-        # Assuming ComponentManager.list_component_files() still exists and works as before
-        filenames = cm.list_component_files(cm_component_type)
+        filenames = cm.list_component_files(
+            cm_component_type, project_root_path=current_project_root
+        )
         logger.info(
-            f"Found {len(filenames)} config files for CM type '{cm_component_type}'"
+            f"Found {len(filenames)} config files for CM type '{cm_component_type}' in project {current_project_root}"
         )
         return filenames
     except HTTPException as http_exc:  # Re-raise our own HTTPExceptions
@@ -166,45 +171,86 @@ async def get_specific_component_config_by_id(
     "/{component_type}/{filename:path}",
     response_model=Any,  # Changed response_model to Any
 )
-async def get_config_file(  # Removed cm: ComponentManager dependency for this specific endpoint
+async def get_config_file(
     component_type: str,
     filename: str,
-    # cm: ComponentManager = Depends(get_component_manager), # No longer using CM to get parsed model by ID
+    current_project_root: Path = Depends(get_current_project_root),
+    # cm: ComponentManager = Depends(get_component_manager), # Not using CM directly here
 ):
-    """Gets the raw parsed JSON content of a specific configuration file."""
+    """Gets the raw parsed JSON content of a specific component configuration file."""
     logger.info(
-        f"Request received to get raw config file content: {component_type}/{filename}"
+        f"Request to get raw config file content: {component_type}/{filename} from project {current_project_root}"
     )
     try:
-        # Validate component_type - this part is fine.
-        _ = _get_cm_component_type(component_type)
+        cm_component_type = _get_cm_component_type(
+            component_type
+        )  # Validates component_type
 
-        # The get_config_file endpoint needs significant refactoring to work with the new
-        # project-centric path model (requiring current_project_root).
-        # For now, to allow the API server to start, we will mark this endpoint as
-        # not implemented. This avoids runtime errors due to changed variable meanings
-        # (COMPONENT_SUBDIRS vs old COMPONENT_TYPES_DIRS) and missing context (current_project_root).
-        logger.warning(
-            f"The GET /configs/{component_type}/{filename} endpoint is temporarily non-functional "
-            "and requires refactoring for the new packaged structure."
+        if not filename.endswith(".json"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Filename must end with .json.",
+            )
+
+        # Construct path using COMPONENT_SUBDIRS from component_manager
+        # This requires COMPONENT_SUBDIRS to be accessible or duplicated here.
+        # For now, let's assume COMPONENT_SUBDIRS is available (e.g. imported or defined locally)
+        # from aurite.config.component_manager import COMPONENT_SUBDIRS (needs to be added to imports if not already)
+        from aurite.config.component_manager import (
+            COMPONENT_SUBDIRS,  # Local import for clarity
         )
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail=(
-                f"The endpoint to get raw config file for type '{component_type}' and file '{filename}' "
-                "is temporarily unavailable and requires refactoring."
-            ),
-        )
-    except HTTPException as http_exc:  # Re-raise our own HTTPExceptions (e.g., from _get_cm_component_type or the 501)
+
+        subdir_name = COMPONENT_SUBDIRS.get(cm_component_type)
+        if not subdir_name:
+            logger.error(
+                f"No subdirectory mapping for component type '{cm_component_type}'."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Internal server error: Undefined component subdirectory for '{cm_component_type}'.",
+            )
+
+        component_config_dir = (current_project_root / "config" / subdir_name).resolve()
+        config_file_path = (component_config_dir / filename).resolve()
+
+        # Security check
+        if not str(config_file_path).startswith(str(component_config_dir)):
+            logger.error(
+                f"Path traversal attempt or invalid filename for get_config_file: {filename}. Resolved to {config_file_path}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid filename or path.",
+            )
+
+        if not config_file_path.is_file():
+            logger.warning(f"Config file not found: {config_file_path}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Config file '{filename}' of type '{component_type}' not found.",
+            )
+
+        import json  # Ensure json is imported
+
+        content = json.loads(config_file_path.read_text(encoding="utf-8"))
+        return content
+
+    except HTTPException as http_exc:
         raise http_exc
-    except Exception as e:  # Catch other unexpected errors
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from config file {config_file_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reading config file '{filename}': Invalid JSON content.",
+        )
+    except Exception as e:
         logger.error(
             f"Unexpected error in GET /configs/{component_type}/{filename}: {e}",
             exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}",
+            detail=f"An unexpected error occurred while retrieving config file '{filename}': {str(e)}",
         )
 
 
@@ -221,6 +267,7 @@ async def create_config_file(  # Renamed from upload_config_file for clarity (PO
     filename: str,
     config_body: ConfigContent,  # Changed variable name from config_data
     cm: ComponentManager = Depends(get_component_manager),
+    current_project_root: Path = Depends(get_current_project_root),
 ):
     """
     Creates a new component JSON configuration file.
@@ -262,9 +309,24 @@ async def create_config_file(  # Renamed from upload_config_file for clarity (PO
                 # The component_id_from_path (derived from {filename} in URL) is what the user *expects* the file to be named.
                 # This part needs careful handling if filename from URL is the strict target.
                 # For now, let cm.create_component_file handle it, which names file by internal ID.
+            # Actually, cm.create_component_file does not exist. We need to use save_component_config
+            # and check for file existence first.
+            component_id_for_file_check = config_payload.get(
+                id_field_name, component_id_from_path
+            )
+            file_path_to_check = cm._get_component_file_path(
+                cm_component_type, component_id_for_file_check, current_project_root
+            )
 
-            created_model = cm.create_component_file(
-                cm_component_type, config_payload, overwrite=False
+            if file_path_to_check.exists():
+                raise FileExistsError(
+                    f"Configuration file {file_path_to_check.name} already exists for component ID {component_id_for_file_check}."
+                )
+
+            created_model = cm.save_component_config(
+                cm_component_type,
+                config_payload,
+                project_root_path=current_project_root,
             )
             # The actual filename might be different from 'filename' in path if internal ID differs.
             actual_filename = f"{getattr(created_model, id_field_name)}.json"
@@ -276,7 +338,11 @@ async def create_config_file(  # Renamed from upload_config_file for clarity (PO
         elif isinstance(config_body.content, list):
             # Handle list of components creation, save to specified filename
             saved_models = cm.save_components_to_file(
-                cm_component_type, config_body.content, filename, overwrite=False
+                cm_component_type,
+                config_body.content,
+                filename,
+                project_root_path=current_project_root,
+                overwrite=False,
             )
             logger.info(
                 f"Successfully created/saved {len(saved_models)} components of type '{cm_component_type}' to file '{filename}'"
@@ -331,6 +397,7 @@ async def update_config_file(
     filename: str,
     config_body: ConfigContent,
     cm: ComponentManager = Depends(get_component_manager),
+    current_project_root: Path = Depends(get_current_project_root),
 ):
     """
     Updates an existing specific JSON configuration file.
@@ -368,7 +435,9 @@ async def update_config_file(
                 config_payload[id_field_name] = component_id_from_path
 
             saved_model = cm.save_component_config(
-                cm_component_type, config_payload
+                cm_component_type,
+                config_payload,
+                project_root_path=current_project_root,
             )  # This saves as component_id_from_path.json
             logger.info(
                 f"Successfully saved (updated/created) single component '{getattr(saved_model, id_field_name)}' of type '{cm_component_type}' to file {filename}"
@@ -378,7 +447,11 @@ async def update_config_file(
         elif isinstance(config_body.content, list):
             # Handle list of components update, overwrites specified filename
             saved_models = cm.save_components_to_file(
-                cm_component_type, config_body.content, filename, overwrite=True
+                cm_component_type,
+                config_body.content,
+                filename,
+                project_root_path=current_project_root,
+                overwrite=True,
             )
             logger.info(
                 f"Successfully updated/saved {len(saved_models)} components of type '{cm_component_type}' to file '{filename}'"
@@ -424,6 +497,7 @@ async def delete_config_file(
     component_type: str,
     filename: str,
     cm: ComponentManager = Depends(get_component_manager),
+    current_project_root: Path = Depends(get_current_project_root),
 ):
     """Deletes a specific JSON configuration file."""
     logger.info(f"Request received to delete config file: {component_type}/{filename}")
@@ -438,19 +512,24 @@ async def delete_config_file(
         # If it returns False, it means an actual error occurred during deletion attempt.
 
         # Check if component exists first to return 404 if not found at all
+        # We need current_project_root for list_component_files
         if cm.get_component_config(cm_component_type, component_id) is None:
             # Further check if file exists on disk, CM might have it in memory but no file
             # However, list_component_files is a better check for "does a file exist for this ID"
-            if f"{component_id}.json" not in cm.list_component_files(cm_component_type):
+            if f"{component_id}.json" not in cm.list_component_files(
+                cm_component_type, project_root_path=current_project_root
+            ):
                 logger.warning(
-                    f"Config file '{filename}' of type '{component_type}' not found for deletion."
+                    f"Config file '{filename}' of type '{component_type}' not found for deletion in project {current_project_root}."
                 )
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Configuration file not found for deletion.",
                 )
 
-        deleted = cm.delete_component_config(cm_component_type, component_id)
+        deleted = cm.delete_component_config(
+            cm_component_type, component_id, project_root_path=current_project_root
+        )
 
         if deleted:
             logger.info(
