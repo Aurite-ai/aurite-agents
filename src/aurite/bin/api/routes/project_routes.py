@@ -2,17 +2,23 @@
 API routes for managing projects (loading, creating, viewing, editing, etc.).
 """
 
+import json  # Added json
 import logging
 from pathlib import Path
-from typing import List, Optional, Any, Dict  # Added Any, Dict
+from typing import Any, Dict, List, Optional  # Added Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field  # Added ValidationError
+from pydantic import BaseModel, Field, ValidationError  # Added ValidationError
+
+from ....config.config_models import ProjectConfig  # For response model and validation
+from ....host_manager import Aurite
 
 # Import dependencies (adjust relative paths as needed)
-from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import Aurite
-from ....config.config_models import ProjectConfig  # For response model and validation
+from ...dependencies import (  # Added get_current_project_root
+    get_api_key,
+    get_current_project_root,
+    get_host_manager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,23 +223,88 @@ async def get_active_project_component_config(
 )
 async def create_project_file(
     request: CreateProjectFileRequest,
-    manager: Aurite = Depends(get_host_manager),
+    current_project_root: Path = Depends(get_current_project_root),
+    # manager: Aurite = Depends(get_host_manager), # Manager not directly needed for file creation logic
 ):
     """
     Creates a new project JSON file with minimal content (name and description).
-    The file will be created in the 'config/projects/' directory.
+    The file will be created in the 'config/projects/' directory relative to the current project root.
     """
-    logger.info(f"Request to create project file: {request.filename}")
-    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
-    # It needs refactoring to use current_project_root from ProjectManager for path construction.
-    logger.warning(
-        f"The POST /projects/create_file endpoint ({request.filename}) is temporarily non-functional "
-        "and requires refactoring for the new path resolution model."
+    logger.info(
+        f"Request to create project file: {request.filename} in {current_project_root}"
     )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Endpoint /projects/create_file temporarily unavailable, requires path refactoring.",
-    )
+
+    if not request.filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+
+    projects_dir = (current_project_root / "config" / "projects").resolve()
+    project_file_path = (projects_dir / request.filename).resolve()
+
+    # Security check
+    if not str(project_file_path).startswith(str(projects_dir)):
+        logger.error(
+            f"Path traversal attempt or invalid filename for create_project_file: {request.filename}. Resolved to {project_file_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename or path.",
+        )
+
+    if project_file_path.exists():
+        logger.warning(f"Project file already exists: {project_file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Project file '{request.filename}' already exists.",
+        )
+
+    try:
+        # Create a basic ProjectConfig model
+        new_project_config = ProjectConfig(
+            name=request.project_name,
+            description=request.project_description,
+            # Initialize with empty component dicts
+            clients={},
+            llms={},
+            agents={},
+            simple_workflows={},
+            custom_workflows={},
+        )
+
+        # Ensure the directory exists
+        projects_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write the new project config to the file
+        with open(project_file_path, "w", encoding="utf-8") as f:
+            json.dump(new_project_config.model_dump(mode="json"), f, indent=4)
+
+        logger.info(f"Successfully created project file: {project_file_path}")
+        return new_project_config
+    except ValidationError as e:
+        logger.error(
+            f"Validation error creating project config for {request.filename}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid project data: {e}",
+        )
+    except IOError as e:
+        logger.error(f"IOError creating project file {project_file_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not create project file '{request.filename}'.",
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error creating project file {project_file_path}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while creating project file '{request.filename}'.",
+        )
 
 
 @router.post("/load_components", status_code=status.HTTP_200_OK)
@@ -284,22 +355,32 @@ async def load_components_from_project_file(
 
 @router.get("/list_files", response_model=List[str])
 async def list_project_files(
-    # No Aurite needed here, can directly access filesystem
+    current_project_root: Path = Depends(get_current_project_root),
 ):
     """
-    Lists all project JSON files in the 'config/projects/' directory.
+    Lists all project JSON files in the 'config/projects/' directory
+    relative to the current project root.
     """
-    logger.info("Request to list project files.")
-    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
-    # It needs refactoring for path construction using current_project_root.
-    logger.warning(
-        "The GET /projects/list_files endpoint is temporarily non-functional "
-        "and requires refactoring for the new path resolution model."
-    )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Endpoint /projects/list_files temporarily unavailable, requires path refactoring.",
-    )
+    logger.info(f"Request to list project files in {current_project_root}.")
+    projects_dir = current_project_root / "config" / "projects"
+    if not projects_dir.is_dir():
+        logger.warning(f"Projects directory not found: {projects_dir}")
+        # Return empty list if the directory doesn't exist, as no project files can be listed.
+        return []
+    try:
+        project_files = sorted(
+            [f.name for f in projects_dir.glob("*.json") if f.is_file()]
+        )
+        logger.info(f"Found {len(project_files)} project files in {projects_dir}.")
+        return project_files
+    except Exception as e:
+        logger.error(
+            f"Error listing project files in {projects_dir}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list project files.",
+        )
 
 
 # --- Project File Content Endpoints (View & Edit) ---
@@ -324,19 +405,58 @@ async def get_active_project_config(
 
 
 @router.get("/file/{filename:path}", response_model=Any)
-async def get_project_file_content(filename: str):
-    """Retrieves the raw JSON content of a specific project file."""
-    logger.info(f"Request to get content of project file: {filename}")
-    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
-    # It needs refactoring for path construction using current_project_root.
-    logger.warning(
-        f"The GET /projects/file/{filename} endpoint is temporarily non-functional "
-        "and requires refactoring for the new path resolution model."
+async def get_project_file_content(
+    filename: str,
+    current_project_root: Path = Depends(get_current_project_root),
+):
+    """Retrieves the raw JSON content of a specific project file from config/projects/."""
+    logger.info(
+        f"Request to get content of project file: {filename} in {current_project_root}"
     )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"Endpoint /projects/file/{filename} temporarily unavailable, requires path refactoring.",
-    )
+    if not filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+
+    project_file_path = (
+        current_project_root / "config" / "projects" / filename
+    ).resolve()
+
+    # Security check: Ensure the resolved path is still within the intended subdirectory
+    expected_projects_dir = (current_project_root / "config" / "projects").resolve()
+    if not str(project_file_path).startswith(str(expected_projects_dir)):
+        logger.error(
+            f"Path traversal attempt or invalid filename for get_project_file_content: {filename}. Resolved to {project_file_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename or path.",
+        )
+
+    if not project_file_path.is_file():
+        logger.warning(f"Project file not found: {project_file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project file '{filename}' not found.",
+        )
+    try:
+        content = json.loads(project_file_path.read_text(encoding="utf-8"))
+        return content
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from project file {project_file_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reading project file '{filename}': Invalid JSON content.",
+        )
+    except Exception as e:
+        logger.error(
+            f"Error reading project file {project_file_path}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not read project file '{filename}'.",
+        )
 
 
 class ProjectFileContent(BaseModel):
@@ -347,17 +467,71 @@ class ProjectFileContent(BaseModel):
 async def update_project_file_content(
     filename: str,
     body: ProjectFileContent,
-    manager: Aurite = Depends(get_host_manager),  # Added Aurite dependency
+    current_project_root: Path = Depends(get_current_project_root),
+    # manager: Aurite = Depends(get_host_manager), # Manager not directly needed for file update logic
 ):
-    """Updates the content of a specific project file."""
-    logger.info(f"Request to update content of project file: {filename}")
-    # This endpoint is temporarily disabled due to PROJECT_ROOT_DIR removal.
-    # It needs refactoring for path construction using current_project_root.
-    logger.warning(
-        f"The PUT /projects/file/{filename} endpoint is temporarily non-functional "
-        "and requires refactoring for the new path resolution model."
+    """Updates the content of a specific project file in config/projects/."""
+    logger.info(
+        f"Request to update content of project file: {filename} in {current_project_root}"
     )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"Endpoint /projects/file/{filename} (update) temporarily unavailable, requires path refactoring.",
-    )
+
+    if not filename.endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename must end with .json.",
+        )
+
+    projects_dir = (current_project_root / "config" / "projects").resolve()
+    project_file_path = (projects_dir / filename).resolve()
+
+    # Security check
+    if not str(project_file_path).startswith(str(projects_dir)):
+        logger.error(
+            f"Path traversal attempt or invalid filename for update_project_file_content: {filename}. Resolved to {project_file_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename or path.",
+        )
+
+    if not project_file_path.is_file():
+        logger.warning(f"Project file not found for update: {project_file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project file '{filename}' not found for update.",
+        )
+
+    try:
+        # Validate the incoming content against ProjectConfig model
+        # This ensures the structure is valid before writing.
+        # The ProjectConfig model itself will handle if all fields are present or have defaults.
+        validated_content = ProjectConfig(**body.content)
+
+        # Write the validated project config to the file, overwriting it
+        with open(project_file_path, "w", encoding="utf-8") as f:
+            json.dump(validated_content.model_dump(mode="json"), f, indent=4)
+
+        logger.info(f"Successfully updated project file: {project_file_path}")
+        # Return the updated content (which is now validated)
+        return validated_content
+    except ValidationError as e:
+        logger.error(f"Validation error updating project file {filename}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid project data for '{filename}': {e}",
+        )
+    except IOError as e:
+        logger.error(f"IOError updating project file {project_file_path}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not update project file '{filename}'.",
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating project file {project_file_path}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while updating project file '{filename}'.",
+        )

@@ -1,17 +1,17 @@
 import logging
 import secrets
 from functools import lru_cache
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
-from fastapi import Depends, HTTPException, Security, Request
+from fastapi import Depends, HTTPException, Request, Security, status  # Added status
 from fastapi.security import APIKeyHeader
 
 # Import config/models needed by dependencies
 from ..config import ServerConfig
-from ..host_manager import Aurite  # Needed for get_host_manager
 from ..config.component_manager import ComponentManager  # Added for new dependency
 from ..config.project_manager import ProjectManager  # Added for new dependency
+from ..host_manager import Aurite  # Needed for get_host_manager
 
 logger = logging.getLogger(__name__)
 
@@ -155,3 +155,25 @@ async def get_project_manager(
             detail="ProjectManager is not available due to an internal error.",
         )
     return host_manager.project_manager
+
+
+async def get_current_project_root(
+    host_manager: Aurite = Depends(get_host_manager),
+) -> Path:
+    """
+    Dependency function to get the current project's root path
+    from the ProjectManager instance on Aurite.
+    """
+    if (
+        not host_manager.project_manager
+        or not host_manager.project_manager.current_project_root
+    ):
+        logger.error(
+            "Current project root not available via host_manager.project_manager.current_project_root. "
+            "This indicates an initialization issue or no active project."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Project context is not fully initialized or no project is active. Cannot determine project root.",
+        )
+    return host_manager.project_manager.current_project_root
