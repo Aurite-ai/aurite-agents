@@ -1,22 +1,23 @@
-import logging
-from typing import Any, Optional
 import json  # Added json import
+import logging
+from typing import List  # Added for response model
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
 from fastapi.responses import StreamingResponse  # Added StreamingResponse
 from pydantic import BaseModel
 
+from ....config.config_models import LLMConfig  # Added LLMConfig for the new endpoint
+from ....config.config_models import (
+    AgentConfig,
+    ClientConfig,
+    CustomWorkflowConfig,
+    WorkflowConfig,
+)
+from ....host_manager import Aurite, DuplicateClientIdError
+
 # Import shared dependencies (relative to parent of routes)
 from ...dependencies import get_api_key, get_host_manager
-from ....host_manager import Aurite, DuplicateClientIdError
-from ....config.config_models import (
-    ClientConfig,
-    AgentConfig,
-    WorkflowConfig,
-    CustomWorkflowConfig,
-    LLMConfig,  # Added LLMConfig for the new endpoint
-)
-from typing import List  # Added for response model
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,14 @@ async def stream_agent_endpoint(
         )
 
     async def event_generator():
+        # logger.info(f"COMPONENTS_ROUTES: event_generator FUNCTION CALLED for agent {agent_name}") # Original log
+        # logger.info(
+        #     f"COMPONENTS_ROUTES: event_generator started for agent {agent_name}"
+        # )
         try:
+            # logger.info(
+            #     f"COMPONENTS_ROUTES: event_generator TRY block entered for agent {agent_name}. About to call manager.stream_agent_run_via_facade."
+            # )
             # Use the query parameters directly
             async for event in manager.stream_agent_run_via_facade(
                 agent_name=agent_name,
@@ -130,9 +138,9 @@ async def stream_agent_endpoint(
                 sse_formatted_event = (
                     f"event: {event_type}\ndata: {event_data_json}\n\n"
                 )
-                logger.debug(
-                    f"SSE Event Yielding: {repr(sse_formatted_event)}"
-                )  # Log the exact SSE string
+                # logger.debug(
+                #     f"SSE Event Yielding: {repr(sse_formatted_event)}"
+                # )  # Log the exact SSE string
                 yield sse_formatted_event
         except Exception as e:
             logger.error(

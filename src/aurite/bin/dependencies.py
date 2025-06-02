@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # --- Project Root ---
 # Define project root relative to this file's location (src/bin/dependencies.py)
 # Assuming this file is at src/bin/dependencies.py
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # Point to workspace root
 
 
 # --- Configuration Dependency ---
