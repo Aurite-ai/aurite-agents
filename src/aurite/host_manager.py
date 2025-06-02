@@ -771,6 +771,12 @@ class Aurite:
         logger.info(
             f"LLM config '{llm_config.llm_id}' registered successfully in active project."
         )
+        # Also update ComponentManager's in-memory store
+        if self.component_manager and hasattr(self.component_manager, "llms"):
+            self.component_manager.llms[llm_config.llm_id] = llm_config
+            logger.info(
+                f"LLM config '{llm_config.llm_id}' also updated in ComponentManager's in-memory store."
+            )
 
         # Sync to DB if enabled
         if self.storage_manager:
