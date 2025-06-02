@@ -2,6 +2,7 @@ import typer
 from pathlib import Path
 import shutil
 import importlib.resources
+from .studio_server import start_studio_server # Added import
 
 app = typer.Typer()
 
@@ -191,6 +192,19 @@ def init(
             except Exception as cleanup_e:
                 logger(f"Error during cleanup: {cleanup_e}")
         raise typer.Exit(code=1)
+
+
+@app.command("studio")
+def studio(
+    host: str = typer.Option("127.0.0.1", help="Host to bind the server to."),
+    port: int = typer.Option(8080, help="Port to run the server on."),
+):
+    """
+    Starts the Aurite Studio UI - a local web server for the frontend.
+    """
+    logger(f"Starting Aurite Studio UI at http://{host}:{port}")
+    # The start_studio_server function itself has checks for frontend files
+    start_studio_server(host=host, port=port)
 
 
 if __name__ == "__main__":

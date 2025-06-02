@@ -1,7 +1,7 @@
 include README.md
 include LICENSE
 graft src/aurite/packaged
-graft frontend/dist
+recursive-include src/aurite/static_ui *
 recursive-include src *.pyi # For type stubs if any
 include src/aurite/py.typed # For PEP 561 compliance if src/aurite is the package dir
 
