@@ -32,20 +32,29 @@ if TYPE_CHECKING:
     # AgentConfig, ClientConfig, LLMConfig will be imported outside TYPE_CHECKING
     from ..llm.base_client import BaseLLM
     from ..llm.providers.anthropic_client import AnthropicLLM
+    # OpenAIClient needs to be available at runtime, so it's moved out of TYPE_CHECKING
 
 # Actual runtime imports
+from ..llm.providers.openai_client import OpenAIClient # Moved here
 from ..config.config_models import (
     AgentConfig,
+    ClientConfig, # Added ClientConfig
     LLMConfig,
 )  # Ensure LLMConfig is imported for direct use at runtime
 
 # Import Agent at runtime for instantiation
 from ..agents.agent import Agent
+# from agents_mcp import Agent as OpenAIMCPAgent # REMOVED
+# from agents.run import Runner as OpenAPIAgentRunner # REMOVED
+# from agents.run_context import RunContextWrapper # REMOVED
+# from agents.items import ItemHelpers # REMOVED
+# from agents.tool import Tool # REMOVED
 
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import (
     AgentExecutionResult,
     AgentOutputMessage,
+    AgentOutputContentBlock, # Added AgentOutputContentBlock
 )  # Added AgentOutputMessage
 
 # Import MessageParam for constructing initial messages
@@ -135,10 +144,20 @@ class ExecutionFacade:
                     exc_info=True,
                 )
                 raise ValueError(f"Failed to create Anthropic client: {e}") from e
-        # Add other providers here
-        # elif provider == "openai":
-        #     # ... implementation ...
-        #     pass
+        elif provider == "openai":
+            try:
+                return OpenAIClient(
+                    model_name=model_name, # Already has a default if llm_config.model_name is None
+                    temperature=llm_config.temperature,
+                    max_tokens=llm_config.max_tokens,
+                    system_prompt=llm_config.default_system_prompt,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to instantiate OpenAIClient for config '{llm_config.llm_id}': {e}",
+                    exc_info=True,
+                )
+                raise ValueError(f"Failed to create OpenAI client: {e}") from e
         else:
             logger.error(
                 f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}"
@@ -860,6 +879,19 @@ class ExecutionFacade:
                     f"Failed to obtain LLM client instance for agent '{agent_name}'."
                 )
 
+            # Determine provider for conditional logic
+            provider_name = "anthropic" # Default
+            if llm_config_for_override_obj and llm_config_for_override_obj.provider:
+                provider_name = llm_config_for_override_obj.provider.lower()
+            elif isinstance(llm_client_instance, OpenAIClient): # Check instance if no explicit config
+                provider_name = "openai"
+
+            logger.debug(f"Determined provider for agent '{agent_name}': {provider_name}")
+
+            # The logic for OpenAI provider using OpenAIMCPAgent and OpenAPIAgentRunner is removed.
+            # All providers will now use Aurite's standard Agent execution flow.
+            # The llm_client_instance will be either AnthropicLLM or our new OpenAIClient.
+
             # 4. Prepare Initial Messages (Load History + User Message, using processed_agent_config)
             initial_messages_for_agent: List[MessageParam] = []
             load_history = (
@@ -867,7 +899,7 @@ class ExecutionFacade:
                 and self._storage_manager
                 and session_id
             )
-            if load_history and self._storage_manager:
+            if load_history and self._storage_manager: # This block is for non-OpenAI providers
                 try:
                     loaded_history = self._storage_manager.load_history(
                         agent_name, session_id
@@ -878,11 +910,11 @@ class ExecutionFacade:
                         ]
                         initial_messages_for_agent.extend(typed_history)
                         logger.info(
-                            f"Facade: Loaded {len(loaded_history)} history turns for agent '{agent_name}', session '{session_id}'."
+                            f"Facade: Loaded {len(loaded_history)} history turns for Aurite agent '{agent_name}', session '{session_id}'."
                         )
                 except Exception as e:
                     logger.error(
-                        f"Facade: Failed to load history for agent '{agent_name}', session '{session_id}': {e}",
+                        f"Facade: Failed to load history for Aurite agent '{agent_name}', session '{session_id}': {e}",
                         exc_info=True,
                     )
 
@@ -890,23 +922,23 @@ class ExecutionFacade:
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
 
-            # 5. Instantiate the new Agent class (using processed_agent_config)
-            agent_instance = Agent(
+            # 5. Instantiate Aurite's Agent class (using processed_agent_config)
+            aurite_agent_instance = Agent(
                 config=processed_agent_config,  # Use the potentially modified config
-                llm_client=llm_client_instance,
+                llm_client=llm_client_instance, # This is Aurite's LLMClient (e.g. AnthropicLLM)
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
-                system_prompt_override=system_prompt,  # Pass override from run_agent args
-                llm_config_for_override=llm_config_for_override_obj,  # Pass fetched override object
+                system_prompt_override=system_prompt,
+                llm_config_for_override=llm_config_for_override_obj,
             )
-            logger.debug(f"Facade: Instantiated new Agent class for '{agent_name}'")
+            logger.debug(f"Facade: Instantiated Aurite Agent class for '{agent_name}'")
 
-            # 6. Execute Conversation
-            logger.info(f"Facade: Running conversation for Agent '{agent_name}'...")
-            agent_result: AgentExecutionResult = await agent_instance.run_conversation()
-            logger.info(f"Facade: Agent '{agent_name}' conversation finished.")
+            # 6. Execute Aurite Agent Conversation
+            logger.info(f"Facade: Running conversation for Aurite Agent '{agent_name}'...")
+            agent_result: AgentExecutionResult = await aurite_agent_instance.run_conversation()
+            logger.info(f"Facade: Aurite Agent '{agent_name}' conversation finished.")
 
-            # 7. Save History (if enabled and successful, using processed_agent_config)
+            # 7. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
             save_history = (
                 processed_agent_config.include_history
                 and self._storage_manager
