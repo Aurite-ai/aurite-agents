@@ -3,7 +3,7 @@ import logging
 import os
 
 # Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s') # Changed to DEBUG
 logger = logging.getLogger(__name__)
 
 # Ensure the src directory is in the Python path if running from the root directory

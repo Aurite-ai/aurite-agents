@@ -57,20 +57,43 @@ class OpenAIClient(BaseLLM):
 
         for msg in messages:
             role = msg.get("role")
-            content = msg.get("content") # This is List[Dict] for user/assistant, List[ToolResultBlockParam] for tool
+            content = msg.get("content")
 
-            if role == "user":
-                # Assuming user content is a list of blocks, extract text
+            # Priority 1: Handle Aurite's tool result messages (role="user", content.type="tool_result")
+            # These must be converted to OpenAI's role="tool" messages.
+            if role == "user" and isinstance(content, list) and content and content[0].get("type") == "tool_result":
+                tool_result_block = content[0]
+                tool_output_content = tool_result_block.get("content")
+                tool_output_str = ""
+                if isinstance(tool_output_content, list): # If list of blocks
+                    text_parts = [block.get("text", "") for block in tool_output_content if block.get("type") == "text"]
+                    tool_output_str = "\n".join(text_parts)
+                elif isinstance(tool_output_content, str):
+                    tool_output_str = tool_output_content
+                else: # Fallback: stringify, OpenAI expects string content for tool role.
+                    try:
+                        tool_output_str = json.dumps(tool_output_content)
+                    except TypeError: # If not JSON serializable, just stringify
+                        tool_output_str = str(tool_output_content)
+
+
+                openai_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_result_block.get("tool_use_id"),
+                    "content": tool_output_str,
+                })
+            # Priority 2: Handle standard user messages
+            elif role == "user":
                 text_parts = []
                 if isinstance(content, list):
-                    for block in content:
+                    for block in content: # Should be text blocks
                         if block.get("type") == "text":
                             text_parts.append(block.get("text", ""))
-                elif isinstance(content, str): # OpenAI also accepts simple string content for user role
+                elif isinstance(content, str):
                     text_parts.append(content)
                 openai_messages.append({"role": "user", "content": " ".join(text_parts)})
+            # Priority 3: Handle assistant messages
             elif role == "assistant":
-                # Assistant messages can have text content and tool_calls
                 assistant_content_parts = []
                 tool_calls_for_api = []
                 if isinstance(content, list):
@@ -120,30 +143,20 @@ class OpenAIClient(BaseLLM):
                     else: # Pass through if not a recognized tool_result structure
                         openai_messages.append(msg)
 
-            # If the message role from Aurite is "user" but contains tool_result, convert it
-            elif role == "user" and isinstance(content, list) and content and content[0].get("type") == "tool_result":
-                tool_result_block = content[0]
-                # Content of tool_result can be a list of blocks (e.g. text) or a simple string.
-                # OpenAI expects a single JSON string as the content for the tool role.
-                tool_output_content = tool_result_block.get("content")
-                tool_output_str = ""
-                if isinstance(tool_output_content, list): # If list of blocks
-                    text_parts = [block.get("text", "") for block in tool_output_content if block.get("type") == "text"]
-                    tool_output_str = "\n".join(text_parts)
-                elif isinstance(tool_output_content, str):
-                    tool_output_str = tool_output_content
-                else: # Fallback: stringify
-                    tool_output_str = json.dumps(tool_output_content)
-
-                openai_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_result_block.get("tool_use_id"),
-                    "content": tool_output_str, # OpenAI expects string content for tool role
-                })
+            # Priority 4: Handle pre-formatted OpenAI tool messages (if ever passed directly)
+            elif role == "tool":
+                 # Assuming if role is "tool", it's already in OpenAI format.
+                 # This requires 'tool_call_id' and 'content' (string) to be present in msg.
+                if "tool_call_id" in msg and "content" in msg:
+                    openai_messages.append({
+                        "role": "tool",
+                        "tool_call_id": msg["tool_call_id"],
+                        "content": str(msg["content"]) # Ensure content is string
+                    })
+                else:
+                    logger.warning(f"Message with role 'tool' missing 'tool_call_id' or 'content': {msg}")
             else:
-                # Pass through other roles or structures if any, or log warning
-                logger.warning(f"Unhandled message structure or role for OpenAI: {msg}")
-                # openai_messages.append(msg) # Or skip
+                logger.warning(f"Unhandled message role for OpenAI conversion: {role} in message: {msg}")
         return openai_messages
 
     def _convert_tools_to_openai_format(self, tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:

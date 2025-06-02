@@ -79,7 +79,7 @@
     {
       "name": "OpenAI Weather Agent",
       "llm_config_id": "openai_gpt4_turbo_mcp",
-      "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely.",
+      "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
       "client_ids": ["weather_server"],
       "auto": false,
       "max_iterations": 5,
