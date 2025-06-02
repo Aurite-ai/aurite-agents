@@ -197,6 +197,7 @@ class AgentTurnProcessor:
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
                 llm_config_override=self.llm_config_for_override,
             ):
+                logger.info(f"EVENT: {llm_event}")
                 event_type = llm_event.get("event_type")
                 event_data = llm_event.get("data", {}).copy() # Use a copy for modification
                 llm_event_original_index = event_data.get("index")

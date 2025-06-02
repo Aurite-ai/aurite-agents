@@ -4,6 +4,7 @@ LLM Client for Gemini
 
 import os
 import logging
+import json
 from typing import List, Optional, Dict, Any, AsyncGenerator
 
 from typing import cast
@@ -152,8 +153,154 @@ class GeminiLLM(BaseLLM):
         if system_prompt_override is not None:
             resolved_system_prompt = system_prompt_override
         tools_for_api = tools if tools else None
-        # TODO
-        pass
+        
+        tools_for_api = tools if tools else []
+        logger.debug(f"Making Gemini API call to model '{model_to_use}'")
+        try:
+            logger.info(f"MESSAGES: {messages}")
+            typed_messages = cast(Iterable[MessageParam], messages)
+            typed_messages = [self._convert_message_history(m) for m in messages]
+            
+            typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
+            typed_tools = [self._convert_tool_definition(t) for t in tools_for_api]
+            
+            tool = types.Tool(function_declarations=typed_tools)
+            
+            config = types.GenerateContentConfig(
+                tools=[tool],
+                system_instruction=resolved_system_prompt,
+                temperature=temperature_to_use,
+                max_output_tokens=max_tokens_to_use
+            )
+            
+            state = None # "thinking", "text", "tool"
+            current_index = 0 # manually count index, as indices given by gemini are reused between types
+            started_message = False
+            sent_tool = False
+            
+            for event in self.gemini_client.models.generate_content_stream(
+                model=model_to_use, config=config, contents=typed_messages
+            ):
+                if not started_message:
+                    started_message = True
+                    yield {
+                        "event_type": "message_start",
+                        "data": {
+                            # "message_id": 0,
+                            "role": "assistant",
+                            "model": model_to_use,
+                            "input_tokens": event.usage_metadata.prompt_token_count,
+                        },
+                    }
+                    
+                for part in event.candidates[0].content.parts:
+                    if part.function_call:
+                        next_state = "tool"
+                    elif part.text:
+                        next_state = "text"
+                    elif part.thought:
+                        next_state = "thinking"
+                    else:
+                        logger.error(f"Unknown stream state: {event}")
+                        
+                    if state == next_state:
+                        # ONGOING
+                        match state:
+                            case "thinking":
+                                # gemini does not seem to give text while thinking. do nothing
+                                pass
+                            case "text":
+                                yield {
+                                    "event_type": "text_delta",
+                                    "data": {
+                                        "index": current_index,
+                                        "text_chunk": part.text,
+                                    },
+                                }
+                            case "tool":
+                                yield {
+                                    "event_type": "tool_use_input_delta",
+                                    "data": {
+                                        "index": current_index,
+                                        "json_chunk": part.function_call.args
+                                    },
+                                }
+                    else:
+                        # ENDING
+                        if state and state != "tool":
+                            yield {
+                                "event_type": "content_block_stop",
+                                "data": {"index": current_index},
+                            }
+                            current_index += 1
+                        
+                        # BEGINNING
+                        state = next_state
+                        match state:
+                            case "thinking":
+                                yield {
+                                    "event_type": "thinking_block_start",
+                                    "data": {
+                                        "index": current_index,
+                                        "content_block_type": "thinking",
+                                    },
+                                }
+                            case "text":
+                                yield {
+                                    "event_type": "text_block_start",
+                                    "data": {"index": current_index},
+                                }
+                                yield {
+                                    "event_type": "text_delta",
+                                    "data": {
+                                        "index": current_index,
+                                        "text_chunk": part.text,
+                                    },
+                                }
+                                logger.info(f"Streamed text: {part.text}")
+                            case "tool":
+                                yield {
+                                    "event_type": "tool_use_start",
+                                    "data": {
+                                        "index": current_index,
+                                        "tool_id": part.function_call.id if part.function_call.id is not None else current_index,
+                                        "tool_name": part.function_call.name,
+                                    },
+                                }
+                                yield {
+                                    "event_type": "tool_use_input_delta",
+                                    "data": {
+                                        "index": current_index,
+                                        "json_chunk": json.dumps(part.function_call.args)
+                                    },
+                                }
+                                yield {
+                                    "event_type": "content_block_stop",
+                                    "data": {"index": current_index},
+                                }
+                                sent_tool = True
+                                current_index += 1
+                            
+            #finally, send a stream_end block:
+            yield {
+                "event_type": "stream_end",  # This signifies the end of THIS LLM call
+                "data": {
+                    "stop_reason": "tool_use" if sent_tool else "end_turn",
+                    "raw_message_stop_event": event.model_dump(mode="json")
+                    if hasattr(event, "model_dump")
+                    else str(event),
+                },
+            }
+                
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during Gemini stream: {e}", exc_info=True
+            )
+            yield {
+                "event_type": "error",
+                "data": {"type": "unexpected_error", "message": str(e)},
+            }
+
 
     def _convert_agent_output_message(self, response) -> AgentOutputMessage:
         content_blocks = []
@@ -202,6 +349,9 @@ class GeminiLLM(BaseLLM):
         logger.info(f"Gemini output message: {output_message}")
 
         return output_message
+    
+    def _convert_streaming_event(self, event) -> dict[str, Any]:
+        candidate = event.candidates[0]
 
     def _convert_tool_definition(self, tool_def: ToolParam):
         """Convert a ToolDefinition into the Gemini Format"""

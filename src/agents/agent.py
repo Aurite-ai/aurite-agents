@@ -315,7 +315,7 @@ Please correct your previous response to conform to the schema."""
                                 break
 
                     elif event_type == "tool_result" or event_type == "tool_execution_error":
-                        tool_use_id = event_data.get("tool_use_id")
+                        tool_use_id = event_data.get("tool_name")
                         is_error = event_type == "tool_execution_error" or event_data.get("is_error", False)
                         content_data = event_data.get("output") if not is_error else event_data.get("error_message", "Unknown error")
 
