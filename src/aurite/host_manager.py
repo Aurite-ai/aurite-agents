@@ -2,38 +2,39 @@
 Host Manager for orchestrating MCPHost, Agents, and Workflows.
 """
 
+import importlib.resources  # For loading packaged project templates
+import json  # Added for loading prompt_validation_config.json
 import logging
 import os  # Added for environment variable check
 from pathlib import Path
-import json  # Added for loading prompt_validation_config.json
-from typing import (
-    Optional,
+from typing import (  # Added AsyncGenerator, Dict, Any
+    Any,
     AsyncGenerator,
     Dict,
-    Any,
-)  # Added AsyncGenerator, Dict, Any
-
-# Assuming this file is in src/, use relative imports
-from .host.host import MCPHost
-from .config.config_models import (  # Updated import path
-    AgentConfig,
-    WorkflowConfig,
-    CustomWorkflowConfig,
-    ClientConfig,
-    LLMConfig,  # Added LLMConfig
+    Optional,
 )
 
-# Imports needed for execution methods
-# from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
-
-import importlib.resources  # For loading packaged project templates
+from .config.config_models import LLMConfig  # Added LLMConfig
+from .config.config_models import (  # Updated import path
+    AgentConfig,
+    ClientConfig,
+    CustomWorkflowConfig,
+    WorkflowConfig,
+)
 
 # Import the new facade
 from .execution.facade import ExecutionFacade
 
+# Assuming this file is in src/, use relative imports
+from .host.host import MCPHost
+from .storage.db_connection import create_db_engine  # Import engine factory
+
 # Import StorageManager and engine factory unconditionally
 from .storage.db_manager import StorageManager
-from .storage.db_connection import create_db_engine  # Import engine factory
+
+# Imports needed for execution methods
+# from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
+
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
@@ -250,6 +251,9 @@ class Aurite:
                 current_project=active_project,
                 storage_manager=self.storage_manager,
             )
+            logger.info(
+                f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
+            )  # ADDED
 
             # 5. Load additional packaged project templates like prompt_validation_config
             try:
@@ -644,8 +648,8 @@ class Aurite:
                 if retrieved_llm_config:
                     # Type cast to LLMConfig if get_component_config returns BaseModel
                     from .config.config_models import (
-                        LLMConfig as LLMConfigModel,
-                    )  # Local import for type hint
+                        LLMConfig as LLMConfigModel,  # Local import for type hint
+                    )
 
                     if isinstance(retrieved_llm_config, LLMConfigModel):
                         await self.register_llm_config(retrieved_llm_config)
@@ -1016,6 +1020,12 @@ class Aurite:
         """
         Streams an agent run by delegating to the ExecutionFacade.
         """
+        logger.info(
+            f"HOST_MANAGER: stream_agent_run_via_facade CALLED for agent {agent_name}"
+        )  # MOVED AND MODIFIED
+        logger.info(
+            f"HOST_MANAGER: Inside stream_agent_run_via_facade. self.execution is set: {self.execution is not None}"
+        )
         if not self.execution:
             logger.error("ExecutionFacade not available on Aurite for streaming.")
             # Yield an error event or raise an exception

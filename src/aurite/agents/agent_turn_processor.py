@@ -173,7 +173,7 @@ class AgentTurnProcessor:
                             Includes text_delta, tool_use_start, tool_use_input_delta,
                             tool_use_end, tool_result, tool_execution_error, stream_end.
         """
-        logger.debug("Streaming conversation turn...")
+        logger.info("ATP: Entered stream_turn_response")  # ADDED
         self._tool_uses_this_turn = []  # Reset for this turn
 
         # active_tool_calls stores information about tools the LLM has started to use in the current turn.
@@ -190,6 +190,7 @@ class AgentTurnProcessor:
         # This approach simplifies backend logic by removing custom frontend-specific index allocation.
 
         try:
+            logger.info("ATP: About to enter LLM stream message loop")  # ADDED
             async for llm_event in self.llm.stream_message(
                 messages=self.messages,  # type: ignore[arg-type]
                 tools=self.tools,
@@ -197,6 +198,9 @@ class AgentTurnProcessor:
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
                 llm_config_override=self.llm_config_for_override,
             ):
+                logger.info(
+                    f"ATP: Received LLM event from stream: {llm_event}"
+                )  # ADDED
                 event_type = llm_event.get("event_type")
                 event_data = llm_event.get(
                     "data", {}

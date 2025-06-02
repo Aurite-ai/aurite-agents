@@ -2,30 +2,24 @@
 Manages the multi-turn conversation loop for an Agent.
 """
 
-import logging
 import json
-from typing import (
-    Dict,
-    Any,
-    Optional,
-    List,
-    TYPE_CHECKING,
-    AsyncGenerator,
-)
+import logging
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
-from pydantic import ValidationError
 from anthropic.types import MessageParam
+from pydantic import ValidationError
+
+from ..config.config_models import AgentConfig, LLMConfig
 
 # Project imports
 from ..host.host import MCPHost
+from ..llm.base_client import BaseLLM
 from .agent_models import (
     AgentExecutionResult,
-    AgentOutputMessage,
     AgentOutputContentBlock,
+    AgentOutputMessage,
 )
 from .agent_turn_processor import AgentTurnProcessor
-from ..config.config_models import AgentConfig, LLMConfig
-from ..llm.base_client import BaseLLM
 
 if TYPE_CHECKING:
     pass
@@ -278,6 +272,9 @@ Please correct your previous response to conform to the schema."""
             )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
+        logger.info(
+            f"AGENT: Entered stream_conversation for agent '{self.config.name or 'Unnamed'}'"
+        )  # ADDED
         logger.debug(
             f"Agent starting STREAMING run for agent '{self.config.name or 'Unnamed'}'."
         )
@@ -320,6 +317,9 @@ Please correct your previous response to conform to the schema."""
             buffered_tool_results_for_this_turn: List[Dict[str, Any]] = []
 
             try:
+                logger.info(
+                    f"AGENT: About to enter turn_processor.stream_turn_response() loop for iteration {current_iteration}"
+                )  # ADDED
                 async for event in turn_processor.stream_turn_response():
                     yield event
                     event_type = event.get("event_type")
