@@ -31,11 +31,11 @@ Before you begin, please ensure you have the following set up:
         ```
 3.  **Environment Variables:**
     *   Ensure your environment variables are configured as per the main `aurite` package README. This is crucial for the framework to connect to LLM providers and for the backend API to function. Key variables include:
-        *   `ANTHROPIC_API_KEY`
+        *   `OPENAI_API_KEY`
         *   `API_KEY` (a secret key you define for securing your Aurite backend API). Your API key can be any combination of numbers and letters. You'll need to create a `.env` file in your project root (e.g., `my_first_aurite_project/.env`) and add this key, for example:
             ```env
             API_KEY=your_api_key
-            ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
+            OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
             ```
 ---
 
@@ -77,9 +77,9 @@ Now that the UI is open, let's create your agent.
             ```
         *   `[Screenshot: UI Agent configuration form - "System Prompt" field filled]`
 
-    *   **LLM Configuration:** Select the Large Language Model your agent will use. The `aurite init` command should have set up a default LLM (e.g., using Anthropic's Haiku model if you have an `ANTHROPIC_API_KEY`).
+    *   **LLM Configuration:** Select the Large Language Model your agent will use. The `aurite init` command should have set up a default LLM (e.g., using OpenAI's GPT-4 Turbo model if you have an `OPENAI_API_KEY`).
         *   From the "LLM Configuration" dropdown, choose an available LLM.
-        *   Example: `default_anthropic_haiku` (or similar based on your setup).
+        *   Example: `openai_gpt4_turbo_mcp` (or similar based on your setup, like `default_openai_gpt4_turbo`).
         *   `[Screenshot: UI Agent configuration form - "LLM Configuration" dropdown with selection]`
 
     *   **Client (Tool) Selection:** Agents use "Clients" to access tools. A client represents a connection to an MCP server that provides these tools. The `aurite init` command should also set up an example weather MCP server.

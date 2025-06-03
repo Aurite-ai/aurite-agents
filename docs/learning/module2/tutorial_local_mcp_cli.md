@@ -18,7 +18,7 @@ Before you start, ensure you have:
     *   `pip install aurite`
     *   `aurite init my_aurite_cli_project` (or your preferred project name)
     *   `cd my_aurite_cli_project`
-3.  **Environment Variables Set:** Your `.env` file in the project root should contain your `API_KEY` and any necessary LLM API keys (e.g., `ANTHROPIC_API_KEY`).
+3.  **Environment Variables Set:** Your `.env` file in the project root should contain your `API_KEY` and any necessary LLM API keys (e.g., `OPENAI_API_KEY`).
 4.  **Basic JSON Understanding:** You'll be editing a JSON file.
 5.  **Command-Line Familiarity:** This tutorial heavily uses the terminal.
 6.  **Text Editor:** A code editor like VS Code, Sublime Text, or even a simple text editor to modify `aurite_config.json`.
@@ -102,15 +102,15 @@ Now, let's define an agent that will use the `local_weather_service_cli`.
     ```json
     {
       "name": "CLIWeatherAgent",
-      "system_prompt": "You are an assistant that uses tools to find the weather. Respond with only the weather information.",
-      "llm_config_id": "default_anthropic_haiku",
+      "system_prompt": "You are an OpenAI assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Respond clearly and concisely.",
+      "llm_config_id": "openai_gpt4_turbo_mcp",
       "client_ids": ["local_weather_service_cli"]
     }
     ```
     *   **Explanation of fields:**
         *   `name`: A unique name for your agent.
         *   `system_prompt`: The instructions for your agent.
-        *   `llm_config_id`: The ID of an LLM configuration defined in your `"llms"` list. `aurite init` usually creates a `"default_anthropic_haiku"` or similar. If you don't have this exact ID, check your `"llms"` list and use an available one, or add a default LLM config (see `docs/components/llm.md` or examples from `aurite init`).
+        *   `llm_config_id`: The ID of an LLM configuration defined in your `"llms"` list. `aurite init` usually creates an OpenAI LLM configuration like `"openai_gpt4_turbo_mcp"` or a generic one like `"default_openai_gpt_4_turbo"` if you have an `OPENAI_API_KEY` set. If you don't have this exact ID, check your `"llms"` list in `aurite_config.json` and use an available OpenAI one, or add one based on the `aurite_config.json` example from Module 1 or `docs/components/llm.md`.
         *   `client_ids`: A list of `client_id` strings that this agent can use. Crucially, this includes `"local_weather_service_cli"`.
 
 3.  **Save `aurite_config.json`** after making these changes.
