@@ -1,27 +1,34 @@
-# Module 1: Assignment - System Prompt Engineering Challenge
+# Module 1: Optional Assignment - System Prompt Engineering Challenge
 
-This assignment challenges you to apply what you've learned about system prompts and their impact on AI agent behavior. You'll modify an existing agent's system prompt to give it a new persona and achieve a different interaction style, all while maintaining its core functionality.
+This **optional assignment** offers a chance to further explore system prompts and their impact on AI agent behavior. You can choose to complete one or more of the challenges below by modifying an existing agent's system prompt to give it a new persona or achieve a different interaction style, all while maintaining its core functionality.
 
 **Learning Objectives:**
 *   Demonstrate your understanding of how system prompts influence agent behavior.
 *   Practice iterative prompt refinement to achieve a desired outcome.
-*   Test and verify your agent's modified behavior using the Aurite Developer UI.
+*   Test and verify your agent's modified behavior by editing configuration files and running a Python script.
 
 ---
 
 ## Prerequisites
 
-*   Successful completion of the Module 1 Tutorial: "Your First Agent via the Developer UI."
-*   Access to the Aurite Development UI (launched via `aurite studio`).
-*   The "MyWeatherAssistant" agent (or a similar weather agent) should be configured in your UI as per the tutorial.
+Before attempting this optional assignment, ensure you have:
+
+1.  **Successfully completed all steps in the Module 1 Tutorial: "Your First Agent via Configuration Files."** This includes:
+    *   Setting up your Python environment and installing the Aurite framework.
+    *   Initializing an Aurite project within your workspace.
+    *   Configuring your OpenAI API key in the `.env` file (located in your main workspace directory).
+    *   Successfully configuring the "MyCLIWeatherAssistant" agent in your project's `aurite_config.json` file.
+    *   Successfully modifying `run_example_project.py` to run "MyCLIWeatherAssistant" and verifying its operation.
+2.  **Your `aurite_config.json` file should contain the "MyCLIWeatherAssistant" agent configuration**, as created in the tutorial. This agent should be set up to use the `my_openai_gpt4_turbo` LLM configuration and the `weather_server` client.
+3.  **Your `run_example_project.py` script should be configured to execute the "MyCLIWeatherAssistant" agent.**
 
 ---
 
 ## Task Description
 
-Your task is to take the "MyWeatherAssistant" agent (or the weather agent you created in the tutorial) and significantly alter its personality or how it presents information by only modifying its **system prompt**. The agent must still correctly use the weather tool to fetch and report weather information for a given location (e.g., London).
+Your task is to take the "MyCLIWeatherAssistant" agent (configured in the tutorial) and significantly alter its personality or how it presents information by only modifying its **system prompt** in the `aurite_config.json` file. The agent must still correctly use the weather tool to fetch and report weather information for a given location (e.g., London).
 
-Choose **one** of the following challenges. Each requires you to modify only the system prompt of your weather agent to achieve the desired behavior. Remember, the agent must still use the `weather_lookup` tool for London.
+You can choose to complete **one or more** of the following challenges. Each requires you to modify only the system prompt of your "MyCLIWeatherAssistant" agent to achieve the desired behavior. Remember, the agent must still use the `weather_lookup` tool for London.
 
 ### Challenge Options:
 
@@ -60,27 +67,37 @@ Choose **one** of the following challenges. Each requires you to modify only the
 
 ## Steps to Complete the Assignment:
 
-1.  **Choose Your Challenge:** Select one of the challenges listed above.
-2.  **Navigate to Your Agent's Configuration:**
-    *   Launch the Aurite Development UI using `aurite studio`.
-    *   In the top navigation bar, click on "Configure".
-    *   In the sidebar that appears, click on "Agents".
-    *   From the list of existing agents, select your "MyWeatherAssistant" (or the equivalent agent you created in the tutorial). This will open its configuration for editing.
+1.  **Choose Your Challenge(s):** Select one or more of the challenges listed above to attempt.
+2.  **Locate Your Agent's Configuration:**
+    *   Open your project's `aurite_config.json` file in your text editor.
+    *   Find the configuration block for your "MyCLIWeatherAssistant" agent within the `agents` array. It should look similar to this:
+        ```json
+        {
+          "name": "MyCLIWeatherAssistant",
+          "system_prompt": "You are a helpful assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Only provide the temperature and a brief description of the conditions.",
+          "llm_config_id": "my_openai_gpt4_turbo",
+          "client_ids": ["weather_server"]
+        }
+        ```
 3.  **Modify the System Prompt:**
-    *   In the agent configuration form, locate the "System Prompt" field.
-    *   Carefully edit the existing system prompt to meet the requirements of your chosen challenge. Think about:
+    *   In the JSON configuration for "MyCLIWeatherAssistant", locate the `"system_prompt"` field.
+    *   Carefully edit the value of this system prompt to meet the requirements of your chosen challenge. Think about:
         *   The agent's new role/character or data manipulation task.
         *   The tone of voice and language style (for persona challenges).
         *   Specific instructions for data processing (for data manipulation challenges).
         *   How it should integrate the factual weather data from the tool.
-    *   Remember, the agent must still use the `weather_lookup` tool and provide accurate weather details for London, presented according to the challenge.
+    *   Remember, the agent must still use the `weather_lookup` tool (via the `weather_server` client) and provide accurate weather details for London, presented according to the challenge.
 4.  **Save and Test Iteratively:**
-    *   After modifying the system prompt, click the "Save" or "Update Agent" button to save your changes to the "MyWeatherAssistant" configuration.
-    *   Navigate to the "Execute" section and select your agent.
-    *   Test it by sending a message like: "What is the weather in London?"
-    *   Observe the response. Does it reflect the new persona? Is the weather information still accurate?
-    *   If not, go back to the "Build" section, refine your system prompt further, save, and test again. Prompt engineering often requires several iterations!
-5.  **Final Verification:** Once you are satisfied with the agent's behavior and believe it meets the requirements of your chosen persona challenge, proceed to the submission.
+    *   After modifying the system prompt in `aurite_config.json`, save the file.
+    *   Open your terminal, ensure your virtual environment is active, and navigate to your project directory (e.g., `my_first_aurite_project`).
+    *   Run your agent using the `run_example_project.py` script:
+        ```bash
+        python run_example_project.py
+        ```
+        *(This script should already be configured to run "MyCLIWeatherAssistant" with a query like "What is the weather in London?")*
+    *   Observe the terminal output. Does it reflect the new persona/behavior? Is the weather information still accurate?
+    *   If not, go back to `aurite_config.json`, refine the system prompt further, save, and test again by running the script. Prompt engineering often requires several iterations!
+5.  **Final Verification:** Once you are satisfied with the agent's behavior and believe it meets the requirements of your chosen challenge, proceed to the submission.
 
 ---
 
@@ -88,18 +105,18 @@ Choose **one** of the following challenges. Each requires you to modify only the
 
 Please submit the following:
 
-1.  **Your Final System Prompt:** Copy and paste the complete, final version of the system prompt you crafted for your chosen persona. Clearly indicate which persona challenge you selected.
+1.  **Your Final System Prompt(s):** For each challenge you complete, copy and paste the complete, final version of the system prompt you crafted. Clearly indicate which challenge each system prompt corresponds to.
 2.  **Screenshot of Successful Interaction:**
-    *   A single screenshot of the Aurite Developer UI's chat interface.
+    *   A single screenshot of your **terminal output** after running `python run_example_project.py`.
     *   This screenshot must clearly show:
         *   Your input message (e.g., "What is the weather in London?").
         *   The agent's complete response, demonstrating the new persona and providing the weather details for London.
 
 ---
 
-## Evaluation Criteria
+## Self-Assessment Criteria
 
-Your assignment will be evaluated based on:
+Consider the following points to self-assess your attempts:
 
 1.  **Challenge Adherence (60%):**
     *   Does the agent's response clearly and consistently exhibit the chosen persona or correctly perform the data manipulation as per the challenge?
