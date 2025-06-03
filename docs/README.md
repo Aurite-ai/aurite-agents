@@ -164,31 +164,31 @@ For a comprehensive understanding of the architecture, component interactions, a
 
 ## Core Concepts for Users
 
-Understanding these concepts will help you configure and use the Aurite Agents framework effectively.
+Understanding these concepts will help you configure and use the Aurite Agents framework effectively. For detailed information on each configuration object, refer to the [Component Configurations documentation](./docs/components/README.md).
 
-### 1. Projects
+### 1. Projects (`ProjectConfig`)
 
-A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
+A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `aurite_config.json` or `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
 *   The name and description of the project.
-*   Which LLM configurations to use (`llm_configs`).
-*   Which MCP Servers (Clients) to connect to (`clients`).
+*   Which LLM configurations to use.
+*   Which MCP Servers (Clients) to connect to.
 *   Which Agents, Simple Workflows, and Custom Workflows are part of this project.
 
-The active project configuration tells the `HostManager` what components to load and make available.
+The active project configuration tells the `Aurite` (formerly HostManager) instance what components to load and make available. For detailed configuration options, see [`docs/components/project_configs.md`](./docs/components/project_configs.md).
 
 ### 2. Agentic Components
 
 These are the primary building blocks you'll work with:
 
-*   **Agents (`src/agents/agent.py`):**
-    *   LLM-powered entities that can engage in conversations, use tools, and optionally maintain history.
-    *   Configured via `AgentConfig` models, typically stored in JSON files (e.g., `config/agents/my_weather_agent.json`) and referenced in your project file.
-    *   Key settings include the LLM to use, system prompts, and rules for accessing tools/clients.
+*   **Agents (`AgentConfig`):**
+    *   LLM-powered entities that can engage in conversations, use tools (via Clients), and optionally maintain history.
+    *   Key settings include the LLM to use (`llm_config_id`), system prompts, `client_ids` for tool access, and the `auto` mode for dynamic tool selection.
+    *   Configured via `AgentConfig` models. For detailed configuration options, see [`docs/components/agents.md`](./docs/components/agents.md).
 
     ```mermaid
     graph TD
-        Agent["Agent <br/> (src/agents/agent.py)"] --> LLM["LLM <br/> (e.g., Claude, GPT)"];
-        Agent --> Clients["MCP Clients <br/> (Connections to Servers)"];
+        Agent["Agent <br/> (AgentConfig)"] --> LLM["LLM <br/> (LLMConfig)"];
+        Agent --> Clients["MCP Clients <br/> (ClientConfig)"];
 
         Clients --> MCP1["MCP Server 1 <br/> (e.g., Weather Tool)"];
         Clients --> MCP2["MCP Server 2 <br/> (e.g., Database)"];
@@ -202,10 +202,10 @@ These are the primary building blocks you'll work with:
         style MCP3 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
     ```
 
-*   **Simple Workflows (`src/workflows/simple_workflow.py`):**
-    *   Define a sequence of Agents to be executed one after another.
-    *   Configured via `WorkflowConfig` models (e.g., `config/workflows/my_simple_sequence.json`).
+*   **Simple Workflows (`WorkflowConfig`):**
+    *   Define a linear sequence of Agents to be executed one after another.
     *   Useful for straightforward, multi-step tasks where the output of one agent becomes the input for the next.
+    *   Configured via `WorkflowConfig` models. For detailed configuration options, see [`docs/components/simple_workflows.md`](./docs/components/simple_workflows.md).
 
     ```mermaid
     graph LR
@@ -217,142 +217,31 @@ These are the primary building blocks you'll work with:
         style Agent3 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
     ```
 
-*   **Custom Workflows (`src/workflows/custom_workflow.py`):**
+*   **Custom Workflows (`CustomWorkflowConfig`):**
     *   Allow you to define complex orchestration logic using custom Python classes.
-    *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class.
-    *   Provide maximum flexibility for intricate interactions and conditional logic. Here's a conceptual example of what a custom workflow class might look like:
-    ```python
-    # Example: src/my_custom_workflows/my_orchestrator.py class definition
-    class MyCustomOrchestrator:
-        async def execute_workflow(
-            self,
-            initial_input: Any,
-            executor: "ExecutionFacade", # Type hint for the passed executor
-            session_id: Optional[str] = None # Optional session_id
-        ) -> Any:
+    *   Provide maximum flexibility for intricate interactions, conditional logic, and parallelism.
+    *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class. For detailed configuration options and an example Python class structure, see [`docs/components/custom_workflows.md`](./docs/components/custom_workflows.md).
+    *   The example Python class structure from the previous version of this README has been moved to the `custom_workflows.md` document for better organization.
 
-            # --- Your custom Python orchestration logic here ---
-            # You can call other agents, simple workflows, or even other custom workflows
-            # using the 'executor' instance.
+### 3. LLM Configurations (`LLMConfig`)
 
-            # Example: Call an agent
-            agent_result = await executor.run_agent(
-                agent_name="MyProcessingAgent",
-                user_message=str(initial_input), # Ensure message is a string
-            )
+*   Define settings for different Large Language Models (e.g., provider, model name, temperature, max tokens).
+*   Agents reference these LLM configurations by their `llm_id`.
+*   Managed by `LLMConfig` models. For detailed configuration options, see [`docs/components/llms.md`](./docs/components/llms.md).
 
-            processed_data = agent_result.final_response.content[0].text
-
-            # Example: Call a simple workflow
-            simple_workflow_result = await executor.run_simple_workflow(
-                workflow_name="MyFollowUpWorkflow",
-                initial_input=processed_data
-            )
-            simple_workflow_output = simple_workflow_result.get("final_message")
-
-            # Example: Call a custom workflow
-            custom_workflow_result = await executor.run_custom_workflow(custom_workflow_name="MyCustomWorkflow", initial_input=simple_workflow_output)
-
-            return custom_workflow_result
-    ```
-    To use this custom workflow:
-      1. Save this code into a Python file (e.g., in src/my_custom_workflows/basic_executor_example.py).
-      2. In your project's JSON configuration (e.g., config/projects/default.json), add or update a custom_workflow entry like this:
-    ```json
-    {
-      "custom_workflows": [
-        {
-          "name": "MyBasicWorkflowExample",
-          "module_path": "src.my_custom_workflows.basic_executor_example",
-          "class_name": "BasicExecutorExampleWorkflow",
-          "description": "A basic example demonstrating custom workflow executor usage."
-        }
-        // ... any other custom workflows
-      ]
-    }
-    ```
-    * (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
-    3. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code) is also defined in the 'agents' section of your project configuration.
-
-### 3. LLM Configurations
-
-*   Define settings for different Large Language Models (e.g., model name, temperature, max tokens).
-*   Managed by `LLMConfig` models, typically stored in `config/llms/default_llms.json` or a custom file.
-*   Agents reference these LLM configurations by their `llm_id`, allowing you to easily switch or share LLM settings.
-*   The core LLM client abstraction is `src/llm/base_client.py`.
-
-### 4. MCP Servers (as Clients)
+### 4. MCP Servers (as Clients via `ClientConfig`)
 
 *   External processes that provide tools, prompts, or resources according to the Model Context Protocol (MCP).
 *   The Aurite framework connects to these servers, referring to them as "Clients."
-*   Configured via `ClientConfig` models (e.g., `config/clients/default_clients.json`), specifying the server's path, capabilities, and access rules.
-*   An example MCP server is `src/packaged_servers/weather_mcp_server.py`.
+*   Configured via `ClientConfig` models, specifying the server's connection details (e.g., `server_path` for `stdio` transport, `http_endpoint` for `http_stream` transport), capabilities, and access rules.
+*   For detailed configuration options, see [`docs/components/clients.md`](./docs/components/clients.md).
 
 ## Configuration System Overview (User Perspective)
 
-*   **Main Project File:** The system loads its entire configuration based on the project file specified by the `PROJECT_CONFIG_PATH` environment variable. This project file (e.g., `config/projects/default.json`) defines configurations or references other JSON files for specific components like agents, clients, and LLMs. For example, a project file might look like this:
-    ```json
-    {
-        "llms": [
-        {
-        "llm_id": "anthropic_claude_3_opus",
-        "provider": "anthropic",
-        "model_name": "claude-3-opus-20240229",
-        "temperature": 0.7,
-        "max_tokens": 4096,
-        "max_iterations": 10
-        }
-        ],
-        "clients": [
-            {
-            "client_id": "weather_server",
-            "server_path": "src/packaged_servers/weather_mcp_server.py",
-            "capabilities": ["tools", "prompts"],
-            "timeout": 15.0,
-            "routing_weight": 1.0,
-            "roots": []
-            },
-            "planning_server",
-            "address_server"
-        ],
-        "agents": [
-            {
-            "name": "Weather Agent",
-            "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to respond to the user's query appropriately.",
-            "client_ids": ["weather_server"],
-            "llm_id": "anthropic_claude_3_opus",
-            "exclude_components": ["current_time"]
-            },
-            {
-            "name": "Weather Planning Workflow Step 2",
-            "system_prompt": "You have been provided with weather information in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information.",
-            "client_ids": ["planning_server"],
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "max_iterations": 10,
-            }
-        ],
-        "workflows": [
-            {
-            "name": "A second testing workflow using weather and planning servers",
-            "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
-            "description": "Updated workflow to test simple workflow execution using agents."
-            }
-        ],
-        "custom_workflows": [
-            {
-            "name": "Prompt Validation Workflow",
-            "module_path": "src/prompt_validation/prompt_validation_workflow.py",
-            "class_name": "PromptValidationWorkflow",
-            "description": "A custom workflow built to test agentic components."
-            }
-        ]
-    }
-    ```
-*   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`). You can reference these components by their ID as seen in the `planning_server` and `address_server` references in the `clients` section of the example project json file above.
+*   **Main Project File:** The system loads its entire configuration based on the project file (e.g., `aurite_config.json` or the file specified by `PROJECT_CONFIG_PATH`). This project file defines configurations directly or, more commonly, references other JSON files for specific components like agents, clients, and LLMs. For an example project file structure and details, see [`docs/components/project_configs.md`](./docs/components/project_configs.md).
+*   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`). The main project file then lists these files.
 *   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
 *   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
-*
 
 ## Other Entrypoints
 

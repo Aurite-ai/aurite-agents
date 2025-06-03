@@ -3,26 +3,19 @@
     "name": "Mapping Agent",
     "client_ids": ["address_server"],
     "system_prompt": "You are a helpful assistant specializing in maps and directions. Use the tools to help the user with their requests.",
-    "model": "claude-3-opus-20240229",
-    "temperature": 0.1,
-    "max_tokens": 4096,
-    "max_iterations": 15
+    "llm_config_id": "my_openai_gpt4_turbo"
   },
   {
     "name": "Simple Planning Agent",
     "client_ids": [],
     "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
-    "model": "claude-3-opus-20240229",
-    "temperature": 0.7,
-    "max_tokens": 4096,
-    "max_iterations": 10,
-    "exclude_components": ["current_time"],
+    "llm_config_id": "my_openai_gpt4_turbo",
     "evaluation": "planning_agent_test.json"
   },
   {
     "name": "Weather Agent",
     "client_ids": ["weather_server"],
-    "llm_config_id": "anthropic_claude_3_opus",
+    "llm_config_id": "my_openai_gpt4_turbo",
     "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
     "config_validation_schema": {
       "type": "object",
@@ -59,15 +52,7 @@
   {
     "name": "Weather Planning Agent",
     "client_ids": ["weather_server", "planning_server"],
-    "llm_config_id": null,
-    "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
-    "config_validation_schema": null,
-    "model": "claude-3-opus-20240229",
-    "temperature": 0.7,
-    "max_tokens": 4096,
-    "max_iterations": 10,
-    "include_history": true,
-    "exclude_components": null,
-    "evaluation": null
+    "llm_config_id": "my_openai_gpt4_turbo",
+    "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve."
   }
 ]

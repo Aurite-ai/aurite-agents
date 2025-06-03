@@ -16,6 +16,7 @@ import {
   getSpecificComponentConfig,
   registerLlmConfigAPI,
   registerAgentAPI,
+  streamAgentExecution, // Import the function
 } from '../../../lib/apiClient';
 import useAuthStore from '../../../store/authStore';
 
@@ -146,13 +147,18 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     if (agentConfig?.system_prompt) {
       queryParams.append('system_prompt', agentConfig.system_prompt);
     }
-    const { apiKey } = useAuthStore.getState();
-    if (apiKey) queryParams.append('api_key', apiKey);
+    // const { apiKey } = useAuthStore.getState(); // apiKey is handled by streamAgentExecution
+    // if (apiKey) queryParams.append('api_key', apiKey); // Handled by streamAgentExecution
 
-    const url = `/api/agents/${agentName}/execute-stream?${queryParams.toString()}`;
+    // const url = `/api/agents/${agentName}/execute-stream?${queryParams.toString()}`; // OLD direct URL construction
     if (eventSourceRef.current) eventSourceRef.current.close();
 
-    const eventSource = new EventSource(url);
+    // Use the imported streamAgentExecution function
+    // It will use VITE_API_BASE_URL and handle apiKey internally
+    const agentConfigForPrompt: AgentConfig | undefined = await getSpecificComponentConfig("agents", agentName); // Fetch for system_prompt
+    const system_prompt_for_stream = agentConfigForPrompt?.system_prompt;
+
+    const eventSource = streamAgentExecution(agentName, text, system_prompt_for_stream);
     eventSourceRef.current = eventSource;
 
     const updateStreamingMessageBlocks = (eventName: string, updater: (blocks: AgentOutputContentBlock[]) => AgentOutputContentBlock[]) => {
