@@ -585,7 +585,7 @@ class Aurite:
             self.project_manager.add_component_to_active_project(
                 "clients", client_config.client_id, client_config
             )
-            logger.info(
+            logger.debug(
                 f"Client '{client_config.client_id}' registered successfully with host and active project."
             )
         except Exception as e:
@@ -631,14 +631,14 @@ class Aurite:
             raise ValueError("Agent configuration must have a 'name'.")
 
         if agent_config.name in active_project.agents:
-            logger.info(
+            logger.debug(
                 f"Agent name '{agent_config.name}' already exists in active project. It will be updated."
             )
         # else: # No longer raising ValueError, proceed to create/update
 
         # Cascading LLMConfig registration/update
         if agent_config.llm_config_id:
-            logger.info(
+            logger.debug(
                 f"Agent '{agent_config.name}' specifies LLM config ID '{agent_config.llm_config_id}'. Attempting to register/update it."
             )
             try:
@@ -702,13 +702,13 @@ class Aurite:
             agent_config,  # Changed "agent_configs" to "agents"
         )
         # Note: self.agent_configs attribute is removed, direct update to project_manager's state.
-        logger.info(
+        logger.debug(
             f"Agent '{agent_config.name}' registered successfully in active project."
         )
         # Also update ComponentManager's in-memory store
         if self.component_manager and hasattr(self.component_manager, "agents"):
             self.component_manager.agents[agent_config.name] = agent_config
-            logger.info(
+            logger.debug(
                 f"Agent '{agent_config.name}' also updated in ComponentManager's in-memory store."
             )
 
@@ -716,7 +716,7 @@ class Aurite:
         if self.storage_manager:
             try:
                 self.storage_manager.sync_agent_config(agent_config)
-                logger.info(f"Agent '{agent_config.name}' synced to database.")
+                logger.debug(f"Agent '{agent_config.name}' synced to database.")
             except Exception as e:
                 logger.error(
                     f"Failed to sync agent '{agent_config.name}' to database: {e}",
@@ -756,7 +756,7 @@ class Aurite:
             )
 
         if llm_config.llm_id in active_project.llms:  # Changed llm_configs to llms
-            logger.info(  # Changed from error to info, and adjusted message
+            logger.debug(  # Changed from error to info, and adjusted message
                 f"LLM config ID '{llm_config.llm_id}' already exists in active project. It will be updated."
             )
             # No longer raising ValueError, proceeding to update via add_component_to_active_project
@@ -768,13 +768,13 @@ class Aurite:
             llm_config.llm_id,
             llm_config,
         )
-        logger.info(
+        logger.debug(
             f"LLM config '{llm_config.llm_id}' registered successfully in active project."
         )
         # Also update ComponentManager's in-memory store
         if self.component_manager and hasattr(self.component_manager, "llms"):
             self.component_manager.llms[llm_config.llm_id] = llm_config
-            logger.info(
+            logger.debug(
                 f"LLM config '{llm_config.llm_id}' also updated in ComponentManager's in-memory store."
             )
 
@@ -782,7 +782,7 @@ class Aurite:
         if self.storage_manager:
             try:
                 self.storage_manager.sync_llm_config(llm_config)
-                logger.info(f"LLM config '{llm_config.llm_id}' synced to database.")
+                logger.debug(f"LLM config '{llm_config.llm_id}' synced to database.")
             except Exception as e:
                 logger.error(
                     f"Failed to sync LLM config '{llm_config.llm_id}' to database: {e}",
@@ -822,17 +822,17 @@ class Aurite:
         if (
             workflow_config.name in active_project.simple_workflows
         ):  # Changed simple_workflow_configs to simple_workflows
-            logger.info(
+            logger.debug(
                 f"Workflow name '{workflow_config.name}' already exists in active project. It will be updated."
             )
         else:  # New workflow
-            logger.info(f"Registering new workflow: {workflow_config.name}")
+            logger.debug(f"Registering new workflow: {workflow_config.name}")
         # No longer raising ValueError, proceed to create/update
 
         # Cascading Agent registration/update for steps
         if workflow_config.steps:
             for agent_name_step in workflow_config.steps:  # Renamed to avoid conflict
-                logger.info(
+                logger.debug(
                     f"Workflow '{workflow_config.name}' step: Agent '{agent_name_step}'. Attempting to register/update it."
                 )
                 try:
@@ -879,7 +879,7 @@ class Aurite:
             workflow_config.name,
             workflow_config,  # Changed "simple_workflow_configs" to "simple_workflows"
         )
-        logger.info(
+        logger.debug(
             f"Workflow '{workflow_config.name}' registered successfully in active project."
         )
 
@@ -887,7 +887,7 @@ class Aurite:
         if self.storage_manager:
             try:
                 self.storage_manager.sync_workflow_config(workflow_config)
-                logger.info(f"Workflow '{workflow_config.name}' synced to database.")
+                logger.debug(f"Workflow '{workflow_config.name}' synced to database.")
             except Exception as e:
                 logger.error(
                     f"Failed to sync workflow '{workflow_config.name}' to database: {e}",
@@ -932,7 +932,7 @@ class Aurite:
         if (
             custom_workflow_config.name in active_project.custom_workflows
         ):  # Changed custom_workflow_configs to custom_workflows
-            logger.info(  # Changed from error to info
+            logger.debug(  # Changed from error to info
                 f"Custom Workflow name '{custom_workflow_config.name}' already exists in active project. It will be updated."
             )
             # No longer raising ValueError
@@ -972,7 +972,7 @@ class Aurite:
             custom_workflow_config.name,
             custom_workflow_config,
         )
-        logger.info(
+        logger.debug(
             f"Custom Workflow '{custom_workflow_config.name}' registered successfully in active project."
         )
 
@@ -980,7 +980,7 @@ class Aurite:
         if self.storage_manager:
             try:
                 self.storage_manager.sync_custom_workflow_config(custom_workflow_config)
-                logger.info(
+                logger.debug(
                     f"Custom Workflow '{custom_workflow_config.name}' synced to database."
                 )
             except Exception as e:
