@@ -15,7 +15,7 @@ import mcp.types as types
 
 # Set up logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
