@@ -3,7 +3,7 @@ import logging
 from aurite import Aurite
 
 # Configure logging for visibility
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger(__name__)
 
 

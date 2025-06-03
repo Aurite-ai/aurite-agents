@@ -20,9 +20,7 @@ from mcp.server.fastmcp import FastMCP, Context
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+    level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -40,12 +38,6 @@ plans_cache = {}
 def load_plans():
     """Load all existing plans into memory for faster access"""
     global plans_cache
-
-    logger.info(f"Loading plans from: {PLANS_DIR}")
-
-    if not PLANS_DIR.exists():
-        logger.warning(f"Plans directory does not exist: {PLANS_DIR}")
-        return
 
     try:
         # Get all plan files
@@ -119,7 +111,7 @@ async def save_plan(
 
     # Save plan content to file
     try:
-        logger.info(f"Saving plan: {plan_name}")
+        logger.debug(f"Saving plan: {plan_name}")
 
         with open(plan_path, "w") as f:
             f.write(plan_content)
@@ -162,7 +154,7 @@ async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str
         Dictionary with list of available plans
     """
     try:
-        logger.info(f"Listing plans{' with tag: ' + tag if tag else ''}")
+        logger.debug(f"Listing plans{' with tag: ' + tag if tag else ''}")
 
         # Filter plans by tag if specified
         if tag:
