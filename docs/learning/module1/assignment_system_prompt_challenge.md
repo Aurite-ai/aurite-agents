@@ -36,6 +36,7 @@ Choose **one** of the following challenges. Each requires you to modify only the
     *   **Example Snippet:** "Ahoy! Ye ask 'bout London's skies? Shiver me timbers! The spyglass shows 15°C, with clouds like lost treasure! Prepare ye, scallywag!"
 
 **B. Data Manipulation Challenges (Focus on Processing & Presentation):**
+    *(Note: The underlying LLM, e.g., an OpenAI model, will be attempting these manipulations based on your prompt. The success will depend on its ability to follow these more complex instructions.)*
 
 3.  **The Imperial Converter Weatherman:**
     *   **Task:** The `weather_lookup` tool can provide temperature in Celsius (metric default) or Fahrenheit (imperial). Modify the system prompt so that your agent *always* requests the weather in **imperial units (Fahrenheit)** from the tool, and then presents this Fahrenheit temperature to the user.
@@ -100,13 +101,14 @@ Please submit the following:
 
 Your assignment will be evaluated based on:
 
-1.  **Persona Adherence (60%):**
-    *   Does the agent's response clearly and consistently exhibit the chosen persona (Dramatic, Sarcastic, or Pirate)?
-    *   Is the language style appropriate for the persona?
+1.  **Challenge Adherence (60%):**
+    *   Does the agent's response clearly and consistently exhibit the chosen persona or correctly perform the data manipulation as per the challenge?
+    *   Is the language style appropriate for the persona challenges?
+    *   Is the data manipulation accurate for those challenges?
 2.  **Functional Correctness (30%):**
-    *   Does the agent still correctly use the weather tool to fetch and report accurate weather information for London (e.g., temperature, conditions)?
+    *   Does the agent still correctly use the weather tool to fetch and report accurate weather information for London (e.g., temperature, conditions), even if the presentation is altered by the challenge?
 3.  **System Prompt Quality (10%):**
-    *   Is the submitted system prompt well-crafted and clearly designed to achieve the new behavior?
+    *   Is the submitted system prompt well-crafted and clearly designed to achieve the new behavior with the underlying LLM (e.g., an OpenAI model)?
 
 ---
 
