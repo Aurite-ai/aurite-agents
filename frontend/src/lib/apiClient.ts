@@ -39,12 +39,30 @@ const apiClient = async (
 
   // Use a relative URL if it doesn't start with http, otherwise use it as is.
   // This helps if some URLs might be absolute (e.g. to external services in future)
-  // For now, all our API calls are relative to the same origin.
-  const requestUrl = url.startsWith('http') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`;
+// For now, all our API calls are relative to the same origin.
+  // const requestUrl = url.startsWith('http') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`; // OLD LOGIC
 
+  // NEW LOGIC: Use an environment variable for the API base URL.
+  // The Vite dev server proxy rewrites /api/* to /*, so the backend doesn't see /api.
+  // Thus, the VITE_API_BASE_URL should point to the root of the backend API (e.g., http://localhost:8000).
+  // The 'url' passed to apiClient (e.g., '/status', '/configs/agents') is appended to this base.
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'; // Default if not set
+
+  let finalRequestUrl: string;
+  if (url.startsWith('http')) {
+    finalRequestUrl = url; // Use absolute URL as is
+  } else {
+    // Ensure the relative URL part starts with a slash
+    const relativeUrlPart = url.startsWith('/') ? url : `/${url}`;
+    // Check if the original relative URL started with /api and strip it,
+    // as the VITE_API_BASE_URL points to the actual backend root.
+    // This aligns with how the dev proxy rewrite (path.replace(/^\/api/, '')) works.
+    const pathWithoutApiPrefix = relativeUrlPart.startsWith('/api/') ? relativeUrlPart.substring(4) : relativeUrlPart;
+    finalRequestUrl = `${API_BASE_URL}${pathWithoutApiPrefix.startsWith('/') ? pathWithoutApiPrefix : `/${pathWithoutApiPrefix}`}`;
+  }
 
   try {
-    const response = await fetch(requestUrl, fetchOptions);
+    const response = await fetch(finalRequestUrl, fetchOptions);
 
     if (response.status === 401) {
       // Unauthorized: API key might be invalid or expired
@@ -387,7 +405,13 @@ export function streamAgentExecution(
 ): EventSource {
   const { apiKey } = useAuthStore.getState();
   const encodedAgentName = encodeURIComponent(agentName);
-  const baseUrl = `/api/agents/${encodedAgentName}/execute-stream`;
+
+  // Use the same VITE_API_BASE_URL logic as in the main apiClient
+  // The backend route for execute-stream is /agents/{agent_name}/execute-stream
+  // (it does not have an /api prefix on the actual backend route definition)
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const relativePath = `/agents/${encodedAgentName}/execute-stream`;
+  const baseUrl = `${API_BASE_URL}${relativePath}`;
 
   const params = new URLSearchParams();
   params.append('user_message', userMessage);
@@ -405,6 +429,7 @@ export function streamAgentExecution(
   }
 
   const fullUrl = `${baseUrl}?${params.toString()}`;
+  console.log('[STREAMING] EventSource URL:', fullUrl); // DEBUG LINE
   return new EventSource(fullUrl);
 }
 
