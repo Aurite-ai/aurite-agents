@@ -13,7 +13,7 @@ from ..config.config_models import AgentConfig, LLMConfig
 
 # Project imports
 from ..host.host import MCPHost
-from ..llm.base_client import BaseLLM
+# from ..llm.base_client import BaseLLM # Moved to TYPE_CHECKING
 from .agent_models import (
     AgentExecutionResult,
     AgentOutputContentBlock,
@@ -22,6 +22,7 @@ from .agent_models import (
 from .agent_turn_processor import AgentTurnProcessor
 
 if TYPE_CHECKING:
+    from ..llm.base_client import BaseLLM # Moved here
     pass
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class Agent:
     def __init__(
         self,
         config: AgentConfig,
-        llm_client: BaseLLM,
+        llm_client: "BaseLLM", # Changed to string literal
         host_instance: MCPHost,
         initial_messages: List[MessageParam],
         system_prompt_override: Optional[str] = None,

@@ -32,9 +32,9 @@ Before you begin, please ensure you have the following set up:
 3.  **Environment Variables:**
     *   Ensure your environment variables are configured as per the main `aurite` package README. This is crucial for the framework to connect to LLM providers and for the backend API to function. Key variables include:
         *   `ANTHROPIC_API_KEY`
-        *   `API_KEY` (a secret key you define for securing your Aurite backend API). You'll need to create a `.env` file in your project root (e.g., `my_first_aurite_project/.env`) and add this key, for example:
+        *   `API_KEY` (a secret key you define for securing your Aurite backend API). Your API key can be any combination of numbers and letters. You'll need to create a `.env` file in your project root (e.g., `my_first_aurite_project/.env`) and add this key, for example:
             ```env
-            API_KEY=your_secret_api_key_here
+            API_KEY=your_api_key
             ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
             ```
 ---

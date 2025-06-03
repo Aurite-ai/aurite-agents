@@ -130,7 +130,8 @@ class AgentTurnProcessor:
         tool_results_for_next_turn: Optional[List[MessageParam]] = None
         is_final_turn = False  # Default to False, set True only on valid final response
 
-        if llm_response.stop_reason == "tool_use":
+        # OpenAI uses "tool_calls", Anthropic uses "tool_use"
+        if llm_response.stop_reason == "tool_use" or llm_response.stop_reason == "tool_calls":
             # Process tool calls if requested
             tool_results_for_next_turn = await self._process_tool_calls(llm_response)
             # _process_tool_calls also populates self._tool_uses_this_turn
@@ -452,22 +453,23 @@ class AgentTurnProcessor:
         self, llm_response: AgentOutputMessage
     ) -> List[MessageParam]:
         """Handles tool execution based on LLM response."""
-        logger.debug("Processing tool calls...")
+        logger.debug(f"ATP:_process_tool_calls: Entered. llm_response.content: {llm_response.content}")
         tool_results_for_next_turn: List[MessageParam] = []
         self._tool_uses_this_turn = []  # Reset for this turn
         has_tool_calls = False
 
         if not llm_response.content:
             logger.warning(
-                "LLM response has stop_reason 'tool_use' but no content blocks."
+                "ATP:_process_tool_calls: LLM response has stop_reason 'tool_use' but no content blocks."
             )
-            return []  # Return empty list, Agent loop should handle this unexpected state
+            return []
 
-        for block in llm_response.content:
+        for i, block in enumerate(llm_response.content):
+            logger.debug(f"ATP:_process_tool_calls: Processing block {i}: type='{block.type}', name='{block.name}'")
             if block.type == "tool_use":
                 has_tool_calls = True
+                logger.debug(f"ATP:_process_tool_calls: Block {i} is tool_use. ID: {block.id}, Name: {block.name}, Input: {block.input}")
                 if block.id and block.name and block.input is not None:
-                    # Record the tool use attempt
                     self._tool_uses_this_turn.append(
                         {
                             "id": block.id,
@@ -476,39 +478,39 @@ class AgentTurnProcessor:
                         }
                     )
                     logger.info(
-                        f"Executing tool '{block.name}' via host (ID: {block.id})"
+                        f"ATP:_process_tool_calls: Executing tool '{block.name}' via host (ID: {block.id}) with input: {block.input}"
                     )
                     try:
-                        # Execute the tool via the host instance
                         tool_result_content = await self.host.execute_tool(
                             tool_name=block.name,
                             arguments=block.input,
-                            agent_config=self.config,  # Pass agent config for filtering
+                            agent_config=self.config,
                         )
-                        logger.debug(f"Tool '{block.name}' executed successfully.")
-                        # Create a result block using the host's tool manager helper
+                        logger.debug(f"ATP:_process_tool_calls: Tool '{block.name}' executed. Result content: {tool_result_content}")
+
                         tool_result_block_data: Dict[str, Any] = (
                             self.host.tools.create_tool_result_blocks(
                                 tool_use_id=block.id, tool_result=tool_result_content
                             )
                         )
+                        logger.debug(f"ATP:_process_tool_calls: Created tool_result_block_data: {tool_result_block_data}")
+
                         message_with_tool_result: MessageParam = {
-                            "role": "user",
+                            "role": "user", # Anthropic style for tool results
                             "content": [
                                 cast(ToolResultBlockParam, tool_result_block_data)
                             ],
                         }
+                        logger.debug(f"ATP:_process_tool_calls: Appending message_with_tool_result: {message_with_tool_result}")
                         tool_results_for_next_turn.append(message_with_tool_result)
                     except Exception as e:
-                        # Handle tool execution errors
                         logger.error(
-                            f"Error executing tool {block.name}: {e}", exc_info=True
+                            f"ATP:_process_tool_calls: Error executing tool {block.name}: {e}", exc_info=True
                         )
                         error_content = f"Error executing tool '{block.name}': {str(e)}"
-                        # Create an error result block
                         error_tool_result_block_data: Dict[str, Any] = (
                             self.host.tools.create_tool_result_blocks(
-                                tool_use_id=block.id, tool_result=error_content
+                                tool_use_id=block.id, tool_result=error_content, is_error=True # Pass is_error=True
                             )
                         )
                         message_with_tool_error_result: MessageParam = {
@@ -521,20 +523,21 @@ class AgentTurnProcessor:
                             message_with_tool_error_result
                         )
                 else:
-                    # Log if a tool_use block is missing required fields
                     logger.warning(
-                        f"Skipping tool_use block with missing fields: {block.model_dump_json()}"
+                        f"ATP:_process_tool_calls: Skipping tool_use block with missing fields: {block.model_dump_json()}"
                     )
+            else:
+                logger.debug(f"ATP:_process_tool_calls: Block {i} is not tool_use type, it is '{block.type}'. Skipping.")
+
 
         if not has_tool_calls:
-            # This case should ideally not be reached if stop_reason was 'tool_use',
-            # but log it if it occurs.
             logger.warning(
-                "LLM stop_reason was 'tool_use' but no valid tool_use blocks found in content."
+                "ATP:_process_tool_calls: LLM stop_reason was 'tool_use' but no valid tool_use blocks found in content after iterating."
             )
 
         logger.debug(
-            f"Processed {len(self._tool_uses_this_turn)} tool calls, generated {len(tool_results_for_next_turn)} result blocks."
+            f"ATP:_process_tool_calls: Processed {len(self._tool_uses_this_turn)} tool calls, "
+            f"generated {len(tool_results_for_next_turn)} result blocks. Returning: {tool_results_for_next_turn}"
         )
         return tool_results_for_next_turn
 
