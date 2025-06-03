@@ -147,28 +147,30 @@ def init(
             "planning_server.py",
         )
 
+
         copy_packaged_example(
             "run_test_project.py", project_path, "run_example_project.py"
         )
 
+        # Create .env.example file
+        env_example_content = "OPENAI_API_KEY=\n"
+        env_example_path = project_path / ".." / ".env.example"
+        env_example_path.write_text(env_example_content)
+        logger(f"  Created example environment file: .env.example")
+
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger("\nNext steps:")
         logger(f"1. Navigate into your project: cd {project_path.name}")
+
         logger(
-            f"2. Set the PROJECT_CONFIG_PATH environment variable to '{default_project_config_name}' (or its absolute path)."
+            "2. Ensure your environment has variables for the providers you will use (i.e. ANTHROPIC_API_KEY, OPENAI_API_KEY)"
         )
+        logger("3. Start defining your components in the 'config/' subdirectories.")
         logger(
-            f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}"
-        )
-        logger(
-            "3. Ensure your environment has variables for the providers you will use (i.e. ANTHROPIC_API_KEY, OPENAI_API_KEY)"
-        )
-        logger("4. Start defining your components in the 'config/' subdirectories.")
-        logger(
-            "5. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
+            "4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
         )  # Corrected path
         logger(
-            "6. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
+            "5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
         )
         logger(
             f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/)."
