@@ -301,7 +301,7 @@ class ProjectManager:
             raise ValueError(f"Invalid component type key: {component_type_key}")
 
         target_dict[component_id] = component_model
-        logger.info(
+        logger.debug(
             f"Component '{component_id}' of type '{component_type_key}' added to active project '{self.active_project_config.name}'."
         )
 

@@ -125,7 +125,7 @@ Let's build a simple weather assistant by configuring it directly!
         --- Agent Result ---
         Agent's response: The temperature in London is XX°C with [description].
         ```
-        (The exact weather details will vary.)
+        *(The exact agent response will vary slightly each time you run it. Also, note that this example agent provides its response as a natural language sentence (non-structured output) rather than a fixed data format like JSON.)*
     *   Seeing this output means you're ready to move on to understanding the configuration files and then creating your own agent.
 
 ### 2. Understanding `aurite_config.json`
@@ -136,42 +136,21 @@ When you run `aurite init`, this file is created with some example configuration
 
 *   **Open `aurite_config.json` in your text editor.**
 
-You'll see sections for `llms`, `clients`, and `agents`.
-*   The `llms` array lists available Large Language Model configurations.
-*   The `clients` array lists configurations for MCP servers, which provide tools to your agents. `aurite init` includes an example `weather_server`.
-*   The `agents` array is where we will define our agent.
+You'll see sections for `llms`, `clients`, and `agents`, among others. For this tutorial, we'll focus on:
+*   The `llms` array: Lists available Large Language Model configurations.
+*   The `clients` array: Lists configurations for MCP servers, which provide tools to your agents. `aurite init` includes an example `weather_server`.
+*   The `agents` array: This is where we will define our new agent.
 
-### 3. Modifying `aurite_config.json` - Your First Agent
+*(The `aurite_config.json` file also includes sections for `simple_workflows` and `custom_workflows`. These allow you to define sequences of agents or more complex programmatic workflows, respectively. While not covered in this introductory tutorial, they demonstrate how you can orchestrate multiple components within your Aurite project.)*
 
-Let's configure your "MyCLIWeatherAssistant".
+### 3. Modifying `aurite_config.json` - Configure Your First Agent
 
-1.  **Add Your New LLM Configuration:**
-    Before creating the agent, let's define an LLM configuration that our agent will use.
-    *   Navigate to the `llms` array in your `aurite_config.json`.
-    *   Add the following JSON object to this array. If the `llms` array already contains configurations, add this as a new element, ensuring correct comma placement.
+Now, let's configure your "MyCLIWeatherAssistant" agent. The `aurite init` command provides a default `aurite_config.json` which already includes a pre-configured LLM for OpenAI (`my_openai_gpt4_turbo`) and an example `weather_server` client. We will use these existing components for our new agent.
 
-    ```json
-    {
-      "llm_id": "my_openai_gpt4_turbo",
-      "provider": "openai",
-      "model_name": "gpt-4-turbo-preview",
-      "temperature": 0.7,
-      "max_tokens": 1500,
-      "default_system_prompt": "You are a helpful AI assistant.",
-      "api_key_env_var": "OPENAI_API_KEY"
-    }
-    ```
-    Let's break down these LLM configuration fields:
-    *   `"llm_id": "my_openai_gpt4_turbo"`: A unique identifier for this LLM configuration. We'll use this ID in our agent configuration.
-    *   `"provider": "openai"`: Specifies the LLM provider (e.g., "openai", "anthropic").
-    *   `"model_name": "gpt-4-turbo-preview"`: The specific model name from the provider.
-    *   `"temperature": 0.7`: Controls the randomness of the output. Higher values make the output more random.
-    *   `"max_tokens": 1500`: The maximum number of tokens (words/sub-words) the model can generate in a single response.
-    *   `"default_system_prompt"`: A general system prompt if the agent doesn't provide a more specific one.
-    *   `"api_key_env_var": "OPENAI_API_KEY"`: Specifies the environment variable that holds the API key for this provider. Ensure you have `OPENAI_API_KEY` set in your `.env` file.
-
-2.  **Add Your New Agent Configuration:**
-    Now, add the following JSON object to the `agents` array in your `aurite_config.json` file. If the `agents` array was empty after the first step, your new array will look like `[ { ...your agent... } ]`. If other agents exist, add yours as another element in the array, ensuring correct comma placement.
+1.  **Add Your New Agent Configuration:**
+    *   Open your `aurite_config.json` file.
+    *   Locate the `agents` array.
+    *   Add the following JSON object as a new element within this `agents` array. Since the default configuration already includes other agents (like "Weather Agent" and "Weather Planning Workflow Step 2"), you'll be adding your "MyCLIWeatherAssistant" alongside them. **You will need to add a comma `,` after the closing curly brace `}` of the agent definition that comes before where you paste your new agent's configuration.**
 
     ```json
     {
@@ -182,13 +161,16 @@ Let's configure your "MyCLIWeatherAssistant".
     }
     ```
 
-    Let's break down these fields:
-    *   `"name": "MyCLIWeatherAssistant"`: A unique name for your agent.
-    *   `"system_prompt"`: Instructions defining the agent's role and task.
-    *   `"llm_config_id": "my_openai_gpt4_turbo"`: This tells the agent which LLM configuration to use. **Crucially, this ID must match the `llm_id` of the LLM configuration you just added.**
-    *   `"client_ids": ["weather_server"]`: This lists the MCP clients the agent can use for tools. `"weather_server"` is an example client provided by `aurite init` that connects to a simple weather tool. This ID should match a `client_id` in the `clients` array.
+    Let's break down these fields for your new agent:
 
-3.  **Save `aurite_config.json`**.
+    | Field             | Description                                                                                                                                                                                             |
+    |-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    | `"name"`          | `"MyCLIWeatherAssistant"`: A unique name for your agent.                                                                                                                                                |
+    | `"system_prompt"` | Instructions defining the agent's role and task. (e.g., "You are a helpful assistant...")                                                                                                               |
+    | `"llm_config_id"` | `"my_openai_gpt4_turbo"`: Tells your agent to use the pre-defined OpenAI GPT-4 Turbo LLM configuration. This `llm_id` is already set up in the `llms` array of your `aurite_config.json` by `aurite init`. |
+    | `"client_ids"`    | `["weather_server"]`: A list of MCP client IDs the agent can use for tools. `"weather_server"` is an example client provided by `aurite init`.                                                          |
+
+2.  **Save `aurite_config.json`**.
 
 ### 4. Understanding `run_example_project.py`
 
@@ -196,146 +178,59 @@ The `aurite init` command also creates a Python script named `run_example_projec
 
 ### 5. Modifying `run_example_project.py` to Execute Your Agent
 
-The `aurite init` command creates an example script `run_example_project.py` in your project root. This script typically demonstrates running a pre-configured example, often a custom workflow. We need to modify it to run our `MyCLIWeatherAssistant` agent instead.
+The `aurite init` command creates an example script `run_example_project.py` in your project root. This script is pre-configured to run the default "Weather Agent". We only need to make one small change to tell it to run your newly configured "MyCLIWeatherAssistant" instead.
 
 1.  **Open `run_example_project.py` in your text editor.**
-    This script contains an example usage of the package. It will show you how to initialize the main `Aurite` class, and how to use it to execute a custom workflow.
+    You'll find that the script already contains the necessary logic to initialize Aurite, run an agent, and print its response.
 
-2.  **Modify the script to run your agent:**
-
-    *   **Remove or Comment Out Existing Execution Logic:** Delete or comment out the lines that define input for and call `aurite_app.execution.run_custom_workflow` , and the lines that print its result.
-
-    *   **Add Agent Inputs:** Define the `user_query` for your agent and an optional `session_id`:
+2.  **Update the Agent Name:**
+    *   Locate the section in the script where the `aurite.execution.run_agent` function is called. It will look similar to this (line numbers may vary slightly):
         ```python
-        user_query = "What is the weather in London?" # The question for our agent
-        session_id = "cli_tutorial_session_001"    # Optional: for tracking conversation history
-        ```
+        # ... other code ...
 
-    *   **Call `run_agent`:** Add the line to execute your agent:
-        ```python
-        agent_result = await aurite_app.execution.run_agent(
-            agent_name="MyCLIWeatherAssistant", # Must match the name in aurite_config.json
+        agent_result = await aurite.execution.run_agent(
+            agent_name="Weather Agent", # <--- CHANGE THIS LINE
             user_message=user_query,
-            session_id=session_id
+            session_id=session_id,
         )
-        ```
 
-    *   **Add Result Handling for Agent:** Add the logic to parse and print the agent's response:
+        # ... other code ...
+        ```
+    *   Change the value of the `agent_name` parameter from `"Weather Agent"` to `"MyCLIWeatherAssistant"` (the name you gave your agent in `aurite_config.json`).
+        The line should now look like:
         ```python
-        print("\n--- Agent Result ---")
-        if agent_result and "final_response" in agent_result:
-            final_response = agent_result.get("final_response", {})
-            content_list = final_response.get("content", [{}])
-            if content_list and isinstance(content_list, list) and len(content_list) > 0:
-                message_text = content_list[0].get("text", "No text in agent's final response.")
-                print(f"Agent's response: {message_text}")
-            else:
-                print("Agent's final response content is empty or not in the expected format.")
-        else:
-            print("No final_response found in agent_result or agent_result is None.")
-            print("Full agent_result for debugging:", agent_result)
+        agent_name="MyCLIWeatherAssistant", # Must match the name in aurite_config.json
         ```
 
-3.  **Your modified `run_example_project.py`** (within the `try` block) should now incorporate these changes. The overall structure of the file (imports, `async def main()`, `if __name__ == "__main__":`, path checking, and the `try/except/finally` block) should remain largely the same. The key is to replace the default execution logic with the agent execution logic.
+3.  **Save `run_example_project.py`**.
 
-    Here's how the relevant part of your `main` function should look after modifications:
-    ```python
-    import asyncio
-    import logging
-    from aurite import Aurite
+That's the only change needed for this script! The rest of the script, including how it sets the `user_query` and prints the `agent_result`, can remain as is for this tutorial.
 
-    # Configure logging for visibility
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+### 6. Running Your Modified Agent
 
+Now it's time to see your "MyCLIWeatherAssistant" in action!
 
-    async def main():
-        aurite = Aurite()
+1.  **Ensure Prerequisites for Running:**
+    *   Make sure your Python virtual environment is active in your terminal.
+    *   Confirm you are in the root directory of your Aurite project (e.g., `my_first_aurite_project`).
+    *   Double-check that your `OPENAI_API_KEY` is correctly set up in the `.env` file in your main workspace directory.
+    *   *(These are the same conditions required when you first ran the example agent in "Tutorial Step 1.3".)*
 
-        try:
-            await aurite.initialize()
-            # logger.info("Aurite initialized successfully.") # If you have logging
+2.  **Run the Script:**
+    *   Execute the `run_example_project.py` script (which you modified in Step 5):
+        ```bash
+        python run_example_project.py
+        ```
 
-            # --- MODIFIED SECTION ---
-            user_query = "What is the weather in London?"  # The question for our agent
-            session_id = (
-                "cli_tutorial_session_001"  # Optional: for tracking conversation history
-            )
+3.  **Observe the Terminal Output:**
+    *   You should now see output from your "MyCLIWeatherAssistant" providing a weather report for London, similar to before but this time executed using your agent's configuration. For example:
+        ```
+        Running agent 'MyCLIWeatherAssistant' with query: 'What is the weather in London?'
 
-            print(f"Running agent 'MyCLIWeatherAssistant' with query: '{user_query}'")
-
-            if not aurite.execution:
-                print(
-                    "Error: Execution facade not initialized. This is unexpected after aurite_app.initialize()."
-                )
-                return
-
-            agent_result = await aurite.execution.run_agent(
-                agent_name="MyCLIWeatherAssistant",
-                user_message=user_query,
-                session_id=session_id,
-            )
-
-            print("\n--- Agent Result ---")
-            if agent_result and "final_response" in agent_result:
-                final_response = agent_result.get("final_response", {})
-                content_list = final_response.get("content", [{}])
-                if (
-                    content_list
-                    and isinstance(content_list, list)
-                    and len(content_list) > 0
-                ):
-                    message_text = content_list[0].get(
-                        "text", "No text in agent's final response."
-                    )
-                    print(f"Agent's response: {message_text}")
-                else:
-                    print(
-                        "Agent's final response content is empty or not in the expected format."
-                    )
-            else:
-                print("No final_response found in agent_result or agent_result is None.")
-                print("Full agent_result for debugging:", agent_result)
-            # --- END OF MODIFIED SECTION ---
-
-        except Exception as e:
-            # logger.error(f"An error occurred: {e}", exc_info=True) # If you have logging
-            print(f"An error occurred: {e}")
-        finally:
-            if aurite.host:
-                await aurite.shutdown()
-
-
-
-    if __name__ == "__main__":
-        asyncio.run(main())
-
-    ```
-
-4.  **Save `run_example_project.py`**.
-
-### 6. Running Your Agent
-
-Now it's time to see your agent in action!
-
-1.  **Open your terminal.**
-2.  **Ensure you are in the root directory** of your Aurite project (e.g., `my_first_aurite_project`). This is important so the script can find `aurite_config.json`.
-3.  **Ensure your API keys** (e.g., `OPENAI_API_KEY`) are set in your `.env` file in the project root, or exported in your terminal session.
-4.  **Run the script:**
-    ```bash
-    python run_example_project.py
-    ```
-
-5.  **Observe the Terminal Output:**
-    You should see output similar to this (the exact weather details will vary):
-
-    ```
-    Running agent 'MyCLIWeatherAssistant' with query: 'What is the weather in London?'
-
-    --- Agent Result ---
-    Agent's response: The temperature in London is 15°C with scattered clouds.
-    ```
-    *(Note to student: The example `weather_mcp_server` that comes with `aurite init` is a test fixture. It might only support a limited set of locations or return mock data. 'London' is often a reliable choice for testing.)*
+        --- Agent Result ---
+        Agent's response: The temperature in London is 15°C with scattered clouds.
+        ```
+        *(The exact weather details will vary. The key is that it's your "MyCLIWeatherAssistant" running.)*
 
 ---
 
@@ -343,7 +238,7 @@ Now it's time to see your agent in action!
 
 You've successfully completed this tutorial if:
 
-*   Your `aurite_config.json` file was correctly modified to include your new LLM configuration ("my_openai_gpt4_turbo") and the "MyCLIWeatherAssistant" agent configuration.
+*   Your `aurite_config.json` file was correctly modified to include the new "MyCLIWeatherAssistant" agent configuration, which successfully utilizes the pre-defined "my_openai_gpt4_turbo" LLM configuration.
 *   The "MyCLIWeatherAssistant" agent configuration correctly references your new LLM configuration via `llm_config_id`.
 *   Your `run_example_project.py` script was updated as per the instructions.
 *   Running `python run_example_project.py` in your project's root directory executed without Python errors.

@@ -196,7 +196,7 @@ class ComponentManager:
                         )
                     else:
                         if component_id in target_dict and is_override_allowed:
-                            logger.info(
+                            logger.debug(
                                 f"Overriding component '{component_id}' of type '{component_type}' from {file_path}."
                             )
                         target_dict[component_id] = component_model
