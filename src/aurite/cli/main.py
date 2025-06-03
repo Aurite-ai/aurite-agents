@@ -159,12 +159,15 @@ def init(
         logger(
             f"   For example: export PROJECT_CONFIG_PATH=$(pwd)/{default_project_config_name}"
         )
-        logger("3. Start defining your components in the 'config/' subdirectories.")
         logger(
-            "4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
+            "3. Ensure your environment has variables for the providers you will use (i.e. ANTHROPIC_API_KEY, OPENAI_API_KEY)"
+        )
+        logger("4. Start defining your components in the 'config/' subdirectories.")
+        logger(
+            "5. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
         )  # Corrected path
         logger(
-            "5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
+            "6. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
         )
         logger(
             f"   the parent folder of your '{default_project_config_name}' file (i.e., ./{project_path.name}/)."
