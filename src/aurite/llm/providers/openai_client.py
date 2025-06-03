@@ -120,41 +120,6 @@ class OpenAIClient(BaseLLM):
                 # Add message only if it has content or tool_calls
                 if "content" in assistant_msg_for_api or "tool_calls" in assistant_msg_for_api:
                     openai_messages.append(assistant_msg_for_api)
-
-            elif role == "tool": # This is how Aurite represents tool results (via Anthropic's format initially)
-                                 # We need to convert from Aurite's tool_result block to OpenAI's tool message
-                # Aurite (from Anthropic format) tool result: role="user", content=[{"type": "tool_result", "tool_use_id": ..., "content": ...}]
-                # This case should be handled by checking content type if role is "user"
-                # For now, let's assume if role is "tool", it's already in OpenAI format (which is unlikely from Aurite's current flow)
-                # This part needs careful review based on how AgentTurnProcessor sends tool results.
-                # For now, if a message has role "tool", pass it as is, assuming it's pre-formatted.
-                # This is a simplification and might need adjustment.
-                # A more robust way is to inspect content of "user" messages for "tool_result" type.
-                if isinstance(content, list) and content: # Assuming content is a list of blocks
-                    tool_block = content[0] # Assuming one tool result block per message
-                    if tool_block.get("type") == "tool_result":
-                         openai_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_block.get("tool_use_id"),
-                            # "name": tool_block.get("name"), # OpenAI tool role doesn't have 'name' directly
-                                                            # Name is implicit via tool_call_id matching assistant's tool_call.
-                            "content": json.dumps(tool_block.get("content")) # OpenAI expects JSON string content for tool role
-                        })
-                    else: # Pass through if not a recognized tool_result structure
-                        openai_messages.append(msg)
-
-            # Priority 4: Handle pre-formatted OpenAI tool messages (if ever passed directly)
-            elif role == "tool":
-                 # Assuming if role is "tool", it's already in OpenAI format.
-                 # This requires 'tool_call_id' and 'content' (string) to be present in msg.
-                if "tool_call_id" in msg and "content" in msg:
-                    openai_messages.append({
-                        "role": "tool",
-                        "tool_call_id": msg["tool_call_id"],
-                        "content": str(msg["content"]) # Ensure content is string
-                    })
-                else:
-                    logger.warning(f"Message with role 'tool' missing 'tool_call_id' or 'content': {msg}")
             else:
                 logger.warning(f"Unhandled message role for OpenAI conversion: {role} in message: {msg}")
         return openai_messages
