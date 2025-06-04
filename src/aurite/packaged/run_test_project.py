@@ -25,8 +25,7 @@ async def main():
 
         # Run the agent with the user's query.
         agent_result = await aurite.execution.run_agent(
-            agent_name="Weather Agent",
-            user_message=user_query
+            agent_name="Weather Agent", user_message=user_query
         )
 
         # Print the agent's response in a colored format for better visibility.
@@ -35,9 +34,9 @@ async def main():
 
         print(colored(f"Agent's response: {response_text}", "cyan", attrs=["bold"]))
 
-    except Exception as e:
-            await aurite.shutdown()
-            logger.info("Aurite shutdown complete.")
+    except Exception:
+        await aurite.shutdown()
+        logger.info("Aurite shutdown complete.")
 
 
 if __name__ == "__main__":

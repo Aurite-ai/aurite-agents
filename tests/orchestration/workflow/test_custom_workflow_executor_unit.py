@@ -40,12 +40,10 @@ class TestCustomWorkflowExecutorUnit:
         }
 
         with patch.object(
-            CustomWorkflowExecutor, 
-            '_load_methods', 
-            return_value=mock_methods
+            CustomWorkflowExecutor, "_load_methods", return_value=mock_methods
         ) as mock_load:
             executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
+
             assert executor.config == sample_custom_workflow_config
             assert executor.methods == mock_methods
             mock_load.assert_called_once()
@@ -58,7 +56,7 @@ class TestCustomWorkflowExecutorUnit:
     ):
         """Test successful execution of a custom workflow."""
         print("\n--- Running Test: test_custom_executor_execute_success ---")
-        
+
         initial_input = {"start": "data"}
         session_id = "custom_unit_session_1"
         expected_result = {"final_status": "custom_completed"}
@@ -73,12 +71,10 @@ class TestCustomWorkflowExecutorUnit:
         }
 
         with patch.object(
-            CustomWorkflowExecutor, 
-            '_load_methods', 
-            return_value=mock_methods
+            CustomWorkflowExecutor, "_load_methods", return_value=mock_methods
         ):
             executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
+
             result = await executor.execute(
                 initial_input=initial_input,
                 executor=mock_facade,
@@ -99,11 +95,11 @@ class TestCustomWorkflowExecutorUnit:
     ):
         """Test execution fails when the module file does not exist."""
         print("\n--- Running Test: test_custom_executor_module_not_found ---")
-        
-        with patch('pathlib.Path.exists', return_value=False):
+
+        with patch("pathlib.Path.exists", return_value=False):
             with pytest.raises(FileNotFoundError) as excinfo:
                 executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
+
             assert "Custom workflow module file not found" in str(excinfo.value)
             assert str(sample_custom_workflow_config.module_path) in str(excinfo.value)
 
@@ -118,17 +114,21 @@ class TestCustomWorkflowExecutorUnit:
         # Instead of __getattr__, set the class attribute to None
         setattr(mock_module, sample_custom_workflow_config.class_name, None)
 
-        with patch('pathlib.Path.exists', return_value=True), \
-             patch('pathlib.Path.resolve', return_value="/valid/path"), \
-             patch('importlib.util.spec_from_file_location') as mock_spec, \
-             patch('importlib.util.module_from_spec', return_value=mock_module):
-            
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.resolve", return_value="/valid/path"),
+            patch("importlib.util.spec_from_file_location") as mock_spec,
+            patch("importlib.util.module_from_spec", return_value=mock_module),
+        ):
             mock_spec.return_value = Mock(loader=Mock())
-            
+
             with pytest.raises(AttributeError) as excinfo:
                 executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
-            assert f"Class '{sample_custom_workflow_config.class_name}' not found in module" in str(excinfo.value)
+
+            assert (
+                f"Class '{sample_custom_workflow_config.class_name}' not found in module"
+                in str(excinfo.value)
+            )
             assert str(sample_custom_workflow_config.module_path) in str(excinfo.value)
 
     @pytest.mark.asyncio
@@ -146,17 +146,21 @@ class TestCustomWorkflowExecutorUnit:
         mock_module = Mock()
         setattr(mock_module, sample_custom_workflow_config.class_name, mock_class)
 
-        with patch('pathlib.Path.exists', return_value=True), \
-             patch('pathlib.Path.resolve', return_value="/valid/path"), \
-             patch('importlib.util.spec_from_file_location') as mock_spec, \
-             patch('importlib.util.module_from_spec', return_value=mock_module):
-            
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.resolve", return_value="/valid/path"),
+            patch("importlib.util.spec_from_file_location") as mock_spec,
+            patch("importlib.util.module_from_spec", return_value=mock_module),
+        ):
             mock_spec.return_value = Mock(loader=Mock())
-            
+
             with pytest.raises(AttributeError) as excinfo:
                 executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
-            assert "Attribute 'execute_workflow' is not callable in class 'MyCustomWorkflow'" in str(excinfo.value)
+
+            assert (
+                "Attribute 'execute_workflow' is not callable in class 'MyCustomWorkflow'"
+                in str(excinfo.value)
+            )
             assert sample_custom_workflow_config.class_name in str(excinfo.value)
 
     @pytest.mark.asyncio
@@ -177,16 +181,17 @@ class TestCustomWorkflowExecutorUnit:
         mock_module = Mock()
         setattr(mock_module, sample_custom_workflow_config.class_name, mock_class)
 
-        with patch('pathlib.Path.exists', return_value=True), \
-             patch('pathlib.Path.resolve', return_value="/valid/path"), \
-             patch('importlib.util.spec_from_file_location') as mock_spec, \
-             patch('importlib.util.module_from_spec', return_value=mock_module):
-            
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.resolve", return_value="/valid/path"),
+            patch("importlib.util.spec_from_file_location") as mock_spec,
+            patch("importlib.util.module_from_spec", return_value=mock_module),
+        ):
             mock_spec.return_value = Mock(loader=Mock())
-            
+
             with pytest.raises(TypeError) as excinfo:
                 executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
-            
+
             assert "Method 'execute_workflow' must be async" in str(excinfo.value)
 
     @pytest.mark.asyncio
@@ -204,9 +209,7 @@ class TestCustomWorkflowExecutorUnit:
         }
 
         with patch.object(
-            CustomWorkflowExecutor, 
-            '_load_methods', 
-            return_value=mock_methods
+            CustomWorkflowExecutor, "_load_methods", return_value=mock_methods
         ):
             executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
             result = await executor.get_input_type()
@@ -228,9 +231,7 @@ class TestCustomWorkflowExecutorUnit:
         }
 
         with patch.object(
-            CustomWorkflowExecutor, 
-            '_load_methods', 
-            return_value=mock_methods
+            CustomWorkflowExecutor, "_load_methods", return_value=mock_methods
         ):
             executor = CustomWorkflowExecutor(config=sample_custom_workflow_config)
             result = await executor.get_output_type()

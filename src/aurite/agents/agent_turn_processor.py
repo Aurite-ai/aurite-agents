@@ -131,7 +131,10 @@ class AgentTurnProcessor:
         is_final_turn = False  # Default to False, set True only on valid final response
 
         # OpenAI uses "tool_calls", Anthropic uses "tool_use"
-        if llm_response.stop_reason == "tool_use" or llm_response.stop_reason == "tool_calls":
+        if (
+            llm_response.stop_reason == "tool_use"
+            or llm_response.stop_reason == "tool_calls"
+        ):
             # Process tool calls if requested
             tool_results_for_next_turn = await self._process_tool_calls(llm_response)
             # _process_tool_calls also populates self._tool_uses_this_turn
@@ -452,7 +455,9 @@ class AgentTurnProcessor:
         self, llm_response: AgentOutputMessage
     ) -> List[MessageParam]:
         """Handles tool execution based on LLM response."""
-        logger.debug(f"ATP:_process_tool_calls: Entered. llm_response.content: {llm_response.content}")
+        logger.debug(
+            f"ATP:_process_tool_calls: Entered. llm_response.content: {llm_response.content}"
+        )
         tool_results_for_next_turn: List[MessageParam] = []
         self._tool_uses_this_turn = []  # Reset for this turn
         has_tool_calls = False
@@ -464,10 +469,14 @@ class AgentTurnProcessor:
             return []
 
         for i, block in enumerate(llm_response.content):
-            logger.debug(f"ATP:_process_tool_calls: Processing block {i}: type='{block.type}', name='{block.name}'")
+            logger.debug(
+                f"ATP:_process_tool_calls: Processing block {i}: type='{block.type}', name='{block.name}'"
+            )
             if block.type == "tool_use":
                 has_tool_calls = True
-                logger.debug(f"ATP:_process_tool_calls: Block {i} is tool_use. ID: {block.id}, Name: {block.name}, Input: {block.input}")
+                logger.debug(
+                    f"ATP:_process_tool_calls: Block {i} is tool_use. ID: {block.id}, Name: {block.name}, Input: {block.input}"
+                )
                 if block.id and block.name and block.input is not None:
                     self._tool_uses_this_turn.append(
                         {
@@ -485,31 +494,40 @@ class AgentTurnProcessor:
                             arguments=block.input,
                             agent_config=self.config,
                         )
-                        logger.debug(f"ATP:_process_tool_calls: Tool '{block.name}' executed. Result content: {tool_result_content}")
+                        logger.debug(
+                            f"ATP:_process_tool_calls: Tool '{block.name}' executed. Result content: {tool_result_content}"
+                        )
 
                         tool_result_block_data: Dict[str, Any] = (
                             self.host.tools.create_tool_result_blocks(
                                 tool_use_id=block.id, tool_result=tool_result_content
                             )
                         )
-                        logger.debug(f"ATP:_process_tool_calls: Created tool_result_block_data: {tool_result_block_data}")
+                        logger.debug(
+                            f"ATP:_process_tool_calls: Created tool_result_block_data: {tool_result_block_data}"
+                        )
 
                         message_with_tool_result: MessageParam = {
-                            "role": "user", # Anthropic style for tool results
+                            "role": "user",  # Anthropic style for tool results
                             "content": [
                                 cast(ToolResultBlockParam, tool_result_block_data)
                             ],
                         }
-                        logger.debug(f"ATP:_process_tool_calls: Appending message_with_tool_result: {message_with_tool_result}")
+                        logger.debug(
+                            f"ATP:_process_tool_calls: Appending message_with_tool_result: {message_with_tool_result}"
+                        )
                         tool_results_for_next_turn.append(message_with_tool_result)
                     except Exception as e:
                         logger.error(
-                            f"ATP:_process_tool_calls: Error executing tool {block.name}: {e}", exc_info=True
+                            f"ATP:_process_tool_calls: Error executing tool {block.name}: {e}",
+                            exc_info=True,
                         )
                         error_content = f"Error executing tool '{block.name}': {str(e)}"
                         error_tool_result_block_data: Dict[str, Any] = (
                             self.host.tools.create_tool_result_blocks(
-                                tool_use_id=block.id, tool_result=error_content, is_error=True # Pass is_error=True
+                                tool_use_id=block.id,
+                                tool_result=error_content,
+                                is_error=True,  # Pass is_error=True
                             )
                         )
                         message_with_tool_error_result: MessageParam = {
@@ -526,8 +544,9 @@ class AgentTurnProcessor:
                         f"ATP:_process_tool_calls: Skipping tool_use block with missing fields: {block.model_dump_json()}"
                     )
             else:
-                logger.debug(f"ATP:_process_tool_calls: Block {i} is not tool_use type, it is '{block.type}'. Skipping.")
-
+                logger.debug(
+                    f"ATP:_process_tool_calls: Block {i} is not tool_use type, it is '{block.type}'. Skipping."
+                )
 
         if not has_tool_calls:
             logger.warning(

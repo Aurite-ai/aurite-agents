@@ -19,8 +19,7 @@ from typing import Dict, Any, List, Optional
 from mcp.server.fastmcp import FastMCP, Context
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants

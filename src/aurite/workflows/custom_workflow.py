@@ -43,7 +43,7 @@ class CustomWorkflowExecutor:
         logger.debug(
             f"CustomWorkflowExecutor initialized for workflow: {self.config.name}"
         )
-        
+
         methods_to_load = [
             {
                 "name": "execute_workflow",
@@ -61,7 +61,7 @@ class CustomWorkflowExecutor:
                 "optional": True,
             },
         ]
-        
+
         self.methods = self._load_methods(methods_to_load)
 
     # Changed signature to accept executor (ExecutionFacade) and session_id
@@ -93,7 +93,7 @@ class CustomWorkflowExecutor:
         """
         try:
             workflow_name = self.config.name
-            
+
             logger.debug(  # Already DEBUG
                 "Calling 'execute_workflow', passing ExecutionFacade."
             )
@@ -135,31 +135,30 @@ class CustomWorkflowExecutor:
 
     async def get_input_type(self):
         """Gets the input type of the custom workflow's execute method, if the get_input_type method is defined
-        
+
         Returns:
             The type returned, or None"""
-            
+
         if "get_input_type" in self.methods:
             return self.methods.get("get_input_type")()
-        
+
         return None
-    
+
     async def get_output_type(self):
         """Gets the output type of the custom workflow's execute method, if the get_output_type method is defined
-        
+
         Returns:
             The type returned, or None"""
-            
+
         if "get_output_type" in self.methods:
             return self.methods.get("get_output_type")()
-        
+
         return None
-    
-    
+
     def _load_methods(self, methods_to_load):
         """
         Dynamically loads the methods
-        
+
         Args:
             methods_to_load: List of method objects with "name", "is_async", and "optional" attributes
 
@@ -174,7 +173,9 @@ class CustomWorkflowExecutor:
         workflow_name = self.config.name
         module_path = self.config.module_path
         class_name = self.config.class_name
-        logger.info(f"Loading methods for workflow: {workflow_name}")  # Keep start as INFO
+        logger.info(
+            f"Loading methods for workflow: {workflow_name}"
+        )  # Keep start as INFO
         logger.debug(f"Config: path={module_path}, class={class_name}")  # Already DEBUG
 
         try:
@@ -252,9 +253,11 @@ class CustomWorkflowExecutor:
                 is_coroutine = inspect.iscoroutinefunction(execute_method)
                 if is_coroutine != is_async:
                     logger.error(
-                        f"Method '{method_name}' in class '{class_name}' from {module_path} must {"not " if is_coroutine else ""}be async."
+                        f"Method '{method_name}' in class '{class_name}' from {module_path} must {'not ' if is_coroutine else ''}be async."
                     )
-                    raise TypeError(f"Method '{method_name}' must {"not " if is_coroutine else ""}be async.")
+                    raise TypeError(
+                        f"Method '{method_name}' must {'not ' if is_coroutine else ''}be async."
+                    )
 
                 # 6. Store the method
                 loaded_methods[method.get("name")] = execute_method

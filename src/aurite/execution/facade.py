@@ -35,10 +35,9 @@ if TYPE_CHECKING:
     # OpenAIClient needs to be available at runtime, so it's moved out of TYPE_CHECKING
 
 # Actual runtime imports
-from ..llm.providers.openai_client import OpenAIClient # Moved here
+from ..llm.providers.openai_client import OpenAIClient  # Moved here
 from ..config.config_models import (
     AgentConfig,
-    ClientConfig, # Added ClientConfig
     LLMConfig,
 )  # Ensure LLMConfig is imported for direct use at runtime
 
@@ -53,8 +52,7 @@ from ..agents.agent import Agent
 # Import AgentExecutionResult for type hinting the result
 from ..agents.agent_models import (
     AgentExecutionResult,
-    AgentOutputMessage,
-    AgentOutputContentBlock, # Added AgentOutputContentBlock
+    AgentOutputMessage,  # Added AgentOutputContentBlock
 )  # Added AgentOutputMessage
 
 # Import MessageParam for constructing initial messages
@@ -71,9 +69,10 @@ from ..llm.providers.anthropic_client import (
     AnthropicLLM,
 )
 
-from termcolor import colored # Added import
+from termcolor import colored  # Added import
 
 logger = logging.getLogger(__name__)
+
 
 class ExecutionFacade:
     """
@@ -148,7 +147,7 @@ class ExecutionFacade:
         elif provider == "openai":
             try:
                 return OpenAIClient(
-                    model_name=model_name, # Already has a default if llm_config.model_name is None
+                    model_name=model_name,  # Already has a default if llm_config.model_name is None
                     temperature=llm_config.temperature,
                     max_tokens=llm_config.max_tokens,
                     system_prompt=llm_config.default_system_prompt,
@@ -879,13 +878,17 @@ class ExecutionFacade:
                 )
 
             # Determine provider for conditional logic
-            provider_name = "anthropic" # Default
+            provider_name = "anthropic"  # Default
             if llm_config_for_override_obj and llm_config_for_override_obj.provider:
                 provider_name = llm_config_for_override_obj.provider.lower()
-            elif isinstance(llm_client_instance, OpenAIClient): # Check instance if no explicit config
+            elif isinstance(
+                llm_client_instance, OpenAIClient
+            ):  # Check instance if no explicit config
                 provider_name = "openai"
 
-            logger.debug(f"Determined provider for agent '{agent_name}': {provider_name}")
+            logger.debug(
+                f"Determined provider for agent '{agent_name}': {provider_name}"
+            )
 
             # The logic for OpenAI provider using OpenAIMCPAgent and OpenAPIAgentRunner is removed.
             # All providers will now use Aurite's standard Agent execution flow.
@@ -898,7 +901,9 @@ class ExecutionFacade:
                 and self._storage_manager
                 and session_id
             )
-            if load_history and self._storage_manager: # This block is for non-OpenAI providers
+            if (
+                load_history and self._storage_manager
+            ):  # This block is for non-OpenAI providers
                 try:
                     loaded_history = self._storage_manager.load_history(
                         agent_name, session_id
@@ -924,7 +929,7 @@ class ExecutionFacade:
             # 5. Instantiate Aurite's Agent class (using processed_agent_config)
             aurite_agent_instance = Agent(
                 config=processed_agent_config,  # Use the potentially modified config
-                llm_client=llm_client_instance, # This is Aurite's LLMClient (e.g. AnthropicLLM)
+                llm_client=llm_client_instance,  # This is Aurite's LLMClient (e.g. AnthropicLLM)
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
                 system_prompt_override=system_prompt,
@@ -933,9 +938,23 @@ class ExecutionFacade:
             logger.debug(f"Facade: Instantiated Aurite Agent class for '{agent_name}'")
 
             # 6. Execute Aurite Agent Conversation
-            logger.info(colored(f"Facade: Running conversation for Aurite Agent '{agent_name}'...", "blue", attrs=["bold"]))
-            agent_result: AgentExecutionResult = await aurite_agent_instance.run_conversation()
-            logger.info(colored(f"Facade: Aurite Agent '{agent_name}' conversation finished.", "blue", attrs=["bold"]))
+            logger.info(
+                colored(
+                    f"Facade: Running conversation for Aurite Agent '{agent_name}'...",
+                    "blue",
+                    attrs=["bold"],
+                )
+            )
+            agent_result: AgentExecutionResult = (
+                await aurite_agent_instance.run_conversation()
+            )
+            logger.info(
+                colored(
+                    f"Facade: Aurite Agent '{agent_name}' conversation finished.",
+                    "blue",
+                    attrs=["bold"],
+                )
+            )
 
             # 7. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
             save_history = (
@@ -1057,9 +1076,7 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Custom Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._current_project.custom_workflows.get(
-                name
-            ),
+            config_lookup=lambda name: self._current_project.custom_workflows.get(name),
             executor_setup=lambda wf_config: CustomWorkflowExecutor(
                 config=wf_config,
             ),
@@ -1079,12 +1096,12 @@ class ExecutionFacade:
         return await self._execute_component(
             component_type="Custom Workflow",
             component_name=workflow_name,
-            config_lookup=lambda name: self._current_project.custom_workflows.get(
-                name
-            ),
+            config_lookup=lambda name: self._current_project.custom_workflows.get(name),
             executor_setup=lambda wf_config: CustomWorkflowExecutor(
                 config=wf_config,
             ),
-            execution_func=lambda instance, **kwargs: instance.get_output_type(**kwargs),
+            execution_func=lambda instance, **kwargs: instance.get_output_type(
+                **kwargs
+            ),
             error_structure_factory=error_factory,
         )

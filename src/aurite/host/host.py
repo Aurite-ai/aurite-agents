@@ -32,7 +32,7 @@ from ..config.config_models import (  # Changed to relative import
 # Resource management layer
 from .resources import PromptManager, ResourceManager, ToolManager
 
-from termcolor import colored # Added import
+from termcolor import colored  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -554,7 +554,11 @@ class MCPHost:
         # 5. Execute the tool via ToolManager
         if target_client_id:
             logger.info(
-                colored(f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'", "green", attrs=["bold"])
+                colored(
+                    f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'",
+                    "green",
+                    attrs=["bold"],
+                )
             )
             # Call the ToolManager's execute_tool, passing the determined client_name
             return await self.tools.execute_tool(

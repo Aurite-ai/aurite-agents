@@ -2,6 +2,7 @@
 Centralized logging configuration for the Aurite framework.
 Uses colorlog to provide colored output for different log levels and logger names.
 """
+
 import logging
 import colorlog
 
@@ -13,14 +14,15 @@ DEFAULT_LOG_FORMAT = (
 )
 
 DEFAULT_LOG_COLORS = {
-    'DEBUG': 'cyan',
-    'INFO': 'green',  # Default INFO color
-    'WARNING': 'yellow',
-    'ERROR': 'red',
-    'CRITICAL': 'bold_red',
+    "DEBUG": "cyan",
+    "INFO": "green",  # Default INFO color
+    "WARNING": "yellow",
+    "ERROR": "red",
+    "CRITICAL": "bold_red",
 }
 
 # LAYER_SPECIFIC_INFO_COLORS and LayerSpecificInfoFormatter are removed for simplification.
+
 
 def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter):
     """
@@ -42,7 +44,7 @@ def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter)
         reset=True,
         log_colors=DEFAULT_LOG_COLORS,
         # secondary_log_colors removed as we are simplifying
-        style='%'
+        style="%",
     )
     handler.setFormatter(formatter)
 
@@ -52,9 +54,9 @@ def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter)
     # This is important to prevent duplicate messages if basicConfig was called
     # or if this function is called multiple times.
     if root_logger.hasHandlers():
-        for h in root_logger.handlers[:]: # Iterate over a copy
+        for h in root_logger.handlers[:]:  # Iterate over a copy
             root_logger.removeHandler(h)
-            h.close() # Close the handler
+            h.close()  # Close the handler
 
     root_logger.addHandler(handler)
     root_logger.setLevel(level)
@@ -64,9 +66,10 @@ def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter)
     # logging.getLogger('anyio').setLevel(logging.WARNING)
 
     # Ensure aurite package loggers also respect this level if they were configured before
-    logging.getLogger('aurite').setLevel(level)
+    logging.getLogger("aurite").setLevel(level)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Example usage:
     setup_logging(level=logging.DEBUG)
 

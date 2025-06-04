@@ -61,7 +61,7 @@ class ClientConfig(BaseModel):
     def check_transport_specific_fields(cls, values):
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
-        http_endpoint = values.get("http_endpoint") # Use http_endpoint
+        http_endpoint = values.get("http_endpoint")  # Use http_endpoint
         command = values.get("command")
         args = values.get("args")
 
@@ -99,13 +99,16 @@ class WorkflowComponent(BaseModel):
     name: str
     type: Literal["agent", "simple_workflow", "custom_workflow"]
 
+
 class WorkflowConfig(BaseModel):
     """
     Configuration for a simple, sequential agent workflow.
     """
 
     name: str
-    steps: List[str | WorkflowComponent]  # List of component names, or objects with name and type
+    steps: List[
+        str | WorkflowComponent
+    ]  # List of component names, or objects with name and type
     description: Optional[str] = None
 
 

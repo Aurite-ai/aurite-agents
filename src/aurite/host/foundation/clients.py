@@ -124,9 +124,12 @@ class ClientManager:
                                 f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}"
                             )
 
-
-                    logger.debug(f"Attempting to connect streamablehttp_client for {client_id} to URL: {endpoint_url}")
-                    transport_context = streamablehttp_client(endpoint_url) # Use streamablehttp_client
+                    logger.debug(
+                        f"Attempting to connect streamablehttp_client for {client_id} to URL: {endpoint_url}"
+                    )
+                    transport_context = streamablehttp_client(
+                        endpoint_url
+                    )  # Use streamablehttp_client
 
                 elif client_config.transport_type == "local":
                     if not client_config.command:
@@ -138,8 +141,10 @@ class ClientManager:
                     if client_config.gcp_secrets and security_manager:
                         logger.debug(f"Resolving GCP secrets for client: {client_id}")
                         try:
-                            resolved_env_vars = await security_manager.resolve_gcp_secrets(
-                                client_config.gcp_secrets
+                            resolved_env_vars = (
+                                await security_manager.resolve_gcp_secrets(
+                                    client_config.gcp_secrets
+                                )
                             )
                             if resolved_env_vars:
                                 client_env.update(resolved_env_vars)
@@ -155,11 +160,11 @@ class ClientManager:
                     # update args to replace env values
                     updated_args = []
                     for arg in client_config.args:
-                        env_vars = re.findall(r'\{([^}]+)\}', arg)
+                        env_vars = re.findall(r"\{([^}]+)\}", arg)
 
                         for var in env_vars:
                             if var in client_env:
-                                arg = arg.replace(f'{{{var}}}', client_env[var])
+                                arg = arg.replace(f"{{{var}}}", client_env[var])
 
                         updated_args.append(arg)
 

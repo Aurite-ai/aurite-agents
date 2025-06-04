@@ -21,7 +21,7 @@ from .config_utils import resolve_path_fields  # Import the utility
 # Path resolution will be based on current_project_root (for user project files)
 # or handled by ComponentManager using importlib.resources (for packaged defaults).
 
-from termcolor import colored # Added import
+from termcolor import colored  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +252,11 @@ class ProjectManager:
         # Now set the parsed and validated project_config as the active one
         self.active_project_config = project_config
         logger.info(
-            colored(f"Project '{project_config.name}' Successfully loaded from `{project_config_file_path}`.", "yellow", attrs=["bold"])
+            colored(
+                f"Project '{project_config.name}' Successfully loaded from `{project_config_file_path}`.",
+                "yellow",
+                attrs=["bold"],
+            )
         )
         return project_config
 

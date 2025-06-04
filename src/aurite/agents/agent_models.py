@@ -196,7 +196,7 @@ class AgentExecutionResult(BaseModel):
         Gets the primary text from the final_response for display,
         or an error/status message if applicable.
         """
-        if self.error: # Equivalent to self.has_error
+        if self.error:  # Equivalent to self.has_error
             return f"Agent execution error: {self.error}"
 
         actual_text = self._raw_primary_text_content

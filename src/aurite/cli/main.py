@@ -2,7 +2,7 @@ import typer
 from pathlib import Path
 import shutil
 import importlib.resources
-from .studio_server import start_studio_server # Added import
+from .studio_server import start_studio_server  # Added import
 
 app = typer.Typer()
 
@@ -147,7 +147,6 @@ def init(
             "planning_server.py",
         )
 
-
         copy_packaged_example(
             "run_test_project.py", project_path, "run_example_project.py"
         )
@@ -156,7 +155,7 @@ def init(
         env_example_content = "OPENAI_API_KEY=\n"
         env_example_path = project_path / ".." / ".env.example"
         env_example_path.write_text(env_example_content)
-        logger(f"  Created example environment file: .env.example")
+        logger("  Created example environment file: .env.example")
 
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger("\nNext steps:")

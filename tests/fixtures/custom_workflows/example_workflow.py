@@ -162,6 +162,6 @@ class ExampleCustomWorkflow:
 
     def get_input_type(self):
         return dict
-    
+
     def get_output_type(self):
         return dict

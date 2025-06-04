@@ -14,9 +14,7 @@ from mcp.server.stdio import stdio_server
 import mcp.types as types
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define system prompts

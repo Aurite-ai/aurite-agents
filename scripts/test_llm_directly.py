@@ -7,7 +7,9 @@ from llm.providers.openai_client import OpenAIClient
 
 
 # Ensure src/aurite is on the path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "aurite")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "aurite"))
+)
 
 
 async def main():
@@ -34,6 +36,7 @@ async def main():
                 print(f"[{block.type}] {block}")
     except Exception as e:
         print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
