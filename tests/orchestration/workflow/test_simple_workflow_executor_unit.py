@@ -12,6 +12,11 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 from anthropic.types import Message  # Added Message
 
 from aurite.agents.agent import Agent  # Needed for mocking
+from aurite.agents.agent_models import ( # Added imports
+    AgentExecutionResult,
+    AgentOutputMessage,
+    AgentOutputContentBlock,
+)
 from aurite.config.config_models import AgentConfig, WorkflowConfig
 from aurite.execution.facade import ExecutionFacade  # For mocking facade
 from aurite.llm.base_client import BaseLLM  # For mocking llm_client
@@ -139,22 +144,35 @@ class TestSimpleWorkflowExecutorUnit:
         # Instead, facade.run_agent is called, which is already mocked.
         # So, the patch for "workflows.simple_workflow.Agent" is removed.
 
+        # --- Mock AgentExecutionResult objects ---
+        agent1_final_response_obj = AgentOutputMessage(
+            role="assistant",
+            content=[AgentOutputContentBlock(type="text", text=agent1_output_text)],
+        )
+        agent1_exec_result = AgentExecutionResult(
+            conversation=[],
+            final_response=agent1_final_response_obj,
+            tool_uses_in_final_turn=[],
+            error=None,
+        )
+
+        agent2_final_response_obj = AgentOutputMessage(
+            role="assistant",
+            content=[AgentOutputContentBlock(type="text", text=agent2_output_text)],
+        )
+        agent2_exec_result = AgentExecutionResult(
+            conversation=[],
+            final_response=agent2_final_response_obj,
+            tool_uses_in_final_turn=[],
+            error=None,
+        )
+
         # Mock the facade's run_agent method
-        # It should be an async method
+        # It should be an async method and return AgentExecutionResult objects
         mock_execution_facade.run_agent = AsyncMock(
             side_effect=[
-                {
-                    "final_response": {
-                        "content": [{"type": "text", "text": agent1_output_text}]
-                    },
-                    "error": None,
-                },  # Result for Agent1
-                {
-                    "final_response": {
-                        "content": [{"type": "text", "text": agent2_output_text}]
-                    },
-                    "error": None,
-                },  # Result for Agent2
+                agent1_exec_result, # Result for Agent1
+                agent2_exec_result, # Result for Agent2
             ]
         )
 
@@ -259,9 +277,15 @@ class TestSimpleWorkflowExecutorUnit:
         )
         mock_execution_facade.get_project_config.return_value = mock_project_config
 
-        # Mock facade.run_agent to return an error
+        # Mock facade.run_agent to return an error via AgentExecutionResult
+        error_exec_result = AgentExecutionResult(
+            conversation=[],
+            final_response=None,
+            tool_uses_in_final_turn=[],
+            error=agent_execution_error_text,
+        )
         mock_execution_facade.run_agent = AsyncMock(
-            return_value={"final_response": None, "error": agent_execution_error_text}
+            return_value=error_exec_result
         )
 
         executor = SimpleWorkflowExecutor(
