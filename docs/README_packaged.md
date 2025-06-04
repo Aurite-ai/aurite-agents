@@ -61,8 +61,6 @@ If you are integrating Aurite into an existing project and choose to place your 
 
 To reference files outside this specific `current_project_root` (e.g., an MCP server script located at `my_existing_app/scripts/my_server.py`), you will need to use `../` in your path strings within the configuration files. For instance, the `server_path` would be `../scripts/my_server.py`.
 
-For more details on project structure and configuration, see [`docs/components/project_configs.md`](https://publish.obsidian.md/aurite/components/project_configs).
-
 ### 3. Understanding `aurite_config.json`
 
 The `aurite_config.json` file at the root of your new project (created by `aurite init`) is the central configuration file. It defines the project's name, description, and lists the agents, LLMs, clients (MCP servers), simple workflows, and custom workflows that are part of this project.
@@ -131,7 +129,6 @@ These other components can be defined within config files in the corresponding d
 }
 ```
 You will typically edit the referenced files (e.g., `config/agents/agents.json` if you use file paths) or the main `aurite_config.json` to define your specific components.
-For detailed information on `ProjectConfig` and how it references other component files, see [`docs/components/project_configs.md`](https://publish.obsidian.md/aurite/components/project_configs).
 
 ### 4. Locating Your Project Configuration
 
@@ -170,7 +167,7 @@ Create or modify an agent configuration file, for example, `your_project_name/co
   }
 ]
 ```
-For more details on `AgentConfig`, see [`docs/components/agents.md`](https://publish.obsidian.md/aurite/components/agents).
+For more details on `AgentConfig`, see [`docs/components/agent.md`](https://publish.obsidian.md/aurite/components/agent).
 
 ### Step 2: Define your LLM Configuration (Ensure it Exists)
 
@@ -192,7 +189,7 @@ If you need a custom one:
 ]
 ```
 *(Ensure your Anthropic API key is set in your environment, e.g., `ANTHROPIC_API_KEY`)*.
-For more details on `LLMConfig`, see [`docs/components/llms.md`](https://publish.obsidian.md/aurite/components/llms).
+For more details on `LLMConfig`, see [`docs/components/llm.md`](https://publish.obsidian.md/aurite/components/llm).
 
 ### Step 3: Create your Custom Workflow Python Module
 
@@ -253,7 +250,7 @@ Create or modify `your_project_name/config/custom_workflows/custom_workflows.jso
   }
 ]
 ```
-For more details on `CustomWorkflowConfig`, see [`docs/components/custom_workflows.md`](https://publish.obsidian.md/aurite/components/custom_workflows).
+For more details on `CustomWorkflowConfig`, see [`docs/components/custom_workflows.md`](https://publish.obsidian.md/aurite/components/custom_workflow).
 
 ### Step 5: Running your Custom Workflow
 
