@@ -16,6 +16,15 @@ services:
       - aurite_network
     restart: unless-stopped
 
+  portkey-gateway:
+    image: portkeyai/gateway:latest
+    container_name: portkey_gateway
+    ports:
+      - "8787:8787"
+    networks:
+      - aurite_network
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -31,8 +40,14 @@ services:
       - .env # Load environment variables from .env file
     environment: # Add DOCKER_ENV here
       - DOCKER_ENV=true
+      - PORTKEY_GATEWAY_URL=http://portkey-gateway:8787
+      - ENABLE_PORTKEY_GATEWAY=${ENABLE_PORTKEY_GATEWAY:-true}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
+      portkey-gateway:
+        condition: service_started
+        required: false
     networks:
       - aurite_network
     extra_hosts: # This section should exist

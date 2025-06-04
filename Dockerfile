@@ -70,7 +70,8 @@ ENV PYTHONPATH=/app \
     CACHE_DIR=/app/cache \
     PROJECT_CONFIG_PATH=/app/config/projects/testing_config.json \
     AURITE_ALLOW_DYNAMIC_REGISTRATION=true \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \ 
+    PORTKEY_GATEWAY_URL=http://portkey-gateway:8787
 
 # Expose the correct port (default 8000 for the API)
 EXPOSE 8000
