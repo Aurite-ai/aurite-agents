@@ -51,7 +51,7 @@ def sample_client_config_no_secrets():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_client_manager_initialization():
     """Test ClientManager initializes correctly."""
     manager = ClientManager()  # Updated instantiation
@@ -97,7 +97,7 @@ async def test_client_manager_initialization():
 # pass
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_session(sample_client_config):  # Removed mock_exit_stack
     """Test retrieving an active session."""
     manager = ClientManager()  # Updated instantiation
@@ -110,7 +110,7 @@ async def test_get_session(sample_client_config):  # Removed mock_exit_stack
     assert manager.get_session("non_existent_client") is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_all_sessions(sample_client_config):  # Removed mock_exit_stack
     """Test retrieving all active sessions."""
     manager = ClientManager()  # Updated instantiation

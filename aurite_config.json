@@ -10,7 +10,16 @@
       "routing_weight": 1.0,
       "roots": []
     },
-    "planning_server"
+    {
+      "client_id": "planning_server",
+      "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "exclude": null,
+      "gcp_secrets": null,
+      "roots": []
+    }
   ],
   "llms": [
     {
@@ -72,6 +81,7 @@
         "required": ["weather_summary", "temperature", "recommendations"]
       }
     },
+    "Filtering Test Agent",
     {
       "name": "Weather Planning Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",

@@ -88,6 +88,7 @@ dev = [
     "types-PyYAML",
     "types-pytz",
     "pytest>=8.3.5",
+    "pytest-anyio>=0.7.0", # Added for async test support with anyio
 ]
 ml = [
     "sentence-transformers>=4.1.0",
@@ -122,6 +123,7 @@ markers = [
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
     # "asyncio: mark test as async test", # Removed - use pytest.mark.anyio instead
+    "anyio: marks tests as anyio-based async tests", # Added for pytest-anyio
     "core: mark test as core functionality test",                            # Keep existing
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
@@ -132,7 +134,6 @@ markers = [
     "multirun: mark test that runs multiple evaluation iterations",
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
-asyncio_default_fixture_loop_scope = "function" # Default scope for asyncio tests
 pythonpath = [".", "src", "aurite"]
 filterwarnings = [
     "ignore::DeprecationWarning",
@@ -141,7 +142,6 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
     "ignore::pytest.PytestUnknownMarkWarning",
     "ignore::pytest.PytestConfigWarning",
-    "ignore::pytest.PytestUnhandledCoroutineWarning",
 ]
 # Add HTML and JSON report options
 addopts = "--verbose --no-header --disable-warnings"

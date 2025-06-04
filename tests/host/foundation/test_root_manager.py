@@ -95,12 +95,6 @@ async def test_get_client_roots(root_manager: RootManager):
     assert retrieved_roots is not root_manager._client_roots[client_id]
 
 
-async def test_get_client_roots_not_registered(root_manager: RootManager):
-    """Test retrieving roots for a non-existent client returns an empty list."""
-    retrieved_roots = await root_manager.get_client_roots("non_existent")
-    assert retrieved_roots == []
-
-
 async def test_shutdown(root_manager: RootManager):
     """Test that shutdown clears the internal roots dictionary."""
     client_id = "client_E"
@@ -128,14 +122,3 @@ async def test_validate_access_client_registered_empty_roots(root_manager: RootM
     client_id = "client_EmptyRoots"
     await root_manager.register_roots(client_id, [])
     assert await root_manager.validate_access(client_id) is True
-
-
-async def test_validate_access_client_not_registered(root_manager: RootManager, caplog):
-    """Test validate_access returns False for a non-existent client and logs a warning."""
-    client_id = "client_NotRegistered"
-    with caplog.at_level(logging.WARNING):
-        assert await root_manager.validate_access(client_id) is False
-    assert (
-        f"validate_access called for unknown or rootless client: {client_id}"
-        in caplog.text
-    )

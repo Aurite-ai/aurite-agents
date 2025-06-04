@@ -99,7 +99,7 @@ class TestAgentIntegration:
         # but for now, let's patch the specific client class it tries to instantiate.
         # We assume it will try to instantiate AnthropicLLM based on current facade logic.
         with patch(
-            "execution.facade.AnthropicLLM", return_value=mock_llm
+            "aurite.execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             # Execute agent via the facade
@@ -223,7 +223,7 @@ class TestAgentIntegration:
 
         # Patch LLM client instantiation in the facade
         with patch(
-            "execution.facade.AnthropicLLM", return_value=mock_llm
+            "aurite.execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             assert host_manager.execution is not None, "Facade not initialized"
