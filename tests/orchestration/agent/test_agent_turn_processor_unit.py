@@ -343,6 +343,7 @@ class TestAgentTurnProcessorUnit:
         mock_mcp_host.tools.create_tool_result_blocks.assert_called_once_with(
             tool_use_id=tool_use_id,
             tool_result=f"Error executing tool '{tool_name}': {error_message}",  # Verify error string passed
+            is_error=True,  # Added to match expected call signature
         )
 
         # Correct results returned from process_turn
