@@ -174,7 +174,6 @@ class AgentTurnProcessor:
                             Includes text_delta, tool_use_start, tool_use_input_delta,
                             tool_use_end, tool_result, tool_execution_error, stream_end.
         """
-        logger.info("ATP: Entered stream_turn_response")  # ADDED
         self._tool_uses_this_turn = []  # Reset for this turn
 
         # active_tool_calls stores information about tools the LLM has started to use in the current turn.
@@ -191,7 +190,7 @@ class AgentTurnProcessor:
         # This approach simplifies backend logic by removing custom frontend-specific index allocation.
 
         try:
-            logger.info("ATP: About to enter LLM stream message loop")  # ADDED
+            logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
             async for llm_event in self.llm.stream_message(
                 messages=self.messages,  # type: ignore[arg-type]
                 tools=self.tools,
@@ -199,7 +198,7 @@ class AgentTurnProcessor:
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
                 llm_config_override=self.llm_config_for_override,
             ):
-                logger.info(
+                logger.debug(
                     f"ATP: Received LLM event from stream: {llm_event}"
                 )  # ADDED
                 event_type = llm_event.get("event_type")
@@ -305,7 +304,7 @@ class AgentTurnProcessor:
                         tool_id = tool_call_info.get("id")
                         tool_name = tool_call_info.get("name")
                         tool_input_str = tool_call_info.get("input_str", "")
-                        logger.info(
+                        logger.debug(
                             f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
                         try:
@@ -425,7 +424,7 @@ class AgentTurnProcessor:
 
                 elif event_type == "stream_end":
                     llm_call_stop_reason = event_data.get("stop_reason")
-                    logger.info(
+                    logger.debug(
                         f"LLM stream call processing finished by ATP. LLM Stop Reason: {llm_call_stop_reason}"
                     )
                     yield {
@@ -477,7 +476,7 @@ class AgentTurnProcessor:
                             "input": block.input,
                         }
                     )
-                    logger.info(
+                    logger.debug(
                         f"ATP:_process_tool_calls: Executing tool '{block.name}' via host (ID: {block.id}) with input: {block.input}"
                     )
                     try:

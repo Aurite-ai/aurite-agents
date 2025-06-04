@@ -35,9 +35,28 @@ from .storage.db_manager import StorageManager
 # Imports needed for execution methods
 # from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
 
+from termcolor import colored # Added import
 
 # Setup logger for this module
 logger = logging.getLogger(__name__)
+
+# Import and apply custom colored logging configuration for the framework (for other loggers)
+# This should be done once, when the Aurite class is first used.
+try:
+    from .bin.logging_config import setup_logging
+    # Configure with env var or default to INFO, and convert to uppercase
+    # Also, ensure the level string is valid for logging module
+    log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+    numeric_level = getattr(logging, log_level_str, logging.INFO) # Fallback to INFO if invalid string
+    setup_logging(level=numeric_level)
+except ImportError:
+    logger.warning("aurite.bin.logging_config not found. Colored logging will not be applied to the framework.")
+    # Fallback to basicConfig if colored setup fails, to ensure logging still works.
+    if not logging.getLogger().hasHandlers(): # Check if root logger already has handlers
+        log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+        numeric_level = getattr(logging, log_level_str, logging.INFO)
+        logging.basicConfig(level=numeric_level)
+
 
 # Removed conditional import block for StorageManager
 
@@ -105,10 +124,6 @@ class Aurite:
             raise ValueError(err_msg)
 
         if not final_config_path.is_absolute():
-            logger.info(
-                f"Configuration path '{final_config_path}' (from {determined_path_source}) is not absolute. "
-                "Resolving relative to current working directory."
-            )
             final_config_path = final_config_path.resolve()
             logger.debug(f"Resolved absolute configuration path: {final_config_path}")
 
@@ -325,7 +340,7 @@ class Aurite:
                     exc_info=True,
                 )
 
-            logger.info("Aurite initialization complete.")  # Keep this high-level INFO
+            logger.info(colored("Aurite initialization complete.", "yellow", attrs=["bold"]))  # Keep this high-level INFO
 
         except FileNotFoundError as e:
             logger.error(f"Configuration file not found: {self.config_path} - {e}")

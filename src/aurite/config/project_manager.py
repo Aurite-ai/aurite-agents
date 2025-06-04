@@ -21,6 +21,8 @@ from .config_utils import resolve_path_fields  # Import the utility
 # Path resolution will be based on current_project_root (for user project files)
 # or handled by ComponentManager using importlib.resources (for packaged defaults).
 
+from termcolor import colored # Added import
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +50,7 @@ class ProjectManager:
         count_str = ", ".join(
             f"{count} {ctype}" for ctype, count in component_counts.items()
         )
-        logger.info(
+        logger.debug(
             f"ProjectManager initialized, ComponentManager loaded: {count_str if count_str else '0 components'}."
         )
 
@@ -250,7 +252,7 @@ class ProjectManager:
         # Now set the parsed and validated project_config as the active one
         self.active_project_config = project_config
         logger.info(
-            f"Project '{project_config.name}' loaded and set as active in ProjectManager."
+            colored(f"Project '{project_config.name}' Successfully loaded from `{project_config_file_path}`.", "yellow", attrs=["bold"])
         )
         return project_config
 

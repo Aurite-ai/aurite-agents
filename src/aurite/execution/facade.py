@@ -71,8 +71,9 @@ from ..llm.providers.anthropic_client import (
     AnthropicLLM,
 )
 
-logger = logging.getLogger(__name__)
+from termcolor import colored # Added import
 
+logger = logging.getLogger(__name__)
 
 class ExecutionFacade:
     """
@@ -932,9 +933,9 @@ class ExecutionFacade:
             logger.debug(f"Facade: Instantiated Aurite Agent class for '{agent_name}'")
 
             # 6. Execute Aurite Agent Conversation
-            logger.info(f"Facade: Running conversation for Aurite Agent '{agent_name}'...")
+            logger.info(colored(f"Facade: Running conversation for Aurite Agent '{agent_name}'...", "blue", attrs=["bold"]))
             agent_result: AgentExecutionResult = await aurite_agent_instance.run_conversation()
-            logger.info(f"Facade: Aurite Agent '{agent_name}' conversation finished.")
+            logger.info(colored(f"Facade: Aurite Agent '{agent_name}' conversation finished.", "blue", attrs=["bold"]))
 
             # 7. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
             save_history = (
@@ -1043,13 +1044,13 @@ class ExecutionFacade:
     def get_project_config(self):
         """Simple getter for project config"""
         return self._current_project
-    
+
     async def get_custom_workflow_input_type(self, workflow_name: str):
         """Get the input type for a custom workflow.
-        
+
         Returns:
             The type, or None if a get_input_type method is not defined"""
-        
+
         def error_factory(name: str, msg: str) -> Dict[str, Any]:
             return {"status": "failed", "error": msg}
 
@@ -1065,13 +1066,13 @@ class ExecutionFacade:
             execution_func=lambda instance, **kwargs: instance.get_input_type(**kwargs),
             error_structure_factory=error_factory,
         )
-    
+
     async def get_custom_workflow_output_type(self, workflow_name: str):
         """Get the output type for a custom workflow.
-        
+
         Returns:
             The type, or None if a get_output_type method is not defined"""
-        
+
         def error_factory(name: str, msg: str) -> Dict[str, Any]:
             return {"status": "failed", "error": msg}
 

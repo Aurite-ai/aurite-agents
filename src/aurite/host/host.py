@@ -32,6 +32,8 @@ from ..config.config_models import (  # Changed to relative import
 # Resource management layer
 from .resources import PromptManager, ResourceManager, ToolManager
 
+from termcolor import colored # Added import
+
 logger = logging.getLogger(__name__)
 
 
@@ -149,7 +151,6 @@ class MCPHost:
         logger.info(
             f"MCP Host initialization attempt finished. "
             f"Successfully initialized {num_active_clients}/{num_configured_clients} configured clients. "
-            f"Loaded {num_agent_configs} agent configs."
         )
 
         if num_active_clients < num_configured_clients:
@@ -534,7 +535,7 @@ class MCPHost:
                 )
             else:
                 target_client_id = allowed_clients[0]
-                logger.info(
+                logger.debug(
                     f"Determined unique allowed client '{target_client_id}' for tool '{tool_name}' for agent '{agent_name}'."
                 )
 
@@ -553,7 +554,7 @@ class MCPHost:
         # 5. Execute the tool via ToolManager
         if target_client_id:
             logger.info(
-                f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'"
+                colored(f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'", "green", attrs=["bold"])
             )
             # Call the ToolManager's execute_tool, passing the determined client_name
             return await self.tools.execute_tool(
@@ -847,12 +848,6 @@ class MCPHost:
                 f"Client {client_id} not found in ClientManager active list during shutdown."
             )
 
-        # TODO: Add logic here to unregister tools/prompts/resources from managers # This TODO is now addressed above
-        # Example (needs implementation in managers):
-        # await self._tool_manager.unregister_client_tools(client_id) # Addressed above
-        # await self._prompt_manager.unregister_client_prompts(client_id)
-        # await self._resource_manager.unregister_client_resources(client_id)
-        # await self._message_router.unregister_server(client_id)
         logger.debug(
             f"MCPHost completed shutdown request for client: {client_id}"
         )  # Changed to DEBUG

@@ -74,7 +74,7 @@ class AnthropicLLM(BaseLLM):
                 max_retries=3,  # Explicitly set SDK-level retries
             )
             logger.info(
-                f"AnthropicLLM client initialized successfully for model {self.model_name} using HTTP/1.1 client with extended timeouts/retries."
+                f"AnthropicLLM client initialized successfully for model {self.model_name}"
             )
         except Exception as e:
             logger.error(f"Failed to initialize Anthropic SDK client: {e}")

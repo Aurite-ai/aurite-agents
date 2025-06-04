@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class Agent:
     def __init__(
         self,
@@ -160,7 +159,7 @@ Please correct your previous response to conform to the schema."""
                     None  # Ensure it's None if no suitable message found
                 )
 
-        logger.info(f"Agent finished run for agent '{self.config.name or 'Unnamed'}'.")
+        logger.debug(f"Agent finished run for agent '{self.config.name or 'Unnamed'}'.")
         return self._prepare_agent_result(execution_error=None)
 
     def _prepare_agent_result(
