@@ -164,8 +164,6 @@ For a comprehensive understanding of the architecture, component interactions, a
 
 ## Core Concepts for Users
 
-Understanding these concepts will help you configure and use the Aurite Agents framework effectively. For detailed information on each configuration object, refer to the [Component Configurations documentation](./docs/components/README.md).
-
 ### 1. Projects (`ProjectConfig`)
 
 A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `aurite_config.json` or `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
@@ -174,7 +172,7 @@ A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `a
 *   Which MCP Servers (Clients) to connect to.
 *   Which Agents, Simple Workflows, and Custom Workflows are part of this project.
 
-The active project configuration tells the `Aurite` (formerly HostManager) instance what components to load and make available. For detailed configuration options, see [`docs/components/project_configs.md`](./docs/components/project_configs.md).
+The active project configuration tells the `Aurite` (formerly HostManager) instance what components to load and make available. For detailed configuration options, see [`docs/components/PROJECT.md`](./docs/components/PROJECT.md).
 
 ### 2. Agentic Components
 
@@ -183,7 +181,7 @@ These are the primary building blocks you'll work with:
 *   **Agents (`AgentConfig`):**
     *   LLM-powered entities that can engage in conversations, use tools (via Clients), and optionally maintain history.
     *   Key settings include the LLM to use (`llm_config_id`), system prompts, `client_ids` for tool access, and the `auto` mode for dynamic tool selection.
-    *   Configured via `AgentConfig` models. For detailed configuration options, see [`docs/components/agents.md`](./docs/components/agents.md).
+    *   Configured via `AgentConfig` models. For detailed configuration options, see [`docs/components/agent.md`](./docs/components/agent.md).
 
     ```mermaid
     graph TD
@@ -205,7 +203,7 @@ These are the primary building blocks you'll work with:
 *   **Simple Workflows (`WorkflowConfig`):**
     *   Define a linear sequence of Agents to be executed one after another.
     *   Useful for straightforward, multi-step tasks where the output of one agent becomes the input for the next.
-    *   Configured via `WorkflowConfig` models. For detailed configuration options, see [`docs/components/simple_workflows.md`](./docs/components/simple_workflows.md).
+    *   Configured via `WorkflowConfig` models. For detailed configuration options, see [`docs/components/simple_workflow.md`](./docs/components/simple_workflow.md).
 
     ```mermaid
     graph LR
@@ -220,25 +218,25 @@ These are the primary building blocks you'll work with:
 *   **Custom Workflows (`CustomWorkflowConfig`):**
     *   Allow you to define complex orchestration logic using custom Python classes.
     *   Provide maximum flexibility for intricate interactions, conditional logic, and parallelism.
-    *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class. For detailed configuration options and an example Python class structure, see [`docs/components/custom_workflows.md`](./docs/components/custom_workflows.md).
-    *   The example Python class structure from the previous version of this README has been moved to the `custom_workflows.md` document for better organization.
+    *   Configured via `CustomWorkflowConfig` models, pointing to your Python module and class. For detailed configuration options and an example Python class structure, see [`docs/components/custom_workflow.md`](./docs/components/custom_workflow.md).
+    *   The example Python class structure from the previous version of this README has been moved to the `custom_workflow.md` document for better organization.
 
 ### 3. LLM Configurations (`LLMConfig`)
 
 *   Define settings for different Large Language Models (e.g., provider, model name, temperature, max tokens).
 *   Agents reference these LLM configurations by their `llm_id`.
-*   Managed by `LLMConfig` models. For detailed configuration options, see [`docs/components/llms.md`](./docs/components/llms.md).
+*   Managed by `LLMConfig` models. For detailed configuration options, see [`docs/components/llm.md`](./docs/components/llm.md).
 
 ### 4. MCP Servers (as Clients via `ClientConfig`)
 
 *   External processes that provide tools, prompts, or resources according to the Model Context Protocol (MCP).
 *   The Aurite framework connects to these servers, referring to them as "Clients."
 *   Configured via `ClientConfig` models, specifying the server's connection details (e.g., `server_path` for `stdio` transport, `http_endpoint` for `http_stream` transport), capabilities, and access rules.
-*   For detailed configuration options, see [`docs/components/clients.md`](./docs/components/clients.md).
+*   For detailed configuration options, see [`docs/components/client.md`](./docs/components/client.md).
 
 ## Configuration System Overview (User Perspective)
 
-*   **Main Project File:** The system loads its entire configuration based on the project file (e.g., `aurite_config.json` or the file specified by `PROJECT_CONFIG_PATH`). This project file defines configurations directly or, more commonly, references other JSON files for specific components like agents, clients, and LLMs. For an example project file structure and details, see [`docs/components/project_configs.md`](./docs/components/project_configs.md).
+*   **Main Project File:** The system loads its entire configuration based on the project file (e.g., `aurite_config.json` or the file specified by `PROJECT_CONFIG_PATH`). This project file defines configurations directly or, more commonly, references other JSON files for specific components like agents, clients, and LLMs. For an example project file structure and details, see [`docs/components/PROJECT.md`](./docs/components/PROJECT.md).
 *   **Component JSON Files:** You'll typically define your agents, LLM settings, client connections, and workflows in separate JSON files within the `config/` subdirectories (e.g., `config/agents/`, `config/llms/`). The main project file then lists these files.
 *   **Pydantic Models:** All configuration files are validated against Pydantic models defined in `src/config/config_models.py`. This ensures your configurations are correctly structured.
 *   **Database Persistence (Optional):** If `AURITE_ENABLE_DB` is set to `true` and database connection variables are provided, the framework can persist agent configurations and conversation history.
