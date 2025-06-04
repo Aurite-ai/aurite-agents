@@ -474,16 +474,16 @@ class TestExecutionFacadeUnit:
         ).model_dump(mode="json")
 
         # Call the public method - no need to mock _execute_component
-        result = await execution_facade.run_agent(
+        agent_result_obj = await execution_facade.run_agent(
             agent_name=agent_name,
             user_message=user_message,
         )
 
-        print(f"Execution Result: {result}")
+        print(f"Execution Result: {agent_result_obj}")
 
         # Assertions
         # Verify the result matches the expected error structure
-        assert result == expected_error_dict
+        assert agent_result_obj.model_dump(mode="json") == expected_error_dict
         print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_not_found ---")
@@ -591,12 +591,12 @@ class TestExecutionFacadeUnit:
             "aurite.execution.facade.AnthropicLLM", side_effect=instantiation_error
         ) as MockLLM:
             # --- Act ---
-            result = await execution_facade.run_agent(
+            agent_result_obj = await execution_facade.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
             )
 
-            print(f"Execution Result: {result}")
+            print(f"Execution Result: {agent_result_obj}")
 
             # --- Assertions ---
             # 1. Check LLM was attempted to be instantiated
@@ -609,7 +609,7 @@ class TestExecutionFacadeUnit:
                 tool_uses_in_final_turn=[],
                 error=f"Initialization error for Agent '{agent_name}': Failed to create Anthropic client: {instantiation_error}",
             ).model_dump(mode="json")
-            assert result == expected_error_dict
+            assert agent_result_obj.model_dump(mode="json") == expected_error_dict
             print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_instantiation_error ---")
@@ -729,12 +729,12 @@ class TestExecutionFacadeUnit:
                 MockAgent.return_value = mock_agent_instance  # Changed to Agent
 
                 # --- Act ---
-                result = await execution_facade.run_agent(
+                agent_result_obj = await execution_facade.run_agent(
                     agent_name=agent_name,
                     user_message=user_message,
                 )
 
-                print(f"Execution Result: {result}")
+                print(f"Execution Result: {agent_result_obj}")
 
                 # --- Assertions ---
                 # 1. Check LLM and Agent were instantiated
@@ -750,7 +750,7 @@ class TestExecutionFacadeUnit:
                     tool_uses_in_final_turn=[],
                     error=f"Unexpected error running Agent '{agent_name}': {type(execution_error).__name__}: {execution_error}",
                 ).model_dump(mode="json")
-                assert result == expected_error_dict
+                assert agent_result_obj.model_dump(mode="json") == expected_error_dict
                 print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_execution_error ---")
