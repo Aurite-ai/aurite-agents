@@ -679,9 +679,7 @@ class ExecutionFacade:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> Dict[
-        str, Any
-    ]:  # Return type is Dict for API compatibility, AgentExecutionResult internally
+    ) -> AgentExecutionResult:
         """
         Executes a configured agent by name, handling history loading/saving if configured.
         """
@@ -689,14 +687,14 @@ class ExecutionFacade:
         # agent_instance: Optional[Agent] = None # Will be created after LLM client
         # llm_client_instance: Optional[BaseLLM] = None # Will be created after param resolution
 
-        def error_factory(name: str, msg: str) -> Dict[str, Any]:
+        def error_factory(name: str, msg: str) -> AgentExecutionResult:
             # Return structure matching AgentExecutionResult fields for consistency
             return AgentExecutionResult(
                 conversation=[],
                 final_response=None,
                 tool_uses_in_final_turn=[],
                 error=msg,
-            ).model_dump(mode="json")  # Return as dict
+            )  # Return as AgentExecutionResult instance
 
         try:
             # 1. Get Agent Configuration
@@ -967,8 +965,8 @@ class ExecutionFacade:
                         exc_info=True,
                     )
 
-            # 8. Return Result (as dict)
-            return agent_result.model_dump(mode="json")
+            # 8. Return Result (as Pydantic model instance)
+            return agent_result
 
         except KeyError as e:
             error_msg = f"Configuration error: {str(e)}"

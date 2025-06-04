@@ -9,8 +9,10 @@ from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
 from ..config.config_models import WorkflowConfig, AgentConfig  # Updated import path
 
 # Import LLM client and Facade for type hinting only
+# Import AgentExecutionResult for type hinting the result from facade.run_agent()
 if TYPE_CHECKING:
-    from ..execution.facade import ExecutionFacade  # Added Facade import
+    from ..execution.facade import ExecutionFacade
+    from ..agents.agent_models import AgentExecutionResult # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -94,42 +96,23 @@ class SimpleWorkflowExecutor:
                 try:
                     # 1. Execute Agent via Facade
                     # Facade handles config lookup, LLM client resolution, agent instantiation, and execution.
+                    # Facade.run_agent() now returns an AgentExecutionResult instance.
                     # TODO: Consider passing session_id if workflows need state persistence
-                    result_dict: Dict[str, Any] = await self.facade.run_agent(
+                    agent_result_model: "AgentExecutionResult" = await self.facade.run_agent(
                         agent_name=agent_name,
                         user_message=current_message,
                         # system_prompt=None, # Use agent's default
                         # session_id=None, # Add session management if needed
                     )
 
-                    # 2. Process Agent Result (Dictionary)
-                    agent_error = result_dict.get("error")
-                    if agent_error:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {agent_error}"
+                    # 2. Process Agent Result (AgentExecutionResult instance)
+                    if agent_result_model.has_error:
+                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {agent_result_model.error}"
                         logger.error(error_message)
                         break  # Stop workflow execution
 
-                    final_response_dict = result_dict.get("final_response")
-                    if not final_response_dict:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) did not return a final response structure."
-                        logger.error(error_message)
-                        break  # Stop workflow execution
-
-                    # 3. Extract Output for Next Step (from Dictionary)
-                    final_content_blocks = final_response_dict.get("content", [])
-                    if not final_content_blocks:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) final response has no content."
-                        logger.error(error_message)
-                        break  # Stop workflow execution
-
-                    text_content = next(
-                        (
-                            block.get("text")
-                            for block in final_content_blocks
-                            if isinstance(block, dict) and block.get("type") == "text"
-                        ),
-                        None,
-                    )
+                    # 3. Extract Output for Next Step (from AgentExecutionResult instance)
+                    text_content = agent_result_model.primary_text
 
                     if text_content is not None:
                         current_message = text_content

@@ -33,26 +33,24 @@ async def main():
             session_id=session_id, # Optional: session ID for tracking
         )
 
+        print(f"Agent's response: {agent_result.primary_text}")
+
         print("\n--- Agent Result ---")
-        if agent_result and "final_response" in agent_result:
-            final_response = agent_result.get("final_response", {})
-            content_list = final_response.get("content", [{}])
-            if (
-                content_list
-                and isinstance(content_list, list)
-                and len(content_list) > 0
-            ):
-                message_text = content_list[0].get(
-                    "text", "No text in agent's final response."
-                )
-                print(f"Agent's response: {message_text}")
+        if agent_result: # agent_result is now an AgentExecutionResult instance
+            if agent_result.has_error:
+                print(f"Agent execution error: {agent_result.error}")
+            elif agent_result.primary_text:
+                print(f"Agent's response: {agent_result.primary_text}")
             else:
-                print(
-                    "Agent's final response content is empty or not in the expected format."
-                )
+                # This handles cases where final_response is None, content is empty, or no text block exists
+                print("Agent's final response did not contain primary text.")
         else:
-            print("No final_response found in agent_result or agent_result is None.")
-            print("Full agent_result for debugging:", agent_result)
+            # This case implies the error_factory in facade returned an AgentExecutionResult with an error,
+            # or an even earlier error occurred where facade might return None (though less likely with current error_factory).
+            # If agent_result can be None from facade due to very early errors:
+            print("Agent execution failed to produce a result object.")
+            # For debugging, you might log what `agent_result` is if it's not an expected model instance or None.
+            # print("Full agent_result for debugging:", agent_result) # Keep if useful for debugging None cases
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)
