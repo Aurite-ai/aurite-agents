@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 from anthropic.types import Message  # Added Message
 
 from aurite.agents.agent import Agent  # Needed for mocking
-from aurite.agents.agent_models import ( # Added imports
+from aurite.agents.agent_models import (  # Added imports
     AgentExecutionResult,
     AgentOutputMessage,
     AgentOutputContentBlock,
@@ -171,8 +171,8 @@ class TestSimpleWorkflowExecutorUnit:
         # It should be an async method and return AgentExecutionResult objects
         mock_execution_facade.run_agent = AsyncMock(
             side_effect=[
-                agent1_exec_result, # Result for Agent1
-                agent2_exec_result, # Result for Agent2
+                agent1_exec_result,  # Result for Agent1
+                agent2_exec_result,  # Result for Agent2
             ]
         )
 
@@ -284,9 +284,7 @@ class TestSimpleWorkflowExecutorUnit:
             tool_uses_in_final_turn=[],
             error=agent_execution_error_text,
         )
-        mock_execution_facade.run_agent = AsyncMock(
-            return_value=error_exec_result
-        )
+        mock_execution_facade.run_agent = AsyncMock(return_value=error_exec_result)
 
         executor = SimpleWorkflowExecutor(
             config=sample_workflow_config,

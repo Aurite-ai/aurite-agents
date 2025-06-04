@@ -7,7 +7,6 @@ LLM calls are typically mocked to control agent behavior for testing host intera
 """
 
 import os  # Import os for environment variable check
-from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -131,7 +130,9 @@ class TestAgentIntegration:
             # Find primary text in the AgentOutputMessage
             primary_text = None
             if final_response_obj.content:
-                for block in final_response_obj.content: # block is AgentOutputContentBlock
+                for (
+                    block
+                ) in final_response_obj.content:  # block is AgentOutputContentBlock
                     if block.type == "text":
                         primary_text = block.text
                         break
@@ -255,7 +256,9 @@ class TestAgentIntegration:
             # 3. Final response content matches the valid JSON text
             primary_text = None
             if final_response_obj.content:
-                for block in final_response_obj.content: # block is AgentOutputContentBlock
+                for (
+                    block
+                ) in final_response_obj.content:  # block is AgentOutputContentBlock
                     if block.type == "text":
                         primary_text = block.text
                         break
@@ -266,7 +269,9 @@ class TestAgentIntegration:
             assert len(conversation_history) == 2
             assert conversation_history[0].role == "user"
             assert conversation_history[1].role == "assistant"
-            assert conversation_history[1].content[0].type == "text" # Ensure it's a text block
+            assert (
+                conversation_history[1].content[0].type == "text"
+            )  # Ensure it's a text block
             assert conversation_history[1].content[0].text == valid_json_text
 
     @pytest.mark.skipif(
@@ -329,14 +334,14 @@ class TestAgentIntegration:
         # Check if a tool result message exists in the history
         tool_result_found = any(
             msg.role == "user" and msg.content and msg.content[0].type == "tool_result"
-            for msg in conversation_history # msg is AgentOutputMessage
+            for msg in conversation_history  # msg is AgentOutputMessage
         )
         print(f"Tool result found in history: {tool_result_found}")  # For debugging
 
         # Check final response text for keywords (less strict than JSON parsing for real LLM)
         primary_text = ""
         if final_response_obj.content:
-            for block in final_response_obj.content: # block is AgentOutputContentBlock
+            for block in final_response_obj.content:  # block is AgentOutputContentBlock
                 if block.type == "text" and block.text is not None:
                     primary_text += block.text + " "
         primary_text = primary_text.strip()  # Keep original case for JSON parsing

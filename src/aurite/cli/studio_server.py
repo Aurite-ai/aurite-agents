@@ -19,7 +19,9 @@ def get_static_ui_path() -> Path:
     where frontend assets are expected.
     """
     try:
-        static_ui_path = importlib.resources.files("aurite").joinpath("packaged/static_ui")
+        static_ui_path = importlib.resources.files("aurite").joinpath(
+            "packaged/static_ui"
+        )
         if not static_ui_path.exists():
             # Fallback to the source directory if packaged path doesn't exist
             static_ui_path = importlib.resources.files("aurite").joinpath("static_ui")

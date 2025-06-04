@@ -12,7 +12,9 @@ pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
 from aurite.host_manager import Aurite  # For host_manager fixture
-from aurite.agents.agent_models import AgentExecutionResult # Import AgentExecutionResult
+from aurite.agents.agent_models import (
+    AgentExecutionResult,
+)  # Import AgentExecutionResult
 
 # Test Cases
 
@@ -59,12 +61,14 @@ async def test_facade_run_agent(host_manager: Aurite):
 
         # Content check for JSON response
         assert final_response_obj.content is not None
-        final_content_blocks = final_response_obj.content # This is List[AgentOutputContentBlock]
+        final_content_blocks = (
+            final_response_obj.content
+        )  # This is List[AgentOutputContentBlock]
         assert isinstance(final_content_blocks, list) and len(final_content_blocks) > 0
         # Assuming the JSON is in the first text block
         first_text_block = next(
             (
-                block # block is AgentOutputContentBlock
+                block  # block is AgentOutputContentBlock
                 for block in final_content_blocks
                 if block.type == "text"
             ),

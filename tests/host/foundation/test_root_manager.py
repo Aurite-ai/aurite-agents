@@ -3,7 +3,6 @@ Unit tests for the RootManager.
 """
 
 import pytest
-import logging  # Import logging
 
 # Import the class to test and dependent models
 from aurite.host.foundation.roots import RootManager

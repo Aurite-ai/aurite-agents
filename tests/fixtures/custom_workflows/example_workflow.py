@@ -84,9 +84,7 @@ class ExampleCustomWorkflow:
                         final_text_content = block.text
                         text_block_found = True
                         workflow_status = "completed"  # Success!
-                        logger.info(
-                            "Successfully extracted text from agent response."
-                        )
+                        logger.info("Successfully extracted text from agent response.")
                         break
                 if not text_block_found:
                     final_text_content = (
@@ -94,11 +92,9 @@ class ExampleCustomWorkflow:
                     )
                     logger.warning(final_text_content)
                     # Consider this success as the agent ran, but didn't return text as expected by this workflow
-                    workflow_status = "completed" # Or "failed" if text is strictly required by workflow logic
+                    workflow_status = "completed"  # Or "failed" if text is strictly required by workflow logic
             else:
-                final_text_content = (
-                    "Agent result missing final_response or content."
-                )
+                final_text_content = "Agent result missing final_response or content."
                 logger.warning(final_text_content)
                 # workflow_status remains "failed"
 
@@ -116,7 +112,9 @@ class ExampleCustomWorkflow:
             # The inner 'result' contains details including the extracted text or error message.
             return {
                 "status": workflow_status,  # Outer status reflects workflow completion
-                "error": agent_error_str if workflow_status == "failed" else None, # Use the extracted error string
+                "error": agent_error_str
+                if workflow_status == "failed"
+                else None,  # Use the extracted error string
                 "result": {
                     "status": "success"
                     if workflow_status == "completed"
