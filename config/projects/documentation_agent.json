@@ -38,13 +38,13 @@
     "custom_workflows": [
       {
         "name": "InitializeDocs",
-        "module_path": "src/documentation_chat/initialize_docs_workflow.py",
+        "module_path": "src/aurite/workflows/custom/documentation_chat/initialize_docs_workflow.py",
         "class_name": "InitializeDocsWorkflow",
         "description": "A workflow to initialize the documentation files in the embeddings db."
       },
       {
         "name": "DocsQuestion",
-        "module_path": "src/documentation_chat/docs_question_workflow.py",
+        "module_path": "src/aurite/workflows/custom/documentation_chat/docs_question_workflow.py",
         "class_name": "DocsQuestionWorkflow",
         "description": "Workflow for asking the documentation agent a question."
       }
