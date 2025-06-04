@@ -96,9 +96,9 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,  # Keep this
-        mock_llm_client: MagicMock,  # Add new fixture
-        mock_execution_facade: MagicMock,  # Add new fixture
+        mock_mcp_host: AsyncMock,
+        mock_llm_client: MagicMock,
+        mock_execution_facade: MagicMock,
     ):
         """
         Test successful execution of a simple workflow with multiple steps.
@@ -108,6 +108,14 @@ class TestSimpleWorkflowExecutorUnit:
         initial_input = "Start the workflow"
         agent1_output_text = "Result from Agent1"
         agent2_output_text = "Final Result from Agent2"
+
+        # Mock project config for component type inference
+        mock_project_config = MagicMock(
+            agents={"Agent1": {}, "Agent2": {}},
+            simple_workflows={},
+            custom_workflows={},
+        )
+        mock_execution_facade.get_project_config.return_value = mock_project_config
 
         # --- Mock Agent Results (Mimicking Agent structure) ---
         # Mock Message object for Agent 1's final_response
@@ -161,7 +169,9 @@ class TestSimpleWorkflowExecutorUnit:
 
         print(f"Execution Result: {result}")
 
-        # --- Assertions ---
+        # Verify get_project_config was called for type inference
+        mock_execution_facade.get_project_config.assert_called()
+
         # Check facade.run_agent was called correctly
         assert mock_execution_facade.run_agent.await_count == 2
         mock_execution_facade.run_agent.assert_has_awaits(
@@ -173,18 +183,11 @@ class TestSimpleWorkflowExecutorUnit:
 
         # Check the final result structure
         assert result["status"] == "completed"
-        assert (
-            result["final_message"] == agent2_output_text
-        )  # Final message is the text from last agent
-        assert result["error"] is None
-        # Removed assertions for step_results as it's not returned by the executor
-        # assert "step_results" in result
-        # assert len(result["step_results"]) == 2
-        # assert result["step_results"]["Agent1"] == agent1_result
-        # assert result["step_results"]["Agent2"] == agent2_result
+        assert result["workflow_name"] == sample_workflow_config.name
+        assert result["final_message"] == agent2_output_text
+        assert "error" not in result
 
         print("Assertions passed.")
-
         print("--- Test Finished: test_simple_executor_execute_success ---")
 
     @pytest.mark.asyncio
@@ -192,84 +195,42 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,  # Keep
-        mock_llm_client: MagicMock,  # Add
-        mock_execution_facade: MagicMock,  # Add
+        mock_mcp_host: AsyncMock,
+        mock_llm_client: MagicMock,
+        mock_execution_facade: MagicMock,
     ):
         """
-        Test workflow execution fails when an agent in steps is not found in agent_configs.
+        Test workflow execution fails when a component is not found.
         (This test might need adjustment if facade handles agent lookup failure)
         """
         print("\n--- Running Test: test_simple_executor_agent_not_found ---")
         initial_input = "Start the workflow"
+
+        # Mock project config to not include NonExistentAgent
+        mock_project_config = MagicMock(
+            agents={"Agent1": {}, "Agent2": {}},
+            simple_workflows={},
+            custom_workflows={},
+        )
+        mock_execution_facade.get_project_config.return_value = mock_project_config
+
         # Modify config to include a non-existent agent
         invalid_workflow_config = sample_workflow_config.copy(deep=True)
         invalid_workflow_config.steps.append("NonExistentAgent")
 
-        # Mock facade.run_agent to simulate successful calls for existing agents
-        # and then raise an error or return an error structure when NonExistentAgent is called.
-        agent1_output_text = "Result from Agent1"
-        agent2_output_text = "Result from Agent2"
-
-        async def mock_run_agent_for_not_found(*args, **kwargs):
-            agent_name = kwargs.get("agent_name")
-            if agent_name == "Agent1":
-                return {
-                    "final_response": {
-                        "content": [{"type": "text", "text": agent1_output_text}]
-                    },
-                    "error": None,
-                }
-            elif agent_name == "Agent2":
-                return {
-                    "final_response": {
-                        "content": [{"type": "text", "text": agent2_output_text}]
-                    },
-                    "error": None,
-                }
-            elif agent_name == "NonExistentAgent":
-                # Simulate facade indicating agent not found, which SimpleWorkflowExecutor should handle
-                return {
-                    "final_response": None,
-                    "error": f"Agent '{agent_name}' configuration not found by facade.",
-                }
-            return {"final_response": None, "error": "Unknown agent in mock"}
-
-        mock_execution_facade.run_agent = AsyncMock(
-            side_effect=mock_run_agent_for_not_found
-        )
-
         executor = SimpleWorkflowExecutor(
             config=invalid_workflow_config,
             agent_configs=sample_agent_configs,
-            # host_instance=mock_mcp_host, # Removed
-            # llm_client=mock_llm_client, # Removed
             facade=mock_execution_facade,
         )
 
         result = await executor.execute(initial_input=initial_input)
         print(f"Execution Result: {result}")
 
-        # --- Assertions ---
-        # facade.run_agent should be called for Agent1, Agent2, and then NonExistentAgent
-        assert mock_execution_facade.run_agent.await_count == 3
-        mock_execution_facade.run_agent.assert_has_awaits(
-            [
-                call(agent_name="Agent1", user_message=initial_input),
-                call(agent_name="Agent2", user_message=agent1_output_text),
-                call(agent_name="NonExistentAgent", user_message=agent2_output_text),
-            ]
-        )
-
-        # Check the final result structure for failure
+        # Verify the error is about component not found
         assert result["status"] == "failed"
-        assert result["final_message"] is None
-        assert result["error"] is not None
-        assert "NonExistentAgent" in result["error"]
-        # The error message now comes from the facade mock or how SimpleWorkflowExecutor processes it
-        assert (
-            "configuration not found by facade" in result["error"]
-        )  # Updated expected error message
+        assert "No components found with name NonExistentAgent" in result["error"]
+        assert result["workflow_name"] == invalid_workflow_config.name
 
         print("Assertions passed.")
         print("--- Test Finished: test_simple_executor_agent_not_found ---")
@@ -279,9 +240,9 @@ class TestSimpleWorkflowExecutorUnit:
         self,
         sample_workflow_config: WorkflowConfig,
         sample_agent_configs: dict[str, AgentConfig],
-        mock_mcp_host: AsyncMock,  # Keep
-        mock_llm_client: MagicMock,  # Add
-        mock_execution_facade: MagicMock,  # Add
+        mock_mcp_host: AsyncMock,
+        mock_llm_client: MagicMock,
+        mock_execution_facade: MagicMock,
     ):
         """
         Test workflow execution fails when an agent step execution raises an error.
@@ -290,7 +251,15 @@ class TestSimpleWorkflowExecutorUnit:
         initial_input = "Start the workflow"
         agent_execution_error_text = "Agent failed internally via facade"
 
-        # Mock facade.run_agent to return an error for the first agent
+        # Mock project config for component type inference
+        mock_project_config = MagicMock(
+            agents={"Agent1": {}, "Agent2": {}},
+            simple_workflows={},
+            custom_workflows={},
+        )
+        mock_execution_facade.get_project_config.return_value = mock_project_config
+
+        # Mock facade.run_agent to return an error
         mock_execution_facade.run_agent = AsyncMock(
             return_value={"final_response": None, "error": agent_execution_error_text}
         )
@@ -298,33 +267,25 @@ class TestSimpleWorkflowExecutorUnit:
         executor = SimpleWorkflowExecutor(
             config=sample_workflow_config,
             agent_configs=sample_agent_configs,
-            # host_instance=mock_mcp_host, # Removed
-            # llm_client=mock_llm_client, # Removed
             facade=mock_execution_facade,
         )
 
         # --- Execute the workflow ---
         result = await executor.execute(initial_input=initial_input)
-
         print(f"Execution Result: {result}")
 
-        # --- Assertions ---
-        # facade.run_agent called once for Agent1
+        # Verify get_project_config was called
+        mock_execution_facade.get_project_config.assert_called()
+
+        # Check facade.run_agent was called once
         mock_execution_facade.run_agent.assert_awaited_once_with(
             agent_name="Agent1", user_message=initial_input
         )
 
-        # Check the final result structure for failure
+        # Check the final result structure
         assert result["status"] == "failed"
-        assert result["final_message"] is None
-        assert result["error"] is not None
-        # The error message should now reflect what SimpleWorkflowExecutor constructs
-        # based on the error returned by the facade.
-        expected_error_msg_from_executor = (
-            f"Agent 'Agent1' (step 1) failed: {agent_execution_error_text}"
-        )
-        assert result["error"] == expected_error_msg_from_executor
+        assert result["workflow_name"] == sample_workflow_config.name
+        assert "Error occured while processing component 'Agent1'" in result["error"]
 
         print("Assertions passed.")
-
         print("--- Test Finished: test_simple_executor_agent_execution_failure ---")

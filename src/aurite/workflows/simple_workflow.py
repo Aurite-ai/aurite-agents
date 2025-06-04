@@ -3,10 +3,12 @@ Executor for Simple Sequential Workflows.
 """
 
 import logging
+import json
 from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
+from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ..config.config_models import WorkflowConfig, AgentConfig  # Updated import path
+from ..config.config_models import WorkflowConfig, AgentConfig, WorkflowComponent  # Updated import path
 
 # Import LLM client and Facade for type hinting only
 # Import AgentExecutionResult for type hinting the result from facade.run_agent()
@@ -15,6 +17,11 @@ if TYPE_CHECKING:
     from ..agents.agent_models import AgentExecutionResult # Added import
 
 logger = logging.getLogger(__name__)
+
+
+class ComponentWorkflowInput(BaseModel):
+    workflow: list[WorkflowComponent | str]
+    input: Any
 
 
 class SimpleWorkflowExecutor:
@@ -72,99 +79,103 @@ class SimpleWorkflowExecutor:
         workflow_name = self.config.name
         logger.info(f"Executing simple workflow: {workflow_name}")
 
-        current_message = initial_input
-        final_status = "failed"  # Default status
-        error_message = None
-
         try:
-            if not self.config.steps:
-                logger.warning(f"Workflow '{workflow_name}' has no steps to execute.")
-                return {
-                    "workflow_name": workflow_name,
-                    "status": "completed_empty",
-                    "final_message": current_message,
-                    "error": None,
-                }
+            workflow = self.config.steps
 
-            # Loop through steps (agents)
-            for i, agent_name in enumerate(self.config.steps):
-                step_num = i + 1
-                logger.debug(  # INFO -> DEBUG
-                    f"Executing workflow '{workflow_name}' step {step_num}: Agent '{agent_name}'"
-                )
+            # find the type for all components defined with only a name
+            for i in range(len(workflow)):
+                if type(workflow[i]) is str:
+                    workflow[i] = WorkflowComponent(name=workflow[i], type=self._infer_component_type(component_name=workflow[i]))
 
+            current_message = initial_input
+
+            for component in workflow:
                 try:
-                    # 1. Execute Agent via Facade
-                    # Facade handles config lookup, LLM client resolution, agent instantiation, and execution.
-                    # Facade.run_agent() now returns an AgentExecutionResult instance.
-                    # TODO: Consider passing session_id if workflows need state persistence
-                    agent_result_model: "AgentExecutionResult" = await self.facade.run_agent(
-                        agent_name=agent_name,
-                        user_message=current_message,
-                        # system_prompt=None, # Use agent's default
-                        # session_id=None, # Add session management if needed
-                    )
+                    logging.info(f"Component Workflow: {component.name} ({component.type}) operating with input: {current_message}")
+                    match component.type.lower():
+                        case "agent":
+                            if type(current_message) is dict:
+                                current_message = json.dumps(current_message)
 
-                    # 2. Process Agent Result (AgentExecutionResult instance)
-                    if agent_result_model.has_error:
-                        error_message = f"Agent '{agent_name}' (step {step_num}) failed: {agent_result_model.error}"
-                        logger.error(error_message)
-                        break  # Stop workflow execution
+                            # component_output is now an AgentExecutionResult instance
+                            agent_result_model: "AgentExecutionResult" = await self.facade.run_agent(
+                                agent_name=component.name,
+                                user_message=current_message
+                            )
 
-                    # 3. Extract Output for Next Step (from AgentExecutionResult instance)
-                    text_content = agent_result_model.primary_text
+                            if agent_result_model.has_error:
+                                # This exception will be caught by the outer try/except block for the component
+                                raise Exception(f"Agent '{component.name}' reported an error: {agent_result_model.error}")
 
-                    if text_content is not None:
-                        current_message = text_content
-                        logger.debug(
-                            f"Step {step_num}: Output message for next step: '{current_message[:100]}...'"
-                        )
-                    else:
-                        # Agent responded, but no text block found.
-                        current_message = ""  # Pass empty string
-                        logger.warning(
-                            f"Agent '{agent_name}' (step {step_num}) response content has no text block. Passing empty string to next step."
-                        )
+                            current_message = agent_result_model.primary_text
+                            if current_message is None:
+                                current_message = "" # Default to empty string if no primary text
+                                logger.warning(
+                                    f"Agent '{component.name}' response did not yield primary text. Passing empty string to next step."
+                                )
+                        case "simple_workflow":
+                            component_output = await self.facade.run_simple_workflow(workflow_name=component.name, initial_input=current_message)
 
-                except KeyError:
-                    # This occurs if agent_name is not found in self._agent_configs (should be caught by facade now, but keep as fallback)
-                    error_message = f"Configuration error in workflow '{workflow_name}': Agent '{agent_name}' (step {step_num}) not found."
-                    logger.error(error_message)
-                    break  # Stop workflow execution
-                except Exception as agent_exec_e:
-                    # Catch other unexpected errors during facade call or result processing
-                    error_message = f"Unexpected error during agent '{agent_name}' (step {step_num}) execution via facade within workflow '{workflow_name}': {agent_exec_e}"
-                    logger.error(error_message, exc_info=True)
-                    break  # Stop workflow execution
+                            current_message = component_output.get("final_message", "")
+                        case "custom_workflow":
+                            input_type = await self.facade.get_custom_workflow_input_type(workflow_name=component.name)
 
-            # Determine final status after loop finishes or breaks
-            if error_message is None:
-                final_status = "completed"
-                logger.info(
-                    f"Workflow '{workflow_name}' completed successfully."
-                )  # Keep final success as INFO
-            else:
-                # Ensure status remains 'failed' if loop broke due to error
-                final_status = "failed"
-                logger.error(
-                    f"Workflow '{workflow_name}' failed due to error: {error_message}"
-                )
+                            logging.info(f"Custom Workflow Input Type Found: {input_type}")
 
+                            if type(current_message) is str and input_type is dict:
+                                current_message = json.loads(current_message)
+                            elif type(current_message) is dict and input_type is str:
+                                current_message = json.dumps(current_message)
+
+                            component_output = await self.facade.run_custom_workflow(workflow_name=component.name, initial_input=current_message)
+
+                            current_message = component_output
+                        case _:
+                            raise ValueError(f"Component type not recognized: {component.type}")
+                except Exception as e:
+                    return {
+                        "workflow_name": workflow_name,
+                        "status": "failed",
+                        "error": f"Error occured while processing component '{component.name}': {str(e)}",
+                    }
+
+            return_value = {
+                "workflow_name": workflow_name,
+                "status": "completed",
+                "final_message": current_message
+            }
+
+            logging.info(f"Simple Workflow returning with {return_value}")
+
+            return return_value
         except Exception as e:
-            # Catch any other unexpected errors during workflow orchestration within the executor
             logger.error(
-                f"Unexpected error during workflow '{workflow_name}' execution in SimpleWorkflowExecutor: {e}",
-                exc_info=True,
+                f"Error within simple workflow execution: {e}", exc_info=True
             )
-            error_message = (
-                error_message or f"Internal error during workflow execution: {str(e)}"
-            )
-            final_status = "failed"
+            return {
+                "workflow_name": workflow_name,
+                "status": "failed",
+                "error": f"Workflow error: {str(e)}",
+            }
 
-        # Return final result
-        return {
-            "workflow_name": workflow_name,
-            "status": final_status,
-            "final_message": current_message if final_status == "completed" else None,
-            "error": error_message,
-        }
+
+    def _infer_component_type(self, component_name: str):
+        """Search through the project's defined components to find the type of a component"""
+
+        project_config = self.facade.get_project_config()
+
+        possible_types = []
+        if component_name in project_config.agents:
+            possible_types.append("agent")
+        if component_name in project_config.simple_workflows:
+            possible_types.append("simple_workflow")
+        if component_name in project_config.custom_workflows:
+            possible_types.append("custom_workflow")
+
+        if len(possible_types) == 1:
+            return possible_types[0]
+
+        if len(possible_types) > 1:
+            raise ValueError(f"Component with name {component_name} found in multiple types ({', '.join(possible_types)}). Please specify this step with a 'name' and 'type' to remove ambiguity.")
+
+        raise ValueError(f"No components found with name {component_name}")
