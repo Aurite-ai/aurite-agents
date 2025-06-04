@@ -44,13 +44,8 @@
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
-      "client_ids": [],
-      "auto": true,
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.7",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True",
+      "client_ids": ["weather_server"],
+      "llm_config_id": "anthropic_claude_3_opus",
       "exclude_components": ["current_time"],
       "config_validation_schema": {
         "type": "object",

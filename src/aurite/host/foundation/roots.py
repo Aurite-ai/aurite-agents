@@ -39,7 +39,7 @@ class RootManager:
         This defines the operational boundaries for the client.
         """
         if client_id in self._client_roots:
-            logger.warning(f"Overwriting existing roots for client: {client_id}")
+            logger.debug(f"Overwriting existing roots for client: {client_id}")
 
         # Validate and normalize roots
         normalized_roots = []
@@ -80,8 +80,7 @@ class RootManager:
         # Actual resource URI validation against roots happens in ResourceManager.
         if client_id not in self._client_roots:
             # This case might indicate an issue elsewhere if ToolManager calls this
-            # for an unknown client, but we'll log a warning just in case.
-            logger.warning(
+            logger.debug(
                 f"validate_access called for unknown or rootless client: {client_id}"
             )
             # Return False if the client is not registered with roots.

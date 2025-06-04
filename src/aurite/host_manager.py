@@ -128,7 +128,7 @@ class Aurite:
             os.getenv("AURITE_ALLOW_DYNAMIC_REGISTRATION", "true").lower() == "true"
         )
         if self._dynamic_registration_enabled:
-            logger.info(
+            logger.debug(
                 "Dynamic registration is ENABLED via AURITE_ALLOW_DYNAMIC_REGISTRATION."
             )
         else:
@@ -251,7 +251,7 @@ class Aurite:
                 current_project=active_project,
                 storage_manager=self.storage_manager,
             )
-            logger.info(
+            logger.debug(
                 f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
             )  # ADDED
 
@@ -263,7 +263,7 @@ class Aurite:
                     "component_configs", "projects", "prompt_validation_config.json"
                 )
                 if packaged_project_template_path_obj.is_file():
-                    logger.info(
+                    logger.debug(
                         f"Loading components from packaged project template: {packaged_project_template_path_obj}"
                     )
                     # We need to parse this file and add its components to the *active* project.
@@ -311,7 +311,7 @@ class Aurite:
                                         f"Client {client_id} from template already exists, skipping registration."
                                     )
                         # Add for other component types (llms, workflows) as needed.
-                        logger.info(
+                        logger.debug(
                             f"Components from {packaged_project_template_path_obj.name} considered for active project."
                         )
 
@@ -363,6 +363,22 @@ class Aurite:
             detailed_error_msg = f"Aurite.initialize failed in generic exception handler: {type(e).__name__}: {str(e)}"
             logger.error(detailed_error_msg, exc_info=True)
             raise RuntimeError(detailed_error_msg) from e
+
+    async def is_initialized(self) -> bool:
+        """
+        Checks if the Aurite instance is initialized and ready.
+
+        Returns:
+            bool: True if initialized, False otherwise.
+        """
+        # Check if host is initialized and has an active project
+        is_initialized = (
+            self.host is not None
+            and self.project_manager.get_active_project_config() is not None
+            and self.execution is not None
+        )
+        logger.debug(f"Aurite is_initialized check: {is_initialized}")
+        return is_initialized
 
     async def shutdown(self):
         """
