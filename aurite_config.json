@@ -81,7 +81,16 @@
         "required": ["weather_summary", "temperature", "recommendations"]
       }
     },
-    "Filtering Test Agent",
+    {
+      "name": "Filtering Test Agent",
+      "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+      "name": "Planning Agent",
+      "llm_config_id": "anthropic_claude_3_opus",
+      "client_ids": ["planning_server"],
+      "system_prompt": "You are a planning assistant."
+    },
     {
       "name": "Weather Planning Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",

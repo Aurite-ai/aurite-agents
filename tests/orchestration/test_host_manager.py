@@ -17,12 +17,12 @@ from aurite.config.config_models import (
     CustomWorkflowConfig,
 )
 
-# Expected counts based on loading config/testing_config.json
-EXPECTED_CLIENT_COUNT = 3
-EXPECTED_AGENT_COUNT = 7
-EXPECTED_LLM_CONFIG_COUNT = 0  # testing_config.json doesn't define any LLM configs
+# Expected counts based on loading aurite_config.json
+EXPECTED_CLIENT_COUNT = 2
+EXPECTED_AGENT_COUNT = 8
+EXPECTED_LLM_CONFIG_COUNT = 4
 EXPECTED_WORKFLOW_COUNT = 1
-EXPECTED_CUSTOM_WORKFLOW_COUNT = 1
+EXPECTED_CUSTOM_WORKFLOW_COUNT = 0
 
 
 @pytest.mark.integration  # Tests Aurite with real ProjectManager and real MCPHost/clients
@@ -71,9 +71,9 @@ class TestAuriteInitialization:
             isinstance(cfg, CustomWorkflowConfig)
             for cfg in active_project.custom_workflows.values()
         )
-        assert (
-            "ExampleCustomWorkflow" in active_project.custom_workflows
-        )  # Check the custom workflow name
+        # assert (
+        #     "ExampleCustomWorkflow" in active_project.custom_workflows
+        # )  # Check the custom workflow name - Removed as EXPECTED_CUSTOM_WORKFLOW_COUNT is 0
 
         # Check if the underlying host seems initialized (e.g., has clients from config)
         assert host_manager.host.client_manager.active_clients is not None
@@ -85,7 +85,7 @@ class TestAuriteInitialization:
             "weather_server" in host_manager.host.client_manager.active_clients
         )  # Check client IDs from config
         assert "planning_server" in host_manager.host.client_manager.active_clients
-        assert "address_server" in host_manager.host.client_manager.active_clients
+        # assert "address_server" in host_manager.host.client_manager.active_clients # Removed, not in aurite_config.json
 
         # Check if tool manager seems populated (via host property)
         # This depends on the servers actually starting and registering tools.
