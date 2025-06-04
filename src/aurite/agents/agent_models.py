@@ -182,13 +182,29 @@ class AgentExecutionResult(BaseModel):
     )
 
     @property
-    def primary_text(self) -> Optional[str]:
-        """Helper property to get the primary text from the final_response."""
+    def _raw_primary_text_content(self) -> Optional[str]:
+        """Internal helper to get only the actual text from final_response, or None."""
         if self.final_response and self.final_response.content:
             for block in self.final_response.content:
                 if block.type == "text" and block.text is not None:
                     return block.text
         return None
+
+    @property
+    def primary_text(self) -> str:
+        """
+        Gets the primary text from the final_response for display,
+        or an error/status message if applicable.
+        """
+        if self.error: # Equivalent to self.has_error
+            return f"Agent execution error: {self.error}"
+
+        actual_text = self._raw_primary_text_content
+        if actual_text is not None:
+            return actual_text
+
+        # If no error and no actual text found
+        return "Agent's final response did not contain primary text."
 
     @property
     def has_error(self) -> bool:

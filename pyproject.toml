@@ -47,6 +47,8 @@ dependencies = [
     "jiter>=0.6.1,<0.9", # Adjusted to resolve conflict with instructor
     "mem0ai>=0.1.67",
     "packaging>=24.2",
+    "colorlog>=6.0.0",
+    "termcolor>=3.0.0",
     "pluggy>=1.5.0",
     "psycopg2-binary>=2.9.10",
     "alembic>=1.13.1",
@@ -59,7 +61,6 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "openai-agents-mcp",
     "python-dotenv>=1.0.1",
-    # "click-async", # Removed - unnecessary with Click 8+/Typer 0.4+
     "pytz>=2024.1",
     "pyyaml>=6.0.2",
     "redis>=5.0.0",                 # Added for worker entrypoint

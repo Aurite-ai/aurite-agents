@@ -120,7 +120,7 @@ class SimpleWorkflowExecutor:
                                     f"Agent '{component.name}' reported an error: {agent_result_model.error}"
                                 )
 
-                            current_message = agent_result_model.primary_text
+                            current_message = agent_result_model._raw_primary_text_content # Use raw text for inter-step data
                             if current_message is None:
                                 current_message = (
                                     ""  # Default to empty string if no primary text

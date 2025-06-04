@@ -2,63 +2,68 @@ import asyncio
 import logging
 from aurite import Aurite
 
-# Configure logging for visibility
-logging.basicConfig(level=logging.WARN)
+# Configure basic logging. For more detailed logs, set level to logging.INFO or logging.DEBUG.
+logging.basicConfig(level=logging.INFO)
+# It's good practice to get a logger instance per module.
 logger = logging.getLogger(__name__)
 
 
 async def main():
+    """
+    A simple example demonstrating how to initialize Aurite, run an agent,
+    and print its response.
+    """
+    # Initialize the main Aurite application object.
+    # This will load configurations based on `aurite_config.json` or environment variables.
     aurite = Aurite()
 
     try:
-        await aurite.initialize() # Initialize the Aurite application
-        logger.info("Aurite initialized successfully.")
+        # Asynchronously initialize the Aurite application.
+        # This sets up the MCPHost, loads project components (agents, clients, etc.),
+        # and prepares the execution facade.
+        await aurite.initialize()
+\
 
-        user_query = "What is the weather in London?"  # The question for our agent
-        session_id = (
-            "cli_tutorial_session_001"  # Optional: for tracking conversation history
-        )
-
-        print(f"Running agent 'Weather Agent' with query: '{user_query}'")
-
-        if not aurite.execution:
+        # Ensure Aurite is fully initialized before proceeding.
+        if not await aurite.is_initialized():
             print(
-                "Error: Execution facade not initialized. This is unexpected after aurite_app.initialize()."
+                "Error: Aurite application is not properly initialized. Please check logs."
             )
             return
 
+        # Define the user's query for the agent.
+        user_query = "What is the weather in London?"
+
+        print(f"\nRunning agent 'Weather Agent' with query: '{user_query}'...")
+
+        # Run the agent using the execution facade.
+        # `agent_name` refers to an agent defined in your project's configuration.
+        # The result is an `AgentExecutionResult` Pydantic model instance.
         agent_result = await aurite.execution.run_agent(
-            agent_name="Weather Agent",  # The name of the agent to run
-            user_message=user_query, # The user query to send to the agent
-            session_id=session_id, # Optional: session ID for tracking
+            agent_name="Weather Agent",
+            user_message=user_query
         )
 
+        # The `agent_result` is an AgentExecutionResult Pydantic model instance.
+        # Its `primary_text` property conveniently handles displaying:
+        # 1. The main text content if the agent responded successfully.
+        # 2. A formatted error message if an error occurred during the agent's execution.
+        # 3. A message indicating if no text was found in an otherwise successful response.
+        print("\n--- Agent Result ---")
         print(f"Agent's response: {agent_result.primary_text}")
 
-        print("\n--- Agent Result ---")
-        if agent_result: # agent_result is now an AgentExecutionResult instance
-            if agent_result.has_error:
-                print(f"Agent execution error: {agent_result.error}")
-            elif agent_result.primary_text:
-                print(f"Agent's response: {agent_result.primary_text}")
-            else:
-                # This handles cases where final_response is None, content is empty, or no text block exists
-                print("Agent's final response did not contain primary text.")
-        else:
-            # This case implies the error_factory in facade returned an AgentExecutionResult with an error,
-            # or an even earlier error occurred where facade might return None (though less likely with current error_factory).
-            # If agent_result can be None from facade due to very early errors:
-            print("Agent execution failed to produce a result object.")
-            # For debugging, you might log what `agent_result` is if it's not an expected model instance or None.
-            # print("Full agent_result for debugging:", agent_result) # Keep if useful for debugging None cases
-
     except Exception as e:
-        logger.error(f"An error occurred: {e}", exc_info=True)
-        print(f"An error occurred: {e}")
+        # Catch any unexpected errors during the process, including if agent_result was not assigned.
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+        print(f"An unexpected error occurred: {e}")
     finally:
-        if aurite.host:
+        # Ensure Aurite and its components (like MCPHost and clients) are shut down gracefully.
+        if aurite.host: # Check if host was initialized before trying to shut down
+            logger.info("Shutting down Aurite...")
             await aurite.shutdown()
+            logger.info("Aurite shutdown complete.")
 
 
 if __name__ == "__main__":
+    # Run the asynchronous main function.
     asyncio.run(main())

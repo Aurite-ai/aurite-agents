@@ -114,7 +114,7 @@ class SecurityManager:
         """Generate a new random encryption key"""
         key = Fernet.generate_key()
         key_str = base64.urlsafe_b64encode(key).decode("ascii")
-        logger.warning(
+        logger.debug(
             "Generated new encryption key. For production, set AURITE_MCP_ENCRYPTION_KEY in environment."
         )
         return key_str
@@ -139,7 +139,7 @@ class SecurityManager:
 
             except Exception:  # Includes binascii.Error and potentially others
                 # If not a valid base64 string, derive a key
-                logger.info(
+                logger.debug(
                     "Encryption key is not valid base64, deriving key from string."
                 )
                 salt = b"aurite-mcp-salt"  # Consistent salt
