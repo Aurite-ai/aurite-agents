@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from ..llm.base import BaseLLM  # Import for type hinting LLM clients
 
 # Actual runtime imports
-from ..llm.providers.openai_client import OpenAIClient  # Moved here
+from ..components.llm.providers.openai_client import OpenAIClient  # Moved here
 from ..config.config_models import (
     AgentConfig,
     LLMConfig,
@@ -55,7 +55,7 @@ from ..workflows.simple_workflow import SimpleWorkflowExecutor
 from ..workflows.custom_workflow import CustomWorkflowExecutor
 
 # Import default LLM client for SimpleWorkflowExecutor instantiation
-from ..llm.providers.anthropic_client import (
+from ..components.llm.providers.anthropic_client import (
     AnthropicLLM,
 )
 

@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any, AsyncGenerator
 from pydantic import ValidationError
 from typing import cast
 
-from ...components.agents.agent_models import (
+from ...agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
@@ -30,7 +30,7 @@ from ..base_client import (
     BaseLLM,
     DEFAULT_MAX_TOKENS as BASE_DEFAULT_MAX_TOKENS,
 )
-from ...config.config_models import LLMConfig
+from ....config.config_models import LLMConfig
 
 logger = logging.getLogger(__name__)
 
