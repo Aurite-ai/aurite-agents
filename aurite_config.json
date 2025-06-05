@@ -110,5 +110,12 @@
       "steps": ["Weather Agent"]
     }
   ],
-  "custom_workflows": []
+  "custom_workflows": [
+    {
+      "name": "ExampleCustomWorkflow",
+      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "An example custom workflow for testing."
+    }
+  ]
 }
