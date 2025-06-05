@@ -47,6 +47,14 @@ class GatewayClient(BaseLLM):
             # TODO: add other providers
         }
         
+        self.finish_reason_map = {
+            "stop": "stop",
+            "STOP": "stop",
+            "end_turn": "stop",
+            "tool_calls": "tool_calls",
+            "tool_use": "tool_calls",
+        }
+        
         if provider not in provider_to_key:
             raise ValueError(f"Provider not recognized {provider}")
 
