@@ -58,20 +58,9 @@ class GatewayClient(BaseLLM):
                 f"{provider_to_key[provider]} environment variable is required for OpenAIClient."
             )
         
-        '''
-        if not os.environ.get("PORTKEY_GATEWAY_URL"):
-            logger.error(
-                "PORTKEY_GATEWAY_URL environment variable not found. "
-            )
-            raise ValueError(
-                "PORTKEY_GATEWAY_URL environment variable is required for GatewayClient."
-            )
-        '''
-        
         self.client = Portkey(
             provider = provider, 
             Authorization=os.environ.get(provider_to_key[provider]),
-            api_key=os.environ.get("PORTKEY_API_KEY") #TODO: Remove once docker is working, temp for testing
         )
         logger.info(f"Gateway client initialized for model {self.model_name} using direct API calls.")
 
