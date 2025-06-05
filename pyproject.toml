@@ -155,6 +155,6 @@ follow_imports = "silent"
 
 
 [project.scripts]
-start-api = "src.bin.api.api:start"
-start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
+start-api = "aurite.bin.api.api:start"
+start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
+run-cli = "aurite.bin.cli:app" # Makes 'run-cli' command available; args must be added manually

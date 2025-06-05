@@ -10,12 +10,9 @@ Navigate through the documentation using the links below to understand different
 
 ### 1. Getting Started & Main Overview
 
-*   **[[learning/overview.md|Tutorials Overview]]** The learning section overview. This section contains concepts, tutorials, and optional assignments to get you more familiar with the framework.
+*   **[[Start Here|Tutorial Modules Overview (USC)]]** The learning section overview. This section contains concepts, tutorials, and optional assignments to get you more familiar with the framework.
 
 * **[Aurite Package README](https://github.com/Aurite-ai/aurite-agents/blob/main/README_packaged.md)**: Information specific to the pip-installable `aurite` package, including how to use the `aurite init` CLI command.
-
-* **[Repository README](https://github.com/Aurite-ai/aurite-agents)**: The main project README.md. This is a great place to start for installation, setup, and a general overview of the framework.
-
 
 ### 2. Component Configurations
 An in-depth look at the features each component offers through json configuration.
