@@ -44,7 +44,7 @@ class ServerConfig(BaseSettings):
     # Host configuration path (Now refers to the *Project* config file)
     # Ensure PROJECT_CONFIG_PATH points to a valid project config JSON file
     PROJECT_CONFIG_PATH: FilePath = Field(
-        ...,
+        "aurite_config.json",
         description="Path to the Project configuration JSON file (e.g., config/projects/default.json)",
     )
 
