@@ -193,9 +193,3 @@ An `AgentConfig` specifies which clients it can potentially use via its `client_
 ```
 
 If an agent's `auto` mode is enabled, the framework (or an LLM) might dynamically select a subset of these allowed clients based on the task and client `routing_weight`.
-
-## Links to this page
-
--   HOME
--   project_configs
--   README

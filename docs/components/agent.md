@@ -109,9 +109,3 @@ Agent configurations are typically stored in JSON files (e.g., `config/agents/my
   "max_tokens": 1000
 }
 ```
-
-## Links to this page
-
--   HOME
--   project_configs
--   README

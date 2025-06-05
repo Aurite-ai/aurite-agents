@@ -90,9 +90,3 @@ An `AgentConfig` specifies which `LLMConfig` to use via its `llm_config_id` fiel
 ```
 
 If an `AgentConfig` also defines parameters like `model`, `temperature`, or `max_tokens`, those values will override the ones specified in the `LLMConfig` for that specific agent. The `system_prompt` in `AgentConfig` always takes precedence over `default_system_prompt` in `LLMConfig`.
-
-## Links to this page
-
--   HOME
--   project_configs
--   README

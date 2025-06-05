@@ -135,5 +135,5 @@ For detailed information on configuring each component type, please refer to the
 -   [LLM Configurations (LLMConfig)](./llm.md)
 -   [Client Configurations (ClientConfig)](./client.md)
 -   [Agent Configurations (AgentConfig)](./agent.md)
--   [Simple Workflow Configurations (WorkflowConfig)](./simple_workflow.md) (To be created)
--   [Custom Workflow Configurations (CustomWorkflowConfig)](./custom_workflow.md) (To be created)
+-   [Simple Workflow Configurations (WorkflowConfig)](./simple_workflow.md)
+-   [Custom Workflow Configurations (CustomWorkflowConfig)](./custom_workflow.md)
