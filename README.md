@@ -86,6 +86,7 @@ If you prefer to set up and run components manually or without Docker for all se
         ```bash
         cp .env.example .env
         ```
+    
     b.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
 
     Key variables you'll need to configure in your `.env` file include:
@@ -107,7 +108,7 @@ If you prefer to set up and run components manually or without Docker for all se
 4.  **Running the Backend API Server:**
     The primary way to interact with the framework is through its FastAPI server:
     ```bash
-    python -m src.bin.api.api
+    python -m aurite.bin.api.api
     ```
     or use the `pyproject.toml` script:
     ```bash

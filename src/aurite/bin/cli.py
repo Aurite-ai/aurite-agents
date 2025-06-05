@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 
+from dotenv import load_dotenv # Add this import
 import typer
 from typing import Callable, Coroutine, Any, cast  # Added cast
 
@@ -24,6 +25,9 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger("aurite_cli_api")
+
+# Load environment variables from .env file
+load_dotenv() # Add this call
 
 # Create Typer app instance
 app = typer.Typer(
