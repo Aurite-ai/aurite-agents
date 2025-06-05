@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock  # Added patch
 import pytest
 from anthropic.types import MessageParam
 
-from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
+from aurite.components.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 
 # Import necessary types and classes
-from aurite.agents.agent_turn_processor import AgentTurnProcessor
+from aurite.components.agents.agent_turn_processor import AgentTurnProcessor
 from aurite.config.config_models import AgentConfig
 from aurite.host.host import MCPHost
 

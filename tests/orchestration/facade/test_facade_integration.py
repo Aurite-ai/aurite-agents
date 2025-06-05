@@ -12,7 +12,7 @@ pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
 from aurite.host_manager import Aurite  # For host_manager fixture
-from aurite.agents.agent_models import (
+from aurite.components.agents.agent_models import (
     AgentExecutionResult,
 )  # Import AgentExecutionResult
 

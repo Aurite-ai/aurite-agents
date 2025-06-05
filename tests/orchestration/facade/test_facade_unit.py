@@ -9,12 +9,12 @@ import pytest
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-from aurite.agents.agent import Agent
+from aurite.components.agents.agent import Agent
 
 # from aurite.agents.conversation_manager import ( # Removed ConversationManager import
 #     ConversationManager,
 # )
-from aurite.agents.agent_models import AgentExecutionResult  # Import result models
+from aurite.components.agents.agent_models import AgentExecutionResult  # Import result models
 from aurite.config.config_models import (  # Added ProjectConfig
     AgentConfig,
     LLMConfig,

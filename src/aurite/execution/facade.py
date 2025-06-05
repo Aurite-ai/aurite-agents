@@ -21,18 +21,13 @@ import copy  # Added for copying agent_config
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ..host.host import MCPHost  # Needed for passing to executors/workflows
-    from ..agents.agent import Agent  # Keep type hint here
     from ..workflows.simple_workflow import (
         SimpleWorkflowExecutor,
     )  # Import for type hint
     from ..workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
     from ..config.config_models import ProjectConfig
-
-    # AgentConfig, ClientConfig, LLMConfig will be imported outside TYPE_CHECKING
-    from ..llm.base_client import BaseLLM
-    from ..llm.providers.anthropic_client import AnthropicLLM
-    # OpenAIClient needs to be available at runtime, so it's moved out of TYPE_CHECKING
+    from ..llm.base import BaseLLM  # Import for type hinting LLM clients
 
 # Actual runtime imports
 from ..llm.providers.openai_client import OpenAIClient  # Moved here
@@ -42,15 +37,10 @@ from ..config.config_models import (
 )  # Ensure LLMConfig is imported for direct use at runtime
 
 # Import Agent at runtime for instantiation
-from ..agents.agent import Agent
-# from agents_mcp import Agent as OpenAIMCPAgent # REMOVED
-# from agents.run import Runner as OpenAPIAgentRunner # REMOVED
-# from agents.run_context import RunContextWrapper # REMOVED
-# from agents.items import ItemHelpers # REMOVED
-# from agents.tool import Tool # REMOVED
+from ..components.agents.agent import Agent
 
 # Import AgentExecutionResult for type hinting the result
-from ..agents.agent_models import (
+from ..components.agents.agent_models import (
     AgentExecutionResult,
     AgentOutputMessage,  # Added AgentOutputContentBlock
 )  # Added AgentOutputMessage

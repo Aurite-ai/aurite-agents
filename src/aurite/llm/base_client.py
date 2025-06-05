@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any, AsyncGenerator  # Added AsyncGener
 # Import Pydantic validation error
 
 # Import our standardized output models from the agents module
-from ..agents.agent_models import AgentOutputMessage
+from ..components.agents.agent_models import AgentOutputMessage
 from ..config.config_models import LLMConfig  # Added import
 
 # Import Anthropic specific types and client

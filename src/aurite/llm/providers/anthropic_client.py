@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any, AsyncGenerator
 from pydantic import ValidationError
 from typing import cast
 
-from ...agents.agent_models import (
+from ...components.agents.agent_models import (
     AgentOutputMessage,
     AgentOutputContentBlock,
 )

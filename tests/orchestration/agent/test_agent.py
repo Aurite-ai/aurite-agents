@@ -13,11 +13,11 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 from anthropic.types import MessageParam
 
 # Imports from the project
-# from aurite.agents.agent import Agent # Old agent import removed
-from aurite.agents.agent import Agent  # New consolidated agent class
+# from aurite.components.agents.agent import Agent # Old agent import removed
+from aurite.components.agents.agent import Agent  # New consolidated agent class
 
 # from aurite.agents.conversation_manager import ConversationManager # Removed
-from aurite.agents.agent_models import (
+from aurite.components.agents.agent_models import (
     AgentExecutionResult,
     AgentOutputContentBlock,
     AgentOutputMessage,
@@ -72,7 +72,7 @@ class TestAgentUnit:  # Renamed class
     @pytest.mark.anyio
     # Patched AgentTurnProcessor where Agent uses it
     @patch(
-        "aurite.agents.agent.AgentTurnProcessor", autospec=True
+        "aurite.components.agents.agent.AgentTurnProcessor", autospec=True
     )  # Updated patch path
     async def test_agent_run_conversation_single_turn_no_tool(  # Renamed test method
         self,
@@ -172,7 +172,7 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "aurite.agents.agent.AgentTurnProcessor", autospec=True
+        "aurite.components.agents.agent.AgentTurnProcessor", autospec=True
     )  # Updated patch path
     async def test_agent_run_conversation_multi_turn_with_tool(  # Renamed test
         self,
@@ -395,7 +395,7 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "aurite.agents.agent.AgentTurnProcessor",
+        "aurite.components.agents.agent.AgentTurnProcessor",
         autospec=True,  # Updated patch path
     )
     async def test_agent_run_conversation_max_iterations_reached(  # Renamed test
@@ -512,7 +512,7 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "aurite.agents.agent.AgentTurnProcessor",
+        "aurite.components.agents.agent.AgentTurnProcessor",
         autospec=True,  # Updated patch path
     )
     async def test_agent_run_conversation_schema_correction_loop(  # Renamed test

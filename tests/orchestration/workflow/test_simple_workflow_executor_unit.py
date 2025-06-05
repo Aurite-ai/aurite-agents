@@ -11,8 +11,8 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 from anthropic.types import Message  # Added Message
 
-from aurite.agents.agent import Agent  # Needed for mocking
-from aurite.agents.agent_models import (  # Added imports
+from aurite.components.agents.agent import Agent  # Needed for mocking
+from aurite.components.agents.agent_models import (  # Added imports
     AgentExecutionResult,
     AgentOutputMessage,
     AgentOutputContentBlock,

@@ -15,7 +15,7 @@ import pytest
 pytestmark = [pytest.mark.orchestration, pytest.mark.integration, pytest.mark.anyio]
 
 # Imports from the project
-from aurite.agents.agent_models import (
+from aurite.components.agents.agent_models import (
     AgentOutputContentBlock,
     AgentOutputMessage,
     AgentExecutionResult,

@@ -5,7 +5,7 @@ from typing import Any, Optional  # Added Optional
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 # from aurite.host.host import MCPHost # No longer needed directly
-# from aurite.agents.agent import Agent # Agent execution handled by facade
+# from aurite.components.agents.agent import Agent # Agent execution handled by facade
 from typing import TYPE_CHECKING
 
 # Type hint for ExecutionFacade to avoid circular import

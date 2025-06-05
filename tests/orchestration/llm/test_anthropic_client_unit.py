@@ -10,7 +10,7 @@ from anthropic import AsyncAnthropic  # Added RateLimitError
 from anthropic.types import Message as AnthropicSDKMessage
 from anthropic.types import TextBlock, ToolUseBlock, Usage
 
-from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
+from aurite.components.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 from aurite.config.config_models import LLMConfig  # Added import
 from aurite.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
 

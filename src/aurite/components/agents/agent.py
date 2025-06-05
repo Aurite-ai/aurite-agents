@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 from anthropic.types import MessageParam
 from pydantic import ValidationError
 
-from ..config.config_models import AgentConfig, LLMConfig
+from ...config.config_models import AgentConfig, LLMConfig
 
 # Project imports
-from ..host.host import MCPHost
+from ...host.host import MCPHost
 
 # from ..llm.base_client import BaseLLM # Moved to TYPE_CHECKING
 from .agent_models import (
@@ -23,7 +23,7 @@ from .agent_models import (
 from .agent_turn_processor import AgentTurnProcessor
 
 if TYPE_CHECKING:
-    from ..llm.base_client import BaseLLM  # Moved here
+    from ...llm.base_client import BaseLLM  # Moved here
 
     pass
 
