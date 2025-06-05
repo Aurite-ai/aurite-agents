@@ -109,7 +109,7 @@ The `ProjectConfig` model defines the top-level structure of a project JSON file
     {
       "name": "WeatherInquiryAgent",
       "llm_config_id": "default_opus",
-      "system_prompt": "You are a weather bot.",
+      "system_prompt": "You are a Weather Forecast Assistant. Use the tool at your disposal to look up weather forecast(s) in order to respond to the user's query appropriately.",
       "client_ids": ["local_weather_service"]
     },
     {

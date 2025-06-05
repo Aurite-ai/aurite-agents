@@ -86,7 +86,7 @@ If you prefer to set up and run components manually or without Docker for all se
         ```bash
         cp .env.example .env
         ```
-    
+
     b.  **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
 
     Key variables you'll need to configure in your `.env` file include:
@@ -161,7 +161,7 @@ graph TD
     style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
 ```
 
-For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/framework_overview.md`](docs/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
 
 ## Core Concepts for Users
 
@@ -399,14 +399,14 @@ Key directories for users:
 *   **`src/workflows/`**: Implementations for `SimpleWorkflowExecutor` and `CustomWorkflowExecutor`.
 *   **`src/packaged_servers/`**: Example MCP server implementations.
 *   **`docs/`**: Contains all project documentation.
-    *   `docs/framework_overview.md`: For a deep dive into the architecture.
+    *   `docs/layers/framework_overview.md`: For a deep dive into the architecture.
     *   `docs/layers/`: Detailed documentation for each architectural layer.
 *   **`tests/`**: Automated tests. See `tests/README.md` for instructions on running tests.
 *   **`.env`**: (You create this) For environment variables like API keys and `PROJECT_CONFIG_PATH`.
 
 ## Further Documentation
 
-*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/framework_overview.md`](docs/framework_overview.md).
+*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md).
 *   **Layer-Specific Details:**
     *   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md) (API, CLI, Worker)
     *   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
