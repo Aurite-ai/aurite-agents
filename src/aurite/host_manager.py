@@ -25,6 +25,10 @@ from .config.config_models import (  # Updated import path
 # Import the new facade
 from .execution.facade import ExecutionFacade
 
+# Import the new managers and ProjectConfig
+from .config.component_manager import ComponentManager
+from .config.project_manager import ProjectManager
+
 # Assuming this file is in src/, use relative imports
 from .host.host import MCPHost
 from .storage.db_connection import create_db_engine  # Import engine factory
@@ -67,10 +71,6 @@ except ImportError:
 
 # Removed conditional import block for StorageManager
 
-# Import the new managers and ProjectConfig
-from .config.component_manager import ComponentManager
-from .config.project_manager import ProjectManager
-
 
 class DuplicateClientIdError(ValueError):
     """Custom exception for duplicate client ID registration attempts."""
@@ -107,7 +107,7 @@ class Aurite:
                 f"Using configuration path from direct argument: {final_config_path}"
             )
         else:
-            env_config_path_str = os.getenv("PROJECT_CONFIG_PATH")
+            env_config_path_str = os.getenv("PROJECT_CONFIG_PATH", "aurite_config.json")
             if env_config_path_str:  # Priority 2: Environment variable
                 final_config_path = Path(env_config_path_str)
                 determined_path_source = f"PROJECT_CONFIG_PATH environment variable ('{env_config_path_str}')"
