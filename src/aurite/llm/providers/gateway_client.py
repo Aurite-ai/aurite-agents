@@ -43,6 +43,7 @@ class GatewayClient(BaseLLM):
         provider_to_key = {
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
             # TODO: add other providers
         }
         
@@ -55,14 +56,14 @@ class GatewayClient(BaseLLM):
                 "The provider will not be able to authenticate."
             )
             raise ValueError(
-                f"{provider_to_key[provider]} environment variable is required for OpenAIClient."
+                f"{provider_to_key[provider]} environment variable is required for Gateway client with provider '{provider}'"
             )
         
         self.client = Portkey(
             provider = provider, 
             Authorization=os.environ.get(provider_to_key[provider]),
         )
-        logger.info(f"Gateway client initialized for model {self.model_name} using direct API calls.")
+        logger.info(f"Gateway client initialized for model {self.model_name}.")
 
     def _convert_messages_to_openai_format(self, messages: List[Dict[str, Any]], system_prompt: Optional[str]) -> List[Dict[str, Any]]:
         """Converts Aurite internal message format to OpenAI's expected format."""
