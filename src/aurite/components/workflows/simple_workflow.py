@@ -17,8 +17,8 @@ from ...config.config_models import (
 # Import LLM client and Facade for type hinting only
 # Import AgentExecutionResult for type hinting the result from facade.run_agent()
 if TYPE_CHECKING:
-    from ..execution.facade import ExecutionFacade
-    from ..components.agents.agent_models import AgentExecutionResult  # Added import
+    from ...execution.facade import ExecutionFacade
+    from ..agents.agent_models import AgentExecutionResult  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -120,9 +120,7 @@ class SimpleWorkflowExecutor:
                                     f"Agent '{component.name}' reported an error: {agent_result_model.error}"
                                 )
 
-                            current_message = (
-                                agent_result_model._raw_primary_text_content
-                            )  # Use raw text for inter-step data
+                            current_message = agent_result_model.primary_text
                             if current_message is None:
                                 current_message = (
                                     ""  # Default to empty string if no primary text

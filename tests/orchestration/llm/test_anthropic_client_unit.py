@@ -350,7 +350,7 @@ class TestAnthropicLLMUnit:
 
         # Patch 'AsyncAnthropic' where it's imported in the module under test (llm.providers.anthropic_client)
         with patch(
-            "aurite.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
+            "aurite.components.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
         ) as MockAsyncAnthropicClass:
             # Configure the instance that MockAsyncAnthropicClass() will return when AnthropicLLM initializes it
             mock_sdk_client_instance = MagicMock(spec=AsyncAnthropic)
