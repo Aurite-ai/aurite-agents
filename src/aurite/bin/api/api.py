@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dotenv import load_dotenv # Add this import
 import logging
 import os
 import time
@@ -43,6 +44,9 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file at the very beginning
+load_dotenv() # Add this call
 
 
 # --- Configuration Dependency, Security Dependency, Aurite Dependency (Moved to dependencies.py) ---
