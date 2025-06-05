@@ -40,7 +40,8 @@ your_project_name/
 └── run_example_project.py          # Script to run an example
 ```
 
-From this point, the framework operates the same as it does in the aurite-agents repository README. See this document for more information: **[README](https://github.com/Aurite-ai/aurite-agents)**
+From this point, the framework operates essentially the same as it does in the aurite-agents repository README. See this document for more information: **[README](https://github.com/Aurite-ai/aurite-agents)**
+
 ## Path Resolution
 
 Aurite determines the **root of your project (`current_project_root`)** as the directory containing the main project configuration file (by default, `aurite_config.json` created by `aurite init`).
