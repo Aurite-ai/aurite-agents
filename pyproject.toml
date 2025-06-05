@@ -88,7 +88,6 @@ dev = [
     "types-PyYAML",
     "types-pytz",
     "pytest>=8.3.5",
-    "pytest-anyio>=0.7.0", # Added for async test support with anyio
 ]
 ml = [
     "sentence-transformers>=4.1.0",
