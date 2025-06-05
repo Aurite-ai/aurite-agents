@@ -6,8 +6,6 @@ Whether you're looking to create sophisticated AI assistants, automate processes
 
 ## Getting Started
 
-For detailed instructions on how to set up the Aurite Agents framework from the repository, please see the [Repository Installation Guide](docs/repository_installation_guide.md).
-
 To install the framework as a python package, see [Package Installation Guide](docs/package_installation_guide.md).
 
 ## Architecture Overview
