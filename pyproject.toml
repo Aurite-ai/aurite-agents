@@ -2,8 +2,8 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "aurite-agents"
-version = "0.2.18"
+name = "aurite"
+version = "0.2.19"
 description = "Aurite Agent Development and Runtime Framework"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -44,11 +44,11 @@ dependencies = [
     "httpx-sse>=0.4.0",
     "idna>=3.10",
     "iniconfig>=2.0.0",
-    "jiter>=0.9.0",
+    "jiter>=0.6.1,<0.9", # Adjusted to resolve conflict with instructor
     "mem0ai>=0.1.67",
-    "numpy>=2.2.3",
     "packaging>=24.2",
-    "pandas>=2.2.3",
+    "colorlog>=6.0.0",
+    "termcolor>=3.0.0",
     "pluggy>=1.5.0",
     "portkey-ai>=1.13.0",
     "psycopg2-binary>=2.9.10",
@@ -60,8 +60,8 @@ dependencies = [
     "pydub>=0.25.1",
     "PyMySQL>=1.1.1",
     "python-dateutil>=2.9.0.post0",
+    "openai-agents-mcp",
     "python-dotenv>=1.0.1",
-    # "click-async", # Removed - unnecessary with Click 8+/Typer 0.4+
     "pytz>=2024.1",
     "pyyaml>=6.0.2",
     "redis>=5.0.0",                 # Added for worker entrypoint
@@ -79,28 +79,37 @@ dependencies = [
     "docker>=7.1.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+Repository = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+
 [project.optional-dependencies]
 dev = [
     "pytest-timeout>=2.3.1", # Added for test timeouts
     "mypy>=1.15.0",
     "types-PyYAML",
+    "pre-commit",
     "types-pytz",
     "pytest>=8.3.5",
-    "pre-commit", # Added for pre-commit hooks
 ]
 ml = [
     "sentence-transformers>=4.1.0",
+    "pandas>=2.2.3",
+    "numpy>=2.2.3",
 ]
 
-[tool.setuptools.package-data]
-# Include py.typed for all packages found
-"*" = ["py.typed"]
-# Specifically include the packaged server scripts within the 'src' package
-"src" = ["packaged_servers/*.py"]
+[tool.setuptools]
+include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
+package-dir = {"" = "src"} # Maps importable package root to the 'src' directory
+
+# [tool.setuptools.package-data] # This section can be used if not relying solely on MANIFEST.in
+# # For example, to ensure py.typed is included if MANIFEST.in doesn't cover it:
+# # "*" = ["py.typed"]
+# # We will rely on MANIFEST.in for data files.
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]  # Look for packages within the 'src' directory
+include = ["aurite*"] # Find 'aurite' and any sub-packages
 namespaces = false
 # Pytest configuration
 [tool.pytest.ini_options]
@@ -116,6 +125,7 @@ markers = [
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
     # "asyncio: mark test as async test", # Removed - use pytest.mark.anyio instead
+    "anyio: marks tests as anyio-based async tests", # Added for pytest-anyio
     "core: mark test as core functionality test",                            # Keep existing
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
@@ -126,8 +136,7 @@ markers = [
     "multirun: mark test that runs multiple evaluation iterations",
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
-asyncio_default_fixture_loop_scope = "function" # Default scope for asyncio tests
-pythonpath = [".", "src"]
+pythonpath = [".", "src", "aurite"]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
@@ -135,7 +144,6 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
     "ignore::pytest.PytestUnknownMarkWarning",
     "ignore::pytest.PytestConfigWarning",
-    "ignore::pytest.PytestUnhandledCoroutineWarning",
 ]
 # Add HTML and JSON report options
 addopts = "--verbose --no-header --disable-warnings"
@@ -152,11 +160,12 @@ check_untyped_defs = false # Don't require type hints for functions without them
 disallow_untyped_defs = false # Corresponds to check_untyped_defs
 show_error_codes = true # Makes errors easier to understand/suppress if needed
 disallow_untyped_calls = false # Corresponds to check_untyped_defs
-files=["src/bin/**/*.py", "src/agents/**/*.py", "src/host/**/*.py", "src/storage/**/*.py", "src/workflows/**/*.py", "src/llm/**/*.py", "src/execution/**/*.py", "src/prompt_validation/**/*.py", "src/host_manager.py", "src/config.py"] # Include all source and test files
+files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
 
 [project.scripts]
-start-api = "src.bin.api.api:start"
-start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
+start-api = "aurite.bin.api.api:start"
+start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
+run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
+aurite = "aurite.cli.main:app" # Renamed script from aurite-agents to aurite

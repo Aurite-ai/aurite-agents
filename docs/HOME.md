@@ -10,12 +10,9 @@ Navigate through the documentation using the links below to understand different
 
 ### 1. Getting Started & Main Overview
 
-*   **[[learning/overview.md|Tutorials Overview]]** The learning section overview. This section contains concepts, tutorials, and optional assignments to get you more familiar with the framework.
+*   **[[Start Here|Tutorial Modules Overview (USC)]]** The learning section overview. This section contains concepts, tutorials, and optional assignments to get you more familiar with the framework.
 
-* **[Aurite Package README](https://github.com/Aurite-ai/aurite-agents/blob/0e59b105caf3b64dcedf8e3b3789a5fad2832a09/README_packaged.md)**: Information specific to the pip-installable `aurite` package, including how to use the `aurite init` CLI command.
-
-* **[Repository README](https://github.com/Aurite-ai/aurite-agents)**: The main project README.md. This is a great place to start for installation, setup, and a general overview of the framework.
-
+* **[Aurite Package README](https://github.com/Aurite-ai/aurite-agents/blob/main/README_packaged.md)**: Information specific to the pip-installable `aurite` package, including how to use the `aurite init` CLI command.
 
 ### 2. Component Configurations
 An in-depth look at the features each component offers through json configuration.
@@ -27,7 +24,7 @@ An in-depth look at the features each component offers through json configuratio
 *   **[[components/custom_workflow.md|Custom Workflow Configs]]**
 
 ### 3. Framework Architecture
-*   **[[layers/layers/framework_overview.md|Framework Overview]]**: A diagram of the overall architecture, design principles, and how different parts of the framework interact.
+*   **[[layers/framework_overview.md|Framework Overview]]**: A diagram of the overall architecture, design principles, and how different parts of the framework interact.
 *   **Framework Layers**: Understand the specific responsibilities of each architectural layer.
     *   **[[layers/0_frontends.md|Layer 0: Frontend Developer UI]]** Developer UI extension built off the API.
     *   **[[layers/1_entrypoints.md|Layer 1: Entrypoints]]**: Covers the API, CLI, and Worker entrypoints.

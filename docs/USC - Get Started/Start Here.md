@@ -14,11 +14,11 @@ Welcome to the Aurite Agents Framework learning modules! This series will guide 
 
 2.  **Tutorial: Your First Agent via Configuration Files**
     *   This hands-on tutorial guides you through setting up the Aurite framework and configuring and running your first AI agent by directly editing project files.
-    *   [[module1/tutorial_first_agent_config|Module 1 Tutorial: Your First Agent via Configuration Files]]
+    *   [[tutorial_first_agent_config|Module 1 Tutorial: Your First Agent via Configuration Files]]
 
 3.  **Optional Assignment: System Prompt Engineering Challenge**
     *   This optional assignment lets you practice modifying the system prompt of the "MyCLIWeatherAssistant" to change its personality or how it processes information.
-    *   [[module1/assignment_system_prompt_challenge|Module 1 Optional Assignment: System Prompt Engineering Challenge]]
+    *   [[assignment_system_prompt_challenge|Module 1 Optional Assignment: System Prompt Engineering Challenge]]
 
 ---
 
