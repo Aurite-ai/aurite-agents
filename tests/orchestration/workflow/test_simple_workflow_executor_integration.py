@@ -19,7 +19,7 @@ import pytest
 
 # Assuming models and executors are importable
 from aurite.config.config_models import WorkflowConfig, AgentConfig
-from aurite.workflows.simple_workflow import SimpleWorkflowExecutor
+from aurite.components.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Placeholder configurations - replace with actual fixture/data later if needed
 SAMPLE_AGENT_CONFIGS: Dict[str, AgentConfig] = {

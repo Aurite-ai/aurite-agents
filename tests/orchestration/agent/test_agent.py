@@ -24,7 +24,7 @@ from aurite.components.agents.agent_models import (
 )
 from aurite.config.config_models import AgentConfig  # Added LLMConfig
 from aurite.host.host import MCPHost
-from aurite.llm.base_client import BaseLLM
+from aurite.components.llm.base_client import BaseLLM
 
 # --- Fixtures ---
 

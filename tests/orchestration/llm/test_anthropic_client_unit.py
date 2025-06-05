@@ -12,7 +12,7 @@ from anthropic.types import TextBlock, ToolUseBlock, Usage
 
 from aurite.components.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 from aurite.config.config_models import LLMConfig  # Added import
-from aurite.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
+from aurite.components.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"

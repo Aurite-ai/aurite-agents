@@ -23,7 +23,7 @@ import pytest
 # Assuming models and executors are importable
 from aurite.config.config_models import CustomWorkflowConfig
 from aurite.host_manager import Aurite  # For host_manager fixture
-from aurite.workflows.custom_workflow import CustomWorkflowExecutor
+from aurite.components.workflows.custom_workflow import CustomWorkflowExecutor
 
 # PROJECT_ROOT_DIR is no longer available from aurite.config
 

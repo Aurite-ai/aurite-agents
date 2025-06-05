@@ -21,7 +21,7 @@ from aurite.components.agents.agent_models import (
     AgentExecutionResult,
 )
 from aurite.host_manager import Aurite  # For host_manager fixture type hint
-from aurite.llm.base_client import BaseLLM  # For mocking
+from aurite.components.llm.base_client import BaseLLM  # For mocking
 
 # Import shared fixtures if needed (host_manager is usually sufficient)
 # from ..fixtures.host_fixtures import host_manager # Assuming host_manager is available globally

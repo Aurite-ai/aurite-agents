@@ -25,7 +25,7 @@ from aurite.config.config_models import (  # Added ProjectConfig
 from aurite.execution.facade import ExecutionFacade
 from aurite.host.host import MCPHost  # Needed for type hinting if used
 from aurite.host_manager import Aurite
-from aurite.llm.base_client import BaseLLM  # Import BaseLLM for type hint
+from aurite.components.llm.base_client import BaseLLM  # Import BaseLLM for type hint
 
 # --- Fixtures ---
 

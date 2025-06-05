@@ -9,7 +9,7 @@ from unittest.mock import Mock, AsyncMock, patch
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 # Imports from the project
-from aurite.workflows.custom_workflow import CustomWorkflowExecutor
+from aurite.components.workflows.custom_workflow import CustomWorkflowExecutor
 from aurite.config.config_models import CustomWorkflowConfig
 from aurite.execution.facade import ExecutionFacade  # Needed for type hint
 
