@@ -43,11 +43,7 @@ services:
       - PORTKEY_GATEWAY_URL=http://portkey-gateway:8787
       - ENABLE_PORTKEY_GATEWAY=${ENABLE_PORTKEY_GATEWAY:-true}
     depends_on:
-      postgres:
-        condition: service_started
-      portkey-gateway:
-        condition: service_started
-        required: false
+      - postgres
     networks:
       - aurite_network
     extra_hosts: # This section should exist

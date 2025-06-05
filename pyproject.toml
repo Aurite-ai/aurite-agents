@@ -50,6 +50,7 @@ dependencies = [
     "colorlog>=6.0.0",
     "termcolor>=3.0.0",
     "pluggy>=1.5.0",
+    "portkey-ai>=1.13.0",
     "psycopg2-binary>=2.9.10",
     "alembic>=1.13.1",
     "pycparser>=2.22",

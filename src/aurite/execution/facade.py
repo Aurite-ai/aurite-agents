@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 # Actual runtime imports
 from ..llm.providers.openai_client import OpenAIClient # Moved here
+from ..llm.providers.gateway_client import GatewayClient
 from ..config.config_models import (
     AgentConfig,
     ClientConfig, # Added ClientConfig
@@ -158,6 +159,20 @@ class ExecutionFacade:
                     exc_info=True,
                 )
                 raise ValueError(f"Failed to create OpenAI client: {e}") from e
+        elif provider == "gateway":
+            try:
+                return GatewayClient(
+                    model_name=model_name, # Already has a default if llm_config.model_name is None
+                    temperature=llm_config.temperature,
+                    max_tokens=llm_config.max_tokens,
+                    system_prompt=llm_config.default_system_prompt,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to instantiate Gateway client for config '{llm_config.llm_id}': {e}",
+                    exc_info=True,
+                )
+                raise ValueError(f"Failed to create Gateway client: {e}") from e
         else:
             logger.error(
                 f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}"
