@@ -20,7 +20,7 @@ from .config.config_models import (
     WorkflowConfig,
     # Add other config models if they are part of the public API
 )
-from .agents.agent_models import (
+from .components.agents.agent_models import (
     AgentOutputContentBlock,
     AgentOutputMessage,
     AgentExecutionResult,

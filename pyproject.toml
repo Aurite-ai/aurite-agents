@@ -44,7 +44,7 @@ dependencies = [
     "httpx-sse>=0.4.0",
     "idna>=3.10",
     "iniconfig>=2.0.0",
-    "jiter>=0.6.1,<0.9", # Adjusted to resolve conflict with instructor
+    "jiter>=0.6.1,<0.9",
     "mem0ai>=0.1.67",
     "packaging>=24.2",
     "colorlog>=6.0.0",
@@ -164,5 +164,5 @@ follow_imports = "silent"
 [project.scripts]
 start-api = "aurite.bin.api.api:start"
 start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "aurite.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
-aurite = "aurite.cli.main:app" # Renamed script from aurite-agents to aurite
+run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
+aurite = "aurite.bin.cli.main:app" # Renamed script from aurite-agents to aurite

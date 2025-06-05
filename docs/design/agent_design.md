@@ -206,7 +206,7 @@ class LLMConfig(BaseModel):
     # In src/llm/base_client.py
     from abc import ABC, abstractmethod
     from aurite.config.config_models import LLMConfig
-    from aurite.agents.agent_models import AgentOutputMessage
+    from aurite.components.agents.agent_models import AgentOutputMessage
 
     class BaseLLM(ABC):
         def __init__(self, model_name: str, temperature: Optional[float], max_tokens: Optional[int], system_prompt: Optional[str]):
@@ -226,7 +226,7 @@ class LLMConfig(BaseModel):
     # In src/llm/providers/anthropic_client.py
     from ..base_client import BaseLLM
     from ...config.config_models import LLMConfig
-    from ...agents.agent_models import AgentOutputMessage
+    from ...components.agents.agent_models import AgentOutputMessage
 
     class AnthropicLLM(BaseLLM):
         # ... __init__ ...

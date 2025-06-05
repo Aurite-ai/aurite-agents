@@ -8,14 +8,14 @@ import inspect
 from typing import Any, TYPE_CHECKING, Optional  # Added Optional
 
 # Relative imports assuming this file is in src/workflows/
-from ..config.config_models import CustomWorkflowConfig  # Updated import path
+from ...config.config_models import CustomWorkflowConfig  # Updated import path
 
 # MCPHost is still needed for the __init__ method
 # from ..config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by Aurite/ProjectManager
 
 # Type hint for ExecutionFacade
 if TYPE_CHECKING:
-    from ..execution.facade import ExecutionFacade
+    from ...execution.facade import ExecutionFacade
     # MCPHost type hint is no longer needed here for the execute signature
 
 logger = logging.getLogger(__name__)

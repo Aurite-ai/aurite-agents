@@ -6,7 +6,7 @@ import os
 from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
-from aurite.agents.agent_models import AgentExecutionResult
+from aurite.components.components.agents.agent_models import AgentExecutionResult
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:

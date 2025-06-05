@@ -23,7 +23,7 @@ from ..base_client import (
     # DEFAULT_SYSTEM_PROMPT is also available if needed
 )
 from ...agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
-from ...config.config_models import LLMConfig
+from ....config.config_models import LLMConfig
 
 logger = logging.getLogger(__name__)
 

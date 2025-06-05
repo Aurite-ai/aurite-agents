@@ -11,18 +11,18 @@ pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
 from anthropic.types import Message  # Added Message
 
-from aurite.agents.agent import Agent  # Needed for mocking
-from aurite.agents.agent_models import (  # Added imports
+from aurite.components.agents.agent import Agent  # Needed for mocking
+from aurite.components.agents.agent_models import (  # Added imports
     AgentExecutionResult,
     AgentOutputMessage,
     AgentOutputContentBlock,
 )
 from aurite.config.config_models import AgentConfig, WorkflowConfig
 from aurite.execution.facade import ExecutionFacade  # For mocking facade
-from aurite.llm.base_client import BaseLLM  # For mocking llm_client
+from aurite.components.llm.base_client import BaseLLM  # For mocking llm_client
 
 # Imports from the project
-from aurite.workflows.simple_workflow import SimpleWorkflowExecutor
+from aurite.components.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Import shared fixtures
 

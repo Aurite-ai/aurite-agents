@@ -30,7 +30,7 @@ from ..base_client import (
     BaseLLM,
     DEFAULT_MAX_TOKENS as BASE_DEFAULT_MAX_TOKENS,
 )
-from ...config.config_models import LLMConfig
+from ....config.config_models import LLMConfig
 
 logger = logging.getLogger(__name__)
 

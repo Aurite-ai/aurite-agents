@@ -10,9 +10,9 @@ from anthropic import AsyncAnthropic  # Added RateLimitError
 from anthropic.types import Message as AnthropicSDKMessage
 from anthropic.types import TextBlock, ToolUseBlock, Usage
 
-from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
+from aurite.components.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
 from aurite.config.config_models import LLMConfig  # Added import
-from aurite.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
+from aurite.components.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"
@@ -350,7 +350,7 @@ class TestAnthropicLLMUnit:
 
         # Patch 'AsyncAnthropic' where it's imported in the module under test (llm.providers.anthropic_client)
         with patch(
-            "aurite.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
+            "aurite.components.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
         ) as MockAsyncAnthropicClass:
             # Configure the instance that MockAsyncAnthropicClass() will return when AnthropicLLM initializes it
             mock_sdk_client_instance = MagicMock(spec=AsyncAnthropic)

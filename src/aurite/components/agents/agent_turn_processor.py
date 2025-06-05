@@ -20,17 +20,17 @@ from anthropic.types import MessageParam, ToolResultBlockParam
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate
 
-from ..config.config_models import (  # Updated import path, added LLMConfig
+from ...config.config_models import (  # Updated import path, added LLMConfig
     AgentConfig,
     LLMConfig,
 )
-from ..host.host import MCPHost
+from ...host.host import MCPHost
 from .agent_models import AgentOutputMessage
 
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:
-    from ..llm.base_client import BaseLLM
+    from ...llm.base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 

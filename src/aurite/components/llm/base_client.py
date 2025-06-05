@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any, AsyncGenerator  # Added AsyncGener
 
 # Import our standardized output models from the agents module
 from ..agents.agent_models import AgentOutputMessage
-from ..config.config_models import LLMConfig  # Added import
+from ...config.config_models import LLMConfig  # Added import
 
 # Import Anthropic specific types and client
 
