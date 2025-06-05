@@ -3,7 +3,7 @@
   "clients": [
     {
       "client_id": "memory",
-      "server_path": "src/servers/memory/mem0_hosted_server.py",
+      "server_path": "src/aurite/components/servers/memory/mem0_hosted_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
       "routing_weight": 1.0,

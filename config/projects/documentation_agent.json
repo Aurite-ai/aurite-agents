@@ -3,7 +3,7 @@
     "clients": [
         {
             "client_id": "pgvector_server",
-            "server_path": "src/servers/storage/vector/pgvector_server.py",
+            "server_path": "src/aurite/components/servers/storage/vector/pgvector_server.py",
             "capabilities": ["tools", "prompts"],
             "timeout": 15.0,
             "routing_weight": 1.0,

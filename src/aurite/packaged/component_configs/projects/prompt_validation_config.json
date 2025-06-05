@@ -48,12 +48,12 @@
     "custom_workflows": [
       {
         "name": "Prompt Validation Workflow",
-        "module_path": "src/prompt_validation/prompt_validation_workflow.py",
+        "module_path": "src/aurite/components/workflows/custom/prompt_validation/prompt_validation_workflow.py",
         "class_name": "PromptValidationWorkflow"
       },
       {
         "name": "A/B Testing Workflow",
-        "module_path": "src/prompt_validation/ab_testing_workflow.py",
+        "module_path": "src/aurite/components/workflows/custom/prompt_validation/ab_testing_workflow.py",
         "class_name": "ABTestingWorkflow"
       }
     ]

@@ -1,7 +1,7 @@
 [
     {
         "client_id": "weather_server",
-        "server_path": "src/packaged/servers/weather_mcp_server.py",
+        "server_path": "src/aurite/packaged/servers/weather_mcp_server.py",
         "roots": [],
         "capabilities": [
             "tools",
@@ -14,7 +14,7 @@
     },
     {
         "client_id": "planning_server",
-        "server_path": "src/packaged/servers/planning_server.py",
+        "server_path": "src/aurite/packaged/servers/planning_server.py",
         "roots": [],
         "capabilities": [
             "tools",
