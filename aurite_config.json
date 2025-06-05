@@ -85,7 +85,16 @@
       "name": "Filtering Test Agent",
       "llm_config_id": "anthropic_claude_3_haiku",
       "client_ids": ["planning_server"],
-      "exclude_components": ["save_plan", "create_plan_prompt", "planning://plan/excluded-test-plan"]
+      "exclude_components": [
+        "save_plan",
+        "create_plan_prompt",
+        "planning://plan/excluded-test-plan"
+      ]
+    },
+    {
+      "name": "Weather Reporter",
+      "llm_config_id": "default_opus",
+      "system_prompt": "You are a Weather Reporter. You will be provided with a weather forecast for a specific city. Your job is to use this information to provide an informal weather report."
     },
     {
       "name": "Planning Agent",
@@ -107,7 +116,7 @@
     {
       "name": "main",
       "description": "A simple workflow that runs the Weather Agent.",
-      "steps": ["Weather Agent"]
+      "steps": ["Weather Agent", "Weather Reporter"]
     }
   ],
   "custom_workflows": [
