@@ -8,7 +8,7 @@ from typing import Dict, Any, TYPE_CHECKING  # Added TYPE_CHECKING
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ..config.config_models import (
+from ...config.config_models import (
     WorkflowConfig,
     AgentConfig,
     WorkflowComponent,
@@ -18,7 +18,7 @@ from ..config.config_models import (
 # Import AgentExecutionResult for type hinting the result from facade.run_agent()
 if TYPE_CHECKING:
     from ..execution.facade import ExecutionFacade
-    from ..components.components.agents.agent_models import AgentExecutionResult  # Added import
+    from ..components.agents.agent_models import AgentExecutionResult  # Added import
 
 logger = logging.getLogger(__name__)
 

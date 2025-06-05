@@ -49,10 +49,10 @@ from ..components.agents.agent_models import (
 from anthropic.types import MessageParam
 
 # Import SimpleWorkflowExecutor at runtime
-from ..workflows.simple_workflow import SimpleWorkflowExecutor
+from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
 
 # Import CustomWorkflowExecutor at runtime
-from ..workflows.custom_workflow import CustomWorkflowExecutor
+from ..components.workflows.custom_workflow import CustomWorkflowExecutor
 
 # Import default LLM client for SimpleWorkflowExecutor instantiation
 from ..components.llm.providers.anthropic_client import (
