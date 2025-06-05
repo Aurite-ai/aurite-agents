@@ -4,6 +4,7 @@ from dotenv import load_dotenv # Add this import
 import logging
 import os
 import time
+import docker
 from contextlib import asynccontextmanager
 from typing import Callable, Optional  # Added List
 
@@ -58,6 +59,20 @@ async def lifespan(app: FastAPI):
     """Handle FastAPI lifecycle events: initialize Aurite on startup, shutdown on exit."""
     manager_instance: Optional[Aurite] = None
     try:
+        if os.getenv("ENABLE_PORTKEY_GATEWAY"):
+            logger.info("Portkey Gateway enabled. Starting docker container...")
+            
+            docker_client = docker.from_env()
+
+            container = docker_client.containers.run(
+                "portkeyai/gateway:latest",
+                detach=True,
+                remove=True,
+                ports={'8787/tcp': 8787}
+            )
+            
+            logger.info(f"Container {container.id} is running")
+        
         logger.info("Starting FastAPI server and initializing Aurite...")
         # Load server config
         server_config = get_server_config()
@@ -106,6 +121,11 @@ async def lifespan(app: FastAPI):
         # Clear manager from state
         if hasattr(app.state, "host_manager"):
             del app.state.host_manager
+            
+        # Stop Portkey docker containerAdd commentMore actions
+        if container:
+            container.stop()
+        
         logger.info("FastAPI server shutdown sequence complete.")
 
 

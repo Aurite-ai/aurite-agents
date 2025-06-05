@@ -50,6 +50,7 @@ dependencies = [
     "packaging>=24.2",
     "pandas>=2.2.3",
     "pluggy>=1.5.0",
+    "portkey-ai>=1.13.0",
     "psycopg2-binary>=2.9.10",
     "alembic>=1.13.1",
     "pycparser>=2.22",
@@ -75,6 +76,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "fastapi",
     "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
+    "docker>=7.1.0",
 ]
 
 [project.optional-dependencies]
