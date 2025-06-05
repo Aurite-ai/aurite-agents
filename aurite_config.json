@@ -4,7 +4,7 @@
   "clients": [
     {
       "client_id": "weather_server",
-      "server_path": "src/packaged_servers/weather_mcp_server.py",
+      "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
       "routing_weight": 1.0,
@@ -67,14 +67,14 @@
           "temperature": {
             "type": "object",
             "properties": {
-              "value": {"type": "number"},
-              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+              "value": { "type": "number" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
             },
             "required": ["value", "unit"]
           },
           "recommendations": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": { "type": "string" },
             "description": "Recommendations based on the weather."
           }
         },
@@ -83,7 +83,9 @@
     },
     {
       "name": "Filtering Test Agent",
-      "llm_config_id": "anthropic_claude_3_haiku"
+      "llm_config_id": "anthropic_claude_3_haiku",
+      "client_ids": ["planning_server"],
+      "exclude_components": ["save_plan", "create_plan_prompt", "planning://plan/excluded-test-plan"]
     },
     {
       "name": "Planning Agent",
@@ -92,79 +94,21 @@
       "system_prompt": "You are a planning assistant."
     },
     {
-      "name": "Weather Planning Agent",
-      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
-      "client_ids": ["weather_server", "planning_server"],
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.7",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True"
-    },
-    {
-      "name": "Weather Planning Workflow Step 1",
-      "system_prompt": "Your job is to use the tools at your disposal to research the current weather in San Fransisco. Respond with this information",
+      "name": "OpenAI Weather Agent",
+      "llm_config_id": "openai_gpt4_turbo_mcp",
+      "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
       "client_ids": ["weather_server"],
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.7",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True"
-    },
-    {
-      "name": "Weather Planning Workflow Step 2",
-      "system_prompt": "You have been provided with weather information for San Francisco in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. \\n\\nCRITICAL: \\n1. ONLY use the 'save_plan' tool. Do NOT use any other tools (like weather_lookup or current_time).\\n2. When calling 'save_plan', ensure the 'tags' argument is provided as a JSON list of strings (e.g., [\"weather\", \"clothing\", \"san francisco\"]).\\n3. If the user message does NOT contain clear weather information (temperature, condition), respond with the text 'Cannot create plan, weather data missing.' and do NOT attempt to use any tools.",
-      "client_ids": ["planning_server"],
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.7",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True"
-    },
-    {
-      "name": "Filtering Test Agent",
-      "system_prompt": "This agent tests filtering. It should only see planning_server and exclude the save_plan tool, create_plan_prompt, and a specific resource.",
-      "client_ids": ["planning_server"],
-      "exclude_components": [
-        "save_plan",
-        "create_plan_prompt",
-        "planning://plan/excluded-test-plan"
-      ],
-      "model": "claude-3-haiku-20240307",
-      "temperature": "0.1",
-      "max_tokens": 1024,
+      "auto": false,
       "max_iterations": 5,
-      "include_history": "False"
-    },
-    {
-      "name": "Planning Agent",
-      "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
-      "client_ids": [],
-      "model": "claude-3-opus-20240229",
-      "temperature": "0.7",
-      "max_tokens": 4096,
-      "max_iterations": 10,
-      "include_history": "True",
-      "exclude_components": ["current_time"],
-      "evaluation": "planning_agent_multiple.json"
+      "include_history": false
     }
   ],
   "simple_workflows": [
     {
       "name": "main",
-      "steps": [
-        "Weather Planning Workflow Step 1",
-        "Weather Planning Workflow Step 2"
-      ],
-      "description": "Example workflow to test simple workflow execution using agents."
+      "description": "A simple workflow that runs the Weather Agent.",
+      "steps": ["Weather Agent"]
     }
   ],
-  "custom_workflows": [
-    {
-      "name": "ExampleCustomWorkflow",
-      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
-      "class_name": "ExampleCustomWorkflow",
-      "description": "An example custom workflow for testing."
-    }
-  ]
+  "custom_workflows": []
 }
