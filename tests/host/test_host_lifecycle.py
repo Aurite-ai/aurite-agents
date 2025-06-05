@@ -6,8 +6,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Import the class to test and dependencies
-from src.host.host import MCPHost
-from src.config.config_models import HostConfig, ClientConfig, RootConfig
+from aurite.host.host import MCPHost
+from aurite.config.config_models import HostConfig, ClientConfig, RootConfig
 import mcp.client.session  # To mock ClientSession
 
 # Mark tests as host_unit and async
@@ -25,7 +25,7 @@ def minimal_host_config() -> HostConfig:
         clients=[
             ClientConfig(
                 client_id="test_client",
-                server_path="tests/host/dummy_server_for_error_test.py", # Updated path
+                server_path="tests/host/dummy_server_for_error_test.py",  # Updated path
                 capabilities=["tools"],
                 roots=[RootConfig(name="root", uri="file:///", capabilities=[])],
             )
@@ -56,8 +56,8 @@ def mock_client_session() -> MagicMock:
 
 
 # Keep patches for external dependencies only
-@patch("mcp.client.stdio.stdio_client") # Updated patch target
-@patch("mcp.ClientSession") # Updated patch target
+@patch("mcp.client.stdio.stdio_client")  # Updated patch target
+@patch("mcp.ClientSession")  # Updated patch target
 async def test_initialize_manager_init_error(
     MockMCPClientSession: MagicMock,  # Renamed for clarity
     mock_mcp_stdio_client: MagicMock,  # Renamed for clarity
@@ -66,8 +66,11 @@ async def test_initialize_manager_init_error(
 ):
     """Test MCPHost initialize handles errors during manager initialization."""
     # Configure external mocks for success (these are for client init, which shouldn't be reached)
-    mock_mcp_stdio_client.return_value.__aenter__.return_value = (AsyncMock(), AsyncMock())
-    MockMCPClientSession.return_value = mock_client_session # This mock is for the class, its return_value is an instance
+    mock_mcp_stdio_client.return_value.__aenter__.return_value = (
+        AsyncMock(),
+        AsyncMock(),
+    )
+    MockMCPClientSession.return_value = mock_client_session  # This mock is for the class, its return_value is an instance
 
     # Create host with REAL managers
     host = MCPHost(config=minimal_host_config)

@@ -2,8 +2,8 @@ import anyio
 import logging
 from pathlib import Path
 
-from src.host.host import MCPHost
-from src.config.config_models import (
+from aurite.host.host import MCPHost
+from aurite.config.config_models import (
     HostConfig,
     ClientConfig,  # Added RootConfig as it's needed by ClientConfig
 )
@@ -23,7 +23,9 @@ async def main():
     logger.info("Starting standalone MCPHost debug script.")
 
     # Define a path to the dummy server relative to the project root
-    dummy_server_path = PROJECT_ROOT / "tests" / "fixtures" / "servers" / "dummy_unreg_mcp_server.py"
+    dummy_server_path = (
+        PROJECT_ROOT / "tests" / "fixtures" / "servers" / "dummy_unreg_mcp_server.py"
+    )
     logger.info(f"Using dummy server path: {dummy_server_path}")
 
     if not dummy_server_path.exists():
@@ -37,7 +39,7 @@ async def main():
                 client_id="dummy_client_1",
                 server_path=dummy_server_path,
                 roots=[],  # Provide an empty list for roots as it's required
-                capabilities=[], # Provide an empty list for capabilities
+                capabilities=[],  # Provide an empty list for capabilities
                 # Assuming default timeout, routing_weight, etc. are acceptable
             )
         ]

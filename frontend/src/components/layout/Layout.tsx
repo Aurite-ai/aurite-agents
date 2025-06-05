@@ -12,8 +12,8 @@ const Layout: React.FC = () => {
   const {
     selectedAction,
     selectedComponent,
-    setSelectedAction,
-    setSelectedComponent, // This is still used by ComponentSidebar internally via useUIStore
+    // setSelectedAction, // Removed as it's not directly used in this component
+    // setSelectedComponent, // Removed as it's not directly used in this component
   } = useUIStore();
 
   return (

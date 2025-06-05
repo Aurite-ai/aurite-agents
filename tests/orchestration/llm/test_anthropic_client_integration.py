@@ -12,9 +12,9 @@ from typing import List, Dict, Any
 
 
 # Imports from the project
-from src.llm.providers.anthropic_client import AnthropicLLM
-from src.agents.agent_models import AgentOutputMessage
-from src.config.config_models import LLMConfig  # Added import
+from aurite.llm.providers.anthropic_client import AnthropicLLM
+from aurite.agents.agent_models import AgentOutputMessage
+from aurite.config.config_models import LLMConfig  # Added import
 from anthropic.types import MessageParam
 
 # --- Test Setup ---

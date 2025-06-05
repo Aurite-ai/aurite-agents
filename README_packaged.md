@@ -11,12 +11,6 @@ You can install Aurite using pip.
 pip install aurite
 ```
 
-**From a local wheel file (for current testing):**
-```bash
-pip install /path/to/your/aurite-agents/dist/aurite-0.2.0-py3-none-any.whl
-```
-*(Replace with the actual path and filename of your generated wheel.)*
-
 ## Getting Started
 
 ### 1. Initialize a New Project
@@ -71,12 +65,13 @@ For more details on project structure and configuration, see [`docs/components/p
 
 ### 3. Understanding `aurite_config.json`
 
-The `aurite_config.json` file at the root of your new project (created by `aurite init`) is the central configuration file. It defines the project's name, description, and lists the agents, LLMs, clients (MCP servers), simple workflows, and custom workflows that are part of this project by referencing other JSON configuration files.
+The `aurite_config.json` file at the root of your new project (created by `aurite init`) is the central configuration file. It defines the project's name, description, and lists the agents, LLMs, clients (MCP servers), simple workflows, and custom workflows that are part of this project.
 
 Initially, it will look something like this. Note that component lists (like `llms`, `clients`, `agents`, etc.) can contain:
 1.  Directly embedded JSON objects defining the component.
-2.  Strings that are paths to other JSON files (which themselves contain lists of component definitions).
-3.  Strings that are component IDs/names (if those components are defined elsewhere, e.g., in one of the referenced files, or are globally available).
+2.  Strings that are component IDs/names (if those components are defined elsewhere, e.g., in one of the referenced files, or are globally available).
+
+These other components can be defined within config files in the corresponding directories (`config/agents/` for agents, etc). All configs within these folders will be automatically loaded in addition to `aurite-config.json`
 
 ```json
 // Example: your_project_name/aurite_config.json
@@ -87,25 +82,23 @@ Initially, it will look something like this. Note that component lists (like `ll
     // LLM configurations can be defined directly
     {
       "llm_id": "default_llm_config",
-      "provider": "anthropic", // or "openai", "google", etc.
-      "model_name": "claude-3-haiku-20240307", // replace with your model
+      "provider": "anthropic", // or "openai", etc.
+      "model_name": "claude-3-haiku-20240307",
       "temperature": 0.7,
       "max_tokens": 1024
-    }
-    // You can also list paths to files containing more LLM configs, e.g.,
-    // "config/llms/additional_llms.json"
+    },
+    // You can also reference llms by llm_id defined in other config files in 'config/llms/'
+    "my_other_llm_config"
   ],
   "clients": [
-    // Reference a client by its ID (if defined elsewhere or built-in)
-    "a_globally_known_client_id",
-    // Or define a client configuration directly
+    // Define a client configuration directly
     {
       "client_id": "my_local_script_client",
       "server_path": "mcp_servers/my_script_server.py", // Relative to project root
       "capabilities": ["tools"]
-    }
-    // You can also list paths to files containing more Client configs, e.g.,
-    // "config/clients/more_clients.json"
+    },
+    // Reference a client by its client_id if defined in 'config/clients/'
+    "a_globally_known_client_id",
   ],
   "agents": [
     // Define an agent configuration directly
@@ -115,29 +108,25 @@ Initially, it will look something like this. Note that component lists (like `ll
       "llm_config_id": "default_llm_config",
       "client_ids": ["my_local_script_client"]
     }
-    // You can also list paths to files containing more Agent configs, e.g.,
-    // "config/agents/other_agents.json"
+    // Reference an agent by its name if defined in 'config/agents/'
+    "MySecondAgent"
   ],
   "simple_workflows": [
     // Define a simple workflow directly
     {
       "name": "MySimpleSequence",
       "steps": ["MyFirstAgent", "another_agent_name_if_defined"]
-    }
-    // You can also list paths to files containing more Simple Workflow configs, e.g.,
-    // "config/workflows/more_simple_workflows.json"
+    },
+    // Reference a simple workflow by its name if defined in 'config/workflows/'
+    "MyOtherWorkflow"
   ],
   "custom_workflows": [
-    // Define a custom workflow directly
+    // Define a custom workflow directly by specifying the file it is defined in
     {
       "name": "MyComplexProcess",
-      // Assumes 'aurite init' creates 'custom_workflows/' for Python modules,
-      // and 'my_custom_logic.py' is inside it.
-      "module_path": "custom_workflows.my_custom_logic",
+      "module_path": "custom_workflows/my_custom_logic.py",
       "class_name": "MyCustomWorkflowClass"
     }
-    // You can also list paths to files containing more Custom Workflow configs, e.g.,
-    // "config/custom_workflows/more_custom_workflows.json"
   ]
 }
 ```
@@ -258,7 +247,7 @@ Create or modify `your_project_name/config/custom_workflows/custom_workflows.jso
   // ... any existing custom workflow configs ...
   {
     "name": "MainProcessingWorkflow",
-    "module_path": "custom_workflows.my_processing_workflow", // Path relative to project root, using dot notation
+    "module_path": "custom_workflows/my_processing_workflow.py", // Path relative to project root
     "class_name": "MyWorkflow",
     "description": "A workflow that uses MyQueryAgent to process a query."
   }
@@ -266,34 +255,7 @@ Create or modify `your_project_name/config/custom_workflows/custom_workflows.jso
 ```
 For more details on `CustomWorkflowConfig`, see [`docs/components/custom_workflows.md`](https://publish.obsidian.md/aurite/components/custom_workflows).
 
-### Step 5: Ensure `aurite_config.json` References Component Files
-
-The `aurite_config.json` file created by `aurite init` should already reference `config/agents/agents.json`, `config/llms/llms.json`, and `config/custom_workflows/custom_workflows.json`. Verify these paths are correct.
-
-```json
-// your_project_name/aurite_config.json (ensure these files are listed)
-{
-  "name": "your_project_name",
-  "description": "A new Aurite Agents project: your_project_name",
-  "clients": [
-    "config/clients/clients.json" // Add client configs if needed. For details see https://publish.obsidian.md/aurite/components/clients
-  ],
-  "llms": [
-    "config/llms/llms.json"
-  ],
-  "agents": [
-    "config/agents/agents.json"
-  ],
-  "simple_workflows": [
-    // "config/workflows/simple_workflows.json" // For simple workflows, see https://publish.obsidian.md/aurite/components/simple_workflows
-  ],
-  "custom_workflows": [
-    "config/custom_workflows/custom_workflows.json"
-  ]
-}
-```
-
-### Step 6: Running your Custom Workflow
+### Step 5: Running your Custom Workflow
 
 The `aurite init` command creates an example script `your_project_name/run_example_project.py`. You can modify this script or create a new one (e.g., `run_my_workflow.py` in `your_project_name`) to execute your workflow:
 

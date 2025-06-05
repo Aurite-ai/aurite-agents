@@ -6,21 +6,22 @@ which connects to mock MCP servers (like the weather server).
 LLM calls are typically mocked to control agent behavior for testing host interactions.
 """
 
-import pytest
 import os  # Import os for environment variable check
-from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.integration, pytest.mark.anyio]
 
 # Imports from the project
-from src.agents.agent_models import (
-    AgentOutputMessage,
+from aurite.agents.agent_models import (
     AgentOutputContentBlock,
+    AgentOutputMessage,
+    AgentExecutionResult,
 )
-from src.llm.base_client import BaseLLM  # For mocking
-from src.host_manager import HostManager  # For host_manager fixture type hint
+from aurite.host_manager import Aurite  # For host_manager fixture type hint
+from aurite.llm.base_client import BaseLLM  # For mocking
 
 # Import shared fixtures if needed (host_manager is usually sufficient)
 # from ..fixtures.host_fixtures import host_manager # Assuming host_manager is available globally
@@ -34,7 +35,7 @@ class TestAgentIntegration:
     @pytest.mark.anyio
     async def test_agent_integration_tool_call_mock_llm(
         self,
-        host_manager: HostManager,  # Use the real host manager fixture
+        host_manager: Aurite,  # Use the real host manager fixture
     ):
         """
         Tests agent execution that involves calling a tool via the real MCPHost,
@@ -101,12 +102,12 @@ class TestAgentIntegration:
         # but for now, let's patch the specific client class it tries to instantiate.
         # We assume it will try to instantiate AnthropicLLM based on current facade logic.
         with patch(
-            "src.execution.facade.AnthropicLLM", return_value=mock_llm
+            "aurite.execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             # Execute agent via the facade
             assert host_manager.execution is not None, "Facade not initialized"
-            result_dict: Dict[str, Any] = await host_manager.execution.run_agent(
+            agent_result: AgentExecutionResult = await host_manager.execution.run_agent(
                 agent_name="Weather Agent",
                 user_message=user_message,
                 system_prompt=None,  # Use agent default
@@ -120,52 +121,54 @@ class TestAgentIntegration:
             # 2. Check LLM mock was called twice
             assert mock_llm.create_message.await_count == 2
 
-            # 3. Check final result structure (now a dict)
-            assert isinstance(result_dict, dict)
-            assert result_dict.get("error") is None
-            final_response = result_dict.get("final_response")
-            assert final_response is not None
-            assert final_response.get("role") == "assistant"
-            # Find primary text in the dict structure
+            # 3. Check final result structure (now an AgentExecutionResult object)
+            assert isinstance(agent_result, AgentExecutionResult)
+            assert agent_result.error is None
+            final_response_obj = agent_result.final_response
+            assert final_response_obj is not None
+            assert final_response_obj.role == "assistant"
+            # Find primary text in the AgentOutputMessage
             primary_text = None
-            if final_response.get("content"):
-                for block in final_response["content"]:
-                    if block.get("type") == "text":
-                        primary_text = block.get("text")
+            if final_response_obj.content:
+                for (
+                    block
+                ) in final_response_obj.content:  # block is AgentOutputContentBlock
+                    if block.type == "text":
+                        primary_text = block.text
                         break
             expected_primary_text = '{"weather_summary": "Mocked: The weather in London is clear.", "temperature": {"value": 15, "unit": "celsius"}, "recommendations": ["Enjoy your day!"]}'
             assert primary_text == expected_primary_text
 
             # 4. Check tool use was recorded in the result
-            tool_uses = result_dict.get("tool_uses_in_final_turn", [])
+            # tool_uses_in_final_turn is List[Dict[str, Any]]
+            tool_uses = agent_result.tool_uses_in_final_turn
             assert len(tool_uses) == 1
             assert tool_uses[0]["id"] == tool_use_id
             assert tool_uses[0]["name"] == tool_name
             assert tool_uses[0]["input"] == tool_input
 
-            # 5. Check conversation history (list of dicts)
-            conversation = result_dict.get("conversation", [])
+            # 5. Check conversation history (list of AgentOutputMessage objects)
+            conversation_history = agent_result.conversation
             assert (
-                len(conversation) == 4
+                len(conversation_history) == 4
             )  # user -> assistant(tool) -> user(result) -> assistant(final)
-            assert conversation[0]["role"] == "user"
-            assert conversation[1]["role"] == "assistant"
-            assert conversation[1]["content"][0]["type"] == "tool_use"
-            assert conversation[2]["role"] == "user"  # Tool result message
-            # Check how the user message with tool result is serialized in history
-            assert (
-                conversation[2]["content"][0]["type"] == "tool_result"
-            )  # Should be tool_result
-            assert (
-                conversation[2]["content"][0]["tool_use_id"] == tool_use_id
-            )  # tool_use_id should be present
+            assert conversation_history[0].role == "user"
+            assert conversation_history[1].role == "assistant"
+            assert conversation_history[1].content[0].type == "tool_use"
+            assert conversation_history[2].role == "user"  # Tool result message
+            # Check how the user message with tool result is structured
+            tool_result_content_block = conversation_history[2].content[0]
+            assert tool_result_content_block.type == "tool_result"
+            assert tool_result_content_block.tool_use_id == tool_use_id
             # Check the actual result text from the mock weather server via MCPHost
-            # The content of the tool_result block is a list containing text blocks
-            tool_result_inner_content = conversation[2]["content"][0].get("content", [])
-            assert isinstance(tool_result_inner_content, list)
-            assert len(tool_result_inner_content) > 0
-            assert tool_result_inner_content[0].get("type") == "text"
-            tool_result_text = tool_result_inner_content[0].get("text", "")
+            # The content of the tool_result block is a list of AgentOutputContentBlock
+            assert tool_result_content_block.content is not None
+            inner_content_blocks = tool_result_content_block.content
+            assert isinstance(inner_content_blocks, list)
+            assert len(inner_content_blocks) > 0
+            assert inner_content_blocks[0].type == "text"
+            tool_result_text = inner_content_blocks[0].text
+            assert tool_result_text is not None
             assert (
                 "Weather for London:" in tool_result_text
             )  # Match actual mock server output format
@@ -173,20 +176,20 @@ class TestAgentIntegration:
                 "Temp 15°C" in tool_result_text  # Check for new format
             )  # Check within the text content
 
-            assert conversation[3]["role"] == "assistant"
+            assert conversation_history[3].role == "assistant"
             # Find primary text in the last message
             final_primary_text = None
-            if conversation[3].get("content"):
-                for block in conversation[3]["content"]:
-                    if block.get("type") == "text":
-                        final_primary_text = block.get("text")
+            if conversation_history[3].content:
+                for block in conversation_history[3].content:
+                    if block.type == "text":
+                        final_primary_text = block.text
                         break
             assert final_primary_text == expected_primary_text
 
     @pytest.mark.anyio
     async def test_agent_integration_schema_validation_mock_llm(
         self,
-        host_manager: HostManager,
+        host_manager: Aurite,
     ):
         """
         Tests agent execution with schema validation where the LLM provides
@@ -225,11 +228,11 @@ class TestAgentIntegration:
 
         # Patch LLM client instantiation in the facade
         with patch(
-            "src.execution.facade.AnthropicLLM", return_value=mock_llm
+            "aurite.execution.facade.AnthropicLLM", return_value=mock_llm
         ) as MockAnthropicLLM:
             # --- Act ---
             assert host_manager.execution is not None, "Facade not initialized"
-            result_dict: Dict[str, Any] = await host_manager.execution.run_agent(
+            agent_result: AgentExecutionResult = await host_manager.execution.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
                 session_id=None,
@@ -243,28 +246,33 @@ class TestAgentIntegration:
             assert call_args.get("schema") == agent_config.config_validation_schema
 
             # 2. Final result is successful
-            assert isinstance(result_dict, dict)
-            assert result_dict.get("error") is None
-            final_response = result_dict.get("final_response")
-            assert final_response is not None
-            assert final_response.get("role") == "assistant"
-            assert final_response.get("stop_reason") == "end_turn"
+            assert isinstance(agent_result, AgentExecutionResult)
+            assert agent_result.error is None
+            final_response_obj = agent_result.final_response
+            assert final_response_obj is not None
+            assert final_response_obj.role == "assistant"
+            assert final_response_obj.stop_reason == "end_turn"
 
             # 3. Final response content matches the valid JSON text
             primary_text = None
-            if final_response.get("content"):
-                for block in final_response["content"]:
-                    if block.get("type") == "text":
-                        primary_text = block.get("text")
+            if final_response_obj.content:
+                for (
+                    block
+                ) in final_response_obj.content:  # block is AgentOutputContentBlock
+                    if block.type == "text":
+                        primary_text = block.text
                         break
             assert primary_text == valid_json_text
 
             # 4. Conversation history should only have user -> assistant (no correction message)
-            conversation = result_dict.get("conversation", [])
-            assert len(conversation) == 2
-            assert conversation[0]["role"] == "user"
-            assert conversation[1]["role"] == "assistant"
-            assert conversation[1]["content"][0]["text"] == valid_json_text
+            conversation_history = agent_result.conversation
+            assert len(conversation_history) == 2
+            assert conversation_history[0].role == "user"
+            assert conversation_history[1].role == "assistant"
+            assert (
+                conversation_history[1].content[0].type == "text"
+            )  # Ensure it's a text block
+            assert conversation_history[1].content[0].text == valid_json_text
 
     @pytest.mark.skipif(
         not os.environ.get("ANTHROPIC_API_KEY"),
@@ -273,7 +281,7 @@ class TestAgentIntegration:
     @pytest.mark.anyio
     async def test_agent_integration_real_llm(
         self,
-        host_manager: HostManager,
+        host_manager: Aurite,
     ):
         """
         Tests agent execution using the real LLM API (Anthropic).
@@ -291,7 +299,7 @@ class TestAgentIntegration:
         # No LLM patching needed here
         assert host_manager.execution is not None, "Facade not initialized"
         try:
-            result_dict: Dict[str, Any] = await host_manager.execution.run_agent(
+            agent_result: AgentExecutionResult = await host_manager.execution.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
                 session_id=None,
@@ -301,42 +309,41 @@ class TestAgentIntegration:
 
         # --- Assert ---
         # Basic checks for successful execution with real LLM
-        assert isinstance(result_dict, dict)
-        assert result_dict.get("error") is None, (
-            f"Agent run failed with error: {result_dict.get('error')}"
+        assert isinstance(agent_result, AgentExecutionResult)
+        assert agent_result.error is None, (
+            f"Agent run failed with error: {agent_result.error}"
         )
 
-        final_response = result_dict.get("final_response")
-        assert final_response is not None, "Final response should not be None"
-        assert final_response.get("role") == "assistant"
+        final_response_obj = agent_result.final_response
+        assert final_response_obj is not None, "Final response should not be None"
+        assert final_response_obj.role == "assistant"
         assert (
-            final_response.get("stop_reason") is not None
+            final_response_obj.stop_reason is not None
         )  # e.g., 'end_turn' or 'tool_use'
 
         # Check that content exists
-        assert final_response.get("content") is not None
-        assert len(final_response.get("content", [])) > 0
+        assert final_response_obj.content is not None
+        assert len(final_response_obj.content) > 0
 
         # Optional: Check if tool was likely used (based on conversation history)
-        conversation = result_dict.get("conversation", [])
+        conversation_history = agent_result.conversation
         # Expecting user -> assistant (tool_use) -> user (tool_result) -> assistant (final)
         # Or potentially user -> assistant (final) if LLM didn't use tool
-        assert len(conversation) >= 2
+        assert len(conversation_history) >= 2
 
         # Check if a tool result message exists in the history
         tool_result_found = any(
-            msg.get("role") == "user" and msg["content"][0].get("type") == "tool_result"
-            for msg in conversation
-            if isinstance(msg.get("content"), list) and len(msg.get("content", [])) > 0
+            msg.role == "user" and msg.content and msg.content[0].type == "tool_result"
+            for msg in conversation_history  # msg is AgentOutputMessage
         )
         print(f"Tool result found in history: {tool_result_found}")  # For debugging
 
         # Check final response text for keywords (less strict than JSON parsing for real LLM)
         primary_text = ""
-        if final_response.get("content"):
-            for block in final_response["content"]:
-                if block.get("type") == "text":
-                    primary_text += block.get("text", "") + " "
+        if final_response_obj.content:
+            for block in final_response_obj.content:  # block is AgentOutputContentBlock
+                if block.type == "text" and block.text is not None:
+                    primary_text += block.text + " "
         primary_text = primary_text.strip()  # Keep original case for JSON parsing
 
         # Assert that the primary_text is valid JSON and contains expected structure

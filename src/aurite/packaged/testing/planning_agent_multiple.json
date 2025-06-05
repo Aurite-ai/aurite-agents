@@ -1,0 +1,32 @@
+{
+    "test_type": "agent",
+    "name": "Planning Agent",
+    "user_input": ["create a 3 month plan to learn about the history of the world", "Plan a one week vacation to Kyoto, Japan in the fall, with a focus on nature and food", "Create seven day, medium intensity workout plan that you can do at home with no equipment"],
+    "iterations": 1,
+    "threshold": 9.5,
+    "retry": true,
+    "max_retries": 1,
+    "edit_prompt": false,
+    "editor_model": "claude",
+    "evaluation_type": "numeric",
+    "testing_prompt": "Your job is to evaluate the plan created by the Planning Agent. Use the rubric provided to evaluate the plan based on the criteria outlined.",
+    "rubric": {
+        "criteria": [
+            {
+                "name": "Completeness",
+                "description": "The plan covers all details asked for in the initial prompt.",
+                "weight": 0.4
+            },
+            {
+                "name": "Clarity",
+                "description": "The plan is easy to understand and follow.",
+                "weight": 0.3
+            },
+            {
+                "name": "Feasibility",
+                "description": "The plan is realistic and achievable within the given time frame.",
+                "weight": 0.3
+            }
+        ]
+    }
+}

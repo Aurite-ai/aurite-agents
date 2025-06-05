@@ -1,14 +1,14 @@
 """
 Reusable mocks for the MCPHost system, primarily for unit testing dependents
-like HostManager, Agent, and Executors.
+like Aurite, Agent, and Executors.
 """
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, Mock  # Added Mock
 
 # Import the class we are mocking to ensure the mock spec matches
-from src.host.host import MCPHost
-from src.host.resources import ToolManager  # Import ToolManager for spec
+from aurite.host.host import MCPHost
+from aurite.host.resources import ToolManager  # Import ToolManager for spec
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def mock_mcp_host() -> MagicMock:
     Provides a reusable MagicMock for the MCPHost instance, suitable for
     unit testing components that depend on it.
 
-    Includes attributes/methods needed for HostManager, Agent, and Executor tests.
+    Includes attributes/methods needed for Aurite, Agent, and Executor tests.
     Uses MagicMock for flexibility with async methods.
     """
     # Use MagicMock which handles async methods more gracefully by default
@@ -26,7 +26,7 @@ def mock_mcp_host() -> MagicMock:
 
     # Configure the mock using configure_mock for specified methods/attributes
     host_mock.configure_mock(
-        # === Attributes/Methods for HostManager Registration ===
+        # === Attributes/Methods for Aurite Registration ===
         # Don't configure _clients here. Use is_client_registered mock instead.
         config=MagicMock(),
         register_client=AsyncMock(),

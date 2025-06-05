@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { WorkflowConfig, AgentConfig, ProjectConfig } from '../../../types/projectManagement';
+import type { WorkflowConfig, AgentConfig } from '../../../types/projectManagement'; // Removed ProjectConfig
 import {
   saveNewConfigFile,
   listConfigFiles,
@@ -32,7 +32,7 @@ const SimpleWorkflowBuildView: React.FC = () => {
   const fetchAvailableAgents = useCallback(async () => {
     setIsLoadingAgents(true);
     const itemMap = new Map<string, SelectableAgentItem>();
-    const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, '');
+    // const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, ''); // Removed unused const
 
     // 1. File-based agents
     try {

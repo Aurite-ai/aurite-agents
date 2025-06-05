@@ -8,7 +8,9 @@ print(f"certifi ca bundle path: {certifi.where()}")
 print(f"Default SSL context cafile: {ssl.get_default_verify_paths().cafile}")
 
 target_url_google = "https://www.google.com"
-target_url_anthropic = "https://api.anthropic.com/v1/messages" # Expect 405 if successful
+target_url_anthropic = (
+    "https://api.anthropic.com/v1/messages"  # Expect 405 if successful
+)
 
 print(f"\n--- Testing {target_url_google} (default HTTP version) ---")
 try:
@@ -32,7 +34,7 @@ try:
         # Add a dummy header that the Anthropic API might expect, even for a GET
         headers = {
             "x-api-key": "dummy-key-not-used-for-auth-on-get",
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": "2023-06-01",
         }
         response = client.get(target_url_anthropic, headers=headers, timeout=15.0)
         print(f"Status Code: {response.status_code}")
@@ -43,7 +45,9 @@ try:
     if response.status_code == 405:
         print("Received expected 405 Method Not Allowed, which is good for this test.")
 except httpx.RequestError as exc:
-    print(f"ERROR: httpx GET to {target_url_anthropic} (forcing HTTP/1.1) failed: {exc}")
+    print(
+        f"ERROR: httpx GET to {target_url_anthropic} (forcing HTTP/1.1) failed: {exc}"
+    )
     # print(f"Request details: {exc.request}")
 except Exception as e:
     print(f"UNEXPECTED ERROR with {target_url_anthropic} (forcing HTTP/1.1): {e}")
@@ -54,7 +58,7 @@ try:
     with httpx.Client(http2=True) as client:
         headers = {
             "x-api-key": "dummy-key-not-used-for-auth-on-get",
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": "2023-06-01",
         }
         response = client.get(target_url_anthropic, headers=headers, timeout=15.0)
         print(f"Status Code: {response.status_code}")

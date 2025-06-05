@@ -2,23 +2,17 @@
 Unit tests for the AnthropicLLM client.
 """
 
-import pytest
 import os
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from anthropic import (
-    AsyncAnthropic,
-)  # Added RateLimitError
-from anthropic.types import (
-    Message as AnthropicSDKMessage,
-    TextBlock,
-    ToolUseBlock,
-    Usage,
-)
+import pytest
+from anthropic import AsyncAnthropic  # Added RateLimitError
+from anthropic.types import Message as AnthropicSDKMessage
+from anthropic.types import TextBlock, ToolUseBlock, Usage
 
-from src.llm.providers.anthropic_client import AnthropicLLM, BASE_DEFAULT_MAX_TOKENS
-from src.agents.agent_models import AgentOutputMessage, AgentOutputContentBlock
-from src.config.config_models import LLMConfig  # Added import
+from aurite.agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
+from aurite.config.config_models import LLMConfig  # Added import
+from aurite.llm.providers.anthropic_client import BASE_DEFAULT_MAX_TOKENS, AnthropicLLM
 
 # Basic model name for tests
 TEST_MODEL_NAME = "claude-test-model"
@@ -354,9 +348,9 @@ class TestAnthropicLLMUnit:
         # This will be the mock for the .create() method
         mock_create_method = AsyncMock(return_value=mock_sdk_response)
 
-        # Patch 'AsyncAnthropic' where it's imported in the module under test (src.llm.providers.anthropic_client)
+        # Patch 'AsyncAnthropic' where it's imported in the module under test (llm.providers.anthropic_client)
         with patch(
-            "src.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
+            "aurite.llm.providers.anthropic_client.AsyncAnthropic", spec=AsyncAnthropic
         ) as MockAsyncAnthropicClass:
             # Configure the instance that MockAsyncAnthropicClass() will return when AnthropicLLM initializes it
             mock_sdk_client_instance = MagicMock(spec=AsyncAnthropic)
@@ -646,10 +640,12 @@ class TestAnthropicLLMUnit:
             == "Client Default System Prompt"
         )
 
-    @pytest.mark.xfail(reason="Known 'Event loop is closed' error during teardown with full suite run")
+    @pytest.mark.xfail(
+        reason="Known 'Event loop is closed' error during teardown with full suite run"
+    )
     @pytest.mark.anyio
     async def test_create_message_llm_config_override_max_tokens_fallback_to_base_default(
-        self, # Added self back
+        self,  # Added self back
     ):
         """
         Tests that if client.max_tokens is None and llm_config_override.max_tokens is None,

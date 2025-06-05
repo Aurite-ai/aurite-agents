@@ -205,8 +205,8 @@ class LLMConfig(BaseModel):
     ```python
     # In src/llm/base_client.py
     from abc import ABC, abstractmethod
-    from src.config.config_models import LLMConfig
-    from src.agents.agent_models import AgentOutputMessage
+    from aurite.config.config_models import LLMConfig
+    from aurite.agents.agent_models import AgentOutputMessage
 
     class BaseLLM(ABC):
         def __init__(self, model_name: str, temperature: Optional[float], max_tokens: Optional[int], system_prompt: Optional[str]):

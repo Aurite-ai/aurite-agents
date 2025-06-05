@@ -300,8 +300,7 @@ These are the primary building blocks you'll work with:
         "model_name": "claude-3-opus-20240229",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "max_iterations": 10,
-        "exclude_components": ["current_time"]
+        "max_iterations": 10
         }
         ],
         "clients": [
@@ -331,7 +330,6 @@ These are the primary building blocks you'll work with:
             "temperature": 0.7,
             "max_tokens": 4096,
             "max_iterations": 10,
-            "include_history": true
             }
         ],
         "workflows": [

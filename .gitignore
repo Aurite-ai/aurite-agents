@@ -34,11 +34,11 @@ src/agents/planning/plans/* # Corrected path relative to aurite-mcp
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
+docs/.obsidian
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
+aurite_test_env/
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -179,7 +179,6 @@ playwright/.cache/
 **/**environment.json
 docs/plans/completed/**
 src/packaged_servers/plans/*
-docs/learning/
 config/testing/*_output.json
 
 .env*

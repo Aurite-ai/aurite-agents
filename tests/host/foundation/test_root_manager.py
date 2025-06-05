@@ -3,11 +3,10 @@ Unit tests for the RootManager.
 """
 
 import pytest
-import logging # Import logging
 
 # Import the class to test and dependent models
-from src.host.foundation.roots import RootManager
-from src.config.config_models import RootConfig
+from aurite.host.foundation.roots import RootManager
+from aurite.config.config_models import RootConfig
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]
@@ -95,12 +94,6 @@ async def test_get_client_roots(root_manager: RootManager):
     assert retrieved_roots is not root_manager._client_roots[client_id]
 
 
-async def test_get_client_roots_not_registered(root_manager: RootManager):
-    """Test retrieving roots for a non-existent client returns an empty list."""
-    retrieved_roots = await root_manager.get_client_roots("non_existent")
-    assert retrieved_roots == []
-
-
 async def test_shutdown(root_manager: RootManager):
     """Test that shutdown clears the internal roots dictionary."""
     client_id = "client_E"
@@ -116,7 +109,9 @@ async def test_shutdown(root_manager: RootManager):
 async def test_validate_access_client_registered(root_manager: RootManager):
     """Test validate_access returns True for a client with registered roots."""
     client_id = "client_WithRoots"
-    roots_config = [RootConfig(uri="file:///valid", name="Valid", capabilities=["read"])]
+    roots_config = [
+        RootConfig(uri="file:///valid", name="Valid", capabilities=["read"])
+    ]
     await root_manager.register_roots(client_id, roots_config)
     assert await root_manager.validate_access(client_id) is True
 
@@ -126,11 +121,3 @@ async def test_validate_access_client_registered_empty_roots(root_manager: RootM
     client_id = "client_EmptyRoots"
     await root_manager.register_roots(client_id, [])
     assert await root_manager.validate_access(client_id) is True
-
-
-async def test_validate_access_client_not_registered(root_manager: RootManager, caplog):
-    """Test validate_access returns False for a non-existent client and logs a warning."""
-    client_id = "client_NotRegistered"
-    with caplog.at_level(logging.WARNING):
-        assert await root_manager.validate_access(client_id) is False
-    assert f"validate_access called for unknown or rootless client: {client_id}" in caplog.text

@@ -9,7 +9,6 @@ pytestmark = [
 ]
 
 
-
 def test_execute_prompt_validation_file_success(api_client: TestClient):
     """
     Tests successful execution of prompt validation using a config file

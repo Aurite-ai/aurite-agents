@@ -3,10 +3,10 @@ from fastapi.testclient import TestClient
 import os
 
 # Import the FastAPI app instance from its new location
-from src.bin.api.api import app
+from aurite.bin.api.api import app
 
 # Import dependencies from their location
-from src.bin.dependencies import get_server_config
+from aurite.bin.dependencies import get_server_config
 
 # Marker for API integration tests (can be defined here or in main conftest)
 # pytestmark = pytest.mark.api_integration
@@ -24,7 +24,9 @@ def api_client(monkeypatch):
 
     # Use monkeypatch (provided by pytest) to set environment variables for the test function
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")  # Default to DB disabled
-    monkeypatch.setenv("AURITE_PROJECT_CONFIG_PATH", "config/projects/testing_config.json") # Ensure testing_config is loaded
+    monkeypatch.setenv(
+        "AURITE_PROJECT_CONFIG_PATH", "config/projects/testing_config.json"
+    )  # Ensure testing_config is loaded
     # monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy_anthropic_key_fixture")  # Dummy key
     test_api_key = os.getenv("API_KEY", "dummy_api_key_fixture")
 
@@ -34,8 +36,8 @@ def api_client(monkeypatch):
     # --- Cache Clearing ---
     # Clear lru_cache for get_server_config to ensure it re-reads env vars for each test
     get_server_config.cache_clear()
-    # If HostManager or other components use caching that depends on env vars, clear them too
-    # e.g., from src.config import load_host_config_from_json; load_host_config_from_json.cache_clear()
+    # If Aurite or other components use caching that depends on env vars, clear them too
+    # e.g., from aurite.config import load_host_config_from_json; load_host_config_from_json.cache_clear()
 
     # --- Create Test Client ---
     # TestClient handles the application lifespan (startup/shutdown)
@@ -63,7 +65,9 @@ async def async_api_client(monkeypatch):
     """
     # --- Environment Setup (same as api_client) ---
     monkeypatch.setenv("AURITE_ENABLE_DB", "false")
-    monkeypatch.setenv("AURITE_PROJECT_CONFIG_PATH", "config/projects/testing_config.json") # Ensure testing_config is loaded for async client too
+    monkeypatch.setenv(
+        "AURITE_PROJECT_CONFIG_PATH", "config/projects/testing_config.json"
+    )  # Ensure testing_config is loaded for async client too
     test_api_key = os.getenv("API_KEY", "dummy_api_key_fixture_async")
 
     # --- Cache Clearing (same as api_client) ---
@@ -82,11 +86,13 @@ async def async_api_client(monkeypatch):
     # For FastAPI's TestClient, it uses "http://testserver" by default.
     # We'll use the app directly, which is simpler for in-process testing.
     from httpx import AsyncClient, ASGITransport
-    from asgi_lifespan import LifespanManager # Import LifespanManager
+    from asgi_lifespan import LifespanManager  # Import LifespanManager
 
     # The app's lifespan (startup/shutdown) needs to be managed explicitly for AsyncClient
     async with LifespanManager(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
             # Set common headers. API key will be added per request in tests.
             client.headers["Content-Type"] = "application/json"
             # Store the API key on the client instance for convenience in tests, similar to TestClient.

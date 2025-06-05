@@ -7,23 +7,22 @@ import {
   MessageInput,
 } from '@chatscope/chat-ui-kit-react';
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
-import StructuredResponseView from '../../../components/common/StructuredResponseView';
-import ToolCallView from '../../../components/common/ToolCallView';
-import ToolResultView from '../../../components/common/ToolResultView';
-import StreamingMessageContentView from '../../../components/common/StreamingMessageContentView';
+// import StructuredResponseView from '../../../components/common/StructuredResponseView';
+// import ToolCallView from '../../../components/common/ToolCallView';
+// import ToolResultView from '../../../components/common/ToolResultView';
+import StreamingMessageContentView from '../../../components/common/StreamingMessageContentView'; // Simplified version
 
 import {
   getSpecificComponentConfig,
   registerLlmConfigAPI,
   registerAgentAPI,
-  executeAgentAPI
+  streamAgentExecution, // Import the function
 } from '../../../lib/apiClient';
 import useAuthStore from '../../../store/authStore';
 
 import type {
   AgentConfig,
   LLMConfig,
-  AgentExecutionResult,
   AgentOutputContentBlock,
 } from '../../../types/projectManagement';
 
@@ -72,13 +71,19 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
+  const currentStreamingTextInfoRef = useRef<{ blockId: string | null, llmMessageIndex: number | null }>({ blockId: null, llmMessageIndex: null });
+
+  const generateUniqueBlockId = (typeHint: string = 'block'): string => {
+    return `${typeHint}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  };
+
   const addMessage = (
     role: ChatMessage['role'],
     contentOrId: string | JSX.Element,
     isStreamingOp: boolean = false,
     initialBlocksOp?: AgentOutputContentBlock[]
   ): string => {
-    const id = (role === 'assistant' && isStreamingOp) ? contentOrId as string : Date.now().toString();
+    const id = (role === 'assistant' && isStreamingOp) ? contentOrId as string : generateUniqueBlockId(`msg-${role}`);
     const newMessage: ChatMessage = {
       id,
       role,
@@ -122,347 +127,341 @@ const AgentChatView: React.FC<AgentChatViewProps> = ({ agentName, onClose }) => 
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
-        console.log('EventSource closed on component unmount.');
       }
     };
   }, []);
 
   const handleSend = async (text: string) => {
-    console.log('[handleSend] Invoked with text:', text, 'Timestamp:', Date.now());
+    console.log('%cAGENT CHAT VIEW: handleSend CALLED', 'color: lime; font-weight: bold; font-size: 1.2em;');
     if (!text.trim() || isInitializing || isLoading) return;
-    const userMessageContent = text;
-    addMessage('user', userMessageContent);
+    addMessage('user', text);
     setIsLoading(true);
     setChatError(null);
 
-    const assistantMessageId = Date.now().toString() + '-stream';
+    const assistantMessageId = generateUniqueBlockId('assistant-msg');
     addMessage('assistant', assistantMessageId, true, []);
+    currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
 
-    const queryParams = new URLSearchParams({
-      user_message: userMessageContent,
-    });
-    const agentConfigFromStore: AgentConfig | undefined = (await getSpecificComponentConfig("agents", agentName));
-    if (agentConfigFromStore?.system_prompt) {
-        queryParams.append('system_prompt', agentConfigFromStore.system_prompt);
+    const queryParams = new URLSearchParams({ user_message: text });
+    const agentConfig: AgentConfig | undefined = await getSpecificComponentConfig("agents", agentName);
+    if (agentConfig?.system_prompt) {
+      queryParams.append('system_prompt', agentConfig.system_prompt);
     }
+    // const { apiKey } = useAuthStore.getState(); // apiKey is handled by streamAgentExecution
+    // if (apiKey) queryParams.append('api_key', apiKey); // Handled by streamAgentExecution
 
+    // const url = `/api/agents/${agentName}/execute-stream?${queryParams.toString()}`; // OLD direct URL construction
+    if (eventSourceRef.current) eventSourceRef.current.close();
 
-    const { apiKey } = useAuthStore.getState();
-    if (apiKey) {
-      queryParams.append('api_key', apiKey);
-    } else {
-      console.warn('API key is missing. Streaming call might fail if auth is required via query param.');
-    }
+    // Use the imported streamAgentExecution function
+    // It will use VITE_API_BASE_URL and handle apiKey internally
+    const agentConfigForPrompt: AgentConfig | undefined = await getSpecificComponentConfig("agents", agentName); // Fetch for system_prompt
+    const system_prompt_for_stream = agentConfigForPrompt?.system_prompt;
 
-    const url = `/api/agents/${agentName}/execute-stream?${queryParams.toString()}`;
-
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    const eventSource = new EventSource(url);
+    const eventSource = streamAgentExecution(agentName, text, system_prompt_for_stream);
     eventSourceRef.current = eventSource;
 
-    eventSource.onopen = () => {
-      console.log('SSE connection opened.');
-    };
-
-    eventSource.onmessage = (event) => {
-      console.log('SSE generic message received:', event);
-      try {
-        const parsedData = JSON.parse(event.data);
-        console.log('SSE generic message data (parsed):', parsedData);
-      } catch (e) {
-        console.error('Error parsing generic SSE message data:', e, event.data);
-      }
-    };
-
-    const updateStreamingMessageBlocks = (updater: (blocks: AgentOutputContentBlock[]) => AgentOutputContentBlock[]) => {
+    const updateStreamingMessageBlocks = (eventName: string, updater: (blocks: AgentOutputContentBlock[]) => AgentOutputContentBlock[]) => {
       setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg.id === assistantMessageId
-            ? { ...msg, contentBlocks: updater(msg.contentBlocks || []) }
-            : msg
-        )
+        prevMessages.map(msg => {
+          if (msg.id === assistantMessageId) {
+            const currentBlocks = msg.contentBlocks || [];
+            console.log(`%c[${eventName}] BEFORE update for ${assistantMessageId}`, 'color: orange;', JSON.parse(JSON.stringify(currentBlocks)));
+            const updatedBlocks = updater(currentBlocks);
+            console.log(`%c[${eventName}] AFTER update for ${assistantMessageId}`, 'color: lightgreen;', JSON.parse(JSON.stringify(updatedBlocks)));
+            return { ...msg, contentBlocks: updatedBlocks };
+          }
+          return msg;
+        })
       );
     };
 
+    eventSource.onopen = () => console.log('SSE connection opened.');
+    eventSource.onerror = (error) => {
+      console.error('SSE Error:', error);
+      addMessage('error', 'Streaming connection error.');
+      setChatError('Streaming connection error.');
+      setIsLoading(false);
+      eventSourceRef.current?.close();
+    };
+
     eventSource.addEventListener('text_delta', (event) => {
+      console.log('%cTEXT_DELTA event received', 'color: cyan', event.data);
       try {
         const eventData = JSON.parse(event.data as string);
-        const { index, text_chunk } = eventData;
-        if (typeof index === 'number' && typeof text_chunk === 'string') {
-          updateStreamingMessageBlocks(currentBlocks => { // currentBlocks is AgentOutputContentBlock[]
-            const newBlocks = [...currentBlocks]; // Work with a copy
-            let blockAtIndex = newBlocks[index];
+        const { index: llmMessageIndex, text_chunk } = eventData;
 
-            // Ensure block exists at index, initialize as 'text' if placeholder or new
-            if (!blockAtIndex || blockAtIndex.type === 'placeholder') {
-              while (newBlocks.length <= index) {
-                // Push placeholders if needed to fill gaps, ensuring they have unique IDs
-                newBlocks.push({ type: 'placeholder', text: '', id: `placeholder-${newBlocks.length}-${Date.now()}` });
-              }
-              newBlocks[index] = { type: 'text', text: '', id: `text-idx-${index}-${Date.now()}` };
-              blockAtIndex = newBlocks[index];
-            }
-
-            // text_delta ensures the block is 'text' and appends the chunk immutably.
-            const newText = (blockAtIndex.text || '') + text_chunk;
-            const updatedBlockAtIndex = {
-              ...blockAtIndex, // Spread existing properties
-              type: 'text' as const, // Ensure type is 'text'
-              text: newText,
-              id: blockAtIndex.id || `text-idx-${index}-${Date.now()}`, // Ensure ID
-            };
-            newBlocks[index] = updatedBlockAtIndex; // Replace the old block with the new one
-
-            console.log(`[text_delta] index: ${index}, chunk: "${text_chunk}"`);
-            console.log('[text_delta] updatedBlockAtIndex:', JSON.stringify(updatedBlockAtIndex, null, 2));
-            // console.log('[text_delta] newBlocks state before filter:', JSON.stringify(newBlocks, null, 2));
-
-            return newBlocks.filter(b => b.type !== 'placeholder');
-          });
+        if (typeof llmMessageIndex !== 'number' || typeof text_chunk !== 'string') {
+          console.error('[text_delta] Invalid eventData:', eventData);
+          return;
         }
-      } catch (e) {
-        console.error('Error parsing text_delta event:', e, event.data);
-      }
+        console.log(`%c[text_delta] Processing: index=${llmMessageIndex}, chunk="${text_chunk}"`, 'color: cyan');
+
+        updateStreamingMessageBlocks('text_delta', currentBlocks => {
+          let newBlocks = [...currentBlocks];
+          let blockProcessed = false;
+
+          console.log(`%c[text_delta] currentStreamingTextInfoRef at START:`, 'color: blue', JSON.parse(JSON.stringify(currentStreamingTextInfoRef.current)));
+
+          // If a blockId is already stored in the ref for this llmMessageIndex, try to update it.
+          if (currentStreamingTextInfoRef.current.blockId && currentStreamingTextInfoRef.current.llmMessageIndex === llmMessageIndex) {
+            const targetBlock = newBlocks.find(b => b.id === currentStreamingTextInfoRef.current.blockId);
+            if (targetBlock && targetBlock.type === 'text' && !targetBlock._finalized) {
+              console.log(`%c[text_delta] Updating block VIA REF: ${targetBlock.id}`, 'color: green; font-weight: bold;');
+              targetBlock.text = (targetBlock.text || '') + text_chunk;
+              blockProcessed = true;
+            } else if (targetBlock) {
+              // Ref points to a block that's wrong type or finalized. This shouldn't happen if logic is correct.
+              console.warn(`%c[text_delta] Ref block ${targetBlock.id} is not a valid target (type: ${targetBlock.type}, finalized: ${targetBlock._finalized}). Clearing ref.`, 'color: orange');
+              currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
+            } else {
+              // The block ID in the ref wasn't found in currentBlocks.
+              // This can happen if setMessages hasn't updated the closure's currentBlocks yet.
+              // In this case, we *don't* create a new block, assuming the ref is correct and the block will appear.
+              console.log(`%c[text_delta] Ref block ${currentStreamingTextInfoRef.current.blockId} NOT FOUND in currentBlocks snapshot. Assuming it will appear. Skipping new block creation for this chunk.`, 'color: purple');
+              blockProcessed = true; // Mark as processed to prevent creating a new block for this specific chunk.
+            }
+          }
+
+          // If the ref wasn't set for this llmMessageIndex, or was cleared, try to find/create.
+          if (!blockProcessed) {
+            let existingBlock = newBlocks.find(
+              b => b.type === 'text' && b._originalIndex === llmMessageIndex && !b._finalized
+            );
+
+            if (existingBlock) {
+              console.log(`%c[text_delta] Found and updating OTHER existing block: ${existingBlock.id}. Setting ref.`, 'color: green;');
+              existingBlock.text = (existingBlock.text || '') + text_chunk;
+              currentStreamingTextInfoRef.current = { blockId: existingBlock.id!, llmMessageIndex };
+            } else {
+              console.log(`%c[text_delta] No block found via ref or existing search. Creating NEW text block for index ${llmMessageIndex}`, 'color: yellow; font-weight: bold;');
+              const newBlockId = generateUniqueBlockId(`text-idx${llmMessageIndex}`);
+              const newTextBlock: AgentOutputContentBlock = {
+                type: 'text',
+                text: text_chunk,
+                id: newBlockId,
+                _originalIndex: llmMessageIndex,
+                _finalized: false,
+              };
+              newBlocks.push(newTextBlock);
+              currentStreamingTextInfoRef.current = { blockId: newBlockId, llmMessageIndex };
+            }
+          }
+
+          console.log(`%c[text_delta] currentStreamingTextInfoRef at END:`, 'color: blue', JSON.parse(JSON.stringify(currentStreamingTextInfoRef.current)));
+          console.log('%c[text_delta] END processing event', 'color: cyan');
+          return newBlocks.filter(b => b.type !== 'placeholder');
+        });
+      } catch (e) { console.error('Error in text_delta handler:', e, event.data); }
     });
 
     eventSource.addEventListener('tool_use_start', (event) => {
+      console.log('%cTOOL_USE_START event received', 'color: magenta', event.data);
       try {
         const eventData = JSON.parse(event.data as string);
-        const { index, tool_name, tool_id } = eventData;
-        if (typeof index === 'number' && tool_name && tool_id) {
-          updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            while (newBlocks.length <= index) {
-              newBlocks.push({ type: 'placeholder', text: '' });
-            }
-            newBlocks[index] = {
-              type: 'tool_use',
-              id: tool_id,
-              name: tool_name,
-              input: {},
-            };
-            return newBlocks.filter(b => b.type !== 'placeholder');
-          });
+        const { index: llmMessageIndex, tool_name, tool_id } = eventData;
+        if (typeof llmMessageIndex !== 'number' || !tool_name || !tool_id) {
+          console.error('[tool_use_start] Invalid eventData:', eventData);
+          return;
         }
-      } catch (e) {
-        console.error('Error parsing tool_use_start event:', e, event.data);
-      }
-    });
+        console.log(`%c[tool_use_start] Processing: index=${llmMessageIndex}, tool_name=${tool_name}, tool_id=${tool_id}`, 'color: magenta');
+        currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
 
-    eventSource.addEventListener('tool_use_input_delta', (event) => {
-      try {
-        const eventData = JSON.parse(event.data as string);
-        const { index, json_chunk } = eventData;
-        if (typeof index === 'number' && typeof json_chunk === 'string') {
-          updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            if (index < newBlocks.length && newBlocks[index] && newBlocks[index].type === 'tool_use') {
-              const currentBlock = newBlocks[index] as any;
-              const existingRawInput = currentBlock._accumulatedJsonInput || '';
-              newBlocks[index] = {
-                ...currentBlock,
-                input: { ...(currentBlock.input || {}), _partialInput: ((currentBlock.input as any)?._partialInput || "") + json_chunk },
-                _accumulatedJsonInput: existingRawInput + json_chunk,
-              } as AgentOutputContentBlock;
-            } else {
-              console.warn(`Received tool_use_input_delta for block at index ${index} which is not a tool_use block or doesn't exist.`);
-            }
-            return newBlocks;
-          });
-        }
-      } catch (e) {
-        console.error('Error parsing tool_use_input_delta event:', e, event.data);
-      }
+        updateStreamingMessageBlocks('tool_use_start', blocks => [
+          ...blocks.filter(b => b.type !== 'placeholder'),
+          {
+            type: 'tool_use',
+            id: tool_id,
+            name: tool_name,
+            input: {},
+            _originalIndex: llmMessageIndex,
+            _inputFinalized: false,
+          }
+        ]);
+      } catch (e) { console.error('Error in tool_use_start handler:', e, event.data); }
     });
 
     eventSource.addEventListener('content_block_stop', (event) => {
+      console.log('%cCONTENT_BLOCK_STOP event received', 'color: red; font-weight: bold;', event.data);
       try {
         const eventData = JSON.parse(event.data as string);
-        const { index } = eventData;
-        if (typeof index === 'number') {
-          updateStreamingMessageBlocks((currentContentBlocks: AgentOutputContentBlock[]) => {
-            // Use flatMap to replace the block at 'index' with potentially multiple new blocks
-            return currentContentBlocks.flatMap((block, i) => {
-              if (i === index) {
-                console.log(`[content_block_stop] Processing block at index: ${index}`, JSON.stringify(block, null, 2));
-                const blockToProcess = block;
-                const processedSubBlocks: AgentOutputContentBlock[] = [];
+        const { index: llmMessageIndex, content_type, tool_id: event_tool_id, full_tool_input } = eventData;
 
-                if (blockToProcess.type === 'tool_use') {
-                  const toolBlock = blockToProcess as any; // Cast for internal props
-                  let finalizedInput = toolBlock.input;
-                  if (toolBlock._accumulatedJsonInput) {
-                    try {
-                      finalizedInput = JSON.parse(toolBlock._accumulatedJsonInput);
-                    } catch (e) {
-                      console.error('Failed to parse accumulated JSON for tool input:', toolBlock._accumulatedJsonInput, e);
-                      finalizedInput = { error: "Failed to parse tool input JSON", raw: toolBlock._accumulatedJsonInput };
-                    }
-                  }
-                  // Return an array with the single finalized tool_use block
-                  return [{
-                    ...toolBlock,
-                    input: finalizedInput,
-                    _accumulatedJsonInput: undefined,
-                    _partialInput: undefined,
-                  }];
-                } else if (blockToProcess.type === 'text' && blockToProcess.text) {
-                  const rawText = blockToProcess.text;
-                  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
-                  const thinkingMatch = rawText.match(thinkingRegex);
-                  let remainingText = rawText;
-
-                  if (thinkingMatch && thinkingMatch[1]) {
-                    const thinkingContent = thinkingMatch[1].trim();
-                    if (thinkingContent) { // Only add if there's actual thinking content
-                      processedSubBlocks.push({
-                        type: 'thinking_finalized',
-                        text: thinkingContent,
-                        id: `${blockToProcess.id || 'block'}-${index}-thinking-${Date.now()}`,
-                      });
-                    }
-                    remainingText = rawText.substring(thinkingMatch[0].length).trim();
-                  }
-
-                  if (remainingText) {
-                    try {
-                      const parsedJson = JSON.parse(remainingText);
-                      processedSubBlocks.push({
-                        type: 'final_response_data',
-                        parsedJson: parsedJson,
-                        text: remainingText, // Keep raw JSON string
-                        id: `${blockToProcess.id || 'block'}-${index}-json-${Date.now()}`,
-                      });
-                    } catch (e) {
-                      if (remainingText.trim()) { // Only add if non-empty, non-JSON
-                        processedSubBlocks.push({
-                          type: 'text',
-                          text: remainingText.trim(),
-                          id: `${blockToProcess.id || 'block'}-${index}-plaintext-${Date.now()}`,
-                        });
-                      }
-                    }
-                  }
-                  // If processedSubBlocks is empty, it means the original text block was effectively empty
-                  // (e.g., just "<thinking></thinking>" or whitespace). Returning an empty array removes it.
-                  console.log(`[content_block_stop] index: ${index}, generated subBlocks:`, JSON.stringify(processedSubBlocks, null, 2));
-                  return processedSubBlocks;
-                }
-                // If not 'tool_use' or processable 'text', return the original block in an array
-                console.log(`[content_block_stop] index: ${index}, block not processed (kept as is):`, JSON.stringify(blockToProcess, null, 2));
-                return [blockToProcess];
-              }
-              // Not the block at 'index', return as is in an array for flatMap
-              return [block];
-            }).filter(b => {
-              const keep = b && b.type !== 'placeholder';
-              // if (!keep) console.log('[content_block_stop] Filtering out block:', JSON.stringify(b, null, 2));
-              return keep;
-            }); // Ensure no null/undefined from flatMap and filter placeholders
-          });
+        if (typeof llmMessageIndex !== 'number' && !event_tool_id) { // Allow if event_tool_id is present, index might not be for tool_use
+          console.error('[content_block_stop] Invalid eventData - missing llmMessageIndex (and not a tool_use with tool_id):', eventData);
+          return;
         }
-      } catch (e) {
-        console.error('Error parsing content_block_stop event:', e, event.data);
-      }
+
+        console.log(`%c[content_block_stop] Processing: content_type=${content_type}, index=${llmMessageIndex}, event_tool_id=${event_tool_id}, has_full_tool_input=${!!full_tool_input}`, 'color: red; font-weight: bold;');
+
+        updateStreamingMessageBlocks('content_block_stop', currentBlocks => {
+          let newBlocks = [...currentBlocks];
+          let processedThisEvent = false;
+
+          for (let i = 0; i < newBlocks.length; i++) {
+            if (processedThisEvent) break; // Only process one block per event
+            const block = newBlocks[i];
+
+            // Handle TOOL_USE stop (now explicit with full_tool_input)
+            if (content_type === 'tool_use' && event_tool_id && block.type === 'tool_use' && block.id === event_tool_id && !block._inputFinalized) {
+              console.log(`%c[content_block_stop TOOL_USE (explicit)] Matched tool block by tool_id: ${event_tool_id}`, 'color: red; font-weight: bold;');
+              const toolBlock = block as any; // To modify input and _inputFinalized
+              if (typeof full_tool_input === 'string') {
+                try {
+                  toolBlock.input = JSON.parse(full_tool_input);
+                  console.log(`%c[content_block_stop TOOL_USE (explicit)] Parsed full_tool_input for ${event_tool_id}:`, 'color: red;', JSON.parse(JSON.stringify(toolBlock.input)));
+                } catch (e) {
+                  console.error('Failed to parse full_tool_input JSON:', e, full_tool_input);
+                  toolBlock.input = { error: "Failed to parse full_tool_input JSON", raw: full_tool_input };
+                }
+              } else {
+                console.warn(`%c[content_block_stop TOOL_USE (explicit)] full_tool_input is not a string for ${event_tool_id}. Setting input to empty.`, 'color: orange', full_tool_input);
+                toolBlock.input = {};
+              }
+              toolBlock._inputFinalized = true;
+              // delete toolBlock._accumulatedJsonInput; // No longer used
+              newBlocks[i] = toolBlock;
+              processedThisEvent = true;
+              break;
+            }
+            // Handle TEXT stop
+            // Ensure this only runs if it's a text block and the event is for this specific block's index
+            // And it wasn't already processed as a tool_use stop.
+            else if (block.type === 'text' && block._originalIndex === llmMessageIndex && !block._finalized && content_type !== 'tool_use') {
+              console.log(`%c[content_block_stop TEXT] Matched block: id=${block.id}, text="${block.text}"`, 'color: red; font-weight: bold;');
+              if (currentStreamingTextInfoRef.current.blockId === block.id) {
+                console.log(`%c[content_block_stop TEXT] Clearing currentStreamingTextInfoRef for block ${block.id}`, 'color: red;');
+                currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
+              }
+
+              const processedSubBlocks: AgentOutputContentBlock[] = [];
+              if (block.text) {
+                const rawText = block.text;
+                console.log(`%c[content_block_stop TEXT] Raw text to process: "${rawText}"`, 'color: red;');
+                const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/gi;
+                let lastIndex = 0;
+                let match;
+                while ((match = thinkingRegex.exec(rawText)) !== null) {
+                  const textBefore = rawText.substring(lastIndex, match.index).trim();
+                  if (textBefore) processedSubBlocks.push({ type: 'text', text: textBefore, id: generateUniqueBlockId('txt-seg'), _finalized: true, _originalIndex: block._originalIndex });
+                  const thinkingContent = match[1].trim();
+                  if (thinkingContent) processedSubBlocks.push({ type: 'thinking_finalized', text: thinkingContent, id: generateUniqueBlockId('thk-fin'), _finalized: true, _originalIndex: block._originalIndex });
+                  lastIndex = thinkingRegex.lastIndex;
+                }
+                const remainingText = rawText.substring(lastIndex).trim();
+                if (remainingText) {
+                  try {
+                    const parsedJson = JSON.parse(remainingText);
+                    processedSubBlocks.push({ type: 'final_response_data', parsedJson, text: remainingText, id: generateUniqueBlockId('json-fin'), _finalized: true, _originalIndex: block._originalIndex });
+                  } catch (e) {
+                    processedSubBlocks.push({ type: 'text', text: remainingText, id: generateUniqueBlockId('txt-fin'), _finalized: true, _originalIndex: block._originalIndex });
+                  }
+                }
+                console.log('%c[content_block_stop TEXT] Processed sub-blocks:', 'color: red;', JSON.parse(JSON.stringify(processedSubBlocks)));
+              }
+
+              if (processedSubBlocks.length > 0) {
+                console.log(`%c[content_block_stop TEXT] Splicing ${processedSubBlocks.length} sub-blocks for original block ${block.id}`, 'color: red; font-weight: bold;');
+                newBlocks.splice(i, 1, ...processedSubBlocks);
+                i += processedSubBlocks.length - 1; // Adjust loop index
+              } else {
+                console.log(`%c[content_block_stop TEXT] No sub-blocks after parsing block ${block.id}. Removing original.`, 'color: red; font-weight: bold;');
+                newBlocks.splice(i, 1);
+                i--; // Adjust loop index
+              }
+              processedThisEvent = true;
+              break;
+            }
+          }
+          console.log(`%c[content_block_stop] END processing event. Processed flag: ${processedThisEvent}`, 'color: red;');
+          return newBlocks.filter(b => b.type !== 'placeholder');
+        });
+      } catch (e) { console.error('Error in content_block_stop handler:', e, event.data); }
     });
 
     eventSource.addEventListener('tool_result', (event) => {
+      console.log('%cTOOL_RESULT event received', 'color: green', event.data);
       try {
         const eventData = JSON.parse(event.data as string);
-        const { tool_use_id, output, is_error, name } = eventData; // Removed index from destructuring
-        if (tool_use_id && output !== undefined) {
-          updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            let resultBlockContent: string | AgentOutputContentBlock[] | Record<string, any>;
-            if (typeof output === 'string') {
-                resultBlockContent = output;
-            } else if (Array.isArray(output) || typeof output === 'object' && output !== null) {
-                resultBlockContent = output;
-            } else {
-                resultBlockContent = String(output);
-            }
-            const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
-
-            const newToolResultBlock: AgentOutputContentBlock = {
-              type: 'tool_result',
-              id: `tool_result_for_${tool_use_id}_${Date.now()}`, // More robust unique ID
-              tool_use_id: tool_use_id,
-              content: resultBlockContent as any,
-              is_error: is_error || false,
-              name: name,
-            };
-
-            if (toolCallBlockIndex !== -1) {
-              newBlocks.splice(toolCallBlockIndex + 1, 0, newToolResultBlock);
-            } else {
-              console.warn(`Tool call with id ${tool_use_id} not found for tool result. Appending result as fallback.`);
-              newBlocks.push(newToolResultBlock);
-            }
-            // It's good practice to still filter placeholders if they could somehow be re-introduced,
-            // though with splice and targeted insertion, it's less likely for this specific operation.
-            return newBlocks.filter(b => b.type !== 'placeholder');
-          });
+        const { tool_use_id, output, is_error, name } = eventData;
+        if (!tool_use_id || output === undefined) {
+          console.error('[tool_result] Invalid eventData:', eventData);
+          return;
         }
-      } catch (e) {
-        console.error('Error parsing tool_result event:', e, event.data);
-      }
+        console.log(`%c[tool_result] Processing: tool_use_id=${tool_use_id}, is_error=${is_error}`, 'color: green');
+        currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
+
+        updateStreamingMessageBlocks('tool_result', blocks => {
+          const newBlocks = [...blocks];
+          const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
+          const newToolResultBlock: AgentOutputContentBlock = {
+            type: 'tool_result',
+            id: generateUniqueBlockId(`tool-res-${tool_use_id}`),
+            tool_use_id,
+            content: output,
+            is_error: !!is_error,
+            name,
+            _finalized: true,
+          };
+          if (toolCallBlockIndex !== -1) {
+            newBlocks.splice(toolCallBlockIndex + 1, 0, newToolResultBlock);
+          } else {
+            console.warn(`[tool_result] Tool call with id ${tool_use_id} not found. Appending result.`);
+            newBlocks.push(newToolResultBlock);
+          }
+          console.log('%c[tool_result] END processing event', 'color: green');
+          return newBlocks.filter(b => b.type !== 'placeholder');
+        });
+      } catch (e) { console.error('Error in tool_result handler:', e, event.data); }
     });
 
     eventSource.addEventListener('tool_execution_error', (event) => {
+      console.log('%cTOOL_EXECUTION_ERROR event received', 'color: orange', event.data);
       try {
         const eventData = JSON.parse(event.data as string);
-        const { tool_use_id, error_message, tool_name } = eventData; // Removed index
-        if (tool_use_id && error_message) {
-          updateStreamingMessageBlocks(blocks => {
-            const newBlocks = [...blocks];
-            const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
-
-            const newToolErrorBlock: AgentOutputContentBlock = {
-              type: 'tool_result', // Representing an error as a type of tool result
-              id: `tool_error_for_${tool_use_id}_${Date.now()}`, // Unique ID
-              tool_use_id: tool_use_id,
-              content: error_message || "Unknown tool execution error",
-              is_error: true,
-              name: tool_name,
-            };
-
-            if (toolCallBlockIndex !== -1) {
-              newBlocks.splice(toolCallBlockIndex + 1, 0, newToolErrorBlock);
-            } else {
-              console.warn(`Tool call with id ${tool_use_id} not found for tool execution error. Appending error as fallback.`);
-              newBlocks.push(newToolErrorBlock);
-            }
-            return newBlocks.filter(b => b.type !== 'placeholder');
-          });
+        const { tool_use_id, error_message, tool_name } = eventData;
+        if (!tool_use_id || !error_message) {
+          console.error('[tool_execution_error] Invalid eventData:', eventData);
+          return;
         }
-      } catch (e) {
-        console.error('Error parsing tool_execution_error event:', e, event.data);
-      }
+        console.log(`%c[tool_execution_error] Processing: tool_use_id=${tool_use_id}, tool_name=${tool_name}`, 'color: orange');
+        currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
+
+        updateStreamingMessageBlocks('tool_execution_error', blocks => {
+          const newBlocks = [...blocks];
+          const toolCallBlockIndex = newBlocks.findIndex(b => b.type === 'tool_use' && b.id === tool_use_id);
+          const newToolErrorBlock: AgentOutputContentBlock = {
+            type: 'tool_result', // Represent as a tool_result with an error
+            id: generateUniqueBlockId(`tool-err-${tool_use_id}`),
+            tool_use_id,
+            content: error_message,
+            is_error: true,
+            name: tool_name,
+            _finalized: true,
+          };
+          if (toolCallBlockIndex !== -1) {
+            newBlocks.splice(toolCallBlockIndex + 1, 0, newToolErrorBlock);
+          } else {
+            console.warn(`[tool_execution_error] Tool call with id ${tool_use_id} not found. Appending error.`);
+            newBlocks.push(newToolErrorBlock);
+          }
+          console.log('%c[tool_execution_error] END processing event', 'color: orange');
+          return newBlocks.filter(b => b.type !== 'placeholder');
+        });
+      } catch (e) { console.error('Error in tool_execution_error handler:', e, event.data); }
     });
 
     eventSource.addEventListener('stream_end', (event) => {
-      console.log('SSE stream_end:', event.data);
-      // content_block_stop is now responsible for all parsing and type conversion.
-      // stream_end just marks the message as no longer streaming.
+      console.log('%cSSE STREAM_END event received', 'color: gray', event.data);
+      currentStreamingTextInfoRef.current = { blockId: null, llmMessageIndex: null };
+      setIsLoading(false);
       setMessages(prevMessages =>
         prevMessages.map(msg =>
           msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
         )
       );
-      setIsLoading(false);
       eventSourceRef.current?.close();
     });
-
-    eventSource.onerror = (error) => {
-      console.error('SSE Error:', error);
-      addMessage('error', 'Streaming connection error.');
-      setChatError('Streaming connection error. Check console for details.');
-      setIsLoading(false);
-      eventSourceRef.current?.close();
-    };
   };
 
   const mapRoleToDirection = (role: ChatMessage['role']): "incoming" | "outgoing" => {

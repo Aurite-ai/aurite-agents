@@ -2,38 +2,38 @@
 Unit tests for the ExecutionFacade.
 """
 
+from unittest.mock import AsyncMock, MagicMock, Mock, patch  # Add patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch  # Add patch
 
 # Mark all tests in this module as belonging to the Orchestration layer and use anyio
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-# Imports from the project
-from src.execution.facade import ExecutionFacade
-from src.config.config_models import (
+from aurite.agents.agent import Agent
+
+# from aurite.agents.conversation_manager import ( # Removed ConversationManager import
+#     ConversationManager,
+# )
+from aurite.agents.agent_models import AgentExecutionResult  # Import result models
+from aurite.config.config_models import (  # Added ProjectConfig
     AgentConfig,
     LLMConfig,
     ProjectConfig,
-)  # Added ProjectConfig
-from src.host_manager import HostManager
-from src.agents.agent import Agent
+)
 
-# from src.agents.conversation_manager import ( # Removed ConversationManager import
-#     ConversationManager,
-# )
-from src.agents.agent_models import (
-    AgentExecutionResult,
-)  # Import result models
-from src.llm.base_client import BaseLLM  # Import BaseLLM for type hint
-from src.host.host import MCPHost  # Needed for type hinting if used
+# Imports from the project
+from aurite.execution.facade import ExecutionFacade
+from aurite.host.host import MCPHost  # Needed for type hinting if used
+from aurite.host_manager import Aurite
+from aurite.llm.base_client import BaseLLM  # Import BaseLLM for type hint
 
 # --- Fixtures ---
 
 
 @pytest.fixture
 def mock_host_manager() -> Mock:
-    """Provides a mock HostManager."""
-    manager = Mock(spec=HostManager)
+    """Provides a mock Aurite."""
+    manager = Mock(spec=Aurite)
     manager.host = AsyncMock(spec=MCPHost)  # Mock the host instance within the manager
     manager.agent_configs = {}
     manager.llm_configs = {}  # Add llm_configs dict
@@ -46,7 +46,7 @@ def mock_host_manager() -> Mock:
 @pytest.fixture
 def execution_facade(mock_host_manager: Mock) -> ExecutionFacade:
     """
-    Provides an ExecutionFacade instance initialized with a mock HostManager,
+    Provides an ExecutionFacade instance initialized with a mock Aurite,
     from which we derive a mock MCPHost and a mock ProjectConfig.
     """
     # Mock the necessary attributes and methods that ExecutionFacade will expect
@@ -63,12 +63,8 @@ def execution_facade(mock_host_manager: Mock) -> ExecutionFacade:
         mock_host_manager.agent_configs
     )  # Use from mock_host_manager for consistency in tests
     mock_project_config.llms = mock_host_manager.llm_configs
-    mock_project_config.simple_workflows = (
-        mock_host_manager.workflow_configs
-    )
-    mock_project_config.custom_workflows = (
-        mock_host_manager.custom_workflow_configs
-    )
+    mock_project_config.simple_workflows = mock_host_manager.workflow_configs
+    mock_project_config.custom_workflows = mock_host_manager.custom_workflow_configs
 
     # Ensure the mock_host_manager's host attribute is the mock_mcphost_instance
     # This isn't strictly needed for the new ExecutionFacade init if we pass host_instance directly,
@@ -91,11 +87,11 @@ class TestExecutionFacadeUnit:
     """Unit tests for ExecutionFacade public methods."""
 
     @pytest.mark.asyncio
-    @patch("src.execution.facade.Agent")
+    @patch("aurite.execution.facade.Agent")
     async def test_run_agent_success_and_caching(
         self,
         MockAgent: MagicMock,
-        execution_facade: ExecutionFacade, # Removed mock_host_manager as it's part of facade
+        execution_facade: ExecutionFacade,  # Removed mock_host_manager as it's part of facade
     ):
         """
         Test run_agent successfully executes, uses _create_llm_client for new clients,
@@ -108,12 +104,20 @@ class TestExecutionFacadeUnit:
         user_message = "Hello Agent"
 
         # --- Mock Project Configs ---
-        llm_config1 = LLMConfig(llm_id="llm_id_1", provider="anthropic", model_name="model-1")
-        llm_config2 = LLMConfig(llm_id="llm_id_2", provider="anthropic", model_name="model-2")
+        llm_config1 = LLMConfig(
+            llm_id="llm_id_1", provider="anthropic", model_name="model-1"
+        )
+        llm_config2 = LLMConfig(
+            llm_id="llm_id_2", provider="anthropic", model_name="model-2"
+        )
 
         agent_config1 = AgentConfig(name=agent1_name, llm_config_id="llm_id_1")
-        agent_config2 = AgentConfig(name=agent2_name, llm_config_id="llm_id_1") # Uses same LLMConfig
-        agent_config3 = AgentConfig(name=agent3_name, llm_config_id="llm_id_2") # Uses different LLMConfig
+        agent_config2 = AgentConfig(
+            name=agent2_name, llm_config_id="llm_id_1"
+        )  # Uses same LLMConfig
+        agent_config3 = AgentConfig(
+            name=agent3_name, llm_config_id="llm_id_2"
+        )  # Uses different LLMConfig
 
         execution_facade._current_project.agents = {
             agent1_name: agent_config1,
@@ -129,6 +133,7 @@ class TestExecutionFacadeUnit:
         # This method is now part of ExecutionFacade, so we patch it there.
         mock_llm_client_instance1 = AsyncMock(spec=BaseLLM)
         mock_llm_client_instance2 = AsyncMock(spec=BaseLLM)
+
         # Configure side_effect to return different mocks for different LLMConfigs
         def create_llm_client_side_effect(llm_config_arg: LLMConfig):
             if llm_config_arg.llm_id == "llm_id_1":
@@ -137,8 +142,9 @@ class TestExecutionFacadeUnit:
                 return mock_llm_client_instance2
             raise ValueError("Unexpected LLMConfig in mock _create_llm_client")
 
-        execution_facade._create_llm_client = MagicMock(side_effect=create_llm_client_side_effect)
-
+        execution_facade._create_llm_client = MagicMock(
+            side_effect=create_llm_client_side_effect
+        )
 
         # --- Mock Agent ---
         mock_agent_instance = MagicMock(spec=Agent)
@@ -150,55 +156,72 @@ class TestExecutionFacadeUnit:
 
         # --- Act & Assert: AgentOne (first call for llm_id_1) ---
         print("Running AgentOne...")
-        await execution_facade.run_agent(agent_name=agent1_name, user_message=user_message)
+        await execution_facade.run_agent(
+            agent_name=agent1_name, user_message=user_message
+        )
         execution_facade._create_llm_client.assert_called_once_with(llm_config1)
         MockAgent.assert_called_with(
             config=agent_config1,
             llm_client=mock_llm_client_instance1,
             host_instance=execution_facade._host,
-            initial_messages=[{"role": "user", "content": [{"type": "text", "text": user_message}]}],
+            initial_messages=[
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
+            ],
             system_prompt_override=None,
-            llm_config_for_override=llm_config1
+            llm_config_for_override=llm_config1,
         )
-        assert execution_facade._llm_client_cache.get("llm_id_1") == mock_llm_client_instance1
+        assert (
+            execution_facade._llm_client_cache.get("llm_id_1")
+            == mock_llm_client_instance1
+        )
 
         # --- Act & Assert: AgentTwoSameLLM (should use cached client for llm_id_1) ---
         print("Running AgentTwoSameLLM...")
-        execution_facade._create_llm_client.reset_mock() # Reset before next call
+        execution_facade._create_llm_client.reset_mock()  # Reset before next call
         MockAgent.reset_mock()
-        await execution_facade.run_agent(agent_name=agent2_name, user_message=user_message)
-        execution_facade._create_llm_client.assert_not_called() # Should use cache
+        await execution_facade.run_agent(
+            agent_name=agent2_name, user_message=user_message
+        )
+        execution_facade._create_llm_client.assert_not_called()  # Should use cache
         MockAgent.assert_called_with(
             config=agent_config2,
-            llm_client=mock_llm_client_instance1, # Reused instance
+            llm_client=mock_llm_client_instance1,  # Reused instance
             host_instance=execution_facade._host,
-            initial_messages=[{"role": "user", "content": [{"type": "text", "text": user_message}]}],
+            initial_messages=[
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
+            ],
             system_prompt_override=None,
-            llm_config_for_override=llm_config1
+            llm_config_for_override=llm_config1,
         )
 
         # --- Act & Assert: AgentThreeDifferentLLM (should create new client for llm_id_2) ---
         print("Running AgentThreeDifferentLLM...")
         execution_facade._create_llm_client.reset_mock()
         MockAgent.reset_mock()
-        await execution_facade.run_agent(agent_name=agent3_name, user_message=user_message)
+        await execution_facade.run_agent(
+            agent_name=agent3_name, user_message=user_message
+        )
         execution_facade._create_llm_client.assert_called_once_with(llm_config2)
         MockAgent.assert_called_with(
             config=agent_config3,
-            llm_client=mock_llm_client_instance2, # New instance
+            llm_client=mock_llm_client_instance2,  # New instance
             host_instance=execution_facade._host,
-            initial_messages=[{"role": "user", "content": [{"type": "text", "text": user_message}]}],
+            initial_messages=[
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
+            ],
             system_prompt_override=None,
-            llm_config_for_override=llm_config2
+            llm_config_for_override=llm_config2,
         )
-        assert execution_facade._llm_client_cache.get("llm_id_2") == mock_llm_client_instance2
+        assert (
+            execution_facade._llm_client_cache.get("llm_id_2")
+            == mock_llm_client_instance2
+        )
 
         print("Assertions passed for caching.")
         print("--- Test Finished: test_run_agent_success_and_caching ---")
 
-
     @pytest.mark.asyncio
-    @patch("src.execution.facade.Agent")
+    @patch("aurite.execution.facade.Agent")
     async def test_run_agent_no_llm_config_id(
         self,
         MockAgent: MagicMock,
@@ -214,24 +237,30 @@ class TestExecutionFacadeUnit:
 
         agent_config_no_id = AgentConfig(
             name=agent_name,
-            model="agent-direct-model", # Direct override
+            model="agent-direct-model",  # Direct override
             temperature=0.6,
-            system_prompt="Agent direct system prompt"
+            system_prompt="Agent direct system prompt",
             # No llm_config_id
         )
         execution_facade._current_project.agents = {agent_name: agent_config_no_id}
-        execution_facade._current_project.llms = {} # No LLMConfigs defined
+        execution_facade._current_project.llms = {}  # No LLMConfigs defined
 
         mock_temp_llm_client = AsyncMock(spec=BaseLLM)
-        execution_facade._create_llm_client = MagicMock(return_value=mock_temp_llm_client)
+        execution_facade._create_llm_client = MagicMock(
+            return_value=mock_temp_llm_client
+        )
 
         mock_agent_instance = MagicMock(spec=Agent)
-        mock_agent_result = AgentExecutionResult(conversation=[], final_response=None, tool_uses_in_final_turn=[], error=None)
+        mock_agent_result = AgentExecutionResult(
+            conversation=[], final_response=None, tool_uses_in_final_turn=[], error=None
+        )
         mock_agent_instance.run_conversation = AsyncMock(return_value=mock_agent_result)
         MockAgent.return_value = mock_agent_instance
 
         # --- Act ---
-        await execution_facade.run_agent(agent_name=agent_name, user_message=user_message)
+        await execution_facade.run_agent(
+            agent_name=agent_name, user_message=user_message
+        )
 
         # --- Assertions ---
         # 1. _create_llm_client was called
@@ -239,10 +268,14 @@ class TestExecutionFacadeUnit:
         created_llm_config_arg = execution_facade._create_llm_client.call_args.args[0]
         assert isinstance(created_llm_config_arg, LLMConfig)
         assert created_llm_config_arg.llm_id == f"temp_{agent_name}"
-        assert created_llm_config_arg.provider == "anthropic" # Default from factory logic
+        assert (
+            created_llm_config_arg.provider == "anthropic"
+        )  # Default from factory logic
         assert created_llm_config_arg.model_name == "agent-direct-model"
         assert created_llm_config_arg.temperature == 0.6
-        assert created_llm_config_arg.default_system_prompt == "Agent direct system prompt"
+        assert (
+            created_llm_config_arg.default_system_prompt == "Agent direct system prompt"
+        )
 
         # 2. Client was NOT cached
         assert not execution_facade._llm_client_cache
@@ -252,25 +285,31 @@ class TestExecutionFacadeUnit:
             config=agent_config_no_id,
             llm_client=mock_temp_llm_client,
             host_instance=execution_facade._host,
-            initial_messages=[{"role": "user", "content": [{"type": "text", "text": user_message}]}],
+            initial_messages=[
+                {"role": "user", "content": [{"type": "text", "text": user_message}]}
+            ],
             system_prompt_override=None,
-            llm_config_for_override=None # No LLMConfig object to pass
+            llm_config_for_override=None,  # No LLMConfig object to pass
         )
         print("Assertions passed for no_llm_config_id.")
         print("--- Test Finished: test_run_agent_no_llm_config_id ---")
 
-
-    @patch("src.execution.facade.AnthropicLLM") # Patch the concrete class
+    @patch("aurite.execution.facade.AnthropicLLM")  # Patch the concrete class
     def test_create_llm_client_factory(
-        self,
-        MockAnthropicLLMConstructor: MagicMock,
-        execution_facade: ExecutionFacade
+        self, MockAnthropicLLMConstructor: MagicMock, execution_facade: ExecutionFacade
     ):
         """Test the _create_llm_client factory method directly."""
         print("\n--- Running Test: test_create_llm_client_factory ---")
 
         # Test Anthropic
-        anthropic_config = LLMConfig(llm_id="anthropic_test", provider="anthropic", model_name="claude-model", temperature=0.7, max_tokens=100, default_system_prompt="Anthropic System")
+        anthropic_config = LLMConfig(
+            llm_id="anthropic_test",
+            provider="anthropic",
+            model_name="claude-model",
+            temperature=0.7,
+            max_tokens=100,
+            default_system_prompt="Anthropic System",
+        )
         mock_anthropic_instance = MagicMock(spec=BaseLLM)
         MockAnthropicLLMConstructor.return_value = mock_anthropic_instance
 
@@ -279,32 +318,40 @@ class TestExecutionFacadeUnit:
             model_name="claude-model",
             temperature=0.7,
             max_tokens=100,
-            system_prompt="Anthropic System"
+            system_prompt="Anthropic System",
         )
         assert client == mock_anthropic_instance
 
         # Test Unsupported Provider
-        unsupported_config = LLMConfig(llm_id="unsupported_test", provider="unobtainium", model_name="future-model")
-        with pytest.raises(NotImplementedError, match="LLM provider 'unobtainium' is not currently supported."):
+        unsupported_config = LLMConfig(
+            llm_id="unsupported_test", provider="unobtainium", model_name="future-model"
+        )
+        with pytest.raises(
+            NotImplementedError,
+            match="LLM provider 'unobtainium' is not currently supported.",
+        ):
             execution_facade._create_llm_client(unsupported_config)
 
         # Test Default Model Name
         MockAnthropicLLMConstructor.reset_mock()
-        anthropic_no_model_config = LLMConfig(llm_id="anthropic_no_model", provider="anthropic")
+        anthropic_no_model_config = LLMConfig(
+            llm_id="anthropic_no_model", provider="anthropic"
+        )
         execution_facade._create_llm_client(anthropic_no_model_config)
         MockAnthropicLLMConstructor.assert_called_once_with(
-            model_name="claude-3-haiku-20240307", # Default from factory
+            model_name="claude-3-haiku-20240307",  # Default from factory
             temperature=None,
             max_tokens=None,
-            system_prompt=None
+            system_prompt=None,
         )
         print("Assertions passed for _create_llm_client factory.")
         print("--- Test Finished: test_create_llm_client_factory ---")
 
-
     @pytest.mark.asyncio
     async def test_run_simple_workflow_success(
-        self, execution_facade: ExecutionFacade, mock_host_manager: Mock # mock_host_manager still used by this test's old structure
+        self,
+        execution_facade: ExecutionFacade,
+        mock_host_manager: Mock,  # mock_host_manager still used by this test's old structure
     ):
         """
         Test run_simple_workflow successfully calls _execute_component with correct args.
@@ -427,16 +474,16 @@ class TestExecutionFacadeUnit:
         ).model_dump(mode="json")
 
         # Call the public method - no need to mock _execute_component
-        result = await execution_facade.run_agent(
+        agent_result_obj = await execution_facade.run_agent(
             agent_name=agent_name,
             user_message=user_message,
         )
 
-        print(f"Execution Result: {result}")
+        print(f"Execution Result: {agent_result_obj}")
 
         # Assertions
         # Verify the result matches the expected error structure
-        assert result == expected_error_dict
+        assert agent_result_obj.model_dump(mode="json") == expected_error_dict
         print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_not_found ---")
@@ -529,29 +576,27 @@ class TestExecutionFacadeUnit:
         user_message = "Hello Agent"
         instantiation_error = ValueError("LLM Client Init Failed")
 
-        # --- Mock HostManager Configs ---
+        # --- Mock Aurite Configs ---
         # Need valid configs up to the point of LLM instantiation
         mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
         mock_llm_config = LLMConfig(
             llm_id="test_llm", provider="anthropic", model_name="test-model"
         )
         # Populate configs directly on the facade's current_project mock
-        execution_facade._current_project.agents = {
-            agent_name: mock_agent_config
-        }
+        execution_facade._current_project.agents = {agent_name: mock_agent_config}
         execution_facade._current_project.llms = {"test_llm": mock_llm_config}
 
         # --- Mock LLM Client Instantiation to raise error ---
         with patch(
-            "src.execution.facade.AnthropicLLM", side_effect=instantiation_error
+            "aurite.execution.facade.AnthropicLLM", side_effect=instantiation_error
         ) as MockLLM:
             # --- Act ---
-            result = await execution_facade.run_agent(
+            agent_result_obj = await execution_facade.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
             )
 
-            print(f"Execution Result: {result}")
+            print(f"Execution Result: {agent_result_obj}")
 
             # --- Assertions ---
             # 1. Check LLM was attempted to be instantiated
@@ -564,7 +609,7 @@ class TestExecutionFacadeUnit:
                 tool_uses_in_final_turn=[],
                 error=f"Initialization error for Agent '{agent_name}': Failed to create Anthropic client: {instantiation_error}",
             ).model_dump(mode="json")
-            assert result == expected_error_dict
+            assert agent_result_obj.model_dump(mode="json") == expected_error_dict
             print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_instantiation_error ---")
@@ -659,24 +704,24 @@ class TestExecutionFacadeUnit:
         user_message = "Hello Agent"
         execution_error = RuntimeError("Conversation failed")
 
-        # --- Mock HostManager Configs ---
+        # --- Mock Aurite Configs ---
         mock_agent_config = AgentConfig(name=agent_name, llm_config_id="test_llm")
         mock_llm_config = LLMConfig(
             llm_id="test_llm", provider="anthropic", model_name="test-model"
         )
         # Populate configs directly on the facade's current_project mock
-        execution_facade._current_project.agents = {
-            agent_name: mock_agent_config
-        }
+        execution_facade._current_project.agents = {agent_name: mock_agent_config}
         execution_facade._current_project.llms = {"test_llm": mock_llm_config}
 
         # --- Mock LLM Client Instantiation (should succeed) ---
-        with patch("src.execution.facade.AnthropicLLM") as MockLLM:
+        with patch("aurite.execution.facade.AnthropicLLM") as MockLLM:
             mock_llm_instance = MagicMock(spec=BaseLLM)
             MockLLM.return_value = mock_llm_instance
 
             # --- Mock Agent to raise error on run_conversation ---
-            with patch("src.execution.facade.Agent") as MockAgent:  # Changed to Agent
+            with patch(
+                "aurite.execution.facade.Agent"
+            ) as MockAgent:  # Changed to Agent
                 mock_agent_instance = MagicMock(spec=Agent)  # Changed to Agent
                 mock_agent_instance.run_conversation = AsyncMock(
                     side_effect=execution_error
@@ -684,12 +729,12 @@ class TestExecutionFacadeUnit:
                 MockAgent.return_value = mock_agent_instance  # Changed to Agent
 
                 # --- Act ---
-                result = await execution_facade.run_agent(
+                agent_result_obj = await execution_facade.run_agent(
                     agent_name=agent_name,
                     user_message=user_message,
                 )
 
-                print(f"Execution Result: {result}")
+                print(f"Execution Result: {agent_result_obj}")
 
                 # --- Assertions ---
                 # 1. Check LLM and Agent were instantiated
@@ -705,7 +750,7 @@ class TestExecutionFacadeUnit:
                     tool_uses_in_final_turn=[],
                     error=f"Unexpected error running Agent '{agent_name}': {type(execution_error).__name__}: {execution_error}",
                 ).model_dump(mode="json")
-                assert result == expected_error_dict
+                assert agent_result_obj.model_dump(mode="json") == expected_error_dict
                 print("Assertions passed.")
 
         print("--- Test Finished: test_run_agent_execution_error ---")

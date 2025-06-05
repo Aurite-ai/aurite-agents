@@ -4,13 +4,13 @@ from typing import Any, Optional  # Added Optional
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-# from src.host.host import MCPHost # No longer needed directly
-# from src.agents.agent import Agent # Agent execution handled by facade
+# from aurite.host.host import MCPHost # No longer needed directly
+# from aurite.agents.agent import Agent # Agent execution handled by facade
 from typing import TYPE_CHECKING
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
-    from src.execution.facade import ExecutionFacade
+    from aurite.execution.facade import ExecutionFacade
 
 logger = logging.getLogger(__name__)
 
@@ -66,61 +66,37 @@ class ExampleCustomWorkflow:
             agent_error = None
             workflow_status = "failed"  # Default to failed unless explicitly successful
 
-            agent_error = None
+            agent_error_str: Optional[str] = None
             final_text_content = "Agent execution failed or returned unexpected format."
             workflow_status = "failed"  # Default to failed
 
-            if isinstance(agent_result, dict):
-                agent_error = agent_result.get("error")
-                if not agent_error:
-                    # Agent call succeeded, try to extract text
-                    final_response_dict = agent_result.get("final_response")
-                    if final_response_dict and isinstance(final_response_dict, dict):
-                        content_list = final_response_dict.get("content", [])
-                        if isinstance(content_list, list):
-                            # Find the first text block using dictionary access
-                            text_block_dict = next(
-                                (
-                                    block
-                                    for block in content_list
-                                    if isinstance(block, dict)
-                                    and block.get("type") == "text"
-                                ),
-                                None,
-                            )
-                            if text_block_dict and "text" in text_block_dict:
-                                final_text_content = text_block_dict.get("text", "")
-                                workflow_status = "completed"  # Success!
-                                logger.info(
-                                    "Successfully extracted text from agent response."
-                                )
-                            else:
-                                final_text_content = (
-                                    "No text block found in agent response content."
-                                )
-                                logger.warning(final_text_content)
-                                # Consider this success as the agent ran, but didn't return text
-                                workflow_status = "completed"
-                        else:
-                            final_text_content = (
-                                "Agent final_response content is not a list."
-                            )
-                            logger.warning(final_text_content)
-                    else:
-                        final_text_content = (
-                            "Agent result missing or invalid final_response structure."
-                        )
-                        logger.warning(final_text_content)
-                else:
-                    # Agent returned an error
-                    final_text_content = f"Agent execution failed: {agent_error}"
-                    logger.error(final_text_content)
-            else:
-                # agent_result was not a dict
-                final_text_content = (
-                    f"Agent returned unexpected result format: {type(agent_result)}"
-                )
+            # agent_result is an AgentExecutionResult object
+            if agent_result.error:
+                agent_error_str = agent_result.error
+                final_text_content = f"Agent execution failed: {agent_error_str}"
                 logger.error(final_text_content)
+                # workflow_status remains "failed"
+            elif agent_result.final_response and agent_result.final_response.content:
+                final_response_obj = agent_result.final_response
+                text_block_found = False
+                for block in final_response_obj.content:
+                    if block.type == "text" and block.text is not None:
+                        final_text_content = block.text
+                        text_block_found = True
+                        workflow_status = "completed"  # Success!
+                        logger.info("Successfully extracted text from agent response.")
+                        break
+                if not text_block_found:
+                    final_text_content = (
+                        "No text block found in agent response content."
+                    )
+                    logger.warning(final_text_content)
+                    # Consider this success as the agent ran, but didn't return text as expected by this workflow
+                    workflow_status = "completed"  # Or "failed" if text is strictly required by workflow logic
+            else:
+                final_text_content = "Agent result missing final_response or content."
+                logger.warning(final_text_content)
+                # workflow_status remains "failed"
 
             # Log final status before returning
             if workflow_status == "completed":
@@ -136,7 +112,9 @@ class ExampleCustomWorkflow:
             # The inner 'result' contains details including the extracted text or error message.
             return {
                 "status": workflow_status,  # Outer status reflects workflow completion
-                "error": agent_error if workflow_status == "failed" else None,
+                "error": agent_error_str
+                if workflow_status == "failed"
+                else None,  # Use the extracted error string
                 "result": {
                     "status": "success"
                     if workflow_status == "completed"
@@ -159,3 +137,9 @@ class ExampleCustomWorkflow:
                 f"Error within ExampleCustomWorkflow execution: {e}", exc_info=True
             )
             return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}
+
+    def get_input_type(self):
+        return dict
+
+    def get_output_type(self):
+        return dict

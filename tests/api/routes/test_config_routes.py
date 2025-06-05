@@ -5,10 +5,10 @@ import json
 from pathlib import Path
 
 # Import the FastAPI app instance and dependencies
-from src.bin.api.api import app
-from src.bin.dependencies import get_component_manager
-from src.config.component_manager import ComponentManager, COMPONENT_TYPES_DIRS
-from src.config.config_models import (
+from aurite.bin.api.api import app
+from aurite.bin.dependencies import get_component_manager
+from aurite.config.component_manager import ComponentManager, COMPONENT_TYPES_DIRS
+from aurite.config.config_models import (
     AgentConfig,
     ClientConfig,
 )  # Import models for mocking
@@ -58,14 +58,21 @@ def temp_config_file_factory(tmp_path_factory):
 
         # Create a temporary directory structure similar to real config
         # e.g., tmp_path / "agents" / filename
-        component_dir_name = COMPONENT_TYPES_DIRS[component_type_key].name # e.g., "agents"
-        temp_component_dir = tmp_path_factory.mktemp("config_test_root") / component_dir_name
+        component_dir_name = COMPONENT_TYPES_DIRS[
+            component_type_key
+        ].name  # e.g., "agents"
+        temp_component_dir = (
+            tmp_path_factory.mktemp("config_test_root") / component_dir_name
+        )
         temp_component_dir.mkdir(parents=True, exist_ok=True)
 
         file_path = temp_component_dir / filename
         with open(file_path, "w") as f:
             json.dump(content, f)
-        return file_path, temp_component_dir.parent # Return path to file and the root of this temp config structure
+        return (
+            file_path,
+            temp_component_dir.parent,
+        )  # Return path to file and the root of this temp config structure
 
     return _create_temp_config_file
 
@@ -91,7 +98,7 @@ def test_list_configs_success(
     assert response.json() == expected_files
     # Verify mock was called with the correctly mapped internal type key
     # This requires knowing the mapping used in the route (_get_cm_component_type)
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP
 
     expected_cm_type = API_TO_CM_TYPE_MAP[component_type]
     mock_cm.list_component_files.assert_called_once_with(expected_cm_type)
@@ -141,10 +148,14 @@ def test_list_configs_unauthorized(api_client: TestClient):
 
 # --- Tests for GET /configs/{component_type}/id/{component_id_or_name} ---
 
+
 @pytest.mark.parametrize("component_type_api", VALID_API_COMPONENT_TYPES)
-def test_get_specific_component_config_by_id_success(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
+def test_get_specific_component_config_by_id_success(
+    api_client: TestClient, mock_cm: MagicMock, component_type_api: str
+):
     """Tests successfully getting a component by ID using mocked CM."""
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 
@@ -159,15 +170,20 @@ def test_get_specific_component_config_by_id_success(api_client: TestClient, moc
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/id/{component_id}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/id/{component_id}", headers=headers
+    )
 
     assert response.status_code == 200
     assert response.json() == mock_data
     mock_cm.get_component_config.assert_called_once_with(cm_internal_type, component_id)
     app.dependency_overrides = {}
 
+
 @pytest.mark.parametrize("component_type_api", VALID_API_COMPONENT_TYPES)
-def test_get_specific_component_config_by_id_not_found(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
+def test_get_specific_component_config_by_id_not_found(
+    api_client: TestClient, mock_cm: MagicMock, component_type_api: str
+):
     """Tests getting a component by ID when mocked CM returns None."""
     component_type_api = "agents"
     component_id = "non_existent_agent_id"
@@ -175,7 +191,9 @@ def test_get_specific_component_config_by_id_not_found(api_client: TestClient, m
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/id/{component_id}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/id/{component_id}", headers=headers
+    )
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -185,24 +203,36 @@ def test_get_specific_component_config_by_id_not_found(api_client: TestClient, m
 
 # --- Tests for GET /configs/{component_type}/{filename:path} (Raw File Content) ---
 
-def test_get_raw_config_file_success(api_client: TestClient, temp_config_file_factory, monkeypatch):
+
+def test_get_raw_config_file_success(
+    api_client: TestClient, temp_config_file_factory, monkeypatch
+):
     """Tests successfully getting raw content of an existing config file."""
-    component_type_api = "agents" # API path component type
-    cm_internal_type = "agents" # ComponentManager internal key
+    component_type_api = "agents"  # API path component type
+    cm_internal_type = "agents"  # ComponentManager internal key
     filename = "test_raw_agent.json"
     expected_content = {"name": "raw_agent_test", "model": "raw_model"}
 
-    _, temp_config_root = temp_config_file_factory(cm_internal_type, filename, expected_content)
+    _, temp_config_root = temp_config_file_factory(
+        cm_internal_type, filename, expected_content
+    )
 
     # Patch COMPONENT_TYPES_DIRS in the route's module to point to our temp dir
-    monkeypatch.setitem(COMPONENT_TYPES_DIRS, cm_internal_type, temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name)
+    monkeypatch.setitem(
+        COMPONENT_TYPES_DIRS,
+        cm_internal_type,
+        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name,
+    )
 
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/{filename}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/{filename}", headers=headers
+    )
 
     assert response.status_code == 200
     assert response.json() == expected_content
     # No CM mock needed as this route reads files directly
+
 
 def test_get_raw_config_file_not_found(api_client: TestClient, tmp_path, monkeypatch):
     """Tests getting raw content of a non-existent config file."""
@@ -214,39 +244,67 @@ def test_get_raw_config_file_not_found(api_client: TestClient, tmp_path, monkeyp
     temp_component_dir_name = COMPONENT_TYPES_DIRS[cm_internal_type].name
     empty_config_root = tmp_path / "empty_config_root"
     (empty_config_root / temp_component_dir_name).mkdir(parents=True, exist_ok=True)
-    monkeypatch.setitem(COMPONENT_TYPES_DIRS, cm_internal_type, empty_config_root / temp_component_dir_name)
+    monkeypatch.setitem(
+        COMPONENT_TYPES_DIRS,
+        cm_internal_type,
+        empty_config_root / temp_component_dir_name,
+    )
 
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/{filename}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/{filename}", headers=headers
+    )
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
 
-def test_get_raw_config_file_invalid_json(api_client: TestClient, temp_config_file_factory, monkeypatch):
+
+def test_get_raw_config_file_invalid_json(
+    api_client: TestClient, temp_config_file_factory, monkeypatch
+):
     """Tests getting raw content of a file with invalid JSON."""
     component_type_api = "llm-configs"
     cm_internal_type = "llm_configs"
     filename = "invalid_format.json"
 
     # Create a file with invalid JSON
-    _, temp_config_root = temp_config_file_factory(cm_internal_type, filename, {}) # Create empty first
-    file_to_corrupt = temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name / filename
+    _, temp_config_root = temp_config_file_factory(
+        cm_internal_type, filename, {}
+    )  # Create empty first
+    file_to_corrupt = (
+        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name / filename
+    )
     with open(file_to_corrupt, "w") as f:
-        f.write("{'invalid_json': True,}") # Invalid JSON (single quotes, trailing comma)
+        f.write(
+            "{'invalid_json': True,}"
+        )  # Invalid JSON (single quotes, trailing comma)
 
-    monkeypatch.setitem(COMPONENT_TYPES_DIRS, cm_internal_type, temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name)
+    monkeypatch.setitem(
+        COMPONENT_TYPES_DIRS,
+        cm_internal_type,
+        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name,
+    )
 
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/{filename}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/{filename}", headers=headers
+    )
 
-    assert response.status_code == 500 # Or 400 depending on desired behavior for malformed server files
+    assert (
+        response.status_code == 500
+    )  # Or 400 depending on desired behavior for malformed server files
     assert "invalid json" in response.json()["detail"].lower()
 
-@pytest.mark.xfail(reason="URL normalization by FastAPI/Starlette bypasses this route for ../ type traversal.")
-def test_get_raw_config_file_path_traversal(api_client: TestClient, monkeypatch, tmp_path: Path):
+
+@pytest.mark.xfail(
+    reason="URL normalization by FastAPI/Starlette bypasses this route for ../ type traversal."
+)
+def test_get_raw_config_file_path_traversal(
+    api_client: TestClient, monkeypatch, tmp_path: Path
+):
     """Tests attempting path traversal when getting raw config file."""
     component_type_api = "agents"
-    cm_internal_type = "agents" # For patching
+    cm_internal_type = "agents"  # For patching
     # Malicious filename attempting to go up one directory
     filename = "../../../etc/passwd"
 
@@ -257,9 +315,11 @@ def test_get_raw_config_file_path_traversal(api_client: TestClient, monkeypatch,
     monkeypatch.setitem(COMPONENT_TYPES_DIRS, cm_internal_type, safe_temp_dir)
 
     headers = {"X-API-Key": api_client.test_api_key}
-    response = api_client.get(f"/configs/{component_type_api}/{filename}", headers=headers)
+    response = api_client.get(
+        f"/configs/{component_type_api}/{filename}", headers=headers
+    )
 
-    assert response.status_code == 400 # Bad Request due to invalid path
+    assert response.status_code == 400  # Bad Request due to invalid path
     assert "invalid filename or path" in response.json()["detail"].lower()
 
 
@@ -270,13 +330,14 @@ def test_get_raw_config_file_path_traversal(api_client: TestClient, monkeypatch,
 # def test_get_config_success(api_client: TestClient, mock_cm: MagicMock): ...
 # def test_get_config_not_found(api_client: TestClient, mock_cm: MagicMock): ...
 
+
 @pytest.mark.parametrize(
     "invalid_filename, expected_status, expected_detail_part",
     [
         ("test.txt", 400, "must end with .json"),
     ],
 )
-def test_get_config_invalid_filename_format( # Renamed to avoid conflict
+def test_get_config_invalid_filename_format(  # Renamed to avoid conflict
     api_client: TestClient,
     mock_cm: MagicMock,
     invalid_filename: str,
@@ -294,7 +355,8 @@ def test_get_config_invalid_filename_format( # Renamed to avoid conflict
     # If it was for the raw file endpoint, it's covered by new tests.
     # Assuming it was for the ID-based one:
     response = api_client.get(
-        f"/configs/{component_type}/id/{invalid_filename}", headers=headers # Using /id/ path
+        f"/configs/{component_type}/id/{invalid_filename}",
+        headers=headers,  # Using /id/ path
     )
     # If the ID itself (derived from filename) is invalid before CM lookup, it might be a 400.
     # If the ID is valid but CM returns not found, it's 404.
@@ -327,26 +389,28 @@ def test_get_config_invalid_filename_format( # Renamed to avoid conflict
     # If it was meant for the /id/ GET, "test.txt" is a valid ID string.
     pytest.skip("Re-evaluating target of this parametrized test for GET routes.")
 
-
     app.dependency_overrides = {}
 
 
-def test_get_config_unauthorized(api_client: TestClient): # This was for the old /configs/{type}/{filename}
+def test_get_config_unauthorized(
+    api_client: TestClient,
+):  # This was for the old /configs/{type}/{filename}
     """Tests getting a config file without API key (for /id/ endpoint)."""
     response = api_client.get(
-        "/configs/agents/id/some_agent_id", headers={} # Target /id/ endpoint
+        "/configs/agents/id/some_agent_id",
+        headers={},  # Target /id/ endpoint
     )
     assert response.status_code == 401
 
+
 def test_get_raw_config_file_unauthorized(api_client: TestClient):
     """Tests getting raw config file without API key."""
-    response = api_client.get(
-        "/configs/agents/some_agent.json", headers={}
-    )
+    response = api_client.get("/configs/agents/some_agent.json", headers={})
     assert response.status_code == 401
 
 
 # --- Tests for POST /configs/{component_type}/{filename} ---
+
 
 # Moved parametrize here from GET tests as _extract_component_id is used in POST
 @pytest.mark.parametrize(
@@ -355,7 +419,7 @@ def test_get_raw_config_file_unauthorized(api_client: TestClient):
         ("test.txt", 400, "must end with .json"),
     ],
 )
-def test_create_config_invalid_filename_format( # Renamed
+def test_create_config_invalid_filename_format(  # Renamed
     api_client: TestClient,
     mock_cm: MagicMock,
     invalid_filename: str,
@@ -364,7 +428,7 @@ def test_create_config_invalid_filename_format( # Renamed
 ):
     """Tests creating a config file with an invalid filename format for POST."""
     component_type = "clients"
-    payload = {"content": {"key": "value"}} # Dummy payload
+    payload = {"content": {"key": "value"}}  # Dummy payload
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
 
     headers = {"X-API-Key": api_client.test_api_key}
@@ -391,7 +455,7 @@ def test_create_config_success_new_file(api_client: TestClient, mock_cm: MagicMo
     mock_agent_model = MagicMock(spec=AgentConfig)
     mock_agent_model.model_dump.return_value = config_content
     # Configure the mock to have the 'name' attribute
-    setattr(mock_agent_model, 'name', component_id)
+    setattr(mock_agent_model, "name", component_id)
     mock_cm.create_component_file.return_value = mock_agent_model
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
@@ -414,6 +478,7 @@ def test_create_config_success_new_file(api_client: TestClient, mock_cm: MagicMo
         overwrite=False,
     )
     app.dependency_overrides = {}
+
 
 def test_create_config_list_payload_success(api_client: TestClient, mock_cm: MagicMock):
     """Tests creating a config file with a list payload."""
@@ -492,7 +557,7 @@ def test_create_config_validation_error(api_client: TestClient, mock_cm: MagicMo
     component_type = "agents"
     filename = "test_validation_error.json"
     component_id = "test_validation_error"
-    config_content = {"model": "test-model"} # Missing 'name'
+    config_content = {"model": "test-model"}  # Missing 'name'
     payload = {"content": config_content}
 
     mock_cm.create_component_file.side_effect = ValueError(
@@ -511,7 +576,7 @@ def test_create_config_validation_error(api_client: TestClient, mock_cm: MagicMo
     # The API route for POST /configs/{type}/{filename} when content is a dict
     # will inject the ID from the filename if not present in payload,
     # or warn if different.
-    if "name" not in expected_payload_to_cm: # 'name' is ID field for agents
+    if "name" not in expected_payload_to_cm:  # 'name' is ID field for agents
         expected_payload_to_cm["name"] = component_id
 
     mock_cm.create_component_file.assert_called_once_with(
@@ -519,29 +584,39 @@ def test_create_config_validation_error(api_client: TestClient, mock_cm: MagicMo
     )
     app.dependency_overrides = {}
 
+
 @pytest.mark.parametrize("component_type_api", VALID_API_COMPONENT_TYPES)
-def test_create_config_list_payload_invalid_content(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
+def test_create_config_list_payload_invalid_content(
+    api_client: TestClient, mock_cm: MagicMock, component_type_api: str
+):
     """Tests creating a config file with a list payload containing invalid items."""
     filename = f"invalid_list_{component_type_api}.json"
     # Valid item, then an invalid one (e.g., missing required field for that component type)
     # This requires knowing the ID field for each component type
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 
     list_content = [
-        {id_field: "item1", "some_field": "valid"}, # Assume this would be valid if 'some_field' is expected
-        {"wrong_id_field": "item2", "another_field": "invalid"} # Missing the correct id_field
+        {
+            id_field: "item1",
+            "some_field": "valid",
+        },  # Assume this would be valid if 'some_field' is expected
+        {
+            "wrong_id_field": "item2",
+            "another_field": "invalid",
+        },  # Missing the correct id_field
     ]
-    if component_type_api == "clients": # Example: client_id is required
+    if component_type_api == "clients":  # Example: client_id is required
         list_content = [
             {"client_id": "client1", "server_path": "/path1"},
-            {"server_path": "/path2"} # Missing client_id
+            {"server_path": "/path2"},  # Missing client_id
         ]
-    elif component_type_api == "agents": # name is required
+    elif component_type_api == "agents":  # name is required
         list_content = [
             {"name": "agent1", "model": "model1"},
-            {"model": "model2"} # Missing name
+            {"model": "model2"},  # Missing name
         ]
     # Add more specific invalid cases per type if needed
 
@@ -558,7 +633,7 @@ def test_create_config_list_payload_invalid_content(api_client: TestClient, mock
         f"/configs/{component_type_api}/{filename}", json=payload, headers=headers
     )
 
-    assert response.status_code == 400 # Bad Request due to CM's validation error
+    assert response.status_code == 400  # Bad Request due to CM's validation error
     assert "invalid configuration data" in response.json()["detail"].lower()
     mock_cm.save_components_to_file.assert_called_once_with(
         cm_internal_type, list_content, filename, overwrite=False
@@ -577,13 +652,14 @@ def test_create_config_unauthorized(api_client: TestClient):
 
 # --- Tests for PUT /configs/{component_type}/{filename} ---
 
+
 @pytest.mark.parametrize(
     "invalid_filename, expected_status, expected_detail_part",
     [
         ("test.txt", 400, "must end with .json"),
     ],
 )
-def test_update_config_invalid_filename_format( # Renamed
+def test_update_config_invalid_filename_format(  # Renamed
     api_client: TestClient,
     mock_cm: MagicMock,
     invalid_filename: str,
@@ -592,7 +668,7 @@ def test_update_config_invalid_filename_format( # Renamed
 ):
     """Tests updating a config file with an invalid filename format for PUT."""
     component_type = "clients"
-    payload = {"content": {"key": "value"}} # Dummy payload
+    payload = {"content": {"key": "value"}}  # Dummy payload
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
 
     headers = {"X-API-Key": api_client.test_api_key}
@@ -612,7 +688,7 @@ def test_update_config_success(api_client: TestClient, mock_cm: MagicMock):
     filename = "test_update_agent.json"
     component_id = "test_update_agent"
     updated_content = {
-        "name": component_id, # Ensure ID matches filename-derived ID
+        "name": component_id,  # Ensure ID matches filename-derived ID
         "model": "updated-model",
         "temperature": 0.8,
     }
@@ -621,7 +697,7 @@ def test_update_config_success(api_client: TestClient, mock_cm: MagicMock):
     mock_agent_model = MagicMock(spec=AgentConfig)
     mock_agent_model.model_dump.return_value = updated_content
     # Configure the mock to have the 'name' attribute
-    setattr(mock_agent_model, 'name', component_id)
+    setattr(mock_agent_model, "name", component_id)
     mock_cm.save_component_config.return_value = mock_agent_model
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
@@ -634,6 +710,7 @@ def test_update_config_success(api_client: TestClient, mock_cm: MagicMock):
     assert response.json() == updated_content
     mock_cm.save_component_config.assert_called_once_with("agents", updated_content)
     app.dependency_overrides = {}
+
 
 def test_update_config_list_payload_success(api_client: TestClient, mock_cm: MagicMock):
     """Tests updating a config file with a list payload (overwrite)."""
@@ -660,7 +737,10 @@ def test_update_config_list_payload_success(api_client: TestClient, mock_cm: Mag
     assert response.status_code == 200
     assert response.json() == [model.model_dump() for model in mock_client_models]
     mock_cm.save_components_to_file.assert_called_once_with(
-        "clients", list_content, filename, overwrite=True # Key difference for PUT
+        "clients",
+        list_content,
+        filename,
+        overwrite=True,  # Key difference for PUT
     )
     app.dependency_overrides = {}
 
@@ -676,7 +756,7 @@ def test_update_config_creates_if_not_found(api_client: TestClient, mock_cm: Mag
     mock_client_model = MagicMock(spec=ClientConfig)
     mock_client_model.model_dump.return_value = config_content
     # Configure the mock to have the 'client_id' attribute
-    setattr(mock_client_model, 'client_id', component_id)
+    setattr(mock_client_model, "client_id", component_id)
     mock_cm.save_component_config.return_value = mock_client_model
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
@@ -713,7 +793,7 @@ def test_update_config_validation_error(api_client: TestClient, mock_cm: MagicMo
     component_type = "clients"
     filename = "test_update_validation_error.json"
     component_id = "test_update_validation_error"
-    config_content = {"server_path": "/bad/path"} # Missing 'client_id'
+    config_content = {"server_path": "/bad/path"}  # Missing 'client_id'
     payload = {"content": config_content}
 
     mock_cm.save_component_config.side_effect = ValueError(
@@ -738,32 +818,38 @@ def test_update_config_validation_error(api_client: TestClient, mock_cm: MagicMo
     )
     app.dependency_overrides = {}
 
+
 @pytest.mark.parametrize("component_type_api", VALID_API_COMPONENT_TYPES)
-def test_update_config_list_payload_invalid_content(api_client: TestClient, mock_cm: MagicMock, component_type_api: str):
+def test_update_config_list_payload_invalid_content(
+    api_client: TestClient, mock_cm: MagicMock, component_type_api: str
+):
     """Tests updating a config file with a list payload containing invalid items."""
     filename = f"invalid_update_list_{component_type_api}.json"
-    from src.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+    from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP, COMPONENT_META
+
     cm_internal_type = API_TO_CM_TYPE_MAP[component_type_api]
     _, id_field = COMPONENT_META[cm_internal_type]
 
     list_content = [
         {id_field: "item1_updated", "some_field": "valid"},
-        {"non_id_field": "item2_updated_invalid"}
+        {"non_id_field": "item2_updated_invalid"},
     ]
     # More specific invalid data per type
     if component_type_api == "clients":
         list_content = [
             {"client_id": "client1_upd", "server_path": "/path1_upd"},
-            {"server_path": "/path2_upd"} # Missing client_id
+            {"server_path": "/path2_upd"},  # Missing client_id
         ]
     elif component_type_api == "agents":
-         list_content = [
+        list_content = [
             {"name": "agent1_upd", "model": "model1_upd"},
-            {"model": "model2_upd"} # Missing name
+            {"model": "model2_upd"},  # Missing name
         ]
 
     payload = {"content": list_content}
-    mock_cm.save_components_to_file.side_effect = ValueError("Invalid item in list for update")
+    mock_cm.save_components_to_file.side_effect = ValueError(
+        "Invalid item in list for update"
+    )
 
     app.dependency_overrides[get_component_manager] = lambda: mock_cm
     headers = {"X-API-Key": api_client.test_api_key}
@@ -790,13 +876,14 @@ def test_update_config_unauthorized(api_client: TestClient):
 
 # --- Tests for DELETE /configs/{component_type}/{filename} ---
 
+
 @pytest.mark.parametrize(
     "invalid_filename, expected_status, expected_detail_part",
     [
         ("test.txt", 400, "must end with .json"),
     ],
 )
-def test_delete_config_invalid_filename_format( # Renamed
+def test_delete_config_invalid_filename_format(  # Renamed
     api_client: TestClient,
     mock_cm: MagicMock,
     invalid_filename: str,
@@ -902,7 +989,5 @@ def test_delete_config_invalid_type(api_client: TestClient, mock_cm: MagicMock):
 
 def test_delete_config_unauthorized(api_client: TestClient):
     """Tests deleting a config file without API key."""
-    response = api_client.delete(
-        "/configs/agents/agent_to_delete.json", headers={}
-    )
+    response = api_client.delete("/configs/agents/agent_to_delete.json", headers={})
     assert response.status_code == 401
