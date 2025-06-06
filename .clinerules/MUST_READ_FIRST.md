@@ -48,6 +48,9 @@ For a comprehensive understanding, always refer to the primary sources of truth:
 *   **Packaged Framework Development (`package_development_rules.md`):** To understand the workflow for modifying the `aurite` package, including the `aurite init` command and its templates.
     *   **[Read the Package Development Rules](.clinerules/package_development_rules.md)**
 
+*   **Packaged Toolbox Development (`package_toolbox_development_rules.md`):** To understand the workflow for adding new pre-configured ("packaged") components to the `aurite` package's toolbox.
+    *   **[Read the Package Toolbox Development Rules](.clinerules/package_toolbox_development_rules.md)**
+
 *   **Project and Component Configuration (`docs/components/PROJECT.md`):** To understand how project files (`aurite_config.json`) work and how to configure all the individual components (Agents, LLMs, MCP Servers, etc.).
     *   **[Read the Project & Component Guide](docs/components/PROJECT.md)**
 

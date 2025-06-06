@@ -32,6 +32,7 @@ This table provides a high-level overview of the key documents, their purpose, a
 | `.clinerules/documentation_guide.md`        | This document. Guides documentation structure and updates.                                          | Developers            |
 | `.clinerules/framework_development_rules.md`| Rules and workflow for framework development.                                                       | Developers            |
 | `.clinerules/package_development_rules.md`  | Rules and workflow for modifying the `aurite` package and the `aurite init` command templates.        | Developers            |
+| `.clinerules/package_toolbox_development_rules.md`  | Rules and workflow for adding new pre-configured ("packaged") components to the `aurite` package's toolbox.        | Developers            |
 
 ---
 
