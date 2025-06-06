@@ -27,7 +27,7 @@
     "tsconfig.json": "tsconfig.*.json, jest.config.cjs, playwright.config.ts",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb",
     "Dockerfile": "Dockerfile.dev, .dockerignore, docker-compose*",
-    "pyproject.toml": "justfile, setup.sh, setup.bat, .pre-commit-config.yaml, .flake8, .isort.cfg, .mypy.ini, .pylintrc, .bandit, .coveragerc",
+    "pyproject.toml": "justfile, setup.sh, setup.bat, .pre-commit-config.yaml, .flake8, .isort.cfg, .mypy.ini, .pylintrc, .bandit, .coveragerc, MANIFEST.in",
     ".env": ".env*",
     "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md",
   },

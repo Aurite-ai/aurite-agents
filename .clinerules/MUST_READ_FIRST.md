@@ -34,6 +34,9 @@ For a comprehensive understanding, always refer to the primary sources of truth:
 *   **Framework Development Workflow (`framework_development_rules.md`):** To understand the structured, multi-phase workflow for development within the framework.
     *   **[Read the Framework Development Workflow](.clinerules/framework_development_rules.md)**
 
+*   **Packaged Framework Development (`package_development_rules.md`):** To understand the workflow for modifying the `aurite` package, including the `aurite init` command and its templates.
+    *   **[Read the Package Development Rules](.clinerules/package_development_rules.md)**
+
 *   **Project and Component Configuration (`docs/components/PROJECT.md`):** To understand how project files (`aurite_config.json`) work and how to configure all the individual components (Agents, LLMs, MCP Servers, etc.).
     *   **[Read the Project & Component Guide](docs/components/PROJECT.md)**
 

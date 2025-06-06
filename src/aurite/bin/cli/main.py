@@ -95,7 +95,7 @@ def init(
         # 4. Optionally, copy basic example files
         logger("Copying example configuration files...")
         copy_packaged_example(
-            "component_configs/llms/default_llms.json",
+            "component_configs/llms/example_llms.json",
             project_path / "config" / "llms",
             "llms.json",
         )
@@ -104,12 +104,6 @@ def init(
             project_path / "config" / "mcp_servers",
             "mcp_servers.json",  # Renaming for user project
         )
-        copy_packaged_example(
-            "component_configs/agents/default_agents.json",
-            project_path / "config" / "agents",
-            "agents.json",  # Renaming for user project
-        )
-
         copy_packaged_example(
             "component_configs/agents/example_agents.json",
             project_path / "config" / "agents",
