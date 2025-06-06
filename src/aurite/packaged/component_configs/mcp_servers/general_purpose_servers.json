@@ -28,5 +28,11 @@
     ],
     "capabilities": ["tools"],
     "timeout": 60.0
+  },
+  {
+    "name": "planning_server",
+    "server_path": "mcp_servers/planning_server.py",
+    "capabilities": ["tools", "prompts", "resources"],
+    "timeout": 15.0
   }
 ]

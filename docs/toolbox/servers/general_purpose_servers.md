@@ -72,3 +72,33 @@ python tests/functional_mcp_client.py '{"name": "memory_bank"}' "Use the 'initia
 **Relevant Agents:**
 *   **`memory_bank_agent`**: An agent that can create and manage a persistent "memory bank" for an agent, allowing it to store and retrieve information across sessions.
     *   **Configuration File**: `config/agents/general_purpose_agents.json`
+
+### `planning_server`
+
+*   **Description**: A server that provides tools for creating, saving, and listing structured plans.
+*   **Configuration File**: `config/mcp_servers/general_purpose_servers.json`
+
+**Tools:**
+| Tool Name | Description |
+| :-------- | :---------- |
+| `save_plan` | Save a plan to disk with optional tags. |
+| `list_plans` | List all available plans, optionally filtered by tag. |
+
+**Prompts:**
+| Prompt Name | Description |
+| :-------- | :---------- |
+| `create_plan_prompt` | Generate a structured planning prompt. |
+
+**Resources:**
+| Resource URI | Description |
+| :-------- | :---------- |
+| `planning://plan/{plan_name}` | Get a saved plan as a formatted resource. |
+
+**Example Usage:**
+```
+python tests/functional_mcp_client.py '{"name": "planning_server"}' "Use the 'create_plan_prompt' to create a plan for a new feature."
+```
+
+**Relevant Agents:**
+*   **`planning_agent`**: An agent that can create, save, and list structured plans using the planning_server.
+    *   **Configuration File**: `config/agents/general_purpose_agents.json`
