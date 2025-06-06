@@ -48,15 +48,6 @@
       "max_tokens": 4000,
       "default_system_prompt": "You are a helpful OpenAI assistant.",
       "api_key_env_var": "OPENAI_API_KEY"
-    },
-    {
-      "llm_id": "openai_gpt4_turbo_mcp_gateway",
-      "provider": "gateway",
-      "model_name": "gpt-4-turbo-preview",
-      "temperature": 0.7,
-      "max_tokens": 4000,
-      "default_system_prompt": "You are a helpful OpenAI assistant.",
-      "api_key_env_var": "OPENAI_API_KEY"
     }
   ],
   "agents": [
@@ -113,7 +104,7 @@
     },
     {
       "name": "OpenAI Weather Agent",
-      "llm_config_id": "openai_gpt4_turbo_mcp_gateway",
+      "llm_config_id": "openai_gpt4_turbo_mcp",
       "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
       "client_ids": ["weather_server"],
       "auto": false,

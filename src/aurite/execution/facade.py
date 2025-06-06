@@ -3,6 +3,7 @@
 Provides a unified facade for executing Agents, Simple Workflows, and Custom Workflows.
 """
 
+import os
 import logging
 from typing import (
     Any,
@@ -117,8 +118,24 @@ class ExecutionFacade:
         logger.debug(
             f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})"
         )
-
-        if provider == "anthropic":
+        
+        if os.getenv("ENABLE_PORTKEY_GATEWAY"):
+            # Use gateway for all providers if enabled
+            try:
+                return GatewayClient(
+                    model_name=model_name,
+                    provider=provider,
+                    temperature=llm_config.temperature,
+                    max_tokens=llm_config.max_tokens,
+                    system_prompt=llm_config.default_system_prompt,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to instantiate Gateway client for config '{llm_config.llm_id}': {e}",
+                    exc_info=True,
+                )
+                raise ValueError(f"Failed to create Gateway client: {e}") from e
+        elif provider == "anthropic":
             # API key resolution could be enhanced here (e.g., check env vars specified in config)
             # For now, relies on AnthropicLLM's internal check for ANTHROPIC_API_KEY
             try:
@@ -148,21 +165,7 @@ class ExecutionFacade:
                     f"Failed to instantiate OpenAIClient for config '{llm_config.llm_id}': {e}",
                     exc_info=True,
                 )
-                raise ValueError(f"Failed to create OpenAI client: {e}") from e
-        elif provider == "gateway":
-            try:
-                return GatewayClient(
-                    model_name=model_name, # Already has a default if llm_config.model_name is None
-                    temperature=llm_config.temperature,
-                    max_tokens=llm_config.max_tokens,
-                    system_prompt=llm_config.default_system_prompt,
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to instantiate Gateway client for config '{llm_config.llm_id}': {e}",
-                    exc_info=True,
-                )
-                raise ValueError(f"Failed to create Gateway client: {e}") from e
+                raise ValueError(f"Failed to create OpenAI client: {e}") from e   
         else:
             logger.error(
                 f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}"

@@ -32,14 +32,13 @@ class GatewayClient(BaseLLM):
     def __init__(
         self,
         model_name: str,
+        provider: str,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
     ):
         super().__init__(model_name, temperature, max_tokens, system_prompt)
-        
-        provider = "openai" # TODO: CHANGE. Hardcoded as openai for initial testing
-        
+                
         provider_to_key = {
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
@@ -242,6 +241,9 @@ class GatewayClient(BaseLLM):
         # Adapt OpenAI response to AgentOutputMessage
         choice: Choice = completion.choices[0]
         message_from_openai = choice.message
+        
+        if choice.finish_reason in self.finish_reason_map:
+            choice.finish_reason = self.finish_reason_map[choice.finish_reason]
 
         output_content_blocks: List[AgentOutputContentBlock] = []
 
