@@ -13,5 +13,15 @@
     "name": "healthcare_agent",
     "mcp_servers": ["healthcare_mcp_public"],
     "system_prompt": "You are an agent that can use the healthcare_mcp_public server to answer questions about healthcare."
+  },
+  {
+    "name": "pubmed_agent",
+    "mcp_servers": ["pubmed_mcp_server"],
+    "system_prompt": "You are an agent that can use the pubmed_mcp_server to search for and retrieve articles from PubMed."
+  },
+  {
+    "name": "app_insight_agent",
+    "mcp_servers": ["appinsightmcp"],
+    "system_prompt": "You are an agent that can use the appinsightmcp server to answer questions about mobile apps."
   }
 ]
