@@ -26,6 +26,9 @@ This table provides a high-level overview of the key documents, their purpose, a
 | `docs/USC - Get Started/Start Here.md`      | The entry point for the USC tutorial modules.                                                       | Newcomers, Students   |
 | `docs/USC - Get Started/module1/*.md`       | Tutorial content for learning basic framework concepts and agent configuration.                     | Newcomers, Students   |
 | `docs/USC - Get Started/module2/*.md`       | Tutorial content for learning about the Model Context Protocol (MCP) and using the CLI.             | Newcomers, Students   |
+| `.clinerules/MUST_READ_FIRST.md`            | Core project rules and entry point for developers.                                                  | Developers            |
+| `.clinerules/documentation_guide.md`        | This document. Guides documentation structure and updates.                                          | Developers            |
+| `.clinerules/framework_development_rules.md`| Rules and workflow for framework development.                                                       | Developers            |
 
 ---
 

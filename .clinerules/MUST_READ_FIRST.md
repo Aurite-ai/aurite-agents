@@ -15,7 +15,7 @@ Aurite Agents is a Python framework for building AI agents using the Model Conte
 *   **Agent Framework (`src/aurite/components/agents/`):** Provides the `Agent` class (`src/aurite/components/agents/agent.py`) for LLM interaction logic, using Pydantic models for inputs/outputs defined in `src/aurite/components/agents/agent_models.py`.
 *   **Execution Facade (`src/aurite/execution/`):** Provides a unified interface (`run_agent`, `run_simple_workflow`, etc.) for executing components.
 *   **Entrypoints (`src/aurite/bin/`):** API, CLI, and Worker interfaces providing access to the framework's capabilities.
-*   **Configuration (`src/aurite/config/` & root `config/`):** Pydantic models defined in `src/config/config_models.py` specify the structure for all configurations (Host, Client, Agent, LLM, Workflow, Project). JSON/YAML files in the root `config/` directory provide the specific configurations loaded by the `HostManager`.
+*   **Configuration (`src/aurite/config/` & root `config/`):** Pydantic models defined in `src/config/config_models.py` specify the structure for all configurations (Host, MCP Server, Agent, LLM, Workflow, Project). JSON/YAML files in the root `config/` directory provide the specific configurations loaded by the `HostManager`.
 *   **Storage (`src/aurite/storage/`):** Optional database persistence for configurations and agent history.
 *   **Package Scripts (`src/aurite/bin/cli`):** Provides the scripts used in the packaged version of the framework, most notably `aurite init` which scaffolds the folders and files used by the framework. These files contain examples copied over from `src/aurite/packaged`.
 
@@ -34,7 +34,7 @@ For a comprehensive understanding, always refer to the primary sources of truth:
 *   **Framework Development Workflow (`framework_development_rules.md`):** To understand the structured, multi-phase workflow for development within the framework.
     *   **[Read the Framework Development Workflow](.clinerules/framework_development_rules.md)**
 
-*   **Project and Component Configuration (`docs/components/PROJECT.md`):** To understand how project files (`aurite_config.json`) work and how to configure all the individual components (Agents, LLMs, Clients, etc.).
+*   **Project and Component Configuration (`docs/components/PROJECT.md`):** To understand how project files (`aurite_config.json`) work and how to configure all the individual components (Agents, LLMs, MCP Servers, etc.).
     *   **[Read the Project & Component Guide](docs/components/PROJECT.md)**
 
 *   **Framework Architecture (`docs/layers/framework_overview.md`):** For a detailed, developer-focused explanation of the layered architecture, how the different parts of the framework interact, and the design principles.
