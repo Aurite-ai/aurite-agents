@@ -200,16 +200,21 @@ class MCPClient:
 async def main():
     if len(sys.argv) < 2:
         print(
-            'Usage: python functional_mcp_client.py <path_to_server_script | \'{"command": "...", "args": [...]}\'>'
+            'Usage: python functional_mcp_client.py <path_to_server_script | \'{"command": "...", "args": [...]}\'> [query]'
         )
         sys.exit(1)
 
-    server_config_str = " ".join(sys.argv[1:])
+    server_config_str = sys.argv[1]
+    query = sys.argv[2] if len(sys.argv) > 2 else None
 
     client = MCPClient()
     try:
         await client.connect_to_server(server_config_str)
-        await client.chat_loop()
+        if query:
+            response = await client.process_query(query)
+            print(response)
+        else:
+            await client.chat_loop()
     finally:
         await client.cleanup()
 
