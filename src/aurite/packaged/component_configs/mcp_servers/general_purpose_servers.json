@@ -1,0 +1,32 @@
+[
+  {
+    "name": "desktop_commander",
+    "transport_type": "local",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@wonderwhy-er/desktop-commander",
+      "--key",
+      "26c4adcf-1282-4942-b278-2afa76982269"
+    ],
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "memory_bank",
+    "transport_type": "http_stream",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@aakarsh-sasi/memory-bank-mcp",
+      "--key",
+      "26c4adcf-1282-4942-b278-2afa76982269"
+    ],
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  }
+]

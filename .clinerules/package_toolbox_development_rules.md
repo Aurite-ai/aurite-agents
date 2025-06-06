@@ -10,17 +10,17 @@ Follow these steps to add a new MCP server to the `aurite` package.
 
 ### Step 1: Identify and Test the Server
 
-First, identify an MCP server that can be run via the command line (transport types `local` or `http_stream`). Use the functional MCP client to ensure it works as expected.
+First, identify an MCP server that can be run via the command line (transport types `local` or `http_stream`). Use the functional MCP client to ensure it works as expected. The test should not just list the available tools, but should be a series of queries that require the LLM to actually use each of the tools to ensure they are all functioning correctly. Each tool's functionality must be fully working and verified before the server is added to the package.
 
-*   **Action:** Run the server with a test query.
+*   **Action:** Run the server with a functional test query that validates a specific tool's behavior.
 *   **Example:**
     ```bash
-    python tests/functional_mcp_client.py '{"command": "npx", "args": ["-y", "@user/some-mcp-server"]}' "Your test query here"
+    python tests/functional_mcp_client.py '{"command": "npx", "args": ["-y", "@user/some-mcp-server"]}' "Use the 'read_file' tool to tell me the contents of 'pyproject.toml'"
     ```
 
 ### Step 2: Add Server Configuration
 
-Once tested, add the server's configuration to a relevant JSON file in the `src/aurite/packaged/component_configs/mcp_servers/` directory. Group servers by category (e.g., `web_search_servers.json`, `data_science_tools.json`).
+Once tested, add the server's configuration to a relevant JSON file in the `src/aurite/packaged/component_configs/mcp_servers/` directory. Group servers by category (e.g., `web_search_servers.json`, `data_science_tools.json`). If a server is generally useful but has specific tools that are broken or deprecated, you can use the `exclude` property in the server's configuration to disable them.
 
 *   **Action:** Create or edit a JSON file in `src/aurite/packaged/component_configs/mcp_servers/`.
 *   **Example:** Adding a server to `data_science_tools.json`:
@@ -56,7 +56,35 @@ Add a link to your new category documentation file in the main directory documen
     *   **[Data Science Tools](servers/data_science_servers.md):** Tools for data analysis and exploration.
     ```
 
-### Step 5: Verify Changes
+### Step 5: Create or Update Agent Configuration
+
+Create or update an agent configuration for the server in `src/aurite/packaged/component_configs/agents/`. The file should have the same name as the tool server's configuration file, but with 'agents' instead of 'servers'.
+
+*   **Action:** Create or edit a JSON file in `src/aurite/packaged/component_configs/agents/`.
+*   **Example:**
+    ```json
+    [
+      {
+        "name": "my_data_tool_agent",
+        "mcp_servers": ["my_data_tool_server"],
+        "system_prompt": "You are an agent that can use the my_data_tool_server to answer questions."
+      }
+    ]
+    ```
+
+### Step 6: Update Server Documentation
+
+Update the relevant server documentation to include a reference to the new agent.
+
+*   **Action:** Edit the markdown file in `docs/toolbox/servers/`.
+*   **Example:**
+    ```markdown
+    **Relevant Agents:**
+    *   **`my_data_tool_agent`**: An agent that can use the my_data_tool_server to answer questions.
+        *   **Configuration File**: `config/agents/my_data_tool_agents.json`
+    ```
+
+### Step 7: Verify Changes
 
 After adding the new server and its documentation, reinstall the package locally and run `aurite init` to ensure the new files are correctly scaffolded into a new project.
 
