@@ -4,6 +4,8 @@
 
 This document outlines the core purpose, architecture, key documentation, and essential file structure for developing within the **Aurite Agents** framework. It serves as a quick reference guide for understanding the project's layout and design principles, complementing the global phase-specific rules.
 
+The project configuration file that the framework will initialize with is `aurite_config.json` located in the root of the repository. This project file is explained in further detail in the Project Configuration document.
+
 ## 2. Core Concepts & Architecture
 
 Aurite Agents is a Python framework for building AI agents using the Model Context Protocol (MCP). Key components include:
