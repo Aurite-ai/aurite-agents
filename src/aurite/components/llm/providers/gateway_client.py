@@ -307,57 +307,66 @@ class GatewayClient(BaseLLM):
         schema: Optional[Dict[str, Any]] = None,
         llm_config_override: Optional[LLMConfig] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        logger.warning(
-            "OpenAIClient.stream_message called. This method is not yet fully implemented for robust streaming."
-        )
-        # Basic placeholder for non-streaming call to fulfill generator type hint
-        # For actual streaming, this would involve `await self.client.chat.completions.create(..., stream=True)`
-        # and iterating over the stream, adapting chunks.
+        model_to_use = self.model_name
+        if llm_config_override and llm_config_override.model_name:
+            model_to_use = llm_config_override.model_name
+
+        temperature_to_use = self.temperature
+        if llm_config_override and llm_config_override.temperature is not None:
+            temperature_to_use = llm_config_override.temperature
+        elif temperature_to_use is None: # Ensure a default if not set at all
+            temperature_to_use = BASE_DEFAULT_TEMPERATURE
+
+        max_tokens_to_use = self.max_tokens
+        if llm_config_override and llm_config_override.max_tokens is not None:
+            max_tokens_to_use = llm_config_override.max_tokens
+        elif max_tokens_to_use is None: # Ensure a default
+             max_tokens_to_use = BASE_DEFAULT_MAX_TOKENS
+
+        resolved_system_prompt = self.system_prompt
+        if llm_config_override and llm_config_override.default_system_prompt:
+            resolved_system_prompt = llm_config_override.default_system_prompt
+        if system_prompt_override is not None: # Highest precedence
+            resolved_system_prompt = system_prompt_override
+
+        # Convert messages and tools to OpenAI format
+        api_messages = self._convert_messages_to_openai_format(messages, resolved_system_prompt)
+        api_tools = self._convert_tools_to_openai_format(tools)
+
+        request_params: Dict[str, Any] = {
+            "model": model_to_use,
+            "messages": api_messages,
+            "temperature": temperature_to_use,
+            "max_tokens": max_tokens_to_use,
+            "stream": True,
+        }
+
+        if api_tools:
+            request_params["tools"] = api_tools
+            request_params["tool_choice"] = "auto" # Let the model decide if it wants to use tools
+
+        if schema: # For JSON mode
+            # Note: Only certain OpenAI models support JSON mode.
+            # Example: gpt-4-turbo-preview, gpt-3.5-turbo-1106
+            # System prompt should also instruct the model to output JSON.
+            request_params["response_format"] = {"type": "json_object"}
+            # Add schema instruction to system prompt if not already there by user
+            json_instruction = "Your response MUST be a single valid JSON object that conforms to the provided schema."
+            if resolved_system_prompt and json_instruction not in resolved_system_prompt:
+                 # This modification of resolved_system_prompt won't affect api_messages if it's already processed.
+                 # This is a bit tricky. For now, rely on user providing schema instructions in prompt.
+                 logger.debug("JSON mode requested; ensure system prompt guides JSON output.")
+            elif not resolved_system_prompt:
+                 logger.warning("JSON mode requested but no system prompt. Model might not follow JSON format strictly.")
+
+
+        logger.debug(f"Making Gateway API call to model '{model_to_use}' with params: {request_params}")
+
         try:
-            non_streamed_response = await self.create_message(
-                messages, tools, system_prompt_override, schema, llm_config_override
-            )
-            # Simulate a stream for now based on the full response
-            # This is NOT true streaming but makes the test script runnable.
-            yield {
-                "event_type": "message_start",
-                "data": {
-                    "message_id": non_streamed_response.id,
-                    "role": non_streamed_response.role,
-                    "model": non_streamed_response.model,
-                    "input_tokens": non_streamed_response.usage.get("input_tokens") if non_streamed_response.usage else 0,
-                }
-            }
-            for i, block in enumerate(non_streamed_response.content):
-                if block.type == "text":
-                    yield {"event_type": "text_block_start", "data": {"index": i}}
-                    if block.text:
-                         yield {"event_type": "text_delta", "data": {"index": i, "text_chunk": block.text}}
-                elif block.type == "tool_use":
-                    yield {
-                        "event_type": "tool_use_start",
-                        "data": {"index": i, "tool_id": block.id, "tool_name": block.name}
-                    }
-                    # Simulate input delta if needed, though OpenAI stream gives full input at once
-                    yield {
-                        "event_type": "tool_use_input_delta", # Or a single "tool_use_input_complete"
-                        "data": {"index": i, "json_chunk": json.dumps(block.input)}
-                    }
-                yield {"event_type": "content_block_stop", "data": {"index": i}}
-
-            yield {
-                "event_type": "message_delta", # Or directly stream_end if no further deltas
-                "data": {
-                    "stop_reason": non_streamed_response.stop_reason,
-                    "stop_sequence": non_streamed_response.stop_sequence,
-                    "output_tokens": non_streamed_response.usage.get("output_tokens") if non_streamed_response.usage else 0,
-                }
-            }
-            yield {
-                "event_type": "stream_end",
-                "data": {"stop_reason": non_streamed_response.stop_reason}
-            }
-
+            completion: ChatCompletion = self.client.chat.completions.create(**request_params)
+            
+            for event in completion:
+                yield event
         except Exception as e:
-            logger.error(f"Error in OpenAIClient.stream_message (simulated): {e}", exc_info=True)
-            yield {"event_type": "error", "data": {"message": str(e)}}
+            logger.error(f"OpenAI API call failed: {type(e).__name__}: {e}", exc_info=True)
+            raise # Re-raise the original exception

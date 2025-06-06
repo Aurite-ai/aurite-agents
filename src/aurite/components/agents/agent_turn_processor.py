@@ -164,6 +164,104 @@ class AgentTurnProcessor:
 
         logger.debug(f"Turn processed. Is final turn: {is_final_turn}")
         return final_assistant_response, tool_results_for_next_turn, is_final_turn
+    
+    async def _normalize_llm_event(self, llm_event: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalizes events from different LLM providers into a standard format."""
+        provider = llm_event.get("provider", "unknown")
+        choices = llm_event.get("choices", [])
+        if not choices:
+            return llm_event
+
+        delta = choices[0].get("delta", {})
+        
+        # Handle different provider formats
+        if provider == "anthropic":
+            # Anthropic uses content_blocks for text and tool_calls for tools
+            if "content_blocks" in delta:
+                content_block = delta["content_blocks"][0]
+                return {
+                    "event_type": "text_delta" if "text" in content_block.get("delta", {}) else "unknown",
+                    "data": {
+                        "index": content_block.get("index"),
+                        "text": content_block.get("delta", {}).get("text", "")
+                    }
+                }
+            elif "tool_calls" in delta:
+                tool_call = delta["tool_calls"][0]
+                return {
+                    "event_type": "tool_use_start" if tool_call.get("id") else "tool_use_input_delta",
+                    "data": {
+                        "tool_id": tool_call.get("id"),
+                        "tool_name": tool_call.get("function", {}).get("name"),
+                        "json_chunk": tool_call.get("function", {}).get("arguments", "")
+                    }
+                }
+
+        elif provider == "google":
+            # Google sends complete tool calls in one event
+            if delta.get("tool_calls"):
+                tool_call = delta["tool_calls"][0]
+                return {
+                    "event_type": "tool_use_start",
+                    "data": {
+                        "tool_id": tool_call.get("id"),
+                        "tool_name": tool_call.get("function", {}).get("name"),
+                        "json_chunk": tool_call.get("function", {}).get("arguments", "")
+                    }
+                }
+            elif delta.get("content"):
+                return {
+                    "event_type": "text_delta",
+                    "data": {
+                        "text": delta["content"]
+                    }
+                }
+
+        # Default handling (including OpenAI)
+        if delta.get("tool_calls"):
+            tool_call = delta["tool_calls"][0]
+            if tool_call.get("id"):
+                return {
+                    "event_type": "tool_use_start",
+                    "data": {
+                        "tool_id": tool_call.get("id"),
+                        "tool_name": tool_call.get("function", {}).get("name")
+                    }
+                }
+            else:
+                return {
+                    "event_type": "tool_use_input_delta",
+                    "data": {
+                        "json_chunk": tool_call.get("function", {}).get("arguments", "")
+                    }
+                }
+        elif delta.get("content") is not None:
+            return {
+                "event_type": "text_delta",
+                "data": {
+                    "text": delta["content"]
+                }
+            }
+
+        # Handle finish reasons
+        finish_reason = choices[0].get("finish_reason")
+        if finish_reason:
+            if finish_reason in ["tool_calls", "tool_use"]:
+                return {
+                    "event_type": "content_block_stop",
+                    "data": {
+                        "content_type": "tool_use"
+                    }
+                }
+            elif finish_reason in ["stop", "end_turn"]:
+                return {
+                    "event_type": "stream_end",
+                    "data": {
+                        "stop_reason": finish_reason
+                    }
+                }
+
+        return llm_event
 
     async def stream_turn_response(
         self,
@@ -177,20 +275,9 @@ class AgentTurnProcessor:
                             Includes text_delta, tool_use_start, tool_use_input_delta,
                             tool_use_end, tool_result, tool_execution_error, stream_end.
         """
-        self._tool_uses_this_turn = []  # Reset for this turn
-
-        # active_tool_calls stores information about tools the LLM has started to use in the current turn.
-        # The key is the LLM's original content_block_index for the tool_use block.
+        self._tool_uses_this_turn = []
         active_tool_calls: Dict[int, Dict[str, Any]] = {}
-
-        # SSE Event Indexing Strategy:
-        # The 'index' field in the yielded event_data for events like text_block_start, text_delta,
-        # tool_use_start, tool_use_input_delta, and content_block_stop will directly correspond to
-        # the LLM provider's original content_block.index.
-        # For tool_result and tool_execution_error events, the 'index' will also be the
-        # original content_block.index of the tool_use block that triggered the tool execution.
-        # The frontend primarily uses tool_use_id to associate results with their calls for placement.
-        # This approach simplifies backend logic by removing custom frontend-specific index allocation.
+        current_tool_index = 0  # For providers that don't supply indices
 
         try:
             logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
@@ -204,15 +291,20 @@ class AgentTurnProcessor:
                 logger.debug(
                     f"ATP: Received LLM event from stream: {llm_event}"
                 )  # ADDED
-                event_type = llm_event.get("event_type")
-                event_data = llm_event.get(
-                    "data", {}
-                ).copy()  # Use a copy for modification
-                llm_event_original_index = event_data.get("index")
+                # Normalize the event format
+                normalized_event = await self._normalize_llm_event(llm_event)
+                event_type = normalized_event.get("event_type")
+                event_data = normalized_event.get("data", {})
+
+                # Use provider-supplied index or generate one
+                event_index = event_data.get("index")
+                if event_index is None and event_type == "tool_use_start":
+                    event_index = current_tool_index
+                    current_tool_index += 1
 
                 if event_type == "tool_use_start":
-                    if llm_event_original_index is not None:
-                        active_tool_calls[llm_event_original_index] = {
+                    if event_index is not None:
+                        active_tool_calls[event_index] = {
                             "id": event_data.get("tool_id"),
                             "name": event_data.get("tool_name"),
                             "input_str": "",
@@ -225,21 +317,21 @@ class AgentTurnProcessor:
 
                 elif event_type == "tool_use_input_delta":
                     if (
-                        llm_event_original_index is not None
-                        and llm_event_original_index in active_tool_calls
+                        event_index is not None
+                        and event_index in active_tool_calls
                     ):
                         json_chunk_data = event_data.get("json_chunk")
                         chunk_to_add = (
                             str(json_chunk_data) if json_chunk_data is not None else ""
                         )
-                        active_tool_calls[llm_event_original_index]["input_str"] += (
+                        active_tool_calls[event_index]["input_str"] += (
                             chunk_to_add
                         )
                         # DO NOT YIELD THE tool_use_input_delta EVENT TO THE CLIENT
                         # logger.debug(f"ATP: Accumulated chunk for tool {active_tool_calls[llm_event_original_index].get('name')}, index {llm_event_original_index}. New input_str: {active_tool_calls[llm_event_original_index]['input_str']}")
                     else:
                         logger.warning(
-                            f"ATP: Received tool_use_input_delta for index {llm_event_original_index} but not found in active_tool_calls or index is None."
+                            f"ATP: Received tool_use_input_delta for index {event_index} but not found in active_tool_calls or index is None."
                         )
                     # REMOVED: yield {"event_type": event_type, "data": event_data}
 
@@ -251,15 +343,15 @@ class AgentTurnProcessor:
                         None  # Define to avoid UnboundLocalError if conditions not met
                     )
                     if (
-                        llm_event_original_index is not None
-                        and llm_event_original_index in active_tool_calls
+                        event_index is not None
+                        and event_index in active_tool_calls
                     ):
                         # This content_block_stop corresponds to an active tool call.
                         # We will retrieve the info to augment the event_data before yielding.
                         # The tool_call_info will be popped from active_tool_calls later,
                         # right before tool execution, as it is now.
                         tool_call_info_for_stop_event = active_tool_calls[
-                            llm_event_original_index
+                            event_index
                         ]
 
                         # Augment the event_data for the content_block_stop event
@@ -298,12 +390,12 @@ class AgentTurnProcessor:
 
                     # The existing logic for tool execution after content_block_stop:
                     if (
-                        llm_event_original_index is not None
-                        and llm_event_original_index
+                        event_index is not None
+                        and event_index
                         in active_tool_calls  # Check again, as it's popped here
                     ):
                         # Pop it here, after potentially using its data for the yielded event above
-                        tool_call_info = active_tool_calls.pop(llm_event_original_index)
+                        tool_call_info = active_tool_calls.pop(event_index)
                         tool_id = tool_call_info.get("id")
                         tool_name = tool_call_info.get("name")
                         tool_input_str = tool_call_info.get("input_str", "")
@@ -377,7 +469,7 @@ class AgentTurnProcessor:
                                 serializable_output = str(tool_result_content)
 
                             tool_result_data = {
-                                "index": llm_event_original_index,
+                                "index": event_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "status": "success",
@@ -393,7 +485,7 @@ class AgentTurnProcessor:
                                 f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
                             )
                             tool_error_data = {
-                                "index": llm_event_original_index,
+                                "index": event_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": f"Invalid JSON input for tool: {str(json_err)}",
@@ -408,7 +500,7 @@ class AgentTurnProcessor:
                                 exc_info=True,
                             )
                             tool_error_data = {
-                                "index": llm_event_original_index,
+                                "index": event_index,
                                 "tool_use_id": tool_id,
                                 "tool_name": tool_name,
                                 "error_message": str(e),
@@ -418,7 +510,7 @@ class AgentTurnProcessor:
                                 "data": tool_error_data,
                             }
                     elif (
-                        llm_event_original_index is None
+                        event_index is None
                         and event_data.get("content_type") == "tool_use"
                     ):
                         logger.warning(
