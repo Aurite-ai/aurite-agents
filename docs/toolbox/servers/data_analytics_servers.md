@@ -25,6 +25,10 @@ This document provides a list of pre-configured MCP servers for Data Analytics t
 python tests/functional_mcp_client.py '{"name": "game_trends_mcp"}' "Use the 'get_all_trending_games' tool"
 ```
 
+**Relevant Agents:**
+*   **`game_trends_agent`**: An agent that can answer questions about video game trends using the game_trends_mcp server.
+    *   **Configuration File**: `config/agents/data_analytics_agents.json`
+
 ### `healthcare_mcp_public`
 
 *   **Description**: A server that provides tools to access public healthcare data from the FDA, PubMed, and other sources.
@@ -48,6 +52,10 @@ The `clinical_trials_search` and `lookup_icd_code` tools are currently excluded 
 ```
 python tests/functional_mcp_client.py '{"name": "healthcare_mcp_public"}' "Use the 'fda_drug_lookup' tool to look up 'aspirin'"
 ```
+
+**Relevant Agents:**
+*   **`healthcare_agent`**: An agent that can answer questions about healthcare using the healthcare_mcp_public server.
+    *   **Configuration File**: `config/agents/data_analytics_agents.json`
 
 ### `national_weather_service`
 

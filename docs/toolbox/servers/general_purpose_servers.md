@@ -36,6 +36,10 @@ This document provides a list of pre-configured MCP servers for General Purpose 
 python tests/functional_mcp_client.py '{"name": "desktop_commander"}' "list tools"
 ```
 
+**Relevant Agents:**
+*   **`desktop_commander_agent`**: An agent that can interact with the local desktop environment using the desktop_commander server.
+    *   **Configuration File**: `config/agents/general_purpose_agents.json`
+
 ### `memory_bank`
 
 *   **Description**: A server for creating and managing a persistent "memory bank" for an agent, allowing it to store and retrieve information across sessions.
@@ -63,3 +67,8 @@ python tests/functional_mcp_client.py '{"name": "desktop_commander"}' "list tool
 **Example Usage:**
 ```
 python tests/functional_mcp_client.py '{"name": "memory_bank"}' "Use the 'initialize_memory_bank' tool to create a memory bank in a directory called 'test_memory_bank'"
+```
+
+**Relevant Agents:**
+*   **`memory_bank_agent`**: An agent that can create and manage a persistent "memory bank" for an agent, allowing it to store and retrieve information across sessions.
+    *   **Configuration File**: `config/agents/general_purpose_agents.json`
