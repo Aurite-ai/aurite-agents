@@ -4,6 +4,8 @@
 
 This document outlines the structured, multi-phase workflow for development within the **Aurite Agents** framework. Adherence to this process ensures that all development is context-aware, well-planned, and thoroughly verified.
 
+**Note on Packaged Framework Development:** For tasks that involve modifying the distributable `aurite` package, such as changing the `aurite init` command or its templates, this document should be used in conjunction with the specific rules outlined in `.clinerules/package_development_rules.md`.
+
 ## 2. Phase 1: Discovery & Context Retrieval
 
 The goal of this initial phase is to build a complete and accurate understanding of the task at hand by thoroughly reviewing all relevant documentation and source code.

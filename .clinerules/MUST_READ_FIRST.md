@@ -21,7 +21,18 @@ Aurite Agents is a Python framework for building AI agents using the Model Conte
 
 The framework follows a layered architecture, detailed in `docs/layers/`. Adherence to these layers is crucial for maintaining separation of concerns and ensuring maintainability.
 
-## 3. Key Documentation
+## 3. Documentation Categories
+
+To help navigate the project's documentation, all key documents are grouped into the following categories. These categories are used in the `.clinerules/documentation_guide.md` to provide a structured overview.
+
+*   **General:** High-level overviews, installation guides, and introductory material for both end-users and new developers.
+*   **Development Rules:** The core `.clinerules` that define the workflows and best practices for developing within this repository.
+*   **Framework Architecture:** The deep-dive `docs/layers/` documents that explain the internal workings and design principles of the framework.
+*   **Component Configuration:** All documents related to setting up specific, configurable components like Agents, LLMs, and Workflows.
+*   **Testing:** Documents related to the testing strategy, structure, and execution.
+*   **Tutorials:** Educational modules designed to guide new users through the framework's features.
+
+## 4. Key Documentation
 
 For a comprehensive understanding, always refer to the primary sources of truth:
 

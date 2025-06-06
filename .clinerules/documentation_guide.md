@@ -29,6 +29,7 @@ This table provides a high-level overview of the key documents, their purpose, a
 | `.clinerules/MUST_READ_FIRST.md`            | Core project rules and entry point for developers.                                                  | Developers            |
 | `.clinerules/documentation_guide.md`        | This document. Guides documentation structure and updates.                                          | Developers            |
 | `.clinerules/framework_development_rules.md`| Rules and workflow for framework development.                                                       | Developers            |
+| `.clinerules/package_development_rules.md`  | Rules and workflow for modifying the `aurite` package and the `aurite init` command templates.        | Developers            |
 
 ---
 
@@ -43,7 +44,7 @@ Use this section to find the most relevant documents to consult *before* startin
 | **Modify the core orchestration logic** (e.g., how agents are executed, how history is managed) | 1. `docs/layers/2_orchestration.md` (the primary document for this layer) <br> 2. `docs/layers/framework_overview.md` (for high-level context) <br> 3. `docs/layers/3_host.md` (to understand the `MCPHost` interface it calls) |
 | **Modify the low-level MCP interaction** (e.g., how clients connect, how tools are filtered) | 1. `docs/layers/3_host.md` (the primary document for this layer) <br> 2. `docs/layers/framework_overview.md` (for high-level context) |
 | **Modify the Frontend UI**                                      | 1. `frontend/README.md` (for tech stack, project structure, and setup) <br> 2. `docs/layers/0_frontends.md` (for how the frontend interacts with the backend API) |
-| **Change the packaged user experience** (e.g., the `aurite init` command or the default project template) | 1. `README_packaged.md` (describes the user experience) <br> 2. `docs/package_installation_guide.md` (details the user setup flow) |
+| **Change the packaged user experience** (e.g., the `aurite init` command or the default project template) | 1. `README_packaged.md` (describes the user experience) <br> 2. `docs/package_installation_guide.md` (details the user setup flow) <br> 3. `.clinerules/package_development_rules.md` (for the development workflow) |
 | **Add a new component type** (e.g., a new kind of workflow)     | 1. `docs/layers/framework_overview.md` (to decide where it fits) <br> 2. `docs/layers/2_orchestration.md` (likely where new execution logic would go) <br> 3. `docs/components/PROJECT.md` (to understand how it would be configured) |
 
 ---
@@ -59,5 +60,5 @@ After making changes to the codebase, use this section to identify which documen
 | **The core behavior of `MCPHost` or its managers** (in `src/aurite/host/`) | 1. `docs/layers/3_host.md` - **MUST be updated**. <br> 2. `docs/layers/framework_overview.md` - Review for high-level impact. |
 | **An API route's signature or behavior** (in `src/aurite/bin/api/routes/`) | 1. `docs/layers/1_entrypoints.md` - **MUST be updated**. <br> 2. `docs/layers/0_frontends.md` (if the frontend consumes this endpoint). |
 | **The frontend application** (in `frontend/src/`) | 1. `frontend/README.md` (if structure or setup changes). <br> 2. `docs/layers/0_frontends.md` (if the core interaction flow with the backend changes). |
-| **The `aurite init` command or its templates** | 1. `README_packaged.md` - **MUST be updated**. <br> 2. `docs/package_installation_guide.md` - **MUST be updated**. |
+| **The `aurite init` command or its templates** | 1. `README_packaged.md` - **MUST be updated**. <br> 2. `docs/package_installation_guide.md` - **MUST be updated**. <br> 3. `.clinerules/package_development_rules.md` - Review for impact. |
 | **High-level architecture or adding a new layer/major component** | 1. `docs/layers/framework_overview.md` - **MUST be updated**. <br> 2. `README.md` (especially the architecture diagram/description). <br> 3. A new layer document (`docs/layers/X_new_layer.md`) will likely be needed. |
