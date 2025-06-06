@@ -60,18 +60,40 @@ async def lifespan(app: FastAPI):
     manager_instance: Optional[Aurite] = None
     try:
         if os.getenv("ENABLE_PORTKEY_GATEWAY"):
-            logger.info("Portkey Gateway enabled. Starting docker container...")
+            logger.info("Portkey Gateway enabled. Checking for existing Docker containers...")
             
             docker_client = docker.from_env()
-
-            container = docker_client.containers.run(
-                "portkeyai/gateway:latest",
-                detach=True,
-                remove=True,
-                ports={'8787/tcp': 8787}
+            
+            existing_containers = docker_client.containers.list(
+                filters={
+                    "ancestor": "portkeyai/gateway:latest",
+                    "status": "running"
+                }
             )
             
-            logger.info(f"Container {container.id} is running")
+            for c in existing_containers:
+                c.reload()
+            
+            matching_container = next(
+                (c for c in existing_containers 
+                if any(port["HostPort"] == "8787" for port in c.ports.get('8787/tcp'))),
+                None
+            )
+            
+            if matching_container:
+                container = matching_container
+                logger.info(f"Container {container.id} is already running")
+            else:
+                logger.info("No existing container found. Starting...")
+                
+                container = docker_client.containers.run(
+                    "portkeyai/gateway:latest",
+                    detach=True,
+                    remove=True,
+                    ports={'8787/tcp': 8787}
+                )
+                
+                logger.info(f"Container {container.id} is running")
         
         logger.info("Starting FastAPI server and initializing Aurite...")
         # Load server config
@@ -122,8 +144,8 @@ async def lifespan(app: FastAPI):
         if hasattr(app.state, "host_manager"):
             del app.state.host_manager
             
-        # Stop Portkey docker containerAdd commentMore actions
-        if container:
+        # Stop Portkey docker container if it wasn't already running
+        if os.getenv("ENABLE_PORTKEY_GATEWAY") and matching_container is None:
             container.stop()
         
         logger.info("FastAPI server shutdown sequence complete.")
