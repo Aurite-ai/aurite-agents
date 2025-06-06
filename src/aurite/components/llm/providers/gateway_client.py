@@ -269,6 +269,10 @@ class GatewayClient(BaseLLM):
                         input=arguments,
                     )
                 )
+                
+                # overwrite finish reason if tools are called (providers like Google's Gemini never choose "tool_calls" as stop reason)
+                if choice.finish_reason != "tool_calls":
+                    choice.finish_reason = "tool_calls"
 
         usage_dict = None
         if completion.usage:
