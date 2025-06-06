@@ -1,4 +1,7 @@
 import asyncio
+import json
+import os
+import sys
 from typing import Optional
 from contextlib import AsyncExitStack
 
@@ -20,21 +23,48 @@ class MCPClient:
 
     # methods will go here
 
-    async def connect_to_server(self, server_script_path: str):
+    async def connect_to_server(self, server_config_str: str):
         """Connect to an MCP server
 
         Args:
-            server_script_path: Path to the server script (.py or .js)
+            server_config_str: Path to a server script (.py or .js) or a JSON
+                               string with "command" and "args".
         """
-        is_python = server_script_path.endswith(".py")
-        is_js = server_script_path.endswith(".js")
-        if not (is_python or is_js):
-            raise ValueError("Server script must be a .py or .js file")
+        command = None
+        args = None
 
-        command = "python" if is_python else "node"
-        server_params = StdioServerParameters(
-            command=command, args=[server_script_path], env=None
-        )
+        try:
+            # Try to parse as JSON for command/args config
+            config = json.loads(server_config_str)
+            command = config["command"]
+            args = config["args"]
+
+            # Expand environment variables in args
+            expanded_args = []
+            for arg in args:
+                if arg.startswith("{") and arg.endswith("}"):
+                    var_name = arg[1:-1]
+                    value = os.getenv(var_name)
+                    if value is None:
+                        raise ValueError(f"Environment variable {var_name} not set.")
+                    expanded_args.append(value)
+                else:
+                    expanded_args.append(arg)
+            args = expanded_args
+
+        except (json.JSONDecodeError, KeyError):
+            # Fallback to script path logic
+            is_python = server_config_str.endswith(".py")
+            is_js = server_config_str.endswith(".js")
+            if not (is_python or is_js):
+                raise ValueError(
+                    "Argument must be a path to a .py or .js file, or a valid JSON config string."
+                )
+
+            command = "python" if is_python else "node"
+            args = [server_config_str]
+
+        server_params = StdioServerParameters(command=command, args=args, env=None)
 
         stdio_transport = await self.exit_stack.enter_async_context(
             stdio_client(server_params)
@@ -65,7 +95,7 @@ class MCPClient:
             for tool in response.tools
         ]
 
-        # Initial Claude API call
+        # Start the conversation
         response = self.anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
@@ -73,62 +103,76 @@ class MCPClient:
             tools=available_tools,
         )
 
-        # Process response and handle tool calls
-        tool_results = []
-        final_text = []
+        final_text_parts = []
 
-        for content in response.content:
-            if content.type == "text":
-                final_text.append(content.text)
-            elif content.type == "tool_use":
-                tool_name = content.name
-                tool_args = content.input
+        while response.stop_reason == "tool_use":
+            # Append any text content from the assistant's turn before the tool use
+            for content_block in response.content:
+                if content_block.type == "text":
+                    final_text_parts.append(content_block.text)
 
-                # Execute tool call
-                result = await self.session.call_tool(tool_name, tool_args)
-                tool_results.append({"call": tool_name, "result": result})
-                final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
+            # Prepare for the next turn
+            assistant_message = {"role": "assistant", "content": []}
+            tool_results_message_content = []
 
-                # Add the assistant's tool use message
+            for content_block in response.content:
+                if content_block.type == "tool_use":
+                    tool_name = content_block.name
+                    tool_args = content_block.input
+                    tool_use_id = content_block.id
+
+                    # Add the tool_use block to the assistant's message for history
+                    assistant_message["content"].append(
+                        {
+                            "type": "tool_use",
+                            "id": tool_use_id,
+                            "name": tool_name,
+                            "input": tool_args,
+                        }
+                    )
+
+                    print(f"[Calling tool {tool_name} with args {tool_args}]")
+                    # Execute tool call
+                    result = await self.session.call_tool(tool_name, tool_args)
+
+                    # Prepare the tool result for the next user message
+                    tool_results_message_content.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": result.content,
+                        }
+                    )
+                elif content_block.type == "text":
+                    # Also add text blocks to the assistant message history
+                    assistant_message["content"].append(
+                        {"type": "text", "text": content_block.text}
+                    )
+
+            # Append the full assistant message to history
+            if assistant_message["content"]:
+                messages.append(assistant_message)
+
+            # Append the tool results to history for the next turn
+            if tool_results_message_content:
                 messages.append(
-                    {
-                        "role": "assistant",
-                        "content": [
-                            {
-                                "type": "tool_use",
-                                "id": content.id,
-                                "name": tool_name,
-                                "input": tool_args,
-                            }
-                        ],
-                    }
+                    {"role": "user", "content": tool_results_message_content}
                 )
 
-                # Add the tool result message
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": content.id,
-                                "content": result.content,
-                            }
-                        ],
-                    }
-                )
+            # Make the next API call
+            response = self.anthropic.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                messages=messages,
+                tools=available_tools,
+            )
 
-                # Get next response from Claude
-                response = self.anthropic.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=1000,
-                    messages=messages,
-                    tools=available_tools,  # Important: Include tools in subsequent calls
-                )
+        # After the loop, the final response should be text
+        for content_block in response.content:
+            if content_block.type == "text":
+                final_text_parts.append(content_block.text)
 
-                final_text.append(response.content[0].text)
-
-        return "\n".join(final_text)
+        return "\n".join(final_text_parts)
 
     async def chat_loop(self):
         """Run an interactive chat loop"""
@@ -155,18 +199,20 @@ class MCPClient:
 
 async def main():
     if len(sys.argv) < 2:
-        print("Usage: python client.py <path_to_server_script>")
+        print(
+            'Usage: python functional_mcp_client.py <path_to_server_script | \'{"command": "...", "args": [...]}\'>'
+        )
         sys.exit(1)
+
+    server_config_str = " ".join(sys.argv[1:])
 
     client = MCPClient()
     try:
-        await client.connect_to_server(sys.argv[1])
+        await client.connect_to_server(server_config_str)
         await client.chat_loop()
     finally:
         await client.cleanup()
 
 
 if __name__ == "__main__":
-    import sys
-
     asyncio.run(main())
