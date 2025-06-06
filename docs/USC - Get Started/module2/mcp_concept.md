@@ -25,39 +25,38 @@ At a high level, the **Model Context Protocol (MCP)** is a specification or a se
 
 ---
 
-## 2. MCP in the Aurite Agents Framework: The Role of Client Configurations in JSON
+## 2. MCP in the Aurite Agents Framework: The Role of MCP Server Configurations in JSON
 
-The Aurite Agents framework uses MCP to manage how your agents connect to and utilize tools. You, as the user, will primarily interact with MCP by defining **client configuration objects** within the `"clients"` list in your project's `aurite_config.json` file.
+The Aurite Agents framework uses MCP to manage how your agents connect to and utilize tools. You, as the user, will primarily interact with MCP by defining **MCP Server configuration objects** within the `"mcp_servers"` list in your project's `aurite_config.json` file.
 
-*   **What is a Client Configuration Object?**
-    *   In Aurite, an MCP server that provides tools (or prompts/resources) is referred to as a "Client" from the perspective of your agent.
-    *   A client configuration is a JSON object you define in `aurite_config.json`. This object tells the Aurite framework everything it needs to know to connect to and communicate with a specific MCP server.
+*   **What is an MCP Server Configuration Object?**
+    *   A server configuration is a JSON object you define in `aurite_config.json`. This object tells the Aurite framework everything it needs to know to connect to and communicate with a specific MCP server.
     *   Each such JSON object essentially registers an MCP server with your Aurite project, making its tools available to your agents.
 
 *   **How Agents Use Tools via these JSON Configurations:**
-    1.  You define one or more client configuration objects in the `"clients"` array (list) in your `aurite_config.json`.
-    2.  When you define an agent configuration (also a JSON object, in the `"agents"` array), you specify which clients (by their `client_id` from the client configurations) that agent should have access to.
-    3.  When your agent runs, the Aurite framework (specifically, the `MCPHost` component) uses the details in the relevant client configuration JSON to manage the connection to the MCP server.
+    1.  You define one or more server configuration objects in the `"mcp_servers"` array (list) in your `aurite_config.json`.
+    2.  When you define an agent configuration (also a JSON object, in the `"agents"` array), you specify which servers (by their `name` from the server configurations) that agent should have access to.
+    3.  When your agent runs, the Aurite framework (specifically, the `MCPHost` component) uses the details in the relevant server configuration JSON to manage the connection to the MCP server.
     4.  The agent can then discover and call tools provided by that server.
 
 ---
 
 ## 3. Types of MCP Servers and Their JSON Configurations in Aurite
 
-You might encounter or want to use different kinds of MCP servers. The Aurite framework allows you to connect to them by defining specific JSON objects within the `"clients"` array in your `aurite_config.json`. Here are common types:
+You might encounter or want to use different kinds of MCP servers. The Aurite framework allows you to connect to them by defining specific JSON objects within the `"mcp_servers"` array in your `aurite_config.json`. Here are common types:
 
 *   **a) Local Python Script Server (Stdio-based):**
     *   **What it is:** A single Python script that runs as an MCP server, communicating over standard input/output (stdio).
     *   **Example:** The `weather_mcp_server.py` that typically comes with `aurite init` is this type.
     *   **Key JSON Fields:**
-        *   `client_id`: A unique name you give this client entry (e.g., `"local_weather_service"`).
+        *   `name`: A unique name you give this server entry (e.g., `"local_weather_service"`).
         *   `server_path`: The path to the Python script (e.g., `"mcp_servers/weather_mcp_server.py"`). This path is usually relative to your project root directory (where `aurite_config.json` is located).
         *   `capabilities`: Usually `["tools"]` if it provides tools. Can also include `"prompts"`.
         *   `timeout`: (Optional) How long in seconds to wait for the server.
     *   **JSON Example:**
         ```json
         {
-          "client_id": "weather_server_stdio",
+          "name": "weather_server_stdio",
           "server_path": "mcp_servers/weather_mcp_server.py",
           "capabilities": ["tools", "prompts"],
           "timeout": 15.0
@@ -68,7 +67,7 @@ You might encounter or want to use different kinds of MCP servers. The Aurite fr
 *   **b) Remote HTTP-based Server:**
     *   **What it is:** An MCP server running somewhere on a network (or the internet) that you access via an HTTP URL.
     *   **Key JSON Fields:**
-        *   `client_id`: A unique name (e.g., `"public_search_engine"`).
+        *   `name`: A unique name (e.g., `"public_search_engine"`).
         *   `transport_type`: Must be set to `"http_stream"` or `"http_long_poll"` (depending on the server's MCP implementation).
         *   `http_endpoint`: The full URL to the MCP server's endpoint.
         *   `capabilities`: Typically `["tools"]`.
@@ -76,7 +75,7 @@ You might encounter or want to use different kinds of MCP servers. The Aurite fr
     *   **JSON Example:**
         ```json
         {
-          "client_id": "duckduckgo_search_http",
+          "name": "duckduckgo_search_http",
           "transport_type": "http_stream",
           "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp",
           "capabilities": ["tools"]
@@ -88,7 +87,7 @@ You might encounter or want to use different kinds of MCP servers. The Aurite fr
 *   **c) Local Command-Managed Server:**
     *   **What it is:** An MCP server that is started and managed by a command-line instruction. This is common for tools distributed as, for example, Node.js packages (e.g., using `npx`) or other executables. The Aurite framework will run this command to start the server.
     *   **Key JSON Fields:**
-        *   `client_id`: A unique name (e.g., `"my_npm_tool_server"`).
+        *   `name`: A unique name (e.g., `"my_npm_tool_server"`).
         *   `transport_type`: Often `"local"` (which implies stdio communication with the process started by the command).
         *   `command`: The executable command to run (e.g., `"npx"`).
         *   `args`: A list of string arguments for the command.
@@ -97,7 +96,7 @@ You might encounter or want to use different kinds of MCP servers. The Aurite fr
     *   **JSON Example:**
         ```json
         {
-          "client_id": "smithery_memory_server_local",
+          "name": "smithery_memory_server_local",
           "transport_type": "local",
           "command": "npx",
           "args": [
@@ -117,18 +116,18 @@ You might encounter or want to use different kinds of MCP servers. The Aurite fr
 
 ---
 
-## 4. Benefits of Using MCP (and Aurite's JSON Client Configurations)
+## 4. Benefits of Using MCP (and Aurite's JSON Server Configurations)
 
 *   **Interoperability:** Agents can potentially use tools from any MCP-compliant server, regardless of how that server is implemented or hosted.
 *   **Reusability:** A well-built MCP tool server can be used by many different agents across various projects.
-*   **Decoupling:** Your agent logic doesn't need to be tightly coupled with the specific implementation details of each tool. The client configuration in `aurite_config.json` handles the connection specifics.
+*   **Decoupling:** Your agent logic doesn't need to be tightly coupled with the specific implementation details of each tool. The server configuration in `aurite_config.json` handles the connection specifics.
 *   **Standardization:** Aurite's approach provides a consistent way to manage connections to diverse MCP servers through simple JSON objects, simplifying your project configuration.
 
 ---
 
 In the upcoming tutorial for Module 2, you will get hands-on experience editing your `aurite_config.json` file to:
-1.  Define a `ClientConfig` for the local `weather_mcp_server.py`.
-2.  Create an `AgentConfig` that uses this client.
+1.  Define an MCP Server Configuration for the local `weather_mcp_server.py`.
+2.  Create an `AgentConfig` that uses this server.
 3.  Run your agent using the Aurite command-line interface (CLI) tools (`start-api` and `run-cli`).
 
 This will be your first step into configuring the Aurite framework directly through its files, moving beyond the UI!
