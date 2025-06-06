@@ -10,17 +10,17 @@ For many common scenarios, you only need to define a few key fields.
 
 ### 1. Basic stdio Client
 
-This is for running a local MCP server script (e.g., a Python file). The `transport_type` defaults to `"stdio"`, so you only need to specify `client_id`, `server_path`, and `capabilities`.
+This is for running a local MCP server script (e.g., a Python file). The `transport_type` defaults to `"stdio"`, so you only need to specify `name`, `server_path`, and `capabilities`.
 
 ```json
 {
-  "client_id": "my_local_script_server",
+  "name": "my_local_script_server",
   "server_path": "mcp_servers/my_script.py",
   "capabilities": ["tools"]
 }
 ```
 
--   **`client_id`**: A unique name for your server.
+-   **`name`**: A unique name for your server.
 -   **`server_path`**: Path to your server script, relative to your project root (where `aurite_config.json` is).
 -   **`capabilities`**: What your server offers (e.g., `"tools"`, `"prompts"`).
 
@@ -30,14 +30,14 @@ This is for connecting to an MCP server that's running and accessible via an HTT
 
 ```json
 {
-  "client_id": "my_remote_http_server",
+  "name": "my_remote_http_server",
   "transport_type": "http_stream",
   "http_endpoint": "https://my-mcp-server.example.com/mcp",
   "capabilities": ["resources"]
 }
 ```
 
--   **`client_id`**: A unique name for your server.
+-   **`name`**: A unique name for your server.
 -   **`transport_type`**: Must be set to `"http_stream"`.
 -   **`http_endpoint`**: The full URL where the MCP server is listening.
 -   **`capabilities`**: What your server offers.
@@ -50,7 +50,7 @@ A Client configuration is a JSON object with the following fields:
 
 | Field            | Type                                  | Default   | Description                                                                                                                                                                                                                            |
 | ---------------- | ------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client_id`      | string                                | Required  | A unique identifier for this client/MCP server configuration. Agents will use this ID to specify which clients they can access.                                                                                                        |
+| `name`           | string                                | Required  | A unique identifier for this MCP server configuration. Agents will use this name to specify which servers they can access. For backward compatibility, `client_id` is also supported.                                                    |
 | `transport_type` | string (`"stdio"` or `"http_stream"`) | `"stdio"` | Specifies the communication transport to use with the MCP server.<br>- `"stdio"`: For servers that communicate via standard input/output (e.g., a local Python script).<br>- `"http_stream"`: For servers that expose an HTTP endpoint for streaming MCP messages (e.g., a FastAPI-based MCP server).<br>- `"local"`: For local servers that are imported from outside sources, like smithery.ai.|
 | `server_path`    | string (Path)                         | `null`    | The file path to the MCP server script. Required if `transport_type` is `"stdio"`. The path is resolved relative to the project root directory (where `aurite_config.json` resides).                                                     |
 | `http_endpoint`  | string (URL)                          | `null`    | The full URL of the MCP server's HTTP streaming endpoint. Required if `transport_type` is `"http_stream"`. Must be a valid HTTP or HTTPS URL (e.g., `http://localhost:8080/mcp_stream`).                                              |
@@ -94,7 +94,7 @@ Each object in the `gcp_secrets` array has the following structure:
 
 ```json
 {
-  "client_id": "local_weather_tool",
+  "name": "local_weather_tool",
   "transport_type": "stdio",
   "server_path": "mcp_servers/weather_mcp_server.py",
   "capabilities": ["tools"],
@@ -113,7 +113,7 @@ Each object in the `gcp_secrets` array has the following structure:
 
 ```json
 {
-  "client_id": "remote_knowledge_base",
+  "name": "remote_knowledge_base",
   "transport_type": "http_stream",
   "http_endpoint": "http://mcp-kb-service.example.com/mcp_stream",
   "capabilities": ["resources", "prompts"],
@@ -131,7 +131,7 @@ Each object in the `gcp_secrets` array has the following structure:
 **Example:**
 ```json
 {
-  "client_id": "memory_server",
+  "name": "memory_server",
   "transport_type": "local",
   "command": "npx",
   "args": [
@@ -147,14 +147,14 @@ Each object in the `gcp_secrets` array has the following structure:
 }
 ```
 
-## Example ClientConfig File
+## Example MCP Server Config File
 
-Client configurations are usually stored in a JSON file (e.g., `config/clients/default_clients.json` or a custom file referenced in your project configuration). This file typically contains a list of `ClientConfig` objects.
+MCP Server configurations are usually stored in a JSON file (e.g., `config/mcp_servers/mcp_servers.json` or a custom file referenced in your project configuration). This file typically contains a list of MCP Server configuration objects.
 
 ```json
 [
   {
-    "client_id": "stdio_example_server",
+    "name": "stdio_example_server",
     "transport_type": "stdio",
     "server_path": "mcp_servers/my_stdio_server.py",
     "capabilities": ["tools", "prompts"],
@@ -169,7 +169,7 @@ Client configurations are usually stored in a JSON file (e.g., `config/clients/d
     ]
   },
   {
-    "client_id": "http_example_server",
+    "name": "http_example_server",
     "transport_type": "http_stream",
     "http_endpoint": "http://localhost:8083/mcp_stream_example/",
     "capabilities": ["tools"],
@@ -179,15 +179,15 @@ Client configurations are usually stored in a JSON file (e.g., `config/clients/d
 ]
 ```
 
-## How Agents Use ClientConfig
+## How Agents Use MCP Server Configs
 
-An `AgentConfig` specifies which clients it can potentially use via its `client_ids` field. This list contains `client_id` strings that match the `client_id` in `ClientConfig` definitions.
+An `AgentConfig` specifies which MCP servers it can use via its `mcp_servers` field. This list contains `name` strings that match the `name` in the MCP server configurations.
 
 ```json
 // Example snippet from an AgentConfig
 {
   "name": "MyWeatherAgent",
-  "client_ids": ["stdio_example_server", "http_example_server"], // References ClientConfigs
+  "mcp_servers": ["weather_server", "planning_server"], // References MCP Server configs by name
   // ... other agent settings
 }
 ```

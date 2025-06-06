@@ -1,20 +1,20 @@
 [
   {
     "name": "Mapping Agent",
-    "client_ids": ["address_server"],
+    "mcp_servers": ["address_server"],
     "system_prompt": "You are a helpful assistant specializing in maps and directions. Use the tools to help the user with their requests.",
     "llm_config_id": "my_openai_gpt4_turbo"
   },
   {
     "name": "Simple Planning Agent",
-    "client_ids": [],
+    "mcp_servers": [],
     "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
     "llm_config_id": "my_openai_gpt4_turbo",
     "evaluation": "planning_agent_test.json"
   },
   {
     "name": "Weather Agent",
-    "client_ids": ["weather_server"],
+    "mcp_servers": ["weather_server"],
     "llm_config_id": "my_openai_gpt4_turbo",
     "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
     "config_validation_schema": {
@@ -51,7 +51,7 @@
   },
   {
     "name": "Weather Planning Agent",
-    "client_ids": ["weather_server", "planning_server"],
+    "mcp_servers": ["weather_server", "planning_server"],
     "llm_config_id": "my_openai_gpt4_turbo",
     "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve."
   }

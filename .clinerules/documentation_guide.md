@@ -22,6 +22,10 @@ This table provides a high-level overview of the key documents, their purpose, a
 | `docs/layers/3_host.md`                     | Deep dive into `MCPHost` and its interaction with external MCP servers.                             | Backend Developers    |
 | `docs/components/PROJECT.md`                | Explains the central project configuration file (`aurite_config.json`) and how it works.            | End-Users, Developers |
 | `docs/components/*.md`                      | Detailed guides for configuring each component type (Agent, Client, LLM, etc.).                     | End-Users, Developers |
+| `docs/HOME.md`                              | The main landing page for the Obsidian Publish documentation site.                                  | All                   |
+| `docs/USC - Get Started/Start Here.md`      | The entry point for the USC tutorial modules.                                                       | Newcomers, Students   |
+| `docs/USC - Get Started/module1/*.md`       | Tutorial content for learning basic framework concepts and agent configuration.                     | Newcomers, Students   |
+| `docs/USC - Get Started/module2/*.md`       | Tutorial content for learning about the Model Context Protocol (MCP) and using the CLI.             | Newcomers, Students   |
 
 ---
 

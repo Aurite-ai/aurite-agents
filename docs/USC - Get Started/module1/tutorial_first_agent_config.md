@@ -40,9 +40,9 @@ When you ran `aurite init`, this file was created with some example configuratio
 
 *   **Open `aurite_config.json` in your text editor.**
 
-You'll see sections for `llms`, `clients`, and `agents`, among others. For this tutorial, we'll focus on:
+You'll see sections for `llms`, `mcp_servers`, and `agents`, among others. For this tutorial, we'll focus on:
 *   The `llms` array: Lists available Large Language Model configurations.
-*   The `clients` array: Lists configurations for MCP servers, which provide tools to your agents. `aurite init` includes an example `weather_server`.
+*   The `mcp_servers` array: Lists configurations for MCP servers, which provide tools to your agents. `aurite init` includes an example `weather_server`.
 *   The `agents` array: This is where we will define our new agent.
 
 *(The `aurite_config.json` file also includes sections for `simple_workflows` and `custom_workflows`. These allow you to define sequences of agents or more complex programmatic workflows, respectively. While not covered in this introductory tutorial, they demonstrate how you can orchestrate multiple components within your Aurite project.)*
@@ -60,10 +60,10 @@ Now, let's configure your "MyCLIWeatherAssistant" agent. The `aurite init` comma
 
     ```json
     {
-      "name": "MyCLIWeatherAssistant",
-      "system_prompt": "You are a helpful assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Only provide the temperature and a brief description of the conditions.",
-      "llm_config_id": "my_openai_gpt4_turbo",
-      "client_ids": ["weather_server"]
+    "name": "MyCLIWeatherAssistant",
+    "system_prompt": "You are a helpful assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Only provide the temperature and a brief description of the conditions.",
+    "llm_config_id": "my_openai_gpt4_turbo",
+    "mcp_servers": ["weather_server"]
     }
     ```
 
@@ -74,7 +74,7 @@ Now, let's configure your "MyCLIWeatherAssistant" agent. The `aurite init` comma
     | `"name"`          | `"MyCLIWeatherAssistant"`: A unique name for your agent.                                                                                                                                                |
     | `"system_prompt"` | Instructions defining the agent's role and task. (e.g., "You are a helpful assistant...")                                                                                                               |
     | `"llm_config_id"` | `"my_openai_gpt4_turbo"`: Tells your agent to use the pre-defined OpenAI GPT-4 Turbo LLM configuration. This `llm_id` is already set up in the `llms` array of your `aurite_config.json` by `aurite init`. |
-    | `"client_ids"`    | `["weather_server"]`: A list of MCP client IDs the agent can use for tools. `"weather_server"` is an example client provided by `aurite init`.                                                          |
+    | `"mcp_servers"`    | `["weather_server"]`: A list of MCP Server names the agent can use for tools. `"weather_server"` is an example server provided by `aurite init`.                                                          |
 
 1.  **Save `aurite_config.json`**.
 
