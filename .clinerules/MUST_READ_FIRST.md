@@ -23,15 +23,20 @@ The framework follows a layered architecture, detailed in `docs/layers/`. Adhere
 
 For a comprehensive understanding, always refer to the primary sources of truth:
 
-*   **`README.md`:** Provides a detailed overview of the framework, core concepts, configuration specifics, installation, and usage examples for the different entrypoints. **(Note: You mentioned this needs updating; please ensure it reflects the latest state).**
-*   **`README_packaged.md`:** Provides an overview of the aurite package
+*   **General Overview (`README.md`):** For a high-level introduction to the framework, its core concepts, configuration specifics, installation, and usage examples for the different entrypoints.
+    *   **[Read the General Overview](README.md)**
 
-### User Documentation
-*   **`docs/components/PROJECT.md`:** Explains how project files work, along with referencing the relevant component configuration documents in `docs/components`.
-*   **`docs/components/`:** Detailed overview of each component type, including configuration settings and usager examples.
-*   **`docs/USC - Get Started/Start  Here.md`:** Overview of tutorial for new users
+*   **Documentation Guide (`documentation_guide.md`):** To understand how all documentation is organized, which documents to read for specific tasks, and which documents to update after making changes.
+    *   **[Read the Documentation Guide](.clinerules/documentation_guide.md)**
 
-### Framework Developer Documentation
-*   **`docs/layers/framework_overview.md`:** (As referenced in the README) Provides a higher-level view.
-*   **`docs/layers/`:** Contains documents describing each layer of the Domain-Driven Design (DDD) architecture (e.g., `1_entrypoints.md`, `2_orchestration.md`, `3_host.md`). These are **essential** reading before modifying code within a specific layer to understand its responsibilities and boundaries.
-*   **`tests/`:** Existing tests serve as executable documentation of expected behavior.
+*   **Framework Development Workflow (`framework_development_rules.md`):** To understand the structured, multi-phase workflow for development within the framework.
+    *   **[Read the Framework Development Workflow](.clinerules/framework_development_rules.md)**
+
+*   **Project and Component Configuration (`docs/components/PROJECT.md`):** To understand how project files (`aurite_config.json`) work and how to configure all the individual components (Agents, LLMs, Clients, etc.).
+    *   **[Read the Project & Component Guide](docs/components/PROJECT.md)**
+
+*   **Framework Architecture (`docs/layers/framework_overview.md`):** For a detailed, developer-focused explanation of the layered architecture, how the different parts of the framework interact, and the design principles.
+    *   **[Read the Framework Architecture Overview](docs/layers/framework_overview.md)**
+
+*   **Testing Strategy (`tests/README.md`):** To learn how to run tests, understand the testing structure, and see how to add new tests for your contributions.
+    *   **[Read the Testing Guide](tests/README.md)**
