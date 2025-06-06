@@ -27,5 +27,7 @@ In this example, `example_weather_server` might be defined in `example_mcp_serve
 Below is a list of the available MCP server categories. Each document provides details on the specific servers included, what they do, and how to use them.
 
 *   **[Example Servers](servers/example_mcp_servers.md):** A collection of general-purpose servers to get you started.
+*   **[General Purpose Tools](servers/general_purpose_servers.md):** Tools for general desktop interaction, including file system operations.
+*   **[Data Analytics Tools](servers/data_analytics_servers.md):** Tools for data analysis and exploration.
 *   **[Web Search](servers/web_search.md):** A collection of servers to allow agents to find information online.
 *   More categories will be added here as new server configurations are created.

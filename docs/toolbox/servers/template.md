@@ -18,3 +18,8 @@ This document provides a list of pre-configured MCP servers for [Server Category
 **Example Usage:**
 ```
 [Example command or query to test the server]
+```
+
+**Relevant Agents:**
+*   **`[agent_name]`**: [Brief description of what the agent does.]
+    *   **Configuration File**: `config/agents/[filename].json`

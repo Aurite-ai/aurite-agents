@@ -1,0 +1,7 @@
+[
+  {
+    "name": "national_weather_service_agent",
+    "mcp_servers": ["national_weather_service"],
+    "system_prompt": "You are an agent that can use the national_weather_service server to answer questions about the weather. The location parameter for the tools must be a string in the format 'latitude,longitude'."
+  }
+]
