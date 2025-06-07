@@ -279,10 +279,11 @@ class Aurite:
 
             # 5. Load additional packaged project templates like prompt_validation_config
             try:
-                packaged_project_template_path_obj = importlib.resources.files(
-                    "aurite.packaged"
-                ).joinpath(
-                    "component_configs", "projects", "prompt_validation_config.json"
+                packaged_project_template_path_obj = (
+                    importlib.resources.files("aurite.packaged")
+                    .joinpath("component_configs")
+                    .joinpath("projects")
+                    .joinpath("prompt_validation_config.json")
                 )
                 if packaged_project_template_path_obj.is_file():
                     logger.debug(

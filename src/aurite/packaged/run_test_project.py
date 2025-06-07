@@ -35,7 +35,6 @@ async def main():
         )
 
         await aurite.register_llm_config(llm_config)
-        logger.info(f"Dynamically registered LLM: {llm_config.llm_id}")
 
         # 2. Define and register an MCP server configuration
         mcp_server_config = ClientConfig(
@@ -44,7 +43,6 @@ async def main():
             capabilities=["tools"],
         )
         await aurite.register_client(mcp_server_config)
-        logger.info(f"Dynamically registered MCP Server: {mcp_server_config.name}")
 
         # 3. Define and register an Agent configuration
         agent_config = AgentConfig(
@@ -54,14 +52,13 @@ async def main():
             llm_config_id="openai_gpt4_turbo",
         )
         await aurite.register_agent(agent_config)
-        logger.info(f"Dynamically registered Agent: {agent_config.name}")
         # --- End of Dynamic Registration Example ---
 
         # Define the user's query for the agent.
         user_query = "What is the weather in London?"
 
         # Run the agent with the user's query.
-        agent_result = await aurite.execution.run_agent(
+        agent_result = await aurite.execution.run_agent_stream(
             agent_name="My Weather Agent", user_message=user_query
         )
 
