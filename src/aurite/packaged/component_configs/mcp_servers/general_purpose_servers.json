@@ -9,7 +9,7 @@
       "run",
       "@wonderwhy-er/desktop-commander",
       "--key",
-      "26c4adcf-1282-4942-b278-2afa76982269"
+      "{SMITHERY_API_KEY}"
     ],
     "capabilities": ["tools"],
     "timeout": 60.0
@@ -24,9 +24,15 @@
       "run",
       "@aakarsh-sasi/memory-bank-mcp",
       "--key",
-      "26c4adcf-1282-4942-b278-2afa76982269"
+      "{SMITHERY_API_KEY}"
     ],
     "capabilities": ["tools"],
     "timeout": 60.0
+  },
+  {
+    "name": "planning_server",
+    "server_path": "mcp_servers/planning_server.py",
+    "capabilities": ["tools", "prompts", "resources"],
+    "timeout": 15.0
   }
 ]

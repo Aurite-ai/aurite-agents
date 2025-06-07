@@ -9,7 +9,7 @@
       "run",
       "@halismertkir/game-trends-mcp",
       "--key",
-      "26c4adcf-1282-4942-b278-2afa76982269"
+      "{SMITHERY_API_KEY}"
     ],
     "capabilities": ["tools"],
     "timeout": 60.0
@@ -24,7 +24,7 @@
       "run",
       "@Cicatriiz/healthcare-mcp-public",
       "--key",
-      "26c4adcf-1282-4942-b278-2afa76982269"
+      "{SMITHERY_API_KEY}"
     ],
     "capabilities": ["tools"],
     "timeout": 60.0,
@@ -40,7 +40,37 @@
       "run",
       "@smithery-ai/national-weather-service",
       "--key",
-      "26c4adcf-1282-4942-b278-2afa76982269"
+      "{SMITHERY_API_KEY}"
+    ],
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "pubmed_mcp_server",
+    "transport_type": "http_stream",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@JackKuo666/pubmed-mcp-server",
+      "--key",
+      "{SMITHERY_API_KEY}"
+    ],
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "appinsightmcp",
+    "transport_type": "http_stream",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@JiantaoFu/appinsightmcp",
+      "--key",
+      "{SMITHERY_API_KEY}"
     ],
     "capabilities": ["tools"],
     "timeout": 60.0

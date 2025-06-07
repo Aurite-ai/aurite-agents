@@ -12,10 +12,10 @@ Follow these steps to add a new MCP server to the `aurite` package.
 
 First, identify an MCP server that can be run via the command line (transport types `local` or `http_stream`). Use the functional MCP client to ensure it works as expected. The test should not just list the available tools, but should be a series of queries that require the LLM to actually use each of the tools to ensure they are all functioning correctly. Each tool's functionality must be fully working and verified before the server is added to the package.
 
-*   **Action:** Run the server with a functional test query that validates a specific tool's behavior.
+*   **Action:** Run the server with a functional test query that validates a specific tool's behavior. If a tool requires data from another tool, the query should be phrased to execute both tools in sequence.
 *   **Example:**
     ```bash
-    python tests/functional_mcp_client.py '{"command": "npx", "args": ["-y", "@user/some-mcp-server"]}' "Use the 'read_file' tool to tell me the contents of 'pyproject.toml'"
+    python tests/functional_mcp_client.py '{"command": "npx", "args": ["-y", "@user/some-mcp-server"]}' "Use the 'search' tool to find an item, then use the 'get_details' tool to get the details of the first result."
     ```
 
 ### Step 2: Add Server Configuration
@@ -28,9 +28,16 @@ Once tested, add the server's configuration to a relevant JSON file in the `src/
     [
       {
         "name": "my_data_tool_server",
-        "transport_type": "local",
+        "transport_type": "http_stream",
         "command": "npx",
-        "args": ["-y", "@user/data-tool-mcp"],
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@user/data-tool-mcp",
+          "--key",
+          "{SMITHERY_API_KEY}"
+        ],
         "capabilities": ["tools"],
         "timeout": 20.0
       }
