@@ -7,7 +7,7 @@ This document provides a list of pre-configured MCP servers for Web Search that 
 ### `exa_search`
 
 *   **Description**: Fast, intelligent web search and crawling powered by Exa AI. Combines embeddings and traditional search to deliver the best results for LLMs.
-*   **Configuration File**: `config/mcp_servers/web_search.json`
+*   **Configuration File**: `config/mcp_servers/web_search_servers.json`
 
 **Tools:**
 | Tool Name | Description |
@@ -24,7 +24,7 @@ This document provides a list of pre-configured MCP servers for Web Search that 
 ### `duckduckgo_search`
 
 *   **Description**: Enable web search capabilities through DuckDuckGo. Fetch and parse webpage content intelligently for enhanced LLM interaction.
-*   **Configuration File**: `config/mcp_servers/web_search.json`
+*   **Configuration File**: `config/mcp_servers/web_search_servers.json`
 
 **Tools:**
 | Tool Name | Description |
@@ -35,7 +35,7 @@ This document provides a list of pre-configured MCP servers for Web Search that 
 ### `paper_search`
 
 *   **Description**: Search and download academic papers from multiple sources like arXiv and PubMed. Enhance your research workflow with seamless integration into LLM applications, allowing for efficient access to scholarly content.
-*   **Configuration File**: `config/mcp_servers/web_search.json`
+*   **Configuration File**: `config/mcp_servers/web_search_servers.json`
 
 **Tools:**
 | Tool Name | Description |
