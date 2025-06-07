@@ -1,6 +1,6 @@
 # Packaged MCP Servers
 
-**Disclaimer:** The tools for these servers have been tested, but the servers themselves have not been security audited. These servers could also go down at any point in the future.
+**Disclaimer:** The tools for these servers have been tested, but the servers themselves have not been security audited. These servers could also go down at any point in the future. These are not our MCP servers, most were found on smithery.ai (obtain a free API key here).
 
 The `aurite` package comes with a selection of pre-configured MCP servers that you can use in your projects. These servers are organized by category and can be easily integrated into your `aurite_config.json`.
 
