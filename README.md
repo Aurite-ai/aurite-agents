@@ -14,13 +14,13 @@ Understanding these concepts will help you configure and use the Aurite Agents f
 
 ### 1. Projects
 
-A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
+A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `aurite_config.json`). This file acts as a central manifest for your agentic application, specifying:
 *   The name and description of the project.
 *   Which LLM configurations to use (`llms`).
 *   Which MCP Servers to connect to (`mcp_servers`).
 *   Which Agents, Simple Workflows, and Custom Workflows are part of this project.
 
-The active project configuration tells the `HostManager` what components to load and make available.
+The active project configuration tells the `Aurite` class what components to load and make available.
 
 For more information on project configuration files, see [Projects](docs/components/PROJECT.md).
 
