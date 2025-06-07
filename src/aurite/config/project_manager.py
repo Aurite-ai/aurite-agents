@@ -218,23 +218,22 @@ class ProjectManager:
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
         """
         Loads a project configuration file by parsing it and then sets it
-        as the active project in the ProjectManager.
+        as the active project in the ProjectManager. If the file is not found,
+        it creates an empty ProjectConfig instead of raising an error.
 
         Args:
             project_config_file_path: Path to the project JSON file.
 
         Returns:
-            A fully resolved ProjectConfig object.
+            A fully resolved ProjectConfig object, which may be empty if the file was not found.
 
         Raises:
-            FileNotFoundError: If the project file does not exist.
             RuntimeError: If JSON parsing fails or validation errors occur.
             ValueError: If component references are invalid or cannot be resolved.
         """
         logger.debug(
-            f"Loading project configuration from: {project_config_file_path} and setting as active."
+            f"Attempting to load project configuration from: {project_config_file_path} and set as active."
         )
-        # Establish current_project_root
         self.current_project_root = project_config_file_path.parent
         logger.debug(f"Current project root set to: {self.current_project_root}")
 
@@ -242,22 +241,26 @@ class ProjectManager:
         # This allows user components to override packaged defaults.
         self.component_manager.load_project_components(self.current_project_root)
 
-        # Parse the project file. This will use components already loaded into ComponentManager
-        # (both packaged and project-specific) for resolving string references.
-        # Inline definitions in the project file will use current_project_root for their path resolution.
-        project_config = self.parse_project_file(
-            project_config_file_path
-        )  # parse_project_file now handles current_project_root
-
-        # Now set the parsed and validated project_config as the active one
-        self.active_project_config = project_config
-        logger.info(
-            colored(
-                f"Project '{project_config.name}' Successfully loaded from `{project_config_file_path}`.",
-                "yellow",
-                attrs=["bold"],
+        try:
+            # Parse the project file. This will use components already loaded into ComponentManager
+            # (both packaged and project-specific) for resolving string references.
+            project_config = self.parse_project_file(project_config_file_path)
+            logger.info(
+                colored(
+                    f"Project '{project_config.name}' successfully loaded from `{project_config_file_path}`.",
+                    "yellow",
+                    attrs=["bold"],
+                )
             )
-        )
+        except FileNotFoundError:
+            project_name = project_config_file_path.name
+            logger.warning(
+                f"Project file not found at {project_config_file_path}. Creating an empty project named '{project_name}'."
+            )
+            project_config = ProjectConfig(name=project_name, description=None)
+
+        # Set the parsed or newly created project_config as the active one
+        self.active_project_config = project_config
         return project_config
 
     def unload_active_project(self):

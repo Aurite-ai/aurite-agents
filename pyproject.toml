@@ -86,6 +86,7 @@ dev = [
     "pytest-timeout>=2.3.1", # Added for test timeouts
     "mypy>=1.15.0",
     "types-PyYAML",
+    "jupyter>=1.0.0", # Added for Jupyter support
     "pre-commit",
     "types-pytz",
     "pytest>=8.3.5",

@@ -352,11 +352,6 @@ class Aurite:
                 colored("Aurite initialization complete.", "yellow", attrs=["bold"])
             )  # Keep this high-level INFO
 
-        except FileNotFoundError as e:
-            logger.error(f"Configuration file not found: {self.config_path} - {e}")
-            raise RuntimeError(
-                f"Configuration file not found: {self.config_path}"
-            ) from e
         except (RuntimeError, ValueError, TypeError, KeyError) as e:
             # Catch errors from load_host_config_from_json or MCPHost instantiation
             logger.error(f"Error during Aurite initialization: {e}", exc_info=True)
