@@ -45,7 +45,7 @@ class ClientConfig(BaseModel):
     transport_type: Optional[Literal["stdio", "http_stream", "local"]] = Field(
         default=None, description="The transport type for the client."
     )
-    server_path: Optional[Path] = Field(
+    server_path: Optional[Path | str] = Field(
         default=None, description="Path to the server script for 'stdio' transport."
     )
     http_endpoint: Optional[str] = Field(
@@ -74,7 +74,7 @@ class ClientConfig(BaseModel):
         description="List of component names (prompt, resource, tool) to exclude from this client.",
     )
     gcp_secrets: Optional[List[GCPSecretConfig]] = Field(
-        None,
+        default=None,
         description="List of GCP secrets to resolve and inject into the server environment",
     )
 
@@ -82,11 +82,16 @@ class ClientConfig(BaseModel):
     @classmethod
     def infer_and_validate_transport_type(cls, data: Any) -> Any:
         """
+        Converts `server_path` to a Path object if provided as a string.
         Infers transport_type based on provided fields if it's not set,
         and validates that the correct fields for the transport type are present.
         """
         if not isinstance(data, dict):
             return data  # Let other validators handle non-dict data
+
+        # Convert server_path from str to Path if necessary, before validation
+        if "server_path" in data and isinstance(data.get("server_path"), str):
+            data["server_path"] = Path(data["server_path"])
 
         values = data  # Use 'values' for consistency with previous logic
         transport_type = values.get("transport_type")
@@ -191,13 +196,14 @@ class LLMConfig(BaseModel):
 
     # Common LLM parameters
     temperature: Optional[float] = Field(
-        None, description="Default sampling temperature."
+        default=0.7, description="Default sampling temperature."
     )
     max_tokens: Optional[int] = Field(
-        None, description="Default maximum tokens to generate."
+        default=None, description="Default maximum tokens to generate."
     )
     default_system_prompt: Optional[str] = Field(
-        None, description="A default system prompt for this LLM configuration."
+        default="You are a helpful AI Assistant.",
+        description="A default system prompt for this LLM configuration.",
     )
 
     # Provider-specific settings (Example - adjust as needed)

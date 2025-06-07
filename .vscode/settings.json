@@ -14,6 +14,7 @@
     "**/.ruff_cache/**": true,
     "**/.python-version/**": true,
     "**/.venv/**": true,
+    "notebook-venv/**": true,
     "**/*.egg-info/**": true,
     "**/.mypy_cache/**": true
   },

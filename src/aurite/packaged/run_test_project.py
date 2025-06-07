@@ -26,12 +26,21 @@ async def main():
         # with Aurite. This is useful for adding or modifying configurations at
         # runtime without changing the project's JSON/YAML files.
 
+        # Construct an absolute path to the server script to ensure it's always found,
+        # making the example robust regardless of the current working directory.
+        project_root = aurite.project_manager.current_project_root
+        if not project_root:
+            raise RuntimeError(
+                "Could not determine the project root from the Aurite instance. "
+                "Ensure aurite_config.json is present."
+            )
+        server_path = project_root / "mcp_servers" / "weather_mcp_server.py"
+
         # 1. Define and register an LLM configuration
         llm_config = LLMConfig(
             llm_id="openai_gpt4_turbo",
             provider="openai",
             model_name="gpt-4-turbo-preview",
-            api_key_env_var="OPENAI_API_KEY",
         )
 
         await aurite.register_llm_config(llm_config)
@@ -39,7 +48,7 @@ async def main():
         # 2. Define and register an MCP server configuration
         mcp_server_config = ClientConfig(
             name="my_weather_server",
-            server_path="mcp_servers/weather_mcp_server.py",
+            server_path=server_path,  # Use the resolved absolute path
             capabilities=["tools"],
         )
         await aurite.register_client(mcp_server_config)
@@ -57,8 +66,9 @@ async def main():
         # Define the user's query for the agent.
         user_query = "What is the weather in London?"
 
-        # Run the agent with the user's query.
-        agent_result = await aurite.execution.run_agent_stream(
+        # Run the agent with the user's query. The check for the execution
+        # facade is now handled internally by the `aurite.run_agent` method.
+        agent_result = await aurite.run_agent(
             agent_name="My Weather Agent", user_message=user_query
         )
 

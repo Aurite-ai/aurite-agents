@@ -51,6 +51,9 @@ from .storage.db_connection import create_db_engine  # Import engine factory
 # Import StorageManager and engine factory unconditionally
 from .storage.db_manager import StorageManager
 
+# Import for type hinting execution results
+from .components.agents.agent_models import AgentExecutionResult
+
 # Imports needed for execution methods
 # from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
 
@@ -275,24 +278,7 @@ class Aurite:
                 )
                 logger.debug("Database sync complete.")
 
-            # 4. Instantiate ExecutionFacade
-            logger.debug("Instantiating ExecutionFacade...")
-            if (
-                not self.host or not active_project
-            ):  # Ensure host and active_project are not None
-                raise RuntimeError(
-                    "Cannot instantiate ExecutionFacade: Host or active_project is not initialized."
-                )
-            self.execution = ExecutionFacade(
-                host_instance=self.host,
-                current_project=active_project,
-                storage_manager=self.storage_manager,
-            )
-            logger.debug(
-                f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
-            )  # ADDED
-
-            # 5. Load additional packaged project templates like prompt_validation_config
+            # 4. Load additional packaged project templates like prompt_validation_config
             try:
                 packaged_project_template_path_obj = (
                     importlib.resources.files("aurite.packaged")
@@ -366,6 +352,23 @@ class Aurite:
                     f"Error loading packaged prompt_validation_config.json: {e}",
                     exc_info=True,
                 )
+
+            # 5. Instantiate ExecutionFacade (now at the end of initialization)
+            logger.debug("Instantiating ExecutionFacade...")
+            if (
+                not self.host or not active_project
+            ):  # Ensure host and active_project are not None
+                raise RuntimeError(
+                    "Cannot instantiate ExecutionFacade: Host or active_project is not initialized."
+                )
+            self.execution = ExecutionFacade(
+                host_instance=self.host,
+                current_project=active_project,
+                storage_manager=self.storage_manager,
+            )
+            logger.debug(
+                f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
+            )
 
             logger.info(
                 colored("Aurite initialization complete.", "yellow", attrs=["bold"])
@@ -1107,6 +1110,51 @@ class Aurite:
             session_id=session_id,
         ):
             yield event
+
+    async def run_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AgentExecutionResult:
+        """
+        Runs an agent by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            system_prompt=system_prompt,
+            session_id=session_id,
+        )
+
+    async def run_simple_workflow(
+        self, workflow_name: str, initial_input: Any
+    ) -> Dict[str, Any]:
+        """
+        Runs a simple workflow by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_simple_workflow(
+            workflow_name=workflow_name, initial_input=initial_input
+        )
+
+    async def run_custom_workflow(
+        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+    ) -> Any:
+        """
+        Runs a custom workflow by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_custom_workflow(
+            workflow_name=workflow_name,
+            initial_input=initial_input,
+            session_id=session_id,
+        )
 
     async def load_components_from_project(self, project_config_path: Path):
         """
