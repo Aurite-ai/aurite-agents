@@ -12,6 +12,7 @@ from typing import (
 )  # Kept Any, Dict, List, Optional as they are used elsewhere
 
 import anyio  # Import anyio
+from anyio import abc
 import mcp.types as types
 
 # Foundation layer
@@ -31,8 +32,6 @@ from ..config.config_models import (  # Changed to relative import
 
 # Resource management layer
 from .resources import PromptManager, ResourceManager, ToolManager
-
-from termcolor import colored  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ class MCPHost:
 
         # MCPHost's main exit stack for managing its own resources, including the client runners task group
         self._main_exit_stack = AsyncExitStack()
-        self._client_runners_task_group: Optional[anyio.TaskGroup] = None
+        self._client_runners_task_group: Optional[abc.TaskGroup] = None
         self._client_cancel_scopes: Dict[str, anyio.CancelScope] = {}
 
         self.client_manager = ClientManager()  # Updated instantiation
@@ -550,11 +549,7 @@ class MCPHost:
         # 5. Execute the tool via ToolManager
         if target_client_id:
             logger.info(
-                colored(
-                    f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'",
-                    "green",
-                    attrs=["bold"],
-                )
+                f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'"
             )
             # Call the ToolManager's execute_tool, passing the determined client_name
             return await self.tools.execute_tool(

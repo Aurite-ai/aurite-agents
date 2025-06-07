@@ -11,7 +11,7 @@ This module provides:
 import logging
 from typing import Any, List, Optional, Dict, Literal  # Added Dict and Literal
 from pathlib import Path
-from pydantic import BaseModel, Field, root_validator  # Added Field and root_validator
+from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 class RootConfig(BaseModel):
     """Configuration for an MCP root"""
 
-    uri: str
-    name: str
-    capabilities: List[str]
+    uri: str = Field(description="The URI of the root.")
+    name: str = Field(description="The name of the root.")
+    capabilities: List[str] = Field(
+        description="A list of capabilities provided by this root."
+    )
 
 
 class GCPSecretConfig(BaseModel):
@@ -39,32 +41,54 @@ class GCPSecretConfig(BaseModel):
 class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
-    name: str
-    transport_type: Optional[Literal["stdio", "http_stream", "local"]] = None
-    server_path: Optional[Path] = None
-    http_endpoint: Optional[str] = None
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    roots: List[RootConfig] = Field(default_factory=list)
-    capabilities: List[str]
-    timeout: float = 10.0  # Default timeout in seconds
-    routing_weight: float = 1.0  # Weight for server selection
-    exclude: Optional[List[str]] = (
-        None  # List of component names (prompt, resource, tool) to exclude
+    name: str = Field(description="Unique name for the MCP server client.")
+    transport_type: Optional[Literal["stdio", "http_stream", "local"]] = Field(
+        default=None, description="The transport type for the client."
+    )
+    server_path: Optional[Path] = Field(
+        default=None, description="Path to the server script for 'stdio' transport."
+    )
+    http_endpoint: Optional[str] = Field(
+        default=None, description="URL endpoint for 'http_stream' transport."
+    )
+    command: Optional[str] = Field(
+        default=None, description="The command to run for 'local' transport."
+    )
+    args: Optional[List[str]] = Field(
+        default=None, description="Arguments for the 'local' transport command."
+    )
+    roots: List[RootConfig] = Field(
+        default_factory=list, description="List of root configurations for this client."
+    )
+    capabilities: List[str] = Field(
+        description="List of capabilities this client provides (e.g., 'tools', 'prompts')."
+    )
+    timeout: float = Field(
+        default=10.0, description="Default timeout in seconds for client operations."
+    )
+    routing_weight: float = Field(
+        default=1.0, description="Weight for server selection during routing."
+    )
+    exclude: Optional[List[str]] = Field(
+        default=None,
+        description="List of component names (prompt, resource, tool) to exclude from this client.",
     )
     gcp_secrets: Optional[List[GCPSecretConfig]] = Field(
         None,
         description="List of GCP secrets to resolve and inject into the server environment",
     )
 
-    @root_validator(pre=True, skip_on_failure=True)
-    def infer_and_validate_transport_type(
-        cls, values: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    @model_validator(mode="before")
+    @classmethod
+    def infer_and_validate_transport_type(cls, data: Any) -> Any:
         """
         Infers transport_type based on provided fields if it's not set,
         and validates that the correct fields for the transport type are present.
         """
+        if not isinstance(data, dict):
+            return data  # Let other validators handle non-dict data
+
+        values = data  # Use 'values' for consistency with previous logic
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
         http_endpoint = values.get("http_endpoint")
@@ -120,14 +144,20 @@ class ClientConfig(BaseModel):
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
-    mcp_servers: List[ClientConfig]
-    name: Optional[str] = None
-    description: Optional[str] = None
+    mcp_servers: List[ClientConfig] = Field(
+        description="A list of MCP server client configurations."
+    )
+    name: Optional[str] = Field(default=None, description="The name of the host.")
+    description: Optional[str] = Field(
+        default=None, description="A description of the host."
+    )
 
 
 class WorkflowComponent(BaseModel):
-    name: str
-    type: Literal["agent", "simple_workflow", "custom_workflow"]
+    name: str = Field(description="The name of the component in the workflow step.")
+    type: Literal["agent", "simple_workflow", "custom_workflow"] = Field(
+        description="The type of the component."
+    )
 
 
 class WorkflowConfig(BaseModel):
@@ -135,11 +165,13 @@ class WorkflowConfig(BaseModel):
     Configuration for a simple, sequential agent workflow.
     """
 
-    name: str
-    steps: List[
-        str | WorkflowComponent
-    ]  # List of component names, or objects with name and type
-    description: Optional[str] = None
+    name: str = Field(description="The unique name of the workflow.")
+    steps: List[str | WorkflowComponent] = Field(
+        description="List of component names or component objects to execute in sequence."
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the workflow."
+    )
 
 
 # --- LLM Configuration ---
@@ -188,49 +220,59 @@ class AgentConfig(BaseModel):
     """
 
     # Optional name for the agent instance
-    name: Optional[str] = None
+    name: Optional[str] = Field(
+        default=None, description="A unique name for the agent instance."
+    )
     # Link to the Host configuration defining available clients/capabilities
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
-    mcp_servers: Optional[List[str]] = Field(default_factory=list)
+    mcp_servers: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of mcp_server names this agent can use.",
+    )
     auto: Optional[bool] = Field(
-        False,
+        default=False,
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
     )
     # --- LLM Selection ---
     llm_config_id: Optional[str] = Field(
-        None, description="ID of the LLMConfig to use for this agent."
+        default=None, description="ID of the LLMConfig to use for this agent."
     )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
-    system_prompt: Optional[str] = None
-    config_validation_schema: Optional[dict[str, Any]] = Field(  # Renamed again
-        None,
-        description="JSON schema for validating agent-specific configurations",
+    system_prompt: Optional[str] = Field(
+        default=None, description="The primary system prompt for the agent."
+    )
+    config_validation_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="JSON schema for validating agent-specific configurations.",
     )
     model: Optional[str] = Field(
-        None, description="Overrides model_name from LLMConfig if specified."
+        default=None, description="Overrides model_name from LLMConfig if specified."
     )
     temperature: Optional[float] = Field(
-        None, description="Overrides temperature from LLMConfig if specified."
+        default=None, description="Overrides temperature from LLMConfig if specified."
     )
     max_tokens: Optional[int] = Field(
-        None, description="Overrides max_tokens from LLMConfig if specified."
+        default=None, description="Overrides max_tokens from LLMConfig if specified."
     )
     # --- Agent Behavior ---
-    max_iterations: Optional[int] = None  # Max conversation turns before stopping
-    include_history: Optional[bool] = (
-        None  # Whether to include the conversation history, or just the latest message
+    max_iterations: Optional[int] = Field(
+        default=None, description="Max conversation turns before stopping."
+    )
+    include_history: Optional[bool] = Field(
+        default=None,
+        description="Whether to include the conversation history, or just the latest message.",
     )
     # --- Component Filtering ---
     # List of component names (tool, prompt, resource) to specifically exclude for this agent
     exclude_components: Optional[List[str]] = Field(
-        None,
+        default=None,
         description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
     )
     # --- Evaluation (Experimental/Specific Use Cases) ---
     evaluation: Optional[str] = Field(
-        None,
+        default=None,
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
 
@@ -240,10 +282,16 @@ class CustomWorkflowConfig(BaseModel):
     Configuration for a custom Python-based workflow.
     """
 
-    name: str
-    module_path: Path  # Resolved absolute path to the python file
-    class_name: str  # Name of the class within the file implementing the workflow
-    description: Optional[str] = None
+    name: str = Field(description="The unique name of the custom workflow.")
+    module_path: Path = Field(
+        description="Resolved absolute path to the Python file containing the workflow class."
+    )
+    class_name: str = Field(
+        description="Name of the class within the module that implements the workflow."
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the custom workflow."
+    )
 
 
 # --- Project Configuration ---

@@ -103,8 +103,8 @@ class ToolManager:
         self._tool_metadata[tool_name] = {
             "client_id": client_id,  # Redundant? Router knows this.
             "description": tool.description if hasattr(tool, "description") else "",
-            # Use inputSchema if available, fallback to parameters for compatibility
-            "parameters": getattr(tool, "inputSchema", getattr(tool, "parameters", {})),
+            # Use inputSchema, which is the correct attribute for tool parameters.
+            "parameters": getattr(tool, "inputSchema", {}),
         }
 
         # Register with the message router (only name and client_id needed now)
@@ -153,7 +153,7 @@ class ToolManager:
         tool_name: str,
         arguments: Dict[str, Any],
         client_name: Optional[str] = None,  # Added client_name parameter
-    ) -> List[types.TextContent]:
+    ) -> Any:
         """
         Execute a tool with the given arguments, potentially on a specific client.
 
@@ -319,8 +319,7 @@ class ToolManager:
                 "description", getattr(tool_def, "description", "")
             )
             parameters = metadata.get(
-                "parameters",
-                getattr(tool_def, "inputSchema", getattr(tool_def, "parameters", {})),
+                "parameters", getattr(tool_def, "inputSchema", {})
             )
             client_id = metadata.get(
                 "client_id", "UNKNOWN"
@@ -441,11 +440,7 @@ class ToolManager:
             tool = self.get_tool(tool_name)
             if tool:
                 # Get correct input schema format
-                input_schema = {}
-                if hasattr(tool, "inputSchema"):
-                    input_schema = tool.inputSchema
-                elif hasattr(tool, "parameters"):
-                    input_schema = tool.parameters
+                input_schema = getattr(tool, "inputSchema", {})
 
                 # Ensure schema has a 'type' field for LLM APIs
                 if isinstance(input_schema, dict) and "type" not in input_schema:
@@ -479,7 +474,7 @@ class ToolManager:
             return str(tool_result)
 
     def create_tool_result_blocks(
-        self, tool_use_id: str, tool_result
+        self, tool_use_id: str, tool_result: Any, is_error: bool = False
     ) -> Dict[str, Any]:
         """
         Create a properly formatted tool result block for LLM APIs.
@@ -508,7 +503,8 @@ class ToolManager:
         return {
             "type": "tool_result",
             "tool_use_id": tool_use_id,
-            "content": content_list,  # Ensure content is a list
+            "content": content_list,
+            "is_error": is_error,
         }
 
     async def unregister_client_tools(self, client_id: str):

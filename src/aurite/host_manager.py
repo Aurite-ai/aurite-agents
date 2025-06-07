@@ -6,13 +6,28 @@ import importlib.resources  # For loading packaged project templates
 import json  # Added for loading prompt_validation_config.json
 import logging
 import os  # Added for environment variable check
+import sys
 from pathlib import Path
 from typing import (  # Added AsyncGenerator, Dict, Any
     Any,
     AsyncGenerator,
     Dict,
+    List,
     Optional,
 )
+
+# For robust exception group handling in Python < 3.11
+if sys.version_info < (3, 11):
+    try:
+        from exceptiongroup import ExceptionGroup as BaseExceptionGroup
+    except ImportError:
+        # If exceptiongroup is not installed, create a dummy class
+        class BaseExceptionGroup(Exception):  # type: ignore
+            exceptions: List[Exception] = []
+
+else:
+    from builtins import ExceptionGroup as BaseExceptionGroup
+
 
 from .config.config_models import LLMConfig  # Added LLMConfig
 from .config.config_models import (  # Updated import path
@@ -299,10 +314,14 @@ class Aurite:
                     # Ensure current_project_root is available for path resolution within this template,
                     # using the packaged root as the base for the template itself.
                     packaged_root = importlib.resources.files("aurite.packaged")
-                    parsed_template_project = self.project_manager._parse_and_resolve_project_data(
-                        json.loads(packaged_project_template_path_obj.read_text()),
-                        str(packaged_project_template_path_obj),
-                        packaged_root,  # base_path for resolving paths *within* this template
+                    parsed_template_project = (
+                        self.project_manager._parse_and_resolve_project_data(
+                            json.loads(packaged_project_template_path_obj.read_text()),
+                            str(packaged_project_template_path_obj),
+                            Path(
+                                str(packaged_root)
+                            ),  # base_path for resolving paths *within* this template
+                        )
                     )
 
                     # Add components from this template to the active project
@@ -310,29 +329,29 @@ class Aurite:
                     # For simplicity in this step, we'll log and defer full merge logic if complex.
                     # A simple way is to iterate and register if not present.
                     if parsed_template_project:
-                        for (
-                            agent_name,
-                            agent_cfg,
-                        ) in parsed_template_project.agents.items():
-                            if not self.project_manager.get_active_project_config().agents.get(
-                                agent_name
-                            ):  # type: ignore
-                                await self.register_agent(agent_cfg)
-                        for (
-                            client_id,
-                            client_cfg,
-                        ) in parsed_template_project.mcp_servers.items():
-                            if not self.project_manager.get_active_project_config().mcp_servers.get(
-                                client_id
-                            ):  # type: ignore
-                                try:
-                                    await self.register_client(client_cfg)
-                                except (
-                                    DuplicateClientIdError
-                                ):  # It might have been loaded as a default already
-                                    logger.debug(
-                                        f"Client {client_id} from template already exists, skipping registration."
-                                    )
+                        active_project_config = (
+                            self.project_manager.get_active_project_config()
+                        )
+                        if active_project_config:
+                            for (
+                                agent_name,
+                                agent_cfg,
+                            ) in parsed_template_project.agents.items():
+                                if not active_project_config.agents.get(agent_name):
+                                    await self.register_agent(agent_cfg)
+                            for (
+                                client_id,
+                                client_cfg,
+                            ) in parsed_template_project.mcp_servers.items():
+                                if not active_project_config.mcp_servers.get(client_id):
+                                    try:
+                                        await self.register_client(client_cfg)
+                                    except (
+                                        DuplicateClientIdError
+                                    ):  # It might have been loaded as a default already
+                                        logger.debug(
+                                            f"Client {client_id} from template already exists, skipping registration."
+                                        )
                         # Add for other component types (llms, workflows) as needed.
                         logger.debug(
                             f"Components from {packaged_project_template_path_obj.name} considered for active project."
@@ -417,8 +436,7 @@ class Aurite:
                 # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
                 # and if the first exception is a RuntimeError
                 if (
-                    hasattr(e, "exceptions")
-                    and isinstance(e.exceptions, list)
+                    isinstance(e, BaseExceptionGroup)
                     and len(e.exceptions) > 0
                     and isinstance(e.exceptions[0], RuntimeError)
                 ):
@@ -479,8 +497,7 @@ class Aurite:
                 # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
                 # and if the first exception is a RuntimeError
                 if (
-                    hasattr(e, "exceptions")
-                    and isinstance(e.exceptions, list)
+                    isinstance(e, BaseExceptionGroup)
                     and len(e.exceptions) > 0
                     and isinstance(e.exceptions[0], RuntimeError)
                 ):
@@ -865,7 +882,8 @@ class Aurite:
 
         # Cascading Agent registration/update for steps
         if workflow_config.steps:
-            for agent_name_step in workflow_config.steps:  # Renamed to avoid conflict
+            for step in workflow_config.steps:  # Renamed to avoid conflict
+                agent_name_step = step if isinstance(step, str) else step.name
                 logger.debug(
                     f"Workflow '{workflow_config.name}' step: Agent '{agent_name_step}'. Attempting to register/update it."
                 )

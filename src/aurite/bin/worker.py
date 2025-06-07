@@ -10,7 +10,6 @@ import logging
 import json
 import signal
 import sys  # Added import
-from functools import lru_cache
 from typing import Optional  # Added import
 
 import redis.asyncio as redis
@@ -24,7 +23,11 @@ from ..config.config_models import (
     AgentConfig,
     WorkflowConfig,
 )  # Updated import path
-from ..config import PROJECT_ROOT_DIR  # For resolving client paths
+
+from .dependencies import (  # Corrected relative import (up one level from src/bin/api)
+    PROJECT_ROOT,
+    get_server_config,  # Re-import ServerConfig if needed locally, or remove if only used in dependencies.py
+)
 
 # Configure logging
 logging.basicConfig(
@@ -32,23 +35,6 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s - %(message)s",
 )
 logger = logging.getLogger("aurite_worker")
-
-
-# --- Configuration Loading ---
-# Duplicated from api.py/cli.py - consider refactoring later
-@lru_cache()
-def get_server_config() -> ServerConfig:
-    """Loads server configuration using pydantic-settings."""
-    try:
-        config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
-        logger.info("Server configuration loaded successfully.")
-        logging.getLogger().setLevel(config.LOG_LEVEL.upper())
-        logger.setLevel(config.LOG_LEVEL.upper())
-        return config
-    except ValidationError as e:
-        logger.error(f"!!! Failed to load server configuration: {e}")
-        raise RuntimeError(f"Server configuration error: {e}") from e
-
 
 # --- Global State ---
 shutdown_event = asyncio.Event()
@@ -97,14 +83,14 @@ async def process_message(manager: Aurite, message_id: bytes, message_data: dict
                 # Resolve server_path relative to project root
                 raw_server_path = data.get("server_path")
                 if raw_server_path:
-                    resolved_path = (PROJECT_ROOT_DIR / raw_server_path).resolve()
+                    resolved_path = (PROJECT_ROOT / raw_server_path).resolve()
                     data["server_path"] = resolved_path
                 else:
                     logger.error("Client config data missing 'server_path'.")
                     return
                 client_config = ClientConfig(**data)  # Use specific var name
                 await manager.register_client(client_config)
-                logger.info(f"Registered client: {client_config.client_id}")
+                logger.info(f"Registered client: {client_config.name}")
             elif component_type == "agent":
                 agent_config = AgentConfig(**data)  # Use specific var name
                 await manager.register_agent(agent_config)
@@ -142,7 +128,7 @@ async def process_message(manager: Aurite, message_id: bytes, message_data: dict
                     agent_name=name, user_message=user_message
                 )
                 logger.info(
-                    f"Executed agent '{name}'. Result status (if applicable): {result.get('final_response', {}).get('stop_reason', 'N/A') if result else 'N/A'}"  # Log stop reason if available
+                    f"Executed agent '{name}'. Result status (if applicable): {result.primary_text if result else 'N/A'}"  # Log stop reason if available
                 )
                 # Optionally publish result back to Redis
             elif component_type == "workflow":

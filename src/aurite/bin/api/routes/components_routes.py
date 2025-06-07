@@ -233,27 +233,25 @@ async def register_client_endpoint(
     manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new MCP client."""
-    logger.info(f"Received request to register client: {client_config.client_id}")
+    logger.info(f"Received request to register client: {client_config.name}")
     # Aurite.register_client handles upsert logic and potential errors
     try:
         await manager.register_client(client_config)
-        return {"status": "success", "client_id": client_config.client_id}
+        return {"status": "success", "name": client_config.name}
     except DuplicateClientIdError as e:  # Specific catch for 409
         logger.error(
-            f"Duplicate client ID error registering client {client_config.client_id}: {e}"
+            f"Duplicate client ID error registering client {client_config.name}: {e}"
         )
         raise HTTPException(status_code=409, detail=str(e))
     except PermissionError as e:
-        logger.error(
-            f"Permission error registering client {client_config.client_id}: {e}"
-        )
+        logger.error(f"Permission error registering client {client_config.name}: {e}")
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:  # General ValueErrors still 400
-        logger.error(f"Value error registering client {client_config.client_id}: {e}")
+        logger.error(f"Value error registering client {client_config.name}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(
-            f"Unexpected error registering client {client_config.client_id}: {e}",
+            f"Unexpected error registering client {client_config.name}: {e}",
             exc_info=True,
         )
         raise HTTPException(
@@ -429,18 +427,18 @@ async def list_registered_custom_workflows(
 
 @router.get("/components/clients", response_model=List[str])
 async def list_registered_clients(manager: Aurite = Depends(get_host_manager)):
-    """Lists the client_ids of all currently registered clients from the active project."""
+    """Lists the names of all currently registered clients from the active project."""
     active_project = manager.project_manager.get_active_project_config()
-    if not active_project or not active_project.clients:
+    if not active_project or not active_project.mcp_servers:
         return []
-    # Client IDs are stored directly in the list if string, or as client_id attribute if ClientConfig object
-    client_ids = []
-    for client_entry in active_project.clients:
+    # Client IDs are stored directly in the list if string, or as name attribute if ClientConfig object
+    names = []
+    for client_entry in active_project.mcp_servers:
         if isinstance(client_entry, str):
-            client_ids.append(client_entry)
-        elif hasattr(client_entry, "client_id"):  # Check if it's a ClientConfig model
-            client_ids.append(client_entry.client_id)
-    return client_ids
+            names.append(client_entry)
+        elif hasattr(client_entry, "name"):  # Check if it's a ClientConfig model
+            names.append(client_entry.name)
+    return names
 
 
 @router.get("/components/llms", response_model=List[str])
@@ -460,7 +458,7 @@ async def list_registered_llms(
 
 @router.get("/host/clients/active", response_model=List[str], tags=["Host Status"])
 async def list_active_host_clients(manager: Aurite = Depends(get_host_manager)):
-    """Lists the client_ids of all clients currently active and running on the MCPHost instance."""
+    """Lists the names of all clients currently active and running on the MCPHost instance."""
     if not manager.host or not manager.host.client_manager:
         logger.warning(
             "Host or ClientManager not available for listing active clients."

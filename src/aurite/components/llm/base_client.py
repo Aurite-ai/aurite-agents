@@ -108,6 +108,11 @@ class BaseLLM(ABC):
         raise NotImplementedError
         yield {}  # Placeholder for linter
 
+    @abstractmethod
+    async def aclose(self):
+        """Closes the underlying client session."""
+        raise NotImplementedError
+
 
 # --- Factory Function (Example) ---
 # This would likely live in a manager or registry later

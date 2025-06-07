@@ -48,7 +48,7 @@ class FilteringManager:
         if client_config.exclude and component_name in client_config.exclude:
             logger.debug(
                 f"Component '{component_name}' registration denied for client "
-                f"'{client_config.client_id}' due to ClientConfig.exclude."
+                f"'{client_config.name}' due to ClientConfig.exclude."
             )
             return False
         return True

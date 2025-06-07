@@ -80,6 +80,12 @@ class AnthropicLLM(BaseLLM):
             logger.error(f"Failed to initialize Anthropic SDK client: {e}")
             raise ValueError(f"Failed to initialize Anthropic SDK client: {e}") from e
 
+    async def aclose(self):
+        """Closes the underlying httpx client."""
+        if self.anthropic_sdk_client and hasattr(self.anthropic_sdk_client, "_client"):
+            await self.anthropic_sdk_client._client.aclose()
+            logger.debug("AnthropicLLM client session closed.")
+
     async def create_message(
         self,
         messages: List[Dict[str, Any]],
@@ -153,7 +159,7 @@ Remember to format your response as a valid JSON object."""
                             type="tool_use",
                             id=block.id,
                             name=block.name,
-                            input=block.input,
+                            input=cast(Dict[str, Any], block.input),
                         )
                     )
             role = anthropic_response.role

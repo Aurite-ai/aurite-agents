@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Type, Union
 import json
 import importlib.resources
+from importlib.abc import Traversable
 
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 from .config_models import (
     ClientConfig,
@@ -80,7 +81,7 @@ class ComponentManager:
         file_content: str,
         model_class: Type,
         id_field: str,
-        base_path_for_resolution: Path,
+        base_path_for_resolution: Union[Path, Traversable],
         file_identifier_for_logging: str,
     ) -> List[Any]:
         """
@@ -116,8 +117,14 @@ class ComponentManager:
                 continue
 
             try:
+                # Ensure base_path is a Path object for resolve_path_fields
+                base_path = (
+                    Path(str(base_path_for_resolution))
+                    if isinstance(base_path_for_resolution, Traversable)
+                    else base_path_for_resolution
+                )
                 data_to_validate = resolve_path_fields(
-                    item_data, model_class, base_path_for_resolution
+                    item_data, model_class, base_path
                 )
                 component_model = model_class(**data_to_validate)
                 parsed_models.append(component_model)
@@ -137,8 +144,8 @@ class ComponentManager:
         component_type: str,
         model_class: Type,
         id_field: str,
-        directory_path: Path,
-        base_path_for_resolution: Path,
+        directory_path: Union[Path, Traversable],
+        base_path_for_resolution: Union[Path, Traversable],
         is_override_allowed: bool = False,
     ):
         """
@@ -167,7 +174,20 @@ class ComponentManager:
         error_count = 0
 
         logger.debug(f"Scanning {directory_path} for {component_type} components...")
-        for file_path in directory_path.glob("*.json"):
+
+        files_to_iterate: List[Union[Path, Traversable]] = []
+        if isinstance(directory_path, Path):
+            files_to_iterate = list(directory_path.glob("*.json"))
+        elif hasattr(directory_path, "iterdir"):
+            for item in directory_path.iterdir():
+                if (
+                    hasattr(item, "is_file")
+                    and item.is_file()
+                    and item.name.endswith(".json")
+                ):
+                    files_to_iterate.append(item)
+
+        for file_path in files_to_iterate:
             if not file_path.is_file():
                 continue
             try:
@@ -519,7 +539,7 @@ class ComponentManager:
     def save_components_to_file(
         self,
         component_type: str,
-        components_data: List[Union[Dict[str, Any], Any]],
+        components_data: List[Union[Dict[str, Any], BaseModel]],
         filename: str,
         project_root_path: Path,
         overwrite: bool = True,
@@ -552,11 +572,12 @@ class ComponentManager:
         data_to_save_list: List[Dict[str, Any]] = []
 
         for item_data_raw in components_data:
-            item_dict = (
-                item_data_raw.model_dump(mode="json")
-                if hasattr(item_data_raw, "model_dump")
-                else item_data_raw
-            )
+            item_dict: Dict[str, Any]
+            if isinstance(item_data_raw, BaseModel):
+                item_dict = item_data_raw.model_dump(mode="json")
+            else:
+                item_dict = item_data_raw
+
             if not isinstance(item_dict, dict):
                 continue
 

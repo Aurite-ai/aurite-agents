@@ -53,7 +53,7 @@ class ClientManager:
         This method is intended to be run as a task within an AnyIO TaskGroup.
         """
         client_id = client_config.name
-        session_instance = None  # To hold the session if successfully created
+        session_started = False  # Flag to track if started() has been called
 
         try:
             with client_cancel_scope:  # Enter the passed-in cancel scope
@@ -190,7 +190,6 @@ class ClientManager:
                         f"{client_config.transport_type} transport acquired for {client_id}."
                     )
                     async with ClientSession(reader, writer) as session:
-                        session_instance = session
                         self.active_clients[client_id] = session
                         logger.debug(
                             f"ClientSession created and stored for {client_id}."
@@ -198,6 +197,7 @@ class ClientManager:
 
                         # Signal MCPHost that session is ready and pass it back
                         task_status.started(session)
+                        session_started = True  # Set the flag
                         logger.debug(
                             f"Task for client {client_id}: Session established and reported. Running until cancelled."
                         )
@@ -216,19 +216,16 @@ class ClientManager:
             logger.error(
                 f"Error in client lifecycle task for {client_id}: {e}", exc_info=True
             )
-            # If task_status.started() hasn't been called yet, and an error occurs,
-            # anyio's task_group.start() will re-raise this error in the parent task.
-            # If it was already called, the error propagates to the task group's __aexit__.
-            if (
-                session_instance is None
-                and hasattr(task_status, "_future")
-                and not task_status._future.done()
-            ):
-                # This is a bit of a hack to check if started() was called; normally TaskStatus doesn't expose _future
-                # A more robust way might be to set a flag after calling started().
-                # For now, if an error occurs before session is established, it will be raised by tg.start()
-                pass  # Error will be propagated by tg.start() if started() not called.
-            raise  # Re-raise to ensure task group sees the error if it occurs after started()
+            # If an error occurs before task_status.started() is called, the exception
+            # will be propagated by the task group's start() method. If it occurs after,
+            # we must re-raise it to ensure the task group sees the failure.
+            if not session_started:
+                # Let the error propagate via the start() mechanism.
+                # No need to re-raise here as anyio handles it.
+                pass
+            else:
+                # If started() was called, the error would be suppressed unless re-raised.
+                raise
         finally:
             logger.debug(
                 f"Client {client_id}: Entering manage_client_lifecycle finally block."
