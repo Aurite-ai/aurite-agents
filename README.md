@@ -44,7 +44,6 @@ These are the primary building blocks you'll work with:
 
         style Agent fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
         style LLM fill:#FFFFE0,stroke:#B8860B,stroke-width:2px,color:#333333
-        style Clients fill:#E6E6FA,stroke:#483D8B,stroke-width:2px,color:#333333
         style MCP1 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
         style MCP2 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
         style MCP3 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
