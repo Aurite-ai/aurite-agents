@@ -1,0 +1,17 @@
+[
+  {
+    "name": "desktop_commander_agent",
+    "mcp_servers": ["desktop_commander"],
+    "system_prompt": "You are an agent that can use the desktop_commander server to interact with the local desktop environment."
+  },
+  {
+    "name": "memory_bank_agent",
+    "mcp_servers": ["memory_bank"],
+    "system_prompt": "You are an agent that can use the memory_bank server to create and manage a persistent 'memory bank' for an agent, allowing it to store and retrieve information across sessions."
+  },
+  {
+    "name": "planning_agent",
+    "mcp_servers": ["planning_server"],
+    "system_prompt": "You are an agent that can use the planning_server to create, save, and list structured plans."
+  }
+]

@@ -4,9 +4,6 @@ Tests for the Aurite class.
 
 import pytest
 
-# Mark all tests in this module as belonging to the Orchestration layer and use anyio
-pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
-
 
 # Assuming tests run from project root
 from aurite.host_manager import Aurite
@@ -17,9 +14,13 @@ from aurite.config.config_models import (
     CustomWorkflowConfig,
 )
 
+# Mark all tests in this module as belonging to the Orchestration layer and use anyio
+pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
+
+
 # Expected counts based on loading aurite_config.json
 EXPECTED_CLIENT_COUNT = 2
-EXPECTED_AGENT_COUNT = 8
+EXPECTED_AGENT_COUNT = 9
 EXPECTED_LLM_CONFIG_COUNT = 4
 EXPECTED_WORKFLOW_COUNT = 1
 EXPECTED_CUSTOM_WORKFLOW_COUNT = 0

@@ -21,8 +21,8 @@ your_project_name/
 ├── config/                         # Directory for component configurations
 │   ├── agents/
 │   │   └── agents.json             # Example agent configurations
-│   ├── clients/
-│   │   └── clients.json            # Example client configurations
+│   ├── mcp_servers/
+│   │   └── mcp_servers.json        # Example MCP Server configurations
 │   ├── custom_workflows/
 │   │   └── custom_workflows.json   # Example custom workflow configurations
 │   ├── llms/

@@ -8,24 +8,6 @@ Whether you're looking to create sophisticated AI assistants, automate processes
 
 To install the framework as a python package, see [Package Installation Guide](docs/package_installation_guide.md).
 
-## Architecture Overview
-
-The framework follows a layered architecture, illustrated below:
-
-```mermaid
-graph TD
-    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
-    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
-    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
-
-    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
-    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
-    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
-    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
-```
-
-For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
-
 ## Core Concepts for Users
 
 Understanding these concepts will help you configure and use the Aurite Agents framework effectively.
@@ -34,8 +16,8 @@ Understanding these concepts will help you configure and use the Aurite Agents f
 
 A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `config/projects/default.json`). This file acts as a central manifest for your agentic application, specifying:
 *   The name and description of the project.
-*   Which LLM configurations to use (`llm_configs`).
-*   Which MCP Servers (Clients) to connect to (`clients`).
+*   Which LLM configurations to use (`llms`).
+*   Which MCP Servers to connect to (`mcp_servers`).
 *   Which Agents, Simple Workflows, and Custom Workflows are part of this project.
 
 The active project configuration tells the `HostManager` what components to load and make available.
@@ -49,16 +31,16 @@ These are the primary building blocks you'll work with:
 *   **Agents (`src/agents/agent.py`):**
     *   LLM-powered entities that can engage in conversations, use tools, and optionally maintain history.
     *   Configured via `AgentConfig` models, typically stored in JSON files (e.g., `config/agents/my_weather_agent.json`) and referenced in your project file.
-    *   Key settings include the LLM to use, system prompts, and rules for accessing tools/clients.
+    *   Key settings include the LLM to use, system prompts, and rules for accessing MCP Servers.
 
     ```mermaid
     graph TD
         Agent["Agent <br/> (src/agents/agent.py)"] --> LLM["LLM <br/> (e.g., Claude, GPT)"];
-        Agent --> Clients["MCP Clients <br/> (Connections to Servers)"];
+        Agent --> MCP_Servers["MCP Servers <br/> (Connections)"];
 
-        Clients --> MCP1["MCP Server 1 <br/> (e.g., Weather Tool)"];
-        Clients --> MCP2["MCP Server 2 <br/> (e.g., Database)"];
-        Clients --> MCP3["MCP Server 3 <br/> (e.g., Custom API)"];
+        MCP_Servers --> MCP1["MCP Server 1 <br/> (e.g., Weather Tool)"];
+        MCP_Servers --> MCP2["MCP Server 2 <br/> (e.g., Database)"];
+        MCP_Servers --> MCP3["MCP Server 3 <br/> (e.g., Custom API)"];
 
         style Agent fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
         style LLM fill:#FFFFE0,stroke:#B8860B,stroke-width:2px,color:#333333
@@ -156,11 +138,30 @@ These are the primary building blocks you'll work with:
 ### 4. MCP Servers (as Clients)
 
 *   External processes that provide tools, prompts, or resources according to the Model Context Protocol (MCP).
-*   The Aurite framework connects to these servers, referring to them as "Clients."
-*   Configured via `ClientConfig` models (e.g., `config/clients/default_clients.json`), specifying the server's path, capabilities, and access rules.
-*   An example MCP server is `src/packaged_servers/weather_mcp_server.py`.
+*   The Aurite framework connects to these servers to provide capabilities to agents.
+*   Configured via `ClientConfig` models (e.g., `config/mcp_servers/mcp_servers.json`), specifying the server's path, capabilities, and access rules.
+*   An example MCP server is `src/packaged/example_mcp_servers/weather_mcp_server.py`.
 
-*   For more information on Client (MCP Server) Configurations, see [Clients](docs/components/client.md).
+*   For more information on MCP Server Configurations, see [MCP Servers](docs/components/mcp_server.md).
+
+
+## Architecture Overview
+
+The framework follows a layered architecture, illustrated below:
+
+```mermaid
+graph TD
+    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
+    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
+    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
+
+    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
+    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
+    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
+    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
+```
+
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
 
 ## Other Entrypoints
 

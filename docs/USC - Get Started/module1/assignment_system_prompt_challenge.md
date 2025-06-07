@@ -19,7 +19,7 @@ Before attempting this optional assignment, ensure you have:
     *   Configuring your OpenAI API key in the `.env` file (located in your main workspace directory).
     *   Successfully configuring the "MyCLIWeatherAssistant" agent in your project's `aurite_config.json` file.
     *   Successfully modifying `run_example_project.py` to run "MyCLIWeatherAssistant" and verifying its operation.
-2.  **Your `aurite_config.json` file should contain the "MyCLIWeatherAssistant" agent configuration**, as created in the tutorial. This agent should be set up to use the `my_openai_gpt4_turbo` LLM configuration and the `weather_server` client.
+2.  **Your `aurite_config.json` file should contain the "MyCLIWeatherAssistant" agent configuration**, as created in the tutorial. This agent should be set up to use the `my_openai_gpt4_turbo` LLM configuration and the `weather_server` MCP server.
 3.  **Your `run_example_project.py` script should be configured to execute the "MyCLIWeatherAssistant" agent.**
 
 ---
@@ -76,7 +76,7 @@ You can choose to complete **one or more** of the following challenges. Each req
           "name": "MyCLIWeatherAssistant",
           "system_prompt": "You are a helpful assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Only provide the temperature and a brief description of the conditions.",
           "llm_config_id": "my_openai_gpt4_turbo",
-          "client_ids": ["weather_server"]
+          "mcp_servers": ["weather_server"]
         }
         ```
 3.  **Modify the System Prompt:**
@@ -86,7 +86,7 @@ You can choose to complete **one or more** of the following challenges. Each req
         *   The tone of voice and language style (for persona challenges).
         *   Specific instructions for data processing (for data manipulation challenges).
         *   How it should integrate the factual weather data from the tool.
-    *   Remember, the agent must still use the `weather_lookup` tool (via the `weather_server` client) and provide accurate weather details for London, presented according to the challenge.
+    *   Remember, the agent must still use the `weather_lookup` tool (via the `weather_server` MCP server) and provide accurate weather details for London, presented according to the challenge.
 4.  **Save and Test Iteratively:**
     *   After modifying the system prompt in `aurite_config.json`, save the file.
     *   Open your terminal, ensure your virtual environment is active, and navigate to your project directory (e.g., `my_first_aurite_project`).

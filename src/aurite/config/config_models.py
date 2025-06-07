@@ -39,7 +39,10 @@ class GCPSecretConfig(BaseModel):
 class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
-    client_id: str
+    client_id: str  # Populated by validator if 'name' is used
+    name: Optional[str] = Field(
+        None, exclude=True
+    )  # Alias for client_id, not part of the final model
     transport_type: Literal["stdio", "http_stream", "local"] = "stdio"
     server_path: Optional[Path] = None
     http_endpoint: Optional[str] = None
@@ -56,6 +59,25 @@ class ClientConfig(BaseModel):
         None,
         description="List of GCP secrets to resolve and inject into the server environment",
     )
+
+    @root_validator(pre=True, skip_on_failure=True)
+    def _alias_name_to_client_id(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Support 'name' as an alias for 'client_id' for backward compatibility and clarity."""
+        client_id = values.get("client_id")
+        name = values.get("name")
+
+        if name is not None:
+            if client_id is not None and client_id != name:
+                logger.warning(
+                    f"Both 'client_id' ({client_id}) and 'name' ({name}) were provided in a client configuration. "
+                    f"Using the value from 'name': '{name}'."
+                )
+            values["client_id"] = name
+        elif client_id is None:
+            raise ValueError(
+                "A 'client_id' or 'name' must be provided for each client configuration."
+            )
+        return values
 
     @root_validator(pre=False, skip_on_failure=True)
     def check_transport_specific_fields(cls, values):
@@ -162,7 +184,8 @@ class AgentConfig(BaseModel):
     # Link to the Host configuration defining available clients/capabilities
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
-    client_ids: Optional[List[str]] = None
+    client_ids: Optional[List[str]] = Field(default_factory=list)
+    mcp_servers: Optional[List[str]] = Field(None, exclude=True)  # Alias for client_ids
     auto: Optional[bool] = Field(
         False,
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
@@ -204,6 +227,21 @@ class AgentConfig(BaseModel):
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
 
+    @root_validator(pre=True, skip_on_failure=True)
+    def _merge_mcp_servers_to_client_ids(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Support 'mcp_servers' as an alias for 'client_ids'."""
+        client_ids = values.get("client_ids", []) or []
+        mcp_servers = values.get("mcp_servers")
+
+        if mcp_servers:
+            # Combine and remove duplicates, preserving order
+            combined = client_ids + [
+                item for item in mcp_servers if item not in client_ids
+            ]
+            values["client_ids"] = combined
+
+        return values
+
 
 class CustomWorkflowConfig(BaseModel):
     """
@@ -234,6 +272,11 @@ class ProjectConfig(BaseModel):
     clients: Dict[str, ClientConfig] = Field(
         default_factory=dict, description="Clients available within this project."
     )
+    mcp_servers: Dict[str, ClientConfig] = Field(
+        default_factory=dict,
+        description="Alias for 'clients'. Defines MCP Servers available within this project.",
+        exclude=True,
+    )
     llms: Dict[str, LLMConfig] = Field(  # Renamed from llm_configs
         default_factory=dict,
         description="LLM configurations available within this project.",
@@ -250,3 +293,22 @@ class ProjectConfig(BaseModel):
         default_factory=dict,
         description="Custom workflows defined or referenced by this project.",
     )
+
+    @root_validator(pre=True, skip_on_failure=True)
+    def _merge_mcp_servers_to_clients(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Support 'mcp_servers' as an alias for 'clients'."""
+        clients = values.get("clients", {}) or {}
+        mcp_servers = values.get("mcp_servers", {}) or {}
+
+        if mcp_servers:
+            # Merge mcp_servers into clients, mcp_servers takes precedence
+            for key, value in mcp_servers.items():
+                if key in clients:
+                    logger.warning(
+                        f"Client/MCP Server '{key}' is defined in both 'clients' and 'mcp_servers'. "
+                        "The definition from 'mcp_servers' will be used."
+                    )
+                clients[key] = value
+            values["clients"] = clients
+
+        return values

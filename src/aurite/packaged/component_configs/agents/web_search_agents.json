@@ -1,0 +1,17 @@
+[
+  {
+    "name": "exa_search_agent",
+    "mcp_servers": ["exa_search"],
+    "system_prompt": "You are an agent that can use the exa_search server for intelligent web searches, academic research, company research, and content extraction."
+  },
+  {
+    "name": "duckduckgo_agent",
+    "mcp_servers": ["duckduckgo_search"],
+    "system_prompt": "You are an agent that can use the duckduckgo_search server to perform web searches and fetch webpage content."
+  },
+  {
+    "name": "academic_search_agent",
+    "mcp_servers": ["paper_search"],
+    "system_prompt": "You are an agent that can use the paper_search server to search for academic papers across multiple sources including arXiv, PubMed, bioRxiv, medRxiv, and Google Scholar."
+  }
+]

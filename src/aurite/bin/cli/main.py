@@ -78,7 +78,7 @@ def init(
         subdirectories_to_create = [
             project_path / "config" / "agents",
             project_path / "config" / "llms",
-            project_path / "config" / "clients",
+            project_path / "config" / "mcp_servers",
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
             project_path / "config" / "testing",
@@ -95,25 +95,19 @@ def init(
         # 4. Optionally, copy basic example files
         logger("Copying example configuration files...")
         copy_packaged_example(
-            "component_configs/llms/default_llms.json",
+            "component_configs/llms/example_llms.json",
             project_path / "config" / "llms",
             "llms.json",
         )
         copy_packaged_example(
-            "component_configs/clients/default_clients.json",
-            project_path / "config" / "clients",
-            "clients.json",  # Renaming for user project
+            "component_configs/mcp_servers/example_mcp_servers.json",
+            project_path / "config" / "mcp_servers",
+            "mcp_servers.json",  # Renaming for user project
         )
         copy_packaged_example(
-            "component_configs/agents/default_agents.json",
+            "component_configs/agents/example_agents.json",
             project_path / "config" / "agents",
             "agents.json",  # Renaming for user project
-        )
-
-        copy_packaged_example(
-            "component_configs/workflows/example_simple_workflow.json",
-            project_path / "config" / "workflows",
-            "simple_workflows.json",  # Renaming for user project
         )
 
         copy_packaged_example(

@@ -8,6 +8,6 @@ repos:
     hooks:
     # Run the linter.
     -   id: ruff
-        args: [--fix, --exit-non-zero-on-fix] # --fix attempts to fix issues, --exit-non-zero-on-fix ensures commit fails if fixes were made
+        args: [--fix] # --fix attempts to fix issues
     # Run the formatter.
     -   id: ruff-format
