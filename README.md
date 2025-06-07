@@ -8,24 +8,6 @@ Whether you're looking to create sophisticated AI assistants, automate processes
 
 To install the framework as a python package, see [Package Installation Guide](docs/package_installation_guide.md).
 
-## Architecture Overview
-
-The framework follows a layered architecture, illustrated below:
-
-```mermaid
-graph TD
-    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
-    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
-    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
-
-    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
-    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
-    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
-    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
-```
-
-For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
-
 ## Core Concepts for Users
 
 Understanding these concepts will help you configure and use the Aurite Agents framework effectively.
@@ -161,6 +143,25 @@ These are the primary building blocks you'll work with:
 *   An example MCP server is `src/packaged/example_mcp_servers/weather_mcp_server.py`.
 
 *   For more information on MCP Server Configurations, see [MCP Servers](docs/components/mcp_server.md).
+
+
+## Architecture Overview
+
+The framework follows a layered architecture, illustrated below:
+
+```mermaid
+graph TD
+    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
+    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
+    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
+
+    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
+    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
+    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
+    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
+```
+
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
 
 ## Other Entrypoints
 
