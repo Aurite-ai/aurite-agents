@@ -1,0 +1,57 @@
+[
+    {
+        "name": "exa_search",
+        "transport_type": "local",
+        "capabilities": ["tools", "prompts"],
+        "timeout": 15.0,
+        "command": "npx",
+        "args": [
+            "-y",
+            "@smithery/cli@latest",
+            "run",
+            "exa",
+            "--key",
+            "{SMITHERY_API_KEY}"
+        ]
+    },
+    {
+        "name": "duckduckgo_search",
+        "transport_type": "local",
+        "capabilities": ["tools", "prompts"],
+        "timeout": 15.0,
+        "command": "npx",
+        "args": [
+            "-y",
+            "@smithery/cli@latest",
+            "run",
+            "@nickclyde/duckduckgo-mcp-server",
+            "--key",
+            "{SMITHERY_API_KEY}"
+        ]
+    },
+    {
+        "name": "paper_search",
+        "transport_type": "local",
+        "capabilities": ["tools", "prompts"],
+        "timeout": 15.0,
+        "command": "npx",
+        "args": [
+            "-y",
+            "@smithery/cli@latest",
+            "run",
+            "@openags/paper-search-mcp",
+            "--key",
+            "{SMITHERY_API_KEY}"
+        ],
+        "exclude": [
+            "download_arxiv", 
+            "download_pubmed", 
+            "download_biorxiv", 
+            "download_medrxiv", 
+            "read_arxiv_paper", 
+            "read_pubmed_paper", 
+            "read_biorxiv_paper", 
+            "read_medrxiv_paper"
+        ]
+    }
+]
