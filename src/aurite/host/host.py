@@ -126,15 +126,15 @@ class MCPHost:
 
         # Initialize each configured client
         successful_initializations = 0
-        num_configured_clients = len(self._config.clients)
+        num_configured_clients = len(self._config.mcp_servers)
 
-        for client_config in self._config.clients:
+        for client_config in self._config.mcp_servers:
             try:
                 await self._initialize_client(client_config)
                 successful_initializations += 1
             except Exception as e:
                 logger.error(
-                    f"Failed to initialize client '{client_config.client_id}'. "
+                    f"Failed to initialize client '{client_config.name}'. "
                     f"This client will be unavailable. Error: {e}",
                     exc_info=True,
                 )
@@ -143,11 +143,7 @@ class MCPHost:
         num_active_clients = len(
             self.client_manager.active_clients
         )  # Should reflect successfully started ones
-        num_agent_configs = (
-            len(self._config.agents)
-            if hasattr(self._config, "agents") and self._config.agents
-            else 0
-        )
+
         logger.info(
             f"MCP Host initialization attempt finished. "
             f"Successfully initialized {num_active_clients}/{num_configured_clients} configured clients. "
@@ -164,7 +160,7 @@ class MCPHost:
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
-        logger.debug(f"Initializing client: {config.client_id}")
+        logger.debug(f"Initializing client: {config.name}")
 
         try:
             if self._client_runners_task_group is None:
@@ -174,7 +170,7 @@ class MCPHost:
                 )
                 raise RuntimeError("Client runners task group not initialized.")
 
-            client_id = config.client_id
+            client_id = config.name
             client_scope = anyio.CancelScope()
             self._client_cancel_scopes[client_id] = client_scope
 
@@ -224,17 +220,17 @@ class MCPHost:
 
             # Register roots
             if "roots" in config.capabilities:
-                await self._root_manager.register_roots(config.client_id, config.roots)
+                await self._root_manager.register_roots(config.name, config.roots)
 
             # Register server capabilities with router
             await self._message_router.register_server(
-                server_id=config.client_id,
+                server_id=config.name,
                 capabilities=set(config.capabilities),
                 weight=config.routing_weight,
             )
 
             # Client session is stored in self.client_manager.active_clients
-            # self._clients[config.client_id] = session # Removed
+            # self._clients[config.name] = session # Removed
 
             # Discover and register components based on capabilities, applying exclusions
             tool_names = []
@@ -242,10 +238,10 @@ class MCPHost:
             resource_names = []
 
             if "tools" in config.capabilities:
-                self._tool_manager.register_client(config.client_id, session)
+                self._tool_manager.register_client(config.name, session)
                 # discover_client_tools now returns List[types.Tool] directly
                 discovered_tools = await self._tool_manager.discover_client_tools(
-                    client_id=config.client_id, client_session=session
+                    client_id=config.name, client_session=session
                 )
                 # --- Removed detailed logging ---
                 for tool in discovered_tools:  # Iterate directly over the list
@@ -253,7 +249,7 @@ class MCPHost:
                     registered = await self._tool_manager.register_tool(
                         tool_name=tool.name,
                         tool=tool,
-                        client_id=config.client_id,
+                        client_id=config.name,
                         client_config=config,  # Pass the whole config
                         filtering_manager=self._filtering_manager,  # Pass the manager
                     )
@@ -265,7 +261,7 @@ class MCPHost:
                 prompts_response = await session.list_prompts()
                 # Pass FilteringManager and ClientConfig to allow manager to check exclusion
                 registered_prompts = await self._prompt_manager.register_client_prompts(
-                    client_id=config.client_id,
+                    client_id=config.name,
                     prompts=prompts_response.prompts,
                     client_config=config,  # Pass the whole config
                     filtering_manager=self._filtering_manager,  # Pass the manager
@@ -277,7 +273,7 @@ class MCPHost:
                 # Pass FilteringManager and ClientConfig to allow manager to check exclusion
                 registered_resources = (
                     await self._resource_manager.register_client_resources(
-                        client_id=config.client_id,
+                        client_id=config.name,
                         resources=resources_response.resources,
                         client_config=config,  # Pass the whole config
                         filtering_manager=self._filtering_manager,  # Pass the manager
@@ -286,14 +282,14 @@ class MCPHost:
                 resource_names = [r.name for r in registered_resources]
 
             logger.debug(  # Changed to DEBUG
-                f"Client '{config.client_id}' initialized. "
+                f"Client '{config.name}' initialized. "
                 f"Tools: {tool_names}, Prompts: {prompt_names}, Resources: {resource_names}"
             )
             # --- End of restored section ---
 
         except Exception as e:
             logger.error(
-                f"Failed to initialize client {config.client_id}: {e}"
+                f"Failed to initialize client {config.name}: {e}"
             )  # Keep error as ERROR
             raise
 
@@ -737,21 +733,21 @@ class MCPHost:
             ValueError: If a client with the same ID is already registered.
             Exception: Propagates exceptions from the underlying client initialization process.
         """
-        logger.info(f"Attempting to dynamically register client: {config.client_id}")
+        logger.info(f"Attempting to dynamically register client: {config.name}")
         # Check using the new method
-        if self.is_client_registered(config.client_id):
-            logger.error(f"Client ID '{config.client_id}' already registered.")
-            raise ValueError(f"Client ID '{config.client_id}' already registered.")
+        if self.is_client_registered(config.name):
+            logger.error(f"Client ID '{config.name}' already registered.")
+            raise ValueError(f"Client ID '{config.name}' already registered.")
 
         try:
             # Reuse the existing internal initialization logic, which now uses ClientManager
             await self._initialize_client(config)
             logger.info(
-                f"Client '{config.client_id}' dynamically registered and initialized successfully."
+                f"Client '{config.name}' dynamically registered and initialized successfully."
             )
         except Exception as e:
             logger.error(
-                f"Failed to dynamically register client '{config.client_id}': {e}",
+                f"Failed to dynamically register client '{config.name}': {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (Aurite) to handle

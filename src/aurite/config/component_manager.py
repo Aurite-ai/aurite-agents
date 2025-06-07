@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # For user projects, this will be relative to current_project_root / 'config'.
 # For packaged defaults, this will be relative to 'aurite.packaged' / 'component_configs'.
 COMPONENT_SUBDIRS = {
-    "clients": "clients",
+    "mcp_servers": "mcp_servers",
     "llms": "llms",
     "agents": "agents",
     "simple_workflows": "workflows",
@@ -31,7 +31,7 @@ COMPONENT_SUBDIRS = {
 
 # Mapping component type to its model class and ID field name
 COMPONENT_META = {
-    "clients": (ClientConfig, "client_id"),
+    "mcp_servers": (ClientConfig, "name"),
     "llms": (LLMConfig, "llm_id"),
     "agents": (AgentConfig, "name"),
     "simple_workflows": (WorkflowConfig, "name"),
@@ -51,7 +51,7 @@ class ComponentManager:
 
     def __init__(self):
         """Initializes the ComponentManager by loading packaged default components."""
-        self.clients: Dict[str, ClientConfig] = {}
+        self.mcp_servers: Dict[str, ClientConfig] = {}
         self.llms: Dict[str, LLMConfig] = {}
         self.agents: Dict[str, AgentConfig] = {}
         self.simple_workflows: Dict[str, WorkflowConfig] = {}
@@ -59,7 +59,7 @@ class ComponentManager:
         self.component_counts: Dict[str, int] = {}
 
         self._component_stores = {
-            "clients": self.clients,
+            "mcp_servers": self.mcp_servers,
             "llms": self.llms,
             "agents": self.agents,
             "simple_workflows": self.simple_workflows,
@@ -145,7 +145,7 @@ class ComponentManager:
         Loads components of a specific type from a given directory.
 
         Args:
-            component_type: The type of component (e.g., 'clients').
+            component_type: The type of component (e.g., 'mcp_servers').
             model_class: The Pydantic model class for the component.
             id_field: The name of the ID field in the model.
             directory_path: The Path object for the directory to scan.
@@ -343,8 +343,8 @@ class ComponentManager:
         return []
 
     # Convenience accessors
-    def get_client(self, client_id: str) -> Optional[ClientConfig]:
-        return self.get_component_config("clients", client_id)  # type: ignore
+    def get_mcp_server(self, server_name: str) -> Optional[ClientConfig]:
+        return self.get_component_config("mcp_servers", server_name)  # type: ignore
 
     def get_llm(self, llm_id: str) -> Optional[LLMConfig]:
         return self.get_component_config("llms", llm_id)  # type: ignore
@@ -358,8 +358,8 @@ class ComponentManager:
     def get_custom_workflow(self, workflow_name: str) -> Optional[CustomWorkflowConfig]:
         return self.get_component_config("custom_workflows", workflow_name)  # type: ignore
 
-    def list_clients(self) -> List[ClientConfig]:
-        return self.list_components("clients")  # type: ignore
+    def list_mcp_servers(self) -> List[ClientConfig]:
+        return self.list_components("mcp_servers")  # type: ignore
 
     def list_llms(self) -> List[LLMConfig]:
         return self.list_components("llms")  # type: ignore

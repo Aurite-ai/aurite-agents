@@ -52,7 +52,7 @@ class ClientManager:
         including startup, session management, and shutdown.
         This method is intended to be run as a task within an AnyIO TaskGroup.
         """
-        client_id = client_config.client_id
+        client_id = client_config.name
         session_instance = None  # To hold the session if successfully created
 
         try:
@@ -183,9 +183,7 @@ class ClientManager:
                         f"Unsupported transport_type: {client_config.transport_type}"
                     )
 
-                async with (
-                    transport_context as transport_streams
-                ):  # streamablehttp_client yields (reader, writer, get_session_id_callback)
+                async with transport_context as transport_streams:  # streamablehttp_client yields (reader, writer, get_session_id_callback)
                     reader, writer = transport_streams[0], transport_streams[1]
                     # get_session_id_callback = transport_streams[2] # We don't need this for ClientSession
                     logger.debug(

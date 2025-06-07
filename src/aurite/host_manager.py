@@ -320,8 +320,8 @@ class Aurite:
                         for (
                             client_id,
                             client_cfg,
-                        ) in parsed_template_project.clients.items():
-                            if not self.project_manager.get_active_project_config().clients.get(
+                        ) in parsed_template_project.mcp_servers.items():
+                            if not self.project_manager.get_active_project_config().mcp_servers.get(
                                 client_id
                             ):  # type: ignore
                                 try:
@@ -592,9 +592,7 @@ class Aurite:
             logger.error("Dynamic registration is disabled. Cannot register client.")
             raise PermissionError("Dynamic registration is disabled by configuration.")
 
-        logger.debug(
-            f"Attempting to dynamically register client: {client_config.client_id}"
-        )
+        logger.debug(f"Attempting to dynamically register client: {client_config.name}")
         if not self.host:
             logger.error("Aurite is not initialized. Cannot register client.")
             raise ValueError("Aurite is not initialized.")
@@ -606,14 +604,14 @@ class Aurite:
 
         # Check if client_id already exists in the active project's client configurations
         # OR if it's currently active on the host.
-        if client_config.client_id in active_project.clients or (
-            self.host and self.host.is_client_registered(client_config.client_id)
+        if client_config.name in active_project.mcp_servers or (
+            self.host and self.host.is_client_registered(client_config.name)
         ):
             logger.error(
-                f"Attempt to register duplicate client ID '{client_config.client_id}'. This is not allowed as it's already configured in the project or active on the host."
+                f"Attempt to register duplicate client ID '{client_config.name}'. This is not allowed as it's already configured in the project or active on the host."
             )
             raise DuplicateClientIdError(
-                f"Client ID '{client_config.client_id}' is already registered or configured in the active project. Duplicate client registration is not allowed."
+                f"Client ID '{client_config.name}' is already registered or configured in the active project. Duplicate client registration is not allowed."
             )
 
         # If not a duplicate, proceed with registration
@@ -623,14 +621,14 @@ class Aurite:
 
             # If successful, add to the active project's configuration
             self.project_manager.add_component_to_active_project(
-                "clients", client_config.client_id, client_config
+                "mcp_servers", client_config.name, client_config
             )
             logger.debug(
-                f"Client '{client_config.client_id}' registered successfully with host and active project."
+                f"Client '{client_config.name}' registered successfully with host and active project."
             )
         except Exception as e:
             logger.error(
-                f"Failed to register client '{client_config.client_id}' with host: {e}",
+                f"Failed to register client '{client_config.name}' with host: {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (e.g., API endpoint) to handle
@@ -710,8 +708,8 @@ class Aurite:
                 # Decide if this should be a hard error for agent registration
 
         # Validate client_ids exist using the host's method
-        if agent_config.client_ids:
-            for client_id in agent_config.client_ids:
+        if agent_config.mcp_servers:
+            for client_id in agent_config.mcp_servers:
                 if not self.host.is_client_registered(client_id):
                     logger.error(
                         f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in active host clients."
@@ -1167,7 +1165,7 @@ class Aurite:
             )
 
             # Add Clients
-            for client_id, client_config in parsed_config.clients.items():
+            for client_id, client_config in parsed_config.mcp_servers.items():
                 if not self.host.is_client_registered(client_id):
                     try:
                         logger.debug(f"Registering new client: {client_id}")

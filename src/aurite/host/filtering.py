@@ -57,7 +57,7 @@ class FilteringManager:
         self, available_clients: List[str], agent_config: AgentConfig
     ) -> List[str]:
         """
-        Filters a list of clients based on the agent's allowed client_ids.
+        Filters a list of clients based on the agent's allowed mcp_servers.
 
         Args:
             available_clients: A list of client IDs that potentially provide the requested component.
@@ -66,7 +66,7 @@ class FilteringManager:
         Returns:
             A filtered list of client IDs that the agent is allowed to use.
         """
-        if agent_config.client_ids is None:
+        if agent_config.mcp_servers is None:
             # Agent is allowed to use any client
             return available_clients
         else:
@@ -74,11 +74,11 @@ class FilteringManager:
             allowed_clients = [
                 client_id
                 for client_id in available_clients
-                if client_id in agent_config.client_ids
+                if client_id in agent_config.mcp_servers
             ]
             logger.debug(
                 f"Filtered available clients {available_clients} to {allowed_clients} "
-                f"based on AgentConfig.client_ids for agent '{agent_config.name}'."
+                f"based on AgentConfig.mcp_servers for agent '{agent_config.name}'."
             )
             return allowed_clients
 

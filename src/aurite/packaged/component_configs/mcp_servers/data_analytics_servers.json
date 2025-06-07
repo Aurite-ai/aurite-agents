@@ -1,7 +1,6 @@
 [
   {
     "name": "game_trends_mcp",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",
@@ -16,7 +15,6 @@
   },
   {
     "name": "healthcare_mcp_public",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",
@@ -32,7 +30,6 @@
   },
   {
     "name": "national_weather_service",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",
@@ -47,7 +44,6 @@
   },
   {
     "name": "pubmed_mcp_server",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",
@@ -62,7 +58,6 @@
   },
   {
     "name": "appinsightmcp",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",

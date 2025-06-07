@@ -1,7 +1,6 @@
 [
   {
     "name": "desktop_commander",
-    "transport_type": "local",
     "command": "npx",
     "args": [
       "-y",
@@ -16,7 +15,6 @@
   },
   {
     "name": "memory_bank",
-    "transport_type": "http_stream",
     "command": "npx",
     "args": [
       "-y",

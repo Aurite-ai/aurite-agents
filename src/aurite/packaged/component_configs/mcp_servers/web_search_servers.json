@@ -1,7 +1,6 @@
 [
     {
         "name": "exa_search",
-        "transport_type": "local",
         "capabilities": ["tools", "prompts"],
         "timeout": 15.0,
         "command": "npx",
@@ -16,7 +15,6 @@
     },
     {
         "name": "duckduckgo_search",
-        "transport_type": "local",
         "capabilities": ["tools", "prompts"],
         "timeout": 15.0,
         "command": "npx",
@@ -31,7 +29,6 @@
     },
     {
         "name": "paper_search",
-        "transport_type": "local",
         "capabilities": ["tools", "prompts"],
         "timeout": 15.0,
         "command": "npx",
@@ -44,13 +41,13 @@
             "{SMITHERY_API_KEY}"
         ],
         "exclude": [
-            "download_arxiv", 
-            "download_pubmed", 
-            "download_biorxiv", 
-            "download_medrxiv", 
-            "read_arxiv_paper", 
-            "read_pubmed_paper", 
-            "read_biorxiv_paper", 
+            "download_arxiv",
+            "download_pubmed",
+            "download_biorxiv",
+            "download_medrxiv",
+            "read_arxiv_paper",
+            "read_pubmed_paper",
+            "read_biorxiv_paper",
             "read_medrxiv_paper"
         ]
     }

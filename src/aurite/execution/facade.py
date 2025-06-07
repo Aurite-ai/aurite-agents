@@ -510,14 +510,14 @@ class ExecutionFacade:
                 )
                 if selected_client_ids is not None:
                     processed_agent_config = copy.deepcopy(agent_config)
-                    processed_agent_config.client_ids = selected_client_ids
+                    processed_agent_config.mcp_servers = selected_client_ids
                     logger.info(
-                        f"Dynamically selected client_ids for agent '{agent_name}' (streaming): {selected_client_ids}"
+                        f"Dynamically selected mcp_servers for agent '{agent_name}' (streaming): {selected_client_ids}"
                     )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}' (streaming). "
-                        f"Falling back to static client_ids: {agent_config.client_ids or 'None'}."
+                        f"Falling back to static mcp_servers: {agent_config.mcp_servers or 'None'}."
                     )
             # Use processed_agent_config for the rest of the streaming logic
 
@@ -735,14 +735,14 @@ class ExecutionFacade:
                 ):  # Can be an empty list if LLM chose no tools
                     # Create a copy to modify for this run
                     processed_agent_config = copy.deepcopy(agent_config)
-                    processed_agent_config.client_ids = selected_client_ids
+                    processed_agent_config.mcp_servers = selected_client_ids
                     logger.info(
-                        f"Dynamically selected client_ids for agent '{agent_name}': {selected_client_ids}"
+                        f"Dynamically selected mcp_servers for agent '{agent_name}': {selected_client_ids}"
                     )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}'. "
-                        f"Falling back to static client_ids: {agent_config.client_ids or 'None'}."
+                        f"Falling back to static mcp_servers: {agent_config.mcp_servers or 'None'}."
                     )
                     # processed_agent_config remains the original agent_config
             # Use processed_agent_config (which is original or a modified copy) for the rest of the logic

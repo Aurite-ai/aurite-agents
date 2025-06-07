@@ -39,16 +39,13 @@ class GCPSecretConfig(BaseModel):
 class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
-    client_id: str  # Populated by validator if 'name' is used
-    name: Optional[str] = Field(
-        None, exclude=True
-    )  # Alias for client_id, not part of the final model
-    transport_type: Literal["stdio", "http_stream", "local"] = "stdio"
+    name: str
+    transport_type: Optional[Literal["stdio", "http_stream", "local"]] = None
     server_path: Optional[Path] = None
     http_endpoint: Optional[str] = None
     command: Optional[str] = None
     args: Optional[List[str]] = None
-    roots: List[RootConfig]
+    roots: List[RootConfig] = Field(default_factory=list)
     capabilities: List[str]
     timeout: float = 10.0  # Default timeout in seconds
     routing_weight: float = 1.0  # Weight for server selection
@@ -61,58 +58,69 @@ class ClientConfig(BaseModel):
     )
 
     @root_validator(pre=True, skip_on_failure=True)
-    def _alias_name_to_client_id(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'name' as an alias for 'client_id' for backward compatibility and clarity."""
-        client_id = values.get("client_id")
-        name = values.get("name")
-
-        if name is not None:
-            if client_id is not None and client_id != name:
-                logger.warning(
-                    f"Both 'client_id' ({client_id}) and 'name' ({name}) were provided in a client configuration. "
-                    f"Using the value from 'name': '{name}'."
-                )
-            values["client_id"] = name
-        elif client_id is None:
-            raise ValueError(
-                "A 'client_id' or 'name' must be provided for each client configuration."
-            )
-        return values
-
-    @root_validator(pre=False, skip_on_failure=True)
-    def check_transport_specific_fields(cls, values):
+    def infer_and_validate_transport_type(
+        cls, values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Infers transport_type based on provided fields if it's not set,
+        and validates that the correct fields for the transport type are present.
+        """
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
-        http_endpoint = values.get("http_endpoint")  # Use http_endpoint
+        http_endpoint = values.get("http_endpoint")
         command = values.get("command")
-        args = values.get("args")
 
+        # --- Inference Logic ---
+        if not transport_type:
+            if command is not None:
+                values["transport_type"] = "local"
+            elif http_endpoint is not None:
+                values["transport_type"] = "http_stream"
+            elif server_path is not None:
+                values["transport_type"] = "stdio"
+            else:
+                # If no transport can be inferred, validation will fail below.
+                pass
+
+        # Re-read transport_type after potential inference
+        transport_type = values.get("transport_type")
+
+        # --- Validation Logic ---
         if transport_type == "stdio":
             if server_path is None:
-                raise ValueError("server_path is required for stdio transport type")
-        elif transport_type == "http_stream":  # Use http_stream
+                raise ValueError("`server_path` is required for 'stdio' transport")
+            if http_endpoint is not None or command is not None:
+                raise ValueError("Only `server_path` is allowed for 'stdio' transport")
+        elif transport_type == "http_stream":
             if http_endpoint is None:
                 raise ValueError(
-                    "http_endpoint is required for http_stream transport type"
+                    "`http_endpoint` is required for 'http_stream' transport"
                 )
-            # Basic URL validation
-            if not (
-                http_endpoint.startswith("http://")
-                or http_endpoint.startswith("https://")
-            ):
-                raise ValueError("http_endpoint must be a valid HTTP/HTTPS URL")
+            if server_path is not None or command is not None:
+                raise ValueError(
+                    "Only `http_endpoint` is allowed for 'http_stream' transport"
+                )
         elif transport_type == "local":
             if command is None:
-                raise ValueError("command is required for local transport type")
-            if args is None:
-                raise ValueError("args is required for local transport type")
+                raise ValueError("`command` is required for 'local' transport")
+            # `args` are optional for local, so we don't need to check them here.
+            if server_path is not None or http_endpoint is not None:
+                raise ValueError(
+                    "Only `command` and `args` are allowed for 'local' transport"
+                )
+        else:
+            raise ValueError(
+                "Could not determine transport type. Please provide one of: "
+                "'server_path' (for stdio), 'http_endpoint' (for http_stream), or 'command' (for local)."
+            )
+
         return values
 
 
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
-    clients: List[ClientConfig]
+    mcp_servers: List[ClientConfig]
     name: Optional[str] = None
     description: Optional[str] = None
 
@@ -184,8 +192,7 @@ class AgentConfig(BaseModel):
     # Link to the Host configuration defining available clients/capabilities
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
-    client_ids: Optional[List[str]] = Field(default_factory=list)
-    mcp_servers: Optional[List[str]] = Field(None, exclude=True)  # Alias for client_ids
+    mcp_servers: Optional[List[str]] = Field(default_factory=list)
     auto: Optional[bool] = Field(
         False,
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
@@ -227,21 +234,6 @@ class AgentConfig(BaseModel):
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
 
-    @root_validator(pre=True, skip_on_failure=True)
-    def _merge_mcp_servers_to_client_ids(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'mcp_servers' as an alias for 'client_ids'."""
-        client_ids = values.get("client_ids", []) or []
-        mcp_servers = values.get("mcp_servers")
-
-        if mcp_servers:
-            # Combine and remove duplicates, preserving order
-            combined = client_ids + [
-                item for item in mcp_servers if item not in client_ids
-            ]
-            values["client_ids"] = combined
-
-        return values
-
 
 class CustomWorkflowConfig(BaseModel):
     """
@@ -269,13 +261,9 @@ class ProjectConfig(BaseModel):
     description: Optional[str] = Field(
         None, description="A brief description of the project."
     )
-    clients: Dict[str, ClientConfig] = Field(
-        default_factory=dict, description="Clients available within this project."
-    )
     mcp_servers: Dict[str, ClientConfig] = Field(
         default_factory=dict,
-        description="Alias for 'clients'. Defines MCP Servers available within this project.",
-        exclude=True,
+        description="Defines MCP Servers available within this project.",
     )
     llms: Dict[str, LLMConfig] = Field(  # Renamed from llm_configs
         default_factory=dict,
@@ -293,22 +281,3 @@ class ProjectConfig(BaseModel):
         default_factory=dict,
         description="Custom workflows defined or referenced by this project.",
     )
-
-    @root_validator(pre=True, skip_on_failure=True)
-    def _merge_mcp_servers_to_clients(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'mcp_servers' as an alias for 'clients'."""
-        clients = values.get("clients", {}) or {}
-        mcp_servers = values.get("mcp_servers", {}) or {}
-
-        if mcp_servers:
-            # Merge mcp_servers into clients, mcp_servers takes precedence
-            for key, value in mcp_servers.items():
-                if key in clients:
-                    logger.warning(
-                        f"Client/MCP Server '{key}' is defined in both 'clients' and 'mcp_servers'. "
-                        "The definition from 'mcp_servers' will be used."
-                    )
-                clients[key] = value
-            values["clients"] = clients
-
-        return values
