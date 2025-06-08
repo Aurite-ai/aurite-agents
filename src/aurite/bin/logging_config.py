@@ -62,7 +62,8 @@ def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter)
     root_logger.setLevel(level)
 
     # Optionally, set levels for specific noisy loggers if needed
-    # logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("mcp.client.streamable_http").setLevel(logging.WARNING)
     # logging.getLogger('anyio').setLevel(logging.WARNING)
 
     # Ensure aurite package loggers also respect this level if they were configured before

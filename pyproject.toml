@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "aurite"
-version = "0.3.6"
+version = "0.3.11"
 description = "Aurite Agent Development and Runtime Framework"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,15 +37,12 @@ dependencies = [
     "click>=8.1.8",
     "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
     "distro>=1.9.0",
-    "google-genai>=1.11.0",
     "greenlet>=3.1.1",
     "h11>=0.14.0",
     "httpcore>=1.0.7",
     "httpx-sse>=0.4.0",
     "idna>=3.10",
     "iniconfig>=2.0.0",
-    "jiter>=0.6.1,<0.9", # Adjusted to resolve conflict with instructor
-    "mem0ai>=0.1.67",
     "packaging>=24.2",
     "colorlog>=6.0.0",
     "termcolor>=3.0.0",
@@ -94,6 +91,10 @@ dev = [
 ml = [
     "pandas>=2.2.3",
     "numpy>=1.26.2,<2.1", # Pinned for Colab/mem0ai compatibility
+]
+tools = [
+    "mem0ai>=0.1.67",
+    "google-genai>=1.11.0",
 ]
 
 [tool.setuptools]
