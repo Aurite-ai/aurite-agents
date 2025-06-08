@@ -51,6 +51,9 @@ class ClientConfig(BaseModel):
     http_endpoint: Optional[str] = Field(
         default=None, description="URL endpoint for 'http_stream' transport."
     )
+    headers: Optional[Dict[str, str]] = Field(
+        default=None, description="HTTP headers for 'http_stream' transport."
+    )
     command: Optional[str] = Field(
         default=None, description="The command to run for 'local' transport."
     )

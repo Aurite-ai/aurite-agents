@@ -113,20 +113,26 @@ class ClientManager:
                         )
 
                     endpoint_url = client_config.http_endpoint
+
+                    # Resolve environment variable placeholders in the URL
+                    placeholders = re.findall(r"\{([^}]+)\}", endpoint_url)
+                    for placeholder in placeholders:
+                        env_value = os.getenv(placeholder)
+                        if env_value:
+                            endpoint_url = endpoint_url.replace(
+                                f"{{{placeholder}}}", env_value
+                            )
+                        else:
+                            raise ValueError(
+                                f"Could not resolve placeholder '{{{placeholder}}}' in http_endpoint for client '{client_id}'. "
+                                f"Please ensure the environment variable '{placeholder}' is set."
+                            )
+
                     # Check for DOCKER_ENV environment variable
                     if os.environ.get("DOCKER_ENV", "false").lower() == "true":
-                        if endpoint_url.startswith("http://localhost"):
+                        if "localhost" in endpoint_url:
                             endpoint_url = endpoint_url.replace(
-                                "http://localhost", "http://host.docker.internal", 1
-                            )
-                            logger.info(
-                                f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}"
-                            )
-                        elif endpoint_url.startswith(
-                            "https://localhost"
-                        ):  # Also handle https if necessary
-                            endpoint_url = endpoint_url.replace(
-                                "https://localhost", "https://host.docker.internal", 1
+                                "localhost", "host.docker.internal"
                             )
                             logger.info(
                                 f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}"
@@ -135,9 +141,7 @@ class ClientManager:
                     logger.debug(
                         f"Attempting to connect streamablehttp_client for {client_id} to URL: {endpoint_url}"
                     )
-                    transport_context = streamablehttp_client(
-                        endpoint_url
-                    )  # Use streamablehttp_client
+                    transport_context = streamablehttp_client(endpoint_url)
 
                 elif client_config.transport_type == "local":
                     if not client_config.command:
@@ -185,38 +189,38 @@ class ClientManager:
                         f"Attempting to start local stdio_client for {client_id} with command: "
                         f"{server_params.command} {' '.join(server_params.args)} in CWD: {server_params.cwd}"
                     )
-                    transport_context = stdio_client(server_params)
+                    transport_context = stdio_client(
+                        server_params, errlog=open(os.devnull, "w")
+                    )
                 else:
                     raise ValueError(
                         f"Unsupported transport_type: {client_config.transport_type}"
                     )
 
-                async with transport_context as transport_streams:  # streamablehttp_client yields (reader, writer, get_session_id_callback)
-                    reader, writer = transport_streams[0], transport_streams[1]
-                    # get_session_id_callback = transport_streams[2] # We don't need this for ClientSession
-                    logger.debug(
-                        f"{client_config.transport_type} transport acquired for {client_id}."
-                    )
-                    async with ClientSession(reader, writer) as session:
-                        self.active_clients[client_id] = session
+                async with anyio.create_task_group() as tg:
+                    async with transport_context as transport_streams:
                         logger.debug(
-                            f"ClientSession created and stored for {client_id}."
+                            f"Transport streams established for {client_id} with {client_config.transport_type} in Task Group {tg}."
                         )
-
-                        # Signal MCPHost that session is ready and pass it back
-                        task_status.started(session)
-                        session_started = True  # Set the flag
+                        reader, writer = transport_streams[0], transport_streams[1]
                         logger.debug(
-                            f"Task for client {client_id}: Session established and reported. Running until cancelled."
+                            f"{client_config.transport_type} transport acquired for {client_id}."
                         )
+                        async with ClientSession(reader, writer) as session:
+                            self.active_clients[client_id] = session
+                            logger.debug(
+                                f"ClientSession created and stored for {client_id}."
+                            )
 
-                        # Keep the task alive until its cancel scope is cancelled
-                        # await anyio.sleep_forever() # Replaced with an event
-                        # Create an event that will never be set, to wait for cancellation
-                        # This is a cleaner way to wait for cancellation than sleep_forever
-                        # in some contexts, though sleep_forever should also work with cancellation.
-                        never_set_event = anyio.Event()
-                        await never_set_event.wait()
+                            # Signal MCPHost that session is ready and pass it back
+                            task_status.started(session)
+                            session_started = True  # Set the flag
+                            logger.debug(
+                                f"Task for client {client_id}: Session established and reported. Running until cancelled."
+                            )
+
+                            never_set_event = anyio.Event()
+                            await never_set_event.wait()
 
         except anyio.get_cancelled_exc_class():
             logger.debug(f"Client lifecycle task for {client_id} cancelled.")

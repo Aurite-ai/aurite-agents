@@ -82,14 +82,13 @@ def init(
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
             project_path / "config" / "testing",
-            project_path / "mcp_servers",
-            project_path
-            / "custom_workflows",  # Corrected from custom_workflows to custom_workflows
+            project_path / "example_mcp_servers",
+            project_path / "example_custom_workflows",
         ]
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
         logger(
-            "Created standard subdirectories: config/*, mcp_servers/, custom_workflows/"
+            "Created standard subdirectories: config/*, example_mcp_servers/, example_custom_workflows/"
         )
 
         # 4. Optionally, copy basic example files
@@ -100,8 +99,8 @@ def init(
             "llms.json",
         )
         copy_packaged_example(
-            "component_configs/mcp_servers/example_mcp_servers.json",
-            project_path / "config" / "mcp_servers",
+            "component_configs/example_mcp_servers/example_mcp_servers.json",
+            project_path / "config" / "example_mcp_servers",
             "mcp_servers.json",  # Renaming for user project
         )
         copy_packaged_example(
@@ -126,18 +125,18 @@ def init(
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
             "example_custom_workflows/example_workflow.py",  # Corrected source path
-            project_path / "custom_workflows",  # Corrected destination path
+            project_path / "example_custom_workflows",  # Corrected destination path
             "example_workflow.py",
         )
         copy_packaged_example(
             "example_mcp_servers/weather_mcp_server.py",
-            project_path / "mcp_servers",
+            project_path / "example_mcp_servers",
             "weather_mcp_server.py",
         )
 
         copy_packaged_example(
             "example_mcp_servers/planning_server.py",
-            project_path / "mcp_servers",
+            project_path / "example_mcp_servers",
             "planning_server.py",
         )
 

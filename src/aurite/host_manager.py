@@ -1159,7 +1159,7 @@ class Aurite:
             session_id=session_id,
         )
 
-    async def run_simple_workflow(
+    async def run_workflow(
         self, workflow_name: str, initial_input: Any
     ) -> Dict[str, Any]:
         """

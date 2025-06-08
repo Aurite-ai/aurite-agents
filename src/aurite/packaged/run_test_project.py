@@ -47,15 +47,15 @@ async def main():
         # 3. Define and register an Agent configuration
         agent_config = AgentConfig(
             name="My Weather Agent",
-            system_prompt="Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
-            mcp_servers=["weather_server"],
+            system_prompt="Your job is to use the tools at your disposal to learn the information needed to answer the user's query.",
+            mcp_servers=["game_trends_mcp"],
             llm_config_id="openai_gpt4_turbo",
         )
         await aurite.register_agent(agent_config)
         # --- End of Dynamic Registration Example ---
 
         # Define the user's query for the agent.
-        user_query = "What is the weather in London?"
+        user_query = "What are the latest game trends in the industry?"
 
         # Run the agent with the user's query. The check for the execution
         # facade is now handled internally by the `aurite.run_agent` method.
