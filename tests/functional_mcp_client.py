@@ -2,13 +2,16 @@ import asyncio
 import json
 import os
 import sys
-from typing import Optional
+import re
+from typing import Optional, List, Dict, Any
 from contextlib import AsyncExitStack
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 from anthropic import Anthropic
+from anthropic.types import MessageParam, ToolParam, ToolUseBlock, TextBlock
 from dotenv import load_dotenv
 
 load_dotenv()  # load environment variables from .env
@@ -30,51 +33,78 @@ class MCPClient:
             server_config_str: Path to a server script (.py or .js) or a JSON
                                string with "command" and "args".
         """
-        command = None
-        args = None
-
+        transport_context = None
         try:
-            # Try to parse as JSON for command/args config
             config = json.loads(server_config_str)
-            command = config["command"]
-            args = config["args"]
+            transport_type = config.get(
+                "transport_type", "local"
+            )  # Default to local for old format
 
-            # Expand environment variables in args
-            expanded_args = []
-            for arg in args:
-                if arg.startswith("{") and arg.endswith("}"):
-                    var_name = arg[1:-1]
-                    value = os.getenv(var_name)
-                    if value is None:
-                        raise ValueError(f"Environment variable {var_name} not set.")
-                    expanded_args.append(value)
-                else:
-                    expanded_args.append(arg)
-            args = expanded_args
+            if transport_type == "http_stream":
+                endpoint_url = config.get("http_endpoint")
+                if not endpoint_url:
+                    raise ValueError(
+                        "http_endpoint is required for http_stream transport"
+                    )
+
+                # Resolve environment variable placeholders in the URL
+                placeholders = re.findall(r"\{([^}]+)\}", endpoint_url)
+                for placeholder in placeholders:
+                    env_value = os.getenv(placeholder)
+                    if env_value:
+                        endpoint_url = endpoint_url.replace(
+                            f"{{{placeholder}}}", env_value
+                        )
+                    else:
+                        raise ValueError(
+                            f"Could not resolve placeholder '{{{placeholder}}}' in http_endpoint."
+                        )
+
+                transport_context = streamablehttp_client(endpoint_url)
+
+            else:  # Handles 'local' and legacy command/args format
+                command = config["command"]
+                args = config["args"]
+                expanded_args = []
+                for arg in args:
+                    if arg.startswith("{") and arg.endswith("}"):
+                        var_name = arg[1:-1]
+                        value = os.getenv(var_name)
+                        if value is None:
+                            raise ValueError(
+                                f"Environment variable {var_name} not set."
+                            )
+                        expanded_args.append(value)
+                    else:
+                        expanded_args.append(arg)
+                args = expanded_args
+                server_params = StdioServerParameters(
+                    command=command, args=args, env=None
+                )
+                transport_context = stdio_client(server_params)
 
         except (json.JSONDecodeError, KeyError):
-            # Fallback to script path logic
+            # Fallback to legacy script path logic
             is_python = server_config_str.endswith(".py")
             is_js = server_config_str.endswith(".js")
             if not (is_python or is_js):
                 raise ValueError(
                     "Argument must be a path to a .py or .js file, or a valid JSON config string."
                 )
-
             command = "python" if is_python else "node"
             args = [server_config_str]
+            server_params = StdioServerParameters(command=command, args=args, env=None)
+            transport_context = stdio_client(server_params)
 
-        server_params = StdioServerParameters(command=command, args=args, env=None)
-
-        stdio_transport = await self.exit_stack.enter_async_context(
-            stdio_client(server_params)
-        )
-        self.stdio, self.write = stdio_transport
+        transport_streams = await self.exit_stack.enter_async_context(transport_context)
+        # Handle both 2-tuple (stdio) and 3-tuple (http) returns
+        self.stdio, self.write = transport_streams[:2]
         self.session = await self.exit_stack.enter_async_context(
             ClientSession(self.stdio, self.write)
         )
 
         await self.session.initialize()
+        assert self.session is not None, "Session should be initialized"
 
         # List available tools
         response = await self.session.list_tools()
@@ -83,17 +113,18 @@ class MCPClient:
 
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
-        messages = [{"role": "user", "content": query}]
+        assert self.session is not None, "Session must be active to process query"
+        messages: List[MessageParam] = [{"role": "user", "content": query}]
 
         response = await self.session.list_tools()
-        available_tools = [
+        available_tools: List[ToolParam] = [
             {
                 "name": tool.name,
                 "description": tool.description,
                 "input_schema": tool.inputSchema,
             }
             for tool in response.tools
-        ]
+        ]  # type: ignore
 
         # Start the conversation
         response = self.anthropic.messages.create(
@@ -112,8 +143,8 @@ class MCPClient:
                     final_text_parts.append(content_block.text)
 
             # Prepare for the next turn
-            assistant_message = {"role": "assistant", "content": []}
-            tool_results_message_content = []
+            assistant_message_content: List[ToolUseBlock | TextBlock] = []
+            tool_results_message_content: List[Dict[str, Any]] = []
 
             for content_block in response.content:
                 if content_block.type == "tool_use":
@@ -122,17 +153,15 @@ class MCPClient:
                     tool_use_id = content_block.id
 
                     # Add the tool_use block to the assistant's message for history
-                    assistant_message["content"].append(
-                        {
-                            "type": "tool_use",
-                            "id": tool_use_id,
-                            "name": tool_name,
-                            "input": tool_args,
-                        }
-                    )
+                    assistant_message_content.append(content_block)
 
                     print(f"[Calling tool {tool_name} with args {tool_args}]")
                     # Execute tool call
+                    assert self.session is not None
+                    if not isinstance(tool_args, dict):
+                        raise TypeError(
+                            f"Tool arguments must be a dictionary, but got {type(tool_args)}"
+                        )
                     result = await self.session.call_tool(tool_name, tool_args)
 
                     # Prepare the tool result for the next user message
@@ -140,23 +169,23 @@ class MCPClient:
                         {
                             "type": "tool_result",
                             "tool_use_id": tool_use_id,
-                            "content": result.content,
+                            "content": [{"type": "text", "text": str(result.content)}],
                         }
                     )
                 elif content_block.type == "text":
                     # Also add text blocks to the assistant message history
-                    assistant_message["content"].append(
-                        {"type": "text", "text": content_block.text}
-                    )
+                    assistant_message_content.append(content_block)
 
             # Append the full assistant message to history
-            if assistant_message["content"]:
-                messages.append(assistant_message)
+            if assistant_message_content:
+                messages.append(
+                    {"role": "assistant", "content": assistant_message_content}
+                )
 
             # Append the tool results to history for the next turn
             if tool_results_message_content:
                 messages.append(
-                    {"role": "user", "content": tool_results_message_content}
+                    {"role": "user", "content": tool_results_message_content}  # type: ignore
                 )
 
             # Make the next API call
