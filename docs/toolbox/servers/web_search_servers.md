@@ -13,13 +13,19 @@ This document provides a list of pre-configured MCP servers for Web Search that 
 | Tool Name | Description |
 | :-------- | :---------- |
 | `web_search_exa` | Search the web using Exa AI - performs real-time web searches and can scrape content from specific URLs. Supports configurable result counts and returns the content from the most relevant websites. |
-| `research_paper_search` | Search across 100M+ research papers with full text access using Exa AI - performs targeted academic paper searches with deep research content coverage. Returns detailed information about relevant academic papers including titles, authors, publication dates, and full text excerpts. |
+| `research_paper_search_exa` | Search across 100M+ research papers with full text access using Exa AI - performs targeted academic paper searches with deep research content coverage. Returns detailed information about relevant academic papers including titles, authors, publication dates, and full text excerpts. |
 | `company_research` | Research companies using Exa AI - performs targeted searches of company websites to gather comprehensive information about businesses. Returns detailed information from company websites including about pages, pricing, FAQs, blogs, and other relevant content. |
 | `crawling` | Extract content from specific URLs using Exa AI - performs targeted crawling of web pages to retrieve their full content. Useful for reading articles, PDFs, or any web page when you have the exact URL. |
 | `competitor_finder` | Find competitors of a company using Exa AI - performs targeted searches to identify businesses that offer similar products or services. Describe what the company does and optionally provide the company's website to exclude it from results. |
 | `linkedin_search` | Search LinkedIn for companies using Exa AI. Simply include company URL, or company name, with 'company page' appended in your query. |
 | `wikipedia_search_exa` | Search Wikipedia using Exa AI - performs searches specifically within Wikipedia.org and returns relevant content from Wikipedia pages. |
 | `github_search` | Search GitHub repositories using Exa AI - performs real-time searches on GitHub.com to find relevant repositories and GitHub accounts. |
+
+**Excluded**:
+The following tools are excluded as the mcp server is currently returning an error.
+| Tool Name | Description |
+| :-------- | :---------- |
+| `research_paper_search_exa` | Search across 100M+ research papers with full text access using Exa AI |
 
 ### `duckduckgo_search`
 
