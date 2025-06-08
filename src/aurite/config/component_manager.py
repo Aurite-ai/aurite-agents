@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Type, Union
 import json
 import importlib.resources
+import importlib.util  # Added
 from importlib.abc import Traversable
 
 from pydantic import ValidationError, BaseModel
@@ -81,7 +82,7 @@ class ComponentManager:
         file_content: str,
         model_class: Type,
         id_field: str,
-        base_path_for_resolution: Union[Path, Traversable],
+        base_path_for_resolution: Path,  # Now expects a concrete Path
         file_identifier_for_logging: str,
     ) -> List[Any]:
         """
@@ -117,14 +118,9 @@ class ComponentManager:
                 continue
 
             try:
-                # Ensure base_path is a Path object for resolve_path_fields
-                base_path = (
-                    Path(str(base_path_for_resolution))
-                    if isinstance(base_path_for_resolution, Traversable)
-                    else base_path_for_resolution
-                )
+                # Path resolution is now simpler as we expect a concrete Path object.
                 data_to_validate = resolve_path_fields(
-                    item_data, model_class, base_path
+                    item_data, model_class, base_path_for_resolution
                 )
                 component_model = model_class(**data_to_validate)
                 parsed_models.append(component_model)
@@ -192,11 +188,18 @@ class ComponentManager:
                 continue
             try:
                 file_content = file_path.read_text(encoding="utf-8")
+                # Ensure the base path for resolution is a concrete Path object.
+                # This handles the case where it might be a Traversable from importlib.
+                concrete_base_path = (
+                    base_path_for_resolution
+                    if isinstance(base_path_for_resolution, Path)
+                    else Path(str(base_path_for_resolution))
+                )
                 parsed_models_from_file = self._parse_component_file_content(
                     file_content,
                     model_class,
                     id_field,
-                    base_path_for_resolution,
+                    concrete_base_path,
                     str(file_path),
                 )
 
@@ -239,31 +242,36 @@ class ComponentManager:
         """Loads default component configurations bundled with the package."""
         logger.debug("Loading packaged default component configurations...")
         try:
-            packaged_root = importlib.resources.files("aurite.packaged")
-            packaged_configs_dir = packaged_root.joinpath("component_configs")
+            # Use importlib.resources.files to get a Traversable object for the packaged data.
+            # This is the modern, correct way to access package data files.
+            packaged_root_trav = importlib.resources.files("aurite.packaged")
+            packaged_configs_dir = packaged_root_trav.joinpath("component_configs")
 
             for component_type, (model_class, id_field) in COMPONENT_META.items():
                 subdir_name = COMPONENT_SUBDIRS.get(component_type)
                 if not subdir_name:
-                    logger.warning(
-                        f"No subdir defined for packaged component type '{component_type}'. Skipping."
-                    )
                     continue
 
                 component_dir_path = packaged_configs_dir.joinpath(subdir_name)
 
-                # For packaged defaults, paths inside their JSONs (e.g., server_path)
-                # should be relative to the 'aurite.packaged' root.
+                # The base path for resolving file paths within the JSONs is the packaged root itself.
                 self._load_components_from_dir(
                     component_type,
                     model_class,
                     id_field,
-                    component_dir_path,
-                    base_path_for_resolution=packaged_root,  # Resolve paths relative to "packaged" dir
-                    is_override_allowed=False,  # Defaults cannot be overridden by other defaults
+                    component_dir_path,  # This is a Traversable
+                    base_path_for_resolution=packaged_root_trav,  # Pass the Traversable
+                    is_override_allowed=False,
                 )
+        except (ModuleNotFoundError, RuntimeError) as e:
+            logger.error(
+                f"Could not load packaged defaults: {e}. This may happen if the package is not installed correctly."
+            )
         except Exception as e:
-            logger.error(f"Error loading packaged defaults: {e}", exc_info=True)
+            logger.error(
+                f"An unexpected error occurred while loading packaged defaults: {e}",
+                exc_info=True,
+            )
         logger.debug("Finished loading packaged defaults.")
 
     def load_project_components(self, project_root_path: Path):

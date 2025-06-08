@@ -187,7 +187,7 @@ class ProjectManager:
             f"Reading and parsing project configuration from: {project_config_file_path}"
         )
         if not project_config_file_path.is_file():
-            logger.error(
+            logger.warning(
                 f"Project configuration file not found: {project_config_file_path}"
             )
             raise FileNotFoundError(

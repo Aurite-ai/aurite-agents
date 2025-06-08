@@ -37,23 +37,22 @@ def resolve_path_fields(
 
     if model_class == ClientConfig and "server_path" in resolved_data:
         sp_val = resolved_data["server_path"]
-        if isinstance(sp_val, str):  # Only process if it's a string
+        if sp_val:  # Ensure the path is not None or empty
             sp = Path(sp_val)
-            resolved_data["server_path"] = (
-                (base_path / sp).resolve() if not sp.is_absolute() else sp.resolve()
-            )
-        elif isinstance(sp_val, Path):  # If it's already a Path, ensure it's resolved
-            resolved_data["server_path"] = sp_val.resolve()
+            if not sp.is_absolute():
+                resolved_data["server_path"] = (base_path / sp).resolve()
+            else:
+                # If it's already an absolute path, just resolve it to normalize (e.g., handle '..')
+                resolved_data["server_path"] = sp.resolve()
 
     if model_class == CustomWorkflowConfig and "module_path" in resolved_data:
         mp_val = resolved_data["module_path"]
-        if isinstance(mp_val, str):  # Only process if it's a string
+        if mp_val:  # Ensure the path is not None or empty
             mp = Path(mp_val)
-            resolved_data["module_path"] = (
-                (base_path / mp).resolve() if not mp.is_absolute() else mp.resolve()
-            )
-        elif isinstance(mp_val, Path):  # If it's already a Path, ensure it's resolved
-            resolved_data["module_path"] = mp_val.resolve()
+            if not mp.is_absolute():
+                resolved_data["module_path"] = (base_path / mp).resolve()
+            else:
+                resolved_data["module_path"] = mp.resolve()
 
     # Add more 'if model_class == ...' blocks here if other models get path fields
     # that need similar resolution logic.

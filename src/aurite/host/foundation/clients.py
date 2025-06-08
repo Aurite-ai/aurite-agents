@@ -5,6 +5,7 @@ ClientManager for handling MCP client subprocesses and sessions.
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Dict, Optional
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
@@ -86,17 +87,24 @@ class ClientManager:
                                 exc_info=True,
                             )
 
+                    # Correctly handle both absolute and relative paths
+                    server_path_obj = Path(client_config.server_path)
+                    if not server_path_obj.is_absolute():
+                        server_path_obj = server_path_obj.resolve()
+
                     server_params = StdioServerParameters(
-                        command="python",  # Or make this configurable if needed
-                        args=[str(client_config.server_path.resolve())],
+                        command="python",
+                        args=[str(server_path_obj)],
                         env=client_env,
-                        cwd=str(client_config.server_path.parent.resolve()),
+                        cwd=str(server_path_obj.parent),
                     )
                     logger.debug(
                         f"Attempting to start stdio_client for {client_id} with command: "
                         f"{server_params.command} {' '.join(server_params.args)} in CWD: {server_params.cwd}"
                     )
-                    transport_context = stdio_client(server_params)
+                    transport_context = stdio_client(
+                        server_params, errlog=open(os.devnull, "w")
+                    )
 
                 elif client_config.transport_type == "http_stream":  # Use http_stream
                     if not client_config.http_endpoint:  # Use http_endpoint

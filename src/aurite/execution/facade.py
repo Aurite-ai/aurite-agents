@@ -826,7 +826,7 @@ class ExecutionFacade:
             if (
                 not effective_model_name and not llm_config_for_override_obj
             ):  # Check based on llm_config_for_override_obj from processed_agent_config
-                logger.warning(
+                logger.debug(
                     f"Facade: No model name resolved for agent '{agent_name}' (no LLMConfig ID and no direct override). LLM client factory will use its default."
                 )
 

@@ -344,7 +344,7 @@ class Aurite:
                         )
 
                 else:
-                    logger.warning(
+                    logger.debug(
                         f"Packaged prompt validation config not found at expected location: {packaged_project_template_path_obj}"
                     )
             except Exception as e:
@@ -468,7 +468,7 @@ class Aurite:
                     )
                     # Decide if we should re-raise or just log the error for other exceptions
         else:
-            logger.info("No active MCPHost instance to shut down.")
+            logger.debug("No active MCPHost instance to shut down.")
 
         # Clear internal state regardless of shutdown success/failure
         self.host = None
@@ -723,16 +723,45 @@ class Aurite:
                 )
                 # Decide if this should be a hard error for agent registration
 
-        # Validate client_ids exist using the host's method
+        # JIT Registration for MCP Servers
         if agent_config.mcp_servers:
             for client_id in agent_config.mcp_servers:
                 if not self.host.is_client_registered(client_id):
-                    logger.error(
-                        f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in active host clients."
+                    logger.debug(
+                        f"Agent '{agent_config.name}' requires unregistered client '{client_id}'. Attempting JIT registration."
                     )
-                    raise ValueError(
-                        f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
+                    # Look up the component in the component manager
+                    client_to_register = self.component_manager.get_mcp_server(
+                        client_id
                     )
+                    if client_to_register:
+                        try:
+                            # Type check to satisfy pylance and ensure correctness
+                            if isinstance(client_to_register, ClientConfig):
+                                await self.register_client(client_to_register)
+                                logger.debug(
+                                    f"JIT registration successful for client: {client_id}"
+                                )
+                            else:
+                                logger.error(
+                                    f"Component '{client_id}' found but is not a valid ClientConfig. Type: {type(client_to_register)}. Cannot register."
+                                )
+                                raise ValueError(
+                                    f"Component '{client_id}' is not a valid ClientConfig."
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed JIT registration for client '{client_id}': {e}",
+                                exc_info=True,
+                            )
+                            raise  # Re-raise to halt the agent registration
+                    else:
+                        logger.error(
+                            f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in ComponentManager for JIT registration."
+                        )
+                        raise ValueError(
+                            f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
+                        )
 
         # Validate llm_config_id if present
         if agent_config.llm_config_id:
