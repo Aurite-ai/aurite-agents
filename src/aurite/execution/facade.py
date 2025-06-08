@@ -53,6 +53,7 @@ from anthropic.types import MessageParam
 
 # Import SimpleWorkflowExecutor at runtime
 from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
+from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Import CustomWorkflowExecutor at runtime
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
@@ -367,7 +368,7 @@ class ExecutionFacade:
         config_lookup: Callable[[str], Any],
         executor_setup: Callable[[Any], Any],
         execution_func: Callable[..., Coroutine[Any, Any, Any]],
-        error_structure_factory: Callable[[str, str], Dict[str, Any]],
+        error_structure_factory: Callable[[str, str], Any],
         **execution_kwargs: Any,
     ) -> Any:
         """
@@ -1005,16 +1006,16 @@ class ExecutionFacade:
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
-    ) -> Dict[str, Any]:
+    ) -> SimpleWorkflowExecutionResult:
         """Executes a configured simple workflow by name using the helper."""
 
-        def error_factory(name: str, msg: str) -> Dict[str, Any]:
-            return {
-                "workflow_name": name,
-                "status": "failed",
-                "final_message": None,
-                "error": msg,
-            }
+        def error_factory(name: str, msg: str) -> SimpleWorkflowExecutionResult:
+            return SimpleWorkflowExecutionResult(
+                workflow_name=name,
+                status="failed",
+                final_output=None,
+                error=msg,
+            )
 
         return await self._execute_component(
             component_type="Simple Workflow",

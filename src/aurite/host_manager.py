@@ -53,6 +53,7 @@ from .storage.db_manager import StorageManager
 
 # Import for type hinting execution results
 from .components.agents.agent_models import AgentExecutionResult
+from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Imports needed for execution methods
 # from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
@@ -1161,7 +1162,7 @@ class Aurite:
 
     async def run_workflow(
         self, workflow_name: str, initial_input: Any
-    ) -> Dict[str, Any]:
+    ) -> SimpleWorkflowExecutionResult:
         """
         Runs a simple workflow by delegating to the ExecutionFacade.
         """
