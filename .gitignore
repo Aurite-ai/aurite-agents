@@ -187,3 +187,4 @@ docs/notebooks/01_Introducing_txtai.ipynb
 !.env.vault
 docs/.copilot/
 notebook-venv/
+docs/guides/
