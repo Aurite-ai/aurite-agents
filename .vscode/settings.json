@@ -2,7 +2,6 @@
   "python.testing.pytestArgs": ["tests"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "editor.maxTokenizationLineLength": 60000,
   "files.exclude": {
     "**/*.pyc": true,
     "**/*.pyo": true,
@@ -15,9 +14,11 @@
     "**/.ruff_cache/**": true,
     "**/.python-version/**": true,
     "**/.venv/**": true,
+    "notebook-venv/**": true,
     "**/*.egg-info/**": true,
     "**/.mypy_cache/**": true
   },
+
   "ruff.lint.ignore": ["F841", "E722", "E402"],
   "explorer.fileNesting.patterns": {
     "*.ts": "${capture}.js",
@@ -32,7 +33,8 @@
     "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md",
   },
   "files.associations": {
-    "*.css": "tailwindcss"
+    "*.css": "tailwindcss",
+    "*.ipynb": "jupyter",
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
 

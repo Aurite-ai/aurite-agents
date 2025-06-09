@@ -11,7 +11,7 @@ This module provides:
 import logging
 from typing import Any, List, Optional, Dict, Literal  # Added Dict and Literal
 from pathlib import Path
-from pydantic import BaseModel, Field, root_validator  # Added Field and root_validator
+from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 class RootConfig(BaseModel):
     """Configuration for an MCP root"""
 
-    uri: str
-    name: str
-    capabilities: List[str]
+    uri: str = Field(description="The URI of the root.")
+    name: str = Field(description="The name of the root.")
+    capabilities: List[str] = Field(
+        description="A list of capabilities provided by this root."
+    )
 
 
 class GCPSecretConfig(BaseModel):
@@ -39,87 +41,131 @@ class GCPSecretConfig(BaseModel):
 class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
-    client_id: str  # Populated by validator if 'name' is used
-    name: Optional[str] = Field(
-        None, exclude=True
-    )  # Alias for client_id, not part of the final model
-    transport_type: Literal["stdio", "http_stream", "local"] = "stdio"
-    server_path: Optional[Path] = None
-    http_endpoint: Optional[str] = None
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    roots: List[RootConfig]
-    capabilities: List[str]
-    timeout: float = 10.0  # Default timeout in seconds
-    routing_weight: float = 1.0  # Weight for server selection
-    exclude: Optional[List[str]] = (
-        None  # List of component names (prompt, resource, tool) to exclude
+    name: str = Field(description="Unique name for the MCP server client.")
+    transport_type: Optional[Literal["stdio", "http_stream", "local"]] = Field(
+        default=None, description="The transport type for the client."
+    )
+    server_path: Optional[Path | str] = Field(
+        default=None, description="Path to the server script for 'stdio' transport."
+    )
+    http_endpoint: Optional[str] = Field(
+        default=None, description="URL endpoint for 'http_stream' transport."
+    )
+    headers: Optional[Dict[str, str]] = Field(
+        default=None, description="HTTP headers for 'http_stream' transport."
+    )
+    command: Optional[str] = Field(
+        default=None, description="The command to run for 'local' transport."
+    )
+    args: Optional[List[str]] = Field(
+        default=None, description="Arguments for the 'local' transport command."
+    )
+    roots: List[RootConfig] = Field(
+        default_factory=list, description="List of root configurations for this client."
+    )
+    capabilities: List[str] = Field(
+        description="List of capabilities this client provides (e.g., 'tools', 'prompts')."
+    )
+    timeout: float = Field(
+        default=10.0, description="Default timeout in seconds for client operations."
+    )
+    routing_weight: float = Field(
+        default=1.0, description="Weight for server selection during routing."
+    )
+    exclude: Optional[List[str]] = Field(
+        default=None,
+        description="List of component names (prompt, resource, tool) to exclude from this client.",
     )
     gcp_secrets: Optional[List[GCPSecretConfig]] = Field(
-        None,
+        default=None,
         description="List of GCP secrets to resolve and inject into the server environment",
     )
 
-    @root_validator(pre=True, skip_on_failure=True)
-    def _alias_name_to_client_id(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'name' as an alias for 'client_id' for backward compatibility and clarity."""
-        client_id = values.get("client_id")
-        name = values.get("name")
+    @model_validator(mode="before")
+    @classmethod
+    def infer_and_validate_transport_type(cls, data: Any) -> Any:
+        """
+        Converts `server_path` to a Path object if provided as a string.
+        Infers transport_type based on provided fields if it's not set,
+        and validates that the correct fields for the transport type are present.
+        """
+        if not isinstance(data, dict):
+            return data  # Let other validators handle non-dict data
 
-        if name is not None:
-            if client_id is not None and client_id != name:
-                logger.warning(
-                    f"Both 'client_id' ({client_id}) and 'name' ({name}) were provided in a client configuration. "
-                    f"Using the value from 'name': '{name}'."
-                )
-            values["client_id"] = name
-        elif client_id is None:
-            raise ValueError(
-                "A 'client_id' or 'name' must be provided for each client configuration."
-            )
-        return values
+        # Convert server_path from str to Path if necessary, before validation
+        if "server_path" in data and isinstance(data.get("server_path"), str):
+            data["server_path"] = Path(data["server_path"])
 
-    @root_validator(pre=False, skip_on_failure=True)
-    def check_transport_specific_fields(cls, values):
+        values = data  # Use 'values' for consistency with previous logic
         transport_type = values.get("transport_type")
         server_path = values.get("server_path")
-        http_endpoint = values.get("http_endpoint")  # Use http_endpoint
+        http_endpoint = values.get("http_endpoint")
         command = values.get("command")
-        args = values.get("args")
 
+        # --- Inference Logic ---
+        if not transport_type:
+            if command is not None:
+                values["transport_type"] = "local"
+            elif http_endpoint is not None:
+                values["transport_type"] = "http_stream"
+            elif server_path is not None:
+                values["transport_type"] = "stdio"
+            else:
+                # If no transport can be inferred, validation will fail below.
+                pass
+
+        # Re-read transport_type after potential inference
+        transport_type = values.get("transport_type")
+
+        # --- Validation Logic ---
         if transport_type == "stdio":
             if server_path is None:
-                raise ValueError("server_path is required for stdio transport type")
-        elif transport_type == "http_stream":  # Use http_stream
+                raise ValueError("`server_path` is required for 'stdio' transport")
+            if http_endpoint is not None or command is not None:
+                raise ValueError("Only `server_path` is allowed for 'stdio' transport")
+        elif transport_type == "http_stream":
             if http_endpoint is None:
                 raise ValueError(
-                    "http_endpoint is required for http_stream transport type"
+                    "`http_endpoint` is required for 'http_stream' transport"
                 )
-            # Basic URL validation
-            if not (
-                http_endpoint.startswith("http://")
-                or http_endpoint.startswith("https://")
-            ):
-                raise ValueError("http_endpoint must be a valid HTTP/HTTPS URL")
+            if server_path is not None or command is not None:
+                raise ValueError(
+                    "Only `http_endpoint` is allowed for 'http_stream' transport"
+                )
         elif transport_type == "local":
             if command is None:
-                raise ValueError("command is required for local transport type")
-            if args is None:
-                raise ValueError("args is required for local transport type")
+                raise ValueError("`command` is required for 'local' transport")
+            # `args` are optional for local, so we don't need to check them here.
+            if server_path is not None or http_endpoint is not None:
+                raise ValueError(
+                    "Only `command` and `args` are allowed for 'local' transport"
+                )
+        else:
+            raise ValueError(
+                "Could not determine transport type. Please provide one of: "
+                "'server_path' (for stdio), 'http_endpoint' (for http_stream), or 'command' (for local)."
+            )
+
         return values
 
 
 class HostConfig(BaseModel):
     """Configuration for the MCP host"""
 
-    clients: List[ClientConfig]
-    name: Optional[str] = None
-    description: Optional[str] = None
+    mcp_servers: List[ClientConfig] = Field(
+        description="A list of MCP server client configurations."
+    )
+    name: Optional[str] = Field(default=None, description="The name of the host.")
+    description: Optional[str] = Field(
+        default=None, description="A description of the host."
+    )
 
 
 class WorkflowComponent(BaseModel):
-    name: str
-    type: Literal["agent", "simple_workflow", "custom_workflow"]
+    name: str = Field(description="The name of the component in the workflow step.")
+    type: Literal["agent", "simple_workflow", "custom_workflow"] = Field(
+        description="The type of the component."
+    )
 
 
 class WorkflowConfig(BaseModel):
@@ -127,11 +173,13 @@ class WorkflowConfig(BaseModel):
     Configuration for a simple, sequential agent workflow.
     """
 
-    name: str
-    steps: List[
-        str | WorkflowComponent
-    ]  # List of component names, or objects with name and type
-    description: Optional[str] = None
+    name: str = Field(description="The unique name of the workflow.")
+    steps: List[str | WorkflowComponent] = Field(
+        description="List of component names or component objects to execute in sequence."
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the workflow."
+    )
 
 
 # --- LLM Configuration ---
@@ -151,13 +199,14 @@ class LLMConfig(BaseModel):
 
     # Common LLM parameters
     temperature: Optional[float] = Field(
-        None, description="Default sampling temperature."
+        default=0.7, description="Default sampling temperature."
     )
     max_tokens: Optional[int] = Field(
-        None, description="Default maximum tokens to generate."
+        default=None, description="Default maximum tokens to generate."
     )
     default_system_prompt: Optional[str] = Field(
-        None, description="A default system prompt for this LLM configuration."
+        default="You are a helpful AI Assistant.",
+        description="A default system prompt for this LLM configuration.",
     )
 
     # Provider-specific settings (Example - adjust as needed)
@@ -180,67 +229,61 @@ class AgentConfig(BaseModel):
     """
 
     # Optional name for the agent instance
-    name: Optional[str] = None
+    name: Optional[str] = Field(
+        default=None, description="A unique name for the agent instance."
+    )
     # Link to the Host configuration defining available clients/capabilities
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
-    client_ids: Optional[List[str]] = Field(default_factory=list)
-    mcp_servers: Optional[List[str]] = Field(None, exclude=True)  # Alias for client_ids
+    mcp_servers: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of mcp_server names this agent can use.",
+    )
     auto: Optional[bool] = Field(
-        False,
+        default=False,
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
     )
     # --- LLM Selection ---
     llm_config_id: Optional[str] = Field(
-        None, description="ID of the LLMConfig to use for this agent."
+        default=None, description="ID of the LLMConfig to use for this agent."
     )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
-    system_prompt: Optional[str] = None
-    config_validation_schema: Optional[dict[str, Any]] = Field(  # Renamed again
-        None,
-        description="JSON schema for validating agent-specific configurations",
+    system_prompt: Optional[str] = Field(
+        default=None, description="The primary system prompt for the agent."
+    )
+    config_validation_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="JSON schema for validating agent-specific configurations.",
     )
     model: Optional[str] = Field(
-        None, description="Overrides model_name from LLMConfig if specified."
+        default=None, description="Overrides model_name from LLMConfig if specified."
     )
     temperature: Optional[float] = Field(
-        None, description="Overrides temperature from LLMConfig if specified."
+        default=None, description="Overrides temperature from LLMConfig if specified."
     )
     max_tokens: Optional[int] = Field(
-        None, description="Overrides max_tokens from LLMConfig if specified."
+        default=None, description="Overrides max_tokens from LLMConfig if specified."
     )
     # --- Agent Behavior ---
-    max_iterations: Optional[int] = None  # Max conversation turns before stopping
-    include_history: Optional[bool] = (
-        None  # Whether to include the conversation history, or just the latest message
+    max_iterations: Optional[int] = Field(
+        default=None, description="Max conversation turns before stopping."
+    )
+    include_history: Optional[bool] = Field(
+        default=None,
+        description="Whether to include the conversation history, or just the latest message.",
     )
     # --- Component Filtering ---
     # List of component names (tool, prompt, resource) to specifically exclude for this agent
     exclude_components: Optional[List[str]] = Field(
-        None,
+        default=None,
         description="List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
     )
     # --- Evaluation (Experimental/Specific Use Cases) ---
     evaluation: Optional[str] = Field(
-        None,
+        default=None,
         description="Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
     )
-
-    @root_validator(pre=True, skip_on_failure=True)
-    def _merge_mcp_servers_to_client_ids(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'mcp_servers' as an alias for 'client_ids'."""
-        client_ids = values.get("client_ids", []) or []
-        mcp_servers = values.get("mcp_servers")
-
-        if mcp_servers:
-            # Combine and remove duplicates, preserving order
-            combined = client_ids + [
-                item for item in mcp_servers if item not in client_ids
-            ]
-            values["client_ids"] = combined
-
-        return values
 
 
 class CustomWorkflowConfig(BaseModel):
@@ -248,10 +291,16 @@ class CustomWorkflowConfig(BaseModel):
     Configuration for a custom Python-based workflow.
     """
 
-    name: str
-    module_path: Path  # Resolved absolute path to the python file
-    class_name: str  # Name of the class within the file implementing the workflow
-    description: Optional[str] = None
+    name: str = Field(description="The unique name of the custom workflow.")
+    module_path: Path = Field(
+        description="Resolved absolute path to the Python file containing the workflow class."
+    )
+    class_name: str = Field(
+        description="Name of the class within the module that implements the workflow."
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the custom workflow."
+    )
 
 
 # --- Project Configuration ---
@@ -269,13 +318,9 @@ class ProjectConfig(BaseModel):
     description: Optional[str] = Field(
         None, description="A brief description of the project."
     )
-    clients: Dict[str, ClientConfig] = Field(
-        default_factory=dict, description="Clients available within this project."
-    )
     mcp_servers: Dict[str, ClientConfig] = Field(
         default_factory=dict,
-        description="Alias for 'clients'. Defines MCP Servers available within this project.",
-        exclude=True,
+        description="Defines MCP Servers available within this project.",
     )
     llms: Dict[str, LLMConfig] = Field(  # Renamed from llm_configs
         default_factory=dict,
@@ -293,22 +338,3 @@ class ProjectConfig(BaseModel):
         default_factory=dict,
         description="Custom workflows defined or referenced by this project.",
     )
-
-    @root_validator(pre=True, skip_on_failure=True)
-    def _merge_mcp_servers_to_clients(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        """Support 'mcp_servers' as an alias for 'clients'."""
-        clients = values.get("clients", {}) or {}
-        mcp_servers = values.get("mcp_servers", {}) or {}
-
-        if mcp_servers:
-            # Merge mcp_servers into clients, mcp_servers takes precedence
-            for key, value in mcp_servers.items():
-                if key in clients:
-                    logger.warning(
-                        f"Client/MCP Server '{key}' is defined in both 'clients' and 'mcp_servers'. "
-                        "The definition from 'mcp_servers' will be used."
-                    )
-                clients[key] = value
-            values["clients"] = clients
-
-        return values

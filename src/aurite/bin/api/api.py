@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dotenv import load_dotenv # Add this import
+from dotenv import load_dotenv  # Add this import
 import logging
 import os
 import time
@@ -46,7 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file at the very beginning
-load_dotenv() # Add this call
+load_dotenv()  # Add this call
 
 
 # --- Configuration Dependency, Security Dependency, Aurite Dependency (Moved to dependencies.py) ---
@@ -61,6 +61,10 @@ async def lifespan(app: FastAPI):
         logger.info("Starting FastAPI server and initializing Aurite...")
         # Load server config
         server_config = get_server_config()
+        if not server_config:
+            raise RuntimeError(
+                "Server configuration could not be loaded. Aborting startup."
+            )
 
         # Instantiate Aurite
         # Ensure Aurite path is correct relative to project root if needed
@@ -302,7 +306,9 @@ async def log_requests(request: Request, call_next: Callable):
     response = await call_next(request)
     duration = time.time() - start_time
 
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+    client_ip = request.headers.get(
+        "X-Forwarded-For", request.client.host if request.client else "Unknown"
+    )
 
     logger.info(
         f"[{request.method}] {request.url.path} - Status: {response.status_code} - "
@@ -315,9 +321,13 @@ async def log_requests(request: Request, call_next: Callable):
 
 # Add CORS middleware
 # Origins are loaded from ServerConfig
+server_config_for_cors = get_server_config()
+if server_config_for_cors is None:
+    raise RuntimeError("Server configuration not found, cannot configure CORS.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_server_config().ALLOWED_ORIGINS,
+    allow_origins=server_config_for_cors.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -369,26 +379,29 @@ def start():
     # Note: This runs get_server_config() again, but @lru_cache makes it fast
     config = get_server_config()
 
-    logger.info(
-        f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
-    )
+    if config:
+        logger.info(
+            f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
+        )
 
-    # IF ENV = "development", set reload=True
-    # This is typically set in the environment or config file
-    if os.getenv("ENV") == "development":
-        reload_mode = True
+        # IF ENV = "development", set reload=True
+        # This is typically set in the environment or config file
+        reload_mode = os.getenv("ENV") == "development"
+
+        # Update the app path for uvicorn to point to the new location
+        uvicorn.run(
+            "aurite.bin.api.api:app",  # Updated path
+            host=config.HOST,
+            port=config.PORT,
+            workers=config.WORKERS,
+            log_level=config.LOG_LEVEL.lower(),  # Uvicorn expects lowercase log level
+            reload=reload_mode,  # Typically False for production/running directly
+        )
     else:
-        reload_mode = False
-
-    # Update the app path for uvicorn to point to the new location
-    uvicorn.run(
-        "aurite.bin.api.api:app",  # Updated path
-        host=config.HOST,
-        port=config.PORT,
-        workers=config.WORKERS,
-        log_level=config.LOG_LEVEL.lower(),  # Uvicorn expects lowercase log level
-        reload=reload_mode,  # Typically False for production/running directly
-    )  # type: ignore[union-attr] # Ignore likely false positive on config.HOST/PORT
+        logger.critical("Server configuration could not be loaded. Aborting startup.")
+        raise RuntimeError(
+            "Server configuration could not be loaded. Aborting startup."
+        )
 
 
 if __name__ == "__main__":

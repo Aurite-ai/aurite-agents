@@ -3,8 +3,10 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Type, Union
 import json
 import importlib.resources
+import importlib.util  # Added
+from importlib.abc import Traversable
 
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 from .config_models import (
     ClientConfig,
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 # For user projects, this will be relative to current_project_root / 'config'.
 # For packaged defaults, this will be relative to 'aurite.packaged' / 'component_configs'.
 COMPONENT_SUBDIRS = {
-    "clients": "clients",
+    "mcp_servers": "mcp_servers",
     "llms": "llms",
     "agents": "agents",
     "simple_workflows": "workflows",
@@ -31,7 +33,7 @@ COMPONENT_SUBDIRS = {
 
 # Mapping component type to its model class and ID field name
 COMPONENT_META = {
-    "clients": (ClientConfig, "client_id"),
+    "mcp_servers": (ClientConfig, "name"),
     "llms": (LLMConfig, "llm_id"),
     "agents": (AgentConfig, "name"),
     "simple_workflows": (WorkflowConfig, "name"),
@@ -51,7 +53,7 @@ class ComponentManager:
 
     def __init__(self):
         """Initializes the ComponentManager by loading packaged default components."""
-        self.clients: Dict[str, ClientConfig] = {}
+        self.mcp_servers: Dict[str, ClientConfig] = {}
         self.llms: Dict[str, LLMConfig] = {}
         self.agents: Dict[str, AgentConfig] = {}
         self.simple_workflows: Dict[str, WorkflowConfig] = {}
@@ -59,7 +61,7 @@ class ComponentManager:
         self.component_counts: Dict[str, int] = {}
 
         self._component_stores = {
-            "clients": self.clients,
+            "mcp_servers": self.mcp_servers,
             "llms": self.llms,
             "agents": self.agents,
             "simple_workflows": self.simple_workflows,
@@ -80,7 +82,7 @@ class ComponentManager:
         file_content: str,
         model_class: Type,
         id_field: str,
-        base_path_for_resolution: Path,
+        base_path_for_resolution: Path,  # Now expects a concrete Path
         file_identifier_for_logging: str,
     ) -> List[Any]:
         """
@@ -116,6 +118,7 @@ class ComponentManager:
                 continue
 
             try:
+                # Path resolution is now simpler as we expect a concrete Path object.
                 data_to_validate = resolve_path_fields(
                     item_data, model_class, base_path_for_resolution
                 )
@@ -137,15 +140,15 @@ class ComponentManager:
         component_type: str,
         model_class: Type,
         id_field: str,
-        directory_path: Path,
-        base_path_for_resolution: Path,
+        directory_path: Union[Path, Traversable],
+        base_path_for_resolution: Union[Path, Traversable],
         is_override_allowed: bool = False,
     ):
         """
         Loads components of a specific type from a given directory.
 
         Args:
-            component_type: The type of component (e.g., 'clients').
+            component_type: The type of component (e.g., 'mcp_servers').
             model_class: The Pydantic model class for the component.
             id_field: The name of the ID field in the model.
             directory_path: The Path object for the directory to scan.
@@ -167,16 +170,36 @@ class ComponentManager:
         error_count = 0
 
         logger.debug(f"Scanning {directory_path} for {component_type} components...")
-        for file_path in directory_path.glob("*.json"):
+
+        files_to_iterate: List[Union[Path, Traversable]] = []
+        if isinstance(directory_path, Path):
+            files_to_iterate = list(directory_path.glob("*.json"))
+        elif hasattr(directory_path, "iterdir"):
+            for item in directory_path.iterdir():
+                if (
+                    hasattr(item, "is_file")
+                    and item.is_file()
+                    and item.name.endswith(".json")
+                ):
+                    files_to_iterate.append(item)
+
+        for file_path in files_to_iterate:
             if not file_path.is_file():
                 continue
             try:
                 file_content = file_path.read_text(encoding="utf-8")
+                # Ensure the base path for resolution is a concrete Path object.
+                # This handles the case where it might be a Traversable from importlib.
+                concrete_base_path = (
+                    base_path_for_resolution
+                    if isinstance(base_path_for_resolution, Path)
+                    else Path(str(base_path_for_resolution))
+                )
                 parsed_models_from_file = self._parse_component_file_content(
                     file_content,
                     model_class,
                     id_field,
-                    base_path_for_resolution,
+                    concrete_base_path,
                     str(file_path),
                 )
 
@@ -219,31 +242,36 @@ class ComponentManager:
         """Loads default component configurations bundled with the package."""
         logger.debug("Loading packaged default component configurations...")
         try:
-            packaged_root = importlib.resources.files("aurite.packaged")
-            packaged_configs_dir = packaged_root.joinpath("component_configs")
+            # Use importlib.resources.files to get a Traversable object for the packaged data.
+            # This is the modern, correct way to access package data files.
+            packaged_root_trav = importlib.resources.files("aurite.packaged")
+            packaged_configs_dir = packaged_root_trav.joinpath("component_configs")
 
             for component_type, (model_class, id_field) in COMPONENT_META.items():
                 subdir_name = COMPONENT_SUBDIRS.get(component_type)
                 if not subdir_name:
-                    logger.warning(
-                        f"No subdir defined for packaged component type '{component_type}'. Skipping."
-                    )
                     continue
 
                 component_dir_path = packaged_configs_dir.joinpath(subdir_name)
 
-                # For packaged defaults, paths inside their JSONs (e.g., server_path)
-                # should be relative to the 'aurite.packaged' root.
+                # The base path for resolving file paths within the JSONs is the packaged root itself.
                 self._load_components_from_dir(
                     component_type,
                     model_class,
                     id_field,
-                    component_dir_path,
-                    base_path_for_resolution=packaged_root,  # Resolve paths relative to "packaged" dir
-                    is_override_allowed=False,  # Defaults cannot be overridden by other defaults
+                    component_dir_path,  # This is a Traversable
+                    base_path_for_resolution=packaged_root_trav,  # Pass the Traversable
+                    is_override_allowed=False,
                 )
+        except (ModuleNotFoundError, RuntimeError) as e:
+            logger.error(
+                f"Could not load packaged defaults: {e}. This may happen if the package is not installed correctly."
+            )
         except Exception as e:
-            logger.error(f"Error loading packaged defaults: {e}", exc_info=True)
+            logger.error(
+                f"An unexpected error occurred while loading packaged defaults: {e}",
+                exc_info=True,
+            )
         logger.debug("Finished loading packaged defaults.")
 
     def load_project_components(self, project_root_path: Path):
@@ -343,8 +371,8 @@ class ComponentManager:
         return []
 
     # Convenience accessors
-    def get_client(self, client_id: str) -> Optional[ClientConfig]:
-        return self.get_component_config("clients", client_id)  # type: ignore
+    def get_mcp_server(self, server_name: str) -> Optional[ClientConfig]:
+        return self.get_component_config("mcp_servers", server_name)  # type: ignore
 
     def get_llm(self, llm_id: str) -> Optional[LLMConfig]:
         return self.get_component_config("llms", llm_id)  # type: ignore
@@ -358,8 +386,8 @@ class ComponentManager:
     def get_custom_workflow(self, workflow_name: str) -> Optional[CustomWorkflowConfig]:
         return self.get_component_config("custom_workflows", workflow_name)  # type: ignore
 
-    def list_clients(self) -> List[ClientConfig]:
-        return self.list_components("clients")  # type: ignore
+    def list_mcp_servers(self) -> List[ClientConfig]:
+        return self.list_components("mcp_servers")  # type: ignore
 
     def list_llms(self) -> List[LLMConfig]:
         return self.list_components("llms")  # type: ignore
@@ -519,7 +547,7 @@ class ComponentManager:
     def save_components_to_file(
         self,
         component_type: str,
-        components_data: List[Union[Dict[str, Any], Any]],
+        components_data: List[Union[Dict[str, Any], BaseModel]],
         filename: str,
         project_root_path: Path,
         overwrite: bool = True,
@@ -552,11 +580,12 @@ class ComponentManager:
         data_to_save_list: List[Dict[str, Any]] = []
 
         for item_data_raw in components_data:
-            item_dict = (
-                item_data_raw.model_dump(mode="json")
-                if hasattr(item_data_raw, "model_dump")
-                else item_data_raw
-            )
+            item_dict: Dict[str, Any]
+            if isinstance(item_data_raw, BaseModel):
+                item_dict = item_data_raw.model_dump(mode="json")
+            else:
+                item_dict = item_data_raw
+
             if not isinstance(item_dict, dict):
                 continue
 

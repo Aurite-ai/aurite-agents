@@ -90,7 +90,7 @@ The `aurite init` command creates an example script `run_example_project.py` in 
         ```python
         # ... other code ...
 
-        agent_result = await aurite.execution.run_agent(
+        agent_result = await aurite.run_agent(
             agent_name="Weather Agent", # <--- CHANGE THIS LINE
             user_message=user_query,
         )

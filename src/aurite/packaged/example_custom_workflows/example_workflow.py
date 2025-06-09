@@ -51,40 +51,18 @@ class ExampleCustomWorkflow:
                 user_message=weather_query,
                 session_id=session_id,  # Optional session ID
             )
-            results["weather_agent_output"] = agent_result
+            results = agent_result.primary_text
             logger.info(f"Agent '{weather_agent_name}' completed.")
         except Exception as e:
             logger.error(
                 f"Error running agent '{weather_agent_name}': {e}", exc_info=True
             )
-            results["weather_agent_output"] = {"error": str(e)}
 
         # 2. Run a Simple Workflow
         simple_workflow_name = "Weather Planning Workflow"
         # The "Weather Planning Workflow" is designed to take the output of "Weather Agent"
         # For this example, we'll use a static input or derive from agent_result if successful.
-
-        plan_input_data = f"The weather in {city} is pleasant. "  # Default input
-        if results.get("weather_agent_output") and not results[
-            "weather_agent_output"
-        ].get("error"):
-            try:
-                # Attempt to extract text from agent's final response
-                content_list = (
-                    results["weather_agent_output"]
-                    .get("final_response", {})
-                    .get("content", [])
-                )
-                text_block = next(
-                    (item for item in content_list if item.get("type") == "text"), None
-                )
-                if text_block:
-                    plan_input_data = text_block.get("text", plan_input_data)
-            except Exception:
-                logger.warning(
-                    "Could not extract text from weather agent for simple workflow input, using default."
-                )
-
+        plan_input_data = initial_input.get("plan_topic", "General Weather Discussion")
         logger.info(
             f"Running simple workflow '{simple_workflow_name}' with input: '{plan_input_data}'"
         )
@@ -93,14 +71,16 @@ class ExampleCustomWorkflow:
                 workflow_name=simple_workflow_name,
                 initial_input=plan_input_data,  # Simple workflows often take string input
             )
-            results["simple_workflow_output"] = simple_workflow_result
+            results = simple_workflow_result.get("output", {})
+            if not results:
+                results = {"message": "No output from simple workflow."}
+
             logger.info(f"Simple workflow '{simple_workflow_name}' completed.")
         except Exception as e:
             logger.error(
                 f"Error running simple workflow '{simple_workflow_name}': {e}",
                 exc_info=True,
             )
-            results["simple_workflow_output"] = {"error": str(e)}
 
         # (Optional) Example of running another Custom Workflow (if one was defined and suitable for chaining)
         # For now, we'll skip this to keep the example focused.

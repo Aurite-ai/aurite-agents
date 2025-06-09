@@ -21,13 +21,16 @@ import copy  # Added for copying agent_config
 # Use TYPE_CHECKING to avoid circular imports at runtime
 if TYPE_CHECKING:
     from ..host.host import MCPHost  # Needed for passing to executors/workflows
-    from ..workflows.simple_workflow import (
+    from ..components.workflows.simple_workflow import (
         SimpleWorkflowExecutor,
     )  # Import for type hint
-    from ..workflows.custom_workflow import CustomWorkflowExecutor
+    from ..components.workflows.custom_workflow import CustomWorkflowExecutor
     from ..storage.db_manager import StorageManager
     from ..config.config_models import ProjectConfig
-    from ..llm.base import BaseLLM  # Import for type hinting LLM clients
+    from aurite.components.llm.base_client import (
+        BaseLLM,
+    )  # Import for type hinting LLM clients
+
 
 # Actual runtime imports
 from ..components.llm.providers.openai_client import OpenAIClient  # Moved here
@@ -50,6 +53,7 @@ from anthropic.types import MessageParam
 
 # Import SimpleWorkflowExecutor at runtime
 from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
+from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Import CustomWorkflowExecutor at runtime
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
@@ -200,6 +204,7 @@ class ExecutionFacade:
             provider="anthropic",
             model_name="claude-3-haiku-20240307",  # Fast and cost-effective model
             temperature=0.2,  # Lower temperature for more deterministic selection
+            max_tokens=1024,
             default_system_prompt=(
                 "You are an expert AI assistant responsible for selecting the most relevant set of tools (MCP Clients) "
                 "for another AI agent to accomplish a given task.\n"
@@ -240,7 +245,7 @@ class ExecutionFacade:
                 f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.llm_id}"
             )
 
-        available_clients = self._current_project.clients
+        available_clients = self._current_project.mcp_servers
         client_info_parts = ["Available Tool Sets (MCP Clients):"]
         if not available_clients:
             client_info_parts.append("No tool sets are currently available.")
@@ -363,7 +368,7 @@ class ExecutionFacade:
         config_lookup: Callable[[str], Any],
         executor_setup: Callable[[Any], Any],
         execution_func: Callable[..., Coroutine[Any, Any, Any]],
-        error_structure_factory: Callable[[str, str], Dict[str, Any]],
+        error_structure_factory: Callable[[str, str], Any],
         **execution_kwargs: Any,
     ) -> Any:
         """
@@ -510,14 +515,14 @@ class ExecutionFacade:
                 )
                 if selected_client_ids is not None:
                     processed_agent_config = copy.deepcopy(agent_config)
-                    processed_agent_config.client_ids = selected_client_ids
+                    processed_agent_config.mcp_servers = selected_client_ids
                     logger.info(
-                        f"Dynamically selected client_ids for agent '{agent_name}' (streaming): {selected_client_ids}"
+                        f"Dynamically selected mcp_servers for agent '{agent_name}' (streaming): {selected_client_ids}"
                     )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}' (streaming). "
-                        f"Falling back to static client_ids: {agent_config.client_ids or 'None'}."
+                        f"Falling back to static mcp_servers: {agent_config.mcp_servers or 'None'}."
                     )
             # Use processed_agent_config for the rest of the streaming logic
 
@@ -586,15 +591,19 @@ class ExecutionFacade:
             else:
                 # No LLMConfig ID - create temporary config and non-cached client
                 logger.warning(
-                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client."
+                    f"Facade: Agent '{agent_name}' (streaming) running without a specific LLMConfig ID. Creating temporary, non-cached client using default OpenAI config."
                 )
+                # Create a temporary LLMConfig using the new default values, but allowing agent-specific overrides
                 temp_llm_config = LLMConfig(
                     llm_id=f"temp_{agent_name}",  # Temporary ID
-                    provider="anthropic",  # Assuming default provider
-                    model_name=effective_model_name,
-                    temperature=effective_temperature,
-                    max_tokens=effective_max_tokens,
-                    default_system_prompt=effective_system_prompt_for_llm_client,
+                    provider="openai",
+                    model_name=effective_model_name or "gpt-3.5-turbo",
+                    temperature=effective_temperature
+                    if effective_temperature is not None
+                    else 0.7,
+                    max_tokens=effective_max_tokens or 4000,
+                    default_system_prompt=effective_system_prompt_for_llm_client
+                    or "You are a helpful OpenAI assistant.",
                 )
                 llm_client_instance = self._create_llm_client(
                     temp_llm_config
@@ -735,14 +744,14 @@ class ExecutionFacade:
                 ):  # Can be an empty list if LLM chose no tools
                     # Create a copy to modify for this run
                     processed_agent_config = copy.deepcopy(agent_config)
-                    processed_agent_config.client_ids = selected_client_ids
+                    processed_agent_config.mcp_servers = selected_client_ids
                     logger.info(
-                        f"Dynamically selected client_ids for agent '{agent_name}': {selected_client_ids}"
+                        f"Dynamically selected mcp_servers for agent '{agent_name}': {selected_client_ids}"
                     )
                 else:
                     logger.warning(
                         f"Dynamic tool selection failed for agent '{agent_name}'. "
-                        f"Falling back to static client_ids: {agent_config.client_ids or 'None'}."
+                        f"Falling back to static mcp_servers: {agent_config.mcp_servers or 'None'}."
                     )
                     # processed_agent_config remains the original agent_config
             # Use processed_agent_config (which is original or a modified copy) for the rest of the logic
@@ -818,7 +827,7 @@ class ExecutionFacade:
             if (
                 not effective_model_name and not llm_config_for_override_obj
             ):  # Check based on llm_config_for_override_obj from processed_agent_config
-                logger.warning(
+                logger.debug(
                     f"Facade: No model name resolved for agent '{agent_name}' (no LLMConfig ID and no direct override). LLM client factory will use its default."
                 )
 
@@ -846,16 +855,19 @@ class ExecutionFacade:
             else:
                 # No LLMConfig ID - create temporary config and non-cached client
                 logger.warning(
-                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client."
+                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client using default OpenAI config."
                 )
-                # Create a temporary LLMConfig based on resolved effective parameters
+                # Create a temporary LLMConfig using the new default values, but allowing agent-specific overrides
                 temp_llm_config = LLMConfig(
                     llm_id=f"temp_{agent_name}",  # Temporary ID
-                    provider="anthropic",  # Assuming default provider for now
-                    model_name=effective_model_name,  # Use resolved name
-                    temperature=effective_temperature,
-                    max_tokens=effective_max_tokens,
-                    default_system_prompt=effective_system_prompt_for_llm_client,  # Correct variable
+                    provider="openai",
+                    model_name=effective_model_name or "gpt-3.5-turbo",
+                    temperature=effective_temperature
+                    if effective_temperature is not None
+                    else 0.7,
+                    max_tokens=effective_max_tokens or 4000,
+                    default_system_prompt=effective_system_prompt_for_llm_client
+                    or "You are a helpful OpenAI assistant.",
                 )
                 llm_client_instance = self._create_llm_client(
                     temp_llm_config
@@ -994,16 +1006,16 @@ class ExecutionFacade:
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
-    ) -> Dict[str, Any]:
+    ) -> SimpleWorkflowExecutionResult:
         """Executes a configured simple workflow by name using the helper."""
 
-        def error_factory(name: str, msg: str) -> Dict[str, Any]:
-            return {
-                "workflow_name": name,
-                "status": "failed",
-                "final_message": None,
-                "error": msg,
-            }
+        def error_factory(name: str, msg: str) -> SimpleWorkflowExecutionResult:
+            return SimpleWorkflowExecutionResult(
+                workflow_name=name,
+                status="failed",
+                final_output=None,
+                error=msg,
+            )
 
         return await self._execute_component(
             component_type="Simple Workflow",

@@ -180,9 +180,10 @@ playwright/.cache/
 docs/plans/completed/**
 src/packaged_servers/plans/*
 config/testing/*_output.json
-
+docs/notebooks/01_Introducing_txtai.ipynb
 .env*
 .flaskenv*
 !.env.project
 !.env.vault
 docs/.copilot/
+notebook-venv/
