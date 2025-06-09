@@ -1,149 +1,116 @@
-# Module 2: Tutorial - Configuring & Running an Agent with a Local MCP Server via CLI
+# Module 2: Tutorial - Configuring & Running an Agent with a Local MCP Server
 
-In this tutorial, you'll move beyond the UI and learn how to configure and run an Aurite agent by directly editing the `aurite_config.json` project file and using the command-line interface (CLI). This will give you a deeper understanding of how the framework operates.
+In the previous tutorials, you learned how to run agents and use pre-packaged, cloud-based tools. In this tutorial, you'll learn how to configure and run an agent that uses a **local MCP server**—a Python script running directly on your machine.
+
+This is a fundamental skill for developing your own custom tools for Aurite agents.
 
 **Learning Objectives:**
-*   Learn to define a `ClientConfig` for a local MCP server in `aurite_config.json`.
-*   Understand how to reference this `ClientConfig` in an `AgentConfig` within the same file.
-*   Successfully use the `aurite` CLI commands `start-api` and `run-cli` to execute an agent that uses tools from the configured local MCP server.
-*   Gain familiarity with inspecting agent-tool interactions through CLI output.
+*   Understand how local MCP servers are defined in their own configuration files.
+*   Learn to configure a new agent in `config/agents/agents.json` to use a local tool server.
+*   Modify the `run_example_project.py` script to execute your new agent.
+*   Successfully run an agent that uses tools from a local Python script.
 
 ---
 
 ## Prerequisites
 
 Before you start, ensure you have:
-1.  **Completed Module 1:** You should understand basic agent concepts and have your Aurite environment set up.
+1.  **Completed Module 1 & the Notebooks:** You should be comfortable with the basic concepts of agents, tools, and project configuration.
 2.  **`aurite` Package Installed & Project Initialized:**
-    *   `pip install aurite`
-    *   `aurite init my_aurite_cli_project` (or your preferred project name)
-    *   `cd my_aurite_cli_project`
-3.  **Environment Variables Set:** Your `.env` file in the project root should contain your `API_KEY` and any necessary LLM API keys (e.g., `OPENAI_API_KEY`).
-4.  **Basic JSON Understanding:** You'll be editing a JSON file.
-5.  **Command-Line Familiarity:** This tutorial heavily uses the terminal.
-6.  **Text Editor:** A code editor like VS Code, Sublime Text, or even a simple text editor to modify `aurite_config.json`.
+    *   You should have an Aurite project created (e.g., `aurite init my_local_project`).
+    *   You should be able to `cd my_local_project` and have your virtual environment active.
+3.  **Environment Variables Set:** Your `.env` file in your workspace root should contain your `OPENAI_API_KEY`.
 
 ---
 
 ## Tutorial Steps
 
-We'll configure an agent to use the local `weather_mcp_server.py` (which should have been created in your project by `aurite init`) and then run it using the CLI.
+We will configure an agent to use the `weather_mcp_server.py` script that was created in your project by `aurite init`.
 
 ### 1. Review Your Project Structure
 
-After running `aurite init`, your project directory (`my_aurite_cli_project` or similar) should contain:
-*   `aurite_config.json`: The main project configuration file. This is our focus.
-*   `mcp_servers/`: A directory containing example MCP server scripts.
-    *   `weather_mcp_server.py`: A simple Python script that acts as an MCP server providing weather lookup tools.
-*   Other configuration folders (`config/agents/`, `config/llms/`, etc.) and potentially example custom workflow files.
+After running `aurite init`, your project directory contains a folder named `example_mcp_servers/`. Inside, you'll find `weather_mcp_server.py`. This is a simple Python script that acts as a self-contained MCP server, providing a `weather_lookup` tool.
 
-For this tutorial, we will directly edit the main `aurite_config.json` file.
+The framework needs to know how to run this script. This is defined in `config/mcp_servers/example_mcp_servers.json`.
 
-### 2. Configure the Local MCP Server as a Client
+*   **Open `config/mcp_servers/example_mcp_servers.json` in your text editor.**
 
-1.  **Open `aurite_config.json`:** Open the `aurite_config.json` file located in your project's root directory with your text editor.
-    It will look something like this (content may vary slightly):
-    ```json
-    {
-      "project_name": "my_aurite_cli_project",
-      "description": "Default Aurite project configuration.",
-      "llms": [
-        // Default LLM configurations might be here
-      ],
-      "clients": [
-        // Default Client configurations might be here
-      ],
-      "agents": [
-        // Default Agent configurations might be here
-      ],
-      "simple_workflows": [],
-      "custom_workflows": []
-    }
-    ```
+You will see a configuration object for the `weather_server`.
 
-2.  **Add or Modify a `ClientConfig` for the Weather Server:**
-    *   Locate the `"clients"` list in the JSON structure.
-    *   We need to ensure there's a configuration for our local weather server. If `aurite init` already provided one, you can verify it. If not, or if you want to create a specific one for this tutorial, add the following JSON object to the `"clients"` list. If the list already contains items, remember to add a comma before this new entry if it's not the last one.
+```json
+[
+  {
+    "name": "weather_server",
+    "server_path": "example_mcp_servers/weather_mcp_server.py",
+    "capabilities": ["tools"],
+    "timeout": 10.0
+  }
+]
+```
+*   **Key Fields:**
+    *   `name`: A unique name for this server configuration.
+    *   `server_path`: The path to the Python script to run, **relative to your project root**. This is how the framework knows which script to execute for the "weather_server".
+
+### 2. Configure an Agent to Use the Local Server
+
+Now, let's create a new agent that is specifically designed to use this local server.
+
+1.  **Open `config/agents/agents.json`:** This file contains a list of all agent configurations for your project.
+2.  **Add a New Agent Configuration:** Add the following JSON object to the list in `agents.json`. Remember to add a comma after the preceding agent configuration if necessary to keep the JSON valid.
 
     ```json
     {
-      "client_id": "local_weather_service_cli",
-      "server_path": "mcp_servers/weather_mcp_server.py",
-      "capabilities": ["tools"],
-      "timeout": 10.0
+      "name": "LocalWeatherAgent",
+      "system_prompt": "You are a helpful assistant that uses local tools to find the weather.",
+      "llm_config_id": "my_openai_gpt4_turbo",
+      "mcp_servers": ["weather_server"]
     }
     ```
-    *   **Explanation of fields:**
-        *   `client_id`: A unique identifier for this client configuration within your project. We're using `"local_weather_service_cli"` to distinguish it.
-        *   `server_path`: The path to the MCP server script, relative to the directory containing `aurite_config.json` (your project root).
-        *   `capabilities`: An array indicating what this client provides. For tool servers, it's `["tools"]`.
-        *   `timeout`: (Optional) How long (in seconds) the framework should wait for the server to respond.
+    *   **Explanation:**
+        *   `name`: We've given it a unique name, "LocalWeatherAgent".
+        *   `llm_config_id`: We're using the default OpenAI LLM config provided by `aurite init`.
+        *   `mcp_servers`: This is the crucial part. We've given it `["weather_server"]`, which matches the `name` of the local server we just reviewed in `example_mcp_servers.json`.
 
-    *   Your `"clients"` section might now look like this (ensure correct JSON syntax with commas if there are other clients):
-    ```json
-    "clients": [
-      {
-        "client_id": "local_weather_service_cli",
-        "server_path": "mcp_servers/weather_mcp_server.py",
-        "capabilities": ["tools"],
-        "timeout": 10.0
-      }
-      // ... any other client configs
-    ],
-    ```
+3.  **Save `config/agents/agents.json`**.
 
-### 3. Configure an Agent to Use This Client
+### 3. Modify `run_example_project.py` to Execute Your New Agent
 
-Now, let's define an agent that will use the `local_weather_service_cli`.
+The `run_example_project.py` script is your entry point for running agents. We'll make a small change to tell it to run our new `LocalWeatherAgent`.
 
-1.  **Locate the `"agents"` list** in `aurite_config.json`.
-2.  **Add an `AgentConfig`:** Add the following JSON object to the `"agents"` list.
-
-    ```json
-    {
-      "name": "CLIWeatherAgent",
-      "system_prompt": "You are an OpenAI assistant. Your task is to use the available tools to find and report the weather for the location specified by the user. Respond clearly and concisely.",
-      "llm_config_id": "openai_gpt4_turbo_mcp",
-      "client_ids": ["local_weather_service_cli"]
-    }
-    ```
-    *   **Explanation of fields:**
-        *   `name`: A unique name for your agent.
-        *   `system_prompt`: The instructions for your agent.
-        *   `llm_config_id`: The ID of an LLM configuration defined in your `"llms"` list. `aurite init` usually creates an OpenAI LLM configuration like `"openai_gpt4_turbo_mcp"` or a generic one like `"default_openai_gpt_4_turbo"` if you have an `OPENAI_API_KEY` set. If you don't have this exact ID, check your `"llms"` list in `aurite_config.json` and use an available OpenAI one, or add one based on the `aurite_config.json` example from Module 1 or `docs/components/llm.md`.
-        *   `client_ids`: A list of `client_id` strings that this agent can use. Crucially, this includes `"local_weather_service_cli"`.
-
-3.  **Save `aurite_config.json`** after making these changes.
-
-### 4. Run the Agent using the CLI
-
-This is a two-terminal process: one for the API server, one for the CLI client.
-
-1.  **Terminal 1: Start the API Server**
-    *   Open a terminal window.
-    *   Navigate to your project directory (e.g., `my_aurite_cli_project`).
-    *   Run the command:
-        ```bash
-        start-api
+1.  **Open `run_example_project.py` in your text editor.**
+2.  **Update the Agent Name:**
+    *   Find the line where `aurite.run_agent` is called.
+        ```python
+        # ...
+        agent_result = await aurite.run_agent(
+            agent_name="My Weather Agent", # <--- CHANGE THIS LINE
+            user_message=user_query,
+        )
+        # ...
         ```
-    *   You should see output indicating the server is starting up (e.g., "Uvicorn running on http://0.0.0.0:8000"). Keep this terminal window open; the API server needs to be running for the CLI to work.
-
-2.  **Terminal 2: Execute the Agent via `run-cli`**
-    *   Open a **new, separate** terminal window.
-    *   Navigate to the **same** project directory.
-    *   Now, run the command to execute your agent. Replace `"CLIWeatherAgent"` with the name you gave your agent if different, and feel free to change the message:
-        ```bash
-        run-cli execute agent "CLIWeatherAgent" "What's the weather like in London?"
+    *   Change the `agent_name` from `"My Weather Agent"` to `"LocalWeatherAgent"`.
+        ```python
+        agent_name="LocalWeatherAgent",
         ```
-    *   **Command Breakdown:**
-        *   `run-cli`: The Aurite CLI tool.
-        *   `execute agent`: Subcommand to execute an agent.
-        *   `"CLIWeatherAgent"`: The name of the agent to execute (must match an agent `name` in your `aurite_config.json`).
-        *   `"What's the weather like in London?"`: The initial message/input for the agent.
+3.  **Save `run_example_project.py`**.
 
-3.  **Observe the Output:**
-    *   In Terminal 2 (where you ran `run-cli`), you should see output from the agent. This might include some logging information and then the agent's final response.
-    *   In Terminal 1 (where `start-api` is running), you'll likely see log messages indicating API requests, tool calls, etc. This can be useful for debugging.
+### 4. Run Your Agent
+
+Now you're ready to run the agent.
+
+1.  **Navigate to Your Project Directory** in your terminal (e.g., `cd my_local_project`).
+2.  **Run the Script:**
+    ```bash
+    python run_example_project.py
+    ```
+3.  **Observe the Output:** You will see logs indicating the framework is starting the `weather_mcp_server.py` script as a subprocess. Then, you'll see the agent's response, which should be a weather report for New York.
+
+    ```
+    INFO:aurite.host.host:Starting local MCP server process for 'weather_server' from path: ...
+    ...
+    --- Agent Result ---
+    Agent's response: The weather in New York is 22°C with partly cloudy skies.
+    ```
 
 ---
 
@@ -151,23 +118,10 @@ This is a two-terminal process: one for the API server, one for the CLI client.
 
 You've successfully completed this tutorial if:
 
-*   The `start-api` command runs without errors and stays running.
-*   The `run-cli execute agent ...` command executes in the second terminal and returns a response from the agent.
-*   The agent's response indicates it successfully used the `local_weather_service_cli` to get the weather for London. The exact format will depend on your system prompt and the LLM, but it should contain weather information.
-
-Example of expected output in Terminal 2 (may vary):
-```
-INFO: Sending execution request for agent: CLIWeatherAgent
-INFO: Agent execution successful.
-INFO: Agent Response:
-Weather for London:
-Temperature: 15°C
-Condition: Rainy
-Humidity: 90%
-```
+*   You correctly added the `LocalWeatherAgent` configuration to `config/agents/agents.json`.
+*   You updated `run_example_project.py` to call your new agent.
+*   Running the script executed without errors and produced a weather forecast, confirming that the framework successfully ran the local `weather_mcp_server.py` script and the agent used its tool.
 
 ---
 
-**Congratulations!** You've successfully configured an agent and its tool client directly in `aurite_config.json` and executed it using the Aurite CLI. This workflow is fundamental for more advanced agent and workflow development.
-
-In the assignment for this module, you'll practice configuring different types of MCP clients.
+**Congratulations!** You now understand how to connect an agent to a local tool server. This is the foundation for creating your own custom Python tools to give your agents any capability you can imagine.

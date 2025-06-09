@@ -54,7 +54,7 @@ Now, let's configure your "MyCLIWeatherAssistant" agent. The `aurite init` comma
 1.  **Add Your New Agent Configuration:**
     *   Open your `aurite_config.json` file.
     *   Locate the `agents` array.
-    *   Add the following JSON object as a new element within this `agents` array. Since the default configuration already includes other agents (like "Weather Agent" and "Weather Planning Workflow Step 2"), you'll be adding your "MyCLIWeatherAssistant" alongside them.
+    *   Add the following JSON object as a new element within this `agents` array. Since the default configuration already includes other agents, you'll be adding your "MyCLIWeatherAssistant" alongside them.
 
 * **You will need to add a comma `,` after the closing curly brace `}` of the agent definition that comes before where you paste your new agent's configuration.**
 
@@ -86,18 +86,18 @@ The `aurite init` command creates an example script `run_example_project.py` in 
     You'll find that the script already contains the necessary logic to initialize Aurite, run an agent, and print its response.
 
 2.  **Update the Agent Name:**
-    *   Locate the section in the script where the `aurite.execution.run_agent` function is called. It will look similar to this (line numbers may vary slightly):
+    *   Locate the section in the script where the `aurite.run_agent` function is called. It will look similar to this (line numbers may vary slightly):
         ```python
         # ... other code ...
 
         agent_result = await aurite.run_agent(
-            agent_name="Weather Agent", # <--- CHANGE THIS LINE
+            agent_name="My Weather Agent", # <--- CHANGE THIS LINE
             user_message=user_query,
         )
 
         # ... other code ...
         ```
-    *   Change the value of the `agent_name` parameter from `"Weather Agent"` to `"MyCLIWeatherAssistant"` (the name you gave your agent in `aurite_config.json`).
+    *   Change the value of the `agent_name` parameter from `"My Weather Agent"` to `"MyCLIWeatherAssistant"` (the name you gave your agent in `aurite_config.json`).
         The line should now look like:
         ```python
         agent_name="MyCLIWeatherAssistant", # Must match the name in aurite_config.json
@@ -122,12 +122,12 @@ Now it's time to see your "MyCLIWeatherAssistant" in action!
         ```
 
 3.  **Observe the Terminal Output:**
-    *   You should now see output from your "MyCLIWeatherAssistant" providing a weather report for London, similar to before but this time executed using your agent's configuration. For example:
+    *   You should now see output from your "MyCLIWeatherAssistant" providing a weather report for New York, similar to before but this time executed using your agent's configuration. For example:
         ```
-        Running agent 'MyCLIWeatherAssistant' with query: 'What is the weather in London?'
+        Running agent 'MyCLIWeatherAssistant' with query: 'What's the weather like in New York?'
 
         --- Agent Result ---
-        Agent's response: The temperature in London is 15°C with scattered clouds.
+        Agent's response: The temperature in New York is 22°C with partly cloudy skies.
         ```
         *(The exact weather details will vary. The key is that it's your "MyCLIWeatherAssistant" running.)*
 
@@ -137,11 +137,10 @@ Now it's time to see your "MyCLIWeatherAssistant" in action!
 
 You've successfully completed this tutorial if:
 
-*   Your `aurite_config.json` file was correctly modified to include the new "MyCLIWeatherAssistant" agent configuration, which successfully utilizes the pre-defined "my_openai_gpt4_turbo" LLM configuration.
-*   The "MyCLIWeatherAssistant" agent configuration correctly references your new LLM configuration via `llm_config_id`.
-*   Your `run_example_project.py` script was updated as per the instructions.
+*   Your `aurite_config.json` file was correctly modified to include the new "MyCLIWeatherAssistant" agent configuration.
+*   Your `run_example_project.py` script was updated to call your new agent by name.
 *   Running `python run_example_project.py` in your project's root directory executed without Python errors.
-*   The terminal output showed a weather forecast for the queried location (e.g., London), indicating your agent successfully used the LLM and the weather tool.
+*   The terminal output showed a weather forecast for the queried location (e.g., New York), indicating your agent successfully used the LLM and the weather tool.
 
 ---
 
