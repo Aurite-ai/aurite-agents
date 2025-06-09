@@ -42,15 +42,19 @@ Welcome to the Aurite Agents Framework learning modules! This series will guide 
 
 ---
 
-## Step 3: Building Projects in VSCode
+## Step 3: Building Local Projects
 
-**Purpose:** Once you are comfortable with the concepts from the notebooks, this tutorial guides you through setting up the Aurite framework locally and running your first AI agent by directly editing project files in a VSCode environment.
+**Purpose:** Once you are comfortable with the concepts from the notebooks, these tutorials guide you through setting up and running the Aurite framework in a local development environment like VSCode.
 
 **Learning Path & Resources:**
 
-1.  **Tutorial: Your First Agent via Configuration Files**
-    *   This hands-on tutorial guides you through setting up the Aurite framework and configuring and running your first AI agent by directly editing project files.
-    *   [[tutorial_first_agent_config|Module 1 Tutorial: Your First Agent via Configuration Files]]
+1.  **Understanding Aurite Projects**
+    *   This tutorial walks you through the structure of a local Aurite project and how to configure and run an agent by editing configuration files.
+    *   [[06_Understanding_Projects|Tutorial: Understanding Aurite Projects]]
+
+2.  **Using the Aurite CLI**
+    *   This tutorial teaches you how to execute any pre-configured agent directly from the command line, a powerful workflow for testing and automation.
+    *   [[07_Using_The_CLI|Tutorial: Using the Aurite CLI]]
 
 ---
 
