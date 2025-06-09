@@ -31,14 +31,12 @@ This is for connecting to an MCP server that's running and accessible via an HTT
 ```json
 {
   "name": "my_remote_http_server",
-  "transport_type": "http_stream",
   "http_endpoint": "https://my-mcp-server.example.com/mcp",
   "capabilities": ["resources"]
 }
 ```
 
 -   **`name`**: A unique name for your server.
--   **`transport_type`**: Must be set to `"http_stream"`.
 -   **`http_endpoint`**: The full URL where the MCP server is listening.
 -   **`capabilities`**: What your server offers.
 

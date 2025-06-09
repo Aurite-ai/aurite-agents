@@ -597,7 +597,7 @@ class ExecutionFacade:
                 temp_llm_config = LLMConfig(
                     llm_id=f"temp_{agent_name}",  # Temporary ID
                     provider="openai",
-                    model_name=effective_model_name or "gpt-4-turbo-preview",
+                    model_name=effective_model_name or "gpt-3.5-turbo",
                     temperature=effective_temperature
                     if effective_temperature is not None
                     else 0.7,
@@ -861,7 +861,7 @@ class ExecutionFacade:
                 temp_llm_config = LLMConfig(
                     llm_id=f"temp_{agent_name}",  # Temporary ID
                     provider="openai",
-                    model_name=effective_model_name or "gpt-4-turbo-preview",
+                    model_name=effective_model_name or "gpt-3.5-turbo",
                     temperature=effective_temperature
                     if effective_temperature is not None
                     else 0.7,
