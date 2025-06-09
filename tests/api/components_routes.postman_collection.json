@@ -76,11 +76,11 @@
           "raw": "{\n    \"initial_user_message\": \"Check weather in SF and save plan.\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/workflows/main/execute",
+          "raw": "{{base_url}}/workflows/Weather Planning Workflow/execute",
           "host": ["{{base_url}}"],
-          "path": ["workflows", "main", "execute"]
+          "path": ["workflows", "Weather Planning Workflow", "execute"]
         },
-        "description": "Executes the 'main' simple workflow defined in the config."
+        "description": "Executes the 'Weather Planning Workflow' defined in the config."
       },
       "response": [],
       "event": [

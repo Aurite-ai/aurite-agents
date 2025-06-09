@@ -77,13 +77,13 @@ testapi() {
 testnewman() {
     collection_file="$1"
     base_name=$(basename "$collection_file" .postman_collection.json)
-    newman run "$collection_file" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
+    newman run "$collection_file" --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
 }
 
 # Run a collection in tests/api/(collection name as arg).postman_collection.json
 testnewmancol() {
     local collection_name="$1"
-    newman run "tests/api/${collection_name}.postman_collection.json" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${collection_name}_test_report.html"
+    newman run "tests/api/${collection_name}.postman_collection.json" --reporters cli,html --reporter-html-export "docs/reports/newman/${collection_name}_test_report.html"
 }
 
 # Run all API test collections
@@ -91,7 +91,7 @@ testnewmanall() {
     # Run all collections in tests/api/
     for collection in tests/api/*.postman_collection.json; do
         base_name=$(basename "$collection" .postman_collection.json)
-        newman run "$collection" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
+        newman run "$collection" --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
         echo "Ran collection: $base_name"
         sleep 2 # Add a short delay between collections
     done
