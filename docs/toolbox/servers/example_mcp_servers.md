@@ -10,8 +10,9 @@ This document provides a list of pre-configured MCP servers for example usage th
 *   **Configuration File**: `config/mcp_servers/example_mcp_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `get_weather` | Retrieves the current weather for a specified location. |
 | `get_forecast` | Gets the weather forecast for a specified location for a number of days. |
 
@@ -24,8 +25,9 @@ An agent with access to this server can answer questions like "What's the weathe
 *   **Configuration File**: `config/mcp_servers/example_mcp_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `create_plan` | Creates a new plan with a specified name and steps. |
 | `add_step` | Adds a step to an existing plan. |
 | `get_plan` | Retrieves the details of a specific plan. |

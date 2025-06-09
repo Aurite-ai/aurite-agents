@@ -10,8 +10,9 @@ This document provides a list of pre-configured MCP servers for General Purpose 
 *   **Configuration File**: `config/mcp_servers/general_purpose_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `get_config` | Get complete server configuration |
 | `set_config_value` | Set specific configuration values |
 | `read_file` | Read contents of a file or URL |
@@ -46,8 +47,9 @@ python tests/functional_mcp_client.py '{"name": "desktop_commander"}' "list tool
 *   **Configuration File**: `config/mcp_servers/general_purpose_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `initialize_memory_bank` | Initialize a Memory Bank in a specified directory |
 | `set_memory_bank_path` | Set a custom path for the Memory Bank |
 | `debug_mcp_config` | Debug the current MCP configuration |
@@ -79,19 +81,22 @@ python tests/functional_mcp_client.py '{"name": "memory_bank"}' "Use the 'initia
 *   **Configuration File**: `config/mcp_servers/general_purpose_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `save_plan` | Save a plan to disk with optional tags. |
 | `list_plans` | List all available plans, optionally filtered by tag. |
 
 **Prompts:**
+
 | Prompt Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `create_plan_prompt` | Generate a structured planning prompt. |
 
 **Resources:**
+
 | Resource URI | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `planning://plan/{plan_name}` | Get a saved plan as a formatted resource. |
 
 **Example Usage:**

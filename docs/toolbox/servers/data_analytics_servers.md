@@ -10,8 +10,9 @@ This document provides a list of pre-configured MCP servers for Data Analytics t
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `get_steam_trending_games` | Shows currently trending games on Steam with live data |
 | `get_steam_top_sellers` | Displays top-selling games on Steam with real sales data |
 | `get_steam_most_played` | Shows real-time most played games on Steam with current player counts |
@@ -35,8 +36,9 @@ python tests/functional_mcp_client.py '{"name": "game_trends_mcp"}' "Use the 'ge
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `fda_drug_lookup` | Looks up drug information from FDA database |
 | `pubmed_search` | Searches medical literature in PubMed |
 | `health_topics` | Gets evidence-based health information |
@@ -63,8 +65,9 @@ python tests/functional_mcp_client.py '{"name": "healthcare_mcp_public"}' "Use t
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `get_current_weather` | Gets current weather conditions for any US location |
 | `get_weather_forecast` | Provides multi-day weather forecast (up to 7 days) |
 | `get_hourly_forecast` | Shows hour-by-hour weather forecast (up to 48 hours) |
@@ -87,8 +90,9 @@ python tests/functional_mcp_client.py '{"name": "national_weather_service"}' "Us
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `search_pubmed_key_words` | Searches PubMed using keywords |
 | `search_pubmed_advanced` | Performs advanced PubMed search with multiple criteria |
 | `get_pubmed_article_metadata` | Retrieves metadata for a specific PubMed article |
@@ -109,8 +113,9 @@ python tests/functional_mcp_client.py '{"name": "pubmed_mcp_server"}' "Use the '
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `app-store-search` | Search for apps |
 | `app-store-details` | Get detailed app information |
 | `app-store-reviews` | Get app reviews |
