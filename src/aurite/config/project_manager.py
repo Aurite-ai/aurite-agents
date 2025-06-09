@@ -83,14 +83,14 @@ class ProjectManager:
         )
 
         # Resolve all component types using the helper
-        resolved_clients = self._resolve_components(
+        resolved_mcp_servers = self._resolve_components(
             project_data,
             project_name,  # For logging context within _resolve_components
-            "clients",
+            "mcp_servers",
             ClientConfig,
-            "client_id",
-            "Client",
-            "clients",
+            "name",
+            "MCP Server",
+            "mcp_servers",
             current_project_root_for_inline_res,
         )
         resolved_llm_configs = self._resolve_components(
@@ -139,7 +139,7 @@ class ProjectManager:
             project_config = ProjectConfig(
                 name=project_name,
                 description=project_description,
-                clients=resolved_clients,
+                mcp_servers=resolved_mcp_servers,
                 llms=resolved_llm_configs,  # Changed from llm_configs
                 agents=resolved_agents,  # Changed from agent_configs
                 simple_workflows=resolved_simple_workflows,  # Changed from simple_workflow_configs
@@ -187,9 +187,6 @@ class ProjectManager:
             f"Reading and parsing project configuration from: {project_config_file_path}"
         )
         if not project_config_file_path.is_file():
-            logger.error(
-                f"Project configuration file not found: {project_config_file_path}"
-            )
             raise FileNotFoundError(
                 f"Project configuration file not found: {project_config_file_path}"
             )
@@ -218,23 +215,22 @@ class ProjectManager:
     def load_project(self, project_config_file_path: Path) -> ProjectConfig:
         """
         Loads a project configuration file by parsing it and then sets it
-        as the active project in the ProjectManager.
+        as the active project in the ProjectManager. If the file is not found,
+        it creates an empty ProjectConfig instead of raising an error.
 
         Args:
             project_config_file_path: Path to the project JSON file.
 
         Returns:
-            A fully resolved ProjectConfig object.
+            A fully resolved ProjectConfig object, which may be empty if the file was not found.
 
         Raises:
-            FileNotFoundError: If the project file does not exist.
             RuntimeError: If JSON parsing fails or validation errors occur.
             ValueError: If component references are invalid or cannot be resolved.
         """
         logger.debug(
-            f"Loading project configuration from: {project_config_file_path} and setting as active."
+            f"Attempting to load project configuration from: {project_config_file_path} and set as active."
         )
-        # Establish current_project_root
         self.current_project_root = project_config_file_path.parent
         logger.debug(f"Current project root set to: {self.current_project_root}")
 
@@ -242,22 +238,26 @@ class ProjectManager:
         # This allows user components to override packaged defaults.
         self.component_manager.load_project_components(self.current_project_root)
 
-        # Parse the project file. This will use components already loaded into ComponentManager
-        # (both packaged and project-specific) for resolving string references.
-        # Inline definitions in the project file will use current_project_root for their path resolution.
-        project_config = self.parse_project_file(
-            project_config_file_path
-        )  # parse_project_file now handles current_project_root
-
-        # Now set the parsed and validated project_config as the active one
-        self.active_project_config = project_config
-        logger.info(
-            colored(
-                f"Project '{project_config.name}' Successfully loaded from `{project_config_file_path}`.",
-                "yellow",
-                attrs=["bold"],
+        try:
+            # Parse the project file. This will use components already loaded into ComponentManager
+            # (both packaged and project-specific) for resolving string references.
+            project_config = self.parse_project_file(project_config_file_path)
+            logger.info(
+                colored(
+                    f"Project '{project_config.name}' successfully loaded from `{project_config_file_path}`.",
+                    "yellow",
+                    attrs=["bold"],
+                )
             )
-        )
+        except FileNotFoundError:
+            project_name = project_config_file_path.name
+            logger.warning(
+                f"Project file not found at {project_config_file_path}. Creating an empty project named '{project_name}'."
+            )
+            project_config = ProjectConfig(name=project_name, description=None)
+
+        # Set the parsed or newly created project_config as the active one
+        self.active_project_config = project_config
         return project_config
 
     def unload_active_project(self):
@@ -284,7 +284,7 @@ class ProjectManager:
         return HostConfig(
             name=self.active_project_config.name,
             description=self.active_project_config.description,
-            clients=list(self.active_project_config.clients.values()),
+            mcp_servers=list(self.active_project_config.mcp_servers.values()),
         )
 
     def add_component_to_active_project(
@@ -328,7 +328,7 @@ class ProjectManager:
         within a project configuration. Uses the ComponentManager to look up referenced IDs.
         """
         resolved_items: Dict[str, Any] = {}
-        item_references = project_data.get(project_key, [])
+        item_references = project_data.get(project_key, []) or []
 
         if not isinstance(item_references, list):
             logger.warning(
@@ -471,8 +471,8 @@ class ProjectManager:
                 )
 
             # Construct dictionaries for ProjectConfig
-            clients_dict = (
-                {c.client_id: c for c in client_configs} if client_configs else {}
+            mcp_servers_dict = (
+                {c.name: c for c in client_configs} if client_configs else {}
             )
             # Input arg is llm_configs, but ProjectConfig field is llms
             llms_dict = {lc.llm_id: lc for lc in llm_configs} if llm_configs else {}
@@ -499,7 +499,7 @@ class ProjectManager:
             project_config_model = ProjectConfig(
                 name=project_name,
                 description=project_description,
-                clients=clients_dict,
+                mcp_servers=mcp_servers_dict,
                 llms=llms_dict,  # Changed from llm_configs
                 agents=agents_dict,  # Changed from agent_configs
                 simple_workflows=simple_workflows_dict,  # Changed from simple_workflow_configs

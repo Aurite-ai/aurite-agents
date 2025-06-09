@@ -18,7 +18,8 @@ Navigate through the documentation using the links below to understand different
 An in-depth look at the features each component offers through json configuration.
 *   **[[components/PROJECT.md|Project Configs]]** Start here!
 *   **[[components/llm.md|LLM Configs]]**
-*   **[[components/client.md|Client Configs]]**
+*   **[[components/mcp_server.md|MCP Server Configs]]**
+*   **[[toolbox/mcp_server_directory.md|Packaged MCP Servers]]**
 *   **[[components/agent.md|Agent Configs]]**
 *   **[[components/simple_workflow.md|Simple Workflow Configs]]**
 *   **[[components/custom_workflow.md|Custom Workflow Configs]]**

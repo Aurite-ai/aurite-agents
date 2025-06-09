@@ -13,11 +13,16 @@ import warnings  # Add import
 from types import ModuleType  # Added ModuleType
 from typing import Dict, Optional, Any, List  # Added Type
 from dataclasses import dataclass
-import anyio  # Import anyio
+from anyio import to_thread  # Import anyio
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# Local imports
+from aurite.config.config_models import (
+    GCPSecretConfig,
+)  # Assuming models.py is one level up
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +41,6 @@ except ImportError:
         "google-cloud-secret-manager not installed. GCP secret functionality will be disabled."
     )
 
-# Local imports
-from aurite.config.config_models import (
-    GCPSecretConfig,
-)  # Assuming models.py is one level up
 
 # Patterns for sensitive data detection (Improved)
 SENSITIVE_PATTERNS = {
@@ -328,7 +329,9 @@ class SecurityManager:
                     # Use the synchronous client method directly as SDK doesn't provide async access method
                     # This will block the event loop briefly for each secret access.
                     # Running in a thread pool executor using anyio.to_thread.run_sync
-                    response = await anyio.to_thread.run_sync(
+                    if self._gcp_secret_client is None:
+                        raise RuntimeError("GCP Secret Manager client not initialized.")
+                    response = await to_thread.run_sync(
                         self._gcp_secret_client.access_secret_version, request
                     )
                     secret_value = response.payload.data.decode("UTF-8")

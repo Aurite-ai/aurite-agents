@@ -17,41 +17,44 @@ class AgentOutputContentBlock(BaseModel):
 
     # Fields for 'text' type
     text: Optional[str] = Field(
-        None, description="The text content, if the block is of type 'text'."
+        default=None, description="The text content, if the block is of type 'text'."
     )
 
     # Fields for 'tool_use' type (mirroring Anthropic's ToolUseBlock for consistency if needed)
     id: Optional[str] = Field(
-        None, description="The ID of the tool use, if the block is of type 'tool_use'."
+        default=None,
+        description="The ID of the tool use, if the block is of type 'tool_use'.",
     )
     input: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description="The input provided to the tool, if the block is of type 'tool_use'.",
     )
     name: Optional[str] = Field(
-        None,
+        default=None,
         description="The name of the tool used, if the block is of type 'tool_use'.",
     )
 
     # Fields for 'tool_result' type
     tool_use_id: Optional[str] = Field(
-        None,
+        default=None,
         description="The ID of the tool use this result corresponds to, if block is 'tool_result'.",
     )
     content: Optional[List["AgentOutputContentBlock"]] = (
         Field(  # For tool_result, content can be list of blocks
-            None,
+            default=None,
             description="Nested content, e.g., for tool_result blocks or other container types.",
         )
     )
     # Added for tool_result, though ToolResultView handles it via props
     is_error: Optional[bool] = Field(
-        None, description="Indicates if a tool result is an error."
+        default=None, description="Indicates if a tool result is an error."
     )
 
     # Internal field, not for API
     index: Optional[int] = Field(
-        None, description="Internal index of the block in a sequence.", exclude=True
+        default=None,
+        description="Internal index of the block in a sequence.",
+        exclude=True,
     )
 
     class Config:

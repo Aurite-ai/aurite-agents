@@ -6,21 +6,21 @@ This document first provides a quickstart example and then details all available
 
 ## Quickstart Example
 
-A basic agent needs a name, an `llm_config_id` to specify which LLM to use, and a `system_prompt`. If the agent needs to use tools, you'll also include `client_ids`.
+A basic agent needs a name, an `llm_config_id` to specify which LLM to use, and a `system_prompt`. If the agent needs to use tools, you'll also include `mcp_servers`.
 
 ```json
 {
   "name": "HelpfulGreeterAgent",
   "llm_config_id": "my_default_claude_haiku", // Assumes an LLMConfig with this ID exists
   "system_prompt": "You are a friendly assistant that greets users and offers help.",
-  "client_ids": ["optional_tool_server_id"] // Only if tools are needed
+  "mcp_servers": ["optional_tool_server_id"] // Only if tools are needed
 }
 ```
 
 -   **`name`**: A unique name for your agent.
 -   **`llm_config_id`**: Points to a pre-defined `LLMConfig`.
 -   **`system_prompt`**: The primary instruction for the agent's behavior.
--   **`client_ids`** (optional): A list of `client_id`s if the agent needs to use tools from MCP servers.
+-   **`mcp_servers`** (optional): A list of MCP Server names if the agent needs to use tools from them.
 
 Many other fields are available for more advanced control over LLM parameters, tool access, and conversation flow.
 
@@ -31,8 +31,8 @@ An Agent configuration is a JSON object with the following fields:
 | Field                      | Type                 | Default | Description                                                                                                                                                                                             |
 | -------------------------- | -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                     | string               | `null`  | An optional, human-readable name for this agent instance. Useful for identification in logs and when referencing agents in workflows.                                                                 |
-| `client_ids`               | array of string      | `null`  | A list of `client_id` strings. These IDs must correspond to `client_id`s defined in `ClientConfig` objects. This list specifies which MCP clients (and thus their tools/resources) this agent is allowed to use. |
-| `auto`                     | boolean              | `false` | If `true`, the framework (potentially guided by an LLM) will dynamically select a subset of the `client_ids` (and their tools) best suited for the current task or user message during a conversation turn. The `routing_weight` in `ClientConfig` can influence this selection. If `false`, the agent considers all tools from all `client_ids` it has access to (subject to `exclude_components`). |
+| `mcp_servers`              | array of string      | `null`  | A list of MCP Server names. These names must correspond to `name`s defined in MCP Server configuration objects. This list specifies which MCP servers (and thus their tools/resources) this agent is allowed to use. **Note:** You can reference any of the built-in, packaged servers by name here without needing a project file. For backward compatibility, `client_ids` is also supported. |
+| `auto`                     | boolean              | `false` | If `true`, the framework (potentially guided by an LLM) will dynamically select a subset of the `mcp_servers` (and their tools) best suited for the current task or user message during a conversation turn. The `routing_weight` in the MCP Server config can influence this selection. If `false`, the agent considers all tools from all `mcp_servers` it has access to (subject to `exclude_components`). |
 | `llm_config_id`            | string               | `null`  | The `llm_id` of an `LLMConfig` to use for this agent. This determines the base LLM provider, model, and default parameters.                                                                                |
 | `system_prompt`            | string               | `null`  | A specific system prompt for this agent. This overrides the `default_system_prompt` from the referenced `LLMConfig`. If `null`, the `default_system_prompt` from `LLMConfig` is used.                      |
 | `config_validation_schema` | object (JSON Schema) | `null`  | An optional JSON schema. If provided, the agent's final text response (if it's expected to be JSON) will be validated against this schema. If validation fails, the agent may be prompted to correct its response. |
@@ -41,7 +41,7 @@ An Agent configuration is a JSON object with the following fields:
 | `max_tokens`               | integer              | `null`  | Overrides the `max_tokens` from the referenced `LLMConfig` for this specific agent.                                                                                                                       |
 | `max_iterations`           | integer              | `null`  | The maximum number of conversation turns (LLM calls and tool executions) the agent will perform before stopping. If `null`, a default (e.g., 10) is used.                                                 |
 | `include_history`          | boolean              | `null`  | If `true`, the entire conversation history is provided to the LLM on each turn. If `false`, only the most recent user message (and potentially tool results) might be sent. Behavior can depend on LLM client implementation. If `null`, defaults to`false`. |
-| `exclude_components`       | array of string      | `null`  | A list of specific component names (tools, prompts, or resources) that this agent should NOT be able to use, even if they are provided by the clients listed in `client_ids`. This allows for fine-grained control over an agent's capabilities. |
+| `exclude_components`       | array of string      | `null`  | A list of specific component names (tools, prompts, or resources) that this agent should NOT be able to use, even if they are provided by the servers listed in `mcp_servers`. This allows for fine-grained control over an agent's capabilities. |
 | `evaluation`               | string               | `null`  | Experimental: An optional field for runtime evaluation. Can be the name of a test configuration file (e.g., in `config/testing/`) or a simple prompt describing the expected output for basic evaluation.   |
 
 ## Key Features and Usage
@@ -52,13 +52,13 @@ An Agent configuration is a JSON object with the following fields:
 -   Specific LLM parameters like `model`, `temperature`, and `max_tokens` can be overridden directly in the `AgentConfig` for fine-tuning that particular agent's LLM interaction.
 -   The `system_prompt` in `AgentConfig` always takes precedence over the `default_system_prompt` in the associated `LLMConfig`.
 
-### Client and Tool Access
+### MCP Server and Tool Access
 
--   **`client_ids`**: Defines the pool of MCP clients (and their associated tools/resources) that an agent can access.
+-   **`mcp_servers`**: Defines the pool of MCP servers (and their associated tools/resources) that an agent can access.
 -   **`auto` mode**:
-    -   When `auto` is `true`, the agent enters a dynamic tool selection mode. In this mode, for each turn, an LLM (or a dedicated routing mechanism) analyzes the current conversation and task, then selects the most relevant subset of tools from the agent's allowed `client_ids`. This allows the agent to adapt its available tools based on context, rather than always having all tools from all permitted clients presented to the main LLM. The `routing_weight` in `ClientConfig` can influence this selection process.
-    -   When `auto` is `false` (the default), the agent's main LLM is presented with all tools from all clients listed in `client_ids` (unless filtered by `exclude_components`).
--   **`exclude_components`**: Provides a way to explicitly deny an agent access to certain tools, prompts, or resources, even if those components are offered by a client in its `client_ids` list.
+    -   When `auto` is `true`, the agent enters a dynamic tool selection mode. In this mode, for each turn, an LLM (or a dedicated routing mechanism) analyzes the current conversation and task, then selects the most relevant subset of tools from the agent's allowed `mcp_servers`. This allows the agent to adapt its available tools based on context, rather than always having all tools from all permitted servers presented to the main LLM. The `routing_weight` in the MCP Server config can influence this selection process.
+    -   When `auto` is `false` (the default), the agent's main LLM is presented with all tools from all servers listed in `mcp_servers` (unless filtered by `exclude_components`).
+-   **`exclude_components`**: Provides a way to explicitly deny an agent access to certain tools, prompts, or resources, even if those components are offered by a server in its `mcp_servers` list.
 
 ### Conversation Flow
 
@@ -77,7 +77,7 @@ Agent configurations are typically stored in JSON files (e.g., `config/agents/my
 {
   "name": "SmartTaskAutomatorAgent",
   "llm_config_id": "anthropic_claude_3_opus",
-  "client_ids": ["email_client", "calendar_client", "database_client", "file_system_client"],
+  "mcp_servers": ["email_client", "calendar_client", "database_client", "file_system_client"],
   "auto": true, // Enable dynamic tool selection
   "system_prompt": "You are an intelligent assistant that automates tasks by selecting and using the best tools for the job. Analyze the user's request and the available tools to achieve the goal.",
   "temperature": 0.6,
@@ -91,7 +91,7 @@ Agent configurations are typically stored in JSON files (e.g., `config/agents/my
 {
   "name": "JsonOutputAgent",
   "llm_config_id": "openai_gpt_4_turbo",
-  "client_ids": [], // No external tools needed for this example
+  "mcp_servers": [], // No external tools needed for this example
   "auto": false,
   "system_prompt": "Provide your answer as a JSON object adhering to the specified schema.",
   "config_validation_schema": {

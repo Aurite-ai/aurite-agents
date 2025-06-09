@@ -75,7 +75,7 @@ The `ProjectConfig` model defines the top-level structure of a project JSON file
 | -------------------- | ------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`               | string                                | Required        | A unique name for the project.                                                                                                            |
 | `description`        | string                                | Optional (`null`) | A brief description of the project's purpose.                                                                                             |
-| `clients`            | dictionary of `string` to `ClientConfig` | `{}` (empty dict) | A dictionary where keys are `client_id`s and values are [Client Configurations](./client.md). Can contain inline definitions or references. |
+| `mcp_servers`        | dictionary of `string` to `ClientConfig` | `{}` (empty dict) | A dictionary where keys are server `name`s and values are [MCP Server Configurations](./mcp_server.md). Can contain inline definitions or references. For backward compatibility, `clients` is also supported. |
 | `llms`               | dictionary of `string` to `LLMConfig`   | `{}` (empty dict) | A dictionary where keys are `llm_id`s and values are [LLM Configurations](./llm.md). Can contain inline definitions or references.         |
 | `agents`             | dictionary of `string` to `AgentConfig` | `{}` (empty dict) | A dictionary where keys are agent `name`s and values are [Agent Configurations](./agent.md). Can contain inline definitions or references.   |
 | `simple_workflows`   | dictionary of `string` to `WorkflowConfig` | `{}` (empty dict) | A dictionary where keys are workflow `name`s and values are [Simple Workflow Configurations](./simple_workflow.md). Can contain inline definitions or references. |
@@ -98,9 +98,9 @@ The `ProjectConfig` model defines the top-level structure of a project JSON file
     },
     "reference_to_haiku_llm" // Assumes "reference_to_haiku_llm" is defined somewhere in config/llms/
   ],
-  "clients": [
+  "mcp_servers": [
     {
-      "client_id": "local_weather_service",
+      "name": "local_weather_service",
       "server_path": "mcp_servers/weather.py",
       "capabilities": ["tools"]
     }
@@ -110,7 +110,7 @@ The `ProjectConfig` model defines the top-level structure of a project JSON file
       "name": "WeatherInquiryAgent",
       "llm_config_id": "default_opus",
       "system_prompt": "You are a Weather Forecast Assistant. Use the tool at your disposal to look up weather forecast(s) in order to respond to the user's query appropriately.",
-      "client_ids": ["local_weather_service"]
+      "mcp_servers": ["local_weather_service"]
     },
     {
       "name": "Weather Reporter",
@@ -133,7 +133,7 @@ The `ProjectConfig` model defines the top-level structure of a project JSON file
 For detailed information on configuring each component type, please refer to their respective documents:
 
 -   [LLM Configurations (LLMConfig)](./llm.md)
--   [Client Configurations (ClientConfig)](./client.md)
+-   [MCP Server Configurations (ClientConfig)](./mcp_server.md)
 -   [Agent Configurations (AgentConfig)](./agent.md)
 -   [Simple Workflow Configurations (WorkflowConfig)](./simple_workflow.md)
 -   [Custom Workflow Configurations (CustomWorkflowConfig)](./custom_workflow.md)

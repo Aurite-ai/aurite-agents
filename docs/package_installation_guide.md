@@ -60,8 +60,8 @@ Follow these steps to prepare your environment before creating an Aurite project
         ```env
         OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         ```
-    *   Replace `sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` with your actual API key (or the key for your chosen LLM provider, e.g., `ANTHROPIC_API_KEY=your_key`).
-    *   You only need to set the API key for the LLM provider you plan to use.
+    *   Replace `sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` with your actual API key.
+    *   The example project uses OpenAI, but other tools in the packaged toolbox may require other keys (like `SMITHERY_API_KEY`). The `.env.example` file created by `aurite init` provides a template for all the keys you might need.
     *   **IDE Note:** When you open your workspace folder (e.g., `/path/to/your_workspace/`) in an IDE like VS Code, the IDE will typically load environment variables from a `.env` file found in this workspace root.
     *   **Important Reminder:** After you initialize your project folder using `aurite init` in the "Tutorial Steps", **do not move this `.env` file into the project folder.** It must remain in the main workspace directory (e.g., `/path/to/your_workspace/`) to be correctly loaded by your IDE and Python scripts run from that workspace.
 
@@ -99,18 +99,18 @@ With your environment prepared, you can now initialize your Aurite project.
         cd my_first_aurite_project
         ```
 3.  **Run the Example Agent:**
-    *   The `aurite init` command creates a script named `run_example_project.py` in your project root (e.g., `my_first_aurite_project/run_example_project.py`). This script is pre-configured to run an example "Weather Agent".
+    *   The `aurite init` command creates a script named `run_example_project.py` in your project root (e.g., `my_first_aurite_project/run_example_project.py`). This script is pre-configured to run an example "My Weather Agent".
     *   Since your `OPENAI_API_KEY` is set in the `.env` file in your workspace root (as per the Pre-Requisite Steps), the script should be able to access it.
     *   In your terminal, while inside the project root directory (e.g., `my_first_aurite_project`), run the script:
         ```bash
         python run_example_project.py
         ```
-    *   You should see output indicating the "Weather Agent" is running and then a weather report for London. This confirms your basic setup and API key are working.
+    *   You should see output indicating the "My Weather Agent" is running and then a weather report for New York. This confirms your basic setup and API key are working.
         ```
-        Running agent 'Weather Agent' with query: 'What is the weather in London?'
+        Running agent 'My Weather Agent' with query: 'What's the weather like in New York?'
 
         --- Agent Result ---
-        Agent's response: The temperature in London is XX°C with [description].
+        Agent's response: The temperature in New York is 22°C with partly cloudy skies.
         ```
         *(The exact agent response will vary slightly each time you run it. Also, note that this example agent provides its response as a natural language sentence (non-structured output) rather than a fixed data format like JSON.)*
     *   Seeing this output means you're ready to move on to understanding the configuration files and then creating your own agent.

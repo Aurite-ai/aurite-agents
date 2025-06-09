@@ -54,6 +54,12 @@ class OpenAIClient(BaseLLM):
             f"OpenAIClient initialized for model {self.model_name} using direct API calls."
         )
 
+    async def aclose(self):
+        """Closes the underlying httpx client used by the OpenAI SDK."""
+        if self.client:
+            await self.client.close()
+            logger.debug("OpenAIClient session closed.")
+
     def _convert_messages_to_openai_format(
         self, messages: List[Dict[str, Any]], system_prompt: Optional[str]
     ) -> List[Dict[str, Any]]:
@@ -371,10 +377,11 @@ class OpenAIClient(BaseLLM):
                         },
                     }
                     # Simulate input delta if needed, though OpenAI stream gives full input at once
-                    yield {
-                        "event_type": "tool_use_input_delta",  # Or a single "tool_use_input_complete"
-                        "data": {"index": i, "json_chunk": json.dumps(block.input)},
-                    }
+                    if block.input is not None:
+                        yield {
+                            "event_type": "tool_use_input_delta",  # Or a single "tool_use_input_complete"
+                            "data": {"index": i, "json_chunk": json.dumps(block.input)},
+                        }
                 yield {"event_type": "content_block_stop", "data": {"index": i}}
 
             yield {

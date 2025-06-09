@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 # MCP imports
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -82,7 +82,6 @@ async def save_plan(
     plan_name: str,
     plan_content: str,
     tags: Optional[List[str]] = None,
-    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Save a plan to disk with optional tags.
@@ -142,7 +141,7 @@ async def save_plan(
 
 
 @mcp.tool()
-async def list_plans(tag: Optional[str] = None, ctx: Context = None) -> Dict[str, Any]:
+async def list_plans(tag: Optional[str] = None) -> Dict[str, Any]:
     """
     List all available plans, optionally filtered by tag.
 

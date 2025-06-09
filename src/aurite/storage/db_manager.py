@@ -13,11 +13,11 @@ from sqlalchemy import delete  # Import delete
 
 # Assuming models are accessible from here
 from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
-from ..config.config_models import (  # Updated import path
+from ..config.config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
-    LLMConfig,  # Added LLMConfig
+    LLMConfig,
 )
 
 # Import DB connection utilities and models
@@ -95,7 +95,7 @@ class StorageManager:
         self,
         db_session,
         db_model_cls: Type[DBModelType],  # Use TypeVar for the class
-        pydantic_config: PydanticModelType,  # Use TypeVar for the instance
+        pydantic_config: PydanticBaseModel,  # Use TypeVar for the instance
         pk_field: str = "name",
     ):
         """Generic helper to sync a single Pydantic config to a DB model."""

@@ -30,7 +30,7 @@ from .agent_models import AgentOutputMessage
 # Import specific exceptions if needed for error handling
 
 if TYPE_CHECKING:
-    from ...llm.base_client import BaseLLM
+    from aurite.components.llm.base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 
@@ -402,108 +402,128 @@ class AgentTurnProcessor:
                         logger.debug(
                             f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
-                        try:
-                            cleaned_tool_input_str = (
-                                tool_input_str.strip() if tool_input_str else ""
-                            )
-                            sanitized_tool_input_str = "".join(
-                                c
-                                for c in cleaned_tool_input_str
-                                if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
-                            )
-                            string_to_parse = (
-                                sanitized_tool_input_str
-                                if sanitized_tool_input_str
-                                else cleaned_tool_input_str
-                            )
-                            parsed_input = (
-                                json.loads(string_to_parse) if string_to_parse else {}
-                            )
 
-                            tool_result_content = await self.host.execute_tool(
-                                tool_name=tool_name,
-                                arguments=parsed_input,
-                                agent_config=self.config,
-                            )
-                            logger.debug(
-                                f"Tool '{tool_name}' executed successfully via stream."
-                            )
-                            serializable_output: Any
-                            if isinstance(tool_result_content, str):
-                                serializable_output = tool_result_content
-                            elif isinstance(tool_result_content, (list, tuple)):
-                                serializable_output = []
-                                for item in tool_result_content:
-                                    if hasattr(item, "model_dump"):
-                                        item_dump = item.model_dump(
+                        if tool_name:
+                            try:
+                                cleaned_tool_input_str = (
+                                    tool_input_str.strip() if tool_input_str else ""
+                                )
+                                sanitized_tool_input_str = "".join(
+                                    c
+                                    for c in cleaned_tool_input_str
+                                    if 31 < ord(c) < 127 or c in ("\n", "\r", "\t")
+                                )
+                                string_to_parse = (
+                                    sanitized_tool_input_str
+                                    if sanitized_tool_input_str
+                                    else cleaned_tool_input_str
+                                )
+                                parsed_input = (
+                                    json.loads(string_to_parse)
+                                    if string_to_parse
+                                    else {}
+                                )
+
+                                tool_result_content = await self.host.execute_tool(
+                                    tool_name=tool_name,
+                                    arguments=parsed_input,
+                                    agent_config=self.config,
+                                )
+                                logger.debug(
+                                    f"Tool '{tool_name}' executed successfully via stream."
+                                )
+                                serializable_output: Any
+                                if isinstance(tool_result_content, str):
+                                    serializable_output = tool_result_content
+                                elif isinstance(tool_result_content, (list, tuple)):
+                                    serializable_output = []
+                                    for item in tool_result_content:
+                                        if hasattr(item, "model_dump"):
+                                            item_dump = item.model_dump(
+                                                mode="json", exclude_none=True
+                                            )
+                                            if item_dump.get("type") == "text":
+                                                item_dump = {
+                                                    "type": "text",
+                                                    "text": item_dump.get("text", ""),
+                                                }
+                                            serializable_output.append(item_dump)
+                                        else:
+                                            serializable_output.append(str(item))
+                                elif hasattr(tool_result_content, "model_dump"):
+                                    serializable_output = (
+                                        tool_result_content.model_dump(
                                             mode="json", exclude_none=True
                                         )
-                                        if item_dump.get("type") == "text":
-                                            item_dump = {
-                                                "type": "text",
-                                                "text": item_dump.get("text", ""),
-                                            }
-                                        serializable_output.append(item_dump)
-                                    else:
-                                        serializable_output.append(str(item))
-                            elif hasattr(tool_result_content, "model_dump"):
-                                serializable_output = tool_result_content.model_dump(
-                                    mode="json", exclude_none=True
-                                )
-                                if serializable_output.get("type") == "text":
-                                    serializable_output = {
-                                        "type": "text",
-                                        "text": serializable_output.get("text", ""),
-                                    }
-                            elif (
-                                isinstance(
-                                    tool_result_content, (dict, int, float, bool)
-                                )
-                                or tool_result_content is None
-                            ):
-                                serializable_output = tool_result_content
-                            else:
-                                logger.warning(
-                                    f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string."
-                                )
-                                serializable_output = str(tool_result_content)
+                                    )
+                                    if serializable_output.get("type") == "text":
+                                        serializable_output = {
+                                            "type": "text",
+                                            "text": serializable_output.get("text", ""),
+                                        }
+                                elif (
+                                    isinstance(
+                                        tool_result_content, (dict, int, float, bool)
+                                    )
+                                    or tool_result_content is None
+                                ):
+                                    serializable_output = tool_result_content
+                                else:
+                                    logger.warning(
+                                        f"Tool result output for '{tool_name}' is of complex type {type(tool_result_content)}. Converting to string."
+                                    )
+                                    serializable_output = str(tool_result_content)
 
-                            tool_result_data = {
-                                "index": event_index,
-                                "tool_use_id": tool_id,
-                                "tool_name": tool_name,
-                                "status": "success",
-                                "output": serializable_output,
-                                "is_error": False,
-                            }
-                            yield {
-                                "event_type": "tool_result",
-                                "data": tool_result_data,
-                            }
-                        except json.JSONDecodeError as json_err:
+                                tool_result_data = {
+                                    "index": llm_event_original_index,
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "status": "success",
+                                    "output": serializable_output,
+                                    "is_error": False,
+                                }
+                                yield {
+                                    "event_type": "tool_result",
+                                    "data": tool_result_data,
+                                }
+                            except json.JSONDecodeError as json_err:
+                                logger.error(
+                                    f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
+                                )
+                                tool_error_data = {
+                                    "index": llm_event_original_index,
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "error_message": f"Invalid JSON input for tool: {str(json_err)}",
+                                }
+                                yield {
+                                    "event_type": "tool_execution_error",
+                                    "data": tool_error_data,
+                                }
+                            except Exception as e:
+                                logger.error(
+                                    f"Error executing tool {tool_name} via stream: {e}",
+                                    exc_info=True,
+                                )
+                                tool_error_data = {
+                                    "index": llm_event_original_index,
+                                    "tool_use_id": tool_id,
+                                    "tool_name": tool_name,
+                                    "error_message": str(e),
+                                }
+                                yield {
+                                    "event_type": "tool_execution_error",
+                                    "data": tool_error_data,
+                                }
+                        else:
                             logger.error(
-                                f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
+                                f"Tool name missing for tool use event. Tool ID: {tool_id}"
                             )
                             tool_error_data = {
-                                "index": event_index,
+                                "index": llm_event_original_index,
                                 "tool_use_id": tool_id,
-                                "tool_name": tool_name,
-                                "error_message": f"Invalid JSON input for tool: {str(json_err)}",
-                            }
-                            yield {
-                                "event_type": "tool_execution_error",
-                                "data": tool_error_data,
-                            }
-                        except Exception as e:
-                            logger.error(
-                                f"Error executing tool {tool_name} via stream: {e}",
-                                exc_info=True,
-                            )
-                            tool_error_data = {
-                                "index": event_index,
-                                "tool_use_id": tool_id,
-                                "tool_name": tool_name,
-                                "error_message": str(e),
+                                "tool_name": "unknown_tool",
+                                "error_message": "LLM did not provide a tool name for a tool_use block.",
                             }
                             yield {
                                 "event_type": "tool_execution_error",

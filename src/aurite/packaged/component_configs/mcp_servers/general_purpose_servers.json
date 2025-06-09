@@ -1,0 +1,16 @@
+[
+  {
+    "name": "desktop_commander",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@wonderwhy-er/desktop-commander/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "memory_bank",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@aakarsh-sasi/memory-bank-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  }
+]

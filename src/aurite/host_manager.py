@@ -6,13 +6,28 @@ import importlib.resources  # For loading packaged project templates
 import json  # Added for loading prompt_validation_config.json
 import logging
 import os  # Added for environment variable check
+import sys
 from pathlib import Path
 from typing import (  # Added AsyncGenerator, Dict, Any
     Any,
     AsyncGenerator,
     Dict,
+    List,
     Optional,
 )
+
+# For robust exception group handling in Python < 3.11
+if sys.version_info < (3, 11):
+    try:
+        from exceptiongroup import ExceptionGroup as BaseExceptionGroup
+    except ImportError:
+        # If exceptiongroup is not installed, create a dummy class
+        class BaseExceptionGroup(Exception):  # type: ignore
+            exceptions: List[Exception] = []
+
+else:
+    from builtins import ExceptionGroup as BaseExceptionGroup
+
 
 from .config.config_models import LLMConfig  # Added LLMConfig
 from .config.config_models import (  # Updated import path
@@ -35,6 +50,10 @@ from .storage.db_connection import create_db_engine  # Import engine factory
 
 # Import StorageManager and engine factory unconditionally
 from .storage.db_manager import StorageManager
+
+# Import for type hinting execution results
+from .components.agents.agent_models import AgentExecutionResult
+from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Imports needed for execution methods
 # from .config import PROJECT_ROOT_DIR # No longer needed here, will use project_manager.current_project_root
@@ -260,29 +279,13 @@ class Aurite:
                 )
                 logger.debug("Database sync complete.")
 
-            # 4. Instantiate ExecutionFacade
-            logger.debug("Instantiating ExecutionFacade...")
-            if (
-                not self.host or not active_project
-            ):  # Ensure host and active_project are not None
-                raise RuntimeError(
-                    "Cannot instantiate ExecutionFacade: Host or active_project is not initialized."
-                )
-            self.execution = ExecutionFacade(
-                host_instance=self.host,
-                current_project=active_project,
-                storage_manager=self.storage_manager,
-            )
-            logger.debug(
-                f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
-            )  # ADDED
-
-            # 5. Load additional packaged project templates like prompt_validation_config
+            # 4. Load additional packaged project templates like prompt_validation_config
             try:
-                packaged_project_template_path_obj = importlib.resources.files(
-                    "aurite.packaged"
-                ).joinpath(
-                    "component_configs", "projects", "prompt_validation_config.json"
+                packaged_project_template_path_obj = (
+                    importlib.resources.files("aurite.packaged")
+                    .joinpath("component_configs")
+                    .joinpath("projects")
+                    .joinpath("prompt_validation_config.json")
                 )
                 if packaged_project_template_path_obj.is_file():
                     logger.debug(
@@ -298,10 +301,14 @@ class Aurite:
                     # Ensure current_project_root is available for path resolution within this template,
                     # using the packaged root as the base for the template itself.
                     packaged_root = importlib.resources.files("aurite.packaged")
-                    parsed_template_project = self.project_manager._parse_and_resolve_project_data(
-                        json.loads(packaged_project_template_path_obj.read_text()),
-                        str(packaged_project_template_path_obj),
-                        packaged_root,  # base_path for resolving paths *within* this template
+                    parsed_template_project = (
+                        self.project_manager._parse_and_resolve_project_data(
+                            json.loads(packaged_project_template_path_obj.read_text()),
+                            str(packaged_project_template_path_obj),
+                            Path(
+                                str(packaged_root)
+                            ),  # base_path for resolving paths *within* this template
+                        )
                     )
 
                     # Add components from this template to the active project
@@ -309,36 +316,36 @@ class Aurite:
                     # For simplicity in this step, we'll log and defer full merge logic if complex.
                     # A simple way is to iterate and register if not present.
                     if parsed_template_project:
-                        for (
-                            agent_name,
-                            agent_cfg,
-                        ) in parsed_template_project.agents.items():
-                            if not self.project_manager.get_active_project_config().agents.get(
-                                agent_name
-                            ):  # type: ignore
-                                await self.register_agent(agent_cfg)
-                        for (
-                            client_id,
-                            client_cfg,
-                        ) in parsed_template_project.clients.items():
-                            if not self.project_manager.get_active_project_config().clients.get(
-                                client_id
-                            ):  # type: ignore
-                                try:
-                                    await self.register_client(client_cfg)
-                                except (
-                                    DuplicateClientIdError
-                                ):  # It might have been loaded as a default already
-                                    logger.debug(
-                                        f"Client {client_id} from template already exists, skipping registration."
-                                    )
+                        active_project_config = (
+                            self.project_manager.get_active_project_config()
+                        )
+                        if active_project_config:
+                            for (
+                                agent_name,
+                                agent_cfg,
+                            ) in parsed_template_project.agents.items():
+                                if not active_project_config.agents.get(agent_name):
+                                    await self.register_agent(agent_cfg)
+                            for (
+                                client_id,
+                                client_cfg,
+                            ) in parsed_template_project.mcp_servers.items():
+                                if not active_project_config.mcp_servers.get(client_id):
+                                    try:
+                                        await self.register_client(client_cfg)
+                                    except (
+                                        DuplicateClientIdError
+                                    ):  # It might have been loaded as a default already
+                                        logger.debug(
+                                            f"Client {client_id} from template already exists, skipping registration."
+                                        )
                         # Add for other component types (llms, workflows) as needed.
                         logger.debug(
                             f"Components from {packaged_project_template_path_obj.name} considered for active project."
                         )
 
                 else:
-                    logger.warning(
+                    logger.debug(
                         f"Packaged prompt validation config not found at expected location: {packaged_project_template_path_obj}"
                     )
             except Exception as e:
@@ -347,15 +354,27 @@ class Aurite:
                     exc_info=True,
                 )
 
+            # 5. Instantiate ExecutionFacade (now at the end of initialization)
+            logger.debug("Instantiating ExecutionFacade...")
+            if (
+                not self.host or not active_project
+            ):  # Ensure host and active_project are not None
+                raise RuntimeError(
+                    "Cannot instantiate ExecutionFacade: Host or active_project is not initialized."
+                )
+            self.execution = ExecutionFacade(
+                host_instance=self.host,
+                current_project=active_project,
+                storage_manager=self.storage_manager,
+            )
+            logger.debug(
+                f"HOST_MANAGER: ExecutionFacade instantiated: {self.execution is not None}"
+            )
+
             logger.info(
                 colored("Aurite initialization complete.", "yellow", attrs=["bold"])
             )  # Keep this high-level INFO
 
-        except FileNotFoundError as e:
-            logger.error(f"Configuration file not found: {self.config_path} - {e}")
-            raise RuntimeError(
-                f"Configuration file not found: {self.config_path}"
-            ) from e
         except (RuntimeError, ValueError, TypeError, KeyError) as e:
             # Catch errors from load_host_config_from_json or MCPHost instantiation
             logger.error(f"Error during Aurite initialization: {e}", exc_info=True)
@@ -421,8 +440,7 @@ class Aurite:
                 # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
                 # and if the first exception is a RuntimeError
                 if (
-                    hasattr(e, "exceptions")
-                    and isinstance(e.exceptions, list)
+                    isinstance(e, BaseExceptionGroup)
                     and len(e.exceptions) > 0
                     and isinstance(e.exceptions[0], RuntimeError)
                 ):
@@ -451,7 +469,7 @@ class Aurite:
                     )
                     # Decide if we should re-raise or just log the error for other exceptions
         else:
-            logger.info("No active MCPHost instance to shut down.")
+            logger.debug("No active MCPHost instance to shut down.")
 
         # Clear internal state regardless of shutdown success/failure
         self.host = None
@@ -483,8 +501,7 @@ class Aurite:
                 # Check if it's an ExceptionGroup (anyio.exceptions.ExceptionGroup inherits from BaseExceptionGroup)
                 # and if the first exception is a RuntimeError
                 if (
-                    hasattr(e, "exceptions")
-                    and isinstance(e.exceptions, list)
+                    isinstance(e, BaseExceptionGroup)
                     and len(e.exceptions) > 0
                     and isinstance(e.exceptions[0], RuntimeError)
                 ):
@@ -592,9 +609,7 @@ class Aurite:
             logger.error("Dynamic registration is disabled. Cannot register client.")
             raise PermissionError("Dynamic registration is disabled by configuration.")
 
-        logger.debug(
-            f"Attempting to dynamically register client: {client_config.client_id}"
-        )
+        logger.debug(f"Attempting to dynamically register client: {client_config.name}")
         if not self.host:
             logger.error("Aurite is not initialized. Cannot register client.")
             raise ValueError("Aurite is not initialized.")
@@ -606,14 +621,14 @@ class Aurite:
 
         # Check if client_id already exists in the active project's client configurations
         # OR if it's currently active on the host.
-        if client_config.client_id in active_project.clients or (
-            self.host and self.host.is_client_registered(client_config.client_id)
+        if client_config.name in active_project.mcp_servers or (
+            self.host and self.host.is_client_registered(client_config.name)
         ):
             logger.error(
-                f"Attempt to register duplicate client ID '{client_config.client_id}'. This is not allowed as it's already configured in the project or active on the host."
+                f"Attempt to register duplicate client ID '{client_config.name}'. This is not allowed as it's already configured in the project or active on the host."
             )
             raise DuplicateClientIdError(
-                f"Client ID '{client_config.client_id}' is already registered or configured in the active project. Duplicate client registration is not allowed."
+                f"Client ID '{client_config.name}' is already registered or configured in the active project. Duplicate client registration is not allowed."
             )
 
         # If not a duplicate, proceed with registration
@@ -623,14 +638,14 @@ class Aurite:
 
             # If successful, add to the active project's configuration
             self.project_manager.add_component_to_active_project(
-                "clients", client_config.client_id, client_config
+                "mcp_servers", client_config.name, client_config
             )
             logger.debug(
-                f"Client '{client_config.client_id}' registered successfully with host and active project."
+                f"Client '{client_config.name}' registered successfully with host and active project."
             )
         except Exception as e:
             logger.error(
-                f"Failed to register client '{client_config.client_id}' with host: {e}",
+                f"Failed to register client '{client_config.name}' with host: {e}",
                 exc_info=True,
             )
             # Re-raise the exception for the caller (e.g., API endpoint) to handle
@@ -709,16 +724,45 @@ class Aurite:
                 )
                 # Decide if this should be a hard error for agent registration
 
-        # Validate client_ids exist using the host's method
-        if agent_config.client_ids:
-            for client_id in agent_config.client_ids:
+        # JIT Registration for MCP Servers
+        if agent_config.mcp_servers:
+            for client_id in agent_config.mcp_servers:
                 if not self.host.is_client_registered(client_id):
-                    logger.error(
-                        f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in active host clients."
+                    logger.debug(
+                        f"Agent '{agent_config.name}' requires unregistered client '{client_id}'. Attempting JIT registration."
                     )
-                    raise ValueError(
-                        f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
+                    # Look up the component in the component manager
+                    client_to_register = self.component_manager.get_mcp_server(
+                        client_id
                     )
+                    if client_to_register:
+                        try:
+                            # Type check to satisfy pylance and ensure correctness
+                            if isinstance(client_to_register, ClientConfig):
+                                await self.register_client(client_to_register)
+                                logger.debug(
+                                    f"JIT registration successful for client: {client_id}"
+                                )
+                            else:
+                                logger.error(
+                                    f"Component '{client_id}' found but is not a valid ClientConfig. Type: {type(client_to_register)}. Cannot register."
+                                )
+                                raise ValueError(
+                                    f"Component '{client_id}' is not a valid ClientConfig."
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed JIT registration for client '{client_id}': {e}",
+                                exc_info=True,
+                            )
+                            raise  # Re-raise to halt the agent registration
+                    else:
+                        logger.error(
+                            f"Client ID '{client_id}' specified in agent '{agent_config.name}' not found in ComponentManager for JIT registration."
+                        )
+                        raise ValueError(
+                            f"Client ID '{client_id}' not found for agent '{agent_config.name}'."
+                        )
 
         # Validate llm_config_id if present
         if agent_config.llm_config_id:
@@ -871,7 +915,8 @@ class Aurite:
 
         # Cascading Agent registration/update for steps
         if workflow_config.steps:
-            for agent_name_step in workflow_config.steps:  # Renamed to avoid conflict
+            for step in workflow_config.steps:  # Renamed to avoid conflict
+                agent_name_step = step if isinstance(step, str) else step.name
                 logger.debug(
                     f"Workflow '{workflow_config.name}' step: Agent '{agent_name_step}'. Attempting to register/update it."
                 )
@@ -1096,6 +1141,51 @@ class Aurite:
         ):
             yield event
 
+    async def run_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AgentExecutionResult:
+        """
+        Runs an agent by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            system_prompt=system_prompt,
+            session_id=session_id,
+        )
+
+    async def run_workflow(
+        self, workflow_name: str, initial_input: Any
+    ) -> SimpleWorkflowExecutionResult:
+        """
+        Runs a simple workflow by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_simple_workflow(
+            workflow_name=workflow_name, initial_input=initial_input
+        )
+
+    async def run_custom_workflow(
+        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+    ) -> Any:
+        """
+        Runs a custom workflow by delegating to the ExecutionFacade.
+        """
+        if not self.execution:
+            raise RuntimeError("Aurite execution facade is not initialized.")
+        return await self.execution.run_custom_workflow(
+            workflow_name=workflow_name,
+            initial_input=initial_input,
+            session_id=session_id,
+        )
+
     async def load_components_from_project(self, project_config_path: Path):
         """
         Loads components from a specified project configuration file and adds them
@@ -1167,7 +1257,7 @@ class Aurite:
             )
 
             # Add Clients
-            for client_id, client_config in parsed_config.clients.items():
+            for client_id, client_config in parsed_config.mcp_servers.items():
                 if not self.host.is_client_registered(client_id):
                     try:
                         logger.debug(f"Registering new client: {client_id}")

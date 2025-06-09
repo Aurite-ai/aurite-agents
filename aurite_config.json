@@ -1,9 +1,9 @@
 {
   "name": "DefaultMCPHost",
   "description": "Default host for MCP server.",
-  "clients": [
+  "mcp_servers": [
     {
-      "client_id": "weather_server",
+      "name": "weather_server",
       "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
@@ -11,7 +11,7 @@
       "roots": []
     },
     {
-      "client_id": "planning_server",
+      "name": "planning_server",
       "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
       "capabilities": ["tools", "prompts", "resources"],
       "timeout": 15.0,
@@ -63,7 +63,7 @@
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
-      "client_ids": ["weather_server"],
+      "mcp_servers": ["weather_server"],
       "llm_config_id": "anthropic_claude_3_opus",
       "exclude_components": ["current_time"],
       "config_validation_schema": {
@@ -93,7 +93,7 @@
     {
       "name": "Filtering Test Agent",
       "llm_config_id": "anthropic_claude_3_haiku",
-      "client_ids": ["planning_server"],
+      "mcp_servers": ["planning_server"],
       "exclude_components": [
         "save_plan",
         "create_plan_prompt",
@@ -108,14 +108,14 @@
     {
       "name": "Planning Agent",
       "llm_config_id": "anthropic_claude_3_opus",
-      "client_ids": ["planning_server"],
+      "mcp_servers": ["planning_server"],
       "system_prompt": "You are a planning assistant."
     },
     {
       "name": "OpenAI Weather Agent",
       "llm_config_id": "openai_gpt4_turbo_mcp",
       "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
-      "client_ids": ["weather_server"],
+      "mcp_servers": ["weather_server"],
       "auto": false,
       "max_iterations": 5,
       "include_history": false

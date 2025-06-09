@@ -1,0 +1,38 @@
+[
+  {
+    "name": "game_trends_mcp",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@halismertkir/game-trends-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "healthcare_mcp_public",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@Cicatriiz/healthcare-mcp-public/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0,
+    "exclude": ["clinical_trials_search", "lookup_icd_code"]
+  },
+  {
+    "name": "national_weather_service",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@smithery-ai/national-weather-service/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "pubmed_mcp_server",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@JackKuo666/pubmed-mcp-server/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  },
+  {
+    "name": "appinsightmcp",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@JiantaoFu/appinsightmcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
+  }
+]

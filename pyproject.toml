@@ -3,10 +3,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "aurite"
-version = "0.2.19"
+version = "0.3.15"
 description = "Aurite Agent Development and Runtime Framework"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
@@ -35,17 +35,14 @@ dependencies = [
     "certifi>=2025.1.31",
     "cffi>=1.17.1",
     "click>=8.1.8",
-    "cryptography>=44.0.2",
+    "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
     "distro>=1.9.0",
-    "google-genai>=1.11.0",
     "greenlet>=3.1.1",
     "h11>=0.14.0",
     "httpcore>=1.0.7",
     "httpx-sse>=0.4.0",
     "idna>=3.10",
     "iniconfig>=2.0.0",
-    "jiter>=0.6.1,<0.9", # Adjusted to resolve conflict with instructor
-    "mem0ai>=0.1.67",
     "packaging>=24.2",
     "colorlog>=6.0.0",
     "termcolor>=3.0.0",
@@ -88,14 +85,18 @@ dev = [
     "pytest-timeout>=2.3.1", # Added for test timeouts
     "mypy>=1.15.0",
     "types-PyYAML",
+    "jupyter>=1.0.0", # Added for Jupyter support
     "pre-commit",
     "types-pytz",
     "pytest>=8.3.5",
 ]
 ml = [
-    "sentence-transformers>=4.1.0",
     "pandas>=2.2.3",
-    "numpy>=2.2.3",
+    "numpy>=1.26.2,<2.1", # Pinned for Colab/mem0ai compatibility
+]
+tools = [
+    "mem0ai>=0.1.67",
+    "google-genai>=1.11.0",
 ]
 
 [tool.setuptools]
@@ -153,7 +154,6 @@ junit_family = "xunit2"
 timeout = 60 # Increase default test timeout to 60 seconds
 
 [tool.mypy]
-python_version = "3.12"
 warn_return_any = false # Don't warn about functions returning Any implicitly
 ignore_missing_imports = true # Don't fail if a library doesn't have type hints (important for dependencies)
 check_untyped_defs = false # Don't require type hints for functions without them (relaxed start)
@@ -168,4 +168,4 @@ follow_imports = "silent"
 start-api = "aurite.bin.api.api:start"
 start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
 run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
-aurite = "aurite.cli.main:app" # Renamed script from aurite-agents to aurite
+aurite = "aurite.bin.cli.main:app"

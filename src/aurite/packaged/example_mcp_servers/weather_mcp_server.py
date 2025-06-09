@@ -98,16 +98,11 @@ async def _list_prompts_handler() -> list[types.Prompt]:
                     name="user_name",
                     description="Name of the user for personalization",
                     required=False,
-                    schema={"type": "string"},
                 ),
                 types.PromptArgument(
                     name="preferred_units",
                     description="Preferred temperature units (metric/imperial)",
                     required=False,
-                    schema={
-                        "type": "string",
-                        "enum": ["metric", "imperial"],
-                    },
                 ),
             ],
         )
@@ -149,7 +144,6 @@ def create_server() -> Server:
     app.call_tool()(_call_tool_handler)
     app.list_tools()(_list_tools_handler)
     app.list_prompts()(_list_prompts_handler)
-    app.get_prompt()(_get_prompt_handler)
 
     return app
 
@@ -182,12 +176,6 @@ async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
     else:
         unit_label = "°C"
 
-    response_text = (
-        f"Weather for {location}:\n"
-        f"Temperature: {temp}{unit_label}\n"
-        f"Condition: {data['condition']}; "  # Use semicolon instead of newline
-        f"Humidity: {data['humidity']}%"
-    )
     # Simplify to a single line
     simple_response_text = f"Weather for {location}: Temp {temp}{unit_label}, {data['condition']}, Humidity {data['humidity']}%"
 

@@ -4,7 +4,7 @@ Manages the multi-turn conversation loop for an Agent.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, cast
 
 from anthropic.types import MessageParam
 from pydantic import ValidationError
@@ -23,7 +23,7 @@ from .agent_models import (
 from .agent_turn_processor import AgentTurnProcessor
 
 if TYPE_CHECKING:
-    from ...llm.base_client import BaseLLM  # Moved here
+    from aurite.components.llm.base_client import BaseLLM  # Moved here
 
     pass
 
@@ -45,10 +45,10 @@ class Agent:
         self.host = host_instance
         self.system_prompt_override = system_prompt_override
         self.llm_config_for_override = llm_config_for_override
-        # Store full AgentOutputMessage for assistant, dicts for others
-        self.conversation_history: List[AgentOutputMessage | Dict[str, Any]] = list(
-            initial_messages
-        )
+        # The conversation history now exclusively stores AgentOutputMessage objects.
+        self.conversation_history: List[AgentOutputMessage] = [
+            AgentOutputMessage.model_validate(message) for message in initial_messages
+        ]
         self.final_response: Optional[AgentOutputMessage] = None
         self.tool_uses_in_last_turn: List[Dict[str, Any]] = []
         logger.debug(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
@@ -64,9 +64,12 @@ class Agent:
         max_iterations = self.config.max_iterations or 10
         current_iteration = 0
 
-        current_messages_for_run: List[Dict[str, Any]] = list(self.conversation_history)
-
         while current_iteration < max_iterations:
+            # Create the API-compliant message list for the LLM call in each turn.
+            current_messages_for_run: List[MessageParam] = [
+                cast(MessageParam, msg.to_api_message_param())
+                for msg in self.conversation_history
+            ]
             current_iteration += 1
             logger.debug(f"Conversation loop iteration {current_iteration}")
 
@@ -74,7 +77,7 @@ class Agent:
                 config=self.config,
                 llm_client=self.llm,
                 host_instance=self.host,
-                current_messages=list(current_messages_for_run),
+                current_messages=current_messages_for_run,
                 tools_data=tools_data,
                 effective_system_prompt=effective_system_prompt,
                 llm_config_for_override=self.llm_config_for_override,
@@ -90,20 +93,18 @@ class Agent:
                 assistant_message_this_turn = turn_processor.get_last_llm_response()
 
                 if assistant_message_this_turn:
-                    # Add assistant's response (API compliant) to history
-                    # For non-streaming, self.conversation_history stores the full object
-                    # while current_messages_for_run gets the API-compliant dict for the next LLM call.
-                    self.conversation_history.append(
-                        assistant_message_this_turn
-                    )  # Store the full object
-                    current_messages_for_run.append(
-                        assistant_message_this_turn.to_api_message_param()
-                    )  # Use dict for next run
+                    # The full AgentOutputMessage is the source of truth.
+                    self.conversation_history.append(assistant_message_this_turn)
 
                 if turn_tool_results_params:
-                    # Tool results are already dicts (MessageParam)
-                    self.conversation_history.extend(turn_tool_results_params)
-                    current_messages_for_run.extend(turn_tool_results_params)
+                    # Convert tool result dicts (MessageParam) to AgentOutputMessage objects
+                    # before adding them to the history.
+                    self.conversation_history.extend(
+                        [
+                            AgentOutputMessage.model_validate(result)
+                            for result in turn_tool_results_params
+                        ]
+                    )
                     # Store tool uses from the turn processor
                     self.tool_uses_in_last_turn = (
                         turn_processor.get_tool_uses_this_turn()
@@ -127,9 +128,11 @@ Please correct your previous response to conform to the schema."""
                                 {"type": "text", "text": correction_message_content}
                             ],
                         }
-                        # Correction message is a dict (MessageParam)
-                        self.conversation_history.append(correction_message_param)
-                        current_messages_for_run.append(correction_message_param)
+                        # Convert the correction message to an AgentOutputMessage before
+                        # adding it to the history.
+                        self.conversation_history.append(
+                            AgentOutputMessage.model_validate(correction_message_param)
+                        )
                     else:
                         # If no schema, treat the invalid response as final
                         # Use the full object obtained from the processor
@@ -170,58 +173,10 @@ Please correct your previous response to conform to the schema."""
     ) -> AgentExecutionResult:
         logger.debug("Preparing final agent execution result...")
 
-        parsed_conversation_history: List[AgentOutputMessage] = []
-        for msg_item in (
-            self.conversation_history
-        ):  # History now contains AgentOutputMessage or dicts
-            try:
-                if isinstance(msg_item, AgentOutputMessage):
-                    # If it's already an AgentOutputMessage, just append it
-                    parsed_conversation_history.append(msg_item)
-                elif isinstance(msg_item, dict):
-                    # If it's a dict (user message, tool result), validate it
-                    parsed_conversation_history.append(
-                        AgentOutputMessage.model_validate(msg_item)
-                    )
-                else:
-                    # Handle unexpected types if necessary
-                    logger.warning(
-                        f"Unexpected item type in conversation history: {type(msg_item)}"
-                    )
-                    parsed_conversation_history.append(
-                        AgentOutputMessage(
-                            role="unknown",
-                            content=[
-                                AgentOutputContentBlock(
-                                    type="text",
-                                    text=f"Invalid history item: {str(msg_item)}",
-                                )
-                            ],
-                        )
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Failed to parse message from history for AgentExecutionResult: {msg_item}, error: {e}"
-                )
-                role = (
-                    msg_item.get("role", "unknown")
-                    if isinstance(msg_item, dict)
-                    else "unknown"
-                )
-                parsed_conversation_history.append(
-                    AgentOutputMessage(
-                        role=role,
-                        content=[
-                            AgentOutputContentBlock(
-                                type="text",
-                                text=f"Invalid message in history: {str(msg_item)}",
-                            )
-                        ],
-                    )
-                )
-
+        # The conversation history is now guaranteed to contain only AgentOutputMessage objects,
+        # so no parsing is needed.
         output_dict_for_validation = {
-            "conversation": parsed_conversation_history,  # Use the parsed list
+            "conversation": self.conversation_history,
             "final_response": self.final_response,
             "tool_uses_in_final_turn": self.tool_uses_in_last_turn,
             "error": execution_error,
@@ -245,7 +200,7 @@ Please correct your previous response to conform to the schema."""
             )
             try:
                 return AgentExecutionResult(
-                    conversation=parsed_conversation_history,
+                    conversation=self.conversation_history,
                     final_response=self.final_response,
                     tool_uses_in_final_turn=self.tool_uses_in_last_turn,
                     error=final_error_message,
@@ -299,7 +254,11 @@ Please correct your previous response to conform to the schema."""
             current_iteration += 1
             logger.debug(f"Streaming conversation loop iteration {current_iteration}")
 
-            messages_for_this_llm_call = list(self.conversation_history)
+            # Create the API-compliant message list for the LLM call in each turn.
+            messages_for_this_llm_call: List[MessageParam] = [
+                cast(MessageParam, msg.to_api_message_param())
+                for msg in self.conversation_history
+            ]
 
             turn_processor = AgentTurnProcessor(
                 config=self.config,
@@ -317,7 +276,7 @@ Please correct your previous response to conform to the schema."""
             streamed_assistant_usage: Optional[Dict[str, int]] = None
             llm_turn_stop_reason: Optional[str] = None
 
-            buffered_tool_results_for_this_turn: List[Dict[str, Any]] = []
+            buffered_tool_results_for_this_turn: List[MessageParam] = []
 
             try:
                 logger.info(
@@ -439,20 +398,21 @@ Please correct your previous response to conform to the schema."""
                                 {"type": "text", "text": str(content_data)}
                             ]
 
-                        tool_result_param: MessageParam = {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "tool_result",
-                                    "tool_use_id": tool_use_id,
-                                    "content": tool_result_content_list,
-                                    "is_error": is_error,
-                                }
-                            ],
-                        }
-                        buffered_tool_results_for_this_turn.append(
-                            dict(tool_result_param)
+                        tool_result_param: MessageParam = cast(
+                            MessageParam,
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": tool_use_id,
+                                        "content": tool_result_content_list,
+                                        "is_error": is_error,
+                                    }
+                                ],
+                            },
                         )
+                        buffered_tool_results_for_this_turn.append(tool_result_param)
 
                     elif event_type == "message_delta":
                         if "stop_reason" in event_data:
@@ -536,15 +496,21 @@ Please correct your previous response to conform to the schema."""
                                 role=streamed_assistant_role,
                                 content=validated_content_blocks_for_model,
                                 stop_reason=llm_turn_stop_reason,
+                                stop_sequence=None,  # Explicitly set to None
                                 usage=streamed_assistant_usage,
                             )
+                            # The full AgentOutputMessage is the source of truth.
                             self.conversation_history.append(
-                                assistant_message_object_this_turn.to_api_message_param()
+                                assistant_message_object_this_turn
                             )
 
                         if buffered_tool_results_for_this_turn:
+                            # Convert tool result dicts to AgentOutputMessage objects
                             self.conversation_history.extend(
-                                buffered_tool_results_for_this_turn
+                                [
+                                    AgentOutputMessage.model_validate(result)
+                                    for result in buffered_tool_results_for_this_turn
+                                ]
                             )
                             buffered_tool_results_for_this_turn = []
 

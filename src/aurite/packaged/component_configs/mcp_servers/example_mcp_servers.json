@@ -1,0 +1,16 @@
+[
+  {
+    "name": "weather_server",
+    "server_path": "example_mcp_servers/weather_mcp_server.py",
+    "transport_type": "stdio",
+    "capabilities": ["tools", "prompts"],
+    "timeout": 15.0
+  },
+  {
+    "name": "planning_server",
+    "server_path": "example_mcp_servers/planning_server.py",
+    "transport_type": "stdio",
+    "capabilities": ["tools", "prompts", "resources"],
+    "timeout": 15.0
+  }
+]
