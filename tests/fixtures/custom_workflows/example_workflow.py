@@ -43,9 +43,13 @@ class ExampleCustomWorkflow:
             # 1. Define which agent to run and prepare the input.
             # This agent name must match an agent configured in your project.
             agent_name = "Weather Agent"
-            city = initial_input.get(
-                "city", "London"
-            )  # Default to London if no city is provided
+            # Support both dict and string input for initial_input
+            if isinstance(initial_input, dict):
+                city = initial_input.get("city", "London")
+            elif isinstance(initial_input, str):
+                city = initial_input or "London"
+            else:
+                city = "London"
             user_message = f"What is the weather in {city}?"
 
             logger.info(f"Running agent '{agent_name}' with message: '{user_message}'")

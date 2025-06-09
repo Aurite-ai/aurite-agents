@@ -1,0 +1,157 @@
+# Aurite Framework Bash Functions
+#
+# This file contains a set of bash functions and aliases to streamline
+# development and testing for the Aurite Agents framework.
+#
+# To use, source this file in your ~/.bashrc or ~/.zshrc:
+#   source /path/to/your/.bash_aurite
+#
+# --- GUIDE ---
+#
+# - testaurite:
+#   The main, top-level test function. It runs all Postman API tests and then all CLI component tests.
+#
+# --- API Testing ---
+# - testapi:
+#   Runs the main Postman collection for basic server health checks.
+#
+# - testnewman <path_to_collection>:
+#   Runs a specific Postman collection file.
+#   e.g., testnewman tests/api/my_custom_tests.postman_collection.json
+#
+# - testnewmancol <collection_name>:
+#   Runs a Postman collection located in the tests/api/ directory by its name (without the extension).
+#   e.g., testnewmancol components_routes
+#
+# - testnewmanall:
+#   Runs all Postman collections found in the tests/api/ directory.
+#
+# --- CLI Testing ---
+# - testauritea:
+#   Starts the API, runs a test query against the "Weather Agent" via the CLI, and then shuts down the API.
+#
+# - testauritesw:
+#   Starts the API, runs a test query against the "Weather Planning Workflow" via the CLI, and then shuts down the API.
+#
+# - testauritecw:
+#   Starts the API, runs a test query against the "ExampleCustomWorkflow" via the CLI, and then shuts down the API.
+#
+# - testauritecomp:
+#   A convenience function to run all three CLI component tests (agent, simple workflow, custom workflow) in sequence. Benefit is that it only starts the API once.
+#
+# --------------------------------------------------------------------
+
+# ====================================================================
+# --- Master Test Function ---
+# ====================================================================
+
+# Run all API and CLI tests in sequence
+testaurite() {
+    # Define color codes
+    GREEN='\033[0;32m'
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
+
+    # run all api tests
+    echo -e "${CYAN}Running API tests...${NC}"
+    testnewmanall
+    echo -e "${GREEN}API tests completed.${NC}"
+
+    echo -e "${CYAN}Running CLI tests...${NC}"
+    # run all cli tests
+    testauritecomp
+    echo -e "${GREEN}CLI tests completed.${NC}"
+}
+
+
+# ====================================================================
+# --- API (Postman) Test Functions ---
+# ====================================================================
+
+# Run the main server collection
+testapi() {
+	newman run tests/api/main_server.postman_collection.json -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export docs/reports/newman/api_test_report.html
+}
+
+# Run a collection in a location you specify with arg 1
+testnewman() {
+    collection_file="$1"
+    base_name=$(basename "$collection_file" .postman_collection.json)
+    newman run "$collection_file" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
+}
+
+# Run a collection in tests/api/(collection name as arg).postman_collection.json
+testnewmancol() {
+    local collection_name="$1"
+    newman run "tests/api/${collection_name}.postman_collection.json" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${collection_name}_test_report.html"
+}
+
+# Run all API test collections
+testnewmanall() {
+    # Run all collections in tests/api/
+    for collection in tests/api/*.postman_collection.json; do
+        base_name=$(basename "$collection" .postman_collection.json)
+        newman run "$collection" -e tests/api/main_server.postman_environment.json --reporters cli,html --reporter-html-export "docs/reports/newman/${base_name}_test_report.html"
+        echo "Ran collection: $base_name"
+        sleep 2 # Add a short delay between collections
+    done
+}
+
+
+# ====================================================================
+# --- CLI Test Functions ---
+# ====================================================================
+
+# test an agent on the api
+testauritea() {
+    # Print message for agent test
+    echo -e "\033[1;33mTesting agent on the API...\033[0m"
+    start-api &
+    sleep 7
+    run-cli execute agent "Weather Agent" "Weather in London?"
+    fuser -k 8000/tcp # Find and kill the process using port 8000
+}
+
+# test a simple workflow on the api
+testauritesw() {
+    # Print message for simple workflow test
+    echo -e "\033[1;33mTesting simple workflow on the API...\033[0m"
+    start-api &
+    sleep 7
+    run-cli execute workflow "Weather Planning Workflow" "What is the weather in London?"
+    fuser -k 8000/tcp # Find and kill the process using port 8000
+}
+
+# test a custom workflow on the api
+testauritecw() {
+    # Print message for custom workflow test
+    echo -e "\033[1;33mTesting custom workflow on the API...\033[0m"
+    start-api &
+    sleep 7
+    run-cli execute custom-workflow "ExampleCustomWorkflow" "What is the weather in London?"
+    fuser -k 8000/tcp # Find and kill the process using port 8000
+}
+
+# Test all CLI components
+testauritecomp() {
+    # Print message for component test
+    echo -e "\033[1;33mTesting component on the API...\033[0m"
+    start-api &
+    sleep 7
+    run-cli execute agent "Weather Agent" "Weather in London?"
+    sleep 3
+    run-cli execute workflow "Weather Planning Workflow" "What is the weather in London?"
+    sleep 3
+    run-cli execute custom-workflow "ExampleCustomWorkflow" "What is the weather in London?"
+    sleep 2
+    fuser -k 8000/tcp # Find and kill the process using port 8000
+}
+
+
+# ====================================================================
+# --- Python Testing (pytest and just python) Functions ---
+# ====================================================================
+
+testmcp() {
+    python -m tests/functional_mcp_client.py $1 $2
+}

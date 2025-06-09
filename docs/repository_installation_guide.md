@@ -30,12 +30,12 @@ The fastest way to get the entire Aurite Agents environment (Backend API, Fronte
     *   **For Linux/macOS:**
         In the project root directory (`aurite-agents`), execute:
         ```bash
-        ./setup.sh
+        ./scripts/setup.sh
         ```
     *   **For Windows:**
         In the project root directory (`aurite-agents`), execute:
         ```bat
-        setup.bat
+        ./scripts/setup.bat
         ```
     These scripts will:
     *   Check for Docker and Docker Compose.

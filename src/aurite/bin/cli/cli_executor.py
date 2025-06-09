@@ -260,13 +260,13 @@ async def _execute_custom_workflow_async_logic(
         "Content-Type": "application/json",
     }
 
-    # Parse the input JSON string
+    # Try to parse as JSON, but fall back to string if it's not a JSON object/array
     try:
         initial_input = json.loads(initial_input_json)
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON provided for initial input: {e}")
-        # Raise an error that the sync wrapper can catch and convert
-        raise ValueError(f"Invalid JSON input: {e}") from e
+    except json.JSONDecodeError:
+        # If it's not valid JSON, treat it as a raw string.
+        # This allows passing simple strings as input directly from the CLI.
+        initial_input = initial_input_json
 
     payload = {"initial_input": initial_input}
 
