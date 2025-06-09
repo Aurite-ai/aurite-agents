@@ -17,27 +17,25 @@ This command will scaffold a new directory with the following structure:
 
 ```
 your_project_name/
-├── aurite_config.json              # Main project configuration file (references components)
-├── config/                         # Directory for component configurations
+├── aurite_config.json              # Main project configuration file
+├── config/
 │   ├── agents/
-│   │   └── agents.json             # Example agent configurations
-│   ├── mcp_servers/
-│   │   └── mcp_servers.json        # Example MCP Server configurations
+│   │   └── agents.json
 │   ├── custom_workflows/
-│   │   └── custom_workflows.json   # Example custom workflow configurations
+│   │   └── custom_workflows.json
 │   ├── llms/
-│   │   └── llms.json               # Example LLM configurations
-│   ├── workflows/
-│   │   └── simple_workflows.json   # Example simple workflow configurations
+│   │   └── llms.json
+│   ├── mcp_servers/
+│   │   └── example_mcp_servers.json
 │   └── testing/
-│       └── planning_agent_test.json # Example test configuration
-├── custom_workflows/               # Python modules for your custom workflows
+│       └── planning_agent_test.json
+├── example_custom_workflows/
 │   ├── __init__.py
-│   └── example_workflow.py         # Example custom workflow Python code
-├── mcp_servers/                    # Scripts for any custom MCP servers
-│   ├── weather_mcp_server.py
-│   └── planning_server.py
-└── run_example_project.py          # Script to run an example
+│   └── example_workflow.py
+├── example_mcp_servers/
+│   ├── planning_server.py
+│   └── weather_mcp_server.py
+└── run_example_project.py
 ```
 
 From this point, the framework operates essentially the same as it does in the aurite-agents repository README. See this document for more information: **[README](https://github.com/Aurite-ai/aurite-agents)**
