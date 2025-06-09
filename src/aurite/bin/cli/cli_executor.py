@@ -9,9 +9,9 @@ import logging
 import os
 import sys
 
-from dotenv import load_dotenv # Add this import
+from dotenv import load_dotenv  # Add this import
 import typer
-from typing import Callable, Coroutine, Any, cast  # Added cast
+from typing import Callable, Coroutine, Any, cast, Optional  # Added cast
 
 # Import models needed for request bodies, even if commands aren't fully implemented
 
@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger("aurite_cli_api")
 
 # Load environment variables from .env file
-load_dotenv() # Add this call
+load_dotenv()  # Add this call
 
 # Create Typer app instance
 app = typer.Typer(
@@ -50,7 +50,7 @@ def main_callback(
         show_default=True,
     ),
     # Try reading API_KEY from environment, prompt if missing
-    api_key: str = os.environ.get("API_KEY"),
+    api_key: Optional[str] = os.environ.get("API_KEY"),
     log_level: str = typer.Option(
         "INFO",
         "--log-level",
@@ -209,12 +209,17 @@ async def _execute_workflow_async_logic(workflow_name: str, message: str):
         # Try to parse and print JSON response
         try:
             response_data = response.json()
-            print(json.dumps(response_data, indent=2))
             if response.status_code >= 400:
                 logger.error(
                     f"API returned error status {response.status_code}. Response: {response_data}"
                 )
-                # Optionally raise typer.Exit(code=1) on API errors
+                print(json.dumps(response_data, indent=2))
+            else:
+                if response_data.get("status") == "completed":
+                    print(response_data.get("final_message"))
+                else:
+                    print(json.dumps(response_data, indent=2))
+
         except json.JSONDecodeError:
             logger.warning("Could not decode JSON response from API.")
             print("--- Raw API Response ---")
@@ -255,13 +260,13 @@ async def _execute_custom_workflow_async_logic(
         "Content-Type": "application/json",
     }
 
-    # Parse the input JSON string
+    # Try to parse as JSON, but fall back to string if it's not a JSON object/array
     try:
         initial_input = json.loads(initial_input_json)
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON provided for initial input: {e}")
-        # Raise an error that the sync wrapper can catch and convert
-        raise ValueError(f"Invalid JSON input: {e}") from e
+    except json.JSONDecodeError:
+        # If it's not valid JSON, treat it as a raw string.
+        # This allows passing simple strings as input directly from the CLI.
+        initial_input = initial_input_json
 
     payload = {"initial_input": initial_input}
 

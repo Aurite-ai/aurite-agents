@@ -1,0 +1,174 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-1234-abcdef123457",
+    "name": "Aurite MCP Server - Components Routes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection for testing the component-related routes of the Aurite MCP FastAPI server."
+  },
+  "item": [
+    {
+      "name": "Execute Agent (Weather Agent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/agents/Weather%20Agent/execute",
+          "host": ["{{base_url}}"],
+          "path": ["agents", "Weather%20Agent", "execute"]
+        },
+        "description": "Executes the 'Weather Agent' defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has final_response\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('final_response');",
+              "    pm.expect(jsonData.final_response).to.not.be.null;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execute Simple Workflow (Example)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"initial_user_message\": \"Check weather in SF and save plan.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/workflows/Weather Planning Workflow/execute",
+          "host": ["{{base_url}}"],
+          "path": ["workflows", "Weather Planning Workflow", "execute"]
+        },
+        "description": "Executes the 'Weather Planning Workflow' defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response indicates completed status\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('completed');",
+              "    pm.expect(jsonData.error).to.be.null;",
+              "    pm.expect(jsonData.final_message).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execute Custom Workflow (Example)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"initial_input\": {\"city\": \"London\"}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/custom_workflows/ExampleCustomWorkflow/execute",
+          "host": ["{{base_url}}"],
+          "path": ["custom_workflows", "ExampleCustomWorkflow", "execute"]
+        },
+        "description": "Executes the example custom workflow defined in the config."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response indicates completed status and has result\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    // Check top-level status is 'completed'",
+              "    pm.expect(jsonData.status, 'Top-level status should be completed').to.eql('completed');",
+              "    pm.expect(jsonData.error, 'Top-level error should be null').to.be.null;",
+              "    pm.expect(jsonData.result, 'Result object should exist').to.exist;",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the running FastAPI server"
+    },
+    {
+      "key": "api_key",
+      "value": "YOUR_API_KEY_HERE",
+      "type": "secret",
+      "description": "API Key for accessing protected endpoints (Set this in your environment)"
+    }
+  ]
+}

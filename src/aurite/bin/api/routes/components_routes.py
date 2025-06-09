@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse  # Added StreamingResponse
 from pydantic import BaseModel
 
 from ....config.config_models import LLMConfig  # Added LLMConfig for the new endpoint
+from ....components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from ....config.config_models import (
     AgentConfig,
     ClientConfig,
@@ -171,19 +172,24 @@ async def execute_workflow_endpoint(
         raise HTTPException(
             status_code=503, detail="Execution subsystem not available."
         )
-    result = await manager.execution.run_simple_workflow(
+
+    # The result is a SimpleWorkflowExecutionResult object
+    result: SimpleWorkflowExecutionResult = await manager.execution.run_simple_workflow(
         workflow_name=workflow_name,
         initial_input=request_body.initial_user_message,
     )
     logger.info(f"Workflow '{workflow_name}' execution finished via manager.")
-    if isinstance(result, dict) and result.get("status") == "failed":
-        logger.error(
-            f"Simple workflow '{workflow_name}' failed (reported by facade): {result.get('error')}"
-        )
-        # Return the structure directly, matching the response model
-        return ExecuteWorkflowResponse(**result)
-    else:
-        return ExecuteWorkflowResponse(**result)
+
+    if result.status == "failed":
+        logger.error(f"Simple workflow '{workflow_name}' failed: {result.error}")
+
+    # Construct the API response from the result object
+    return ExecuteWorkflowResponse(
+        workflow_name=result.workflow_name,
+        status=result.status,
+        final_message=result.final_message,  # Accesses the @property
+        error=result.error,
+    )
 
 
 @router.post(

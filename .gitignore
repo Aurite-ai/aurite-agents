@@ -188,3 +188,4 @@ docs/notebooks/01_Introducing_txtai.ipynb
 docs/.copilot/
 notebook-venv/
 docs/guides/
+docs/reports/newman/*

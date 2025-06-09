@@ -386,7 +386,9 @@ def start():
 
         # IF ENV = "development", set reload=True
         # This is typically set in the environment or config file
-        reload_mode = os.getenv("ENV") == "development"
+        reload_mode = (
+            os.getenv("ENV") != "production"
+        )  # Default to True if not in production
 
         # Update the app path for uvicorn to point to the new location
         uvicorn.run(

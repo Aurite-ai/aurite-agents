@@ -114,7 +114,7 @@
   ],
   "simple_workflows": [
     {
-      "name": "main",
+      "name": "Weather Planning Workflow",
       "description": "A simple workflow that runs the Weather Agent.",
       "steps": ["Weather Agent", "Weather Reporter"]
     }
@@ -122,7 +122,7 @@
   "custom_workflows": [
     {
       "name": "ExampleCustomWorkflow",
-      "module_path": "tests/fixtures/custom_workflows/example_workflow.py",
+      "module_path": "src/aurite/packaged/example_custom_workflows/example_workflow.py",
       "class_name": "ExampleCustomWorkflow",
       "description": "An example custom workflow for testing."
     }
