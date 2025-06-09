@@ -72,7 +72,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"mcp_servers\": [\"dynamic_test_client\", \"weather_server\"],\n    \"system_prompt\": \"This is a dynamically registered agent.\",\n    \"llm_config_id\": \"test_claude_haiku\"\n}"
+          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"mcp_servers\": [\"dynamic_test_client\", \"weather_server\"],\n    \"system_prompt\": \"This is a dynamically registered agent.\",\n    \"llm_config_id\": \"anthropic_claude_3_haiku\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/agents/register",
@@ -120,7 +120,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"mcp_servers\": [\"weather_server\"],\n    \"system_prompt\": \"Attempting duplicate registration.\",\n    \"llm_config_id\": \"test_claude_haiku\"\n}"
+          "raw": "{\n    \"name\": \"Dynamic Test Agent\",\n    \"mcp_servers\": [\"weather_server\"],\n    \"system_prompt\": \"Attempting duplicate registration.\",\n    \"llm_config_id\": \"anthropic_claude_3_haiku\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/agents/register",
@@ -168,7 +168,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Agent With Invalid Client\",\n    \"mcp_servers\": [\"non_existent_client\"],\n    \"system_prompt\": \"This registration should fail.\",\n    \"llm_config_id\": \"test_claude_haiku\"\n}"
+          "raw": "{\n    \"name\": \"Agent With Invalid Client\",\n    \"mcp_servers\": [\"non_existent_client\"],\n    \"system_prompt\": \"This registration should fail.\",\n    \"llm_config_id\": \"anthropic_claude_3_haiku\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/agents/register",
