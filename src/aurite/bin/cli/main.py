@@ -33,7 +33,7 @@ def copy_packaged_example(
         if source_file_path.is_file():
             destination_path = user_project_path / filename
             destination_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source_file_path, destination_path)
+            shutil.copy2(str(source_file_path), destination_path)
             logger(f"  Copied example: {filename} to {destination_path.parent.name}/")
         else:
             logger(f"  Warning: Packaged example not found at {packaged_path_str}")
@@ -88,7 +88,7 @@ def init(
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
         logger(
-            "Created standard subdirectories: config/*, example_mcp_servers/, example_custom_workflows/"
+            "Created standard subdirectories: config/, example_mcp_servers/, example_custom_workflows/"
         )
 
         # 4. Optionally, copy basic example files
@@ -99,9 +99,9 @@ def init(
             "llms.json",
         )
         copy_packaged_example(
-            "component_configs/example_mcp_servers/example_mcp_servers.json",
-            project_path / "config" / "example_mcp_servers",
-            "mcp_servers.json",  # Renaming for user project
+            "component_configs/mcp_servers/example_mcp_servers.json",
+            project_path / "config" / "mcp_servers",
+            "example_mcp_servers.json",
         )
         copy_packaged_example(
             "component_configs/agents/example_agents.json",
@@ -114,8 +114,12 @@ def init(
             project_path / "config" / "custom_workflows",
             "custom_workflows.json",
         )
-        # Create an empty __init__.py in custom_workflows to make it a package
-        (project_path / "custom_workflows" / "__init__.py").touch()  # Corrected path
+        # Copy the __init__.py to make the custom workflows directory a package
+        copy_packaged_example(
+            "example_custom_workflows/__init__.py",
+            project_path / "example_custom_workflows",
+            "__init__.py",
+        )
 
         copy_packaged_example(
             "testing/planning_agent_multiple.json",
@@ -145,7 +149,9 @@ def init(
         )
 
         # Create .env.example file
-        env_example_content = "OPENAI_API_KEY=\n"
+        env_example_content = (
+            "OPENAI_API_KEY=\n" "SMITHERY_API_KEY=\n" "SMITHERY_PROFILE_ID=\n"
+        )
         env_example_path = project_path / ".env.example"
         env_example_path.write_text(env_example_content)
         logger("  Created example environment file: .env.example")
@@ -159,8 +165,8 @@ def init(
         )
         logger("3. Start defining your components in the 'config/' subdirectories.")
         logger(
-            "4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
-        )  # Corrected path
+            "4. Place custom MCP server scripts in 'example_mcp_servers/' and custom workflow Python modules in 'example_custom_workflows/'."
+        )
         logger(
             "5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
         )

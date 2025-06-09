@@ -17,6 +17,11 @@ async def main():
     """
     # Initialize the main Aurite application object.
     # This will load configurations based on `aurite_config.json` or environment variables.
+    # Load environment variables from a .env file if it exists
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     aurite = Aurite(config_path=Path("non_existent_config.json"))
 
     try:
@@ -47,15 +52,15 @@ async def main():
         # 3. Define and register an Agent configuration
         agent_config = AgentConfig(
             name="My Weather Agent",
-            system_prompt="Your job is to use the tools at your disposal to learn the information needed to answer the user's query.",
-            mcp_servers=["game_trends_mcp"],
+            system_prompt="You are a helpful weather assistant. Your job is to use the tools at your disposal to get the weather for the provided location.",
+            mcp_servers=["weather_server"],
             llm_config_id="openai_gpt4_turbo",
         )
         await aurite.register_agent(agent_config)
         # --- End of Dynamic Registration Example ---
 
         # Define the user's query for the agent.
-        user_query = "What are the latest game trends in the industry?"
+        user_query = "What's the weather like in New York?"
 
         # Run the agent with the user's query. The check for the execution
         # facade is now handled internally by the `aurite.run_agent` method.
