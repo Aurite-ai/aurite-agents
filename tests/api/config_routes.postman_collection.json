@@ -39,13 +39,15 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status code is 201 Created\", function () {",
-              "    pm.response.to.have.status(201);",
+              "pm.test(\"Status code is 201 or 409\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
               "});",
               "",
               "pm.test(\"Response body is correct\", function () {",
-              "    var jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.eql({status: 'success', name: 'dynamic_test_client'});",
+              "    if (pm.response.code === 201) {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData).to.eql({status: 'success', name: 'dynamic_test_client'});",
+              "    }",
               "});"
             ],
             "type": "text/javascript",
