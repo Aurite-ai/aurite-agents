@@ -9,13 +9,12 @@ import {
   registerLlmConfigAPI,
   getActiveProjectComponentConfig,
   getConfigFileContent, // Added
-  listActiveHostClients, // Added for new logic
-  // Assuming registerClientAPI will be added or is available in apiClient
-  registerClientAPI, // Added import
+  listActiveHostMcpServers, // Renamed from listActiveHostClients
+  registerMcpServerAPI, // Renamed from registerClientAPI
 } from '../../../lib/apiClient';
 // Corrected import for SelectedSidebarItemType
 import type { SelectedSidebarItemType } from '../../../components/layout/ComponentSidebar';
-import type { CustomWorkflowConfig, WorkflowConfig, AgentConfig, LLMConfig, ClientConfig } from '../../../types/projectManagement'; // Added ClientConfig
+import type { CustomWorkflowConfig, WorkflowConfig, AgentConfig, LLMConfig } from '../../../types/projectManagement'; // Removed ClientConfig, will use any for now
 import AgentChatView from './AgentChatView';
 import CustomWorkflowExecuteView from './CustomWorkflowExecuteView';
 import SimpleWorkflowExecuteView from './SimpleWorkflowExecuteView';
@@ -153,43 +152,41 @@ const ExecuteView: React.FC = () => {
 
       if (!agentConfig) throw new Error(`Agent config for ${item.displayName} not found.`);
 
-      // 1. Register dependent clients if not already active
-      if (agentConfig.client_ids && agentConfig.client_ids.length > 0) {
-        const activeClientIds = await listActiveHostClients();
-        const activeClientIdsSet = new Set(activeClientIds);
+      // 1. Register dependent MCP Servers if not already active
+      if (agentConfig.mcp_servers && agentConfig.mcp_servers.length > 0) {
+        const activeMcpServerIds = await listActiveHostMcpServers();
+        const activeMcpServerIdsSet = new Set(activeMcpServerIds);
 
-        for (const clientId of agentConfig.client_ids) {
-          if (!activeClientIdsSet.has(clientId)) {
-            console.log(`Client ${clientId} for agent ${agentConfig.name} is not active. Attempting to register...`);
+        for (const mcpServerId of agentConfig.mcp_servers) {
+          if (!activeMcpServerIdsSet.has(mcpServerId)) {
+            console.log(`MCP Server ${mcpServerId} for agent ${agentConfig.name} is not active. Attempting to register...`);
             try {
-              let clientConfigToRegister: ClientConfig | null = null;
-              // Try to get client config from active project first
+              let mcpServerConfigToRegister: any | null = null;
+              // Try to get mcp_server config from active project first
               try {
-                clientConfigToRegister = await getActiveProjectComponentConfig("clients", clientId) as ClientConfig;
-              } catch (projectClientError) {
-                console.warn(`Client config ${clientId} not found in active project. Trying file-based config.`);
+                mcpServerConfigToRegister = await getActiveProjectComponentConfig("mcp_servers", mcpServerId);
+              } catch (projectMcpServerError) {
+                console.warn(`MCP Server config ${mcpServerId} not found in active project. Trying file-based config.`);
                 try {
-                  // Ensure getSpecificComponentConfig for "clients" returns ClientConfig
-                  clientConfigToRegister = await getSpecificComponentConfig("clients", clientId) as ClientConfig;
-                } catch (fileClientError) {
-                  console.error(`Client config ${clientId} not found in project or as a file. Cannot register.`);
-                  throw new Error(`Required client config ${clientId} for agent ${agentConfig.name} not found.`);
+                  mcpServerConfigToRegister = await getSpecificComponentConfig("mcp_servers", mcpServerId);
+                } catch (fileMcpServerError) {
+                  console.error(`MCP Server config ${mcpServerId} not found in project or as a file. Cannot register.`);
+                  throw new Error(`Required MCP Server config ${mcpServerId} for agent ${agentConfig.name} not found.`);
                 }
               }
 
-              if (clientConfigToRegister) {
-                await registerClientAPI(clientConfigToRegister);
-                console.log(`Client ${clientId} registered successfully.`);
+              if (mcpServerConfigToRegister) {
+                await registerMcpServerAPI(mcpServerConfigToRegister);
+                console.log(`MCP Server ${mcpServerId} registered successfully.`);
               } else {
-                // This case should ideally be caught by the errors above if config is truly missing
-                throw new Error(`Client config for ${clientId} could not be loaded for agent ${agentConfig.name}.`);
+                throw new Error(`MCP Server config for ${mcpServerId} could not be loaded for agent ${agentConfig.name}.`);
               }
-            } catch (clientRegError) {
-              console.error(`Error registering client ${clientId} for agent ${agentConfig.name}:`, clientRegError);
-              throw clientRegError; // Propagate error to stop agent registration
+            } catch (mcpServerRegError) {
+              console.error(`Error registering MCP Server ${mcpServerId} for agent ${agentConfig.name}:`, mcpServerRegError);
+              throw mcpServerRegError; // Propagate error to stop agent registration
             }
           } else {
-            console.log(`Client ${clientId} for agent ${agentConfig.name} is already active.`);
+            console.log(`MCP Server ${mcpServerId} for agent ${agentConfig.name} is already active.`);
           }
         }
       }

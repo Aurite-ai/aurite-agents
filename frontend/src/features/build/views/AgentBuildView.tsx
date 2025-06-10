@@ -12,18 +12,18 @@ import {
 // import useUIStore from '../../../store/uiStore'; // Removed
 import MultiSelectModal from '../../../components/common/MultiSelectModal';
 
-// Re-using ExecutableItem from ExecuteView for listing clients/LLMs
+// Re-using ExecutableItem from ExecuteView for listing mcp_servers/LLMs
 interface SelectableItem { // This interface is also defined in MultiSelectModal, consider moving to types if widely used
   id: string;
   displayName: string;
-  type: 'clients' | 'llms'; // Specific types for this builder
+  type: 'mcp_servers' | 'llms'; // Specific types for this builder
   source: 'file' | 'project';
 }
 
 const AgentBuildView: React.FC = () => {
   const [agentName, setAgentName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [selectedMcpServerIds, setSelectedMcpServerIds] = useState<string[]>([]);
 
   const [llmConfigSource, setLlmConfigSource] = useState<'existing' | 'inline'>('existing'); // Default to 'existing'
   const [selectedLlmConfigId, setSelectedLlmConfigId] = useState<string | null>(null);
@@ -34,10 +34,10 @@ const AgentBuildView: React.FC = () => {
   const [maxIterations, setMaxIterations] = useState<string>('10');
   // const [includeHistory, setIncludeHistory] = useState<boolean>(true); // Removed includeHistory
 
-  const [availableClients, setAvailableClients] = useState<SelectableItem[]>([]);
+  const [availableMcpServers, setAvailableMcpServers] = useState<SelectableItem[]>([]);
   const [availableLlmConfigs, setAvailableLlmConfigs] = useState<SelectableItem[]>([]);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState<boolean>(false);
-  const [isClientModalOpen, setIsClientModalOpen] = useState<boolean>(false); // State for client modal
+  const [isMcpServerModalOpen, setIsMcpServerModalOpen] = useState<boolean>(false); // State for mcp_server modal
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -50,9 +50,9 @@ const AgentBuildView: React.FC = () => {
     const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, '');
 
     const fetchAndMerge = async (
-      uiType: 'clients' | 'llms',
+      uiType: 'mcp_servers' | 'llms',
       projectConfig: ProjectConfig | null, // Pass the full project config
-      configFileApiType: "clients" | "llms"
+      configFileApiType: "mcp_servers" | "llms"
     ): Promise<SelectableItem[]> => {
       const itemMap = new Map<string, SelectableItem>();
 
@@ -64,14 +64,14 @@ const AgentBuildView: React.FC = () => {
             const fileContent = await getConfigFileContent(configFileApiType, fname);
             if (Array.isArray(fileContent)) {
               fileContent.forEach((cfg: any) => {
-                const id = uiType === 'clients' ? cfg.client_id : cfg.llm_id;
+                const id = uiType === 'mcp_servers' ? cfg.name : cfg.llm_id;
                 const displayName = id || cfg.name; // Use specific ID field, fallback to name
                 if (id && typeof id === 'string') {
                   itemMap.set(id, { id, displayName: displayName || id, type: uiType, source: 'file' });
                 }
               });
             } else if (typeof fileContent === 'object' && fileContent !== null) {
-              const id = uiType === 'clients' ? fileContent.client_id : fileContent.llm_id;
+              const id = uiType === 'mcp_servers' ? fileContent.name : fileContent.llm_id;
               const displayName = id || fileContent.name || extractNameFromFilename(fname);
               if (id && typeof id === 'string') {
                 itemMap.set(id, { id, displayName, type: uiType, source: 'file' });
@@ -87,10 +87,10 @@ const AgentBuildView: React.FC = () => {
       // 2. Project-defined components
       if (projectConfig) {
         let namesFromProject: string[] = [];
-        if (uiType === 'clients' && projectConfig.clients) {
-          namesFromProject = Object.keys(projectConfig.clients);
-        } else if (uiType === 'llms' && projectConfig.llm_configs) {
-          namesFromProject = Object.keys(projectConfig.llm_configs);
+        if (uiType === 'mcp_servers' && projectConfig.mcp_servers) {
+          namesFromProject = Object.keys(projectConfig.mcp_servers);
+        } else if (uiType === 'llms' && projectConfig.llms) {
+          namesFromProject = Object.keys(projectConfig.llms);
         }
 
         namesFromProject.forEach(name => {
@@ -104,7 +104,7 @@ const AgentBuildView: React.FC = () => {
 
     try {
         const activeProjectConfig = await getActiveProjectFullConfig();
-        setAvailableClients(await fetchAndMerge('clients', activeProjectConfig, 'clients'));
+        setAvailableMcpServers(await fetchAndMerge('mcp_servers', activeProjectConfig, 'mcp_servers'));
         setAvailableLlmConfigs(await fetchAndMerge('llms', activeProjectConfig, 'llms'));
     } catch(err) {
         console.error("Error fetching items for agent builder selectors:", err);
@@ -131,7 +131,7 @@ const AgentBuildView: React.FC = () => {
     const configToSave: Partial<AgentConfig> = {
       name: agentName.trim(),
       system_prompt: systemPrompt.trim() || undefined,
-      client_ids: selectedClientIds.length > 0 ? selectedClientIds : undefined,
+      mcp_servers: selectedMcpServerIds.length > 0 ? selectedMcpServerIds : undefined,
       max_iterations: maxIterations ? parseInt(maxIterations) : undefined,
     };
 
@@ -208,15 +208,15 @@ const AgentBuildView: React.FC = () => {
         </div>
       </div>
 
-      {/* Client Selection Section */}
+      {/* MCP Server Selection Section */}
       <div className="p-6 bg-dracula-current-line rounded-lg shadow-md space-y-4">
-        <h3 className="text-lg font-semibold text-dracula-cyan">Client IDs</h3>
+        <h3 className="text-lg font-semibold text-dracula-cyan">MCP Servers</h3>
         <div className="mb-2">
-          {selectedClientIds.length > 0 ? (
+          {selectedMcpServerIds.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {selectedClientIds.map(clientId => (
-                <span key={clientId} className="px-2 py-1 bg-dracula-purple text-dracula-background text-xs rounded-full">
-                  {clientId}
+              {selectedMcpServerIds.map(mcpServerId => (
+                <span key={mcpServerId} className="px-2 py-1 bg-dracula-purple text-dracula-background text-xs rounded-full">
+                  {mcpServerId}
                 </span>
               ))}
             </div>
@@ -225,22 +225,22 @@ const AgentBuildView: React.FC = () => {
           )}
         </div>
         <button
-          onClick={() => setIsClientModalOpen(true)}
+          onClick={() => setIsMcpServerModalOpen(true)}
           className="px-4 py-2 text-sm font-medium text-dracula-background bg-dracula-cyan hover:bg-opacity-80 rounded-md focus:outline-none focus:ring-2 focus:ring-dracula-pink"
-          disabled={isLoadingDropdowns} // Disable if clients are still loading
+          disabled={isLoadingDropdowns} // Disable if mcp_servers are still loading
         >
-          {isLoadingDropdowns && availableClients.length === 0 ? 'Loading Clients...' : 'Select Clients'}
+          {isLoadingDropdowns && availableMcpServers.length === 0 ? 'Loading MCP Servers...' : 'Select MCP Servers'}
         </button>
-        {availableClients.length === 0 && !isLoadingDropdowns && <p className="text-xs text-dracula-comment mt-1">No clients available to select.</p>}
+        {availableMcpServers.length === 0 && !isLoadingDropdowns && <p className="text-xs text-dracula-comment mt-1">No MCP Servers available to select.</p>}
       </div>
 
       <MultiSelectModal
-        isOpen={isClientModalOpen}
-        onClose={() => setIsClientModalOpen(false)}
-        title="Select Client IDs"
-        items={availableClients.map(client => ({ id: client.id, displayName: client.displayName }))} // Adapt SelectableItem for modal
-        selectedIds={selectedClientIds}
-        onConfirmSelection={(newClientIds) => setSelectedClientIds(newClientIds)}
+        isOpen={isMcpServerModalOpen}
+        onClose={() => setIsMcpServerModalOpen(false)}
+        title="Select MCP Servers"
+        items={availableMcpServers.map(server => ({ id: server.id, displayName: server.displayName }))} // Adapt SelectableItem for modal
+        selectedIds={selectedMcpServerIds}
+        onConfirmSelection={(newMcpServerIds) => setSelectedMcpServerIds(newMcpServerIds)}
       />
 
       {/* LLM Configuration Section */}

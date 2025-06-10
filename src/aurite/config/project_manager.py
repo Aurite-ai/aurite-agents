@@ -385,6 +385,17 @@ class ProjectManager:
                     logger.debug(
                         f"Loaded and validated inline {type_name} definition: '{component_id}'"
                     )
+
+                    # Also add/update it in the component manager's central store
+                    # so it's available for other components to look up during this project load.
+                    cm_store = self.component_manager._component_stores.get(
+                        cm_component_type_key
+                    )
+                    if cm_store is not None:
+                        cm_store[component_id] = inline_item
+                        logger.debug(
+                            f"Registered inline {type_name} '{component_id}' to ComponentManager's in-memory store."
+                        )
                 else:
                     logger.warning(
                         f"Invalid {type_name} reference in project '{project_name}'. Expected string ID or dict definition. Got: {item_ref}"
