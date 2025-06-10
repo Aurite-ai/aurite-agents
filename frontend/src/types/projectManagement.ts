@@ -12,10 +12,15 @@ export interface RootConfig {
   capabilities: string[];
 }
 
-export interface ClientConfig {
-  client_id: string;
-  server_path: string; // In Python it's Path, in JSON/TS it will be string
-  roots: RootConfig[];
+export interface McpServerConfig {
+  name: string;
+  transport_type?: 'stdio' | 'http_stream' | 'local';
+  server_path?: string;
+  http_endpoint?: string;
+  headers?: Record<string, string>;
+  command?: string;
+  args?: string[];
+  roots?: RootConfig[];
   capabilities: string[];
   timeout?: number;
   routing_weight?: number;
@@ -36,7 +41,7 @@ export interface LLMConfig {
 
 export interface AgentConfig {
   name?: string;
-  client_ids?: string[];
+  mcp_servers?: string[];
   llm_config_id?: string;
   system_prompt?: string;
   config_validation_schema?: Record<string, any>;
@@ -65,11 +70,11 @@ export interface CustomWorkflowConfig {
 export interface ProjectConfig {
   name: string;
   description?: string;
-  clients: Record<string, ClientConfig>;
-  llm_configs: Record<string, LLMConfig>;
-  agent_configs: Record<string, AgentConfig>;
-  simple_workflow_configs: Record<string, WorkflowConfig>;
-  custom_workflow_configs: Record<string, CustomWorkflowConfig>;
+  mcp_servers: Record<string, McpServerConfig>;
+  llms: Record<string, LLMConfig>;
+  agents: Record<string, AgentConfig>;
+  simple_workflows: Record<string, WorkflowConfig>;
+  custom_workflows: Record<string, CustomWorkflowConfig>;
 }
 
 // For API responses
