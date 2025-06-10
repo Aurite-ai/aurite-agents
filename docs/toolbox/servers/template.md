@@ -10,8 +10,9 @@ This document provides a list of pre-configured MCP servers for [Server Category
 *   **Configuration File**: `config/mcp_servers/[filename].json`
 
 **Tools:**
+
 | Tool Name | Description |
-| :-------- | :---------- |
+| --- | --- |
 | `[tool_name_1]` | [Description of what the tool does.] |
 | `[tool_name_2]` | [Description of what the tool does.] |
 
