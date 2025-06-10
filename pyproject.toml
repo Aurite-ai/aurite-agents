@@ -74,6 +74,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "fastapi",
     "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
+    "Faker>=37.3.0",
 ]
 
 [project.urls]

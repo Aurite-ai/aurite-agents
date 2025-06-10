@@ -1,0 +1,141 @@
+{
+  "name": "DefaultMCPHost",
+  "description": "Default host for MCP server.",
+  "mcp_servers": [
+    {
+      "name": "weather_server",
+      "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    },
+    {
+      "name": "planning_server",
+      "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "exclude": null,
+      "gcp_secrets": null,
+      "roots": []
+    },
+    {
+      "name": "automotive_database",
+      "server_path": "src/aurite/components/servers/storage/sql/auto_db_server.py",
+      "capabilities": ["tools"]
+    }
+  ],
+  "llms": [
+    {
+      "llm_id": "anthropic_claude_3_opus",
+      "provider": "anthropic",
+      "model_name": "claude-3-opus-20240229",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "default_system_prompt": "You are Claude, a large language model trained by Anthropic. Your job is to assist the user in the task provided.",
+      "api_key_env_var": "ANTHROPIC_API_KEY"
+    },
+    {
+      "llm_id": "anthropic_claude_3_haiku",
+      "provider": "anthropic",
+      "model_name": "claude-3-haiku-20240307",
+      "temperature": 0.5,
+      "max_tokens": 2048,
+      "default_system_prompt": "You are Claude Haiku, a concise and fast assistant by Anthropic.",
+      "api_key_env_var": "ANTHROPIC_API_KEY"
+    },
+    {
+      "llm_id": "openai_gpt4_turbo_mcp",
+      "provider": "openai",
+      "model_name": "gpt-4-turbo-preview",
+      "temperature": 0.7,
+      "max_tokens": 4000,
+      "default_system_prompt": "You are a helpful OpenAI assistant.",
+      "api_key_env_var": "OPENAI_API_KEY"
+    }
+  ],
+  "agents": [
+    {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
+      "mcp_servers": ["weather_server"],
+      "llm_config_id": "anthropic_claude_3_opus",
+      "exclude_components": ["current_time"],
+      "config_validation_schema": {
+        "type": "object",
+        "properties": {
+          "weather_summary": {
+            "type": "string",
+            "description": "A brief summary of the weather conditions."
+          },
+          "temperature": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "number" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
+            },
+            "required": ["value", "unit"]
+          },
+          "recommendations": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Recommendations based on the weather."
+          }
+        },
+        "required": ["weather_summary", "temperature", "recommendations"]
+      }
+    },
+    {
+      "name": "Filtering Test Agent",
+      "llm_config_id": "anthropic_claude_3_haiku",
+      "mcp_servers": ["planning_server"],
+      "exclude_components": [
+        "save_plan",
+        "create_plan_prompt",
+        "planning://plan/excluded-test-plan"
+      ]
+    },
+    {
+      "name": "Weather Reporter",
+      "llm_config_id": "default_opus",
+      "system_prompt": "You are a Weather Reporter. You will be provided with a weather forecast for a specific city. Your job is to use this information to provide an informal weather report."
+    },
+    {
+      "name": "Planning Agent",
+      "llm_config_id": "anthropic_claude_3_opus",
+      "mcp_servers": ["planning_server"],
+      "system_prompt": "You are a planning assistant."
+    },
+    {
+      "name": "OpenAI Weather Agent",
+      "llm_config_id": "openai_gpt4_turbo_mcp",
+      "system_prompt": "You are an OpenAI assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
+      "mcp_servers": ["weather_server"],
+      "auto": false,
+      "max_iterations": 5,
+      "include_history": false
+    },
+    {
+      "name": "Automotive Help Agent",
+      "llm_config_id": "anthropic_claude_3_opus",
+      "mcp_servers": ["automotive_database"],
+      "system_prompt": "You are an automotive assistant. Your job is to help Automotive Salespeople get the information they need about their customers. Use the tools at your disposal to search the database and answer any questions they ask."
+    }
+  ],
+  "simple_workflows": [
+    {
+      "name": "Weather Planning Workflow",
+      "description": "A simple workflow that runs the Weather Agent.",
+      "steps": ["Weather Agent", "Weather Reporter"]
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "ExampleCustomWorkflow",
+      "module_path": "src/aurite/packaged/example_custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "An example custom workflow for testing."
+    }
+  ]
+}
