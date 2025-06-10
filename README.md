@@ -162,33 +162,43 @@ graph TD
 
 For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
 
-## Other Entrypoints
+## Entrypoints
 
-Besides the main API server, the framework offers other ways to interact:
+**Running the Backend API Server:**
+The primary way to interact with the framework is through its FastAPI server:
+```bash
+python -m aurite.bin.api.api
+```
+or use the `pyproject.toml` script:
+```bash
+start-api
+```
+(This script is available after running `pip install -e .[dev]`. If using Docker, the API starts automatically within its container.)
 
-*   **Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
-    The `run-cli` script is available after performing the Manual Installation and running `pip install -e .[dev]`.
-    ```bash
-    # Example: Execute an agent (ensure API server is running)
-    # Assumes API_KEY environment variable is set.
-    run-cli execute agent "Weather Agent" "What is the weather in London?"
+*   By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
 
-    # Example: Execute a simple workflow
-    run-cli execute workflow "main" "What should I wear in San Francisco today?"
+*   Besides the main API server, the framework offers other ways to interact:
 
-    # Example: Execute a custom workflow (input must be a valid JSON string)
-    run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
-    ```
-    **Using CLI with Docker:** If you are using the Docker setup, these CLI commands need to be run *inside* the backend service container. You can do this by first finding your backend container ID or name (e.g., using `docker ps`) and then executing the command:
-    ```bash
-    docker exec -it <your_backend_container_name_or_id> run-cli execute agent "Weather Agent" "What is the weather in London?"
-    ```
-    Ensure the `API_KEY` environment variable is set within the container's environment (it should be if you used the setup scripts or configured your `.env` file correctly).
 
-*   **Redis Worker (`src/bin/worker.py`):** For asynchronous task processing (if Redis is set up and `redis-server` is running).
-    ```bash
-    python -m src.bin.worker
-    ```
+**Command-Line Interface (`src/bin/cli.py`):** For terminal-based interaction.
+The `run-cli` script is available after performing the Manual Installation and running `pip install -e .[dev]`.*
+```bash
+# Example: Execute an agent (ensure API server is running)
+# Assumes API_KEY environment variable is set.
+run-cli execute agent "Weather Agent" "What is the weather in London?"
+
+# Example: Execute a simple workflow
+run-cli execute workflow "Weather Planning Workflow" "What should I wear in San Francisco today?"
+
+# Example: Execute a custom workflow (input must be a valid JSON string)
+run-cli execute custom-workflow "ExampleCustomWorkflow" "{\"city\": \"London\"}"
+```
+
+**Using CLI with Docker:** If you are using the Docker setup, these CLI commands need to be run *inside* the backend service container. You can do this by first finding your backend container ID or name (e.g., using `docker ps`) and then executing the command:
+```bash
+docker exec -it <your_backend_container_name_or_id> run-cli execute agent "Weather Agent" "What is the weather in London?"
+```
+Ensure the `API_KEY` environment variable is set within the container's environment (it should be if you used the setup scripts or configured your `.env` file correctly).
 
 ## Further Documentation
 
