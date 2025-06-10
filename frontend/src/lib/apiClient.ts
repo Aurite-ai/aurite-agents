@@ -39,7 +39,7 @@ const apiClient = async (
 
   // Use a relative URL if it doesn't start with http, otherwise use it as is.
   // This helps if some URLs might be absolute (e.g. to external services in future)
-// For now, all our API calls are relative to the same origin.
+  // For now, all our API calls are relative to the same origin.
   // const requestUrl = url.startsWith('http') ? url : `/api${url.startsWith('/') ? url : `/${url}`}`; // OLD LOGIC
 
   // NEW LOGIC: Use an environment variable for the API base URL.
@@ -86,6 +86,24 @@ const apiClient = async (
 };
 
 export default apiClient;
+
+// Helper to map frontend component types to backend API path segments.
+// This allows the frontend to use consistent naming (e.g., "mcp_servers")
+// while the API client handles mapping to potentially different backend paths (e.g., "clients").
+function getApiComponentPath(componentType: string): string {
+  switch (componentType) {
+    case 'llms':
+      return 'llms';
+    case 'simple_workflows':
+      return 'simple-workflows';
+    case 'custom_workflows':
+      return 'custom-workflows';
+    case 'mcp_servers':
+      return 'clients';
+    default:
+      return componentType; // 'agents' and others fall through
+  }
+}
 
 // Add to frontend/src/lib/apiClient.ts
 import type { ProjectConfig, LoadComponentsResponse, ApiError } from '../types/projectManagement'; // Adjust path
@@ -137,17 +155,10 @@ export async function listProjectFiles(): Promise<string[]> {
 
 export async function listConfigFiles(componentType: string): Promise<string[]> {
   let url = '';
-  let apiPathType = componentType;
   if (componentType === 'projects') {
     url = '/projects/list_files';
   } else {
-    if (componentType === 'llms') {
-      apiPathType = 'llms';
-    } else if (componentType === 'simple_workflows') {
-      apiPathType = 'simple-workflows';
-    } else if (componentType === 'custom_workflows') {
-      apiPathType = 'custom-workflows';
-    }
+    const apiPathType = getApiComponentPath(componentType);
     url = `/configs/${apiPathType}`;
   }
   const response = await apiClient(url, { method: 'GET' });
@@ -160,17 +171,10 @@ export async function listConfigFiles(componentType: string): Promise<string[]> 
 
 export async function getConfigFileContent(componentType: string, filename: string): Promise<any> {
   let url = '';
-  let apiPathType = componentType;
   if (componentType === 'projects') {
     url = `/projects/file/${filename}`;
   } else {
-    if (componentType === 'llms') {
-      apiPathType = 'llms';
-    } else if (componentType === 'simple_workflows') {
-      apiPathType = 'simple-workflows';
-    } else if (componentType === 'custom_workflows') {
-      apiPathType = 'custom-workflows';
-    }
+    const apiPathType = getApiComponentPath(componentType);
     url = `/configs/${apiPathType}/${filename}`;
   }
   const response = await apiClient(url, { method: 'GET' });
@@ -183,17 +187,10 @@ export async function getConfigFileContent(componentType: string, filename: stri
 
 export async function saveConfigFileContent(componentType: string, filename: string, content: any): Promise<any> {
   let url = '';
-  let apiPathType = componentType;
   if (componentType === 'projects') {
     url = `/projects/file/${filename}`;
   } else {
-    if (componentType === 'llms') {
-      apiPathType = 'llms';
-    } else if (componentType === 'simple_workflows') {
-      apiPathType = 'simple-workflows';
-    } else if (componentType === 'custom_workflows') {
-      apiPathType = 'custom-workflows';
-    }
+    const apiPathType = getApiComponentPath(componentType);
     url = `/configs/${apiPathType}/${filename}`;
   }
   const response = await apiClient(url, {
@@ -208,15 +205,7 @@ export async function saveConfigFileContent(componentType: string, filename: str
 }
 
 export async function getSpecificComponentConfig(componentType: string, idOrName: string): Promise<any> {
-  let apiPathType = componentType;
-  if (componentType === 'llms') {
-    apiPathType = 'llms';
-  } else if (componentType === 'simple_workflows') {
-    apiPathType = 'simple-workflows';
-  } else if (componentType === 'custom_workflows') {
-    apiPathType = 'custom-workflows';
-  }
-  // For 'agents' and 'clients', componentType can be used directly as apiPathType.
+  const apiPathType = getApiComponentPath(componentType);
   // 'projects' type is not applicable here as project files are not fetched by individual ID through this generic component mechanism.
 
   const encodedIdOrName = encodeURIComponent(idOrName);
@@ -369,9 +358,10 @@ export async function getActiveProjectComponentConfig(projectComponentType: stri
   return response.json();
 }
 
-export async function saveNewConfigFile(componentApiType: string, filename: string, configData: object): Promise<any> {
-  // componentApiType should be the direct path segment expected by the backend API
-  // e.g., "agents", "llms", "simple-workflows", "custom-workflows", "clients"
+export async function saveNewConfigFile(componentType: string, filename: string, configData: object): Promise<any> {
+  // componentType should be the conceptual type (e.g., "mcp_servers").
+  // We map it to the backend API path segment.
+  const componentApiType = getApiComponentPath(componentType);
   const encodedFilename = encodeURIComponent(filename);
   const url = `/configs/${componentApiType}/${encodedFilename}`;
 
@@ -433,24 +423,24 @@ export function streamAgentExecution(
   return new EventSource(fullUrl);
 }
 
-export async function listActiveHostClients(): Promise<string[]> {
+export async function listActiveHostMcpServers(): Promise<string[]> {
   const response = await apiClient('/host/clients/active', { method: 'GET' });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: response.statusText }));
-    throw { message: errorData.detail || errorData.message || 'Failed to list active host clients', status: response.status, details: errorData } as ApiError;
+    throw { message: errorData.detail || errorData.message || 'Failed to list active host MCP Servers', status: response.status, details: errorData } as ApiError;
   }
   return response.json() as Promise<string[]>;
 }
 
-export async function registerClientAPI(clientConfig: any): Promise<any> { // Using 'any' for now, refine with ClientConfig if available
+export async function registerMcpServerAPI(mcpServerConfig: any): Promise<any> { // Using 'any' for now, refine with MCP Server config type if available
   const response = await apiClient('/clients/register', {
     method: 'POST',
-    body: clientConfig,
+    body: mcpServerConfig,
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: response.statusText }));
     // Try to access errorData.detail for FastAPI's common error structure
-    throw { message: errorData.detail || errorData.message || 'Failed to register client', status: response.status, details: errorData } as ApiError;
+    throw { message: errorData.detail || errorData.message || 'Failed to register MCP Server', status: response.status, details: errorData } as ApiError;
   }
   return response.json();
 }

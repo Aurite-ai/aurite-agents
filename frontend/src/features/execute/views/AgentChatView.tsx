@@ -18,7 +18,6 @@ import {
   registerAgentAPI,
   streamAgentExecution, // Import the function
 } from '../../../lib/apiClient';
-import useAuthStore from '../../../store/authStore';
 
 import type {
   AgentConfig,

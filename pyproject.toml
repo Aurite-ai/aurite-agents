@@ -103,11 +103,6 @@ tools = [
 include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
 package-dir = {"" = "src"} # Maps importable package root to the 'src' directory
 
-# [tool.setuptools.package-data] # This section can be used if not relying solely on MANIFEST.in
-# # For example, to ensure py.typed is included if MANIFEST.in doesn't cover it:
-# # "*" = ["py.typed"]
-# # We will rely on MANIFEST.in for data files.
-
 [tool.setuptools.packages.find]
 where = ["src"]  # Look for packages within the 'src' directory
 include = ["aurite*"] # Find 'aurite' and any sub-packages
