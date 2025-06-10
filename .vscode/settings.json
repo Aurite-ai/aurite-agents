@@ -20,6 +20,7 @@
   },
 
   "ruff.lint.ignore": ["F841", "E722", "E402"],
+  "fileNestingUpdater.autoUpdate": true,
   "explorer.fileNesting.patterns": {
     "*.ts": "${capture}.js",
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
@@ -30,11 +31,11 @@
     "Dockerfile": "Dockerfile.dev, .dockerignore, docker-compose*",
     "pyproject.toml": "justfile, setup.sh, setup.bat, .pre-commit-config.yaml, .flake8, .isort.cfg, .mypy.ini, .pylintrc, .bandit, .coveragerc, MANIFEST.in",
     ".env": ".env*",
-    "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md",
+    "README.md": "usage_guide.md, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md"
   },
   "files.associations": {
     "*.css": "tailwindcss",
-    "*.ipynb": "jupyter",
+    "*.ipynb": "jupyter"
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
 
