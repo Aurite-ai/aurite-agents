@@ -12,7 +12,7 @@ authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
     { name = "Blake R", email = "blake@aurite.ai" },
     { name = "Patrick W", email = "patrick@aurite.ai" },
-    { name = "Jiten Oswal", email = "jiten@aurite.ai" },
+    { name = "Jiten O", email = "jiten@aurite.ai" },
 ]
 
 license-files = ["LICENSE"]
