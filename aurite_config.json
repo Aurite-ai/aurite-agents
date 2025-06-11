@@ -4,6 +4,7 @@
   "mcp_servers": [
     {
       "name": "weather_server",
+      "description": "Provides weather information for specific locations (London, Tokyo, San Francisco, New York).",
       "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
       "timeout": 15.0,
@@ -12,6 +13,7 @@
     },
     {
       "name": "planning_server",
+      "description": "A tool server for creating, reading, and managing plans as text files.",
       "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
       "capabilities": ["tools", "prompts", "resources"],
       "timeout": 15.0,
@@ -22,6 +24,7 @@
     },
     {
       "name": "api_mcp_server",
+      "description": "A server that wraps the Aurite framework's own API, allowing agents to manage and execute other components.",
       "server_path": "src/aurite/components/servers/orchestration/api_mcp_server.py",
       "capabilities": ["tools"],
       "timeout": 20.0

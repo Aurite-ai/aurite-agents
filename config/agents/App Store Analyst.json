@@ -1,9 +1,11 @@
 {
-    "name": "final-test-agent",
-    "mcp_servers": [],
+    "name": "App Store Analyst",
+    "mcp_servers": [
+        "appinsightmcp"
+    ],
     "auto": false,
     "llm_config_id": "anthropic_claude_3_haiku",
-    "system_prompt": "I am the final test agent. I will say hello.",
+    "system_prompt": "You are an App Store Analyst agent. Your task is to analyze app store trends, provide insights on popular apps, and generate reports on app performance.",
     "config_validation_schema": null,
     "model": null,
     "temperature": null,

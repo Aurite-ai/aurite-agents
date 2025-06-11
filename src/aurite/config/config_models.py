@@ -42,6 +42,9 @@ class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
     name: str = Field(description="Unique name for the MCP server client.")
+    description: Optional[str] = Field(
+        default=None, description="A description of the MCP server's purpose."
+    )
     transport_type: Optional[Literal["stdio", "http_stream", "local"]] = Field(
         default=None, description="The transport type for the client."
     )

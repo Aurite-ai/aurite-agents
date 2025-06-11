@@ -1,7 +1,6 @@
 import json  # Added json import
 import logging
-from typing import List  # Added for response model
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException  # Added HTTPException
 from fastapi.responses import StreamingResponse  # Added StreamingResponse
@@ -390,76 +389,55 @@ async def register_custom_workflow_endpoint(
 # --- Listing Endpoints for Registered Components ---
 
 
-@router.get("/components/agents", response_model=List[str])
+@router.get("/components/agents", response_model=List[Dict[str, Any]])
 async def list_registered_agents(manager: Aurite = Depends(get_host_manager)):
-    """Lists the names of all currently registered agents from the active project."""
-    active_project = manager.project_manager.get_active_project_config()
-    if (
-        not active_project or not active_project.agents
-    ):  # Changed agent_configs to agents
+    """Lists the full configurations of all currently registered agents."""
+    if not manager.project_manager or not manager.project_manager.component_manager:
         return []
-    return list(active_project.agents.keys())  # Changed agent_configs to agents
+    agents = manager.project_manager.component_manager.list_agents()
+    return [agent.model_dump(mode="json") for agent in agents]
 
 
-@router.get("/components/workflows", response_model=List[str])
+@router.get("/components/workflows", response_model=List[Dict[str, Any]])
 async def list_registered_simple_workflows(
     manager: Aurite = Depends(get_host_manager),
 ):
-    """Lists the names of all currently registered simple workflows from the active project."""
-    active_project = manager.project_manager.get_active_project_config()
-    if (
-        not active_project or not active_project.simple_workflows
-    ):  # Changed simple_workflow_configs to simple_workflows
+    """Lists the full configurations of all currently registered simple workflows."""
+    if not manager.project_manager or not manager.project_manager.component_manager:
         return []
-    return list(
-        active_project.simple_workflows.keys()
-    )  # Changed simple_workflow_configs to simple_workflows
+    workflows = manager.project_manager.component_manager.list_simple_workflows()
+    return [wf.model_dump(mode="json") for wf in workflows]
 
 
-@router.get("/components/custom_workflows", response_model=List[str])
+@router.get("/components/custom_workflows", response_model=List[Dict[str, Any]])
 async def list_registered_custom_workflows(
     manager: Aurite = Depends(get_host_manager),
 ):
-    """Lists the names of all currently registered custom workflows from the active project."""
-    active_project = manager.project_manager.get_active_project_config()
-    if (
-        not active_project or not active_project.custom_workflows
-    ):  # Changed custom_workflow_configs to custom_workflows
+    """Lists the full configurations of all currently registered custom workflows."""
+    if not manager.project_manager or not manager.project_manager.component_manager:
         return []
-    return list(
-        active_project.custom_workflows.keys()
-    )  # Changed custom_workflow_configs to custom_workflows
+    workflows = manager.project_manager.component_manager.list_custom_workflows()
+    return [wf.model_dump(mode="json") for wf in workflows]
 
 
-@router.get("/components/clients", response_model=List[str])
+@router.get("/components/clients", response_model=List[Dict[str, Any]])
 async def list_registered_clients(manager: Aurite = Depends(get_host_manager)):
-    """Lists the names of all currently registered clients from the active project."""
-    active_project = manager.project_manager.get_active_project_config()
-    if not active_project or not active_project.mcp_servers:
+    """Lists the full configurations of all currently registered MCP servers (clients)."""
+    if not manager.project_manager or not manager.project_manager.component_manager:
         return []
-    # Client IDs are stored directly in the list if string, or as name attribute if ClientConfig object
-    names = []
-    for client_entry in active_project.mcp_servers:
-        if isinstance(client_entry, str):
-            names.append(client_entry)
-        elif hasattr(client_entry, "name"):  # Check if it's a ClientConfig model
-            names.append(client_entry.name)
-    return names
+    servers = manager.project_manager.component_manager.list_mcp_servers()
+    return [server.model_dump(mode="json") for server in servers]
 
 
-@router.get("/components/llms", response_model=List[str])
+@router.get("/components/llms", response_model=List[Dict[str, Any]])
 async def list_registered_llms(
     manager: Aurite = Depends(get_host_manager),
 ):
-    """Lists the llm_ids of all currently registered LLM configurations from the active project."""
-    # LLM configs are managed by the ComponentManager, accessed via ProjectManager
-    if (
-        not manager.project_manager
-        or not manager.project_manager.component_manager
-        or not manager.project_manager.component_manager.llms
-    ):
+    """Lists the full configurations of all currently registered LLMs."""
+    if not manager.project_manager or not manager.project_manager.component_manager:
         return []
-    return list(manager.project_manager.component_manager.llms.keys())
+    llms = manager.project_manager.component_manager.list_llms()
+    return [llm.model_dump(mode="json") for llm in llms]
 
 
 @router.get("/host/clients/active", response_model=List[str], tags=["Host Status"])
