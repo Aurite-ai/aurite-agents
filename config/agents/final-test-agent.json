@@ -1,0 +1,15 @@
+{
+    "name": "final-test-agent",
+    "mcp_servers": [],
+    "auto": false,
+    "llm_config_id": "anthropic_claude_3_haiku",
+    "system_prompt": "I am the final test agent. I will say hello.",
+    "config_validation_schema": null,
+    "model": null,
+    "temperature": null,
+    "max_tokens": null,
+    "max_iterations": null,
+    "include_history": null,
+    "exclude_components": null,
+    "evaluation": null
+}

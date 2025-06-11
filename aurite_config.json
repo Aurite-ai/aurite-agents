@@ -19,6 +19,12 @@
       "exclude": null,
       "gcp_secrets": null,
       "roots": []
+    },
+    {
+      "name": "api_mcp_server",
+      "server_path": "src/aurite/components/servers/orchestration/api_mcp_server.py",
+      "capabilities": ["tools"],
+      "timeout": 20.0
     }
   ],
   "llms": [
@@ -109,6 +115,12 @@
       "auto": false,
       "max_iterations": 5,
       "include_history": false
+    },
+    {
+      "name": "Aurite API Agent",
+      "llm_config_id": "anthropic_claude_3_haiku",
+      "mcp_servers": ["api_mcp_server"],
+      "system_prompt": "You are an agent that can interact with the Aurite framework's API. Use the available tools to manage components like agents and workflows. CRITICAL: You must use the exact tool names provided by the 'list_tools' function."
     }
   ],
   "simple_workflows": [
