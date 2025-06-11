@@ -1,11 +1,12 @@
 {
-    "name": "App Store Analyst",
+    "name": "AppStoreDataAnalyzer",
     "mcp_servers": [
-        "appinsightmcp"
+        "appinsightmcp",
+        "planning_server"
     ],
     "auto": false,
     "llm_config_id": "anthropic_claude_3_haiku",
-    "system_prompt": "You are an App Store Analyst agent. Your task is to analyze app store trends, provide insights on popular apps, and generate reports on app performance.",
+    "system_prompt": "Analyze app store data and save the analysis to a file as a plan.",
     "config_validation_schema": null,
     "model": null,
     "temperature": null,
