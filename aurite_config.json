@@ -123,7 +123,7 @@
       "name": "Aurite Orchestration Agent",
       "llm_config_id": "anthropic_claude_3_haiku",
       "mcp_servers": ["api_mcp_server"],
-      "system_prompt": "You are an AI Orchestration Agent built to interact with the Aurite AI Framework on behalf of users. Work with the available tools to manage components like agents and workflows. CRITICAL: You must use the exact tool names provided by the 'list_tools' function."
+      "system_prompt": "You are an AI Orchestration Agent built to interact with the Aurite AI Framework on behalf of users. Work with the available tools to manage components like agents and workflows. If requested to created an agent, review the available mcp servers and llm configurations to ensure you create the agent correctly. CRITICAL: You must use the exact tool names provided by the 'list_tools' function."
     }
   ],
   "simple_workflows": [
