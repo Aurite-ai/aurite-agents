@@ -87,7 +87,6 @@ DB_PARAMS = {
     "port": os.getenv("MOCK_AUTO_PORT"),
 }
 
-@mcp.tool()
 def search_customers(search_params: dict = None, limit: int = 10) -> dict[str, str | Customer]:
     """
     Search for customers based on provided parameters
@@ -105,7 +104,6 @@ def search_customers(search_params: dict = None, limit: int = 10) -> dict[str, s
     
     return _search_models(model_class=Customer, table_name="customers", search_params=search_params, limit=limit)
             
-@mcp.tool()
 def search_customer_contacts(search_params: dict = None, limit: int = 10) -> dict[str, str | CustomerContact]:
     """
     Search for customer contacts based on provided parameters
@@ -122,7 +120,6 @@ def search_customer_contacts(search_params: dict = None, limit: int = 10) -> dic
     """
     return _search_models(model_class=CustomerContact, table_name="customer_contacts", search_params=search_params, limit=limit)
 
-@mcp.tool()
 def search_agents(search_params: dict = None, limit: int = 10) -> dict[str, str | Agent]:
     """
     Search for agents based on provided parameters
@@ -139,7 +136,6 @@ def search_agents(search_params: dict = None, limit: int = 10) -> dict[str, str 
     """
     return _search_models(model_class=Agent, table_name="agents", search_params=search_params, limit=limit)
 
-@mcp.tool()
 def search_interactions(search_params: dict = None, limit: int = 10) -> dict[str, str | Interaction]:
     """
     Search for interactions based on provided parameters
@@ -156,7 +152,6 @@ def search_interactions(search_params: dict = None, limit: int = 10) -> dict[str
     """
     return _search_models(model_class=Interaction, table_name="interactions", search_params=search_params, limit=limit)
 
-@mcp.tool()
 def search_sales(search_params: dict = None, limit: int = 10) -> dict[str, str | Sale]:
     """
     Search for sales based on provided parameters
@@ -173,7 +168,6 @@ def search_sales(search_params: dict = None, limit: int = 10) -> dict[str, str |
     """
     return _search_models(model_class=Sale, table_name="sales", search_params=search_params, limit=limit)
 
-@mcp.tool()
 def search_cars(search_params: dict = None, limit: int = 10) -> dict[str, str | Car]:
     """
     Search for cars based on provided parameters
@@ -190,7 +184,6 @@ def search_cars(search_params: dict = None, limit: int = 10) -> dict[str, str | 
     """
     return _search_models(model_class=Car, table_name="cars", search_params=search_params, limit=limit)
 
-@mcp.tool()
 def search_promotions(search_params: dict = None, limit: int = 10) -> dict[str, str | Promotion]:
     """
     Search for promotions based on provided parameters
@@ -340,8 +333,109 @@ def _search_models(model_class: type[BaseModel], table_name: str, search_params:
             cursor.close()
         if conn:
             conn.close()
+            
+@mcp.tool()
+def execute_select(query: str) -> list:
+    """
+    Executes a SELECT query on the automotive database. The database has the following format:
+    -- 1. customers
+CREATE TABLE customers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255),
+    created_at TIMESTAMP,
+    credit_score INT,
+    income_bracket VARCHAR(50),
+    financing_status VARCHAR(50)
+);
 
-def execute_query(query: str) -> list:
+-- 2. customer_contacts
+CREATE TABLE customer_contacts (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    type VARCHAR(50),
+    label VARCHAR(50),
+    value VARCHAR(255),
+    preferred BOOLEAN,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- 3. agents
+CREATE TABLE agents (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    role VARCHAR(50),
+    active BOOLEAN
+);
+
+-- 4. interactions
+CREATE TABLE interactions (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    agent_id UUID,
+    channel VARCHAR(50),
+    notes TEXT,
+    interaction_at TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- 5. cars
+CREATE TABLE cars (
+    id UUID PRIMARY KEY,
+    make VARCHAR(50),
+    model VARCHAR(50),
+    year INT,
+    price DECIMAL(10, 2),
+    inventory_status VARCHAR(50)
+);
+
+-- 6. sales
+CREATE TABLE sales (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    agent_id UUID,
+    car_id UUID,
+    price DECIMAL(10, 2),
+    status VARCHAR(50),
+    reason_lost TEXT,
+    sold_at TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (agent_id) REFERENCES agents(id),
+    FOREIGN KEY (car_id) REFERENCES cars(id)
+);
+
+-- 7. promotions
+CREATE TABLE promotions (
+    id UUID PRIMARY KEY,
+    car_id UUID,
+    title VARCHAR(255),
+    discount DECIMAL(10, 2),
+    valid_from DATE,
+    valid_until DATE,
+    FOREIGN KEY (car_id) REFERENCES cars(id)
+);
+    
+    Args:
+        query (str): SQL SELECT query to execute
+    
+    Returns:
+        list: List of tuples containing the query results
+        
+    Raises:
+        ValueError: If query is not a SELECT statement
+    """
+    # Normalize query by removing extra whitespace and converting to uppercase
+    normalized_query = query.strip().upper()
+    
+    # Verify query starts with SELECT
+    if not normalized_query.startswith('SELECT'):
+        raise ValueError("Query must be a SELECT statement")
+        
+    return execute_query(query)
+
+def execute_query(query: str) -> list | str:
     """
     Executes an SQL query on the automotive database
     
@@ -349,18 +443,27 @@ def execute_query(query: str) -> list:
         query (str): SQL query to execute
     
     Returns:
-        list: List of tuples containing the query results
+        list: List of tuples containing the query results for SELECT queries
+        str: Success message for other query types
     """
     
     conn, cursor = _establish_connection()
     
-    cursor.execute(query)
-    
-    conn.commit()
-    conn.close()
-    cursor.close()
-    
-    return "Success"
+    try:
+        cursor.execute(query)
+        
+        # Try to fetch results - will work for SELECT queries
+        try:
+            results = cursor.fetchall()
+            return results
+        except psycopg2.ProgrammingError:
+            # No results to fetch (e.g., INSERT, UPDATE, DELETE)
+            conn.commit()
+            return "Success"
+            
+    finally:
+        cursor.close()
+        conn.close()
 
 def rebuild_tables():
     print(execute_query("DROP TABLE customers CASCADE;"))
