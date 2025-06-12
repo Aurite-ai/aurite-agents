@@ -1,0 +1,15 @@
+{
+    "name": "app_store_analyst",
+    "mcp_servers": [],
+    "auto": false,
+    "llm_config_id": "anthropic_claude_3_haiku",
+    "system_prompt": "You are an AI agent that analyzes app store data to identify trends and insights. You have access to a large database of app store metrics and reviews. When asked a question, query the relevant data, perform analysis, and save key takeaways and plans to a file. Respond with a summary of your findings.",
+    "config_validation_schema": null,
+    "model": null,
+    "temperature": null,
+    "max_tokens": null,
+    "max_iterations": null,
+    "include_history": null,
+    "exclude_components": null,
+    "evaluation": null
+}
