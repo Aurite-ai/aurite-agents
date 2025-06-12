@@ -88,13 +88,13 @@ DB_PARAMS = {
 }
 
 @mcp.tool()
-def search_customers(search_params: dict = None, limit: int = 10) -> dict:
+def search_customers(search_params: dict = None, limit: int = 10) -> dict[str, str | Customer]:
     """
     Search for customers based on provided parameters
     
     Args:
         search_params: Dictionary containing search parameters
-            Keys should match Customer model fields ("name")
+            Keys should match Customer model fields (id, name, created_at, credit_score, income_bracket, financing_status)
             Values are strings to search with ILIKE operator
             If None, returns first {limit} customers
         limit: Maximum number of results to return (default: 10)
@@ -104,6 +104,108 @@ def search_customers(search_params: dict = None, limit: int = 10) -> dict:
     """
     
     return _search_models(model_class=Customer, table_name="customers", search_params=search_params, limit=limit)
+            
+@mcp.tool()
+def search_customer_contacts(search_params: dict = None, limit: int = 10) -> dict[str, str | CustomerContact]:
+    """
+    Search for customer contacts based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match CustomerContact model fields (id, customer_id, type, label, value, preferred)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} contacts
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=CustomerContact, table_name="customer_contacts", search_params=search_params, limit=limit)
+
+@mcp.tool()
+def search_agents(search_params: dict = None, limit: int = 10) -> dict[str, str | Agent]:
+    """
+    Search for agents based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match Agent model fields (id, name, email, phone, role, active)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} agents
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=Agent, table_name="agents", search_params=search_params, limit=limit)
+
+@mcp.tool()
+def search_interactions(search_params: dict = None, limit: int = 10) -> dict[str, str | Interaction]:
+    """
+    Search for interactions based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match Interaction model fields (id, customer_id, agent_id, channel, notes, interaction_at)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} interactions
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=Interaction, table_name="interactions", search_params=search_params, limit=limit)
+
+@mcp.tool()
+def search_sales(search_params: dict = None, limit: int = 10) -> dict[str, str | Sale]:
+    """
+    Search for sales based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match Sale model fields (id, customer_id, agent_id, car_id, price, status, reason_lost, sold_at)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} sales
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=Sale, table_name="sales", search_params=search_params, limit=limit)
+
+@mcp.tool()
+def search_cars(search_params: dict = None, limit: int = 10) -> dict[str, str | Car]:
+    """
+    Search for cars based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match Car model fields (id, make, model, year, price, inventory_status)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} cars
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=Car, table_name="cars", search_params=search_params, limit=limit)
+
+@mcp.tool()
+def search_promotions(search_params: dict = None, limit: int = 10) -> dict[str, str | Promotion]:
+    """
+    Search for promotions based on provided parameters
+    
+    Args:
+        search_params: Dictionary containing search parameters
+            Keys should match Promotion model fields (id, car_id, title, discount, valid_from, valid_until)
+            Values are strings to search with ILIKE operator
+            If None, returns first {limit} promotions
+        limit: Maximum number of results to return (default: 10)
+    
+    Returns:
+        dict: Status of the operation with message and results
+    """
+    return _search_models(model_class=Promotion, table_name="promotions", search_params=search_params, limit=limit)
             
 def _insert_models(models: list[BaseModel], table_name: str) -> dict:
     """
@@ -539,8 +641,6 @@ def _establish_connection():
     return conn, cursor
 
 if __name__ == "__main__":
-
-    
     # rebuild_tables()
     
     # create_fake_data()
@@ -556,4 +656,5 @@ if __name__ == "__main__":
     print(_search_models(model_class=Sale, table_name="sales"))
     print(_search_models(model_class=Promotion, table_name="promotions"))
     '''
+    
     mcp.run(transport="stdio")
