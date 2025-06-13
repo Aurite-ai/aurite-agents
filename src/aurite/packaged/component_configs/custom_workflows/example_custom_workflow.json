@@ -1,0 +1,8 @@
+[
+  {
+    "name": "MyPackagedCustomWorkflowExample",
+    "module_path": "example_custom_workflows.example_workflow",
+    "class_name": "MyPackagedCustomWorkflow",
+    "description": "An example custom workflow bundled with the aurite-agents package."
+  }
+]

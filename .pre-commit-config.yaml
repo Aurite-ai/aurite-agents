@@ -1,0 +1,13 @@
+# .pre-commit-config.yaml
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Please check for the latest stable version of ruff-pre-commit
+    # from https://github.com/astral-sh/ruff-pre-commit/releases
+    # and update the 'rev' value accordingly.
+    rev: 'v0.4.4' # As of June 2024, v0.4.4 is a recent version
+    hooks:
+    # Run the linter.
+    -   id: ruff
+        args: [--fix] # --fix attempts to fix issues
+    # Run the formatter.
+    -   id: ruff-format

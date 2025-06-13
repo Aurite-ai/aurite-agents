@@ -1,0 +1,56 @@
+{
+  "name": "aurite",
+  "description": "A new Aurite project: aurite",
+  "llms": [
+    {
+      "llm_id": "my_openai_gpt4_turbo",
+      "provider": "openai",
+      "model_name": "gpt-4-turbo-preview",
+      "temperature": 0.7,
+      "max_tokens": 1500,
+      "default_system_prompt": "You are a helpful AI assistant."
+    }
+  ],
+  "mcp_servers": [
+    {
+      "name": "weather_server",
+      "server_path": "mcp_servers/weather_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0
+    },
+    {
+      "name": "planning_server",
+      "server_path": "mcp_servers/planning_server.py",
+      "capabilities": ["tools", "prompts", "resources"],
+      "timeout": 15.0
+    }
+  ],
+  "agents": [
+    {
+      "name": "Weather Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
+      "mcp_servers": ["weather_server"],
+      "llm_config_id": "my_openai_gpt4_turbo"
+    },
+    {
+      "name": "Weather Planning Workflow Step 2",
+      "mcp_servers": ["planning_server"],
+      "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve."
+    }
+  ],
+  "simple_workflows": [
+    {
+      "name": "Weather Planning Workflow",
+      "description": "A simple workflow to plan based on weather data.",
+      "steps": ["Weather Agent", "Weather Planning Workflow Step 2"]
+    }
+  ],
+  "custom_workflows": [
+    {
+      "name": "ExampleCustomWorkflow",
+      "module_path": "custom_workflows/example_workflow.py",
+      "class_name": "ExampleCustomWorkflow",
+      "description": "Test workflow using Weather Agent and Weather MCP server."
+    }
+  ]
+}

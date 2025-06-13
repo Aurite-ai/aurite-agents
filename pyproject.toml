@@ -2,16 +2,17 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "aurite-agents"
-version = "0.2.0"
+name = "aurite"
+version = "0.3.15"
 description = "Aurite Agent Development and Runtime Framework"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
     { name = "Blake R", email = "blake@aurite.ai" },
     { name = "Patrick W", email = "patrick@aurite.ai" },
+    { name = "Jiten O", email = "jiten@aurite.ai" },
 ]
 
 license-files = ["LICENSE"]
@@ -21,7 +22,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
@@ -35,20 +36,17 @@ dependencies = [
     "certifi>=2025.1.31",
     "cffi>=1.17.1",
     "click>=8.1.8",
-    "cryptography>=44.0.2",
+    "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
     "distro>=1.9.0",
-    "google-genai>=1.11.0",
     "greenlet>=3.1.1",
     "h11>=0.14.0",
     "httpcore>=1.0.7",
     "httpx-sse>=0.4.0",
     "idna>=3.10",
     "iniconfig>=2.0.0",
-    "jiter>=0.9.0",
-    "mem0ai>=0.1.67",
-    "numpy>=2.2.3",
     "packaging>=24.2",
-    "pandas>=2.2.3",
+    "colorlog>=6.0.0",
+    "termcolor>=3.0.0",
     "pluggy>=1.5.0",
     "psycopg2-binary>=2.9.10",
     "alembic>=1.13.1",
@@ -57,10 +55,11 @@ dependencies = [
     "pydantic-settings>=2.8.1",
     "pydantic_core>=2.27.2",
     "pydub>=0.25.1",
+    "openai>=1.80.0",
     "PyMySQL>=1.1.1",
     "python-dateutil>=2.9.0.post0",
+    "openai-agents-mcp",
     "python-dotenv>=1.0.1",
-    # "click-async", # Removed - unnecessary with Click 8+/Typer 0.4+
     "pytz>=2024.1",
     "pyyaml>=6.0.2",
     "redis>=5.0.0",                 # Added for worker entrypoint
@@ -77,27 +76,36 @@ dependencies = [
     "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
 ]
 
+[project.urls]
+Homepage = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+Repository = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+
 [project.optional-dependencies]
 dev = [
     "pytest-timeout>=2.3.1", # Added for test timeouts
     "mypy>=1.15.0",
     "types-PyYAML",
+    "jupyter>=1.0.0", # Added for Jupyter support
+    "pre-commit",
     "types-pytz",
     "pytest>=8.3.5",
 ]
 ml = [
-    "sentence-transformers>=4.1.0",
+    "pandas>=2.2.3",
+    "numpy>=1.26.2,<2.1", # Pinned for Colab/mem0ai compatibility
+]
+tools = [
+    "mem0ai>=0.1.67",
+    "google-genai>=1.11.0",
 ]
 
-[tool.setuptools.package-data]
-# Include py.typed for all packages found
-"*" = ["py.typed"]
-# Specifically include the packaged server scripts within the 'src' package
-"src" = ["packaged_servers/*.py"]
+[tool.setuptools]
+include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
+package-dir = {"" = "src"} # Maps importable package root to the 'src' directory
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]  # Look for packages within the 'src' directory
+include = ["aurite*"] # Find 'aurite' and any sub-packages
 namespaces = false
 # Pytest configuration
 [tool.pytest.ini_options]
@@ -113,6 +121,7 @@ markers = [
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
     # "asyncio: mark test as async test", # Removed - use pytest.mark.anyio instead
+    "anyio: marks tests as anyio-based async tests", # Added for pytest-anyio
     "core: mark test as core functionality test",                            # Keep existing
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
@@ -123,8 +132,7 @@ markers = [
     "multirun: mark test that runs multiple evaluation iterations",
     "benchmark: mark test that compares against benchmarks",                 # Keep existing
 ]
-asyncio_default_fixture_loop_scope = "function" # Default scope for asyncio tests
-pythonpath = [".", "src"]
+pythonpath = [".", "src", "aurite"]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
@@ -132,7 +140,6 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
     "ignore::pytest.PytestUnknownMarkWarning",
     "ignore::pytest.PytestConfigWarning",
-    "ignore::pytest.PytestUnhandledCoroutineWarning",
 ]
 # Add HTML and JSON report options
 addopts = "--verbose --no-header --disable-warnings"
@@ -142,18 +149,18 @@ junit_family = "xunit2"
 timeout = 60 # Increase default test timeout to 60 seconds
 
 [tool.mypy]
-python_version = "3.12"
 warn_return_any = false # Don't warn about functions returning Any implicitly
 ignore_missing_imports = true # Don't fail if a library doesn't have type hints (important for dependencies)
 check_untyped_defs = false # Don't require type hints for functions without them (relaxed start)
 disallow_untyped_defs = false # Corresponds to check_untyped_defs
 show_error_codes = true # Makes errors easier to understand/suppress if needed
 disallow_untyped_calls = false # Corresponds to check_untyped_defs
-files=["src/bin/**/*.py", "src/agents/**/*.py", "src/host/**/*.py", "src/storage/**/*.py", "src/workflows/**/*.py", "src/llm/**/*.py", "src/execution/**/*.py", "src/prompt_validation/**/*.py", "src/host_manager.py", "src/config.py"] # Include all source and test files
+files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
 
 [project.scripts]
-start-api = "src.bin.api.api:start"
-start-worker = "src.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "src.bin.cli:app" # Makes 'run-cli' command available; args must be added manually
+start-api = "aurite.bin.api.api:start"
+start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
+run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
+aurite = "aurite.bin.cli.main:app"

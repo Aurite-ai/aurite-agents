@@ -8,11 +8,11 @@ from unittest.mock import MagicMock, AsyncMock
 from typing import List, Dict, Any
 
 # Import the class to test and dependencies/models
-from src.host.resources.tools import ToolManager
+from aurite.host.resources.tools import ToolManager
 
 # Import foundation classes for type hinting shared fixtures
 # Import models
-from src.config.config_models import ClientConfig, RootConfig, AgentConfig
+from aurite.config.config_models import ClientConfig, RootConfig, AgentConfig
 
 # Import shared fixtures
 # Import mcp types and session for mocking
@@ -1010,25 +1010,53 @@ async def test_unregister_client_tools(
     tool_manager: ToolManager,
     mock_message_router: MagicMock,
     mock_filtering_manager: MagicMock,
-    mock_client_session: MagicMock, # For registering clients
+    mock_client_session: MagicMock,  # For registering clients
 ):
     """Test unregistering tools for a specific client."""
     client_id_a = "clientA_unregister"
     client_id_b = "clientB_unregister"
-    config_a_unreg = ClientConfig(client_id=client_id_a, server_path="path/A", capabilities=["tools"], roots=[])
-    config_b_unreg = ClientConfig(client_id=client_id_b, server_path="path/B", capabilities=["tools"], roots=[])
+    config_a_unreg = ClientConfig(
+        client_id=client_id_a, server_path="path/A", capabilities=["tools"], roots=[]
+    )
+    config_b_unreg = ClientConfig(
+        client_id=client_id_b, server_path="path/B", capabilities=["tools"], roots=[]
+    )
 
-    tool_common = types.Tool(name="common_tool", description="Shared tool", inputSchema={"type": "object"})
-    tool_a_only = types.Tool(name="tool_a_only", description="Tool only for A", inputSchema={"type": "object"})
+    tool_common = types.Tool(
+        name="common_tool", description="Shared tool", inputSchema={"type": "object"}
+    )
+    tool_a_only = types.Tool(
+        name="tool_a_only",
+        description="Tool only for A",
+        inputSchema={"type": "object"},
+    )
 
     # Register clients with ToolManager
     tool_manager.register_client(client_id_a, mock_client_session)
     tool_manager.register_client(client_id_b, mock_client_session)
 
     # Register tools
-    await tool_manager.register_tool(tool_common.name, tool_common, client_id_a, config_a_unreg, mock_filtering_manager)
-    await tool_manager.register_tool(tool_common.name, tool_common, client_id_b, config_b_unreg, mock_filtering_manager) # Common tool
-    await tool_manager.register_tool(tool_a_only.name, tool_a_only, client_id_a, config_a_unreg, mock_filtering_manager)
+    await tool_manager.register_tool(
+        tool_common.name,
+        tool_common,
+        client_id_a,
+        config_a_unreg,
+        mock_filtering_manager,
+    )
+    await tool_manager.register_tool(
+        tool_common.name,
+        tool_common,
+        client_id_b,
+        config_b_unreg,
+        mock_filtering_manager,
+    )  # Common tool
+    await tool_manager.register_tool(
+        tool_a_only.name,
+        tool_a_only,
+        client_id_a,
+        config_a_unreg,
+        mock_filtering_manager,
+    )
 
     # Mock MessageRouter responses
     # get_tools_for_client(client_id_a) -> {"common_tool", "tool_a_only"}
@@ -1041,7 +1069,10 @@ async def test_unregister_client_tools(
         if client_id == client_id_b:
             return {"common_tool"}
         return set()
-    mock_message_router.get_tools_for_client = AsyncMock(side_effect=mock_get_tools_for_client)
+
+    mock_message_router.get_tools_for_client = AsyncMock(
+        side_effect=mock_get_tools_for_client
+    )
 
     async def mock_get_clients_for_tool(tool_name):
         if tool_name == "common_tool":
@@ -1049,8 +1080,10 @@ async def test_unregister_client_tools(
         if tool_name == "tool_a_only":
             return [client_id_a]
         return []
-    mock_message_router.get_clients_for_tool = AsyncMock(side_effect=mock_get_clients_for_tool)
 
+    mock_message_router.get_clients_for_tool = AsyncMock(
+        side_effect=mock_get_clients_for_tool
+    )
 
     assert client_id_a in tool_manager._clients
     assert client_id_b in tool_manager._clients
@@ -1060,8 +1093,8 @@ async def test_unregister_client_tools(
     # Unregister tools for client A
     await tool_manager.unregister_client_tools(client_id_a)
 
-    assert client_id_a not in tool_manager._clients # Client A session removed
-    assert client_id_b in tool_manager._clients    # Client B session remains
+    assert client_id_a not in tool_manager._clients  # Client A session removed
+    assert client_id_b in tool_manager._clients  # Client B session remains
 
     # common_tool should still exist because client B provides it
     assert "common_tool" in tool_manager._tools
@@ -1072,5 +1105,5 @@ async def test_unregister_client_tools(
 
     # Unregister tools for a non-existent client (should not error)
     await tool_manager.unregister_client_tools("non_existent_client")
-    assert client_id_b in tool_manager._clients # Client B should still remain
-    assert "common_tool" in tool_manager._tools # common_tool should still be there
+    assert client_id_b in tool_manager._clients  # Client B should still remain
+    assert "common_tool" in tool_manager._tools  # common_tool should still be there

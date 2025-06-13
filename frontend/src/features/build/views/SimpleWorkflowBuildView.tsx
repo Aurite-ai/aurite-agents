@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { WorkflowConfig, AgentConfig, ProjectConfig } from '../../../types/projectManagement';
+import type { WorkflowConfig, AgentConfig } from '../../../types/projectManagement'; // Removed ProjectConfig
 import {
   saveNewConfigFile,
   listConfigFiles,
   getConfigFileContent,
   getActiveProjectFullConfig,
-  // getSpecificComponentConfig, // Might not be needed if all agents are identifiable by name from project/file content
 } from '../../../lib/apiClient';
-import MultiSelectModal from '../../../components/common/MultiSelectModal';
 
 // Using a similar SelectableItem structure for agents
 interface SelectableAgentItem {
@@ -23,7 +21,7 @@ const SimpleWorkflowBuildView: React.FC = () => {
 
   const [availableAgents, setAvailableAgents] = useState<SelectableAgentItem[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState<boolean>(false);
-  const [isAgentModalOpen, setIsAgentModalOpen] = useState<boolean>(false);
+  const [agentToAdd, setAgentToAdd] = useState<string>(''); // State for the dropdown selection
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -32,7 +30,7 @@ const SimpleWorkflowBuildView: React.FC = () => {
   const fetchAvailableAgents = useCallback(async () => {
     setIsLoadingAgents(true);
     const itemMap = new Map<string, SelectableAgentItem>();
-    const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, '');
+    // const extractNameFromFilename = (filename: string) => filename.replace(/\.json$/, ''); // Removed unused const
 
     // 1. File-based agents
     try {
@@ -59,8 +57,8 @@ const SimpleWorkflowBuildView: React.FC = () => {
     // 2. Project-defined agents
     try {
       const projectConfig = await getActiveProjectFullConfig();
-      if (projectConfig && projectConfig.agent_configs) {
-        Object.values(projectConfig.agent_configs).forEach((agentCfg: AgentConfig) => {
+      if (projectConfig && projectConfig.agents) {
+        Object.values(projectConfig.agents).forEach((agentCfg: AgentConfig) => {
           if (agentCfg.name && !itemMap.has(agentCfg.name)) {
             itemMap.set(agentCfg.name, { id: agentCfg.name, displayName: agentCfg.name, source: 'project' });
           }
@@ -76,10 +74,17 @@ const SimpleWorkflowBuildView: React.FC = () => {
     fetchAvailableAgents();
   }, [fetchAvailableAgents]);
 
-  const handleAddAgentSteps = (selectedAgentIds: string[]) => {
-    // Prevent adding duplicates to the steps array directly, or allow and handle order
-    // For now, simple append. User can remove.
-    setSteps(prevSteps => [...prevSteps, ...selectedAgentIds.filter(id => !prevSteps.includes(id))]);
+  useEffect(() => {
+    // Set a default for the dropdown once agents are loaded
+    if (availableAgents.length > 0 && !agentToAdd) {
+      setAgentToAdd(availableAgents[0].id);
+    }
+  }, [availableAgents]); // This effect runs only when availableAgents array changes
+
+  const handleAddStep = () => {
+    if (agentToAdd) {
+      setSteps(prevSteps => [...prevSteps, agentToAdd]);
+    }
   };
 
   const handleRemoveStep = (indexToRemove: number) => {
@@ -177,23 +182,27 @@ const SimpleWorkflowBuildView: React.FC = () => {
         ) : (
           <p className="text-dracula-comment text-xs">No steps added yet.</p>
         )}
-        <button
-          onClick={() => setIsAgentModalOpen(true)}
-          className="mt-2 px-4 py-2 text-sm font-medium text-dracula-background bg-dracula-cyan hover:bg-opacity-80 rounded-md focus:outline-none focus:ring-2 focus:ring-dracula-pink"
-          disabled={isLoadingAgents}
-        >
-          {isLoadingAgents && availableAgents.length === 0 ? 'Loading Agents...' : 'Add Agent Step(s)'}
-        </button>
+        <div className="mt-4 flex items-center gap-x-3">
+          <select
+            value={agentToAdd}
+            onChange={(e) => setAgentToAdd(e.target.value)}
+            className="flex-grow p-2 rounded-md bg-dracula-background border border-dracula-comment focus:ring-2 focus:ring-dracula-cyan focus:border-dracula-cyan text-dracula-foreground"
+            disabled={isLoadingAgents || availableAgents.length === 0}
+          >
+            <option value="" disabled>-- Select an Agent --</option>
+            {availableAgents.map(agent => (
+              <option key={agent.id} value={agent.id}>{agent.displayName}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleAddStep}
+            className="px-4 py-2 text-sm font-medium text-dracula-background bg-dracula-cyan hover:bg-opacity-80 rounded-md focus:outline-none focus:ring-2 focus:ring-dracula-pink"
+            disabled={!agentToAdd}
+          >
+            Add Step
+          </button>
+        </div>
       </div>
-
-      <MultiSelectModal
-        isOpen={isAgentModalOpen}
-        onClose={() => setIsAgentModalOpen(false)}
-        title="Select Agent(s) for Workflow Steps"
-        items={availableAgents} // Pass SelectableAgentItem[]
-        selectedIds={steps} // Pass current steps to pre-select if modal supports it, or manage additions
-        onConfirmSelection={handleAddAgentSteps} // This will append new selections
-      />
 
       <div className="flex justify-end items-center space-x-3 mt-6">
         {saveError && <p className="text-sm text-dracula-red">{saveError}</p>}

@@ -10,9 +10,9 @@ pytestmark = pytest.mark.orchestration
 
 
 # Import components to test and dependencies
-from src.host.filtering import FilteringManager
-from src.config.config_models import AgentConfig, ClientConfig
-from src.host.foundation import MessageRouter
+from aurite.host.filtering import FilteringManager
+from aurite.config.config_models import AgentConfig, ClientConfig
+from aurite.host.foundation import MessageRouter
 
 
 # --- Fixtures ---
@@ -257,29 +257,29 @@ def test_filter_component_list_empty_input(
 # Mark all tests in this class to be run by the anyio plugin and as integration tests
 pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
-# Import HostManager for the fixture
-from src.host_manager import HostManager
+# Import Aurite for the fixture
+from aurite.host_manager import Aurite
 
 
 class TestHostFilteringIntegration:
     """Integration tests using the host_manager fixture."""
 
-    async def test_get_formatted_tools_filters_by_client_id(
-        self, host_manager: HostManager
-    ):
+    async def test_get_formatted_tools_filters_by_client_id(self, host_manager: Aurite):
         """
         Verify get_formatted_tools only returns tools from clients specified
         in AgentConfig.client_ids.
         """
         # Agent "Weather Agent" is configured with client_ids=["weather_server"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Weather Agent"
         ]
         assert agent_config.client_ids == ["weather_server"]
 
         # Get formatted tools for this agent
-        print(f"\nDEBUG: AgentConfig for Weather Agent: {agent_config.model_dump_json(indent=2)}")
+        print(
+            f"\nDEBUG: AgentConfig for Weather Agent: {agent_config.model_dump_json(indent=2)}"
+        )
         formatted_tools = host_manager.host.get_formatted_tools(
             agent_config=agent_config
         )
@@ -308,7 +308,7 @@ class TestHostFilteringIntegration:
         # We don't assert get_current_time is present here, as it might be excluded
 
     async def test_get_formatted_tools_filters_by_exclude_components(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify get_formatted_tools excludes tools specified in
@@ -316,7 +316,7 @@ class TestHostFilteringIntegration:
         """
         # Agent "Weather Agent" is configured with exclude_components=["current_time"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Weather Agent"
         ]
         assert agent_config.exclude_components == [
@@ -336,9 +336,7 @@ class TestHostFilteringIntegration:
         # Ensure the allowed tool (weather_lookup) is still present
         assert "weather_lookup" in tool_names
 
-    async def test_get_formatted_tools_filters_combined(
-        self, host_manager: HostManager
-    ):
+    async def test_get_formatted_tools_filters_combined(self, host_manager: Aurite):
         """
         Verify get_formatted_tools applies both client_ids and exclude_components
         filters correctly.
@@ -346,7 +344,7 @@ class TestHostFilteringIntegration:
         # Agent "Filtering Test Agent" uses client_ids=["planning_server"]
         # and exclude_components=["save_plan", "create_plan_prompt", "planning://plan/excluded-test-plan"]
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -375,16 +373,14 @@ class TestHostFilteringIntegration:
         for tool_name in expected_absent:
             assert tool_name not in tool_names
 
-    async def test_execute_tool_fails_on_excluded_component(
-        self, host_manager: HostManager
-    ):
+    async def test_execute_tool_fails_on_excluded_component(self, host_manager: Aurite):
         """
         Verify execute_tool raises ValueError when trying to execute a tool
         excluded by AgentConfig.exclude_components.
         """
         # Weather Agent excludes 'current_time' (corrected name)
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Weather Agent"
         ]
         assert "current_time" in agent_config.exclude_components
@@ -400,16 +396,14 @@ class TestHostFilteringIntegration:
         # Check the error message
         assert "is excluded for agent 'Weather Agent'" in str(excinfo.value)
 
-    async def test_execute_tool_fails_on_disallowed_client(
-        self, host_manager: HostManager
-    ):
+    async def test_execute_tool_fails_on_disallowed_client(self, host_manager: Aurite):
         """
         Verify execute_tool raises ValueError when trying to execute a tool
         from a client not allowed by AgentConfig.client_ids.
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -429,16 +423,14 @@ class TestHostFilteringIntegration:
         # Alternative check if the error happens later (less likely based on current host logic)
         # assert "'weather_lookup' not found on any registered client" in str(excinfo.value)
 
-    async def test_get_prompt_fails_on_excluded_component(
-        self, host_manager: HostManager
-    ):
+    async def test_get_prompt_fails_on_excluded_component(self, host_manager: Aurite):
         """
         Verify get_prompt raises ValueError when trying to get a prompt
         excluded by AgentConfig.exclude_components.
         """
         # Filtering Test Agent excludes 'create_plan_prompt'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         assert "create_plan_prompt" in agent_config.exclude_components
@@ -454,16 +446,14 @@ class TestHostFilteringIntegration:
         # Check the error message
         assert "is excluded for agent 'Filtering Test Agent'" in str(excinfo.value)
 
-    async def test_get_prompt_fails_on_disallowed_client(
-        self, host_manager: HostManager
-    ):
+    async def test_get_prompt_fails_on_disallowed_client(self, host_manager: Aurite):
         """
         Verify get_prompt raises ValueError or returns None when trying to get
         a prompt from a client not allowed by AgentConfig.client_ids.
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]
@@ -490,7 +480,7 @@ class TestHostFilteringIntegration:
         # assert "but none are allowed for agent 'Filtering Test Agent'" in str(excinfo.value)
 
     async def test_read_resource_fails_on_excluded_component(
-        self, host_manager: HostManager
+        self, host_manager: Aurite
     ):
         """
         Verify read_resource raises ValueError when trying to read a resource
@@ -498,7 +488,7 @@ class TestHostFilteringIntegration:
         """
         # Filtering Test Agent excludes 'planning://plan/excluded-test-plan'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         excluded_uri = "planning://plan/excluded-test-plan"
@@ -517,16 +507,14 @@ class TestHostFilteringIntegration:
         # Assert that None is returned because the resource wasn't found via the router
         assert resource_result is None
 
-    async def test_read_resource_fails_on_disallowed_client(
-        self, host_manager: HostManager
-    ):
+    async def test_read_resource_fails_on_disallowed_client(self, host_manager: Aurite):
         """
         Verify read_resource returns None when trying to read a resource
         from a client not allowed by AgentConfig.client_ids.
         """
         # Filtering Test Agent only allows 'planning_server'
         assert host_manager.project_manager.active_project_config is not None
-        agent_config = host_manager.project_manager.active_project_config.agents[ # Changed to .agents
+        agent_config = host_manager.project_manager.active_project_config.agents[  # Changed to .agents
             "Filtering Test Agent"
         ]
         assert agent_config.client_ids == ["planning_server"]

@@ -157,7 +157,7 @@ def test_register_client_duplicate(api_client: TestClient):
     # Fixture handles setup
     client_id_to_register = "duplicate_client_test"
     initial_server_path = "tests/fixtures/servers/weather_mcp_server.py"
-    updated_server_path = "tests/fixtures/servers/dummy_mcp_server_for_unreg.py" # Using a different valid server
+    updated_server_path = "tests/fixtures/servers/dummy_mcp_server_for_unreg.py"  # Using a different valid server
 
     client_payload_initial = {
         "client_id": client_id_to_register,
@@ -182,10 +182,10 @@ def test_register_client_duplicate(api_client: TestClient):
     # Second registration attempt with the same client_id but different server_path (update)
     client_payload_updated = {
         "client_id": client_id_to_register,
-        "server_path": updated_server_path, # Changed server_path
+        "server_path": updated_server_path,  # Changed server_path
         "roots": [],
-        "capabilities": ["tools", "prompts"], # Changed capabilities
-        "timeout": 20.0, # Changed timeout
+        "capabilities": ["tools", "prompts"],  # Changed capabilities
+        "timeout": 20.0,  # Changed timeout
         "routing_weight": 0.8,
         "exclude": None,
         "gcp_secrets": None,
@@ -198,7 +198,7 @@ def test_register_client_duplicate(api_client: TestClient):
     response_data = response2.json()
     assert response_data["status"] == "success"
     assert response_data["client_id"] == client_id_to_register
-    # To fully verify, one might need to inspect the HostManager's internal state
+    # To fully verify, one might need to inspect the Aurite's internal state
     # or have a GET endpoint for specific client configs.
 
 
@@ -249,15 +249,17 @@ def test_register_agent_duplicate_name(api_client: TestClient):
 
     agent_payload_initial = {
         "name": agent_name_to_register,
-        "client_ids": ["weather_server"], # Assumes this client exists
+        "client_ids": ["weather_server"],  # Assumes this client exists
         "system_prompt": initial_prompt,
-        "model": "claude-3-haiku-20240307", # Added model for completeness
+        "model": "claude-3-haiku-20240307",  # Added model for completeness
     }
 
     # Explicitly add auth header
     headers = {"X-API-Key": api_client.test_api_key}
     # First registration (should succeed)
-    response1 = api_client.post("/agents/register", json=agent_payload_initial, headers=headers)
+    response1 = api_client.post(
+        "/agents/register", json=agent_payload_initial, headers=headers
+    )
     assert response1.status_code == 201
     assert response1.json()["agent_name"] == agent_name_to_register
 
@@ -272,15 +274,19 @@ def test_register_agent_duplicate_name(api_client: TestClient):
         "system_prompt": updated_prompt,
         "model": "claude-3-haiku-20240307",
     }
-    response2 = api_client.post("/agents/register", json=agent_payload_updated, headers=headers)
+    response2 = api_client.post(
+        "/agents/register", json=agent_payload_updated, headers=headers
+    )
 
-    assert response2.status_code == 201  # Should still be 201 (or 200 if we prefer for updates)
+    assert (
+        response2.status_code == 201
+    )  # Should still be 201 (or 200 if we prefer for updates)
     response_data = response2.json()
     assert response_data["status"] == "success"
     assert response_data["agent_name"] == agent_name_to_register
 
     # To fully verify the update, we'd ideally GET the agent config and check the prompt.
-    # Since that endpoint isn't in this router, we rely on the HostManager logic
+    # Since that endpoint isn't in this router, we rely on the Aurite logic
     # and the success status from the registration endpoint.
     # A more comprehensive test could involve using the /configs/{type}/id/{id} endpoint
     # if the dynamic registration also saves to a file that endpoint can read.
@@ -356,7 +362,7 @@ def test_register_workflow_duplicate_name(api_client: TestClient):
 
     workflow_payload_initial = {
         "name": workflow_name_to_register,
-        "steps": ["Weather Agent"], # Assumes this agent exists
+        "steps": ["Weather Agent"],  # Assumes this agent exists
         "description": initial_description,
     }
 
@@ -372,7 +378,7 @@ def test_register_workflow_duplicate_name(api_client: TestClient):
     # Second registration attempt with the same name but different description (update)
     workflow_payload_updated = {
         "name": workflow_name_to_register,
-        "steps": ["Weather Agent"], # Steps could also be updated
+        "steps": ["Weather Agent"],  # Steps could also be updated
         "description": updated_description,
     }
     response2 = api_client.post(
@@ -475,7 +481,7 @@ def test_list_registered_custom_workflows_success(api_client: TestClient):
     assert response.status_code == 200
     custom_workflow_names = response.json()
     assert isinstance(custom_workflow_names, list)
-    expected_custom_workflows = ["ExampleCustomWorkflow"] # Corrected name
+    expected_custom_workflows = ["ExampleCustomWorkflow"]  # Corrected name
     for cwf_name in expected_custom_workflows:
         assert cwf_name in custom_workflow_names
     assert len(custom_workflow_names) >= len(expected_custom_workflows)
@@ -487,37 +493,45 @@ def test_list_registered_custom_workflows_unauthorized(api_client: TestClient):
     assert response.status_code == 401
 
 
-# To test empty lists, we would need a HostManager fixture that loads an empty config
+# To test empty lists, we would need a Aurite fixture that loads an empty config
 # or a config with no components of a specific type. For now, these tests assume
 # testing_config.json provides at least one of each.
-# If HostManager is cleared and re-initialized by api_client fixture per test,
+# If Aurite is cleared and re-initialized by api_client fixture per test,
 # we could potentially have a test that registers nothing then calls these.
 # However, the current fixture setup loads testing_config.json by default.
 # The endpoints themselves return [] if manager.*_configs is empty, which is implicitly tested.
-import json # Ensure json is imported for SSE parsing
-from typing import Dict, Any, AsyncGenerator, List # For SSE parsing, FakeLLMClient, and List type hint
+import json  # Ensure json is imported for SSE parsing
+from typing import (
+    Dict,
+    Any,
+    AsyncGenerator,
+    List,
+)  # For SSE parsing, FakeLLMClient, and List type hint
+
 
 # Helper for parsing SSE
-async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> List[Dict[str, Any]]:
+async def parse_sse_stream(
+    response_content: AsyncGenerator[bytes, None],
+) -> List[Dict[str, Any]]:
     events = []
     current_event_type = None
     current_data_lines = []
     async for line_bytes in response_content:
-        line = line_bytes.decode('utf-8').strip()
-        if not line: # Empty line signifies end of an event
+        line = line_bytes.decode("utf-8").strip()
+        if not line:  # Empty line signifies end of an event
             if current_event_type and current_data_lines:
                 try:
                     data_str = "".join(current_data_lines)
                     data_json = json.loads(data_str)
                     events.append({"event_type": current_event_type, "data": data_json})
                 except json.JSONDecodeError as e:
-                    print(f"SSE JSON Decode Error: {e} for data: {data_str}") # Or log
+                    print(f"SSE JSON Decode Error: {e} for data: {data_str}")  # Or log
             current_event_type = None
             current_data_lines = []
         elif line.startswith("event:"):
-            current_event_type = line[len("event:"):].strip()
+            current_event_type = line[len("event:") :].strip()
         elif line.startswith("data:"):
-            current_data_lines.append(line[len("data:"):].strip())
+            current_data_lines.append(line[len("data:") :].strip())
         # Ignoring id and retry for this parser
     return events
 
@@ -546,20 +560,20 @@ async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> Lis
 #         {"event_type": "stream_end", "data": {"stop_reason": "end_turn"}}
 #     ]
 
-#     # This is the challenging part: How does the HostManager's LLM client resolution
+#     # This is the challenging part: How does the Aurite's LLM client resolution
 #     # pick up a FakeLLMClient *configured with llm_event_sequence_for_test*?
-#     # Option A: Patch HostManager.llm_manager.get_client (or similar) to return our configured FakeLLMClient.
+#     # Option A: Patch Aurite.llm_manager.get_client (or similar) to return our configured FakeLLMClient.
 #     # Option B: If FakeLLMClient provider is registered, ensure it can be configured (e.g. via a global test state).
 
 #     # For now, let's use patching to inject our pre-configured FakeLLMClient instance.
 #     # We need to find where the LLM client is instantiated for an agent.
-#     # This is likely in ExecutionFacade, which gets it from HostManager.
-#     # So, we patch the method on HostManager that provides the LLM client.
+#     # This is likely in ExecutionFacade, which gets it from Aurite.
+#     # So, we patch the method on Aurite that provides the LLM client.
 
-#     # Assume HostManager has a method like `get_llm_client_instance(llm_id: str)`
+#     # Assume Aurite has a method like `get_llm_client_instance(llm_id: str)`
 #     # or `resolve_llm_client_for_agent(agent_config: AgentConfig)`
 #     # For this example, let's assume a simplified path:
-#     # ExecutionFacade calls something on HostManager, which eventually calls LLMClient.stream_message.
+#     # ExecutionFacade calls something on Aurite, which eventually calls LLMClient.stream_message.
 #     # We will patch the `stream_message` method of the specific LLM client instance
 #     # that gets resolved for our test agent. This is tricky because the instance is created dynamically.
 
@@ -671,7 +685,7 @@ async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> Lis
 #     assert llm_completed_events[0]["data"]["stop_reason"] == "end_turn"
 
 #     # Cleanup: Unregister agent and LLM config if the API supports it,
-#     # or rely on test isolation if HostManager is reset per test.
+#     # or rely on test isolation if Aurite is reset per test.
 #     # For now, assume test isolation or manual cleanup if needed.
 #     # Reset class variable on FakeLLMClient
 #     if hasattr(FakeLLMClient, 'test_event_sequence'):
@@ -679,6 +693,7 @@ async def parse_sse_stream(response_content: AsyncGenerator[bytes, None]) -> Lis
 
 
 # --- Listing Clients Endpoint Tests ---
+
 
 def test_list_registered_clients_success(api_client: TestClient):
     """Tests successfully listing registered clients."""
@@ -707,6 +722,7 @@ def test_list_registered_clients_unauthorized(api_client: TestClient):
 
 
 # --- Listing LLM Configs Endpoint Tests ---
+
 
 def test_list_registered_llm_configs_success(api_client: TestClient):
     """

@@ -7,9 +7,9 @@ import pytest
 from pathlib import Path
 
 # Import the class to test and dependencies/models
-from src.host.host import MCPHost
-from src.config.config_models import ClientConfig  # Updated import path
-from src.host_manager import HostManager  # For type hinting fixture
+from aurite.host.host import MCPHost
+from aurite.config.config_models import ClientConfig  # Updated import path
+from aurite.host_manager import Aurite  # For type hinting fixture
 
 # Mark tests as host_integration and async
 pytestmark = [pytest.mark.host_integration, pytest.mark.anyio]
@@ -19,7 +19,7 @@ pytestmark = [pytest.mark.host_integration, pytest.mark.anyio]
 
 
 # Removed timeout marker
-async def test_register_client_success(host_manager: HostManager):
+async def test_register_client_success(host_manager: Aurite):
     """Test dynamically registering a new client successfully using weather_mcp_server."""
     host: MCPHost = host_manager.host  # Get the MCPHost instance
 
@@ -61,7 +61,7 @@ async def test_register_client_success(host_manager: HostManager):
     assert "weather_server" in clients_for_tool
 
 
-async def test_register_client_duplicate_id(host_manager: HostManager):
+async def test_register_client_duplicate_id(host_manager: Aurite):
     """Test that registering a client with a duplicate ID raises an error."""
     host: MCPHost = host_manager.host
 
@@ -87,22 +87,26 @@ async def test_register_client_duplicate_id(host_manager: HostManager):
 
 
 # Removed xfail marker - relying on fixture teardown suppression
-async def test_dynamic_client_registration_and_unregistration(host_manager: HostManager):
+async def test_dynamic_client_registration_and_unregistration(host_manager: Aurite):
     """
     Test dynamically registering a client, verifying its components,
     then unregistering it and verifying components are removed.
     """
     host: MCPHost = host_manager.host
     new_client_id = "dynamic_unreg_client"
-    tool_name_for_dummy_server = "unreg_tool_test" # Matches TOOL_NAME in dummy_unreg_mcp_server.py
+    tool_name_for_dummy_server = (
+        "unreg_tool_test"  # Matches TOOL_NAME in dummy_unreg_mcp_server.py
+    )
 
     # Config for the new client, referencing the permanent dummy server
-    dummy_server_path = Path("tests/fixtures/servers/dummy_unreg_mcp_server.py").resolve()
+    dummy_server_path = Path(
+        "tests/fixtures/servers/dummy_unreg_mcp_server.py"
+    ).resolve()
     assert dummy_server_path.exists(), "Dummy server for unregistration test not found."
 
     new_client_config = ClientConfig(
         client_id=new_client_id,
-        server_path=dummy_server_path, # Use the resolved path to the permanent dummy server
+        server_path=dummy_server_path,  # Use the resolved path to the permanent dummy server
         capabilities=["tools"],
         roots=[],
     )
@@ -112,20 +116,24 @@ async def test_dynamic_client_registration_and_unregistration(host_manager: Host
     assert host.is_client_registered(new_client_id)
     assert new_client_id in host.client_manager.active_clients
     assert host.tools.has_tool(tool_name_for_dummy_server)
-    clients_for_tool = await host._message_router.get_clients_for_tool(tool_name_for_dummy_server)
+    clients_for_tool = await host._message_router.get_clients_for_tool(
+        tool_name_for_dummy_server
+    )
     assert new_client_id in clients_for_tool
 
     # 2. Unregister the client
-    await host.client_shutdown(new_client_id) # This calls the updated client_shutdown
+    await host.client_shutdown(new_client_id)  # This calls the updated client_shutdown
 
     # 3. Verify client and its specific tool are unregistered
     assert not host.is_client_registered(new_client_id)
     assert new_client_id not in host.client_manager.active_clients
 
     # Verify the tool is no longer associated with this client in the router
-    clients_for_tool_after_unreg = await host._message_router.get_clients_for_tool(tool_name_for_dummy_server)
+    clients_for_tool_after_unreg = await host._message_router.get_clients_for_tool(
+        tool_name_for_dummy_server
+    )
     assert new_client_id not in clients_for_tool_after_unreg
 
     # If this client was the *only* provider of the tool, the tool should be gone from ToolManager
-    if not clients_for_tool_after_unreg: # Check if the list is empty
+    if not clients_for_tool_after_unreg:  # Check if the list is empty
         assert not host.tools.has_tool(tool_name_for_dummy_server)

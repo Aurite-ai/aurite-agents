@@ -11,12 +11,15 @@ import json  # Add json import
 pytestmark = pytest.mark.anyio
 
 # Assuming models and executors are importable
-from src.host_manager import HostManager  # For host_manager fixture
+from aurite.host_manager import Aurite  # For host_manager fixture
+from aurite.components.agents.agent_models import (
+    AgentExecutionResult,
+)  # Import AgentExecutionResult
 
 # Test Cases
 
 
-async def test_facade_run_agent(host_manager: HostManager):
+async def test_facade_run_agent(host_manager: Aurite):
     """
     Test Case 4.2: Verify ExecutionFacade.run_agent executes a basic agent.
     Requires ANTHROPIC_API_KEY.
@@ -32,49 +35,50 @@ async def test_facade_run_agent(host_manager: HostManager):
     assert host_manager.project_manager.active_project_config is not None, (
         "Active project not loaded"
     )
-    assert (
-        agent_name in host_manager.project_manager.active_project_config.agents
-    ), f"'{agent_name}' not found for test setup."
+    assert agent_name in host_manager.project_manager.active_project_config.agents, (
+        f"'{agent_name}' not found for test setup."
+    )
     if not os.environ.get("ANTHROPIC_API_KEY"):
         pytest.skip("Requires ANTHROPIC_API_KEY environment variable")
 
     try:
-        result = await facade.run_agent(
+        agent_result: AgentExecutionResult = await facade.run_agent(
             agent_name=agent_name,
             user_message=user_message,
             session_id=session_id,  # Pass session_id
         )
-        print(f"Facade run_agent Result: {result}")
+        print(f"Facade run_agent Result: {agent_result}")
 
         # Assertions (focus on completion and basic structure)
-        assert result is not None
-        assert isinstance(result, dict)
-        assert result.get("error") is None
-        assert "final_response" in result
-        final_response_dict = result.get("final_response")  # Get the dict
-        assert final_response_dict is not None
+        assert agent_result is not None
+        assert isinstance(agent_result, AgentExecutionResult)
+        assert agent_result.error is None
+        assert agent_result.final_response is not None
+        final_response_obj = agent_result.final_response
+        assert final_response_obj is not None
         # Check for stop reason (e.g., 'end_turn' or 'tool_use' if tools were called)
-        assert final_response_dict.get("stop_reason") in ["end_turn", "tool_use"]
+        assert final_response_obj.stop_reason in ["end_turn", "tool_use"]
 
         # Content check for JSON response
-        final_content_blocks = final_response_dict.get(
-            "content", []
-        )  # Access content from dict
+        assert final_response_obj.content is not None
+        final_content_blocks = (
+            final_response_obj.content
+        )  # This is List[AgentOutputContentBlock]
         assert isinstance(final_content_blocks, list) and len(final_content_blocks) > 0
         # Assuming the JSON is in the first text block
-        first_text_block_dict = next(
+        first_text_block = next(
             (
-                block  # block is already a dict here
+                block  # block is AgentOutputContentBlock
                 for block in final_content_blocks
-                if isinstance(block, dict) and block.get("type") == "text"
+                if block.type == "text"
             ),
             None,
         )
-        assert first_text_block_dict is not None, (
+        assert first_text_block is not None, (
             "No text block found in final response content"
         )
-        assert "text" in first_text_block_dict, "Text block missing 'text' key"
-        json_text = first_text_block_dict.get("text", "")
+        assert first_text_block.text is not None, "Text block missing text content"
+        json_text = first_text_block.text
         try:
             parsed_json = json.loads(json_text)
             # Basic check for expected keys and types in the JSON response based on the schema
@@ -109,7 +113,7 @@ async def test_facade_run_agent(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_agent ---")
 
 
-async def test_facade_run_simple_workflow(host_manager: HostManager):
+async def test_facade_run_simple_workflow(host_manager: Aurite):
     """
     Test Case 4.3: Verify ExecutionFacade.run_simple_workflow executes a workflow.
     Requires ANTHROPIC_API_KEY.
@@ -161,17 +165,17 @@ async def test_facade_run_simple_workflow(host_manager: HostManager):
 @pytest.mark.xfail(
     reason="Known 'Event loop is closed' error during host_manager fixture teardown or httpx client aclose"
 )
-async def test_facade_run_custom_workflow(host_manager: HostManager):
+async def test_facade_run_custom_workflow(host_manager: Aurite):
     """
     Test Case 4.4: Verify ExecutionFacade.run_custom_workflow executes and passes facade.
     Requires ANTHROPIC_API_KEY.
     """
     print("\n--- Running Test: test_facade_run_custom_workflow ---")
     assert host_manager.execution is not None, "ExecutionFacade not initialized"
-    facade = host_manager.execution # Corrected indentation
+    facade = host_manager.execution  # Corrected indentation
 
     # Use the custom workflow defined in testing_config.json
-    workflow_name = "ExampleCustomWorkflow" # Correct name from testing_config.json
+    workflow_name = "ExampleCustomWorkflow"  # Correct name from testing_config.json
     initial_input = {"city": "Tokyo"}
     session_id = f"test_custom_session_{uuid.uuid4()}"  # Generate unique session ID
 
@@ -258,14 +262,14 @@ async def test_facade_run_custom_workflow(host_manager: HostManager):
     except Exception as e:
         print(f"Error during facade.run_custom_workflow execution: {e}")
         # Include the actual result in the failure message for better debugging
-        pytest.fail( # Corrected indentation
+        pytest.fail(  # Corrected indentation
             f"facade.run_custom_workflow execution failed: {e}. Result: {result}"
         )
 
     print("--- Test Finished: test_facade_run_custom_workflow ---")
 
 
-async def test_facade_run_agent_not_found(host_manager: HostManager):
+async def test_facade_run_agent_not_found(host_manager: Aurite):
     """
     Test Case 4.5a: Verify facade handles non-existent agent name gracefully.
     """
@@ -279,23 +283,22 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
         "Active project not loaded"
     )
     assert (
-        agent_name
-        not in host_manager.project_manager.active_project_config.agents
+        agent_name not in host_manager.project_manager.active_project_config.agents
     ), f"'{agent_name}' should not exist for this test."
 
     try:
-        result = await facade.run_agent(
+        agent_result: AgentExecutionResult = await facade.run_agent(
             agent_name=agent_name, user_message=user_message
         )
-        print(f"Facade run_agent Result (Not Found): {result}")
+        print(f"Facade run_agent Result (Not Found): {agent_result}")
 
         # Assertions: Check for error structure
-        assert result is not None
-        assert isinstance(result, dict)
-        assert result.get("error") is not None
-        assert agent_name in result.get("error", "")
-        assert "not found" in result.get("error", "").lower()
-        assert result.get("final_response") is None
+        assert agent_result is not None
+        assert isinstance(agent_result, AgentExecutionResult)
+        assert agent_result.error is not None
+        assert agent_name in agent_result.error
+        assert "not found" in agent_result.error.lower()
+        assert agent_result.final_response is None
 
         print("Assertions passed.")
 
@@ -309,7 +312,7 @@ async def test_facade_run_agent_not_found(host_manager: HostManager):
 @pytest.mark.xfail(
     reason="Known 'Event loop is closed' error during host_manager fixture teardown"
 )
-async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
+async def test_facade_run_simple_workflow_not_found(host_manager: Aurite):
     """
     Test Case 4.5b: Verify facade handles non-existent simple workflow name gracefully.
     (Marked xfail due to known event loop issue in fixture teardown)
@@ -356,7 +359,7 @@ async def test_facade_run_simple_workflow_not_found(host_manager: HostManager):
     print("--- Test Finished: test_facade_run_simple_workflow_not_found ---")
 
 
-async def test_facade_run_custom_workflow_not_found(host_manager: HostManager):
+async def test_facade_run_custom_workflow_not_found(host_manager: Aurite):
     """
     Test Case 4.5c: Verify facade handles non-existent custom workflow name gracefully.
     """

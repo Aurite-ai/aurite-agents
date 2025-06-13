@@ -6,24 +6,29 @@ These tests should ideally use an in-memory SQLite database or mocking
 to isolate the StorageManager logic from a live PostgreSQL instance.
 """
 
-import pytest
 import os
-import sqlalchemy  # Import sqlalchemy for create_engine patch
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+import sqlalchemy  # Import sqlalchemy for create_engine patch
+
 # Assuming models and manager are importable
-from src.config.config_models import AgentConfig, WorkflowConfig, CustomWorkflowConfig
-from src.storage.db_manager import StorageManager
-from src.storage.db_models import (
-    Base,
-    AgentConfigDB,
-    WorkflowConfigDB,
-    CustomWorkflowConfigDB,
+from aurite.config.config_models import (
+    AgentConfig,
+    CustomWorkflowConfig,
+    WorkflowConfig,
 )
 
 # Import only what's needed now: get_db_session and the new create_db_engine
-from src.storage.db_connection import get_db_session
+from aurite.storage.db_connection import get_db_session
+from aurite.storage.db_manager import StorageManager
+from aurite.storage.db_models import (
+    AgentConfigDB,
+    Base,
+    CustomWorkflowConfigDB,
+    WorkflowConfigDB,
+)
 
 # Use pytest-asyncio for async tests if needed, but manager methods are sync for now
 # pytestmark = pytest.mark.anyio
@@ -98,11 +103,9 @@ def test_storage_manager_init_no_db(monkeypatch):
     # No globals to reset
 
     # Instantiate StorageManager without an engine. Since AURITE_ENABLE_DB is false,
-    # HostManager wouldn't normally call create_db_engine. To simulate this for
+    # Aurite wouldn't normally call create_db_engine. To simulate this for
     # direct StorageManager instantiation, patch create_db_engine *where it's called*.
-    with patch(
-        "src.storage.db_manager.create_db_engine", return_value=None
-    ) as mock_create:
+    with patch("storage.db_manager.create_db_engine", return_value=None) as mock_create:
         manager = StorageManager()  # Should now use the mocked create_db_engine
         assert manager._engine is None
         mock_create.assert_called_once()  # Verify it was called by __init__
@@ -116,7 +119,7 @@ def test_storage_manager_init_db_error(monkeypatch):
     # No globals to reset
 
     # Patch get_database_url used by create_db_engine
-    with patch("src.storage.db_connection.get_database_url", return_value=None):
+    with patch("storage.db_connection.get_database_url", return_value=None):
         # Instantiate StorageManager without an engine; its internal call to
         # create_db_engine will call the patched get_database_url and return None.
         manager = StorageManager()  # Should call create_db_engine internally

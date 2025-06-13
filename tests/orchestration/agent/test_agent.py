@@ -2,27 +2,29 @@
 Unit tests for the Agent class, focusing on orchestration logic.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 from typing import List
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Mark all tests in this module
 pytestmark = [pytest.mark.orchestration, pytest.mark.unit, pytest.mark.anyio]
 
-# Imports from the project
-# from src.agents.agent import Agent # Old agent import removed
-from src.agents.agent import Agent  # New consolidated agent class
-
-# from src.agents.conversation_manager import ConversationManager # Removed
-from src.agents.agent_models import (
-    AgentExecutionResult,
-    AgentOutputMessage,
-    AgentOutputContentBlock,
-)
-from src.config.config_models import AgentConfig  # Added LLMConfig
-from src.llm.base_client import BaseLLM
-from src.host.host import MCPHost
 from anthropic.types import MessageParam
+
+# Imports from the project
+# from aurite.components.agents.agent import Agent # Old agent import removed
+from aurite.components.agents.agent import Agent  # New consolidated agent class
+
+# from aurite.agents.conversation_manager import ConversationManager # Removed
+from aurite.components.agents.agent_models import (
+    AgentExecutionResult,
+    AgentOutputContentBlock,
+    AgentOutputMessage,
+)
+from aurite.config.config_models import AgentConfig  # Added LLMConfig
+from aurite.host.host import MCPHost
+from aurite.components.llm.base_client import BaseLLM
 
 # --- Fixtures ---
 
@@ -69,7 +71,9 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     # Patched AgentTurnProcessor where Agent uses it
-    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Updated patch path
+    @patch(
+        "aurite.components.agents.agent.AgentTurnProcessor", autospec=True
+    )  # Updated patch path
     async def test_agent_run_conversation_single_turn_no_tool(  # Renamed test method
         self,
         MockAgentTurnProcessor: MagicMock,  # The patched class
@@ -167,7 +171,9 @@ class TestAgentUnit:  # Renamed class
         ) == mock_final_assistant_response.model_dump(mode="json")
 
     @pytest.mark.anyio
-    @patch("src.agents.agent.AgentTurnProcessor", autospec=True)  # Updated patch path
+    @patch(
+        "aurite.components.agents.agent.AgentTurnProcessor", autospec=True
+    )  # Updated patch path
     async def test_agent_run_conversation_multi_turn_with_tool(  # Renamed test
         self,
         MockAgentTurnProcessor: MagicMock,
@@ -389,7 +395,7 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "src.agents.agent.AgentTurnProcessor",
+        "aurite.components.agents.agent.AgentTurnProcessor",
         autospec=True,  # Updated patch path
     )
     async def test_agent_run_conversation_max_iterations_reached(  # Renamed test
@@ -506,7 +512,7 @@ class TestAgentUnit:  # Renamed class
 
     @pytest.mark.anyio
     @patch(
-        "src.agents.agent.AgentTurnProcessor",
+        "aurite.components.agents.agent.AgentTurnProcessor",
         autospec=True,  # Updated patch path
     )
     async def test_agent_run_conversation_schema_correction_loop(  # Renamed test

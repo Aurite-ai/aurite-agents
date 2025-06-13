@@ -5,7 +5,7 @@ Unit tests for the MessageRouter.
 import pytest
 
 # Import the class to test
-from src.host.foundation.routing import MessageRouter
+from aurite.host.foundation.routing import MessageRouter
 
 # Mark tests as host_unit and async
 pytestmark = [pytest.mark.host_unit, pytest.mark.anyio]

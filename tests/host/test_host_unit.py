@@ -7,8 +7,8 @@ configuration handling, and basic state management, using mocked clients or conf
 
 import pytest
 
-from src.host.host import MCPHost
-from src.config.config_models import HostConfig, ClientConfig
+from aurite.host.host import MCPHost
+from aurite.config.config_models import HostConfig, ClientConfig
 
 
 @pytest.mark.host_unit  # Using the same mark as test_host_lifecycle

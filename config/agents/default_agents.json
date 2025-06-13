@@ -1,11 +1,10 @@
 [
     {
         "name": "Weather Agent",
-        "client_ids": [
-            "weather_server"
-        ],
-        "llm_config_id": null,
-        "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
+        "mcp_servers": [],
+        "auto": false,
+        "llm_config_id": "anthropic_claude_3_opus",
+        "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations in your response - just the JSON object.",
         "config_validation_schema": {
             "type": "object",
             "properties": {
@@ -58,10 +57,8 @@
     },
     {
         "name": "Weather Planning Agent",
-        "client_ids": [
-            "weather_server",
-            "planning_server"
-        ],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve.",
         "config_validation_schema": null,
@@ -75,9 +72,8 @@
     },
     {
         "name": "Weather Planning Workflow Step 1",
-        "client_ids": [
-            "weather_server"
-        ],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "Your job is to use the tools at your disposal to research the current weather in San Fransisco. Respond with this information",
         "config_validation_schema": null,
@@ -91,9 +87,8 @@
     },
     {
         "name": "Weather Planning Workflow Step 2",
-        "client_ids": [
-            "planning_server"
-        ],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "You have been provided with weather information for San Francisco in the user message. Your ONLY task is to use the 'save_plan' tool to create and save a plan detailing what someone should wear based *only* on the provided weather information. \\n\\nCRITICAL: \\n1. ONLY use the 'save_plan' tool. Do NOT use any other tools (like weather_lookup or current_time).\\n2. When calling 'save_plan', ensure the 'tags' argument is provided as a JSON list of strings (e.g., [\"weather\", \"clothing\", \"san francisco\"]).\\n3. If the user message does NOT contain clear weather information (temperature, condition), respond with the text 'Cannot create plan, weather data missing.' and do NOT attempt to use any tools.",
         "config_validation_schema": null,
@@ -107,9 +102,8 @@
     },
     {
         "name": "Filtering Test Agent",
-        "client_ids": [
-            "planning_server"
-        ],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "This agent tests filtering. It should only see planning_server and exclude the save_plan tool, create_plan_prompt, and a specific resource.",
         "config_validation_schema": null,
@@ -127,7 +121,8 @@
     },
     {
         "name": "Planning Agent",
-        "client_ids": [],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
         "config_validation_schema": null,
@@ -143,9 +138,8 @@
     },
     {
         "name": "Mapping Agent",
-        "client_ids": [
-            "address_server"
-        ],
+        "mcp_servers": [],
+        "auto": false,
         "llm_config_id": null,
         "system_prompt": "You are a helpful assistant specializing in maps and directions. Use the tools to help the user with their requests.",
         "config_validation_schema": null,

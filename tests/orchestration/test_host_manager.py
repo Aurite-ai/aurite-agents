@@ -1,42 +1,43 @@
 """
-Tests for the HostManager class.
+Tests for the Aurite class.
 """
 
 import pytest
 
-# Mark all tests in this module as belonging to the Orchestration layer and use anyio
-pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
-
 
 # Assuming tests run from project root
-from src.host_manager import HostManager
-from src.host.host import MCPHost
-from src.config.config_models import (
+from aurite.host_manager import Aurite
+from aurite.host.host import MCPHost
+from aurite.config.config_models import (
     AgentConfig,
     WorkflowConfig,
     CustomWorkflowConfig,
 )
 
-# Expected counts based on loading config/testing_config.json
-EXPECTED_CLIENT_COUNT = 3
-EXPECTED_AGENT_COUNT = 7
-EXPECTED_LLM_CONFIG_COUNT = 0  # testing_config.json doesn't define any LLM configs
+# Mark all tests in this module as belonging to the Orchestration layer and use anyio
+pytestmark = [pytest.mark.orchestration, pytest.mark.anyio]
+
+
+# Expected counts based on loading aurite_config.json
+EXPECTED_CLIENT_COUNT = 2
+EXPECTED_AGENT_COUNT = 9
+EXPECTED_LLM_CONFIG_COUNT = 4
 EXPECTED_WORKFLOW_COUNT = 1
-EXPECTED_CUSTOM_WORKFLOW_COUNT = 1
+EXPECTED_CUSTOM_WORKFLOW_COUNT = 0
 
 
-@pytest.mark.integration  # Tests HostManager with real ProjectManager and real MCPHost/clients
-class TestHostManagerInitialization:
-    """Tests related to HostManager initialization."""
+@pytest.mark.integration  # Tests Aurite with real ProjectManager and real MCPHost/clients
+class TestAuriteInitialization:
+    """Tests related to Aurite initialization."""
 
     # @pytest.mark.asyncio # Removed - covered by module-level pytestmark
     # @pytest.mark.xfail( # Assuming the event loop issue might be resolved or less prevalent with mocks
     #     reason="Known 'Event loop is closed' error during host_manager fixture teardown"
     # ) # Keep xfail for now if it persists, but test with it removed first.
-    async def test_host_manager_initialization_success(self, host_manager: HostManager):
+    async def test_host_manager_initialization_success(self, host_manager: Aurite):
         """
         Verify that the host_manager fixture successfully initializes the
-        HostManager using the mocked ProjectManager, loads configurations,
+        Aurite using the mocked ProjectManager, loads configurations,
         and initializes the MCPHost.
         """
         # Assertions using the host_manager fixture instance
@@ -52,36 +53,28 @@ class TestHostManagerInitialization:
         # Check if configs are loaded into the active_project managed by ProjectManager
         assert len(active_project.agents) == EXPECTED_AGENT_COUNT
         assert all(
-            isinstance(cfg, AgentConfig)
-            for cfg in active_project.agents.values()
+            isinstance(cfg, AgentConfig) for cfg in active_project.agents.values()
         )
         assert "Weather Agent" in active_project.agents  # Check a known agent
         assert "Planning Agent" in active_project.agents  # Check another
 
-        assert (
-            len(active_project.llms) == EXPECTED_LLM_CONFIG_COUNT
-        )  # Should be 0
+        assert len(active_project.llms) == EXPECTED_LLM_CONFIG_COUNT  # Should be 0
 
         assert len(active_project.simple_workflows) == EXPECTED_WORKFLOW_COUNT
         assert all(
             isinstance(cfg, WorkflowConfig)
             for cfg in active_project.simple_workflows.values()
         )
-        assert (
-            "main" in active_project.simple_workflows
-        )  # Check the workflow name
+        assert "main" in active_project.simple_workflows  # Check the workflow name
 
-        assert (
-            len(active_project.custom_workflows)
-            == EXPECTED_CUSTOM_WORKFLOW_COUNT
-        )
+        assert len(active_project.custom_workflows) == EXPECTED_CUSTOM_WORKFLOW_COUNT
         assert all(
             isinstance(cfg, CustomWorkflowConfig)
             for cfg in active_project.custom_workflows.values()
         )
-        assert (
-            "ExampleCustomWorkflow" in active_project.custom_workflows
-        )  # Check the custom workflow name
+        # assert (
+        #     "ExampleCustomWorkflow" in active_project.custom_workflows
+        # )  # Check the custom workflow name - Removed as EXPECTED_CUSTOM_WORKFLOW_COUNT is 0
 
         # Check if the underlying host seems initialized (e.g., has clients from config)
         assert host_manager.host.client_manager.active_clients is not None
@@ -93,12 +86,12 @@ class TestHostManagerInitialization:
             "weather_server" in host_manager.host.client_manager.active_clients
         )  # Check client IDs from config
         assert "planning_server" in host_manager.host.client_manager.active_clients
-        assert "address_server" in host_manager.host.client_manager.active_clients
+        # assert "address_server" in host_manager.host.client_manager.active_clients # Removed, not in aurite_config.json
 
         # Check if tool manager seems populated (via host property)
         # This depends on the servers actually starting and registering tools.
         # The dummy_server1.py, weather_mcp_server.py, planning_server.py would need to be runnable.
-        # For a more robust unit/integration test of HostManager with mocked ProjectManager,
+        # For a more robust unit/integration test of Aurite with mocked ProjectManager,
         # we might not need to assert specific tools if client init is complex.
         # However, if the dummy client paths in mock_project_config_object are valid and runnable,
         # we can expect some tools.

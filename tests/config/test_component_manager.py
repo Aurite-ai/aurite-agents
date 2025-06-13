@@ -1,23 +1,21 @@
-import pytest
 import json
 from pathlib import Path
 
-from src.config.component_manager import (
-    ComponentManager,
-    COMPONENT_TYPES_DIRS,
-)
-from src.config.config_models import (
-    ClientConfig,
+import pytest
+
+from aurite.config import PROJECT_ROOT_DIR  # To help with asserting path conversions
+from aurite.config.component_manager import COMPONENT_TYPES_DIRS, ComponentManager
+from aurite.config.config_models import (  # Import specific models for type checking
     AgentConfig,
-)  # Import specific models for type checking
-from src.config import PROJECT_ROOT_DIR  # To help with asserting path conversions
+    ClientConfig,
+)
 
 # Fixtures from tests.fixtures.config_fixtures
 from ..fixtures.config_fixtures import (
-    VALID_CLIENT_CONFIG_DATA_MINIMAL,
-    VALID_AGENT_CONFIG_DATA,
-    INVALID_CLIENT_CONFIG_MISSING_ID,
     INVALID_AGENT_CONFIG_BAD_TEMP_TYPE,
+    INVALID_CLIENT_CONFIG_MISSING_ID,
+    VALID_AGENT_CONFIG_DATA,
+    VALID_CLIENT_CONFIG_DATA_MINIMAL,
 )
 
 
@@ -55,7 +53,7 @@ def component_manager_empty(temp_config_root: Path, monkeypatch) -> ComponentMan
 
     # Monkeypatch the global COMPONENT_TYPES_DIRS to use these temporary paths
     monkeypatch.setattr(
-        "src.config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
+        "config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
     )
 
     # Also, ensure PROJECT_ROOT_DIR is patched if tests rely on it for path resolution
@@ -63,7 +61,7 @@ def component_manager_empty(temp_config_root: Path, monkeypatch) -> ComponentMan
     # For ComponentManager itself, it uses the patched COMPONENT_TYPES_DIRS.
     # The main concern for PROJECT_ROOT_DIR is if fixture data contains paths
     # like "fixtures/servers/dummy_server.py" which are relative to the *actual* project root.
-    # The config_utils.resolve_path_fields will use the PROJECT_ROOT_DIR from src.config.
+    # The config_utils.resolve_path_fields will use the PROJECT_ROOT_DIR from aurite.config.
     # For tests, this should be fine as long as the fixture paths are valid relative to the real project root.
 
     cm = ComponentManager()  # Will load from the (empty) temp dirs
@@ -252,7 +250,7 @@ def test_load_all_components_after_creation(temp_config_root: Path, monkeypatch)
         for key in COMPONENT_TYPES_DIRS
     }
     monkeypatch.setattr(
-        "src.config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
+        "config.component_manager.COMPONENT_TYPES_DIRS", temp_component_dirs
     )
 
     # Manually create a component file in the temp location

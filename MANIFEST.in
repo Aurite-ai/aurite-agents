@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+graft src/aurite/packaged
+recursive-include src/aurite/packaged/static_ui *
+recursive-include src *.pyi # For type stubs if any
+include src/aurite/py.typed # For PEP 561 compliance if src/aurite is the package dir
+
+# If your package directory is just 'aurite' directly under 'src/'
+# and 'src' itself is not part of the package name installed in site-packages,
+# then py.typed should be in 'src/aurite/py.typed'.
+# The [tool.setuptools.packages.find] where = ["src"] include = ["aurite*"]
+# and package_dir = {"" = "src"} in pyproject.toml ensures 'src/aurite'
+# is treated as the 'aurite' package.
