@@ -87,6 +87,107 @@ DB_PARAMS = {
     "port": os.getenv("MOCK_AUTO_PORT"),
 }
 
+@mcp.tool()
+def execute_select(query: str) -> list:
+    """
+    Executes a SELECT query on the automotive database. The database has the following format:
+    -- 1. customers
+CREATE TABLE customers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255),
+    created_at TIMESTAMP,
+    credit_score INT,
+    income_bracket VARCHAR(50),
+    financing_status VARCHAR(50)
+);
+
+-- 2. customer_contacts
+CREATE TABLE customer_contacts (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    type VARCHAR(50),
+    label VARCHAR(50),
+    value VARCHAR(255),
+    preferred BOOLEAN,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- 3. agents
+CREATE TABLE agents (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    role VARCHAR(50),
+    active BOOLEAN
+);
+
+-- 4. interactions
+CREATE TABLE interactions (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    agent_id UUID,
+    channel VARCHAR(50),
+    notes TEXT,
+    interaction_at TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- 5. cars
+CREATE TABLE cars (
+    id UUID PRIMARY KEY,
+    make VARCHAR(50),
+    model VARCHAR(50),
+    year INT,
+    price DECIMAL(10, 2),
+    inventory_status VARCHAR(50)
+);
+
+-- 6. sales
+CREATE TABLE sales (
+    id UUID PRIMARY KEY,
+    customer_id UUID,
+    agent_id UUID,
+    car_id UUID,
+    price DECIMAL(10, 2),
+    status VARCHAR(50),
+    reason_lost TEXT,
+    sold_at TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (agent_id) REFERENCES agents(id),
+    FOREIGN KEY (car_id) REFERENCES cars(id)
+);
+
+-- 7. promotions
+CREATE TABLE promotions (
+    id UUID PRIMARY KEY,
+    car_id UUID,
+    title VARCHAR(255),
+    discount DECIMAL(10, 2),
+    valid_from DATE,
+    valid_until DATE,
+    FOREIGN KEY (car_id) REFERENCES cars(id)
+);
+    
+    Args:
+        query (str): SQL SELECT query to execute
+    
+    Returns:
+        list: List of tuples containing the query results
+        
+    Raises:
+        ValueError: If query is not a SELECT statement
+    """
+    # Normalize query by removing extra whitespace and converting to uppercase
+    normalized_query = query.strip().upper()
+    
+    # Verify query starts with SELECT
+    if not normalized_query.startswith('SELECT'):
+        raise ValueError("Query must be a SELECT statement")
+        
+    return execute_query(query)
+
 def search_customers(search_params: dict = None, limit: int = 10) -> dict[str, str | Customer]:
     """
     Search for customers based on provided parameters
@@ -333,107 +434,6 @@ def _search_models(model_class: type[BaseModel], table_name: str, search_params:
             cursor.close()
         if conn:
             conn.close()
-            
-@mcp.tool()
-def execute_select(query: str) -> list:
-    """
-    Executes a SELECT query on the automotive database. The database has the following format:
-    -- 1. customers
-CREATE TABLE customers (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255),
-    created_at TIMESTAMP,
-    credit_score INT,
-    income_bracket VARCHAR(50),
-    financing_status VARCHAR(50)
-);
-
--- 2. customer_contacts
-CREATE TABLE customer_contacts (
-    id UUID PRIMARY KEY,
-    customer_id UUID,
-    type VARCHAR(50),
-    label VARCHAR(50),
-    value VARCHAR(255),
-    preferred BOOLEAN,
-    FOREIGN KEY (customer_id) REFERENCES customers(id)
-);
-
--- 3. agents
-CREATE TABLE agents (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255),
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    role VARCHAR(50),
-    active BOOLEAN
-);
-
--- 4. interactions
-CREATE TABLE interactions (
-    id UUID PRIMARY KEY,
-    customer_id UUID,
-    agent_id UUID,
-    channel VARCHAR(50),
-    notes TEXT,
-    interaction_at TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id),
-    FOREIGN KEY (agent_id) REFERENCES agents(id)
-);
-
--- 5. cars
-CREATE TABLE cars (
-    id UUID PRIMARY KEY,
-    make VARCHAR(50),
-    model VARCHAR(50),
-    year INT,
-    price DECIMAL(10, 2),
-    inventory_status VARCHAR(50)
-);
-
--- 6. sales
-CREATE TABLE sales (
-    id UUID PRIMARY KEY,
-    customer_id UUID,
-    agent_id UUID,
-    car_id UUID,
-    price DECIMAL(10, 2),
-    status VARCHAR(50),
-    reason_lost TEXT,
-    sold_at TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id),
-    FOREIGN KEY (agent_id) REFERENCES agents(id),
-    FOREIGN KEY (car_id) REFERENCES cars(id)
-);
-
--- 7. promotions
-CREATE TABLE promotions (
-    id UUID PRIMARY KEY,
-    car_id UUID,
-    title VARCHAR(255),
-    discount DECIMAL(10, 2),
-    valid_from DATE,
-    valid_until DATE,
-    FOREIGN KEY (car_id) REFERENCES cars(id)
-);
-    
-    Args:
-        query (str): SQL SELECT query to execute
-    
-    Returns:
-        list: List of tuples containing the query results
-        
-    Raises:
-        ValueError: If query is not a SELECT statement
-    """
-    # Normalize query by removing extra whitespace and converting to uppercase
-    normalized_query = query.strip().upper()
-    
-    # Verify query starts with SELECT
-    if not normalized_query.startswith('SELECT'):
-        raise ValueError("Query must be a SELECT statement")
-        
-    return execute_query(query)
 
 def execute_query(query: str) -> list | str:
     """
@@ -466,7 +466,13 @@ def execute_query(query: str) -> list | str:
         conn.close()
 
 def rebuild_tables():
-    print(execute_query("DROP TABLE customers CASCADE;"))
+    print(execute_query("""DROP TABLE IF EXISTS promotions;
+DROP TABLE IF EXISTS sales;
+DROP TABLE IF EXISTS cars;
+DROP TABLE IF EXISTS interactions;
+DROP TABLE IF EXISTS customer_contacts;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS customers;"""))
     
     print(execute_query("""-- 1. customers
 CREATE TABLE customers (
@@ -547,7 +553,33 @@ CREATE TABLE promotions (
     FOREIGN KEY (car_id) REFERENCES cars(id)
 );"""))
 
-def create_fake_data(customer_count: int = 10, agent_count: int = 5, interaction_count: int = 10, owned_car_count: int = 10, available_car_count: int = 10, promotion_count: int = 5):
+def create_fake_data(multiplier: int = 1, customer_count: int = 10, agent_count: int = 5, interaction_count: int = 10, owned_car_count: int = 10, available_car_count: int = 10, promotion_count: int = 5):
+    """Creates and inserts fake data into all database tables for testing purposes.
+
+    Generates realistic test data for an automotive dealership database including customers,
+    customer contacts, agents, interactions, cars (both sold and available), sales records,
+    and promotional offers. All generated data is inserted into the corresponding database tables.
+
+    Args:
+        multiplier (int, optional): Number to multiply all count parameters by. Useful to quickly adjust order of magnitude of data generated. Defaults to 1. 
+        customer_count (int, optional): Base number of customers to create. Defaults to 10.
+        agent_count (int, optional): Base number of agents to create. Defaults to 5.
+        interaction_count (int, optional): Base number of customer-agent interactions to create. Defaults to 10.
+        owned_car_count (int, optional): Base number of sold cars to create. Defaults to 10.
+        available_car_count (int, optional): Base number of available cars to create. Defaults to 10.
+        promotion_count (int, optional): Base number of promotions to create. Defaults to 5.
+
+    The actual number of records created will be the base counts multiplied by the multiplier parameter.
+    Each customer will have 1-3 contact methods generated.
+    Each sold car will have an associated sales record.
+    Promotions are only created for available cars.
+
+    Note:
+        Requires the Faker library for generating realistic fake data.
+        Uses random selection from predefined lists for car makes/models and status values.
+        Dates are generated within reasonable ranges (e.g., last 10 years for most records).
+    """
+    
     fake = Faker()
 
     customers = []
@@ -558,6 +590,13 @@ def create_fake_data(customer_count: int = 10, agent_count: int = 5, interaction
     available_cars = []
     sales = []
     promotions = []
+    
+    customer_count *= multiplier
+    agent_count *= multiplier
+    interaction_count *= multiplier
+    owned_car_count *= multiplier
+    available_car_count *= multiplier
+    promotion_count *= multiplier
     
     # customers
     for i in range(customer_count):
@@ -575,7 +614,7 @@ def create_fake_data(customer_count: int = 10, agent_count: int = 5, interaction
         preferred = True
         
         #customer_contacts
-        for i in range(random.randrange(1,3)):
+        for i in range(random.randrange(1,4)):
             contact_type = random.choice(["email", "phone", "whatsapp", "messenger"])
             match contact_type:
                 case "email":
@@ -746,18 +785,6 @@ def _establish_connection():
 if __name__ == "__main__":
     # rebuild_tables()
     
-    # create_fake_data()
-    
-    # print(add_fake_people(5))
-    
-    '''
-    print(_search_models(model_class=Customer, table_name="customers"))
-    print(_search_models(model_class=CustomerContact, table_name="customer_contacts"))
-    print(_search_models(model_class=Agent, table_name="agents"))
-    print(_search_models(model_class=Interaction, table_name="interactions"))
-    print(_search_models(model_class=Car, table_name="cars"))
-    print(_search_models(model_class=Sale, table_name="sales"))
-    print(_search_models(model_class=Promotion, table_name="promotions"))
-    '''
+    # create_fake_data(multiplier=100)
     
     mcp.run(transport="stdio")
