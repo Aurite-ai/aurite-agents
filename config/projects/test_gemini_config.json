@@ -1,0 +1,51 @@
+{
+  "name": "TestGeminiHost",
+  "description": "Simple host for testing the Gemini config.",
+  "clients": [
+    "planning_server",
+    {
+      "client_id": "mapping_server",
+      "server_path": "tests/prompt_validation/dummy_mcp_server.py",
+      "capabilities": ["tools", "prompts"],
+      "timeout": 15.0,
+      "routing_weight": 1.0,
+      "roots": []
+    }
+  ],
+  "agents": [
+    {
+      "name": "Planning Agent",
+      "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
+      "client_ids": [],
+      "llm_config_id": "gemini-2.5",
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": ["current_time"]
+    },
+    {
+      "name": "Mapping Agent",
+      "system_prompt": "Your job is to use the tools at your disposal to answer the user's query.",
+      "client_ids": ["mapping_server"],
+      "llm_config_id": "gemini-2.5",
+      "max_iterations": 10,
+      "include_history": "True",
+      "exclude_components": ["current_time"]
+    }
+  ],
+  "simple_workflows": [
+    
+  ],
+  "custom_workflows": [
+    
+  ],
+  "llms": [
+    {
+      "llm_id": "gemini-2.5",
+      "provider": "gemini",
+      "model_name": "gemini-2.5-pro-preview-03-25",
+      "temperature": 0.1,
+      "max_tokens": 4096,
+      "default_system_prompt": "You are a helpful assistant."
+    }
+  ]
+}
