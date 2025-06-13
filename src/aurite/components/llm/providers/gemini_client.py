@@ -4,6 +4,7 @@ LLM Client for Gemini
 
 import os
 import logging
+import json
 from typing import List, Optional, Dict, Any, AsyncGenerator
 
 from typing import cast
@@ -99,21 +100,30 @@ class GeminiLLM(BaseLLM):
             tool = types.Tool(function_declarations=typed_tools)
             
             if schema:
-                config = types.GenerateContentConfig(
-                    tools=[tool],
-                    system_instruction=resolved_system_prompt,
-                    temperature=temperature_to_use,
-                    max_output_tokens=max_tokens_to_use,
-                    response_mime_type="application/json",
-                    response_schema=schema
-                )
-            else:
-                config = types.GenerateContentConfig(
-                    tools=[tool],
-                    system_instruction=resolved_system_prompt,
-                    temperature=temperature_to_use,
-                    max_output_tokens=max_tokens_to_use
-                )
+                # gemini does support structured output, but not at the same time as tool calling
+                # so we are just adding the output schema to the prompt
+                try:
+                    schema_str = json.dumps(schema, indent=2)
+                    schema_injection = f"""
+    Your response must be valid JSON matching this schema:
+    {schema_str}
+
+    Remember to format your response as a valid JSON object. Start your response with an open curly bracket, and end it with a closed curly bracket"""
+                    if resolved_system_prompt:
+                        resolved_system_prompt = (
+                            f"{resolved_system_prompt}\n{schema_injection}"
+                        )
+                    else:
+                        resolved_system_prompt = schema_injection
+                except Exception as json_err:
+                    logger.error(f"Failed to serialize schema for injection: {json_err}")
+                
+            config = types.GenerateContentConfig(
+                tools=[tool],
+                system_instruction=resolved_system_prompt,
+                temperature=temperature_to_use,
+                max_output_tokens=max_tokens_to_use
+            )
             
             gemini_response = self.gemini_client.models.generate_content(
                 model=model_to_use, config=config, contents=typed_messages
@@ -255,3 +265,7 @@ class GeminiLLM(BaseLLM):
                 
             # TODO: implement other types if they are used
         return parts
+    
+    async def aclose(self):
+        """Gemini does not have a close method, cleanup is handled automatically."""
+        pass
