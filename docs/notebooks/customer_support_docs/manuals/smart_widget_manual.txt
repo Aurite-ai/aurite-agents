@@ -1,5 +1,163 @@
 # Smart-Widget User Manual
 
+## Table of Contents
+1. [Getting Started](#getting-started)
+2. [Setup Instructions](#setup-instructions)
+3. [Features](#features)
+4. [Technical Specifications](#technical-specifications)
+5. [Troubleshooting](#troubleshooting)
+6. [Smart Home Integration](#smart-home-integration)
+
+## Getting Started
+
+Congratulations on your purchase of the GadgetCo Smart-Widget! This manual will guide you through setup and usage.
+
+### What's in the Box
+- Smart-Widget device
+- Power adapter
+- Quick start guide
+- Warranty card
+
+### Initial Setup Requirements
+- Smartphone or tablet (iOS 12+ or Android 8+)
+- WiFi network (2.4GHz required)
+- GadgetCo account (free)
+
+## Setup Instructions
+
+### Step 1: Download the App
+Download the "GadgetCo Home" app from the App Store or Google Play Store.
+
+### Step 2: Create Account
+Open the app and create your free GadgetCo account using your email address.
+
+### Step 3: Power On Device
+Connect the Smart-Widget to power using the included adapter. The device will show a pulsing blue light when ready for setup.
+
+### Step 4: Add Device
+In the app, tap "Add Device" and follow the setup wizard. The app will guide you through WiFi connection and device pairing.
+
+### Step 5: Customize Settings
+Once connected, customize your device name, location, and preferences in the app.
+
+## Features
+
+### Voice Control
+The Smart-Widget responds to the wake word "Hey Widget" followed by your command. Supported commands include:
+- "What's the weather?"
+- "Set a timer for 10 minutes"
+- "Play my morning playlist"
+- "Turn on the living room lights"
+
+### Health Monitoring
+The device can track:
+- Room temperature and humidity
+- Air quality index
+- Sleep patterns (when placed in bedroom)
+- Activity reminders
+
+### Entertainment
+- Stream music from Spotify, Apple Music, or Amazon Music
+- Built-in speakers with 360-degree sound
+- Podcast and audiobook support
+- Multi-room audio (with multiple devices)
+
+### Home Automation
+Control compatible smart home devices:
+- Smart lights and switches
+- Thermostats
+- Security cameras
+- Door locks
+
 ## Technical Specifications
+
+### Hardware
 - Processor: ARM Cortex-A53 quad-core
 - RAM: 1GB DDR3
+- Storage: 8GB eMMC
+- WiFi: 802.11 b/g/n (2.4GHz)
+- Bluetooth: 5.0
+- Speakers: Dual 10W drivers
+- Microphones: 4-array far-field
+
+### Sensors
+- Temperature sensor (±0.5°C accuracy)
+- Humidity sensor (±3% accuracy)
+- Air quality sensor (PM2.5, VOC)
+- Ambient light sensor
+- Motion detector (PIR)
+
+### Physical
+- Dimensions: 6.5" × 6.5" × 3.2"
+- Weight: 2.1 lbs
+- Power: 12V DC, 2A
+- Operating temperature: 32°F to 95°F
+- Humidity range: 20% to 80% RH
+
+## Troubleshooting
+
+### Device Won't Power On
+1. Check power adapter connection
+2. Try a different power outlet
+3. Ensure power adapter is the original GadgetCo adapter
+4. Contact support if issue persists
+
+### WiFi Connection Issues
+1. Verify WiFi password is correct
+2. Ensure network is 2.4GHz (5GHz not supported)
+3. Move device closer to router during setup
+4. Restart router and try again
+5. Check for network firewall blocking device
+
+### Voice Commands Not Working
+1. Check microphone isn't muted (should show blue light)
+2. Speak clearly from within 10 feet
+3. Reduce background noise
+4. Retrain voice recognition in app settings
+5. Update device firmware through app
+
+### App Connection Problems
+1. Ensure phone and device are on same WiFi network
+2. Update GadgetCo Home app to latest version
+3. Restart the app
+4. Re-pair device if necessary
+5. Check internet connection stability
+
+### Factory Reset
+If other troubleshooting fails:
+1. Hold the reset button (small button on bottom) for 10 seconds
+2. Device will flash red, then return to setup mode (pulsing blue)
+3. Re-add device through app setup process
+
+## Smart Home Integration
+
+### Amazon Alexa
+1. Open Alexa app
+2. Go to Skills & Games
+3. Search for "GadgetCo"
+4. Enable skill and link your GadgetCo account
+5. Discover devices
+
+### Google Assistant
+1. Open Google Home app
+2. Tap "+" then "Set up device"
+3. Choose "Works with Google"
+4. Search for "GadgetCo" and link account
+5. Assign devices to rooms
+
+### Apple HomeKit
+1. Open Home app on iOS device
+2. Tap "+" then "Add Accessory"
+3. Scan QR code on device bottom or enter setup code
+4. Follow setup prompts
+5. Assign to room and configure scenes
+
+## Support
+
+For additional help:
+- Visit support.gadgetco.com
+- Email: support@gadgetco.com
+- Phone: 1-800-GADGET-1
+- Live chat available 24/7 through the app
+
+Warranty and return information available at gadgetco.com/warranty
