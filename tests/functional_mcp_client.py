@@ -79,7 +79,7 @@ class MCPClient:
                         expanded_args.append(arg)
                 args = expanded_args
                 server_params = StdioServerParameters(
-                    command=command, args=args, env=None
+                    command=command, args=args, env=os.environ.copy()
                 )
                 transport_context = stdio_client(server_params)
 
@@ -93,7 +93,9 @@ class MCPClient:
                 )
             command = "python" if is_python else "node"
             args = [server_config_str]
-            server_params = StdioServerParameters(command=command, args=args, env=None)
+            server_params = StdioServerParameters(
+                command=command, args=args, env=os.environ.copy()
+            )
             transport_context = stdio_client(server_params)
 
         transport_streams = await self.exit_stack.enter_async_context(transport_context)

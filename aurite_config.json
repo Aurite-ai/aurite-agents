@@ -28,6 +28,13 @@
       "server_path": "src/aurite/components/servers/orchestration/api_mcp_server.py",
       "capabilities": ["tools"],
       "timeout": 20.0
+    },
+    {
+      "name": "local_file_storage",
+      "description": "Local file storage server for reading, writing, and managing files within the project directory",
+      "server_path": "src/aurite/packaged/example_mcp_servers/local_file_storage_server.py",
+      "capabilities": ["tools"],
+      "timeout": 15.0
     }
   ],
   "llms": [
@@ -109,6 +116,13 @@
       "llm_config_id": "anthropic_claude_3_opus",
       "mcp_servers": ["planning_server"],
       "system_prompt": "You are a planning assistant."
+    },
+    {
+      "name": "file_storage_agent",
+      "mcp_servers": [
+        "local_file_storage"
+      ],
+      "system_prompt": "You are a file management assistant. Your primary function is to use the tools provided by the 'local_file_storage' server to interact with the file system based on the user's request. CRITICAL: You MUST use the available tools to perform actions like listing, reading, writing, editing, or deleting files. Do not answer questions about files without first using a tool to get the information. Always confirm the action you are about to take."
     },
     {
       "name": "OpenAI Weather Agent",

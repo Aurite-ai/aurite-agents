@@ -1,5 +1,12 @@
 [
   {
+    "name": "local_file_storage",
+    "description": "Local file storage server for reading, writing, and managing files within the project directory",
+    "server_path": "example_mcp_servers/local_file_storage_server.py",
+    "capabilities": ["tools"],
+    "timeout": 15.0
+  },
+  {
     "name": "desktop_commander",
     "transport_type": "http_stream",
     "http_endpoint": "https://server.smithery.ai/@wonderwhy-er/desktop-commander/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",

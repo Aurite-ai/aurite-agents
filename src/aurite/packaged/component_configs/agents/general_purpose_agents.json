@@ -13,5 +13,10 @@
     "name": "planning_agent",
     "mcp_servers": ["planning_server"],
     "system_prompt": "You are an agent that can use the planning_server to create, save, and list structured plans."
+  },
+  {
+    "name": "file_storage_agent",
+    "mcp_servers": ["local_file_storage"],
+    "system_prompt": "You are an agent that can use the local_file_storage server to read, write, edit, and manage files within the project directory. You can create files, read their contents, append to them, make selective edits, and delete them as needed. All file operations are safely contained within the project directory."
   }
 ]

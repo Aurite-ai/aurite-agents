@@ -1,4 +1,4 @@
-# Module 2: Tutorial - Running Agents with the Aurite CLI
+# Tutorial 7 - Running Agents with the Aurite CLI
 
 Welcome to the next step in your Aurite journey! In the previous tutorials, you learned how to configure agents in JSON files and run them using a Python script. Now, you'll learn a more direct and powerful way to interact with your agents: the **Aurite Command-Line Interface (CLI)**.
 

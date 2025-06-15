@@ -189,3 +189,4 @@ docs/.copilot/
 notebook-venv/
 docs/guides/
 docs/reports/newman/*
+docs/notebooks/gadgetco_support_bot/

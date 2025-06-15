@@ -107,3 +107,28 @@ python tests/functional_mcp_client.py '{"name": "planning_server"}' "Use the 'cr
 **Relevant Agents:**
 *   **`planning_agent`**: An agent that can create, save, and list structured plans using the planning_server.
     *   **Configuration File**: `config/agents/general_purpose_agents.json`
+
+### `local_file_storage`
+
+*   **Description**: A secure local file system server that provides comprehensive file operations within the project directory. This server offers safe file management capabilities with built-in security features to prevent path traversal attacks.
+*   **Configuration File**: `config/mcp_servers/general_purpose_servers.json`
+
+**Tools:**
+
+| Tool Name | Description |
+| --- | --- |
+| `list_directory` | List all files and directories in the project directory |
+| `read_file` | Read the contents of a file |
+| `save_file` | Write content to a file atomically |
+| `append_file` | Append content to the end of a file |
+| `delete_this_file` | Delete a specified file from the filesystem |
+| `edit_file` | Make selective edits to files using pattern matching |
+
+**Example Usage:**
+```
+python tests/functional_mcp_client.py '{"name": "local_file_storage"}' "Create a file called 'example.txt' with some content, then read it back"
+```
+
+**Relevant Agents:**
+*   **`file_storage_agent`**: An agent that can use the local_file_storage server to read, write, edit, and manage files within the project directory.
+    *   **Configuration File**: `config/agents/general_purpose_agents.json`

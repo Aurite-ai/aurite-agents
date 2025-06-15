@@ -1,0 +1,5 @@
+# Smart-Widget User Manual
+
+## Technical Specifications
+- Processor: ARM Cortex-A53 quad-core
+- RAM: 1GB DDR3

@@ -4,7 +4,7 @@ from typing import Dict, Any, Type
 
 # Import model classes for type checking and field identification
 # These are the models that currently have path fields needing resolution/relativization
-from .config_models import ClientConfig, CustomWorkflowConfig
+from .config_models import AgentConfig, ClientConfig, CustomWorkflowConfig
 
 # It's good practice to also import PROJECT_ROOT_DIR if utils need it directly,
 # or ensure it's passed in, as we are doing.
@@ -54,8 +54,17 @@ def resolve_path_fields(
             else:
                 resolved_data["module_path"] = mp.resolve()
 
-    # Add more 'if model_class == ...' blocks here if other models get path fields
-    # that need similar resolution logic.
+    if model_class == AgentConfig and "system_prompt" in resolved_data:
+        sp_val = resolved_data["system_prompt"]
+        # Only treat it as a path if it's a string that looks like a path
+        if isinstance(sp_val, str) and (
+            sp_val.endswith(".md") or "/" in sp_val or "\\" in sp_val
+        ):
+            sp = Path(sp_val)
+            if not sp.is_absolute():
+                resolved_data["system_prompt"] = (base_path / sp).resolve()
+            else:
+                resolved_data["system_prompt"] = sp.resolve()
 
     return resolved_data
 
@@ -86,6 +95,8 @@ def relativize_path_fields(
     if model_class == ClientConfig and "client_id" in relativized_data:
         component_id_for_log = relativized_data["client_id"]
     elif model_class == CustomWorkflowConfig and "name" in relativized_data:
+        component_id_for_log = relativized_data["name"]
+    elif model_class == AgentConfig and "name" in relativized_data:
         component_id_for_log = relativized_data["name"]
     # Add more elif for other models if they have a clear ID field for logging
 
@@ -118,7 +129,19 @@ def relativize_path_fields(
         elif isinstance(mp_val, str):
             pass
 
-    # Add more 'if model_class == ...' blocks here if other models get path fields
-    # that need similar relativization logic.
+    if model_class == AgentConfig and "system_prompt" in relativized_data:
+        sp_val = relativized_data["system_prompt"]
+        if isinstance(sp_val, Path):
+            try:
+                relativized_data["system_prompt"] = str(sp_val.relative_to(base_path))
+            except ValueError:
+                logger.warning(
+                    f"Could not make system_prompt relative to base_path for "
+                    f"{model_class.__name__} '{component_id_for_log}'. Storing absolute path: {sp_val}"
+                )
+                relativized_data["system_prompt"] = str(sp_val.resolve())
+        elif isinstance(sp_val, str):
+            # It's already a string, no action needed
+            pass
 
     return relativized_data

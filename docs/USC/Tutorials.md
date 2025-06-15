@@ -1,24 +1,10 @@
-# Aurite Agents Framework - Learning Modules Overview
+# Aurite Tutorials
 
-Welcome to the Aurite Agents Framework learning modules! This series will guide you through understanding, building, and deploying AI agents using Aurite.
+This page contains a collection of tutorials to help you learn the Aurite Agents framework.
 
-## Step 1: Conceptual Understanding
+## Part 1: Learning with Notebooks
 
-**Purpose:** Before diving into hands-on coding, it's important to understand the fundamental concepts behind AI agents, their components (like system prompts and tools), and how they operate.
-
-**Learning Path & Resources:**
-
-*   **What is an AI Agent?**
-    *   Please review the following resource from Hugging Face for a solid foundation.
-    *   [Hugging Face Agents Course - Unit 1: What are Agents?](https://huggingface.co/learn/agents-course/en/unit1/what-are-agents)
-
----
-
-## Step 2: Learning Aurite with Notebooks
-
-**Purpose:** This module provides a hands-on, code-first approach to learning the Aurite Agents framework through a series of interactive Jupyter/Colab notebooks.
-
-**Learning Path & Resources:**
+This module provides a hands-on, code-first approach to learning Aurite through a series of interactive Jupyter/Colab notebooks.
 
 1.  **Notebook 1: Introducing Aurite Agents**
     *   Get started with the basics of the framework.
@@ -42,11 +28,15 @@ Welcome to the Aurite Agents Framework learning modules! This series will guide 
 
 ---
 
-## Step 3: Building Local Projects
+Now that you've completed the introductory notebooks, you're ready to apply your skills.
 
-**Purpose:** Once you are comfortable with the concepts from the notebooks, these tutorials guide you through setting up and running the Aurite framework in a local development environment like VSCode.
+*   **[Go to Project Ideas](./Projects.md)**
 
-**Learning Path & Resources:**
+---
+
+## Part 2: Building Local Projects
+
+Once you are comfortable with the concepts from the notebooks, these tutorials guide you through setting up and running the Aurite framework in a local development environment like VSCode.
 
 1.  **Understanding Aurite Projects**
     *   This tutorial walks you through the structure of a local Aurite project and how to configure and run an agent by editing configuration files.
@@ -55,7 +45,3 @@ Welcome to the Aurite Agents Framework learning modules! This series will guide 
 2.  **Using the Aurite CLI**
     *   This tutorial teaches you how to execute any pre-configured agent directly from the command line, a powerful workflow for testing and automation.
     *   [[07_Using_The_CLI|Tutorial: Using the Aurite CLI]]
-
----
-
-*(More modules will be added here as they become available.)*

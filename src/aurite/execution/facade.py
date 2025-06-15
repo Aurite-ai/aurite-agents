@@ -100,6 +100,7 @@ class ExecutionFacade:
         self._current_project = current_project
         self._storage_manager = storage_manager
         self._llm_client_cache: Dict[str, BaseLLM] = {}  # LLM Client Cache
+        self._history_cache: Dict[str, List[Dict[str, Any]]] = {}  # In-memory history
         self._is_shut_down = False  # Flag to prevent double shutdown
         logger.debug(
             f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
@@ -898,31 +899,36 @@ class ExecutionFacade:
 
             # 4. Prepare Initial Messages (Load History + User Message, using processed_agent_config)
             initial_messages_for_agent: List[MessageParam] = []
-            load_history = (
-                processed_agent_config.include_history
-                and self._storage_manager
-                and session_id
-            )
-            if (
-                load_history and self._storage_manager
-            ):  # This block is for non-OpenAI providers
-                try:
-                    loaded_history = self._storage_manager.load_history(
-                        agent_name, session_id
+            if processed_agent_config.include_history and session_id:
+                loaded_history: Optional[List[Dict[str, Any]]] = None
+                # Priority 1: In-memory cache
+                if session_id in self._history_cache:
+                    loaded_history = self._history_cache[session_id]
+                    logger.info(
+                        f"Facade: Loaded {len(loaded_history)} history turns from in-memory cache for session '{session_id}'."
                     )
-                    if loaded_history:
-                        typed_history = [
-                            cast(MessageParam, item) for item in loaded_history
-                        ]
-                        initial_messages_for_agent.extend(typed_history)
-                        logger.info(
-                            f"Facade: Loaded {len(loaded_history)} history turns for Aurite agent '{agent_name}', session '{session_id}'."
+                # Priority 2: StorageManager (DB)
+                elif self._storage_manager:
+                    try:
+                        loaded_history = self._storage_manager.load_history(
+                            agent_name, session_id
                         )
-                except Exception as e:
-                    logger.error(
-                        f"Facade: Failed to load history for Aurite agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
+                        if loaded_history:
+                            logger.info(
+                                f"Facade: Loaded {len(loaded_history)} history turns from DB for session '{session_id}'."
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"Facade: Failed to load history from DB for session '{session_id}': {e}",
+                            exc_info=True,
+                        )
+
+                if loaded_history:
+                    # Convert loaded history (from either source) to MessageParam
+                    typed_history = [
+                        cast(MessageParam, item) for item in loaded_history
+                    ]
+                    initial_messages_for_agent.extend(typed_history)
 
             initial_messages_for_agent.append(
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
@@ -959,33 +965,36 @@ class ExecutionFacade:
             )
 
             # 7. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
-            save_history = (
+            if (
                 processed_agent_config.include_history
-                and self._storage_manager
                 and session_id
                 and not agent_result.has_error
-            )
-            if save_history and self._storage_manager:
-                try:
-                    # AgentExecutionResult.conversation is List[AgentOutputMessage]
-                    # Convert to List[Dict] for storage
-                    serializable_conversation = [
-                        msg.model_dump(mode="json") for msg in agent_result.conversation
-                    ]
-                    self._storage_manager.save_full_history(
-                        agent_name=agent_name,
-                        session_id=session_id,
-                        conversation=serializable_conversation,
-                    )
-                    logger.info(
-                        f"Facade: Saved {len(serializable_conversation)} history turns for agent '{agent_name}', session '{session_id}'."
-                    )
-                except Exception as e:
-                    # Log error but don't fail the overall result
-                    logger.error(
-                        f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
+            ):
+                serializable_conversation = [
+                    msg.model_dump(mode="json") for msg in agent_result.conversation
+                ]
+                # Save to in-memory cache first
+                self._history_cache[session_id] = serializable_conversation
+                logger.info(
+                    f"Facade: Saved {len(serializable_conversation)} history turns to in-memory cache for session '{session_id}'."
+                )
+
+                # Then, save to DB if it's enabled
+                if self._storage_manager:
+                    try:
+                        self._storage_manager.save_full_history(
+                            agent_name=agent_name,
+                            session_id=session_id,
+                            conversation=serializable_conversation,
+                        )
+                        logger.info(
+                            f"Facade: Also saved history to DB for session '{session_id}'."
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Facade: Failed to save history to DB for session '{session_id}': {e}",
+                            exc_info=True,
+                        )
 
             # 8. Return Result (as Pydantic model instance)
             return agent_result
@@ -1065,6 +1074,26 @@ class ExecutionFacade:
     def get_project_config(self):
         """Simple getter for project config"""
         return self._current_project
+
+    def clear_history_cache(self, session_id: Optional[str] = None):
+        """
+        Clears the in-memory conversation history cache.
+
+        Args:
+            session_id: If provided, clears history only for that session.
+                        Otherwise, clears the entire cache.
+        """
+        if session_id:
+            if session_id in self._history_cache:
+                del self._history_cache[session_id]
+                logger.info(f"In-memory history for session '{session_id}' cleared.")
+            else:
+                logger.debug(
+                    f"Attempted to clear history for session '{session_id}', but it was not found in cache."
+                )
+        else:
+            self._history_cache.clear()
+            logger.info("Entire in-memory history cache cleared.")
 
     async def get_custom_workflow_input_type(self, workflow_name: str):
         """Get the input type for a custom workflow.

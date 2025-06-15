@@ -9,7 +9,14 @@ This module provides:
 """
 
 import logging
-from typing import Any, List, Optional, Dict, Literal  # Added Dict and Literal
+from typing import (
+    Any,
+    List,
+    Optional,
+    Dict,
+    Literal,
+    Union,
+)  # Added Dict and Literal and Union
 from pathlib import Path
 from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
@@ -252,8 +259,9 @@ class AgentConfig(BaseModel):
     )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
-    system_prompt: Optional[str] = Field(
-        default=None, description="The primary system prompt for the agent."
+    system_prompt: Optional[Union[str, Path]] = Field(
+        default=None,
+        description="The primary system prompt for the agent, can be a string or a file path.",
     )
     config_validation_schema: Optional[dict[str, Any]] = Field(
         default=None,

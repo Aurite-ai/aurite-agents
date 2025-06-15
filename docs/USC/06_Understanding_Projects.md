@@ -1,4 +1,4 @@
-# Module 1: Tutorial - Your First Agent via Configuration Files
+# Tutorial 6 - Your First Agent via Configuration Files
 
 **Welcome to your first hands-on experience with the Aurite Agents framework!** In this tutorial, you'll configure, run, and interact with a basic AI agent by directly editing configuration files and running a Python script. This will help solidify the concepts you learned in "What is an AI Agent?" and introduce you to the code-centric way of managing Aurite projects.
 

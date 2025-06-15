@@ -26,6 +26,7 @@ COMPONENT_SUBDIRS = {
     "mcp_servers": "mcp_servers",
     "llms": "llms",
     "agents": "agents",
+    "prompts": "prompts",
     "simple_workflows": "workflows",
     "custom_workflows": "custom_workflows",
     "projects": "projects",  # For packaged project templates like prompt_validation

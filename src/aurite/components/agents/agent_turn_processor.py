@@ -87,7 +87,9 @@ class AgentTurnProcessor:
 
     async def process_turn(
         self,
-    ) -> Tuple[Optional[AgentOutputMessage], Optional[List[MessageParam]], bool]:
+    ) -> Tuple[
+        Optional[AgentOutputMessage], Optional[List[MessageParam]], bool, Optional[str]
+    ]:
         """
         Processes a single conversation turn.
 
@@ -103,9 +105,10 @@ class AgentTurnProcessor:
             - The final assistant response (AgentOutputMessage) if the turn ended without tool use, else None.
             - A list of tool result messages (List[MessageParam]) to be added for the next turn, or None.
             - A boolean indicating if this turn resulted in the final response (True) or if the loop should continue (False).
+            - A string with validation error details if schema validation failed, else None.
         """
         logger.debug("Processing conversation turn...")
-        # --- Placeholder for logic to be moved from Agent.execute_agent ---
+        validation_error_details: Optional[str] = None
 
         # 1. Make LLM call
         try:
@@ -117,10 +120,7 @@ class AgentTurnProcessor:
                 llm_config_override=self.llm_config_for_override,  # Pass stored override
             )
         except Exception as e:
-            # Handle or re-raise LLM call errors appropriately
             logger.error(f"LLM call failed within turn processor: {e}", exc_info=True)
-            # Decide error handling strategy - maybe return an error state?
-            # For now, re-raise to be caught by Agent.execute_agent
             raise
 
         self._last_llm_response = llm_response  # Store the response
@@ -137,7 +137,6 @@ class AgentTurnProcessor:
         ):
             # Process tool calls if requested
             tool_results_for_next_turn = await self._process_tool_calls(llm_response)
-            # _process_tool_calls also populates self._tool_uses_this_turn
             # is_final_turn remains False
             final_assistant_response = None  # No final response this turn
             logger.debug("Processed tool use request.")
@@ -148,7 +147,10 @@ class AgentTurnProcessor:
                 f"Processing potential final response (stop_reason: {llm_response.stop_reason})."
             )
             # Handle final response, including schema validation
-            validated_response = self._handle_final_response(llm_response)
+            (
+                validated_response,
+                validation_error_details,
+            ) = self._handle_final_response(llm_response)
 
             if validated_response is not None:
                 # Schema validation passed (or no schema) - this IS the final turn
@@ -159,11 +161,17 @@ class AgentTurnProcessor:
                 # Schema validation failed - not the final turn, signal retry needed
                 final_assistant_response = None  # No valid final response
                 is_final_turn = False
-                logger.warning("Schema validation failed. Signaling retry.")
-                # ConversationManager loop will handle sending correction message
+                logger.warning(
+                    f"Schema validation failed. Signaling retry. Details: {validation_error_details}"
+                )
 
         logger.debug(f"Turn processed. Is final turn: {is_final_turn}")
-        return final_assistant_response, tool_results_for_next_turn, is_final_turn
+        return (
+            final_assistant_response,
+            tool_results_for_next_turn,
+            is_final_turn,
+            validation_error_details,
+        )
 
     async def stream_turn_response(
         self,
@@ -581,11 +589,16 @@ class AgentTurnProcessor:
 
     def _handle_final_response(
         self, llm_response: AgentOutputMessage
-    ) -> Optional[AgentOutputMessage]:
+    ) -> Tuple[Optional[AgentOutputMessage], Optional[str]]:
         """
         Handles the final response, including schema validation.
-        Returns the validated response if successful, or None if schema validation fails,
-        signaling the need for a retry/correction message.
+
+        Returns:
+            A tuple containing:
+            - The validated response (AgentOutputMessage) if successful.
+            - A detailed error string if schema validation fails.
+            If validation succeeds, the error string is None.
+            If validation fails, the response object is None.
         """
         logger.debug("Handling final response...")
 
@@ -604,36 +617,41 @@ class AgentTurnProcessor:
         # If no text content, return the response as is (might be an error or unusual case)
         if not text_content:
             logger.warning("No text content found in final LLM response.")
-            return llm_response
+            return llm_response, None
 
         # Perform schema validation if a schema is configured
-        if self.config.config_validation_schema:  # Use renamed field
+        if self.config.config_validation_schema:
             logger.debug("Schema validation required.")
             try:
                 json_content = json.loads(text_content)
                 validate(
                     instance=json_content, schema=self.config.config_validation_schema
-                )  # Use renamed field
+                )
                 logger.debug("Response validated successfully against schema.")
-                return (
-                    llm_response  # Schema is valid, return the original response object
-                )
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Final response was not valid JSON, schema validation failed."
-                )
-                return None  # Signal failure (Agent needs to send correction)
+                return llm_response, None  # Success
+            except json.JSONDecodeError as e:
+                error_details = f"Response was not valid JSON. Error: {e}"
+                logger.warning(error_details)
+                return None, error_details  # Failure with details
             except JsonSchemaValidationError as e:
-                logger.warning(f"Schema validation failed: {e.message}")
-                return None  # Signal failure (Agent needs to send correction)
-            except Exception as e:
-                logger.error(
-                    f"Unexpected error during schema validation: {e}", exc_info=True
+                error_report = [
+                    f"  - Path: `{' -> '.join(map(str, e.path)) or 'root'}`",
+                    f"  - Message: {e.message}",
+                    f"  - Validator: `{e.validator}` = `{e.validator_value}`",
+                ]
+                error_details = (
+                    "Schema validation failed with the following error:\n"
+                    + "\n".join(error_report)
                 )
-                return None  # Signal failure on unexpected validation errors
+                logger.warning(f"Schema validation failed: {e.message}")
+                return None, error_details  # Failure with details
+            except Exception as e:
+                error_details = (
+                    f"An unexpected error occurred during schema validation: {e}"
+                )
+                logger.error(error_details, exc_info=True)
+                return None, error_details  # Failure with details
         else:
             # No schema defined, response is considered final and valid
             logger.debug("No schema defined, skipping validation.")
-            return llm_response
-            logger.debug("No schema defined, skipping validation.")
-            return llm_response
+            return llm_response, None
