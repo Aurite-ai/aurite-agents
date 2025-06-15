@@ -4,6 +4,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
+from pathlib import Path
 from typing import (
     Any,
     Dict,
@@ -190,7 +191,7 @@ class ExecutionFacade:
         self,
         agent_config: AgentConfig,  # For context, logging, or future use
         user_message: str,
-        system_prompt_for_agent: Optional[str],
+        system_prompt_for_agent: Optional[str | Path],
     ) -> Optional[List[str]]:
         """
         Uses an LLM to dynamically select client_ids for an agent based on the user message,
@@ -269,10 +270,26 @@ class ExecutionFacade:
                 )
         client_info_parts.append("---")
 
+        prompt_content_for_tool_selector: str
+        if isinstance(system_prompt_for_agent, Path):
+            try:
+                prompt_content_for_tool_selector = system_prompt_for_agent.read_text()
+            except Exception as e:
+                logger.error(
+                    f"Failed to read system prompt file for tool selection: {system_prompt_for_agent}. Error: {e}"
+                )
+                prompt_content_for_tool_selector = (
+                    "Error: Could not load system prompt."
+                )
+        else:
+            prompt_content_for_tool_selector = (
+                system_prompt_for_agent or "No system prompt provided for the agent."
+            )
+
         prompt_for_tool_selection_llm_parts = [
             *client_info_parts,
             "\nAgent's System Prompt:",
-            system_prompt_for_agent or "No system prompt provided for the agent.",
+            prompt_content_for_tool_selector,
             "\nUser's Message to Agent:",
             user_message,
             "\nBased on the Agent's System Prompt and the User's Message, which tool sets should be selected?",
@@ -559,9 +576,22 @@ class ExecutionFacade:
             if (
                 processed_agent_config.system_prompt is not None
             ):  # This is agent's own default system prompt
-                effective_system_prompt_for_llm_client = (
-                    processed_agent_config.system_prompt
-                )
+                if isinstance(processed_agent_config.system_prompt, Path):
+                    try:
+                        effective_system_prompt_for_llm_client = (
+                            processed_agent_config.system_prompt.read_text()
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to read system prompt file {processed_agent_config.system_prompt}: {e}"
+                        )
+                        effective_system_prompt_for_llm_client = (
+                            "Error: Could not load system prompt."
+                        )
+                else:
+                    effective_system_prompt_for_llm_client = (
+                        processed_agent_config.system_prompt
+                    )
             if not effective_model_name:  # Fallback if no model specified anywhere
                 effective_model_name = "claude-3-haiku-20240307"
 
@@ -641,13 +671,60 @@ class ExecutionFacade:
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
 
-            # 4. Instantiate Agent (using processed_agent_config)
+            # 4. Augment System Prompt with Available Tools
+            available_tools = self._host.get_formatted_tools(
+                agent_config=processed_agent_config
+            )
+            final_system_prompt_for_agent: Optional[str] = (
+                system_prompt  # Start with user override
+            )
+
+            # If user didn't provide an override, use the one from agent config
+            if final_system_prompt_for_agent is None:
+                if isinstance(processed_agent_config.system_prompt, Path):
+                    try:
+                        final_system_prompt_for_agent = (
+                            processed_agent_config.system_prompt.read_text()
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to read system prompt file {processed_agent_config.system_prompt}: {e}"
+                        )
+                        final_system_prompt_for_agent = (
+                            "Error: Could not load system prompt."
+                        )
+                else:
+                    final_system_prompt_for_agent = processed_agent_config.system_prompt
+
+            # If there's still no system prompt, use the LLM's default
+            if final_system_prompt_for_agent is None:
+                final_system_prompt_for_agent = (
+                    effective_system_prompt_for_llm_client or ""
+                )
+
+            if available_tools:
+                tools_json_str = json.dumps(available_tools, indent=2)
+                tool_info_header = (
+                    "The following tools are available for you to use. "
+                    "Please use the exact tool names provided in this list:\n"
+                )
+                augmented_prompt = (
+                    f"{tool_info_header}\n"
+                    f"```json\n{tools_json_str}\n```\n\n"
+                    f"Original System Prompt:\n{final_system_prompt_for_agent}"
+                )
+                final_system_prompt_for_agent = augmented_prompt
+                logger.debug(
+                    f"Augmented system prompt for agent '{agent_name}' with available tools."
+                )
+
+            # 5. Instantiate Agent (using processed_agent_config)
             agent_instance = Agent(
                 config=processed_agent_config,  # Use the potentially modified config
                 llm_client=llm_client_instance,
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
-                system_prompt_override=system_prompt,  # User-provided override for this run
+                system_prompt_override=final_system_prompt_for_agent,  # Use the augmented prompt
                 llm_config_for_override=llm_config_for_override_obj,
             )
             logger.debug(
@@ -816,9 +893,22 @@ class ExecutionFacade:
             # Prioritize agent_config.system_prompt, then llm_config.default_system_prompt.
             # The `system_prompt` argument to `run_agent` is handled by the Agent class itself.
             if processed_agent_config.system_prompt is not None:
-                effective_system_prompt_for_llm_client = (
-                    processed_agent_config.system_prompt
-                )
+                if isinstance(processed_agent_config.system_prompt, Path):
+                    try:
+                        effective_system_prompt_for_llm_client = (
+                            processed_agent_config.system_prompt.read_text()
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to read system prompt file {processed_agent_config.system_prompt}: {e}"
+                        )
+                        effective_system_prompt_for_llm_client = (
+                            "Error: Could not load system prompt."
+                        )
+                else:
+                    effective_system_prompt_for_llm_client = (
+                        processed_agent_config.system_prompt
+                    )
                 logger.debug(
                     "Facade: AgentConfig provides default system prompt for LLM client instantiation."
                 )
@@ -934,18 +1024,65 @@ class ExecutionFacade:
                 {"role": "user", "content": [{"type": "text", "text": user_message}]}
             )
 
-            # 5. Instantiate Aurite's Agent class (using processed_agent_config)
+            # 5. Augment System Prompt with Available Tools
+            available_tools = self._host.get_formatted_tools(
+                agent_config=processed_agent_config
+            )
+            final_system_prompt_for_agent: Optional[str] = (
+                system_prompt  # Start with user override
+            )
+
+            # If user didn't provide an override, use the one from agent config
+            if final_system_prompt_for_agent is None:
+                if isinstance(processed_agent_config.system_prompt, Path):
+                    try:
+                        final_system_prompt_for_agent = (
+                            processed_agent_config.system_prompt.read_text()
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to read system prompt file {processed_agent_config.system_prompt}: {e}"
+                        )
+                        final_system_prompt_for_agent = (
+                            "Error: Could not load system prompt."
+                        )
+                else:
+                    final_system_prompt_for_agent = processed_agent_config.system_prompt
+
+            # If there's still no system prompt, use the LLM's default
+            if final_system_prompt_for_agent is None:
+                final_system_prompt_for_agent = (
+                    effective_system_prompt_for_llm_client or ""
+                )
+
+            if available_tools:
+                tools_json_str = json.dumps(available_tools, indent=2)
+                tool_info_header = (
+                    "The following tools are available for you to use. "
+                    "Please use the exact tool names provided in this list:\n"
+                )
+                augmented_prompt = (
+                    f"{tool_info_header}\n"
+                    f"```json\n{tools_json_str}\n```\n\n"
+                    f"Original System Prompt:\n{final_system_prompt_for_agent}"
+                )
+                final_system_prompt_for_agent = augmented_prompt
+                logger.debug(
+                    f"Augmented system prompt for agent '{agent_name}' with available tools."
+                )
+
+            # 6. Instantiate Aurite's Agent class (using processed_agent_config)
             aurite_agent_instance = Agent(
                 config=processed_agent_config,  # Use the potentially modified config
                 llm_client=llm_client_instance,  # This is Aurite's LLMClient (e.g. AnthropicLLM)
                 host_instance=self._host,
                 initial_messages=initial_messages_for_agent,
-                system_prompt_override=system_prompt,
+                system_prompt_override=final_system_prompt_for_agent,  # Use the augmented prompt
                 llm_config_for_override=llm_config_for_override_obj,
             )
             logger.debug(f"Facade: Instantiated Aurite Agent class for '{agent_name}'")
 
-            # 6. Execute Aurite Agent Conversation
+            # 7. Execute Aurite Agent Conversation
             logger.info(
                 colored(
                     f"Facade: Running conversation for Aurite Agent '{agent_name}'...",
@@ -964,7 +1101,7 @@ class ExecutionFacade:
                 )
             )
 
-            # 7. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
+            # 8. Save History for Aurite Agent (if enabled and successful, using processed_agent_config)
             if (
                 processed_agent_config.include_history
                 and session_id
@@ -996,7 +1133,7 @@ class ExecutionFacade:
                             exc_info=True,
                         )
 
-            # 8. Return Result (as Pydantic model instance)
+            # 9. Return Result (as Pydantic model instance)
             return agent_result
 
         except KeyError as e:

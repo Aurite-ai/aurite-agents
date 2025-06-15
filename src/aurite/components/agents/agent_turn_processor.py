@@ -4,6 +4,7 @@ Helper class for processing a single turn in an Agent's conversation loop.
 
 import json
 import logging
+import re
 from typing import cast  # Added for casting
 from typing import (  # Added AsyncGenerator
     TYPE_CHECKING,
@@ -622,8 +623,27 @@ class AgentTurnProcessor:
         # Perform schema validation if a schema is configured
         if self.config.config_validation_schema:
             logger.debug("Schema validation required.")
+            # Attempt to extract JSON from markdown code blocks or surrounding text
+            cleaned_text = text_content.strip()
+            json_string_to_parse = cleaned_text
+
+            # Look for JSON within a markdown block first
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned_text)
+            if match:
+                json_string_to_parse = match.group(1).strip()
+                logger.debug("Extracted JSON content from markdown block.")
+            else:
+                # If no markdown block, find the first '{' and last '}'
+                start_brace = cleaned_text.find("{")
+                end_brace = cleaned_text.rfind("}")
+                if start_brace != -1 and end_brace != -1 and end_brace > start_brace:
+                    json_string_to_parse = cleaned_text[start_brace : end_brace + 1]
+                    logger.debug(
+                        "Extracted JSON content by finding first and last braces."
+                    )
+
             try:
-                json_content = json.loads(text_content)
+                json_content = json.loads(json_string_to_parse)
                 validate(
                     instance=json_content, schema=self.config.config_validation_schema
                 )
@@ -631,7 +651,7 @@ class AgentTurnProcessor:
                 return llm_response, None  # Success
             except json.JSONDecodeError as e:
                 error_details = f"Response was not valid JSON. Error: {e}"
-                logger.warning(error_details)
+                logger.warning(f"{error_details}. Raw text: '{text_content}'")
                 return None, error_details  # Failure with details
             except JsonSchemaValidationError as e:
                 error_report = [
