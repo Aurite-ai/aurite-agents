@@ -611,7 +611,6 @@ class AgentTurnProcessor:
             logger.debug("Schema validation required.")
             try:
                 # trim to curly braces in case of surrounding backticks
-                text_content = text_content[text_content.find('{'): text_content.rfind('}')+1]
                 json_content = json.loads(text_content)
                 validate(
                     instance=json_content, schema=self.config.config_validation_schema

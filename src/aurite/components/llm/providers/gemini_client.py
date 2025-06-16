@@ -129,7 +129,7 @@ class GeminiLLM(BaseLLM):
                 model=model_to_use, config=config, contents=typed_messages
             )
             
-            return self._convert_agent_output_message(gemini_response)
+            return self._convert_agent_output_message(gemini_response, schema=bool(schema))
         except Exception as e:
             logger.error(
                 f"Unexpected error during Gemini API call or response processing: {e}",
@@ -165,7 +165,7 @@ class GeminiLLM(BaseLLM):
         # TODO
         pass
 
-    def _convert_agent_output_message(self, response) -> AgentOutputMessage:
+    def _convert_agent_output_message(self, response, schema = None) -> AgentOutputMessage:
         content_blocks = []
         num_tools = 0
         
@@ -177,9 +177,14 @@ class GeminiLLM(BaseLLM):
 
         for part in response.candidates[0].content.parts:
             if part.text is not None:
+                if schema and '{' in part.text and '}' in part.text:
+                    text_content = part.text[part.text.find('{'): part.text.rfind('}')+1]
+                else:
+                    text_content = part.text
+
                 content_blocks.append(AgentOutputContentBlock(
                     type="text",
-                    text=part.text
+                    text=text_content
                 ))
             elif part.function_call is not None:
                 function_call = part.function_call
