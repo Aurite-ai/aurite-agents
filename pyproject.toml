@@ -74,6 +74,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "fastapi",
     "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
+    "litellm>=1.72.6",
 ]
 
 [project.urls]
