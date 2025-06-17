@@ -117,6 +117,24 @@
       "auto": false,
       "max_iterations": 5,
       "include_history": false
+    },
+    {
+      "name": "Anthropic Weather Agent",
+      "llm_config_id": "anthropic_claude_3_opus",
+      "system_prompt": "You are a weather assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
+      "mcp_servers": ["weather_server"],
+      "auto": false,
+      "max_iterations": 5,
+      "include_history": false
+    },
+    {
+      "name": "Gemini Weather Agent",
+      "llm_config_id": "gemini-2.5",
+      "system_prompt": "You are a weather assistant. Use the available tools to answer questions about the weather. Respond clearly and concisely. After you receive the weather data, explain it in a simple way.",
+      "mcp_servers": ["weather_server"],
+      "auto": false,
+      "max_iterations": 5,
+      "include_history": false
     }
   ],
   "simple_workflows": [
