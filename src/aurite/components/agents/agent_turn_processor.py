@@ -610,6 +610,7 @@ class AgentTurnProcessor:
         if self.config.config_validation_schema:  # Use renamed field
             logger.debug("Schema validation required.")
             try:
+                # trim to curly braces in case of surrounding backticks
                 json_content = json.loads(text_content)
                 validate(
                     instance=json_content, schema=self.config.config_validation_schema
