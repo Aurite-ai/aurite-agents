@@ -4,6 +4,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
+import os
 from typing import (
     Any,
     Dict,
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
 # Actual runtime imports
 from ..components.llm.providers.openai_client import OpenAIClient  # Moved here
+from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..config.config_models import (
     AgentConfig,
     LLMConfig,
@@ -121,8 +123,24 @@ class ExecutionFacade:
         logger.debug(
             f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})"
         )
-
-        if provider == "anthropic":
+        
+        if os.getenv("ENABLE_GATEWAY"):
+            # Use LiteLLM gateway regardless of provider
+            try:
+                return LiteLLMClient(
+                    model_name=model_name,
+                    provider=provider,
+                    temperature=llm_config.temperature,
+                    max_tokens=llm_config.max_tokens,
+                    system_prompt=llm_config.default_system_prompt,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to instantiate LiteLLMClient for config '{llm_config.llm_id}': {e}",
+                    exc_info=True,
+                )
+                raise ValueError(f"Failed to create LiteLLM client: {e}") from e
+        elif provider == "anthropic":
             # API key resolution could be enhanced here (e.g., check env vars specified in config)
             # For now, relies on AnthropicLLM's internal check for ANTHROPIC_API_KEY
             try:
