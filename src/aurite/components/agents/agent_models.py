@@ -214,27 +214,3 @@ class AgentExecutionResult(BaseModel):
     def has_error(self) -> bool:
         """Checks if an error message is present."""
         return self.error is not None
-
-
-# --- Agent Input Models ---
-
-class ConversationHistoryMessage(BaseModel):
-    role: str = Field(
-        description="The role of the message sender (e.g., 'user', 'assistant')."
-    )
-    content: str = Field(
-        description="The content of the message"
-    )
-    
-    
-class ToolDefinition(BaseModel):
-    name: str = Field(
-        description="The tool name."
-    )
-    description: str = Field(
-        description="The tool description."
-    )
-    input_schema: dict[str, Any] = Field(
-        description="A json schema describing the input parameters for the tool."
-    )
-    
