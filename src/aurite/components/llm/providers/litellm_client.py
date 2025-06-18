@@ -171,15 +171,15 @@ class LiteLLMClient(BaseLLM):
             else:
                 logger.warning(f"Skipping tool with unexpected format: {tool_def}")
         return openai_tools if openai_tools else None
-
-    async def create_message(
+    
+    def _build_request_params(
         self,
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,  # For JSON mode
         llm_config_override: Optional[LLMConfig] = None,
-    ) -> AgentOutputMessage:
+    ):
         model_to_use = self.model_name
         if llm_config_override and llm_config_override.model_name:
             model_to_use = llm_config_override.model_name
@@ -205,6 +205,16 @@ class LiteLLMClient(BaseLLM):
             resolved_system_prompt = llm_config_override.default_system_prompt
         if system_prompt_override is not None:  # Highest precedence
             resolved_system_prompt = system_prompt_override
+            
+        if schema:  # For JSON mode
+            # Note: Only certain models support JSON mode, so we add to the system prompt
+            json_instruction = f"Your response MUST be a single valid JSON object that conforms to the provided schema. Do NOT add any text or characters before or after, including code block formatting (NO ```) {json.dumps(schema, indent=2)}"
+            if resolved_system_prompt:
+                resolved_system_prompt = (
+                    f"{resolved_system_prompt}\n{json_instruction}"
+                )
+            else:
+                resolved_system_prompt = json_instruction
 
         # Convert messages and tools to OpenAI format
         api_messages = self._convert_messages_to_openai_format(
@@ -225,18 +235,21 @@ class LiteLLMClient(BaseLLM):
                 "auto"  # Let the model decide if it wants to use tools
             )
 
-        if schema:  # For JSON mode
-            # Note: Only certain models support JSON mode, so we add to the system prompt
-            json_instruction = f"Your response MUST be a single valid JSON object that conforms to the provided schema. Do NOT add any text or characters before or after, including code block formatting (NO ```) {json.dumps(schema, indent=2)}"
-            if resolved_system_prompt:
-                resolved_system_prompt = (
-                    f"{resolved_system_prompt}\n{json_instruction}"
-                )
-            else:
-                resolved_system_prompt = json_instruction
+        return request_params
+
+    async def create_message(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]],
+        system_prompt_override: Optional[str] = None,
+        schema: Optional[Dict[str, Any]] = None,  # For JSON mode
+        llm_config_override: Optional[LLMConfig] = None,
+    ) -> AgentOutputMessage:
+        
+        request_params = self._build_request_params(messages, tools, system_prompt_override, schema, llm_config_override)
 
         logger.debug(
-            f"Making LiteLLM call to '{provider_to_use}/{model_to_use}' with params: {request_params}"
+            f"Making LiteLLM call with params: {request_params}"
         )
 
         try:
@@ -324,68 +337,21 @@ class LiteLLMClient(BaseLLM):
         schema: Optional[Dict[str, Any]] = None,
         llm_config_override: Optional[LLMConfig] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        logger.warning(
-            "OpenAIClient.stream_message called. This method is not yet fully implemented for robust streaming."
-        )
-        # Basic placeholder for non-streaming call to fulfill generator type hint
-        # For actual streaming, this would involve `await self.client.chat.completions.create(..., stream=True)`
-        # and iterating over the stream, adapting chunks.
-        try:
-            non_streamed_response = await self.create_message(
-                messages, tools, system_prompt_override, schema, llm_config_override
-            )
-            # Simulate a stream for now based on the full response
-            # This is NOT true streaming but makes the test script runnable.
-            yield {
-                "event_type": "message_start",
-                "data": {
-                    "message_id": non_streamed_response.id,
-                    "role": non_streamed_response.role,
-                    "model": non_streamed_response.model,
-                    "input_tokens": non_streamed_response.usage.get("input_tokens")
-                    if non_streamed_response.usage
-                    else 0,
-                },
-            }
-            for i, block in enumerate(non_streamed_response.content):
-                if block.type == "text":
-                    yield {"event_type": "text_block_start", "data": {"index": i}}
-                    if block.text:
-                        yield {
-                            "event_type": "text_delta",
-                            "data": {"index": i, "text_chunk": block.text},
-                        }
-                elif block.type == "tool_use":
-                    yield {
-                        "event_type": "tool_use_start",
-                        "data": {
-                            "index": i,
-                            "tool_id": block.id,
-                            "tool_name": block.name,
-                        },
-                    }
-                    # Simulate input delta if needed, though OpenAI stream gives full input at once
-                    if block.input is not None:
-                        yield {
-                            "event_type": "tool_use_input_delta",  # Or a single "tool_use_input_complete"
-                            "data": {"index": i, "json_chunk": json.dumps(block.input)},
-                        }
-                yield {"event_type": "content_block_stop", "data": {"index": i}}
+        
+        request_params = self._build_request_params(messages, tools, system_prompt_override, schema, llm_config_override)
+        request_params["stream"] = True
 
-            yield {
-                "event_type": "message_delta",  # Or directly stream_end if no further deltas
-                "data": {
-                    "stop_reason": non_streamed_response.stop_reason,
-                    "stop_sequence": non_streamed_response.stop_sequence,
-                    "output_tokens": non_streamed_response.usage.get("output_tokens")
-                    if non_streamed_response.usage
-                    else 0,
-                },
-            }
-            yield {
-                "event_type": "stream_end",
-                "data": {"stop_reason": non_streamed_response.stop_reason},
-            }
+        logger.debug(
+            f"Making LiteLLM call with params: {request_params}"
+        )
+        
+        try:
+            response = litellm.completion(
+                **request_params
+            )
+            
+            for event in response:
+                yield event
 
         except Exception as e:
             logger.error(
