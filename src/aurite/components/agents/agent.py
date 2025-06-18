@@ -276,55 +276,48 @@ Please correct your previous response to conform to the schema."""
             try:
                 async for event in turn_processor.stream_turn_response():
                     # Pass through the event
-                    yield event
-                    
-                    event_type = event["type"]
-                    
-                    # Track message
-                    if event_type == "message_start":
-                        current_message_id = event.get("message_id")
-                    elif event_type == "content_delta":
-                        current_message_content += event.get("content", "")
-                    elif event_type == "tool_complete":
-                        is_tool_turn = True
+                    if not event.get("internal"):
+                        yield event
+                    else:
+                        event_type = event["type"]
                         
-                        message = AgentOutputMessage(
-                            id=current_message_id,
-                            role="assistant",
-                            content=[{
-                                "type": "tool_use",
-                                "id": event["tool_id"],
-                                "name": event["name"],
-                                "input": event["arguments"],
-                            }],
-                            stop_reason="tool_use"
-                        )
+                        match event_type:
+                            case "tool_complete":
+                                is_tool_turn = True
                         
-                        self.conversation_history.append(message)
-                        
-                    elif event_type == "tool_result":
-                        tool_results.append(event)
-                    elif event_type == "message_complete":
-                        # Create and store message in history
-                        message = AgentOutputMessage(
-                            id=current_message_id,
-                            role="assistant",
-                            content=[{
-                                "type": "text",
-                                "text": current_message_content
-                            }],
-                            stop_reason=event.get("stop_reason")
-                        )
-                        self.conversation_history.append(message)
-                        
-                        # Store as final response if not a tool turn
-                        if not is_tool_turn:
-                            self.final_response = message
-                            yield {
-                                "type": "conversation_complete",
-                                "final": True
-                            }
-                            return
+                                message = AgentOutputMessage(
+                                    id=event.get("message_id"),
+                                    role="assistant",
+                                    content=[{
+                                        "type": "tool_use",
+                                        "id": event.get("tool_id"),
+                                        "name": event.get("name"),
+                                        "input": event.get("arguments"),
+                                    }],
+                                    stop_reason="tool_use"
+                                )
+                                
+                                self.conversation_history.append(message)
+                            case "message_complete":
+                                message = AgentOutputMessage(
+                                    id=event.get("message_id"),
+                                    role="assistant",
+                                    content=[{
+                                        "type": "text",
+                                        "text": event.get("content")
+                                    }],
+                                    stop_reason=event.get("stop_reason")
+                                )
+                                self.conversation_history.append(message)
+                                
+                                # Store as final response if not a tool turn
+                                if not is_tool_turn:
+                                    self.final_response = message
+                                    return
+                            case "tool_result":
+                                tool_results.append(event)
+                            case _:
+                                raise ValueError(f"Unrecognized internal type while streaming: {event_type}")
 
                 # Process tool results if any
                 if tool_results:

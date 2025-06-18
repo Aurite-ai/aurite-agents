@@ -180,6 +180,7 @@ class AgentTurnProcessor:
         self._tool_uses_this_turn = []
         current_tool_call: Optional[Dict[str, Any]] = None
         current_text_buffer = ""
+        current_message_id = None
 
         try:
             logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
@@ -196,21 +197,15 @@ class AgentTurnProcessor:
                 chunk_choice = llm_chunk.get("choices", [{}])[0]
                 delta = chunk_choice.get("delta", {})
                 
+                yield delta
+                
                 # Handle message start
                 if delta.get("role") == "assistant" and not current_text_buffer:
-                    yield {
-                        "type": "message_start",
-                        "message_id": llm_chunk.get("id"),
-                        "model": llm_chunk.get("model"),
-                    }
+                    current_message_id = llm_chunk.get("id")
                     
                 # Handle content deltas
                 if content := delta.get("content"):
                     current_text_buffer += content
-                    yield {
-                        "type": "content_delta",
-                        "content": content
-                    }
                     
                 # Handle tool calls
                 tool_calls = delta.get("tool_calls", [])
@@ -223,21 +218,11 @@ class AgentTurnProcessor:
                                 "name": tool_call["function"]["name"],
                                 "arguments": ""
                             }
-                            yield {
-                                "type": "tool_start",
-                                "tool_id": current_tool_call["id"],
-                                "tool_name": current_tool_call["name"]
-                            }
                         
                         # Accumulate tool arguments
                         if args := tool_call.get("function", {}).get("arguments"):
                             if current_tool_call:
                                 current_tool_call["arguments"] += args
-                                yield {
-                                    "type": "tool_args_delta",
-                                    "tool_id": current_tool_call["id"],
-                                    "arguments": args
-                                }
 
                 # Handle completion, allow finish_reason to be stop for gemini
                 if chunk_choice.get("finish_reason") in ["tool_calls", "stop"] and current_tool_call:
@@ -245,10 +230,12 @@ class AgentTurnProcessor:
                     try:
                         tool_args = json.loads(current_tool_call["arguments"])
                         yield {
+                            "internal": True,
                             "type": "tool_complete",
                             "tool_id": current_tool_call["id"],
                             "name": current_tool_call["name"],
-                            "arguments": tool_args
+                            "arguments": tool_args,
+                            "message_id": current_message_id,
                         }
                         
                         tool_id = current_tool_call.get("id")
@@ -330,6 +317,12 @@ class AgentTurnProcessor:
                                     serializable_output = str(tool_result_content)
 
                                 yield {
+                                    "role": "tool",
+                                    "tool_call_id": current_tool_call["id"],
+                                    "content": serializable_output,
+                                }
+                                yield {
+                                    "internal": True,
                                     "type": "tool_result",
                                     "tool_id": current_tool_call["id"],
                                     "result": serializable_output,
@@ -339,68 +332,40 @@ class AgentTurnProcessor:
                                 logger.error(
                                     f"Failed to parse tool input JSON for tool '{tool_name}': {json_err}"
                                 )
-                                tool_error_data = {
-                                    "tool_use_id": tool_id,
-                                    "tool_name": tool_name,
-                                    "error_message": f"Invalid JSON input for tool: {str(json_err)}",
-                                }
                                 yield {
-                                    "type": "tool_execution_error",
-                                    "data": tool_error_data,
+                                    "internal": True,
+                                    "type": "tool_result",
+                                    "tool_id": current_tool_call["id"],
+                                    "error": f"Invalid JSON input for tool: {str(json_err)}",
+                                    "status": "error"
                                 }
                             except Exception as e:
                                 logger.error(
                                     f"Error executing tool {tool_name} via stream: {e}",
                                     exc_info=True,
                                 )
-                                tool_error_data = {
-                                    "tool_use_id": tool_id,
-                                    "tool_name": tool_name,
-                                    "error_message": str(e),
-                                }
                                 yield {
-                                    "type": "tool_execution_error",
-                                    "data": tool_error_data,
+                                    "internal": True,
+                                    "type": "tool_result",
+                                    "tool_id": current_tool_call["id"],
+                                    "error": str(e),
+                                    "status": "error"
                                 }
                         else:
                             logger.error(
                                 f"Tool name missing for tool use event. Tool ID: {tool_id}"
                             )
-                            tool_error_data = {
-                                "tool_use_id": tool_id,
-                                "tool_name": "unknown_tool",
-                                "error_message": "LLM did not provide a tool name for a tool_use block.",
-                            }
                             yield {
-                                "type": "tool_execution_error",
-                                "data": tool_error_data,
+                                "internal": True,
+                                "type": "tool_result",
+                                "tool_id": current_tool_call["id"],
+                                "error": "LLM did not provide a tool name for a tool_use block.",
+                                "status": "error"
                             }
                                                 
-                        ''' # simple tool calling kept for reference
-                        # Execute tool and get result
-                        result = await self.host.execute_tool(
-                            tool_name=current_tool_call["name"],
-                            arguments=tool_args,
-                            agent_config=self.config
-                        )
-                        
-                        # Store tool use
-                        self._tool_uses_this_turn.append({
-                            "id": current_tool_call["id"],
-                            "name": current_tool_call["name"],
-                            "input": tool_args
-                        })
-                        
-                        yield {
-                            "type": "tool_result",
-                            "tool_id": current_tool_call["id"],
-                            "result": result,
-                            "status": "success"
-                        }
-                        
-                        '''
                     except Exception as e:
                         yield {
+                            "internal": True,
                             "type": "tool_result",
                             "tool_id": current_tool_call["id"],
                             "error": str(e),
@@ -411,9 +376,11 @@ class AgentTurnProcessor:
                 # Handle final completion
                 if chunk_choice.get("finish_reason") in ["stop", "length"]:
                     yield {
+                        "internal": True,
                         "type": "message_complete",
                         "content": current_text_buffer,
-                        "stop_reason": chunk_choice.get("finish_reason")
+                        "stop_reason": chunk_choice.get("finish_reason"),
+                        "message_id": current_message_id,
                     }
                     break
 
