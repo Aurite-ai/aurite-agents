@@ -17,7 +17,6 @@ from ...host.host import MCPHost
 # from ..llm.base_client import BaseLLM # Moved to TYPE_CHECKING
 from .agent_models import (
     AgentExecutionResult,
-    AgentOutputContentBlock,
     AgentOutputMessage,
 )
 from .agent_turn_processor import AgentTurnProcessor
@@ -245,9 +244,6 @@ Please correct your previous response to conform to the schema."""
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
         current_iteration = 0
-        
-        current_message_content = ""
-        current_message_id = None
         
         while current_iteration < max_iterations:
             current_iteration += 1

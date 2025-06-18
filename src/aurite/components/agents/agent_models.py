@@ -3,7 +3,6 @@ Pydantic models for Agent execution inputs and outputs.
 """
 
 from pydantic import BaseModel, Field
-from anthropic.types import MessageParam
 from typing import List, Optional, Dict, Any
 
 # --- Agent Output Models ---
