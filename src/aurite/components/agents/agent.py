@@ -287,6 +287,21 @@ Please correct your previous response to conform to the schema."""
                         current_message_content += event.get("content", "")
                     elif event_type == "tool_complete":
                         is_tool_turn = True
+                        
+                        message = AgentOutputMessage(
+                            id=current_message_id,
+                            role="assistant",
+                            content=[{
+                                "type": "tool_use",
+                                "id": event["tool_id"],
+                                "name": event["name"],
+                                "input": event["arguments"],
+                            }],
+                            stop_reason="tool_use"
+                        )
+                        
+                        self.conversation_history.append(message)
+                        
                     elif event_type == "tool_result":
                         tool_results.append(event)
                     elif event_type == "message_complete":
