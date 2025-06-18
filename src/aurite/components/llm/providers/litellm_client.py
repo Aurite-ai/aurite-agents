@@ -2,6 +2,7 @@
 LLM Client for OpenAI models.
 """
 
+import os
 import logging
 import json  # For parsing tool arguments
 import litellm
@@ -40,6 +41,12 @@ class LiteLLMClient(BaseLLM):
     ):
         super().__init__(model_name, temperature, max_tokens, system_prompt)
         self.provider = provider
+        
+        if provider == "gemini":
+            # litellm expects GEMINI_API_KEY, however we expect GOOGLE_API_KEY
+            # so, we copy it over for the process
+            if 'GEMINI_API_KEY' not in os.environ and 'GOOGLE_API_KEY' in os.environ:
+                os.environ['GEMINI_API_KEY'] = os.environ['GOOGLE_API_KEY']
         logger.info(
             f"LiteLLM initialized for {self.provider}/{self.model_name}."
         )
