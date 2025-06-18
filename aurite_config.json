@@ -135,6 +135,15 @@
       "auto": false,
       "max_iterations": 5,
       "include_history": false
+    },
+    {
+      "name": "Assistant",
+      "llm_config_id": "openai_gpt4_turbo_mcp",
+      "system_prompt": "You are a helpful assistant",
+      "mcp_servers": [],
+      "auto": false,
+      "max_iterations": 5,
+      "include_history": false
     }
   ],
   "simple_workflows": [

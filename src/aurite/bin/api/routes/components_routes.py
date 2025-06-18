@@ -127,9 +127,9 @@ async def stream_agent_endpoint(
                 system_prompt=system_prompt,
             ):
                 event_type = event.get(
-                    "event_type", "message"
+                    "type", "message"
                 )  # Default to "message" if no specific type
-                event_data_json = json.dumps(event.get("data", {}))
+                event_data_json = json.dumps(event.get("content", {}))
                 # SSE format:
                 # event: event_name\n
                 # data: json_payload\n
