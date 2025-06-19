@@ -6,7 +6,7 @@ import os
 from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
-from aurite.components.components.agents.agent_models import AgentExecutionResult
+from aurite.components.agents.agent_models import AgentExecutionResult
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -108,7 +108,7 @@ async def run_iterations(
     executor: "ExecutionFacade",
     testing_config: ValidationConfig,
     override_system_prompt: str | None = None,
-) -> (list, list):
+) -> tuple[list, list]:
     """Run iterations of the agent/workflow and the analysis agent for prompt validation
 
     Args:
