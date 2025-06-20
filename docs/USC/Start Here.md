@@ -56,6 +56,10 @@ Welcome to the Aurite Agents Framework learning modules! This series will guide 
     *   This tutorial teaches you how to execute any pre-configured agent directly from the command line, a powerful workflow for testing and automation.
     *   [[07_Using_The_CLI|Tutorial: Using the Aurite CLI]]
 
+3.  **Building Your Own MCP Server**
+    *   This advanced tutorial teaches you how to create custom MCP servers that provide specialized tools to your agents, extending the framework's capabilities.
+    *   [[07_Building_Your_Own_MCP_Server|Tutorial: Building Your Own MCP Server]]
+
 ---
 
 *(More modules will be added here as they become available.)*
