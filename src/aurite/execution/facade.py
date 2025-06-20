@@ -124,7 +124,7 @@ class ExecutionFacade:
             f"Creating LLM client for provider '{provider}', model '{model_name}' (ID: {llm_config.llm_id})"
         )
         
-        if os.getenv("ENABLE_GATEWAY"):
+        if os.getenv("ENABLE_GATEWAY", default=True):
             # Use LiteLLM gateway regardless of provider
             try:
                 return LiteLLMClient(
