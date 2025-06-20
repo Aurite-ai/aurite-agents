@@ -327,6 +327,18 @@ class Aurite:
                                 if not active_project_config.agents.get(agent_name):
                                     await self.register_agent(agent_cfg)
                             for (
+                                workflow_name,
+                                workflow_cfg,
+                            ) in parsed_template_project.custom_workflows.items():
+                                if not active_project_config.custom_workflows.get(workflow_name):
+                                    await self.register_custom_workflow(workflow_cfg)
+                            for (
+                                workflow_name,
+                                workflow_cfg,
+                            ) in parsed_template_project.simple_workflows.items():
+                                if not active_project_config.simple_workflows.get(workflow_name):
+                                    await self.register_workflow(workflow_cfg)
+                            for (
                                 client_id,
                                 client_cfg,
                             ) in parsed_template_project.mcp_servers.items():
