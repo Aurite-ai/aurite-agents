@@ -5,7 +5,7 @@ from pathlib import Path  # Added Path import
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from .prompt_validation_helper import (  # Changed to relative import
+from aurite.packaged.prompt_validation.prompt_validation_helper import (  # Changed to relative import
     run_iterations,
     evaluate_results,
     improve_prompt,
@@ -49,6 +49,10 @@ class PromptValidationWorkflow:
 
         try:
             if "config_path" in initial_input:
+                # cast config_path to Path if str
+                if type(initial_input["config_path"]) is str:
+                    initial_input["config_path"] = Path(initial_input["config_path"])
+                
                 testing_config = load_config(initial_input["config_path"])
             elif "validation_config" in initial_input:
                 testing_config = ValidationConfig.model_validate(

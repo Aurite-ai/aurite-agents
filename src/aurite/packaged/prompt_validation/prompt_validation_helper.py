@@ -547,25 +547,24 @@ async def _get_agent_result(
                 raise ValueError(f"Unrecognized type {testing_config.test_type}")
 
     if testing_config.test_type == "agent":
+        full_output: AgentExecutionResult = full_output
         # get text output for agents
-        final_response_dict = full_output.get("final_response")
+        final_response = full_output.final_response
         output = ""  # Default to empty string
 
-        if final_response_dict and isinstance(final_response_dict, dict):
-            content_list = final_response_dict.get("content")
+        if final_response:
+            content_list = final_response.content
             if (
                 content_list
                 and isinstance(content_list, list)
                 and len(content_list) > 0
             ):
                 first_block = content_list[0]
-                if isinstance(first_block, dict) and first_block.get("type") == "text":
-                    output = first_block.get(
-                        "text", ""
-                    )  # Default to empty string if 'text' key is missing
+                if first_block.type == "text":
+                    output = first_block.text
                 else:
                     logger.warning(
-                        f"First content block in final_response is not a text block or not a dict: {first_block}"
+                        f"First content block in final_response is not a text block: {first_block}"
                     )
                     # Attempt to stringify, or provide a more specific error/placeholder
                     output = str(first_block) if first_block is not None else ""
@@ -575,7 +574,7 @@ async def _get_agent_result(
                 )
         else:
             logger.warning(
-                f"final_response is None, not a dict, or not found in agent output: {final_response_dict}"
+                f"final_response is None or not found in agent output: {final_response}"
             )
     else:
         # for workflows, output is expected to be the full_output directly
@@ -611,24 +610,22 @@ async def _run_single_iteration(
         )
 
         # Extract text from the Quality Assurance Agent's response
-        analysis_final_response_dict = analysis_output.get("final_response")
+        analysis_final_response_dict = analysis_output.final_response
         analysis_text_output = ""  # Default to empty string
 
-        if analysis_final_response_dict and isinstance(
-            analysis_final_response_dict, dict
-        ):
-            content_list = analysis_final_response_dict.get("content")
+        if analysis_final_response_dict:
+            content_list = analysis_final_response_dict.content
             if (
                 content_list
                 and isinstance(content_list, list)
                 and len(content_list) > 0
             ):
                 first_block = content_list[0]
-                if isinstance(first_block, dict) and first_block.get("type") == "text":
-                    analysis_text_output = first_block.get("text", "")
+                if first_block.type == "text":
+                    analysis_text_output = first_block.text
                 else:
                     logger.warning(
-                        f"QA Agent: First content block in final_response is not a text block or not a dict: {first_block}"
+                        f"QA Agent: First content block in final_response is not a text block: {first_block}"
                     )
                     analysis_text_output = (
                         str(first_block) if first_block is not None else ""
@@ -639,7 +636,7 @@ async def _run_single_iteration(
                 )
         else:
             logger.warning(
-                f"QA Agent: final_response is None, not a dict, or not found in agent output: {analysis_final_response_dict}"
+                f"QA Agent: final_response is None or not found in agent output: {analysis_final_response_dict}"
             )
 
         logging.info(f"Analysis result {i + 1}: {analysis_text_output}")
@@ -663,10 +660,10 @@ async def _run_single_iteration(
 def _extract_tool_calls(agent_response: AgentExecutionResult) -> list[dict]:
     """Extract a list of tool calls from agent response"""
     tool_calls = []
-    for item in agent_response.get("conversation", []):
-        if item.get("role") == "assistant":
-            for c in item.get("content", []):
-                if c.get("type") == "tool_use":
+    for item in agent_response.conversation:
+        if item.role == "assistant":
+            for c in item.content:
+                if c.type == "tool_use":
                     tool_calls.append({"name": c.get("name"), "input": c.get("input")})
 
     return tool_calls
