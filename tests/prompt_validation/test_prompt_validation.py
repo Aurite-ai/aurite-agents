@@ -8,14 +8,15 @@ import pytest
 pytestmark = pytest.mark.anyio
 
 from aurite.host_manager import Aurite
-from aurite.config import PROJECT_ROOT_DIR  # Import project root
-
 
 class TestPromptValidation:
     @pytest.mark.timeout(300)
     async def test_workflow_prompt_validation(self, request, host_manager: Aurite):
         # edit the path based on command line args
         config_file = request.config.getoption("--config")
+        
+        # PROJECT_ROOT_DIR deprecated, now fetch from project manager
+        PROJECT_ROOT_DIR = host_manager.project_manager.current_project_root
 
         if config_file:
             testing_config_path = PROJECT_ROOT_DIR / f"config/testing/{config_file}"
