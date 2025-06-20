@@ -219,7 +219,7 @@ async def evaluate_results_ab(
 
     logging.info(f"A/B Output: {ab_output.get('final_response').content[0].text}")
 
-    return ab_output.get("final_response").content[0].text
+    return ab_output.primary_text()
 
 
 async def improve_prompt(
@@ -251,7 +251,7 @@ async def improve_prompt(
                 user_message=user_message,
             )
 
-            return new_prompt_output.get("final_response").content[0].text
+            return new_prompt_output.primary_text()
 
         case "gemini":
             # now use gemini to improve the prompt
@@ -664,7 +664,7 @@ def _extract_tool_calls(agent_response: AgentExecutionResult) -> list[dict]:
         if item.role == "assistant":
             for c in item.content:
                 if c.type == "tool_use":
-                    tool_calls.append({"name": c.get("name"), "input": c.get("input")})
+                    tool_calls.append({"name": c.name, "input": c.input})
 
     return tool_calls
 
