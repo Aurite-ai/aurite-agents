@@ -146,7 +146,7 @@ python tests/functional_mcp_client.py '{"name": "appinsightmcp"}' "Use the 'app-
 *   **`app_insight_agent`**: An agent that can answer questions about mobile apps using the appinsightmcp server.
     *   **Configuration File**: `config/agents/data_analytics_agents.json`
 
-### `stock_analysis`
+### `alpha_vantage_stock_server`
 
 *   **Description**: A server that provides tools to analyze stock data.
 *   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
