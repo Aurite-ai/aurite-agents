@@ -43,7 +43,7 @@ async def main():
         # # 2. Define and register an MCP server configuration
         # mcp_server_config = ClientConfig(
         #     name="my_weather_server",
-        #     server_path="mcp_servers/weather_mcp_server.py",  # Use the resolved absolute path
+        #     server_path="example_mcp_servers/weather_mcp_server.py",  # Use the resolved absolute path
         #     capabilities=["tools"],
         # )
         # await aurite.register_client(mcp_server_config)
