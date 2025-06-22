@@ -22,5 +22,12 @@
             "read_biorxiv_paper",
             "read_medrxiv_paper"
         ]
+    },
+    {
+        "name": "brave_search",
+        "transport_type": "http_stream",
+        "http_endpoint": "https://server.smithery.ai/@smithery-ai/brave-search/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+        "capabilities": ["tools"],
+        "timeout": 15.0
     }
 ]

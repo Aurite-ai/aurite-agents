@@ -150,7 +150,7 @@ def init(
 
         # Create .env.example file
         env_example_content = (
-            "OPENAI_API_KEY=\n" "SMITHERY_API_KEY=\n" "SMITHERY_PROFILE_ID=\n"
+            "OPENAI_API_KEY=\n" "SMITHERY_API_KEY=\n" "SMITHERY_PROFILE_ID=\n" "API_KEY=my_custom_key\n" "PROJECT_CONFIG_PATH=aurite_config.json\n"
         )
         env_example_path = project_path / ".." / ".env.example"
         env_example_path.write_text(env_example_content)

@@ -446,15 +446,14 @@ class ToolManager:
                 if isinstance(input_schema, dict) and "type" not in input_schema:
                     input_schema["type"] = "object"
 
-                tools_data.append(
-                    {
-                        "name": tool.name,
-                        "description": tool.description
-                        if hasattr(tool, "description")
-                        else "",
-                        "input_schema": input_schema,
-                    }
-                )
+                tool_data = {
+                    "name": tool.name,
+                    "input_schema": input_schema,
+                }
+                if hasattr(tool, "description") and tool.description:
+                    tool_data["description"] = tool.description
+
+                tools_data.append(tool_data)
 
         return tools_data
 
