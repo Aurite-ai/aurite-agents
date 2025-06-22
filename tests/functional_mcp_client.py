@@ -117,14 +117,24 @@ class MCPClient:
         messages: List[MessageParam] = [{"role": "user", "content": query}]
 
         response = await self.session.list_tools()
-        available_tools: List[ToolParam] = [
-            {
+        available_tools: List[ToolParam] = []
+        for tool in response.tools:
+            tool_param = {
                 "name": tool.name,
-                "description": tool.description,
                 "input_schema": tool.inputSchema,
             }
-            for tool in response.tools
-        ]  # type: ignore
+            if tool.description:
+                tool_param["description"] = tool.description
+            available_tools.append(tool_param)
+
+        # Print tool descriptions and input schemas
+        for tool in available_tools:
+            print(f"Tool Name: {tool['name']}")
+            if 'description' in tool:
+                print(f"Tool Description: {tool['description']}")
+            else:
+                print(f"Tool Description: No description provided")
+            print(f"Tool Input Schema: {tool['input_schema']}")
 
         # Start the conversation
         response = self.anthropic.messages.create(
