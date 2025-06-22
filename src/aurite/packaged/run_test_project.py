@@ -22,7 +22,7 @@ async def main():
 
     load_dotenv()
 
-    aurite = Aurite(config_path=Path("non_existent_config.json"))
+    aurite = Aurite()
 
     try:
         await aurite.initialize()
