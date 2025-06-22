@@ -4,7 +4,6 @@ from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
 from aurite.config.config_models import AgentConfig, LLMConfig
-from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
