@@ -94,18 +94,18 @@ class PromptValidationWorkflow:
                 if not final_result.get("pass", False):
                     # didn't pass, edit prompt / retry
                     if testing_config.edit_prompt:
-                        current_prompt = (
-                            improved_prompt
-                            or executor._host.get_agent_config(
-                                testing_config.name
-                            ).system_prompt
-                        )
-                        improved_prompt = await improve_prompt(
-                            executor,
-                            testing_config.editor_model,
-                            results,
-                            current_prompt,
-                        )
+                        agent_config = executor.get_project_config().agents.get(testing_config.name)
+                        if agent_config:
+                            current_prompt = (
+                                improved_prompt
+                                or agent_config.system_prompt
+                            )
+                            improved_prompt = await improve_prompt(
+                                executor,
+                                testing_config.editor_model,
+                                results,
+                                current_prompt,
+                            )
                 else:
                     # passed, break out of retry loop
                     break
