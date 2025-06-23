@@ -3,7 +3,6 @@ import yaml
 import asyncio
 import logging
 import os
-from google import genai
 from pydantic import BaseModel, Field
 from typing import TYPE_CHECKING
 from aurite.components.agents.agent_models import AgentExecutionResult
@@ -254,22 +253,17 @@ async def improve_prompt(
             return new_prompt_output.primary_text()
 
         case "gemini":
-            # now use gemini to improve the prompt
-
-            # TODO: call as an agent once gemini is added to models
-            client = genai.Client()
-
-            response = client.models.generate_content(
-                model="gemini-2.5-pro-preview-03-25",
-                config=genai.types.GenerateContentConfig(
-                    system_instruction="You are an expert prompt engineer. Your task is to make edits to agent system prompts to improve their output quality. You will be given the original system prompt and a list of samples of its performance. You will analyze the existing system prompt and output an improved version which will address any failings in the samples. Key points to remember: 1. Make use of short examples to communicate the expected output. 2. Clearly label different parts of the prompt. 3. Return only the new system prompt, with no other text before or after."
-                ),
-                contents=json.dumps(
-                    {"current_prompt": current_prompt, "samples": results}
-                ),
+            # now use gemini to improve the prompt            
+            user_message = json.dumps(
+                {"current_prompt": current_prompt, "samples": results}
             )
 
-            return response.text
+            new_prompt_output = await executor.run_agent(
+                agent_name="Prompt Editor Agent Gemini",
+                user_message=user_message,
+            )
+
+            return new_prompt_output.primary_text()
         case _:
             raise ValueError(f"Unrecognized prompt editor model {model}")
 
