@@ -35,6 +35,7 @@ from .config.config_models import (  # Updated import path
     ClientConfig,
     CustomWorkflowConfig,
     WorkflowConfig,
+    ProjectConfig,
 )
 
 # Import the new facade
@@ -320,41 +321,7 @@ class Aurite:
                             self.project_manager.get_active_project_config()
                         )
                         if active_project_config:
-                            for (
-                                agent_name,
-                                agent_cfg,
-                            ) in parsed_template_project.agents.items():
-                                if not active_project_config.agents.get(agent_name):
-                                    await self.register_agent(agent_cfg)
-                            for (
-                                workflow_name,
-                                workflow_cfg,
-                            ) in parsed_template_project.custom_workflows.items():
-                                if not active_project_config.custom_workflows.get(workflow_name):
-                                    await self.register_custom_workflow(workflow_cfg)
-                            for (
-                                workflow_name,
-                                workflow_cfg,
-                            ) in parsed_template_project.simple_workflows.items():
-                                if not active_project_config.simple_workflows.get(workflow_name):
-                                    await self.register_workflow(workflow_cfg)
-                            for (
-                                client_id,
-                                client_cfg,
-                            ) in parsed_template_project.mcp_servers.items():
-                                if not active_project_config.mcp_servers.get(client_id):
-                                    try:
-                                        await self.register_client(client_cfg)
-                                    except (
-                                        DuplicateClientIdError
-                                    ):  # It might have been loaded as a default already
-                                        logger.debug(
-                                            f"Client {client_id} from template already exists, skipping registration."
-                                        )
-                        # Add for other component types (llms, workflows) as needed.
-                        logger.debug(
-                            f"Components from {packaged_project_template_path_obj.name} considered for active project."
-                        )
+                            await self.register_project_config(parsed_template_project)
 
                 else:
                     logger.debug(
@@ -1085,7 +1052,70 @@ class Aurite:
                     f"Failed to sync custom workflow '{custom_workflow_config.name}' to database: {e}",
                     exc_info=True,
                 )
+                
+    async def register_project_config(
+        self,
+        project_config: ProjectConfig
+    ):
+        """
+        Dynamically registers all components from a project config. They will be additively loaded without removing the current project components.
 
+        Args:
+            project_config: The project configuration to register.
+
+        Raises:
+            ValueError: If the Aurite is not initialized or the module_path is invalid.
+            PermissionError: If dynamic registration is disabled.
+        """
+        if not self._dynamic_registration_enabled:
+            logger.error(
+                "Dynamic registration is disabled. Cannot register project config."
+            )
+            raise PermissionError("Dynamic registration is disabled by configuration.")
+        
+        logger.debug(  # INFO -> DEBUG
+            f"Attempting to dynamically register project: {project_config.name}"
+        )
+        if not self.host:
+            logger.error("Aurite is not initialized. Cannot register project config.")
+            raise ValueError("Aurite is not initialized.")
+
+        active_project = self.project_manager.get_active_project_config()
+        if not active_project:
+            logger.error("Cannot register project config: No active project loaded.")
+            raise RuntimeError("No active project loaded to register project config against.")
+        
+        for client_id, client_cfg in project_config.mcp_servers.items():
+            if not active_project.mcp_servers.get(client_id):
+                try:
+                    await self.register_client(client_cfg)
+                except (
+                    DuplicateClientIdError
+                ):  # It might have been loaded as a default already
+                    logger.debug(
+                        f"Client {client_id} from template already exists, skipping registration."
+                    )
+        
+        for llm_name, llm_cfg in project_config.llms.items():
+            if not active_project.llms.get(llm_name):
+                await self.register_llm_config(llm_cfg)
+        
+        for agent_name, agent_cfg in project_config.agents.items():
+            if not active_project.agents.get(agent_name):
+                await self.register_agent(agent_cfg)
+        
+        for workflow_name, workflow_cfg in project_config.custom_workflows.items():
+            if not active_project.custom_workflows.get(workflow_name):
+                await self.register_custom_workflow(workflow_cfg)
+        
+        for workflow_name, workflow_cfg in project_config.simple_workflows.items():
+            if not active_project.simple_workflows.get(workflow_name):
+                await self.register_workflow(workflow_cfg)
+        
+        logger.debug(
+            f"Project Config '{project_config.name}' registered successfully in active project."
+        )
+        
     # --- Configuration Access Methods ---
 
     def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
