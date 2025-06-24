@@ -218,7 +218,7 @@ async def evaluate_results_ab(
 
     logging.info(f"A/B Output: {ab_output.get('final_response').content[0].text}")
 
-    return ab_output.primary_text()
+    return ab_output.primary_text
 
 
 async def improve_prompt(
@@ -250,7 +250,7 @@ async def improve_prompt(
                 user_message=user_message,
             )
 
-            return new_prompt_output.primary_text()
+            return new_prompt_output.primary_text
 
         case "gemini":
             # now use gemini to improve the prompt            
@@ -263,7 +263,7 @@ async def improve_prompt(
                 user_message=user_message,
             )
 
-            return new_prompt_output.primary_text()
+            return new_prompt_output.primary_text
         case _:
             raise ValueError(f"Unrecognized prompt editor model {model}")
 
