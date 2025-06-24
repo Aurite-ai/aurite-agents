@@ -38,9 +38,15 @@ class LiteLLMClient(BaseLLM):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
+        api_base: Optional[str] = None,
+        api_key: Optional[str] = None,
+        api_version: Optional[str] = None,
     ):
         super().__init__(model_name, temperature, max_tokens, system_prompt)
         self.provider = provider
+        self.api_base = api_base
+        self.api_key = api_key
+        self.api_version = api_version
         
         if provider == "gemini":
             # litellm expects GEMINI_API_KEY, however we expect GOOGLE_API_KEY
@@ -194,6 +200,18 @@ class LiteLLMClient(BaseLLM):
         provider_to_use = self.provider
         if llm_config_override and llm_config_override.provider:
             provider_to_use = llm_config_override.provider
+            
+        api_base_to_use = self.api_base
+        if llm_config_override and llm_config_override.api_base:
+            api_base_to_use = llm_config_override.api_base
+        
+        api_key_to_use = self.api_key
+        if llm_config_override and llm_config_override.api_key:
+            api_key_to_use = llm_config_override.api_key
+        
+        api_version_to_use = self.api_version
+        if llm_config_override and llm_config_override.api_version:
+            api_version_to_use = llm_config_override.api_version
 
         temperature_to_use = self.temperature
         if llm_config_override and llm_config_override.temperature is not None:
@@ -234,6 +252,9 @@ class LiteLLMClient(BaseLLM):
             "messages": api_messages,
             "temperature": temperature_to_use,
             "max_tokens": max_tokens_to_use,
+            "api_base": api_base_to_use,
+            "api_key": api_key_to_use,
+            "api_version": api_version_to_use,
         }
 
         if api_tools:

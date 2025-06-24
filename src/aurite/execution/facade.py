@@ -133,6 +133,9 @@ class ExecutionFacade:
                     temperature=llm_config.temperature,
                     max_tokens=llm_config.max_tokens,
                     system_prompt=llm_config.default_system_prompt,
+                    api_base=llm_config.api_base,
+                    api_key=llm_config.api_key,
+                    api_version=llm_config.api_version,
                 )
             except Exception as e:
                 logger.error(
