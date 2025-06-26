@@ -197,7 +197,7 @@ class AgentTurnProcessor:
                 chunk_choice = llm_chunk.get("choices", [{}])[0]
                 delta = chunk_choice.get("delta", {})
                 
-                yield delta
+                yield llm_chunk
                 
                 # Handle message start
                 if delta.get("role") == "assistant" and not current_text_buffer:
