@@ -4,7 +4,6 @@ from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
 from aurite.config.config_models import AgentConfig, LLMConfig
-from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ async def main():
 
     load_dotenv()
 
-    aurite = Aurite(config_path=Path("non_existent_config.json"))
+    aurite = Aurite()
 
     try:
         await aurite.initialize()
@@ -44,7 +43,7 @@ async def main():
         # # 2. Define and register an MCP server configuration
         # mcp_server_config = ClientConfig(
         #     name="my_weather_server",
-        #     server_path="mcp_servers/weather_mcp_server.py",  # Use the resolved absolute path
+        #     server_path="example_mcp_servers/weather_mcp_server.py",  # Use the resolved absolute path
         #     capabilities=["tools"],
         # )
         # await aurite.register_client(mcp_server_config)

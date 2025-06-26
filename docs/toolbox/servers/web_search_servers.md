@@ -44,3 +44,19 @@ The following tools are excluded as the mcp server does not have file read/write
 | `read_pubmed_paper` | Read and extract text content from a PubMed paper. **Args:** `paper_id`: PubMed ID (PMID), `save_path`: Directory where the PDF would be saved |
 | `read_biorxiv_paper` | Read and extract text content from a bioRxiv paper PDF. **Args:** `paper_id`: bioRxiv DOI, `save_path`: Directory where the PDF is/will be saved |
 | `read_medrxiv_paper` | Read and extract text content from a medRxiv paper PDF. **Args:** `paper_id`: medRxiv DOI, `save_path`: Directory where the PDF is/will be saved |
+
+### `brave_search`
+
+* **Description**: Enable web search capabilities through Brave Search.
+* **Configuration File**: `config/mcp_servers/web_search_servers.json`
+
+**Tools:**
+
+| Tool Name | Description |
+| --- | --- |
+| `brave_web_search` | Search the web using Brave Search. **Args:** `query`: The search query string |
+| `brave_local_search` | Perform a local search using Brave Search. **Args:** `query`: The search query string |
+
+**Relevant Agents:**
+*   **`brave_search_agent`**: An agent that can use the brave_search server to perform web searches.
+    *   **Configuration File**: `config/agents/web_search_agents.json`

@@ -23,5 +23,10 @@
     "name": "app_insight_agent",
     "mcp_servers": ["appinsightmcp"],
     "system_prompt": "You are an agent that can use the appinsightmcp server to answer questions about mobile apps."
+  },
+  {
+    "name": "stock_analysis_agent",
+    "mcp_servers": ["alpha_vantage_stock_server"],
+    "system_prompt": "You are an agent that can analyze stock data using the stock_analysis server."
   }
 ]

@@ -6,19 +6,19 @@
       "name": "weather_server",
       "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
       "capabilities": ["tools", "prompts"],
-      "timeout": 15.0,
-      "routing_weight": 1.0,
       "roots": []
     },
     {
       "name": "planning_server",
       "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
-      "capabilities": ["tools", "prompts", "resources"],
-      "timeout": 15.0,
-      "routing_weight": 1.0,
-      "exclude": null,
-      "gcp_secrets": null,
-      "roots": []
+      "capabilities": ["tools", "prompts", "resources"]
+    },
+    {
+      "name": "stock_analysis",
+      "transport_type": "http_stream",
+      "http_endpoint": "https://server.smithery.ai/@qubaomingg/stock-analysis-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+      "capabilities": ["tools"],
+      "timeout": 15.0
     }
   ],
   "llms": [
@@ -67,6 +67,12 @@
     }
   ],
   "agents": [
+    {
+      "name": "Stock Analysis Agent",
+      "system_prompt": "You are a stock analysis agent. Use the tools available to analyze stock data and provide insights. Your response must be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",
+      "mcp_servers": ["stock_analysis"],
+      "llm_config_id": "anthropic_claude_3_opus"
+    },
     {
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query. CRITICAL: Your response MUST be a single JSON object matching the schema provided. Do not include any other text or explanations - just the JSON object.",

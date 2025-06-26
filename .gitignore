@@ -156,7 +156,6 @@ test.lib/
 temp.txt
 copilot_memory/
 .idea/ # Keep this active rule
-CLAUDE.md
 package-lock.json
 __package_previews__
 .store

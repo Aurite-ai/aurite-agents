@@ -1,18 +1,18 @@
 [
   {
-    "name": "game_trends_mcp",
-    "transport_type": "http_stream",
-    "http_endpoint": "https://server.smithery.ai/@halismertkir/game-trends-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
-    "capabilities": ["tools"],
-    "timeout": 60.0
-  },
-  {
     "name": "healthcare_mcp_public",
     "transport_type": "http_stream",
     "http_endpoint": "https://server.smithery.ai/@Cicatriiz/healthcare-mcp-public/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
     "capabilities": ["tools"],
     "timeout": 60.0,
     "exclude": ["clinical_trials_search", "lookup_icd_code"]
+  },
+  {
+    "name": "alpha_vantage_stock_server",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@qubaomingg/stock-analysis-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 15.0
   },
   {
     "name": "national_weather_service",
