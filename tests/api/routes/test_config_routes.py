@@ -7,7 +7,7 @@ from pathlib import Path
 # Import the FastAPI app instance and dependencies
 from aurite.bin.api.api import app
 from aurite.bin.dependencies import get_component_manager
-from aurite.config.component_manager import ComponentManager, COMPONENT_TYPES_DIRS
+from aurite.config.component_manager import ComponentManager, COMPONENT_SUBDIRS, COMPONENT_META
 from aurite.config.config_models import (
     AgentConfig,
     ClientConfig,
@@ -58,9 +58,7 @@ def temp_config_file_factory(tmp_path_factory):
 
         # Create a temporary directory structure similar to real config
         # e.g., tmp_path / "agents" / filename
-        component_dir_name = COMPONENT_TYPES_DIRS[
-            component_type_key
-        ].name  # e.g., "agents"
+        component_dir_name = COMPONENT_SUBDIRS[component_type_key]  # e.g., "agents"
         temp_component_dir = (
             tmp_path_factory.mktemp("config_test_root") / component_dir_name
         )
@@ -101,7 +99,11 @@ def test_list_configs_success(
     from aurite.bin.api.routes.config_routes import API_TO_CM_TYPE_MAP
 
     expected_cm_type = API_TO_CM_TYPE_MAP[component_type]
-    mock_cm.list_component_files.assert_called_once_with(expected_cm_type)
+    # The method now requires project_root_path parameter
+    mock_cm.list_component_files.assert_called_once()
+    call_args = mock_cm.list_component_files.call_args
+    assert call_args[0][0] == expected_cm_type  # First positional arg
+    assert "project_root_path" in call_args[1]  # Keyword arg
 
     # Clear overrides after test
     app.dependency_overrides = {}
@@ -118,9 +120,10 @@ def test_list_configs_empty(api_client: TestClient, mock_cm: MagicMock):
 
     assert response.status_code == 200
     assert response.json() == []
-    mock_cm.list_component_files.assert_called_once_with(
-        "agents"
-    )  # Assuming 'agents' maps to 'agents'
+    # The method now requires project_root_path parameter
+    mock_cm.list_component_files.assert_called_once()
+    call_args = mock_cm.list_component_files.call_args
+    assert call_args[0][0] == "agents"  # First positional arg
 
     app.dependency_overrides = {}
 
@@ -217,11 +220,12 @@ def test_get_raw_config_file_success(
         cm_internal_type, filename, expected_content
     )
 
-    # Patch COMPONENT_TYPES_DIRS in the route's module to point to our temp dir
+    # Patch COMPONENT_SUBDIRS in the route's module to point to our temp dir
+    from aurite.config.component_manager import COMPONENT_SUBDIRS
     monkeypatch.setitem(
-        COMPONENT_TYPES_DIRS,
+        COMPONENT_SUBDIRS,
         cm_internal_type,
-        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name,
+        str(temp_config_root / COMPONENT_SUBDIRS[cm_internal_type]),
     )
 
     headers = {"X-API-Key": api_client.test_api_key}
@@ -241,13 +245,14 @@ def test_get_raw_config_file_not_found(api_client: TestClient, tmp_path, monkeyp
     filename = "non_existent_raw.json"
 
     # Point to an empty temp directory
-    temp_component_dir_name = COMPONENT_TYPES_DIRS[cm_internal_type].name
+    from aurite.config.component_manager import COMPONENT_SUBDIRS
+    temp_component_dir_name = COMPONENT_SUBDIRS[cm_internal_type]
     empty_config_root = tmp_path / "empty_config_root"
     (empty_config_root / temp_component_dir_name).mkdir(parents=True, exist_ok=True)
     monkeypatch.setitem(
-        COMPONENT_TYPES_DIRS,
+        COMPONENT_SUBDIRS,
         cm_internal_type,
-        empty_config_root / temp_component_dir_name,
+        str(empty_config_root / temp_component_dir_name),
     )
 
     headers = {"X-API-Key": api_client.test_api_key}
@@ -268,11 +273,12 @@ def test_get_raw_config_file_invalid_json(
     filename = "invalid_format.json"
 
     # Create a file with invalid JSON
+    from aurite.config.component_manager import COMPONENT_SUBDIRS
     _, temp_config_root = temp_config_file_factory(
         cm_internal_type, filename, {}
     )  # Create empty first
     file_to_corrupt = (
-        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name / filename
+        temp_config_root / COMPONENT_SUBDIRS[cm_internal_type] / filename
     )
     with open(file_to_corrupt, "w") as f:
         f.write(
@@ -280,9 +286,9 @@ def test_get_raw_config_file_invalid_json(
         )  # Invalid JSON (single quotes, trailing comma)
 
     monkeypatch.setitem(
-        COMPONENT_TYPES_DIRS,
+        COMPONENT_SUBDIRS,
         cm_internal_type,
-        temp_config_root / COMPONENT_TYPES_DIRS[cm_internal_type].name,
+        str(temp_config_root / COMPONENT_SUBDIRS[cm_internal_type]),
     )
 
     headers = {"X-API-Key": api_client.test_api_key}
@@ -308,11 +314,12 @@ def test_get_raw_config_file_path_traversal(
     # Malicious filename attempting to go up one directory
     filename = "../../../etc/passwd"
 
-    # Patch COMPONENT_TYPES_DIRS to a known safe temp location
+    # Patch COMPONENT_SUBDIRS to a known safe temp location
     # The route itself should prevent traversal before even trying to use this path.
+    from aurite.config.component_manager import COMPONENT_SUBDIRS
     safe_temp_dir = tmp_path / "safe_agents_config"  # Use the tmp_path fixture directly
     safe_temp_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setitem(COMPONENT_TYPES_DIRS, cm_internal_type, safe_temp_dir)
+    monkeypatch.setitem(COMPONENT_SUBDIRS, cm_internal_type, "safe_agents_config")
 
     headers = {"X-API-Key": api_client.test_api_key}
     response = api_client.get(

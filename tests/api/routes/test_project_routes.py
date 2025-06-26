@@ -3,9 +3,6 @@ from fastapi.testclient import TestClient
 import json
 from pathlib import Path
 
-# Import the FastAPI app instance and dependencies
-from aurite.config import PROJECT_ROOT_DIR
-
 # Marker for API integration tests, specifically for project routes
 pytestmark = [
     pytest.mark.api_integration,
@@ -16,8 +13,11 @@ pytestmark = [
 # --- Helper Functions ---
 
 
-def _get_project_file_path(filename: str) -> Path:
-    return PROJECT_ROOT_DIR / "config" / "projects" / filename
+def _get_project_file_path(filename: str, project_root: Path = None) -> Path:
+    if project_root is None:
+        # Default to current working directory if not provided
+        project_root = Path.cwd()
+    return project_root / "config" / "projects" / filename
 
 
 # --- Tests for GET /projects/list_files ---
@@ -71,12 +71,14 @@ def test_create_project_file_success(api_client: TestClient, tmp_path):
     # or ensure the endpoint uses a configurable projects_dir.
     # For now, let's assume the endpoint writes to a predictable place and clean up.
 
-    projects_dir_in_config = PROJECT_ROOT_DIR / "config" / "projects"
+    # Get the current project root from the test environment
+    project_root = Path.cwd()
+    projects_dir_in_config = project_root / "config" / "projects"
     projects_dir_in_config.mkdir(
         parents=True, exist_ok=True
     )  # Ensure actual dir exists
 
-    file_to_create_path = _get_project_file_path(new_project_filename)
+    file_to_create_path = _get_project_file_path(new_project_filename, project_root)
 
     # Clean up before test if file exists from previous failed run
     if file_to_create_path.exists():
@@ -126,7 +128,8 @@ def test_create_project_file_invalid_filename(api_client: TestClient):
 def test_create_project_file_already_exists(api_client: TestClient):
     """Tests creating a project file that already exists."""
     existing_filename = "test_already_exists_project.json"
-    file_path = _get_project_file_path(existing_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(existing_filename, project_root)
 
     # Create a dummy file to simulate existence
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,7 +167,8 @@ def test_create_project_file_unauthorized(api_client: TestClient):
 def test_get_project_file_content_success(api_client: TestClient):
     """Tests successfully getting the content of a project file."""
     test_filename = "test_get_content.json"
-    file_path = _get_project_file_path(test_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(test_filename, project_root)
     test_content = {
         "name": "Test Get Content Project",
         "description": "Content for GET test.",
@@ -198,7 +202,8 @@ def test_get_project_file_content_not_found(api_client: TestClient):
 def test_get_project_file_content_invalid_json(api_client: TestClient):
     """Tests getting content of a project file with invalid JSON."""
     test_filename = "invalid_json_content.json"
-    file_path = _get_project_file_path(test_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(test_filename, project_root)
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
@@ -248,7 +253,8 @@ def test_get_project_file_content_unauthorized(api_client: TestClient):
 def test_update_project_file_content_success(api_client: TestClient):
     """Tests successfully updating the content of a project file."""
     test_filename = "test_update_content.json"
-    file_path = _get_project_file_path(test_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(test_filename, project_root)
     initial_content = {
         "name": "Initial Update Content",
         "description": "Initial state.",
@@ -284,7 +290,8 @@ def test_update_project_file_content_success(api_client: TestClient):
 def test_update_project_file_content_creates_new(api_client: TestClient):
     """Tests that updating a non-existent project file creates it."""
     new_filename = "test_update_creates_new.json"
-    file_path = _get_project_file_path(new_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(new_filename, project_root)
     new_content = {
         "name": "Created by Update",
         "description": "This file was created by PUT.",
@@ -317,7 +324,8 @@ def test_update_project_file_content_creates_new(api_client: TestClient):
 def test_update_project_file_content_invalid_payload(api_client: TestClient):
     """Tests updating a project file with invalid content (not a dict)."""
     test_filename = "test_update_invalid_payload.json"
-    file_path = _get_project_file_path(test_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(test_filename, project_root)
     initial_content = {"name": "Valid Initial"}
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
@@ -343,7 +351,8 @@ def test_update_project_file_content_invalid_payload(api_client: TestClient):
 def test_update_project_file_content_validation_error(api_client: TestClient):
     """Tests updating a project file with content that fails ProjectConfig validation."""
     test_filename = "test_update_validation_error.json"
-    file_path = _get_project_file_path(test_filename)
+    project_root = Path.cwd()
+    file_path = _get_project_file_path(test_filename, project_root)
     # Initial valid file
     with open(file_path, "w") as f:
         json.dump({"name": "Initial Valid"}, f)
