@@ -34,7 +34,6 @@ if TYPE_CHECKING:
 
 
 # Actual runtime imports
-from ..components.llm.providers.openai_client import OpenAIClient  # Moved here
 from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..config.config_models import (
     AgentConfig,
@@ -59,12 +58,6 @@ from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Import CustomWorkflowExecutor at runtime
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-
-# Import default LLM client for SimpleWorkflowExecutor instantiation
-from ..components.llm.providers.anthropic_client import (
-    AnthropicLLM,
-)
-from ..components.llm.providers.gemini_client import GeminiLLM
 
 from termcolor import colored  # Added import
 
@@ -143,49 +136,6 @@ class ExecutionFacade:
                     exc_info=True,
                 )
                 raise ValueError(f"Failed to create LiteLLM client: {e}") from e
-        elif provider == "anthropic":
-            # API key resolution could be enhanced here (e.g., check env vars specified in config)
-            # For now, relies on AnthropicLLM's internal check for ANTHROPIC_API_KEY
-            try:
-                return AnthropicLLM(
-                    model_name=model_name,
-                    temperature=llm_config.temperature,  # Pass None if not set, client handles default
-                    max_tokens=llm_config.max_tokens,  # Pass None if not set, client handles default
-                    system_prompt=llm_config.default_system_prompt,  # Pass None if not set, client handles default
-                    # api_key=resolved_api_key # Example if key resolution happened here
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to instantiate AnthropicLLM for config '{llm_config.llm_id}': {e}",
-                    exc_info=True,
-                )
-                raise ValueError(f"Failed to create Anthropic client: {e}") from e
-        elif provider == "gemini":
-            try:
-                return GeminiLLM(
-                    model_name=model_name,
-                    temperature=llm_config.temperature, # Pass None if not set, client handles default
-                    max_tokens=llm_config.max_tokens,   # Pass None if not set, client handles default
-                    system_prompt=llm_config.default_system_prompt # Pass None if not set, client handles default
-                    # api_key=resolved_api_key # Example if key resolution happened here
-                )
-            except Exception as e:
-                logger.error(f"Failed to instantiate GeminiLLM for config '{llm_config.llm_id}': {e}", exc_info=True)
-                raise ValueError(f"Failed to create Gemini client: {e}") from e
-        elif provider == "openai":
-            try:
-                return OpenAIClient(
-                    model_name=model_name,  # Already has a default if llm_config.model_name is None
-                    temperature=llm_config.temperature,
-                    max_tokens=llm_config.max_tokens,
-                    system_prompt=llm_config.default_system_prompt,
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to instantiate OpenAIClient for config '{llm_config.llm_id}': {e}",
-                    exc_info=True,
-                )
-                raise ValueError(f"Failed to create OpenAI client: {e}") from e
         else:
             logger.error(
                 f"Unsupported LLM provider specified in LLMConfig '{llm_config.llm_id}': {provider}"
