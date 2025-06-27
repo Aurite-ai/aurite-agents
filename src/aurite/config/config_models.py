@@ -212,6 +212,15 @@ class LLMConfig(BaseModel):
     # Provider-specific settings (Example - adjust as needed)
     # api_key_env_var: Optional[str] = Field(None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).")
     # credentials_path: Optional[Path] = Field(None, description="Path to credentials file for some providers.")
+    api_base: Optional[str] = Field(
+        default=None, description="The base URL for the LLM."
+    )
+    api_key: Optional[str] = Field(
+        default=None, description="The API key for the LLM."
+    )
+    api_version: Optional[str] = Field(
+        default=None, description="The API version for the LLM."
+    )
 
     class Config:
         extra = "allow"  # Allow provider-specific fields not explicitly defined

@@ -126,23 +126,12 @@ async def stream_agent_endpoint(
                 user_message=user_message,
                 system_prompt=system_prompt,
             ):
-                event_type = event.get(
-                    "event_type", "message"
-                )  # Default to "message" if no specific type
-                event_data_json = json.dumps(event.get("data", {}))
-                # SSE format:
-                # event: event_name\n
-                # data: json_payload\n
-                # id: optional_id\n
-                # retry: optional_retry_timeout\n
-                # \n (extra newline to terminate)
-                sse_formatted_event = (
-                    f"event: {event_type}\ndata: {event_data_json}\n\n"
-                )
-                # logger.debug(
-                #     f"SSE Event Yielding: {repr(sse_formatted_event)}"
-                # )  # Log the exact SSE string
-                yield sse_formatted_event
+                if type(event) is dict:
+                    event_string = json.dumps(event)
+                else:
+                    event_string = event.model_dump_json()
+                
+                yield event_string
         except Exception as e:
             logger.error(
                 f"Error during agent streaming for '{agent_name}': {e}", exc_info=True
