@@ -863,18 +863,6 @@ class ExecutionFacade:
                     f"Failed to obtain LLM client instance for agent '{agent_name}'."
                 )
 
-            # Determine provider for conditional logic
-            provider_name = "anthropic"  # Default
-            if llm_config_for_override_obj and llm_config_for_override_obj.provider:
-                provider_name = llm_config_for_override_obj.provider.lower()
-            elif isinstance(
-                llm_client_instance, OpenAIClient
-            ):  # Check instance if no explicit config
-                provider_name = "openai"
-
-            logger.debug(
-                f"Determined provider for agent '{agent_name}': {provider_name}"
-            )
 
             # The logic for OpenAI provider using OpenAIMCPAgent and OpenAPIAgentRunner is removed.
             # All providers will now use Aurite's standard Agent execution flow.
