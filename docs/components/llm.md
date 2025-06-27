@@ -38,9 +38,6 @@ An LLM configuration is a JSON object with the following fields:
 | `temperature`           | number | `null`      | The sampling temperature to use for generating responses. Higher values (e.g., 0.8) make output more random, while lower values (e.g., 0.2) make it more deterministic. If `null`, the LLM client's default or the provider's default will be used. |
 | `max_tokens`            | integer| `null`      | The maximum number of tokens to generate in a single response. If `null`, the LLM client's default or the provider's default will be used.                                                                                               |
 | `default_system_prompt` | string | `null`      | A default system prompt that will be used for this LLM configuration if an agent using it doesn't specify its own `system_prompt`.                                                                                                      |
-| `api_base` | string | `null`      | The base URL for the LLM. This will be used by some providers. See https://docs.litellm.ai/docs/providers |
-| `api_key` | string | `null`      | The API key for the LLM. |
-| `api_version` | string | `null`      | The API version for the LLM. |
 | `class Config: extra = "allow"` | N/A    | N/A         | This internal Pydantic setting allows for additional, provider-specific fields to be included in the configuration without causing validation errors. For example, you might add custom parameters required by a specific LLM provider. |
 
 **Note on API Keys and Credentials:**

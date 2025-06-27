@@ -145,25 +145,3 @@ python tests/functional_mcp_client.py '{"name": "appinsightmcp"}' "Use the 'app-
 **Relevant Agents:**
 *   **`app_insight_agent`**: An agent that can answer questions about mobile apps using the appinsightmcp server.
     *   **Configuration File**: `config/agents/data_analytics_agents.json`
-
-### `alpha_vantage_stock_server`
-
-*   **Description**: A server that provides tools to analyze stock data.
-*   **Configuration File**: `config/mcp_servers/data_analytics_servers.json`
-
-**Tools:**
-
-| Tool Name | Description |
-| --- | --- |
-| `get-stock-data` | Gets stock data for a given symbol. |
-| `get-stock-alerts` | Gets stock alerts for a given symbol. |
-| `get-daily-stock-data` | Gets daily stock data for a given symbol. |
-
-**Example Usage:**
-```
-python tests/functional_mcp_client.py '{"name": "stock_analysis"}' "Use the 'get-stock-data' tool to get stock data for AAPL"
-```
-
-**Relevant Agents:**
-*   **`stock_analysis_agent`**: An agent that can analyze stock data using the stock_analysis server.
-    *   **Configuration File**: `config/agents/data_analytics_agents.json`
