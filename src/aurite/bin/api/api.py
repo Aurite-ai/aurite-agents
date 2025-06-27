@@ -193,18 +193,9 @@ def custom_openapi():
         routes=app.routes,
     )
     
-    # Add security scheme
-    openapi_schema["components"] = openapi_schema.get("components", {})
-    openapi_schema["components"]["securitySchemes"] = {
-        "ApiKeyAuth": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "X-API-Key"
-        }
-    }
-    
-    # Add global security requirement
-    openapi_schema["security"] = [{"ApiKeyAuth": []}]
+    # Let FastAPI auto-detect security from Security() dependencies
+    # Testing if newer FastAPI versions can detect nested Security dependencies
+    logger.info("Using auto-generated OpenAPI schema with FastAPI's built-in security detection")
     
     app.openapi_schema = openapi_schema
     return app.openapi_schema

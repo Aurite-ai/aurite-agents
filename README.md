@@ -177,6 +177,20 @@ start-api
 
 *   By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
 
+**API Documentation:**
+The API server automatically provides interactive documentation:
+*   **Swagger UI:** `http://localhost:8000/api-docs` - Interactive API testing interface
+*   **ReDoc:** `http://localhost:8000/redoc` - Clean, readable documentation
+*   **OpenAPI JSON:** `http://localhost:8000/openapi.json` - Raw specification for tooling
+
+The Swagger UI allows you to:
+- Explore all available endpoints
+- Test API calls directly from your browser
+- Authenticate with your API key
+- See request/response examples and schemas
+
+For more details on the OpenAPI integration, see [OpenAPI Integration Guide](docs/openapi_integration.md).
+
 *   Besides the main API server, the framework offers other ways to interact:
 
 
