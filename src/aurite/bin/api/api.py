@@ -12,6 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
+from fastapi.openapi.utils import get_openapi
+import yaml
+from pathlib import Path
 
 # Adjust imports for new location (src/bin -> src)
 from ...host_manager import (
@@ -115,10 +118,13 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Aurite MCP",
-    description="API for managing MCPHost and workflows",
+    title="Aurite Agents API",
+    description="API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP)",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/api-docs",  # Swagger UI
+    redoc_url="/redoc",  # ReDoc UI
+    openapi_url="/openapi.json",  # OpenAPI schema endpoint
 )
 
 
@@ -148,6 +154,56 @@ app.include_router(config_routes.router)
 app.include_router(components_routes.router)
 app.include_router(evaluation_api.router)  # evaluation_api is not being renamed
 app.include_router(project_routes.router)
+
+
+# Custom OpenAPI schema
+def custom_openapi():
+    """Generate custom OpenAPI schema, optionally loading from external file."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Try to load the detailed OpenAPI spec from file
+    openapi_file = PROJECT_ROOT / "openapi.yaml"
+    if openapi_file.exists():
+        try:
+            with open(openapi_file, "r") as f:
+                openapi_schema = yaml.safe_load(f)
+            logger.info(f"Loaded OpenAPI schema from {openapi_file}")
+            
+            # Update server URL based on current configuration
+            server_config = get_server_config()
+            if server_config:
+                openapi_schema["servers"] = [
+                    {
+                        "url": f"http://{server_config.HOST}:{server_config.PORT}",
+                        "description": "Current server"
+                    }
+                ]
+            
+            app.openapi_schema = openapi_schema
+            return app.openapi_schema
+        except Exception as e:
+            logger.warning(f"Failed to load OpenAPI schema from file: {e}")
+    
+    # Fallback to auto-generated schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # Let FastAPI auto-detect security from Security() dependencies
+    # Testing if newer FastAPI versions can detect nested Security dependencies
+    logger.info("Using auto-generated OpenAPI schema with FastAPI's built-in security detection")
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+# Override the OpenAPI schema function
+app.openapi = custom_openapi
+
 
 # --- Custom Exception Handlers ---
 # Define handlers before endpoints that might raise these exceptions
