@@ -19,6 +19,21 @@
       "http_endpoint": "https://server.smithery.ai/@qubaomingg/stock-analysis-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
       "capabilities": ["tools"],
       "timeout": 15.0
+    },
+    {
+      "name": "notionApi",
+      "transport_type": "local",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "export OPENAPI_MCP_HEADERS=$1; npx -y @notionhq/notion-mcp-server",
+        "_",
+        "{\"Authorization\": \"Bearer {NOTION_API_KEY}\", \"Notion-Version\": \"2022-06-28\"}"
+      ],
+      "capabilities": [
+        "tools"
+      ],
+      "timeout": 20.0
     }
   ],
   "llms": [
@@ -167,6 +182,14 @@
       "auto": false,
       "max_iterations": 5,
       "include_history": false
+    },
+    {
+      "name": "Notion Agent",
+      "system_prompt": "You are a Notion assistant. Use the available tools to interact with Notion.",
+      "mcp_servers": [
+        "notionApi"
+      ],
+      "llm_config_id": "anthropic_claude_3_opus"
     }
   ],
   "simple_workflows": [
