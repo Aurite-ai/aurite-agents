@@ -40,15 +40,6 @@ We used the `deptry` tool to systematically identify and fix several classes of 
 
 ---
 
-## 3. Startup & Configuration Issues
-
-### Issue 5: Double API Server Initialization
-
-*   **Problem:** When running the API in development mode, `uvicorn`'s programmatic reloader would get stuck in a loop, immediately restarting the server after it had just started. This was caused by an unstable interaction between the main script process and the reloader's child process.
-*   **Solution:** We implemented a more robust startup mechanism in `src/aurite/bin/api/api.py`. The `start()` function now checks the `AURITE_ENV` environment variable. If the environment is not `"production"`, it uses `os.execvp` to replace the current Python process with a direct call to the `uvicorn` command-line interface, passing the `--reload` flag. This is the officially recommended and most stable method for using the reloader from a script. For production, it continues to use the standard `uvicorn.run()` function without reloading, ensuring stability and allowing for multiple workers.
-
----
-
 ## Final Outcome
 
 The project now has a clean, robust, and modern dependency configuration that will be significantly more reliable for users and easier for the team to maintain. The `deptry` audit now passes cleanly, providing a strong guardrail against future dependency issues.
