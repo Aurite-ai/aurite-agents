@@ -2,31 +2,19 @@
 LLM Client for Gemini
 """
 
-import os
-import logging
 import json
-from typing import List, Optional, Dict, Any, AsyncGenerator
+import logging
+import os
+from typing import Any, AsyncGenerator, Dict, Iterable, List, Optional, cast
 
-from typing import cast
-from anthropic.types import (
-    MessageParam,
-    ToolParam,
-)
-
-from ...agents.agent_models import (
-    AgentOutputMessage,
-    AgentOutputContentBlock,
-)
-
-from typing import Iterable
+from anthropic.types import MessageParam, ToolParam
 from google import genai
 from google.genai import types
 
-from ..base_client import (
-    BaseLLM,
-    DEFAULT_MAX_TOKENS as BASE_DEFAULT_MAX_TOKENS,
-)
 from ....config.config_models import LLMConfig
+from ...agents.agent_models import AgentOutputContentBlock, AgentOutputMessage
+from ..base_client import DEFAULT_MAX_TOKENS as BASE_DEFAULT_MAX_TOKENS
+from ..base_client import BaseLLM
 
 logger = logging.getLogger(__name__)
 
@@ -87,18 +75,18 @@ class GeminiLLM(BaseLLM):
             resolved_system_prompt = llm_config_override.default_system_prompt
         if system_prompt_override is not None:
             resolved_system_prompt = system_prompt_override
-        
+
         tools_for_api = tools if tools else []
-        logger.debug(f"Making Gemini API call to model '{model_to_use}'")
+        logger.debug("Making Gemini API call to model '%s'", model_to_use)
         try:
             typed_messages = cast(Iterable[MessageParam], messages)
             typed_messages = [self._convert_message_history(m) for m in messages]
-            
+
             typed_tools = cast(Optional[Iterable[ToolParam]], tools_for_api)
             typed_tools = [self._convert_tool_definition(t) for t in tools_for_api]
-            
+
             tool = types.Tool(function_declarations=typed_tools)
-            
+
             if schema:
                 # gemini does support structured output, but not at the same time as tool calling
                 # so we are just adding the output schema to the prompt
@@ -116,27 +104,31 @@ class GeminiLLM(BaseLLM):
                     else:
                         resolved_system_prompt = schema_injection
                 except Exception as json_err:
-                    logger.error(f"Failed to serialize schema for injection: {json_err}")
-                
+                    logger.error(
+                        f"Failed to serialize schema for injection: {json_err}"
+                    )
+
             config = types.GenerateContentConfig(
                 tools=[tool],
                 system_instruction=resolved_system_prompt,
                 temperature=temperature_to_use,
-                max_output_tokens=max_tokens_to_use
+                max_output_tokens=max_tokens_to_use,
             )
-            
+
             gemini_response = self.gemini_client.models.generate_content(
                 model=model_to_use, config=config, contents=typed_messages
             )
-            
-            return self._convert_agent_output_message(gemini_response, schema=bool(schema))
+
+            return self._convert_agent_output_message(
+                gemini_response, schema=bool(schema)
+            )
         except Exception as e:
             logger.error(
                 f"Unexpected error during Gemini API call or response processing: {e}",
                 exc_info=True,
             )
             raise
-        
+
     async def stream_message(
         self,
         messages: List[Dict[str, Any]],
@@ -165,10 +157,12 @@ class GeminiLLM(BaseLLM):
         # TODO
         pass
 
-    def _convert_agent_output_message(self, response, schema = None) -> AgentOutputMessage:
+    def _convert_agent_output_message(
+        self, response, schema=None
+    ) -> AgentOutputMessage:
         content_blocks = []
         num_tools = 0
-        
+
         match response.candidates[0].finish_reason:
             case types.FinishReason.MAX_TOKENS:
                 stop_reason = "max_tokens"
@@ -177,31 +171,36 @@ class GeminiLLM(BaseLLM):
 
         for part in response.candidates[0].content.parts:
             if part.text is not None:
-                if schema and '{' in part.text and '}' in part.text:
-                    text_content = part.text[part.text.find('{'): part.text.rfind('}')+1]
+                if schema and "{" in part.text and "}" in part.text:
+                    text_content = part.text[
+                        part.text.find("{") : part.text.rfind("}") + 1
+                    ]
                 else:
                     text_content = part.text
 
-                content_blocks.append(AgentOutputContentBlock(
-                    type="text",
-                    text=text_content
-                ))
+                content_blocks.append(
+                    AgentOutputContentBlock(type="text", text=text_content)
+                )
             elif part.function_call is not None:
                 function_call = part.function_call
                 tool_use = {
-                    "id": function_call.id if function_call.id is not None else f'{function_call.name}_{num_tools}', # use # of tool call as id if not supplied
+                    "id": function_call.id
+                    if function_call.id is not None
+                    else f"{function_call.name}_{num_tools}",  # use # of tool call as id if not supplied
                     "name": function_call.name,
-                    "input": function_call.args
+                    "input": function_call.args,
                 }
-                content_blocks.append(AgentOutputContentBlock(
-                    type="tool_use",
-                    id=tool_use["id"],
-                    name=tool_use["name"],
-                    input=tool_use["input"]
-                ))
+                content_blocks.append(
+                    AgentOutputContentBlock(
+                        type="tool_use",
+                        id=tool_use["id"],
+                        name=tool_use["name"],
+                        input=tool_use["input"],
+                    )
+                )
                 num_tools += 1
-                stop_reason = "tool_use" # overwrite stop reason to tool use if one or more tools are used
-        
+                stop_reason = "tool_use"  # overwrite stop reason to tool use if one or more tools are used
+
         # Create an AgentOutputMessage
         output_message = AgentOutputMessage(
             role="assistant",
@@ -211,8 +210,8 @@ class GeminiLLM(BaseLLM):
             usage={
                 "input_tokens": response.usage_metadata.prompt_token_count,
                 "output_tokens": response.usage_metadata.candidates_token_count,
-                "total_tokens": response.usage_metadata.total_token_count
-            }
+                "total_tokens": response.usage_metadata.total_token_count,
+            },
         )
         logger.info(f"Gemini output message: {output_message}")
 
@@ -220,40 +219,46 @@ class GeminiLLM(BaseLLM):
 
     def _convert_tool_definition(self, tool_def: ToolParam):
         """Convert a ToolDefinition into the Gemini Format"""
-        
+
         return types.FunctionDeclaration(
-            name = tool_def.get("name"),
-            description = tool_def.get("description"),
-            parameters = tool_def.get("input_schema"),
+            name=tool_def.get("name"),
+            description=tool_def.get("description"),
+            parameters=tool_def.get("input_schema"),
         )
 
     def _convert_message_history(self, message: MessageParam):
         """Convert a ConversationHistoryMessage into the Gemini Format"""
-        
+
         role_dict = {
             "user": "user",
             "assistant": "model",
         }
-        
+
         if message.get("role") in role_dict:
             return types.Content(
-                role = role_dict[message.get("role")],
-                parts = self._message_param_to_parts(message.get("content"))
+                role=role_dict[message.get("role")],
+                parts=self._message_param_to_parts(message.get("content")),
             )
         else:
-            raise ValueError(f"Unrecognized role when converting ConversationHistoryMessage to Gemini format: {message.get("role")}")
-        
+            raise ValueError(
+                f"Unrecognized role when converting ConversationHistoryMessage to Gemini format: {message.get('role')}"
+            )
+
     def _message_param_to_parts(self, param):
         if type(param) is str:
             return [types.Part.from_text(text=param)]
-        
+
         parts = []
         for p in param:
             match p.get("type"):
                 case "text":
                     parts.append(types.Part.from_text(text=p.get("text")))
                 case "tool_use":
-                    parts.append(types.Part.from_function_call(name=p.get("name"), args=p.get("input")))
+                    parts.append(
+                        types.Part.from_function_call(
+                            name=p.get("name"), args=p.get("input")
+                        )
+                    )
                 case "tool_result":
                     content = p.get("content")
                     if type(content) is dict:
@@ -263,14 +268,22 @@ class GeminiLLM(BaseLLM):
                     elif type(content) is str:
                         response = {"result": content}
                     else:
-                        raise ValueError(f"Unrecognized tool result content type when converting to Gemini format: {p.get("content")}")
-                    parts.append(types.Part.from_function_response(name=p.get("tool_use_id"), response=response))
+                        raise ValueError(
+                            f"Unrecognized tool result content type when converting to Gemini format: {p.get('content')}"
+                        )
+                    parts.append(
+                        types.Part.from_function_response(
+                            name=p.get("tool_use_id"), response=response
+                        )
+                    )
                 case _:
-                    raise ValueError(f"Unrecognized message parameter type when converting to Gemini format: {p.get("type")}")
-                
+                    raise ValueError(
+                        f"Unrecognized message parameter type when converting to Gemini format: {p.get('type')}"
+                    )
+
             # TODO: implement other types if they are used
         return parts
-    
+
     async def aclose(self):
         """Gemini does not have a close method, cleanup is handled automatically."""
         pass
