@@ -26,7 +26,16 @@ from aurite.config.config_models import (  # Assuming models.py is one level up
 
 logger = logging.getLogger(__name__)
 
-# GCP Imports
+
+# --- Optional GCP Imports ---
+# The following block handles optional imports for Google Cloud Secret Manager.
+# Pylance will correctly report "reportMissingImports" if the `gcp` extras
+# are not installed. This is expected behavior.
+#
+# To enable GCP functionality and resolve these linter errors for development,
+# install the optional dependencies:
+# pip install -e .[gcp]
+#
 secretmanager: Optional[ModuleType] = None
 gcp_exceptions: Optional[ModuleType] = None
 try:

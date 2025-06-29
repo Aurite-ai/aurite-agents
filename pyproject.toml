@@ -45,8 +45,9 @@ dependencies = [
     "fastapi",
     "typer[all]>=0.9.0", # Using [all] pulls in shell completion support
     "uvicorn>=0.34.0",   # Server for FastAPI
-    "sse-starlette>=2.2.1",
-    "httpx-sse>=0.4.0",
+    "httpx>=0.27.0",     # Direct dependency for CLI and API interactions
+    "anyio>=4.0.0", # Explicitly add for async testing support
+
 
     # --- Core LLM & Agent Dependencies ---
     # Essential clients for interacting with LLMs.
@@ -54,12 +55,10 @@ dependencies = [
     "anthropic>=0.49.0",
     "google-genai>=1.11.0",
     "litellm>=1.72.6",
-    "openai-agents-mcp",
 
     # --- Core Database ORM & Migrations ---
     # SQLAlchemy is central to the DB storage layer. Drivers are optional.
     "sqlalchemy>=2.0.39",
-    "alembic>=1.13.1",
 
     # --- Miscellaneous Dependencies ---
     "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
@@ -71,7 +70,7 @@ Homepage = "https://publish.obsidian.md/aurite/HOME"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
 
 [project.optional-dependencies]
-# --- Development & Testing ---
+# --- For Development and Testing ---
 dev = [
     "pytest>=8.3.5",
     "pytest-timeout>=2.3.1",
@@ -80,32 +79,46 @@ dev = [
     "types-pytz",
     "jupyter>=1.0.0",
     "pre-commit",
-    "deptry", # Add deptry to your dev dependencies!
+    "alembic>=1.13.1", # Ensure alembic is available for migrations
+    "deptry", # Dependency management tool
 ]
 
-# --- Machine Learning & Data ---
+# --- For Optional Production Features ---
+# Users can install these with `pip install aurite[feature]`
+
+# For data analysis and vector embeddings
 ml = [
     "pandas>=2.2.3",
-    "numpy>=1.26.2,<2.1", # Pinned for Colab/mem0ai compatibility
+    "sentence-transformers",
 ]
 
-# --- Optional Tools ---
-tools = [
+# For connecting to different storage backends
+storage = [
+    "redis>=5.0.0",
+    "psycopg2-binary>=2.9.10",
+]
+
+# For agent memory capabilities
+memory = [
     "mem0ai>=0.1.67",
 ]
 
-# --- Optional Database Drivers ---
-# Install with: pip install aurite[postgres,mysql,redis]
-postgres = ["psycopg2-binary>=2.9.10"]
-mysql = ["PyMySQL>=1.1.1"]
-redis = ["redis>=5.0.0"]
-
-# --- Optional Vector Store Support ---
-vectors = ["sentence-transformers"]
-
-# --- Optional Cloud Integrations ---
-# Install with: pip install aurite[gcp]
+# For Google Cloud Platform integrations
 gcp = ["google-cloud-secret-manager>=2.19.0"]
+
+
+# --- Convenience Group to Install All Extras ---
+core = [
+    "aurite[dev]",
+    "aurite[storage]",
+    "aurite[gcp]",
+]
+
+all = [
+    "aurite[core]",
+    "aurite[ml]",
+    "aurite[memory]",
+]
 
 [tool.setuptools]
 include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
@@ -166,13 +179,6 @@ disallow_untyped_calls = false # Corresponds to check_untyped_defs
 files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
-
-[project.scripts]
-start-api = "aurite.bin.api.api:start"
-start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
-aurite = "aurite.bin.cli.main:app"
-
 [tool.deptry]
 # Explicitly tell deptry that 'aurite' is the main package.
 known_first_party = ["aurite"]
@@ -184,21 +190,16 @@ extend_exclude = ["tests", "docs"]
 # Tell deptry that only the 'dev' group should be treated as containing development-only dependencies.
 pep621_dev_dependency_groups = ["dev"]
 
-# Map package names to the modules they provide.
+# Map package names to the modules they provide. This is crucial for packages
+# where the installable name differs from the importable module name.
 [tool.deptry.package_module_name_map]
 "psycopg2-binary" = "psycopg2"
+"mem0ai" = "mem0"
+"sentence-transformers" = "sentence_transformers"
+"google-cloud-secret-manager" = "google"
 
-[tool.deptry.per_rule_ignores]
-# DEP001: Ignore missing 'mem0' since it's in an optional group.
-DEP001 = ["mem0"]
-
-# DEP002: Ignore 'unused' warnings for all optional dependencies and for indirectly used core dependencies.
-DEP002 = [
-    # Core dependencies used indirectly
-    "sse-starlette", "httpx-sse", "openai-agents-mcp", "alembic",
-    # Optional dependencies
-    "pandas", "numpy", "mem0ai", "psycopg2-binary", "PyMySQL", "redis", "sentence-transformers", "google-cloud-secret-manager"
-]
-
-# DEP003: Ignore these known transitive dependencies.
-DEP003 = ["IPython", "httpx", "anyio"]
+[project.scripts]
+start-api = "aurite.bin.api.api:start"
+start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
+run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
+aurite = "aurite.bin.cli.main:app"
