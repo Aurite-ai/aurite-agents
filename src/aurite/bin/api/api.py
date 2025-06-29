@@ -1,43 +1,39 @@
 from __future__ import annotations
 
-from dotenv import load_dotenv  # Add this import
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
 from typing import Callable, Optional  # Added List
 
-from fastapi import FastAPI, HTTPException, Request, Depends, Security
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
-from fastapi.openapi.utils import get_openapi
 import yaml
-from pathlib import Path
+from dotenv import load_dotenv  # Add this import
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 # Adjust imports for new location (src/bin -> src)
-from ...host_manager import (
+from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
     Aurite,
-)  # Corrected relative import (up two levels from src/bin/api)
-
-# Ensure host models are imported correctly (up two levels from src/bin/api)
-# Import the new routers (relative to current file's directory)
-from .routes import (
-    config_routes,
-    components_routes,
-    evaluation_api,  # evaluation_api is not being renamed as per plan
-    project_routes,
 )
 
 # Import shared dependencies (relative to parent directory - src/bin)
+from ..dependencies import (
+    get_server_config,  # Re-import ServerConfig if needed locally, or remove if only used in dependencies.py
+)
 from ..dependencies import (  # Corrected relative import (up one level from src/bin/api)
     PROJECT_ROOT,
     get_api_key,
     get_host_manager,
-    get_server_config,  # Re-import ServerConfig if needed locally, or remove if only used in dependencies.py
 )
 
+# Ensure host models are imported correctly (up two levels from src/bin/api)
+# Import the new routers (relative to current file's directory)
+from .routes import evaluation_api  # evaluation_api is not being renamed as per plan
+from .routes import components_routes, config_routes, project_routes
 
 # Removed CustomWorkflowManager import
 
@@ -161,7 +157,7 @@ def custom_openapi():
     """Generate custom OpenAPI schema, optionally loading from external file."""
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     # Try to load the detailed OpenAPI spec from file
     openapi_file = PROJECT_ROOT / "openapi.yaml"
     if openapi_file.exists():
@@ -169,22 +165,22 @@ def custom_openapi():
             with open(openapi_file, "r") as f:
                 openapi_schema = yaml.safe_load(f)
             logger.info(f"Loaded OpenAPI schema from {openapi_file}")
-            
+
             # Update server URL based on current configuration
             server_config = get_server_config()
             if server_config:
                 openapi_schema["servers"] = [
                     {
                         "url": f"http://{server_config.HOST}:{server_config.PORT}",
-                        "description": "Current server"
+                        "description": "Current server",
                     }
                 ]
-            
+
             app.openapi_schema = openapi_schema
             return app.openapi_schema
         except Exception as e:
             logger.warning(f"Failed to load OpenAPI schema from file: {e}")
-    
+
     # Fallback to auto-generated schema
     openapi_schema = get_openapi(
         title=app.title,
@@ -192,11 +188,13 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-    
+
     # Let FastAPI auto-detect security from Security() dependencies
     # Testing if newer FastAPI versions can detect nested Security dependencies
-    logger.info("Using auto-generated OpenAPI schema with FastAPI's built-in security detection")
-    
+    logger.info(
+        "Using auto-generated OpenAPI schema with FastAPI's built-in security detection"
+    )
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -440,11 +438,9 @@ def start():
             f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
         )
 
-        # IF ENV = "development", set reload=True
-        # This is typically set in the environment or config file
-        reload_mode = (
-            os.getenv("ENV") != "production"
-        )  # Default to True if not in production
+        # Enable reload mode by default, unless explicitly in production.
+        # This provides a better out-of-the-box experience for developers.
+        reload_mode = os.getenv("ENV") != "production"
 
         # Update the app path for uvicorn to point to the new location
         uvicorn.run(
