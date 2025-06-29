@@ -36,7 +36,7 @@ from .routes import evaluation_api  # evaluation_api is not being renamed as per
 from .routes import components_routes, config_routes, project_routes
 
 # Removed CustomWorkflowManager import
-
+# Hello
 # Configure logging
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -428,33 +428,55 @@ async def serve_react_app(full_path: str):  # Parameter name doesn't matter much
 
 
 def start():
-    """Start the FastAPI application with uvicorn, using loaded configuration."""
+    """
+    Start the FastAPI application with uvicorn.
+    In development, this function will re-exec uvicorn with --reload.
+    In production, it runs the server directly.
+    """
     # Load config to get server settings
-    # Note: This runs get_server_config() again, but @lru_cache makes it fast
     config = get_server_config()
-
-    if config:
-        logger.info(
-            f"Starting Uvicorn server on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
-        )
-
-        # Enable reload mode by default, unless explicitly in production.
-        # This provides a better out-of-the-box experience for developers.
-        reload_mode = os.getenv("ENV") != "production"
-
-        # Update the app path for uvicorn to point to the new location
-        uvicorn.run(
-            "aurite.bin.api.api:app",  # Updated path
-            host=config.HOST,
-            port=config.PORT,
-            workers=config.WORKERS,
-            log_level=config.LOG_LEVEL.lower(),  # Uvicorn expects lowercase log level
-            reload=reload_mode,  # Typically False for production/running directly
-        )
-    else:
+    if not config:
         logger.critical("Server configuration could not be loaded. Aborting startup.")
         raise RuntimeError(
             "Server configuration could not be loaded. Aborting startup."
+        )
+
+    # Determine reload mode based on environment. Default to development mode.
+    reload_mode = os.getenv("ENV", "development").lower() != "production"
+
+    # In development (reload mode), it's more stable to hand off execution directly
+    # to the uvicorn CLI. This avoids issues with the reloader in a programmatic context.
+    if reload_mode:
+        logger.info(
+            f"Development mode detected. Starting Uvicorn with reload enabled on {config.HOST}:{config.PORT}..."
+        )
+        # Use os.execvp to replace the current process with uvicorn.
+        # This is the recommended way to run with --reload from a script.
+        args = [
+            "uvicorn",
+            "aurite.bin.api.api:app",
+            "--host",
+            config.HOST,
+            "--port",
+            str(config.PORT),
+            "--log-level",
+            config.LOG_LEVEL.lower(),
+            "--reload",
+        ]
+        os.execvp("uvicorn", args)
+    else:
+        # In production, run uvicorn programmatically without the reloader.
+        # This is suitable for running with multiple workers.
+        logger.info(
+            f"Production mode detected. Starting Uvicorn on {config.HOST}:{config.PORT} with {config.WORKERS} worker(s)..."
+        )
+        uvicorn.run(
+            "aurite.bin.api.api:app",
+            host=config.HOST,
+            port=config.PORT,
+            workers=config.WORKERS,
+            log_level=config.LOG_LEVEL.lower(),
+            reload=False,
         )
 
 

@@ -3,26 +3,26 @@ Security management for MCP host.
 Handles credential management, encryption, and access control.
 """
 
-import os
-import re
-import logging
 import base64
 import hashlib
+import logging
+import os
+import re
 import time
 import warnings  # Add import
-from types import ModuleType  # Added ModuleType
-from typing import Dict, Optional, Any, List  # Added Type
 from dataclasses import dataclass
-from anyio import to_thread  # Import anyio
+from types import ModuleType  # Added ModuleType
+from typing import Any, Dict, List, Optional  # Added Type
 
+from anyio import to_thread  # Import anyio
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Local imports
-from aurite.config.config_models import (
+from aurite.config.config_models import (  # Assuming models.py is one level up
     GCPSecretConfig,
-)  # Assuming models.py is one level up
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,14 @@ logger = logging.getLogger(__name__)
 secretmanager: Optional[ModuleType] = None
 gcp_exceptions: Optional[ModuleType] = None
 try:
-    from google.cloud import secretmanager as sm_module
     from google.api_core import exceptions as gcp_exc_module
+    from google.cloud import secretmanager as sm_module
 
     secretmanager = sm_module
     gcp_exceptions = gcp_exc_module
 except ImportError:
     # secretmanager and gcp_exceptions remain None
-    logger.warning(
+    logger.debug(
         "google-cloud-secret-manager not installed. GCP secret functionality will be disabled."
     )
 
