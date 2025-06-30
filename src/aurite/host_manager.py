@@ -50,9 +50,9 @@ from .storage.db_connection import create_db_engine  # Import engine factory
 
 # Import StorageManager and engine factory unconditionally
 from .storage.db_manager import StorageManager
+from openai.types.chat import ChatCompletionMessage
 
 # Import for type hinting execution results
-from .components.agents.agent_models import AgentExecutionResult
 from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 
 # Imports needed for execution methods
@@ -1147,7 +1147,7 @@ class Aurite:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> AgentExecutionResult:
+    ) -> Optional[ChatCompletionMessage]:
         """
         Runs an agent by delegating to the ExecutionFacade.
         """

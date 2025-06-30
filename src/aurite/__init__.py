@@ -20,11 +20,7 @@ from .config.config_models import (
     WorkflowConfig,
     # Add other config models if they are part of the public API
 )
-from .components.agents.agent_models import (
-    AgentOutputContentBlock,
-    AgentOutputMessage,
-    AgentExecutionResult,
-)
+
 from .execution.facade import ExecutionFacade
 
 __all__ = [
@@ -37,9 +33,6 @@ __all__ = [
     "ProjectConfig",
     "WorkflowConfig",
     "ExecutionFacade",
-    "AgentOutputContentBlock",
-    "AgentOutputMessage",
-    "AgentExecutionResult",
     # Add other exposed names to __all__
 ]
 

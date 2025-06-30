@@ -17,7 +17,7 @@ authors = [
 
 license-files = ["LICENSE"]
 
-keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
+keywords = ["ai", "agent", "mcp", "framework", "llm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -52,8 +52,6 @@ dependencies = [
     # --- Core LLM & Agent Dependencies ---
     # Essential clients for interacting with LLMs.
     "openai>=1.80.0",
-    "anthropic>=0.49.0",
-    "google-genai>=1.11.0",
     "litellm>=1.72.6",
 
     # --- Core Database ORM & Migrations ---
@@ -168,6 +166,10 @@ addopts = "--verbose --no-header --disable-warnings"
 junit_family = "xunit2"
 # asyncio_mode moved up
 timeout = 60 # Increase default test timeout to 60 seconds
+
+[tool.ruff]
+line-length = 88
+exclude = ["tests", "docs"]
 
 [tool.mypy]
 warn_return_any = false # Don't warn about functions returning Any implicitly

@@ -4,7 +4,7 @@ Executor for Simple Sequential Workflows.
 
 import logging
 import json
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Dict, Any, TYPE_CHECKING, Optional
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
@@ -15,11 +15,11 @@ from ...config.config_models import (
 )
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 
+from openai.types.chat import ChatCompletionMessage
+
 # Import LLM client and Facade for type hinting only
-# Import AgentExecutionResult for type hinting the result from facade.run_agent()
 if TYPE_CHECKING:
     from ...execution.facade import ExecutionFacade
-    from ..agents.agent_models import AgentExecutionResult  # Added import
 
 logger = logging.getLogger(__name__)
 
@@ -111,20 +111,21 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            agent_result_model: "AgentExecutionResult" = (
-                                await self.facade.run_agent(
-                                    agent_name=component.name,
-                                    user_message=str(current_message),
-                                )
+                            # run_agent now returns Optional[ChatCompletionMessage]
+                            agent_response: Optional[
+                                ChatCompletionMessage
+                            ] = await self.facade.run_agent(
+                                agent_name=component.name,
+                                user_message=str(current_message),
                             )
 
-                            if agent_result_model.has_error:
+                            if agent_response is None:
                                 raise Exception(
-                                    f"Agent '{component.name}' reported an error: {agent_result_model.error}"
+                                    f"Agent '{component.name}' failed to produce a response."
                                 )
 
-                            component_output = agent_result_model
-                            current_message = agent_result_model.primary_text or ""
+                            component_output = agent_response.model_dump()
+                            current_message = agent_response.content or ""
 
                         case "simple_workflow":
                             workflow_result = await self.facade.run_simple_workflow(
