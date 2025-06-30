@@ -3,8 +3,7 @@ Pydantic models for Workflow execution inputs and outputs.
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Union
-from ..agents.agent_models import AgentExecutionResult
+from typing import List, Optional, Any, Union, Dict
 
 
 class SimpleWorkflowStepResult(BaseModel):
@@ -21,10 +20,9 @@ class SimpleWorkflowStepResult(BaseModel):
         description="The type of the component (e.g., 'agent', 'simple_workflow')."
     )
 
-    # The 'result' field will hold the specific output model for the component type
-    # We use a Union to allow for different types of results.
-    # We will need to define SimpleWorkflowExecutionResult shortly.
-    result: Union["AgentExecutionResult", "SimpleWorkflowExecutionResult", Any] = Field(
+    # The 'result' field will hold the specific output model for the component type.
+    # Agent results are now stored as dicts from model_dump().
+    result: Union[Dict[str, Any], "SimpleWorkflowExecutionResult", Any] = Field(
         description="The execution result from the step's component."
     )
 
@@ -60,11 +58,12 @@ class SimpleWorkflowExecutionResult(BaseModel):
         A convenience property to extract the primary text if the final output
         was from an agent, for easy display.
         """
-        if isinstance(self.final_output, AgentExecutionResult):
-            return self.final_output.primary_text
-        elif isinstance(self.final_output, str):
+        if isinstance(self.final_output, str):
             return self.final_output
-        return None  # Or a sensible default
+        # The final output from an agent step is now just the content string.
+        # If the whole workflow's final_output is the result of an agent step,
+        # it will be a string.
+        return str(self.final_output) if self.final_output is not None else None
 
 
 # This is needed to allow the recursive type hint in SimpleWorkflowStepResult
