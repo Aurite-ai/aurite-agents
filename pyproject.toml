@@ -27,77 +27,97 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
+    # --- Core Framework Dependencies ---
+    # Foundational packages required for the framework to function at a basic level.
     "mcp>=1.8.1",
-    "httpx>=0.28.1",
-    "anyio>=4.8.0",
-    "sqlalchemy>=2.0.39",
-    "anthropic>=0.49.0",
-    "annotated-types>=0.7.0",
-    "certifi>=2025.1.31",
-    "cffi>=1.17.1",
-    "click>=8.1.8",
-    "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
-    "distro>=1.9.0",
-    "greenlet>=3.1.1",
-    "h11>=0.14.0",
-    "httpcore>=1.0.7",
-    "httpx-sse>=0.4.0",
-    "idna>=3.10",
-    "iniconfig>=2.0.0",
-    "packaging>=24.2",
-    "colorlog>=6.0.0",
-    "termcolor>=3.0.0",
-    "pluggy>=1.5.0",
-    "psycopg2-binary>=2.9.10",
-    "alembic>=1.13.1",
-    "pycparser>=2.22",
     "pydantic>=2.10.6",
     "pydantic-settings>=2.8.1",
-    "pydantic_core>=2.27.2",
-    "pydub>=0.25.1",
-    "openai>=1.80.0",
-    "PyMySQL>=1.1.1",
-    "python-dateutil>=2.9.0.post0",
-    "openai-agents-mcp",
-    "python-dotenv>=1.0.1",
-    "pytz>=2024.1",
     "pyyaml>=6.0.2",
-    "redis>=5.0.0",                 # Added for worker entrypoint
-    "six>=1.17.0",
-    "sniffio>=1.3.1",
-    "google-genai>=1.11.0",
+    "python-dotenv>=1.0.1",
+    "colorlog>=6.0.0",
+    "termcolor>=3.0.0", # Added back as a required runtime dependency
     "jsonschema",
-    "sse-starlette>=2.2.1",
-    "starlette>=0.46.1",
-    "typing_extensions>=4.12.2",
-    "typer>=0.9.0",                # Added for CLI entrypoint
-    "tzdata>=2025.1",
-    "uvicorn>=0.34.0",
+    "exceptiongroup", # Added based on deptry report
+    "pytz",           # Added for packaged example server
+
+    # --- Core Entrypoints (API & CLI) ---
+    # The framework's primary interfaces. These are included in the base install.
     "fastapi",
-    "google-cloud-secret-manager>=2.19.0", # Added for GCP Secrets
+    "typer[all]>=0.9.0", # Using [all] pulls in shell completion support
+    "uvicorn>=0.34.0",   # Server for FastAPI
+    "httpx>=0.27.0",     # Direct dependency for CLI and API interactions
+    "anyio>=4.0.0", # Explicitly add for async testing support
+
+
+    # --- Core LLM & Agent Dependencies ---
+    # Essential clients for interacting with LLMs.
+    "openai>=1.80.0",
+    "anthropic>=0.49.0",
+    "google-genai>=1.11.0",
     "litellm>=1.72.6",
+
+    # --- Core Database ORM & Migrations ---
+    # SQLAlchemy is central to the DB storage layer. Drivers are optional.
+    "sqlalchemy>=2.0.39",
+
+    # --- Miscellaneous Dependencies ---
+    "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
+    "pydub>=0.25.1",
 ]
 
 [project.urls]
-Homepage = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
-Repository = "https://github.com/Aurite-ai/aurite-agents" # Placeholder
+Homepage = "https://publish.obsidian.md/aurite/HOME"
+Repository = "https://github.com/Aurite-ai/aurite-agents"
 
 [project.optional-dependencies]
+# --- For Development and Testing ---
 dev = [
-    "pytest-timeout>=2.3.1", # Added for test timeouts
+    "pytest>=8.3.5",
+    "pytest-timeout>=2.3.1",
     "mypy>=1.15.0",
     "types-PyYAML",
-    "jupyter>=1.0.0", # Added for Jupyter support
-    "pre-commit",
     "types-pytz",
-    "pytest>=8.3.5",
+    "jupyter>=1.0.0",
+    "pre-commit",
+    "alembic>=1.13.1", # Ensure alembic is available for migrations
+    "deptry", # Dependency management tool
 ]
+
+# --- For Optional Production Features ---
+# Users can install these with `pip install aurite[feature]`
+
+# For data analysis and vector embeddings
 ml = [
     "pandas>=2.2.3",
-    "numpy>=1.26.2,<2.1", # Pinned for Colab/mem0ai compatibility
+    "sentence-transformers",
 ]
-tools = [
+
+# For connecting to different storage backends
+storage = [
+    "redis>=5.0.0",
+    "psycopg2-binary>=2.9.10",
+]
+
+# For agent memory capabilities
+memory = [
     "mem0ai>=0.1.67",
+]
+
+# For Google Cloud Platform integrations
+gcp = ["google-cloud-secret-manager>=2.19.0"]
+
+
+# --- Convenience Group to Install All Extras ---
+core = [
+    "aurite[dev]",
+    "aurite[storage]",
+    "aurite[gcp]",
+]
+
+all = [
+    "aurite[core]",
+    "aurite[ml]",
+    "aurite[memory]",
 ]
 
 [tool.setuptools]
@@ -159,6 +179,24 @@ disallow_untyped_calls = false # Corresponds to check_untyped_defs
 files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
+[tool.deptry]
+# Explicitly tell deptry that 'aurite' is the main package.
+known_first_party = ["aurite"]
+
+# Extend the default exclusion list to also ignore tests and docs,
+# while still respecting .gitignore.
+extend_exclude = ["tests", "docs"]
+
+# Tell deptry that only the 'dev' group should be treated as containing development-only dependencies.
+pep621_dev_dependency_groups = ["dev"]
+
+# Map package names to the modules they provide. This is crucial for packages
+# where the installable name differs from the importable module name.
+[tool.deptry.package_module_name_map]
+"psycopg2-binary" = "psycopg2"
+"mem0ai" = "mem0"
+"sentence-transformers" = "sentence_transformers"
+"google-cloud-secret-manager" = "google"
 
 [project.scripts]
 start-api = "aurite.bin.api.api:start"

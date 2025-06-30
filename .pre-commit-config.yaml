@@ -11,3 +11,11 @@ repos:
         args: [--fix] # --fix attempts to fix issues
     # Run the formatter.
     -   id: ruff-format
+
+-   repo: https://github.com/fpgmaas/deptry
+    rev: '0.23.0'
+    hooks:
+    -   id: deptry
+        # Pass args if you need to ignore specific violations, e.g.
+        # args: ["--ignore", "DEP002"]
+        # Since we have a clean config, no args are needed.
