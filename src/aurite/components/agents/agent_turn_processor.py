@@ -57,10 +57,17 @@ class AgentTurnProcessor:
         self,
     ) -> Tuple[Optional[ChatCompletionMessage], Optional[List[Dict[str, Any]]], bool]:
         logger.debug("Processing conversation turn...")
+
+        # Conditionally pass tools based on the last message role.
+        # Anthropic's API (when using tools) requires the last message to be from the user.
+        tools_for_this_turn = self.tools
+        if self.messages and self.messages[-1].get("role") == "assistant":
+            tools_for_this_turn = None
+
         try:
             llm_response = await self.llm.create_message(
                 messages=self.messages,
-                tools=self.tools,
+                tools=tools_for_this_turn,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,
                 llm_config_override=self.llm_config_for_override,
@@ -146,13 +153,29 @@ class AgentTurnProcessor:
                 "role": "tool",
                 "tool_call_id": tool_call.id,
                 "name": tool_name,
-                "content": json.dumps(tool_result_content)
-                if not isinstance(tool_result_content, str)
-                else tool_result_content,
+                "content": self._serialize_tool_content(tool_result_content),
             }
             tool_results_for_next_turn.append(tool_message)
 
         return tool_results_for_next_turn
+
+    def _serialize_tool_content(self, tool_result_content: Any) -> str:
+        """Safely serializes tool output content to a string for the LLM."""
+        if isinstance(tool_result_content, str):
+            return tool_result_content
+
+        # For Pydantic models
+        if hasattr(tool_result_content, "model_dump_json"):
+            return tool_result_content.model_dump_json()
+        if hasattr(tool_result_content, "model_dump"):
+            return json.dumps(tool_result_content.model_dump())
+
+        # For other JSON-serializable types
+        try:
+            return json.dumps(tool_result_content)
+        except TypeError:
+            # Fallback for any other object type
+            return str(tool_result_content)
 
     def _handle_final_response(
         self, llm_response: ChatCompletionMessage
