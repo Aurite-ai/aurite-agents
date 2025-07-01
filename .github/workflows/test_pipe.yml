@@ -1,0 +1,13 @@
+name: Test CI/CD Pipeline
+
+on:
+    push:
+        branches:
+            - "cicd-pipeline-test"
+
+jobs:
+    setup:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Install dependencies
+              run: pip install -e .[dev]
