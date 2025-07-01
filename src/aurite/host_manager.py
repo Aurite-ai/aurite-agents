@@ -16,7 +16,7 @@ from typing import (  # Added AsyncGenerator, Dict, Any
     Optional,
 )
 
-# For robust exception group handling in Python < 3.11
+# For robust exception group handling in Python < 3.11 versions
 if sys.version_info < (3, 11):
     try:
         from exceptiongroup import ExceptionGroup as BaseExceptionGroup

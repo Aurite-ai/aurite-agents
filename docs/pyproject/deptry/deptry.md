@@ -24,10 +24,7 @@ Our clean run is made possible by four key settings that work in harmony:
 2.  **`extend_exclude = ["tests", "docs"]`**
     *   **Purpose:** This instructs `deptry` to only scan our application's source code (`src/aurite`). By excluding the `tests` directory, we prevent `deptry` from checking our test files, which correctly import development-only dependencies like `pytest`. This eliminates false "misplaced dependency" errors.
 
-3.  **`pep621_dev_dependency_groups = ["dev"]`**
-    *   **Purpose:** This setting is crucial for distinguishing between dependencies for development and optional features for users. It tells `deptry` that only the `[dev]` group contains packages for our development process. All other optional groups (`ml`, `tools`, `postgres`, etc.) are correctly understood as optional production dependencies for end-users.
-
-4.  **`package_module_name_map`**
+3.  **`package_module_name_map`**
     *   **Purpose:** This is the key that unlocked our ability to remove all ignore rules. It creates an explicit map between the name of a package we install (e.g., `google-cloud-secret-manager`) and the different name of the module we import in the code (e.g., `google`). Without this map, `deptry` would see an unused package and a missing import, forcing us to use ignore rules.
 
 ### Understanding the Violations We Now Prevent
@@ -37,7 +34,7 @@ Our configuration automatically prevents the common dependency issues that `dept
 *   **`DEP001: Missing dependency`**: If we `import` a package but forget to add it to `pyproject.toml`, `deptry` will fail the pre-commit hook, forcing us to add it.
 *   **`DEP002: Unused dependency`**: If we remove a feature and forget to remove its dependency from `pyproject.toml`, `deptry` will flag it as unused, helping us keep the project lean.
 *   **`DEP003: Transitive dependency`**: If we start importing a sub-dependency (e.g., a dependency of `fastapi`), `deptry` will raise an error, forcing us to make that dependency an explicit, direct dependency of our own project. This prevents future breakages.
-*   **`DEP004: Misplaced development dependency`**: Thanks to `pep621_dev_dependency_groups = ["dev"]`, `deptry` will immediately catch any attempt to import a dev-only tool (like `alembic` or `pytest`) into our main application code.
+*   **`DEP004: Misplaced development dependency`**: `deptry` will immediately catch any attempt to import a dev-only tool (like `alembic` or `pytest`) into our main application code.
 
 ## C. Deptry's Role in Our Workflow (vs. Poetry)
 
