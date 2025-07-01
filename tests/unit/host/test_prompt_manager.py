@@ -3,7 +3,6 @@ Unit tests for the PromptManager class.
 """
 
 import pytest
-from unittest.mock import Mock
 import mcp.types as types
 
 from src.aurite.host.resources.prompts import PromptManager
@@ -13,86 +12,66 @@ pytestmark = [pytest.mark.unit, pytest.mark.host]
 
 
 @pytest.mark.anyio
-async def test_prompt_manager_initialization(mock_message_router):
+async def test_prompt_manager_initialization(
+    mock_message_router, mock_client_session_group
+):
     """
-    Test that the PromptManager can be initialized successfully.
+    Test that the PromptManager can be initialized successfully and registers prompts.
     """
-    # 1. Arrange (Fixture is used)
+    # 1. Arrange
+    prompt = types.Prompt(name="test_prompt", description="A test prompt")
+    setattr(prompt, "client_id", "test_client")
+    mock_client_session_group.prompts = {"test_prompt": prompt}
+
     # 2. Act
-    prompt_manager = PromptManager(message_router=mock_message_router)
+    prompt_manager = PromptManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
+    )
     await prompt_manager.initialize()
 
     # 3. Assert
     assert isinstance(prompt_manager, PromptManager)
-    assert prompt_manager._message_router == mock_message_router
-    assert prompt_manager._prompts == {}
-
-
-@pytest.mark.anyio
-async def test_register_client_prompts_allowed(
-    mock_message_router, mock_filtering_manager
-):
-    """
-    Test that prompts are registered when allowed by the filtering manager.
-    """
-    # 1. Arrange
-    prompt_manager = PromptManager(message_router=mock_message_router)
-    mock_filtering_manager.is_registration_allowed.return_value = True
-
-    client_id = "test_client"
-    prompt_to_register = types.Prompt(name="test_prompt", description="A test prompt")
-    mock_client_config = Mock()
-
-    # 2. Act
-    registered_prompts = await prompt_manager.register_client_prompts(
-        client_id=client_id,
-        prompts=[prompt_to_register],
-        client_config=mock_client_config,
-        filtering_manager=mock_filtering_manager,
-    )
-
-    # 3. Assert
-    assert registered_prompts == [prompt_to_register]
-    assert client_id in prompt_manager._prompts
-    assert "test_prompt" in prompt_manager._prompts[client_id]
-    mock_filtering_manager.is_registration_allowed.assert_called_once_with(
-        "test_prompt", mock_client_config
-    )
     mock_message_router.register_prompt.assert_awaited_once_with(
-        prompt_name="test_prompt", client_id=client_id
+        prompt_name="test_prompt", client_id="test_client"
     )
 
 
 @pytest.mark.anyio
-async def test_register_client_prompts_denied(
-    mock_message_router, mock_filtering_manager
-):
+async def test_get_prompt(mock_message_router, mock_client_session_group):
     """
-    Test that prompts are not registered when denied by the filtering manager.
+    Test that get_prompt retrieves a prompt from the session group.
     """
     # 1. Arrange
-    prompt_manager = PromptManager(message_router=mock_message_router)
-    mock_filtering_manager.is_registration_allowed.return_value = False
-
-    client_id = "test_client"
-    prompt_to_register = types.Prompt(name="test_prompt", description="A test prompt")
-    mock_client_config = Mock()
+    prompt = types.Prompt(name="test_prompt", description="A test prompt")
+    mock_client_session_group.prompts = {"test_prompt": prompt}
+    prompt_manager = PromptManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
+    )
 
     # 2. Act
-    registered_prompts = await prompt_manager.register_client_prompts(
-        client_id=client_id,
-        prompts=[prompt_to_register],
-        client_config=mock_client_config,
-        filtering_manager=mock_filtering_manager,
-    )
+    retrieved_prompt = await prompt_manager.get_prompt("test_prompt")
 
     # 3. Assert
-    assert registered_prompts == []
-    # The current implementation creates an empty dict for the client even if no prompts are registered.
-    # This test verifies that behavior.
-    assert client_id in prompt_manager._prompts
-    assert prompt_manager._prompts[client_id] == {}
-    mock_filtering_manager.is_registration_allowed.assert_called_once_with(
-        "test_prompt", mock_client_config
+    assert retrieved_prompt == prompt
+
+
+@pytest.mark.anyio
+async def test_list_prompts(mock_message_router, mock_client_session_group):
+    """
+    Test that list_prompts returns all prompts from the session group.
+    """
+    # 1. Arrange
+    prompt1 = types.Prompt(name="prompt1", description="A test prompt")
+    prompt2 = types.Prompt(name="prompt2", description="Another test prompt")
+    mock_client_session_group.prompts = {"prompt1": prompt1, "prompt2": prompt2}
+    prompt_manager = PromptManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
     )
-    mock_message_router.register_prompt.assert_not_awaited()
+
+    # 2. Act
+    all_prompts = await prompt_manager.list_prompts()
+
+    # 3. Assert
+    assert len(all_prompts) == 2
+    assert prompt1 in all_prompts
+    assert prompt2 in all_prompts

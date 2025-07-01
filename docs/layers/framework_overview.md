@@ -31,11 +31,10 @@ The framework follows a layered architecture:
     *   The `ExecutionFacade` also passes the `StorageManager` instance (if available) to the `Agent` during its instantiation, enabling history persistence.
 
 *   **Layer 3: Host Infrastructure:** The `MCPHost` (`src/aurite/host/host.py`) is the core infrastructure layer responsible for direct interaction with external MCP servers.
-    *   **Client Management:** It establishes and manages connections to configured MCP servers (clients) using `anyio` for robust, concurrent lifecycle management of each client (stdio transport is primarily used). The `ClientManager` assists in this.
-    *   **MCP Protocol Handling:** It handles the MCP initialization handshake and capability negotiation with each connected client.
+    *   **Client Management:** It delegates all client connection and session management to `mcp.client.ClientSessionGroup`.
     *   **Component Discovery & Registration:** It discovers tools, prompts, and resources offered by connected clients and registers them with its internal managers (`ToolManager`, `PromptManager`, `ResourceManager`).
     *   **Filtering and Routing:** It applies filtering rules based on `ClientConfig` (global exclusions) and `AgentConfig` (agent-specific access) via the `FilteringManager`. The `MessageRouter` helps route requests to the appropriate client based on component availability and configuration.
-    *   **Security and Access Control:** The `SecurityManager` handles aspects like credential encryption and GCP secret resolution. The `RootManager` manages MCP root definitions for access control.
-    *   **Interface for Layer 2.5:** Provides methods (`execute_tool`, `get_prompt`, `read_resource`, `get_formatted_tools`) that are used by the `Agent` (via `ExecutionFacade`) to interact with MCP server capabilities.
+    *   **Security and Access Control:** The `SecurityManager` handles aspects like credential encryption. The `RootManager` manages MCP root definitions for access control.
+    *   **Interface for Layer 2.5:** Provides methods (`call_tool`, `get_formatted_tools`) that are used by the `Agent` (via `ExecutionFacade`) to interact with MCP server capabilities.
 
 *   **Layer 4: External Capabilities:** This layer consists of the external MCP Servers themselves. These are separate processes that provide tools, prompts, or resources according to the Model Context Protocol. The Aurite framework (specifically Layer 3) connects to these servers as clients to leverage their functionalities.

@@ -47,16 +47,22 @@ class MCPHost:
         self._message_router = MessageRouter()
         self._filtering_manager = FilteringManager()
 
-        # Resource management (These might be simplified or removed if SessionGroup handles all)
-        self._prompt_manager = PromptManager(message_router=self._message_router)
-        self._resource_manager = ResourceManager(message_router=self._message_router)
-        self._tool_manager = ToolManager(
-            root_manager=self._root_manager, message_router=self._message_router
-        )
-
         # Session management
         self._session_group = ClientSessionGroup()
         self._exit_stack = AsyncExitStack()
+
+        # Resource management (These might be simplified or removed if SessionGroup handles all)
+        self._prompt_manager = PromptManager(
+            message_router=self._message_router, session_group=self._session_group
+        )
+        self._resource_manager = ResourceManager(
+            message_router=self._message_router, session_group=self._session_group
+        )
+        self._tool_manager = ToolManager(
+            root_manager=self._root_manager,
+            message_router=self._message_router,
+            session_group=self._session_group,
+        )
 
         # State
         self._config = config

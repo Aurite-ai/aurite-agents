@@ -3,7 +3,6 @@ Unit tests for the ResourceManager class.
 """
 
 import pytest
-from unittest.mock import Mock
 import mcp.types as types
 from pydantic import AnyUrl
 
@@ -14,89 +13,69 @@ pytestmark = [pytest.mark.unit, pytest.mark.host]
 
 
 @pytest.mark.anyio
-async def test_resource_manager_initialization(mock_message_router):
+async def test_resource_manager_initialization(
+    mock_message_router, mock_client_session_group
+):
     """
-    Test that the ResourceManager can be initialized successfully.
+    Test that the ResourceManager can be initialized successfully and registers resources.
     """
-    # 1. Arrange (Fixture is used)
+    # 1. Arrange
+    resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
+    setattr(resource, "client_id", "test_client")
+    mock_client_session_group.resources = {"mcp://resource/1": resource}
+
     # 2. Act
-    resource_manager = ResourceManager(message_router=mock_message_router)
+    resource_manager = ResourceManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
+    )
     await resource_manager.initialize()
 
     # 3. Assert
     assert isinstance(resource_manager, ResourceManager)
-    assert resource_manager._message_router == mock_message_router
-    assert resource_manager._resources == {}
-
-
-@pytest.mark.anyio
-async def test_register_client_resources_allowed(
-    mock_message_router, mock_filtering_manager
-):
-    """
-    Test that resources are registered when allowed by the filtering manager.
-    """
-    # 1. Arrange
-    resource_manager = ResourceManager(message_router=mock_message_router)
-    mock_filtering_manager.is_registration_allowed.return_value = True
-
-    client_id = "test_client"
-    # Create a mock that is an instance of the expected type
-    mock_resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
-    resources_to_register = [mock_resource]
-    mock_client_config = Mock()
-
-    # 2. Act
-    registered_resources = await resource_manager.register_client_resources(
-        client_id=client_id,
-        resources=resources_to_register,
-        client_config=mock_client_config,
-        filtering_manager=mock_filtering_manager,
-    )
-
-    # 3. Assert
-    assert registered_resources == resources_to_register
-    assert client_id in resource_manager._resources
-    assert "mcp://resource/1" in resource_manager._resources[client_id]
-    mock_filtering_manager.is_registration_allowed.assert_called_once_with(
-        "mcp://resource/1", mock_client_config
-    )
     mock_message_router.register_resource.assert_awaited_once_with(
-        resource_uri="mcp://resource/1", client_id=client_id
+        resource_uri="mcp://resource/1", client_id="test_client"
     )
 
 
 @pytest.mark.anyio
-async def test_register_client_resources_denied(
-    mock_message_router, mock_filtering_manager
-):
+async def test_get_resource(mock_message_router, mock_client_session_group):
     """
-    Test that resources are not registered when denied by the filtering manager.
+    Test that get_resource retrieves a resource from the session group.
     """
     # 1. Arrange
-    resource_manager = ResourceManager(message_router=mock_message_router)
-    mock_filtering_manager.is_registration_allowed.return_value = False
-
-    client_id = "test_client"
-    mock_resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
-    resources_to_register = [mock_resource]
-    mock_client_config = Mock()
+    resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
+    mock_client_session_group.resources = {"mcp://resource/1": resource}
+    resource_manager = ResourceManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
+    )
 
     # 2. Act
-    registered_resources = await resource_manager.register_client_resources(
-        client_id=client_id,
-        resources=resources_to_register,
-        client_config=mock_client_config,
-        filtering_manager=mock_filtering_manager,
-    )
+    retrieved_resource = await resource_manager.get_resource("mcp://resource/1")
 
     # 3. Assert
-    assert registered_resources == []
-    # The current implementation creates an empty dict for the client even if no resources are registered.
-    # This test verifies that behavior.
-    assert client_id in resource_manager._resources
-    assert resource_manager._resources[client_id] == {}
-    mock_filtering_manager.is_registration_allowed.assert_called_once_with(
-        "mcp://resource/1", mock_client_config
+    assert retrieved_resource == resource
+
+
+@pytest.mark.anyio
+async def test_list_resources(mock_message_router, mock_client_session_group):
+    """
+    Test that list_resources returns all resources from the session group.
+    """
+    # 1. Arrange
+    resource1 = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource 1")
+    resource2 = types.Resource(uri=AnyUrl("mcp://resource/2"), name="Test Resource 2")
+    mock_client_session_group.resources = {
+        "mcp://resource/1": resource1,
+        "mcp://resource/2": resource2,
+    }
+    resource_manager = ResourceManager(
+        message_router=mock_message_router, session_group=mock_client_session_group
     )
-    mock_message_router.register_resource.assert_not_awaited()
+
+    # 2. Act
+    all_resources = await resource_manager.list_resources()
+
+    # 3. Assert
+    assert len(all_resources) == 2
+    assert resource1 in all_resources
+    assert resource2 in all_resources
