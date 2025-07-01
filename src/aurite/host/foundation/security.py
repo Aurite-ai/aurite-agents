@@ -109,7 +109,7 @@ class SecurityManager:
                 )
                 # self._gcp_secret_client remains None
         else:
-            logger.info(
+            logger.debug(
                 "GCP Secret Manager client library not found. Skipping client initialization."
             )
 

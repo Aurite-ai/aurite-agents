@@ -444,18 +444,12 @@ async def list_registered_llms(
     return list(manager.project_manager.component_manager.llms.keys())
 
 
-@router.get("/host/clients/active", response_model=List[str], tags=["Host Status"])
-async def list_active_host_clients(manager: Aurite = Depends(get_host_manager)):
-    """Lists the names of all clients currently active and running on the MCPHost instance."""
-    if not manager.host or not manager.host.client_manager:
-        logger.warning(
-            "Host or ClientManager not available for listing active clients."
-        )
+@router.get("/host/clients/configured", response_model=List[str], tags=["Host Status"])
+async def list_configured_host_clients(manager: Aurite = Depends(get_host_manager)):
+    """Lists the names of all clients configured in the active project."""
+    if not manager.project_manager:
         return []
-    # Ensure active_clients is accessible and is a dictionary
-    if not hasattr(manager.host.client_manager, "active_clients") or not isinstance(
-        manager.host.client_manager.active_clients, dict
-    ):
-        logger.error("ClientManager.active_clients is not available or not a dict.")
+    active_project = manager.project_manager.get_active_project_config()
+    if not active_project or not active_project.mcp_servers:
         return []
-    return list(manager.host.client_manager.active_clients.keys())
+    return list(active_project.mcp_servers.keys())

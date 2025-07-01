@@ -13,17 +13,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.host]
 
 
 @pytest.mark.anyio
-async def test_tool_manager_initialization():
+async def test_tool_manager_initialization(mock_root_manager, mock_message_router):
     """
     Test that the ToolManager can be initialized successfully.
     """
-    # 1. Arrange
-    # Create mock dependencies for the ToolManager constructor
-    mock_root_manager = Mock()
-    mock_message_router = Mock()
-
+    # 1. Arrange (Fixtures are used)
     # 2. Act
-    # Instantiate the ToolManager
     tool_manager = ToolManager(
         root_manager=mock_root_manager,
         message_router=mock_message_router,
@@ -40,12 +35,14 @@ async def test_tool_manager_initialization():
 
 
 @pytest.mark.anyio
-async def test_register_client():
+async def test_register_client(mock_root_manager, mock_message_router):
     """
     Test that a client can be registered with the ToolManager.
     """
     # 1. Arrange
-    tool_manager = ToolManager(root_manager=Mock(), message_router=Mock())
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     client_id = "test_client_01"
     mock_client_session = Mock()
 
@@ -58,15 +55,16 @@ async def test_register_client():
 
 
 @pytest.mark.anyio
-async def test_register_tool_allowed():
+async def test_register_tool_allowed(
+    mock_message_router, mock_filtering_manager, mock_root_manager
+):
     """
     Test that a tool is registered when the filtering manager allows it.
     """
     # 1. Arrange
-    mock_router = AsyncMock()
-    tool_manager = ToolManager(root_manager=Mock(), message_router=mock_router)
-
-    mock_filtering_manager = Mock()
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     mock_filtering_manager.is_registration_allowed.return_value = True
 
     client_id = "test_client"
@@ -90,19 +88,20 @@ async def test_register_tool_allowed():
     mock_filtering_manager.is_registration_allowed.assert_called_once_with(
         tool_name, mock_client_config
     )
-    mock_router.register_tool.assert_awaited_once_with(tool_name, client_id)
+    mock_message_router.register_tool.assert_awaited_once_with(tool_name, client_id)
 
 
 @pytest.mark.anyio
-async def test_register_tool_denied():
+async def test_register_tool_denied(
+    mock_message_router, mock_filtering_manager, mock_root_manager
+):
     """
     Test that a tool is not registered when the filtering manager denies it.
     """
     # 1. Arrange
-    mock_router = AsyncMock()
-    tool_manager = ToolManager(root_manager=Mock(), message_router=mock_router)
-
-    mock_filtering_manager = Mock()
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     mock_filtering_manager.is_registration_allowed.return_value = False
 
     client_id = "test_client"
@@ -125,16 +124,18 @@ async def test_register_tool_denied():
     mock_filtering_manager.is_registration_allowed.assert_called_once_with(
         tool_name, mock_client_config
     )
-    mock_router.register_tool.assert_not_awaited()
+    mock_message_router.register_tool.assert_not_awaited()
 
 
 @pytest.mark.anyio
-async def test_discover_client_tools_happy_path():
+async def test_discover_client_tools_happy_path(mock_root_manager, mock_message_router):
     """
     Test that tools are discovered successfully from a client.
     """
     # 1. Arrange
-    tool_manager = ToolManager(root_manager=Mock(), message_router=Mock())
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     client_id = "test_client"
 
     # Create a mock for the client session
@@ -154,12 +155,16 @@ async def test_discover_client_tools_happy_path():
 
 
 @pytest.mark.anyio
-async def test_discover_client_tools_raises_exception():
+async def test_discover_client_tools_raises_exception(
+    mock_root_manager, mock_message_router
+):
     """
     Test that an exception from the client is propagated during discovery.
     """
     # 1. Arrange
-    tool_manager = ToolManager(root_manager=Mock(), message_router=Mock())
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     client_id = "test_client"
 
     mock_client_session = AsyncMock()
@@ -173,15 +178,13 @@ async def test_discover_client_tools_raises_exception():
 
 
 @pytest.mark.anyio
-async def test_execute_tool_happy_path():
+async def test_execute_tool_happy_path(mock_root_manager, mock_message_router):
     """
     Test successful execution of an unambiguous tool.
     """
     # 1. Arrange
-    mock_root_manager = AsyncMock()
-    mock_router = AsyncMock()
     tool_manager = ToolManager(
-        root_manager=mock_root_manager, message_router=mock_router
+        root_manager=mock_root_manager, message_router=mock_message_router
     )
 
     client_id = "test_client"
@@ -197,43 +200,47 @@ async def test_execute_tool_happy_path():
     tool_manager.register_client(client_id, mock_client_session)
 
     # Mock the router to return the client
-    mock_router.get_clients_for_tool.return_value = [client_id]
+    mock_message_router.get_clients_for_tool.return_value = [client_id]
 
     # 2. Act
     result = await tool_manager.execute_tool(tool_name, tool_args)
 
     # 3. Assert
     assert result == expected_result
-    mock_router.get_clients_for_tool.assert_awaited_once_with(tool_name)
+    mock_message_router.get_clients_for_tool.assert_awaited_once_with(tool_name)
     mock_root_manager.validate_access.assert_awaited_once_with(client_id=client_id)
     mock_client_session.call_tool.assert_awaited_once_with(tool_name, tool_args)
 
 
 @pytest.mark.anyio
-async def test_execute_tool_not_found():
+async def test_execute_tool_not_found(mock_root_manager, mock_message_router):
     """
     Test that executing a non-existent tool raises a ValueError.
     """
     # 1. Arrange
-    mock_router = AsyncMock()
-    tool_manager = ToolManager(root_manager=Mock(), message_router=mock_router)
-    mock_router.get_clients_for_tool.return_value = []  # No client provides the tool
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
+    mock_message_router.get_clients_for_tool.return_value = []  # No client provides the tool
 
     # 2. Act & Assert
     with pytest.raises(ValueError, match="Tool 'unknown_tool' not found"):
         await tool_manager.execute_tool("unknown_tool", {})
 
-    mock_router.get_clients_for_tool.assert_awaited_once_with("unknown_tool")
+    mock_message_router.get_clients_for_tool.assert_awaited_once_with("unknown_tool")
 
 
 @pytest.mark.anyio
-async def test_list_tools_happy_path():
+async def test_list_tools_happy_path(
+    mock_root_manager, mock_message_router, mock_filtering_manager
+):
     """
     Test that list_tools returns a correctly formatted list of registered tools.
     """
     # 1. Arrange
-    tool_manager = ToolManager(root_manager=Mock(), message_router=AsyncMock())
-    mock_filtering_manager = Mock()
+    tool_manager = ToolManager(
+        root_manager=mock_root_manager, message_router=mock_message_router
+    )
     mock_filtering_manager.is_registration_allowed.return_value = True
 
     # Register a tool

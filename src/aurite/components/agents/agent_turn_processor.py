@@ -269,10 +269,9 @@ class AgentTurnProcessor:
                 tool_result_content = f"Error: Invalid JSON arguments provided: {tool_call.function.arguments}"
             else:
                 try:
-                    tool_result_content = await self.host.execute_tool(
-                        tool_name=tool_name,
-                        arguments=tool_input,
-                        agent_config=self.config,
+                    tool_result_content = await self.host.call_tool(
+                        name=tool_name,
+                        args=tool_input,
                     )
                 except Exception as e:
                     logger.error(
