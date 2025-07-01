@@ -51,6 +51,9 @@ class LiteLLMClient:
         self.api_version = api_version
         
         litellm.drop_params = True # automatically drops unsupported params rather than throwing error
+        
+        litellm_logger = logging.getLogger("LiteLLM")
+        litellm_logger.setLevel(logging.ERROR)
 
         if provider == "gemini":
             if "GEMINI_API_KEY" not in os.environ and "GOOGLE_API_KEY" in os.environ:
