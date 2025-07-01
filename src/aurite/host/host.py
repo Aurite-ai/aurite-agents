@@ -14,6 +14,7 @@ from typing import (
 import anyio  # Import anyio
 from anyio import abc
 import mcp.types as types
+from mcp import ClientSession
 
 # Foundation layer
 from .foundation import (
@@ -131,7 +132,7 @@ class MCPHost:
             try:
                 await self._initialize_client(client_config)
                 successful_initializations += 1
-            except Exception as e:
+            except (Exception, ExceptionGroup) as e:
                 logger.error(
                     f"Failed to initialize client '{client_config.name}'. "
                     f"This client will be unavailable. Error: {e}",
@@ -176,13 +177,21 @@ class MCPHost:
             logger.debug(
                 f"Starting client lifecycle task for {client_id} in task group."
             )
-            session = await self._client_runners_task_group.start(
+            session: Optional[
+                "ClientSession"
+            ] = await self._client_runners_task_group.start(
                 self.client_manager.manage_client_lifecycle,
                 config,
                 self._security_manager,
                 client_scope,
-                # task_status is implicitly handled by tg.start()
             )
+
+            if session is None:
+                # The lifecycle task failed to start the session.
+                # It has already logged the error. We raise an error here
+                # to signal the failure to the main initialization loop.
+                raise RuntimeError(f"Client '{config.name}' failed to start.")
+
             logger.debug(
                 f"Client session for {client_id} obtained from lifecycle task."
             )
@@ -208,14 +217,18 @@ class MCPHost:
                     ),
                 ),
             )
-            await session.send_request(init_request, types.InitializeResult)  # type: ignore[arg-type]
+            await session.send_request(
+                types.ClientRequest(root=init_request), types.InitializeResult
+            )
 
             # Send initialized notification
             init_notification = types.InitializedNotification(
                 method="notifications/initialized",
                 params=None,  # Pass None instead of {}
             )
-            await session.send_notification(init_notification)  # type: ignore[arg-type]
+            await session.send_notification(
+                types.ClientNotification(root=init_notification)
+            )
 
             # Register roots
             if "roots" in config.capabilities:
@@ -286,7 +299,7 @@ class MCPHost:
             )
             # --- End of restored section ---
 
-        except Exception as e:
+        except (Exception, ExceptionGroup) as e:
             logger.error(
                 f"Failed to initialize client {config.name}: {e}"
             )  # Keep error as ERROR
