@@ -11,44 +11,13 @@ import re
 import time
 import warnings  # Add import
 from dataclasses import dataclass
-from types import ModuleType  # Added ModuleType
-from typing import Any, Dict, List, Optional  # Added Type
+from typing import Any, Dict, Optional  # Added Type
 
-from anyio import to_thread  # Import anyio
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# Local imports
-from aurite.config.config_models import (  # Assuming models.py is one level up
-    GCPSecretConfig,
-)
-
 logger = logging.getLogger(__name__)
-
-
-# --- Optional GCP Imports ---
-# The following block handles optional imports for Google Cloud Secret Manager.
-# Pylance will correctly report "reportMissingImports" if the `gcp` extras
-# are not installed. This is expected behavior.
-#
-# To enable GCP functionality and resolve these linter errors for development,
-# install the optional dependencies:
-# pip install -e .[gcp]
-#
-secretmanager: Optional[ModuleType] = None
-gcp_exceptions: Optional[ModuleType] = None
-try:
-    from google.api_core import exceptions as gcp_exc_module
-    from google.cloud import secretmanager as sm_module
-
-    secretmanager = sm_module
-    gcp_exceptions = gcp_exc_module
-except ImportError:
-    # secretmanager and gcp_exceptions remain None
-    logger.debug(
-        "google-cloud-secret-manager not installed. GCP secret functionality will be disabled."
-    )
 
 
 # Patterns for sensitive data detection (Improved)
@@ -94,24 +63,6 @@ class SecurityManager:
 
         # Map of token IDs to credential IDs
         self._access_tokens: Dict[str, str] = {}
-
-        # Initialize GCP Secret Manager Client
-        self._gcp_secret_client = None
-        if secretmanager:  # Check if import succeeded
-            try:
-                self._gcp_secret_client = secretmanager.SecretManagerServiceClient()
-                logger.debug(  # INFO -> DEBUG
-                    "GCP Secret Manager client initialized successfully via ADC."
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to initialize GCP Secret Manager client (ADC might be missing/misconfigured): {e}"
-                )
-                # self._gcp_secret_client remains None
-        else:
-            logger.debug(
-                "GCP Secret Manager client library not found. Skipping client initialization."
-            )
 
         # Server permissions removed as they are not currently used by the refactored host.
 
@@ -306,70 +257,6 @@ class SecurityManager:
         )
 
         return masked_data
-
-    async def resolve_gcp_secrets(
-        self, secrets_config: List[GCPSecretConfig]
-    ) -> Dict[str, str]:
-        """Fetches secrets from GCP Secrets Manager based on config."""
-        if not self._gcp_secret_client:
-            logger.error(
-                "GCP Secret Manager client not available. Cannot resolve secrets."
-            )
-            # Consider if raising an error is more appropriate depending on requirements
-            return {}
-        if not gcp_exceptions:  # Check if exception types were imported
-            logger.error(
-                "GCP exception types not available. Cannot safely handle API errors."
-            )
-            return {}
-
-        resolved_secrets: Dict[str, str] = {}
-        logger.info(f"Attempting to resolve {len(secrets_config)} GCP secrets.")
-        for secret_conf in secrets_config:
-            secret_name = secret_conf.secret_id
-            env_var = secret_conf.env_var_name
-            logger.debug(
-                f"Attempting to access secret: {secret_name} for env var: {env_var}"
-            )
-            # Add check to satisfy mypy for Optional[ModuleType]
-            if secretmanager and gcp_exceptions:  # Check modules are available
-                try:
-                    request = secretmanager.AccessSecretVersionRequest(name=secret_name)
-                    # Use the synchronous client method directly as SDK doesn't provide async access method
-                    # This will block the event loop briefly for each secret access.
-                    # Running in a thread pool executor using anyio.to_thread.run_sync
-                    if self._gcp_secret_client is None:
-                        raise RuntimeError("GCP Secret Manager client not initialized.")
-                    response = await to_thread.run_sync(
-                        self._gcp_secret_client.access_secret_version, request
-                    )
-                    secret_value = response.payload.data.decode("UTF-8")
-                    resolved_secrets[env_var] = secret_value
-                    logger.debug(
-                        f"Successfully resolved GCP secret for env var: {env_var}"
-                    )
-                except gcp_exceptions.NotFound:
-                    logger.error(f"GCP Secret not found: {secret_name}")
-                    # Skip this secret and continue
-                except gcp_exceptions.PermissionDenied:
-                    logger.error(
-                        f"Permission denied accessing GCP secret: {secret_name}. Check IAM roles for ADC."
-                    )
-                    # Skip this secret and continue
-                except Exception as e:
-                    logger.error(f"Failed to access GCP secret {secret_name}: {e}")
-                    # Skip this secret and continue
-            else:
-                logger.error(
-                    "GCP libraries unavailable despite client being initialized. Skipping secret."
-                )
-                # Continue to next secret in the loop
-                continue
-
-        logger.info(
-            f"Resolved {len(resolved_secrets)} out of {len(secrets_config)} requested GCP secrets."
-        )
-        return resolved_secrets
 
     async def shutdown(self):
         """Shutdown the security manager"""

@@ -26,18 +26,6 @@ class RootConfig(BaseModel):
     )
 
 
-class GCPSecretConfig(BaseModel):
-    """Configuration for a single GCP Secret to resolve."""
-
-    secret_id: str = Field(
-        ...,
-        description="Full GCP Secret Manager secret ID (e.g., projects/my-proj/secrets/my-secret/versions/latest)",
-    )
-    env_var_name: str = Field(
-        ..., description="Environment variable name to map the secret value to"
-    )
-
-
 class ClientConfig(BaseModel):
     """Configuration for an MCP client"""
 
@@ -75,10 +63,6 @@ class ClientConfig(BaseModel):
     exclude: Optional[List[str]] = Field(
         default=None,
         description="List of component names (prompt, resource, tool) to exclude from this client.",
-    )
-    gcp_secrets: Optional[List[GCPSecretConfig]] = Field(
-        default=None,
-        description="List of GCP secrets to resolve and inject into the server environment",
     )
 
     @model_validator(mode="before")

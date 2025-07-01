@@ -3,6 +3,8 @@ MCP Host implementation for managing MCP client connections and interactions.
 """
 
 import logging
+import os
+import re
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 from datetime import timedelta
@@ -89,7 +91,7 @@ class MCPHost:
 
         for server_config in self._config.mcp_servers:
             try:
-                params = self._get_server_params(server_config)
+                params = await self._get_server_params(server_config)
                 await self._session_group.connect_to_server(params)
             except Exception as e:
                 logger.error(f"Failed to connect to server {server_config.name}: {e}")
@@ -112,25 +114,66 @@ class MCPHost:
         await self._exit_stack.aclose()
         logger.debug("MCP Host shutdown complete.")
 
-    def _get_server_params(self, config: ClientConfig) -> ServerParameters:
+    async def _get_server_params(self, config: ClientConfig) -> ServerParameters:
+        client_env = os.environ.copy()
+
+        # 2. Helper to replace placeholders in strings (for URLs and args)
+        def _resolve_placeholders(value: str) -> str:
+            placeholders = re.findall(r"\{([^}]+)\}", value)
+            for placeholder in placeholders:
+                env_value = client_env.get(placeholder)
+                if env_value:
+                    value = value.replace(f"{{{placeholder}}}", env_value)
+                else:
+                    # Keep unresolved placeholders for clarity, but log a warning
+                    logger.warning(
+                        f"Could not resolve placeholder '{{{placeholder}}}' for client '{config.name}'. "
+                        f"Ensure the environment variable '{placeholder}' is set."
+                    )
+            return value
+
+        # 3. Determine parameters based on transport type
         if config.transport_type == "stdio":
             if not config.server_path:
                 raise ValueError("'server_path' is required for stdio transport")
             return StdioServerParameters(
-                command=str(config.server_path), args=config.args or []
+                command="python",
+                args=[str(config.server_path)],
+                env=client_env,
             )
+
         elif config.transport_type == "http_stream":
             if not config.http_endpoint:
                 raise ValueError("URL is required for http_stream transport")
+
+            endpoint_url = _resolve_placeholders(config.http_endpoint)
+
+            # Handle Docker environment
+            if os.environ.get("DOCKER_ENV", "false").lower() == "true":
+                if "localhost" in endpoint_url:
+                    endpoint_url = endpoint_url.replace(
+                        "localhost", "host.docker.internal"
+                    )
+                    logger.info(
+                        f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}"
+                    )
+
             return StreamableHttpParameters(
-                url=config.http_endpoint,
+                url=endpoint_url,
                 headers=config.headers,
                 timeout=timedelta(seconds=config.timeout or 30.0),
             )
+
         elif config.transport_type == "local":
             if not config.command:
                 raise ValueError("'command' is required for local transport")
-            return StdioServerParameters(command=config.command, args=config.args or [])
+
+            resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
+
+            return StdioServerParameters(
+                command=config.command, args=resolved_args, env=client_env
+            )
+
         else:
             raise ValueError(f"Unsupported transport type: {config.transport_type}")
 
@@ -144,7 +187,7 @@ class MCPHost:
         # The ClientSessionGroup will raise an error if a component name conflicts,
         # which serves as our duplicate check.
         try:
-            params = self._get_server_params(config)
+            params = await self._get_server_params(config)
             await self._session_group.connect_to_server(params)
             logger.info(f"Client '{config.name}' dynamically registered successfully.")
         except Exception as e:

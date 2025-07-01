@@ -1,112 +1,75 @@
-# Implementation Plan: Post-Refactor Cleanup
+# Implementation Plan: Post-Refactor Cleanup and Test Enhancement
 
 **Version:** 1.0
 **Date:** 2025-07-01
 **Author(s):** Gemini
 
 ## 1. Goals
-*   Improve the robustness of the configuration models by removing legacy default values.
-*   Enhance encapsulation by moving agent-specific setup logic into the `Agent` class.
-*   Simplify the `ExecutionFacade` by delegating agent preparation.
-*   Optimize the tool filtering process to improve efficiency.
+*   Re-implement critical functionality lost during the `ClientSessionGroup` refactor.
+*   Improve the test infrastructure for the host layer to make it more maintainable and DRY.
 
 ## 2. Scope
 *   **In Scope:**
-    *   `src/aurite/config/config_models.py`
-    *   `src/aurite/execution/facade.py`
-    *   `src/aurite/components/agents/agent.py`
-    *   `src/aurite/host/host.py`
-    *   `src/aurite/host/resources/tool_manager.py` (Implicitly, for tool formatting)
-    *   Relevant test files for the above.
+    *   Modifying `src/aurite/host/host.py` to add back lost functionality.
+    *   Modifying `tests/unit/host/conftest.py` to create shared fixtures.
+    *   Refactoring tests in `tests/unit/host/` and `tests/integration/host/` to use the new fixtures.
 *   **Out of Scope:**
-    *   Any functional changes not directly related to the cleanup tasks.
-    *   Changes to the API layer or other entrypoints beyond what is necessary to support the refactoring.
+    *   Changing the core `ClientSessionGroup`-based architecture.
+    *   Adding new features not present in the previous implementation.
 
 ## 3. Implementation Steps
 
-### Phase 1: Configuration & Facade Cleanup
+### Phase 1: Restore Lost Functionality
 
-1.  **Step 1.1: Make `provider` and `model` mandatory in `LLMConfig`**
-    *   **File(s):** `src/aurite/config/config_models.py`
+1.  **Step 1.1: Enhance `_get_server_params` with Environment and Secret Handling**
+    *   **File(s):** `src/aurite/host/host.py`
     *   **Action:**
-        *   In the `LLMConfig` class, remove the `default` values from the `provider` and `model` fields to make them explicitly required in configuration files.
+        *   Update the `_get_server_params` method to handle environment variable resolution for `stdio`, `local`, and `http_stream` transport types.
+        *   Integrate `SecurityManager.resolve_gcp_secrets` to inject secrets into the environment for `stdio` and `local` clients.
+        *   Add logic to replace placeholders (e.g., `{VAR_NAME}`) in `http_endpoint` URLs and `args` lists.
+        *   Add the `DOCKER_ENV` check to replace `localhost` with `host.docker.internal` for `http_stream` clients.
     *   **Verification:**
-        *   Tests that relied on these defaults will fail.
+        *   New unit tests will be added in Phase 2 to verify this functionality.
 
-2.  **Step 1.2: Centralize Defaulting Logic in `LiteLLMClient`**
-    *   **File(s):** `src/aurite/components/llm/providers/litellm_client.py`
+2.  **Step 1.2: Verify Component Unregistration**
+    *   **File(s):** `src/aurite/host/host.py`, `src/aurite/host/resources/*.py`
     *   **Action:**
-        *   Modify the `LiteLLMClient.__init__` method to use internal defaults (e.g., `model_name="gpt-3.5-turbo"`, `provider="openai"`) if `model_name` or `provider` are not provided.
+        *   Review the `ClientSessionGroup` documentation (or source if necessary) to understand its component lifecycle.
+        *   For now, we will assume that when a session is closed, its components are no longer accessible through the group's properties (`.tools`, `.prompts`, etc.). We will rely on this behavior and will not add explicit unregistration calls.
     *   **Verification:**
-        *   The client can be instantiated without parameters and will use the internal defaults.
+        *   Integration tests will be written in Phase 2 to confirm that after a client is disconnected, its components are no longer present in the host's managers.
 
-3.  **Step 1.3: Simplify `ExecutionFacade._get_llm_client`**
-    *   **File(s):** `src/aurite/execution/facade.py`
+### Phase 2: Refactor Test Infrastructure
+
+1.  **Step 2.1: Create Shared Fixtures in `conftest.py`**
+    *   **File(s):** `tests/unit/host/conftest.py`
     *   **Action:**
-        *   Refactor `_get_llm_client`. If an `llm_config_id` is not found, it should call `LiteLLMClient()` with no arguments, relying on the client's new internal defaults.
+        *   Create a `host_config_fixture` that provides a default `HostConfig` object.
+        *   Create a `mock_client_session_group_fixture` that provides a mocked `ClientSessionGroup` instance with mock managers.
+        *   Create a `mocker_fixture` for patching modules.
     *   **Verification:**
-        *   Facade tests should be updated for this new simplified logic.
+        *   The fixtures will be used in the following steps.
 
-4.  **Step 1.4: Update All Tests**
-    *   **File(s):** All failing test files from the previous steps.
+2.  **Step 2.2: Refactor Unit Tests**
+    *   **File(s):** `tests/unit/host/*.py`
     *   **Action:**
-        *   Update test configurations and mocks to provide explicit `provider` and `model` values where `LLMConfig` is used.
+        *   Update all unit tests in the `tests/unit/host/` directory to use the new shared fixtures from `conftest.py`.
+        *   Remove redundant mocking and setup code from individual test files.
     *   **Verification:**
-        *   All tests should pass.
+        *   All unit tests must pass after refactoring.
 
-### Phase 2: Agent Initialization Refactoring
-
-**Architectural Goal:** To improve configuration transparency by resolving the final LLM parameters at the point of use (`Agent` initialization) rather than at the point of execution (`LiteLLMClient`). This makes the final, effective configuration inspectable throughout the agent's lifecycle.
-
-1.  **Step 2.1: Make `Agent` the Configuration Resolver**
-    *   **File(s):** `src/aurite/components/agents/agent.py`
+3.  **Step 2.3: Refactor Integration Tests**
+    *   **File(s):** `tests/integration/host/test_mcp_host.py`
     *   **Action:**
-        *   Modify the `Agent.__init__` signature. It will now accept the base `LLMConfig` and the `AgentConfig`.
-        *   Add logic within `__init__` to merge the base `LLMConfig` and the `AgentConfig` overrides into a single, final `resolved_llm_config` object. Store this as a public property on the instance (e.g., `self.resolved_llm_config`).
-        *   The `Agent` will then use this resolved config to instantiate its own internal `LiteLLMClient`.
+        *   Update the integration tests to use the new shared fixtures.
+        *   Add new integration tests to verify the functionality re-implemented in Phase 1 (e.g., secret injection, Docker environment handling).
     *   **Verification:**
-        *   Agent-related tests will fail. This is expected.
-
-2.  **Step 2.2: Simplify `LiteLLMClient`**
-    *   **File(s):** `src/aurite/components/llm/providers/litellm_client.py`
-    *   **Action:**
-        *   Remove the `llm_config_override` parameter from all methods.
-        *   Simplify the `_build_request_params` method to no longer perform any merging logic. It will now be initialized with the final, resolved parameters.
-    *   **Verification:**
-        *   `LiteLLMClient` tests will fail. This is expected.
-
-3.  **Step 2.3: Simplify `ExecutionFacade`**
-    *   **File(s):** `src/aurite/execution/facade.py`
-    *   **Action:**
-        *   Refactor `_prepare_agent_for_run` to be a simple "gatherer". It will fetch the `AgentConfig` and the base `LLMConfig` from the project and pass them to the `Agent` constructor.
-        *   Remove all logic related to creating `LiteLLMClient` instances or override objects from the facade.
-    *   **Verification:**
-        *   Facade-related tests will fail. This is expected.
-
-4.  **Step 2.4: Update All Tests**
-    *   **File(s):** All failing test files from the previous steps.
-    *   **Action:**
-        *   Update tests for `Agent`, `LiteLLMClient`, and `ExecutionFacade` to align with the new, cleaner separation of responsibilities.
-    *   **Verification:**
-        *   All tests should pass.
-
-### Phase 3: Tool Formatting Optimization
-
-1.  **Step 3.1: Investigate Tool Formatting**
-    *   **File(s):** `src/aurite/host/host.py`, `src/aurite/host/resources/tool_manager.py`
-    *   **Action:**
-        *   Read the `ToolManager` to confirm if `get_formatted_tools` can be optimized by receiving the `tool_names` list.
-    *   **Verification:**
-        *   Confirm the optimization path.
-
-2.  **Step 3.2: Refactor `ToolManager`**
-    *   **File(s):** `src/aurite/host/resources/tool_manager.py`, `src/aurite/host/host.py`
-    *   **Action:**
-        *   If the optimization is viable, modify `ToolManager.format_tools_for_llm` to accept `tool_names`.
-        *   Update `MCPHost.get_formatted_tools` to pass the `tool_names` down to the manager.
-    *   **Verification:**
-        *   Run tests related to tool formatting.
+        *   All integration tests must pass after refactoring and adding new tests.
 
 ## 4. Testing Strategy
-*   **Unit Tests:** Each step includes a verification phase where relevant unit tests are run and updated. The primary goal is to ensure existing functionality is preserved after refactoring.
-*   **Final Review:** After all phases are complete, a full test run (`pytest`) will be executed to ensure no regressions were introduced.
+*   **Unit Tests:** New unit tests will be added to cover the specific logic in `_get_server_params`.
+*   **Integration Tests:** New integration tests will be added to verify the end-to-end behavior of the re-implemented features.
+*   **Regression Testing:** The existing test suite will be run to ensure that the changes have not introduced any regressions.
+
+## 5. Documentation
+*   The final step of this plan is to review and update the documentation. Specifically, `docs/layers/3_host.md` will be reviewed to ensure it accurately reflects the new implementation details.

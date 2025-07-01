@@ -8,8 +8,10 @@ framework.
 import json
 import logging
 import pytest
+from unittest.mock import MagicMock, AsyncMock
 
-# Setup logging
+from src.aurite.config.config_models import HostConfig
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -61,3 +63,30 @@ def pytest_addoption(parser):
         default=None,
         help="The config file to use located in config/testing/ (e.g. planning_agent.json)",
     )
+
+
+@pytest.fixture
+def host_config() -> HostConfig:
+    """
+    Provides a default HostConfig object for tests.
+    """
+    return HostConfig(mcp_servers=[])
+
+
+@pytest.fixture
+def mock_client_session_group() -> MagicMock:
+    """
+    Provides a reusable MagicMock for the ClientSessionGroup.
+    This mock can be used to simulate the behavior of the session group
+    without making actual network connections.
+    """
+    mock_group = MagicMock()
+    mock_group.__aenter__.return_value = None
+    mock_group.__aexit__.return_value = None
+    mock_group.connect_to_server = AsyncMock()
+    mock_group.call_tool = AsyncMock()
+    mock_group.prompts = {}
+    mock_group.resources = {}
+    mock_group.tools = {}
+    mock_group.sessions = {}
+    return mock_group
