@@ -6,7 +6,7 @@ Whether you're looking to create sophisticated AI assistants, automate processes
 
 ## Getting Started
 
-To install the framework as a python package, see [Package Installation Guide](docs/package_installation_guide.md).
+To install the framework as a python package, see [Package Installation Guide](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/package_installation_guide.md).
 
 ## Core Concepts for Users
 
@@ -22,7 +22,7 @@ A **Project** in Aurite Agents is defined by a JSON configuration file (e.g., `a
 
 The active project configuration tells the `Aurite` class what components to load and make available.
 
-For more information on project configuration files, see [Projects](docs/components/PROJECT.md).
+For more information on project configuration files, see [Projects](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/PROJECT.md).
 
 ### 2. Agentic Components
 
@@ -48,7 +48,7 @@ These are the primary building blocks you'll work with:
         style MCP2 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
         style MCP3 fill:#90EE90,stroke:#006400,stroke-width:2px,color:#333333
     ```
-    *   For more information on Agents, see [Agents](docs/components/agent.md).
+    *   For more information on Agents, see [Agents](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/agent.md).
 
 *   **Simple Workflows (`src/workflows/simple_workflow.py`):**
     *   Define a sequence of Agents to be executed one after another.
@@ -64,7 +64,7 @@ These are the primary building blocks you'll work with:
         style Agent2 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
         style Agent3 fill:#ADD8E6,stroke:#00008B,stroke-width:2px,color:#333333
     ```
-    *   For more information on Simple Workflows, see [Simple Workflows](docs/components/simple_workflow.md).
+    *   For more information on Simple Workflows, see [Simple Workflows](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/simple_workflow.md).
 
 *   **Custom Workflows (`src/workflows/custom_workflow.py`):**
     *   Allow you to define complex orchestration logic using custom Python classes.
@@ -123,7 +123,7 @@ These are the primary building blocks you'll work with:
     * (Ensure this fits into your overall project JSON structure, typically under a "custom_workflows" key)
     1. Ensure the agent named "YourConfiguredAgentName" (or whatever name you use in the code) is also defined in the 'agents' section of your project configuration.
 
-    * For more information on Custom Workflows, see [Custom Workflows](docs/components/simple_workflow.md).
+    * For more information on Custom Workflows, see [Custom Workflows](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/simple_workflow.md).
 
 ### 3. LLM Configurations
 
@@ -132,7 +132,7 @@ These are the primary building blocks you'll work with:
 *   Agents reference these LLM configurations by their `llm_id`, allowing you to easily switch or share LLM settings.
 *   The core LLM client abstraction is `src/llm/base_client.py`.
 
-*   For more information on LLM Configurations, see [LLM Configurations](docs/components/llm.md).
+*   For more information on LLM Configurations, see [LLM Configurations](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/llm.md).
 
 ### 4. MCP Servers (as Clients)
 
@@ -141,7 +141,7 @@ These are the primary building blocks you'll work with:
 *   Configured via `ClientConfig` models (e.g., `config/mcp_servers/mcp_servers.json`), specifying the server's path, capabilities, and access rules.
 *   An example MCP server is `src/packaged/example_mcp_servers/weather_mcp_server.py`.
 
-*   For more information on MCP Server Configurations, see [MCP Servers](docs/components/mcp_server.md).
+*   For more information on MCP Server Configurations, see [MCP Servers](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/components/mcp_server.md).
 
 
 ## Architecture Overview
@@ -160,7 +160,7 @@ graph TD
     style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
 ```
 
-For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
 
 ## Entrypoints
 
@@ -189,7 +189,7 @@ The Swagger UI allows you to:
 - Authenticate with your API key
 - See request/response examples and schemas
 
-For more details on the OpenAPI integration, see [OpenAPI Integration Guide](docs/openapi_integration.md).
+For more details on the OpenAPI integration, see [OpenAPI Integration Guide](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/openapi_integration.md).
 
 *   Besides the main API server, the framework offers other ways to interact:
 
@@ -216,12 +216,12 @@ Ensure the `API_KEY` environment variable is set within the container's environm
 
 ## Further Documentation
 
-*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md).
+*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/layers/framework_overview.md).
 *   **Layer-Specific Details:**
-    *   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md) (API, CLI, Worker)
-    *   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
-    *   [`docs/layers/3_host.md`](docs/layers/3_host.md) (MCPHost System)
-*   **Testing:** Information on running tests can be found in `tests/README.md`. Testing strategies for each layer are also detailed within their respective documentation in `docs/layers/`.
+    *   [`docs/layers/1_entrypoints.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/layers/1_entrypoints.md) (API, CLI, Worker)
+    *   [`docs/layers/2_orchestration.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
+    *   [`docs/layers/3_host.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/docs/layers/3_host.md) (MCPHost System)
+*   **Testing:** Information on running tests can be found in [`tests/README.md`](https://github.com/Aurite-ai/aurite-agents/blob/main/tests/README.md). Testing strategies for each layer are also detailed within their respective documentation in `docs/layers/`.
 
 ## Contributing
 
