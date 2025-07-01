@@ -157,12 +157,6 @@
       "auto": false,
       "max_iterations": 5,
       "include_history": false
-    },
-    {
-      "name": "Notion Agent",
-      "system_prompt": "You are a Notion assistant. Use the available tools to interact with Notion.",
-      "mcp_servers": ["notionApi"],
-      "llm_config_id": "anthropic_claude_3_haiku"
     }
   ],
   "simple_workflows": [
