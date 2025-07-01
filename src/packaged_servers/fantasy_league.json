@@ -1,0 +1,47 @@
+{
+    "league_name": "My Fantasy League",
+    "teams": [
+      {
+        "name": "Super Sluggers",
+        "hitters": [
+          "Salvador Perez",
+          "Cody Bellinger",
+          "Mookie Betts",
+          "Austin Riley",
+          "Anthony Volpe",
+          "Randy Arozarena",
+          "Jasson Domínguez",
+          "Aaron Judge",
+          "Lawrence Butler"
+        ],
+        "pitchers": [
+          "Shota Imanaga",
+          "Devin Williams",
+          "Felix Bautista",
+          "Roki Sasaki",
+          "Zack Wheeler"
+        ]
+      },
+      {
+        "name": "Hard Hitters",
+        "hitters": [
+          "William Contreras",
+          "Vladimir Guerrero Jr.",
+          "Brice Turang",
+          "Matt Chapman",
+          "Bobby Witt Jr.",
+          "Jung Hoo Lee",
+          "Brent Rooker",
+          "Steven Kwan",
+          "Willy Adames"
+        ],
+        "pitchers": [
+          "Logan Webb",
+          "Max Fried",
+          "Ryan Walker",
+          "Kris Bubic",
+          "Jeff Hoffman"
+        ]
+      }
+    ]
+  }

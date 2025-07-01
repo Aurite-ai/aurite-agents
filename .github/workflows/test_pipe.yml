@@ -9,5 +9,8 @@ jobs:
     setup:
         runs-on: ubuntu-latest
         steps:
+            - name: Checkout #Required Step
+              run: actions/checkout@v4
+            #Install all necessary pkg
             - name: Install dependencies
               run: pip install -e .[dev]

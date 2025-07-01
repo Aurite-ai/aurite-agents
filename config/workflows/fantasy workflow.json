@@ -1,0 +1,8 @@
+{
+    "name": "fantasy workflow",
+    "steps": [
+        "Fantasy Agent",
+        "Planning Agent"
+    ],
+    "description": null
+}
