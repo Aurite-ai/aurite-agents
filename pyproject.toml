@@ -8,7 +8,7 @@ authors = [
     { name = "Patrick W", email = "patrick@aurite.ai" },
     { name = "Jiten O", email = "jiten@aurite.ai" },
 ]
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
