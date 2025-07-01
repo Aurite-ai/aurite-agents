@@ -90,6 +90,7 @@ build-backend = "poetry.core.masonry.api"
 
 # Pytest configuration
 [tool.pytest.ini_options]
+anyio_mode = "asyncio"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
@@ -100,6 +101,9 @@ markers = [
     "unit: marks tests as unit tests (fast, isolated)",
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
+    "host: marks tests related to the Host Layer (Layer 3)",
+    "orchestration: marks tests related to the Orchestration Layer (Layer 2)",
+    "entrypoints: marks tests related to the Entrypoints Layer (Layer 1)",
     "anyio: marks tests as anyio-based async tests",
     "core: mark test as core functionality test",
     "user: mark test as requiring user credentials",

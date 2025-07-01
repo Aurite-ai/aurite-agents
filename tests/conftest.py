@@ -2,41 +2,12 @@
 Global pytest configuration and fixtures for Aurite MCP testing.
 
 This module provides shared fixtures and configurations for testing the Aurite MCP
-framework, with special attention to agent and workflow testing fixtures.
+framework.
 """
 
 import json
 import logging
 import pytest
-# import asyncio # Removed - anyio plugin handles the loop
-
-# Import fixtures from the fixtures directory to make them discoverable
-# Note: Fixtures need to be imported, even if not directly used in conftest.py,
-# for pytest to find them when running tests in other files.
-from tests.fixtures.agent_fixtures import (
-    minimal_agent_config,  # noqa: F401
-    agent_config_filtered,  # noqa: F401 - Add this fixture
-    agent_config_with_llm_params,  # noqa: F401
-    # agent_config_with_mock_host, # This was correctly removed
-    # sample_agent_configs, # noqa: F401 - Removed, defined locally in test file
-)
-from tests.fixtures.host_fixtures import (
-    mock_host_config,  # noqa: F401
-    mock_mcp_host,  # noqa: F401
-    host_manager,  # noqa: F401
-)
-
-# Import workflow fixtures
-from tests.fixtures.workflow_fixtures import (  # noqa: F401
-    sample_workflow_config,
-    # sample_agent_configs, # Moved to agent_fixtures import
-    sample_custom_workflow_config,
-)
-
-# Import mock fixtures
-from tests.mocks.mock_anthropic import mock_anthropic_client  # noqa: F401
-# Import weather server fixture explicitly if needed globally, otherwise tests import directly
-# from tests.fixtures.servers.weather_mcp_server import weather_mcp_server_fixture # noqa: F401
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")
@@ -45,31 +16,7 @@ logger = logging.getLogger(__name__)
 
 # --- Global Setup and Teardown ---
 
-
-def pytest_configure(config):
-    """Configure pytest environment, register markers."""
-    logger.info("Setting up test environment")
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests (fast, isolated)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "integration: marks tests as integration tests (component interaction)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "e2e: marks tests as end-to-end tests (may require external resources)",
-    )
-    config.addinivalue_line(
-        "markers",
-        "orchestration: marks tests related to the Orchestration Layer (Aurite, Facade, Executors, Agent)",
-    )
-    # Setup can be expanded as needed
-
-
-def pytest_unconfigure(config):
-    """Clean up after all tests have run."""
-    # Cleanup can be expanded as needed
+# Markers are now defined in pyproject.toml
 
 
 # --- AnyIO Backend Configuration ---
@@ -78,15 +25,12 @@ def pytest_unconfigure(config):
 @pytest.fixture(scope="session")
 def anyio_backend():
     """
-    Configure AnyIO to use the asyncio backend globally for all tests.
-    This fixture is session-scoped as recommended by AnyIO for potentially
-    sharing resources across tests if higher-scoped async fixtures are used later.
+    Explicitly configure AnyIO to use the asyncio backend globally for all tests.
+    This overrides the default behavior of pytest-anyio trying to run on all
+    supported backends.
     """
-    # Options can be added here if needed, e.g., {'use_uvloop': True}
     return "asyncio"
 
-
-# Removed the explicit event_loop fixture as the anyio plugin manages it.
 
 # --- Utility Fixtures ---
 

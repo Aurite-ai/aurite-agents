@@ -1,119 +1,72 @@
-# Aurite Agents - Testing Guide
+# Aurite Agents Testing Guide
 
-This document provides an overview of the testing philosophy, structure, and procedures for the Aurite Agents framework. It is intended for developers who are contributing to the project and need to run existing tests or write new ones.
+This document outlines the strategy, structure, and best practices for writing and running tests for the Aurite Agents framework. Adherence to these guidelines is crucial for maintaining a flexible, robust, and developer-friendly test suite.
 
-## 1. Testing Philosophy
+## 1. Core Philosophy: Test Behavior, Not Implementation
 
-Our testing strategy is built on `pytest` and follows the layered architecture of the framework. The goal is to have a mix of unit and integration tests that ensure the correctness of individual components and their interactions within and across layers.
+The fundamental principle of our test suite is to **focus on *what* a component does (its public contract), not *how* it does it (its internal implementation).** This ensures our tests are resilient to refactoring and code changes that don't alter the component's public-facing behavior.
 
--   **Unit Tests:** Focused on a single class or function, mocking its dependencies to ensure isolation.
--   **Integration Tests:** Focused on the interaction between multiple components, often within the same architectural layer or between adjacent layers.
+-   **Test Public APIs:** Tests should only interact with the public methods and functions of a component.
+-   **Isolate the System Under Test (SUT):** Use mocks and test doubles to isolate the component being tested from its dependencies. A change in a dependency should not break the tests of the component that uses it.
+-   **Assert on Outcomes:** Tests should verify the final result or outcome of an action, not the intermediate state of internal variables.
 
-## 2. Running Tests
+## 2. Test Structure
 
-You can run tests using the `pytest` command from the root of the repository.
+Our test suite is organized by both type and framework layer, following the "Test Pyramid" model.
 
-### Running All Tests
+```
+tests/
+├── unit/
+│   ├── host/
+│   └── orchestration/
+├── integration/
+│   ├── host/
+│   └── orchestration/
+├── e2e/
+├── fixtures/
+├── mocks/
+└── README.md
+```
 
-To run the entire test suite:
+-   **`unit/`:** For fast, isolated tests that verify a single class or function. All external dependencies MUST be mocked.
+-   **`integration/`:** For tests that verify the interaction between a few, closely related components. Mocks should only be used for external services (like databases or LLM APIs) or components from other layers.
+-   **`e2e/`:** For end-to-end tests that run through a full user workflow with minimal mocking, verifying the system as a whole.
 
+## 3. Fixture & Mock Strategy: A Tiered, Bottom-Up Approach
+
+Our strategy for fixtures and mocks prioritizes test clarity and isolation, promoting reuse only when a clear need arises.
+
+1.  **Default to Local:** Begin by defining mocks and fixtures directly within the test file that needs them. This keeps tests self-contained and easy to understand.
+2.  **Promote When Shared:** If you find yourself writing the same fixture setup in a second or third test file *within the same component's test directory* (e.g., `tests/unit/host/`), refactor it into that directory's `conftest.py`.
+3.  **Default to `scope='function'`:** Always use the default function scope for fixtures unless the setup cost is prohibitively high. This guarantees test isolation.
+
+## 4. How to Run Tests
+
+Tests can be run from the root of the repository using `pytest`.
+
+**Run all tests:**
 ```bash
 pytest
 ```
 
-### Running Tests by Layer
+**Run all tests for a specific layer (using markers):**
+```bash
+# Run all Host layer tests
+pytest -m host
 
-Tests are organized by architectural layer and can be run using custom `pytest` markers. This is the most common way to run tests during development.
-
--   **Run API (Layer 1) Tests:**
-    ```bash
-    pytest -m api_integration
-    ```
--   **Run Orchestration (Layer 2) Tests:**
-    ```bash
-    pytest -m orchestration
-    ```
--   **Run Host (Layer 3) Tests:**
-    ```bash
-    pytest -m host
-    ```
-
-### Running Specific Tests
-
-You can also run a specific file, class, or test function.
-
--   **Run a specific file:**
-    ```bash
-    pytest tests/host/test_host_lifecycle.py
-    ```
--   **Run a specific test function:**
-    ```bash
-    pytest tests/host/test_host_lifecycle.py::test_host_initialization_error
-    ```
-
-## 3. Test Directory Structure
-
-The `tests/` directory mirrors the layered structure of the `src/aurite/` directory to make it easy to locate relevant tests.
-
-```
-tests/
-├── api/              # Layer 1: Entrypoints (FastAPI)
-├── host/             # Layer 3: MCP Host System
-├── orchestration/    # Layer 2: Orchestration
-├── config/           # Tests for configuration loading
-├── fixtures/         # Shared pytest fixtures (test data, setup objects)
-├── mocks/            # Mock objects to simulate dependencies
-└── conftest.py       # Global test configurations and hooks
+# Run all Orchestration layer tests
+pytest -m orchestration
 ```
 
--   `tests/api/`: Contains integration tests for the FastAPI entrypoint.
--   `tests/host/`: Contains unit and integration tests for the `MCPHost` and its managers.
--   `tests/orchestration/`: Contains unit and integration tests for the `HostManager`, `ExecutionFacade`, and component executors.
--   `tests/fixtures/`: Provides reusable data and configured object instances for tests.
--   `tests/mocks/`: Provides mock implementations of classes to isolate components for unit tests.
+**Run all tests of a specific type:**
+```bash
+# Run all unit tests
+pytest -m unit
 
-## 4. Fixtures and Configuration
+# Run all integration tests
+pytest -m integration
+```
 
-`pytest` fixtures are used extensively to provide configured objects, mocks, and helper functions to tests.
-
-#### **Global Configuration (`tests/conftest.py`)**
-
-This file defines global settings for the test suite:
--   Registers custom markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.api_integration`, `@pytest.mark.orchestration`, `@pytest.mark.host`.
--   Configures `anyio` to use the `asyncio` backend for all asynchronous tests.
-
-#### **Core Integration Fixture: `host_manager`**
-
--   **File:** `tests/fixtures/host_fixtures.py`
--   **Purpose:** This is the most important fixture for integration testing. It provides a fully initialized `Aurite` instance, which includes a running `MCPHost` connected to dummy MCP servers. It handles the complete setup and teardown of the core framework stack.
--   **Usage:** Any integration test that needs to interact with a realistic, running instance of the framework should use this fixture.
-
-#### **API Testing Fixtures (`tests/api/conftest.py`)**
-
--   `api_client`: Provides a `fastapi.testclient.TestClient` instance for making synchronous HTTP requests to the API in tests.
--   `async_api_client`: Provides an `httpx.AsyncClient` for making asynchronous requests, necessary for features like Server-Sent Events (SSE).
-
-#### **Host Layer Mocks (`tests/host/conftest.py`)**
-
-This file provides mocked versions of the Host foundation managers (`MessageRouter`, `FilteringManager`, `RootManager`) to allow for isolated unit testing of the resource managers (`ToolManager`, etc.).
-
-## 5. Testing by Layer
-
-### Layer 1: Entrypoints (`tests/api/`)
-
--   **Approach:** Testing for this layer focuses exclusively on integration tests for the FastAPI application.
--   **Tools:** `pytest` and `fastapi.testclient.TestClient`.
--   **Scope:** These tests validate API endpoint signatures, request/response models, status codes, and error handling. They ensure that the API correctly interacts with the underlying Orchestration layer.
--   **Manual Testing:** The CLI (`src/bin/cli.py`) and Redis Worker (`src/bin/worker.py`) are not covered by automated tests and should be verified manually if changes are made.
-
-### Layer 2: Orchestration (`tests/orchestration/`)
-
--   **Approach:** This layer uses a mix of unit and integration tests.
--   **Unit Tests:** Test individual components like `ExecutionFacade` or `SimpleWorkflowExecutor` in isolation by providing a mocked `MCPHost`.
--   **Integration Tests:** Use the `host_manager` fixture to test the end-to-end flow from the `ExecutionFacade` down through a real `MCPHost`, verifying the interaction between the Orchestration and Host layers.
-
-### Layer 3: Host System (`tests/host/`)
-
--   **Approach:** This layer also uses a mix of unit and integration tests.
--   **Unit Tests:** Test individual managers (e.g., `ToolManager`, `FilteringManager`) by providing mocked dependencies.
--   **Integration Tests:** Use the `host_manager` fixture to test the full `MCPHost` lifecycle, including client connection, component discovery, and filtering logic against live (dummy) MCP servers.
+**Run a single test file:**
+```bash
+pytest tests/unit/host/test_tool_manager.py
