@@ -7,15 +7,14 @@
 
 The MCP Host System (Layer 3) serves as the foundational infrastructure layer within the Aurite MCP framework. Its primary purpose is to manage connections with external Model Context Protocol (MCP) servers (referred to as "clients" from the host's perspective) and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level Orchestration Layer (Layer 2) and the individual MCP servers.
 
-`MCPHost` manages the lifecycle of these client connections using `anyio` for structured concurrency. An `anyio.TaskGroup` is used to run individual lifecycle tasks for each client, with each task operating within its own `anyio.CancelScope` for robust startup and shutdown. The `ClientManager` assists in coordinating and tracking these client lifecycles.
+`MCPHost` is now a lightweight async context manager that delegates all client lifecycle management to an instance of `mcp.client.ClientSessionGroup`. This aligns the framework with the `mcp` library's intended design, simplifying the architecture and improving testability.
 
 Key responsibilities include:
-*   Establishing and managing secure, concurrent connections to configured MCP servers via stdio transport, utilizing `anyio.TaskGroup` and `anyio.CancelScope` for robust lifecycle management of each client.
-*   Handling the MCP initialization handshake and capability negotiation within individual client lifecycle tasks.
+*   Delegating all client connection and session management to `mcp.client.ClientSessionGroup`.
 *   Discovering and registering components (tools, prompts, resources) offered by connected clients.
 *   Providing dedicated managers (`ToolManager`, `PromptManager`, `ResourceManager`) for interacting with specific component types.
 *   Implementing filtering mechanisms based on `ClientConfig` (global exclusions) and `AgentConfig` (agent-specific client access and component exclusions).
-*   Managing security aspects like credential encryption and GCP secret resolution (`SecurityManager`).
+*   Managing security aspects like credential encryption (`SecurityManager`).
 *   Routing requests to the appropriate client based on component availability, agent permissions, and routing weights (`MessageRouter`).
 *   Enforcing access control based on defined MCP roots (`RootManager`).
 *   Utilizing `AgentConfig` instances (passed by Layer 2) for applying filtering rules during runtime requests.
@@ -32,8 +31,7 @@ The Host System is structured internally into two sub-layers:
 | `src/config/config_models.py`      | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
 | `src/host/filtering.py`            | `FilteringManager`       | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules     |
 | **Foundation Layer**               |                          |                                                                                     |
-| `src/host/foundation/clients.py`   | `ClientManager`          | Manages client configurations, active sessions, and orchestrates client lifecycle tasks within `MCPHost`. |
-| `src/host/foundation/security.py`  | `SecurityManager`        | Encryption, credential storage, GCP secret resolution                               |
+| `src/host/foundation/security.py`  | `SecurityManager`        | Encryption, credential storage                                                      |
 | `src/host/foundation/routing.py`   | `MessageRouter`          | Routes requests to appropriate clients based on capabilities and configuration      |
 | `src/host/foundation/roots.py`     | `RootManager`            | Manages MCP root definitions for client access control                              |
 | **Resource Layer**                 |                          |                                                                                     |
@@ -47,25 +45,17 @@ This layer provides the core infrastructure for interacting with MCP servers.
 
 **3.1. Multi-File Interactions & Core Flows:**
 
-*   **Initialization (`MCPHost.initialize`):**
-    *   Triggered by `HostManager` (Layer 2).
-    *   Initializes managers in order: Foundation (`SecurityManager`, `RootManager`, `MessageRouter`) then Resource (`PromptManager`, `ResourceManager`, `ToolManager`).
+*   **Initialization (`MCPHost.__aenter__`):**
+    *   Triggered by `HostManager` (Layer 2) using an `async with` block.
+    *   Initializes all managers.
+    *   Enters the `ClientSessionGroup` context.
     *   Iterates through `ClientConfig` entries in the `HostConfig`.
-    *   For each client:
-        *   Resolves GCP secrets via `SecurityManager` (if configured).
-        *   Establishes stdio transport using `mcp.stdio_client`, injecting resolved secrets into the server's environment.
-        *   Creates a `ClientSession` using the transport.
-        *   Performs MCP `initialize` handshake, sending client capabilities.
-        *   Sends `initialized` notification.
-        *   Registers client roots with `RootManager`.
-        *   Registers the client and its capabilities/weight with `MessageRouter`.
-        *   Stores the `ClientSession`.
-        *   Discovers components (tools, prompts, resources) via session methods (`list_tools`, `list_prompts`, `list_resources`).
-        *   Registers discovered components with the respective Resource Managers (`ToolManager`, `PromptManager`, `ResourceManager`), applying client-level exclusions (`ClientConfig.exclude`) via the `FilteringManager`.
+    *   For each client, calls `_get_server_params` to prepare the connection parameters, including handling environment variables.
+    *   Calls `self._session_group.connect_to_server(params)` to delegate the connection process.
 *   **Component Registration (Dynamic - `MCPHost.register_client`):**
     *   Allows adding new clients after initial host startup.
     *   Called by `HostManager.register_client` (Layer 2).
-    *   Re-uses the internal `_initialize_client` logic for the new `ClientConfig`.
+    *   Re-uses the internal `_get_server_params` logic and delegates to `ClientSessionGroup.connect_to_server`.
 *   **Filtering & Discovery (Runtime):**
     *   **Client Exclusion (`ClientConfig.exclude`):** Applied by `FilteringManager.is_registration_allowed` during client initialization/registration within Resource Managers. Prevents globally excluded components from being registered for a specific client.
     *   **Agent Client Filtering (`AgentConfig.client_ids`):** Applied by `FilteringManager.filter_clients_for_request` within `MCPHost` methods (`get_prompt`, `execute_tool`, `read_resource`, `get_formatted_tools`). Restricts which clients an agent can interact with. The `MessageRouter` is first queried to find *all* clients providing a component, then this list is filtered based on the agent's allowed `client_ids`.
@@ -87,13 +77,12 @@ This layer provides the core infrastructure for interacting with MCP servers.
 **3.2. Individual File Functionality:**
 
 *   **`host/host.py` (`MCPHost`):**
-    *   Orchestrates the initialization and shutdown sequence for all managers and client connections.
-    *   Holds the main `HostConfig`. Receives `AgentConfig` instances from Layer 2 for runtime request processing and filtering.
-    *   Provides public methods (`get_prompt`, `execute_tool`, `read_resource`, `get_formatted_tools`, `register_client`) that act as the primary interface for Layer 2.
-    *   Integrates `MessageRouter` and `FilteringManager` to apply routing and filtering rules before delegating tasks to Resource Managers.
-    *   Orchestrates client lifecycles via `ClientManager` and `anyio.TaskGroup`, managing individual client cancel scopes and the `AsyncExitStack` for cleanup.
+    *   Acts as a lightweight async context manager.
+    *   Orchestrates the initialization and shutdown sequence for all managers.
+    *   Delegates all client lifecycle management to `ClientSessionGroup`.
+    *   Provides public methods (`get_formatted_tools`, `call_tool`, `register_client`) that act as the primary interface for Layer 2.
 *   **`host/models.py` moved to `src/config/config_models.py`:**
-    *   Defines core Pydantic models used by Layer 3: `HostConfig`, `ClientConfig`, `RootConfig`, `GCPSecretConfig`.
+    *   Defines core Pydantic models used by Layer 3: `HostConfig`, `ClientConfig`, `RootConfig`.
     *   Also defines `AgentConfig`, which is stored and used for filtering here, but primarily acted upon by Layer 2/2.5.
 *   **`host/filtering.py` (`FilteringManager`):**
     *   Contains stateless methods for applying filtering logic based on `ClientConfig` and `AgentConfig`.
@@ -103,8 +92,7 @@ This layer provides the core infrastructure for interacting with MCP servers.
     *   `filter_component_list`: Filters lists of components based on `AgentConfig.exclude_components`.
 *   **`host/foundation/security.py` (`SecurityManager`):**
     *   Manages encryption key (`AURITE_MCP_ENCRYPTION_KEY` or generated). It is crucial for production environments to explicitly set the `AURITE_MCP_ENCRYPTION_KEY` environment variable to ensure persistent and secure encryption, rather than relying on an auto-generated key.
-    *   Provides methods for encrypting/decrypting credentials (though not heavily used by `MCPHost` currently, available for future use). The credential storage mechanism is currently an in-memory store suitable for development/testing; for production environments handling highly sensitive credentials directly through this manager, integration with a secure vault service would be recommended.
-    *   Handles resolution of GCP secrets specified in `ClientConfig.gcp_secrets` using `google-cloud-secret-manager`.
+    *   Provides methods for encrypting/decrypting credentials. The credential storage mechanism is currently an in-memory store suitable for development/testing.
 *   **`host/foundation/routing.py` (`MessageRouter`):**
     *   Maintains mappings of components (tools, prompts, resources) to the client IDs that provide them.
     *   Stores client capabilities and routing weights.
@@ -139,7 +127,10 @@ This layer provides the core infrastructure for interacting with MCP servers.
 **4.B. Testing Infrastructure:**
 
 *   **`tests/conftest.py`:** (Global) Contains global pytest configuration, markers (`host`, `host_unit`, `host_integration`, etc.), `anyio_backend` setting.
-*   **`tests/host/conftest.py`:** (Host Layer Specific) Provides shared mock fixtures used across multiple unit tests within `tests/host/`:
+*   **`tests/conftest.py`:** (Global) Contains shared fixtures available to all tests, including:
+    *   `host_config`: A default `HostConfig` instance.
+    *   `mock_client_session_group`: A mocked `ClientSessionGroup`.
+*   **`tests/unit/host/conftest.py`:** (Host Layer Specific) Provides shared mock fixtures used across unit tests in `tests/unit/host/`:
     *   `mock_message_router`: Mocked `MessageRouter`.
     *   `mock_filtering_manager`: Mocked `FilteringManager`.
     *   `mock_root_manager`: Mocked `RootManager`.
