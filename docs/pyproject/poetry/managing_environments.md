@@ -48,7 +48,7 @@ $ eval $(poetry env activate)
 
 Displaying the environment information
 
-If you want to get basic information about the currently activated virtual environment, you can use the env info command:
+If you want to get basic information about the currently activated virtual environment, you can use the env info command like this:
 
 poetry env info
 
