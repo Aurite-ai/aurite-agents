@@ -262,9 +262,13 @@ class Aurite:
             logger.debug("MCPHost instance created.")
 
             # 3. Initialize MCPHost
-            logger.debug("Initializing MCPHost (connecting clients)...")
-            await self.host.initialize()
-            logger.debug("MCPHost initialized successfully.")  # Changed to DEBUG
+            logger.debug("Initializing MCPHost...")
+            # Check env var to determine if clients should connect on startup
+            connect_on_startup = (
+                os.getenv("AURITE_REGISTER_MCP_ON_STARTUP", "false").lower() == "true"
+            )
+            await self.host.initialize(connect_clients_on_startup=connect_on_startup)
+            logger.debug("MCPHost initialized successfully.")
 
             # 2.5 Sync initial configs to DB if storage manager exists
             if (
@@ -1149,10 +1153,46 @@ class Aurite:
         session_id: Optional[str] = None,
     ) -> AgentExecutionResult:
         """
-        Runs an agent by delegating to the ExecutionFacade.
+        Runs an agent by delegating to the ExecutionFacade, ensuring required
+        MCP servers are initialized Just-in-Time (JIT).
         """
-        if not self.execution:
+        if not self.host or not self.execution:
             raise RuntimeError("Aurite execution facade is not initialized.")
+
+        # JIT Registration for MCP Servers before execution
+        agent_config = self.get_agent_config(agent_name)
+        if agent_config and agent_config.mcp_servers:
+            logger.debug(
+                f"Checking JIT registration for agent '{agent_name}' servers: {agent_config.mcp_servers}"
+            )
+            for client_id in agent_config.mcp_servers:
+                if not self.host.is_client_registered(client_id):
+                    logger.info(
+                        f"Agent '{agent_name}' requires unregistered client '{client_id}'. Attempting JIT registration."
+                    )
+                    client_to_register = self.component_manager.get_mcp_server(
+                        client_id
+                    )
+                    if client_to_register:
+                        try:
+                            await self.register_client(client_to_register)
+                            logger.info(
+                                f"JIT registration successful for client: {client_id}"
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed JIT registration for client '{client_id}': {e}",
+                                exc_info=True,
+                            )
+                            raise  # Re-raise to halt execution if a required client fails
+                    else:
+                        logger.error(
+                            f"Client ID '{client_id}' specified in agent '{agent_name}' not found in ComponentManager for JIT registration."
+                        )
+                        raise ValueError(
+                            f"Required client '{client_id}' for agent '{agent_name}' not found."
+                        )
+
         return await self.execution.run_agent(
             agent_name=agent_name,
             user_message=user_message,

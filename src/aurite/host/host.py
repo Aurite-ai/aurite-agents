@@ -88,31 +88,32 @@ class MCPHost:
         self.resources = self._resource_manager
         self.tools = self._tool_manager
 
-    async def initialize(self):
-        """Initialize the host and all configured clients"""
-        logger.debug("Initializing MCP Host...")  # Changed to DEBUG
+    async def initialize(self, connect_clients_on_startup: bool = True):
+        """
+        Initialize the host and, optionally, all configured clients.
+
+        Args:
+            connect_clients_on_startup: If True, initializes all clients from the
+                                        host config. If False, skips client
+                                        initialization, allowing for JIT connections.
+        """
+        logger.debug("Initializing MCP Host...")
 
         # Initialize subsystems in layer order
-
-        # Layer 1: Foundation layer
-        logger.debug("Initializing foundation layer...")  # INFO -> DEBUG
+        logger.debug("Initializing foundation layer...")
         await self._security_manager.initialize()
         await self._root_manager.initialize()
 
-        # Layer 2: Communication layer
-        logger.debug("Initializing communication layer...")  # INFO -> DEBUG
+        logger.debug("Initializing communication layer...")
         await self._message_router.initialize()
 
-        # Layer 3: Resource management layer
-        logger.debug("Initializing resource management layer...")  # INFO -> DEBUG
+        logger.debug("Initializing resource management layer...")
         await self._prompt_manager.initialize()
         await self._resource_manager.initialize()
         await self._tool_manager.initialize()
 
         # Create and enter the main task group for client runners
-        if (
-            self._client_runners_task_group is None
-        ):  # Should always be None here unless initialize is called multiple times
+        if self._client_runners_task_group is None:
             self._client_runners_task_group = (
                 await self._main_exit_stack.enter_async_context(
                     anyio.create_task_group()
@@ -124,44 +125,43 @@ class MCPHost:
                 "Initialize called but _client_runners_task_group already exists."
             )
 
-        # Initialize each configured client
-        successful_initializations = 0
-        num_configured_clients = len(self._config.mcp_servers)
+        if connect_clients_on_startup:
+            logger.info("Connecting all configured clients on startup...")
+            # Initialize each configured client
+            num_configured_clients = len(self._config.mcp_servers)
 
-        for client_config in self._config.mcp_servers:
-            try:
-                await self._initialize_client(client_config)
-                successful_initializations += 1
-            except RuntimeError:
-                # The specific error has already been logged in ClientManager.
-                # We catch the error here simply to allow the host to continue
-                # initializing other clients.
-                pass
-            except (Exception, ExceptionGroup) as e:
-                # Catch any other unexpected errors during initialization
-                logger.error(
-                    f"An unexpected error occurred while initializing client '{client_config.name}'. "
-                    f"This client will be unavailable. Error: {e}",
-                    exc_info=True,
-                )
+            for client_config in self._config.mcp_servers:
+                try:
+                    await self._initialize_client(client_config)
+                except RuntimeError:
+                    # The specific error has already been logged in ClientManager.
+                    # We catch the error here simply to allow the host to continue
+                    # initializing other clients.
+                    pass
+                except (Exception, ExceptionGroup) as e:
+                    # Catch any other unexpected errors during initialization
+                    logger.error(
+                        f"An unexpected error occurred while initializing client '{client_config.name}'. "
+                        f"This client will be unavailable. Error: {e}",
+                        exc_info=True,
+                    )
 
-        num_active_clients = len(
-            self.client_manager.active_clients
-        )  # Should reflect successfully started ones
+            num_active_clients = len(self.client_manager.active_clients)
 
-        logger.info(
-            f"MCP Host initialization attempt finished. "
-            f"Successfully initialized {num_active_clients}/{num_configured_clients} configured clients. "
-        )
-
-        if num_active_clients < num_configured_clients:
-            logger.warning(
-                f"{num_configured_clients - num_active_clients} client(s) failed to initialize. "
-                "Check error logs for details. Host will continue with available clients."
+            logger.info(
+                f"MCP Host client initialization finished. "
+                f"Successfully initialized {num_active_clients}/{num_configured_clients} configured clients."
             )
-            logger.debug("MCP Host initialization partially complete.")
+
+            if num_active_clients < num_configured_clients:
+                logger.warning(
+                    f"{num_configured_clients - num_active_clients} client(s) failed to initialize. "
+                    "Check error logs for details. Host will continue with available clients."
+                )
         else:
-            logger.debug("MCP Host initialization fully complete for all clients.")
+            logger.info("Skipping client connections on startup as per configuration.")
+
+        logger.debug("MCP Host initialization complete.")
 
     async def _initialize_client(self, config: ClientConfig):
         """Initialize a single client connection"""
