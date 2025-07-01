@@ -132,13 +132,18 @@ class MCPHost:
             try:
                 await self._initialize_client(client_config)
                 successful_initializations += 1
+            except RuntimeError:
+                # The specific error has already been logged in ClientManager.
+                # We catch the error here simply to allow the host to continue
+                # initializing other clients.
+                pass
             except (Exception, ExceptionGroup) as e:
+                # Catch any other unexpected errors during initialization
                 logger.error(
-                    f"Failed to initialize client '{client_config.name}'. "
+                    f"An unexpected error occurred while initializing client '{client_config.name}'. "
                     f"This client will be unavailable. Error: {e}",
                     exc_info=True,
                 )
-                # Continue to the next client
 
         num_active_clients = len(
             self.client_manager.active_clients
@@ -299,10 +304,9 @@ class MCPHost:
             )
             # --- End of restored section ---
 
-        except (Exception, ExceptionGroup) as e:
-            logger.error(
-                f"Failed to initialize client {config.name}: {e}"
-            )  # Keep error as ERROR
+        except (Exception, ExceptionGroup):
+            # Re-raise the exception to be caught by the main initialize loop,
+            # which will handle logging.
             raise
 
     def is_client_registered(self, client_id: str) -> bool:

@@ -5,6 +5,7 @@ ClientManager for handling MCP client subprocesses and sessions.
 import logging
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -59,6 +60,15 @@ class ClientManager:
             if client_config.transport_type == "stdio":
                 if not client_config.server_path:
                     raise ValueError("server_path is required for stdio transport")
+
+                # Pre-flight check for the python command
+                if not shutil.which("python"):
+                    logger.error(
+                        f"Pre-flight check failed for client {client_id}: 'python' command not found in PATH."
+                    )
+                    task_status.started(None)
+                    return
+
                 client_env = os.environ.copy()
                 if client_config.gcp_secrets and security_manager:
                     resolved_env_vars = await security_manager.resolve_gcp_secrets(
@@ -117,6 +127,15 @@ class ClientManager:
                     raise ValueError(
                         "command and args are required for local transport"
                     )
+
+                # Pre-flight check for the command
+                if not shutil.which(client_config.command):
+                    logger.error(
+                        f"Pre-flight check failed for client {client_id}: command '{client_config.command}' not found in PATH."
+                    )
+                    task_status.started(None)
+                    return
+
                 client_env = os.environ.copy()
                 if client_config.gcp_secrets and security_manager:
                     resolved_env_vars = await security_manager.resolve_gcp_secrets(
