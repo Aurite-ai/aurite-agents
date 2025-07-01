@@ -73,7 +73,7 @@ class AgentTurnProcessor:
                 llm_config_override=self.llm_config_for_override,
             )
         except Exception as e:
-            logger.error(f"LLM call failed within turn processor: {e}", exc_info=True)
+            logger.error(f"LLM call failed within turn processor: {e}")
             raise
 
         self._last_llm_response = llm_response
@@ -271,7 +271,7 @@ class AgentTurnProcessor:
                     )
                 except Exception as e:
                     logger.error(
-                        f"Error executing tool {tool_name}: {e}", exc_info=True
+                        f"Error executing tool {tool_name}: {e}"
                     )
                     tool_result_content = (
                         f"Error executing tool '{tool_name}': {str(e)}"

@@ -186,7 +186,7 @@ class LiteLLMClient:
             return completion.choices[0].message
         except Exception as e:
             logger.error(
-                f"LiteLLM API call failed: {type(e).__name__}: {e}", exc_info=True
+                f"LiteLLM API call failed: {type(e).__name__}: {e}"
             )
             raise
 
@@ -210,6 +210,6 @@ class LiteLLMClient:
             async for chunk in response_stream:
                 yield chunk
         except Exception as e:
-            logger.error(f"Error in LiteLLMClient.stream_message: {e}", exc_info=True)
+            logger.error(f"Error in LiteLLMClient.stream_message: {e}")
             # In case of an error, we might want to yield a specific error chunk or just raise
             raise
