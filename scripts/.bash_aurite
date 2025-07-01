@@ -155,3 +155,13 @@ testauritecomp() {
 testmcp() {
     python -m tests/functional_mcp_client.py $1 $2
 }
+
+# ====================================================================
+# --- Poetry Commands ---
+# ====================================================================
+
+# Install dependencies using Poetry
+poetryi() {
+    poetry install --with storage
+}
+
