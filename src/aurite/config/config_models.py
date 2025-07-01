@@ -327,6 +327,10 @@ class ProjectConfig(BaseModel):
     description: Optional[str] = Field(
         None, description="A brief description of the project."
     )
+    default_llm_config: Optional[LLMConfig] = Field(
+        default=None,
+        description="Default LLM configuration used when agents don't specify an llm_config_id. If not provided, system defaults will be used.",
+    )
     mcp_servers: Dict[str, ClientConfig] = Field(
         default_factory=dict,
         description="Defines MCP Servers available within this project.",

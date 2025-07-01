@@ -623,22 +623,39 @@ class ExecutionFacade:
                         f"Facade: Reusing cached LLM client for '{cache_key}'."
                     )
             else:
-                # No LLMConfig ID - create temporary config and non-cached client
-                logger.warning(
-                    f"Facade: Agent '{agent_name}' (streaming) running without a specific LLMConfig ID. Creating temporary, non-cached client using default OpenAI config."
-                )
-                # Create a temporary LLMConfig using the new default values, but allowing agent-specific overrides
-                temp_llm_config = LLMConfig(
-                    llm_id=f"temp_{agent_name}",  # Temporary ID
-                    provider="openai",
-                    model_name=effective_model_name or "gpt-3.5-turbo",
-                    temperature=effective_temperature
-                    if effective_temperature is not None
-                    else 0.7,
-                    max_tokens=effective_max_tokens or 4000,
-                    default_system_prompt=effective_system_prompt_for_llm_client
-                    or "You are a helpful OpenAI assistant.",
-                )
+                # No LLMConfig ID - use project default or system fallback
+                if self._current_project.default_llm_config:
+                    logger.info(
+                        f"✅ Facade: Agent '{agent_name}' (streaming) using project default LLM config - "
+                        f"Provider: {self._current_project.default_llm_config.provider}, "
+                        f"Model: {self._current_project.default_llm_config.model_name}, "
+                        f"System Prompt: '{self._current_project.default_llm_config.default_system_prompt}'"
+                    )
+                    # Use project's default LLM config as base, but allow agent-specific overrides
+                    temp_llm_config = LLMConfig(
+                        llm_id=f"temp_{agent_name}",  # Temporary ID
+                        provider=self._current_project.default_llm_config.provider,
+                        model_name=effective_model_name or self._current_project.default_llm_config.model_name,
+                        temperature=effective_temperature
+                        if effective_temperature is not None
+                        else self._current_project.default_llm_config.temperature,
+                        max_tokens=effective_max_tokens or self._current_project.default_llm_config.max_tokens,
+                        default_system_prompt=effective_system_prompt_for_llm_client
+                        or self._current_project.default_llm_config.default_system_prompt,
+                        api_base=self._current_project.default_llm_config.api_base,
+                        api_key=self._current_project.default_llm_config.api_key,
+                        api_version=self._current_project.default_llm_config.api_version,
+                    )
+                else:
+                    # Raise an error instead of falling back to OpenAI
+                    error_msg = (
+                        f"Agent '{agent_name}' has no LLM configuration specified. "
+                        f"Please either:\n"
+                        f"1. Set 'llm_config_id' in the agent configuration, or\n"
+                        f"2. Configure 'default_llm_config' in the project configuration (aurite_config.json)"
+                    )
+                    logger.error(f"Facade: {error_msg}")
+                    raise ValueError(error_msg)
                 llm_client_instance = self._create_llm_client(
                     temp_llm_config
                 )  # Do not cache
@@ -887,22 +904,39 @@ class ExecutionFacade:
                         f"Facade: Reusing cached LLM client for '{cache_key}'."
                     )
             else:
-                # No LLMConfig ID - create temporary config and non-cached client
-                logger.warning(
-                    f"Facade: Agent '{agent_name}' running without a specific LLMConfig ID. Creating temporary, non-cached client using default OpenAI config."
-                )
-                # Create a temporary LLMConfig using the new default values, but allowing agent-specific overrides
-                temp_llm_config = LLMConfig(
-                    llm_id=f"temp_{agent_name}",  # Temporary ID
-                    provider="openai",
-                    model_name=effective_model_name or "gpt-3.5-turbo",
-                    temperature=effective_temperature
-                    if effective_temperature is not None
-                    else 0.7,
-                    max_tokens=effective_max_tokens or 4000,
-                    default_system_prompt=effective_system_prompt_for_llm_client
-                    or "You are a helpful OpenAI assistant.",
-                )
+                # No LLMConfig ID - use project default or system fallback
+                if self._current_project.default_llm_config:
+                    logger.info(
+                        f"✅ Facade: Agent '{agent_name}' using project default LLM config - "
+                        f"Provider: {self._current_project.default_llm_config.provider}, "
+                        f"Model: {self._current_project.default_llm_config.model_name}, "
+                        f"System Prompt: '{self._current_project.default_llm_config.default_system_prompt}'"
+                    )
+                    # Use project's default LLM config as base, but allow agent-specific overrides
+                    temp_llm_config = LLMConfig(
+                        llm_id=f"temp_{agent_name}",  # Temporary ID
+                        provider=self._current_project.default_llm_config.provider,
+                        model_name=effective_model_name or self._current_project.default_llm_config.model_name,
+                        temperature=effective_temperature
+                        if effective_temperature is not None
+                        else self._current_project.default_llm_config.temperature,
+                        max_tokens=effective_max_tokens or self._current_project.default_llm_config.max_tokens,
+                        default_system_prompt=effective_system_prompt_for_llm_client
+                        or self._current_project.default_llm_config.default_system_prompt,
+                        api_base=self._current_project.default_llm_config.api_base,
+                        api_key=self._current_project.default_llm_config.api_key,
+                        api_version=self._current_project.default_llm_config.api_version,
+                    )
+                else:
+                    # Raise an error instead of falling back to OpenAI
+                    error_msg = (
+                        f"Agent '{agent_name}' has no LLM configuration specified. "
+                        f"Please either:\n"
+                        f"1. Set 'llm_config_id' in the agent configuration, or\n"
+                        f"2. Configure 'default_llm_config' in the project configuration (aurite_config.json)"
+                    )
+                    logger.error(f"Facade: {error_msg}")
+                    raise ValueError(error_msg)
                 llm_client_instance = self._create_llm_client(
                     temp_llm_config
                 )  # Do not cache

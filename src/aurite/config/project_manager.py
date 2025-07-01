@@ -134,11 +134,22 @@ class ProjectManager:
             current_project_root_for_inline_res,
         )
 
+        # Handle default_llm_config if present
+        default_llm_config = None
+        if "default_llm_config" in project_data and project_data["default_llm_config"]:
+            try:
+                default_llm_config = LLMConfig(**project_data["default_llm_config"])
+                logger.debug(f"Loaded default_llm_config for project '{project_name}': {default_llm_config.provider}/{default_llm_config.model_name}")
+            except ValidationError as e:
+                logger.error(f"Invalid default_llm_config in project '{project_name}': {e}")
+                raise ValueError(f"Invalid default_llm_config: {e}") from e
+
         try:
             # Validate the final ProjectConfig structure
             project_config = ProjectConfig(
                 name=project_name,
                 description=project_description,
+                default_llm_config=default_llm_config,
                 mcp_servers=resolved_mcp_servers,
                 llms=resolved_llm_configs,  # Changed from llm_configs
                 agents=resolved_agents,  # Changed from agent_configs
