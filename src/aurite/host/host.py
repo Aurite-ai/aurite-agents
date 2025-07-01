@@ -8,6 +8,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Literal,
     Optional,
 )  # Kept Any, Dict, List, Optional as they are used elsewhere
 
@@ -300,398 +301,63 @@ class MCPHost:
     async def get_prompt(
         self,
         prompt_name: str,
-        arguments: Dict[str, Any],  # Kept for potential future use by manager
+        arguments: Dict[str, Any],
         client_name: Optional[str] = None,
-        agent_config: Optional[AgentConfig] = None,  # Replaced filter_client_ids
-    ) -> Optional[types.Prompt]:  # Manager returns Prompt object or None
+        agent_config: Optional[AgentConfig] = None,
+    ) -> Optional[types.Prompt]:
         """
-        Gets a specific prompt template definition, discovering the client if necessary,
-        applying agent-specific filtering if agent_config is provided.
-
-        Note: This retrieves the prompt *template definition* (mcp.types.Prompt).
-              Executing a prompt (which involves an LLM call) is handled
-              within the Agent.execute method. This method primarily helps
-              find the correct prompt definition from potentially multiple clients.
-              It *could* be extended to also handle converting response data
-              if needed, similar to the underlying manager method.
-
-        Args:
-            prompt_name: The name of the prompt to retrieve.
-            arguments: Arguments for the prompt (currently unused by manager's get_prompt
-                       when retrieving template, but kept for potential future use
-                       and consistency).
-            client_name: Optional specific client ID to get the prompt from.
-                         If None, the host will attempt to find a unique client
-                         providing the prompt, applying agent filters if provided.
-            agent_config: Optional configuration of the agent making the request, used
-                          for applying client_ids and exclude_components filters.
-
-        Returns:
-            The Prompt definition object, or None if not found or excluded for the agent.
-
-        Raises:
-            ValueError: If client_name is None and the prompt is not found or
-                        is found on multiple allowed clients (ambiguous).
-            ValueError: If client_name is specified but is not allowed for the agent
-                        or does not provide the prompt.
-            ValueError: If the prompt is explicitly excluded by the agent's config.
+        Gets a specific prompt template definition by resolving the target client
+        and delegating to the PromptManager.
         """
-        target_client_id: Optional[str] = None
-        agent_name = agent_config.name if agent_config else "UnknownAgent"
-
-        # 1. Determine potential clients
-        if client_name:
-            # Validate specified client exists (using new method)
-            if not self.is_client_registered(client_name):
-                raise ValueError(f"Specified client '{client_name}' is not registered.")
-            # Check if this client provides the prompt
-            providing_clients = await self._message_router.get_clients_for_prompt(
-                prompt_name
-            )
-            if client_name not in providing_clients:
-                raise ValueError(
-                    f"Specified client '{client_name}' does not provide prompt '{prompt_name}'."
-                )
-            potential_clients = [client_name]
-        else:
-            # Discover all clients providing the prompt
-            logger.debug(f"Discovering clients for prompt '{prompt_name}'...")
-            potential_clients = await self._message_router.get_clients_for_prompt(
-                prompt_name
-            )
-            if not potential_clients:
-                logger.warning(
-                    f"Prompt '{prompt_name}' not found on any registered client."
-                )
-                return None
-
-        # 2. Filter clients based on AgentConfig.client_ids (if provided)
-        allowed_clients = potential_clients
-        if agent_config:
-            allowed_clients = self._filtering_manager.filter_clients_for_request(
-                potential_clients, agent_config
-            )
-            if not allowed_clients:
-                logger.warning(
-                    f"Prompt '{prompt_name}' is provided by clients {potential_clients}, "
-                    f"but none are allowed for agent '{agent_name}' by client_ids."
-                )
-                return None  # Or raise error? Returning None seems safer.
-
-        # 3. Determine target client (handle ambiguity)
-        if client_name:
-            if client_name not in allowed_clients:
-                # This case means the specified client was filtered out by agent_config.client_ids
-                raise ValueError(
-                    f"Specified client '{client_name}' is not allowed for agent '{agent_name}'."
-                )
-            target_client_id = client_name
-        else:
-            # If client_name wasn't specified, check for ambiguity among allowed clients
-            if len(allowed_clients) > 1:
-                raise ValueError(
-                    f"Prompt '{prompt_name}' is ambiguous for agent '{agent_name}'; "
-                    f"found on multiple allowed clients: {allowed_clients}. Specify a client_name."
-                )
-            elif not allowed_clients:
-                # Should have been caught earlier, but defensive check
-                logger.error(
-                    f"No allowed client found for prompt '{prompt_name}' for agent '{agent_name}'."
-                )
-                return None
-            else:
-                target_client_id = allowed_clients[0]
-                logger.info(
-                    f"Found unique allowed client '{target_client_id}' for prompt '{prompt_name}' for agent '{agent_name}'."
-                )
-
-        # 4. Check agent-specific component exclusion (if agent_config provided)
-        if agent_config:
-            if not self._filtering_manager.is_component_allowed_for_agent(
-                prompt_name, agent_config
-            ):
-                # Log and raise an error if explicitly excluded
-                logger.warning(
-                    f"Access denied: Prompt '{prompt_name}' is excluded for agent '{agent_name}' by exclude_components."
-                )
-                raise ValueError(
-                    f"Prompt '{prompt_name}' is excluded for agent '{agent_name}'."
-                )
-
-        # 5. Get the prompt from the target client
-        if target_client_id:
-            logger.info(
-                f"Getting prompt template '{prompt_name}' from client '{target_client_id}' for agent '{agent_name}'"
-            )
-            # Note: Manager's get_prompt currently only needs name and client_id
-            return await self.prompts.get_prompt(
-                name=prompt_name, client_id=target_client_id
-            )
-        else:
-            # Should be unreachable
-            logger.error(
-                f"Could not determine target client for prompt '{prompt_name}' for agent '{agent_name}'."
-            )
-            return None
-
-    # Removed get_agent_config method
-    # Removed get_workflow_config method
-    # Removed get_custom_workflow_config method
-    # Removed execute_custom_workflow method
+        target_client_id = await self._resolve_target_client_for_component(
+            component_name=prompt_name,
+            component_type="prompt",
+            client_name=client_name,
+            agent_config=agent_config,
+        )
+        return await self.prompts.get_prompt(
+            name=prompt_name, client_id=target_client_id
+        )
 
     async def execute_tool(
         self,
         tool_name: str,
         arguments: Dict[str, Any],
         client_name: Optional[str] = None,
-        agent_config: Optional[AgentConfig] = None,  # Replaced filter_client_ids
+        agent_config: Optional[AgentConfig] = None,
     ) -> Any:
         """
-        Executes a tool, either on a specific client or by discovering a unique client,
-        applying agent-specific filtering if agent_config is provided.
-
-        Args:
-            tool_name: The name of the tool to execute.
-            arguments: The arguments to pass to the tool.
-            client_name: Optional specific client ID to execute the tool on.
-                         If None, the host will attempt to find a unique client
-                         providing the tool, applying agent filters if provided.
-            agent_config: Optional configuration of the agent making the request, used
-                          for applying client_ids and exclude_components filters.
-
-        Returns:
-            The result from the tool execution.
-
-        Raises:
-            ValueError: If client_name is None and the tool is not found or
-                        is found on multiple allowed clients (ambiguous).
-            ValueError: If client_name is specified but is not allowed for the agent
-                        or does not provide the tool.
-            ValueError: If the tool is explicitly excluded by the agent's config.
-            Exception: Any exception raised during the underlying tool execution.
+        Executes a tool by resolving the target client and delegating to the ToolManager.
         """
-        target_client_id: Optional[str] = None
-        agent_name = agent_config.name if agent_config else "UnknownAgent"
-
-        # 1. Determine potential clients
-        if client_name:
-            # Validate specified client exists (using new method)
-            if not self.is_client_registered(client_name):
-                raise ValueError(f"Specified client '{client_name}' is not registered.")
-            # Check if this client provides the tool
-            providing_clients = await self._message_router.get_clients_for_tool(
-                tool_name
-            )
-            if client_name not in providing_clients:
-                raise ValueError(
-                    f"Specified client '{client_name}' does not provide tool '{tool_name}'."
-                )
-            potential_clients = [client_name]
-        else:
-            # Discover all clients providing the tool
-            logger.debug(f"Discovering clients for tool '{tool_name}'...")
-            potential_clients = await self._message_router.get_clients_for_tool(
-                tool_name
-            )
-            if not potential_clients:
-                raise ValueError(
-                    f"Tool '{tool_name}' not found on any registered client."
-                )
-
-        # 2. Filter clients based on AgentConfig.client_ids (if provided)
-        allowed_clients = potential_clients
-        if agent_config:
-            allowed_clients = self._filtering_manager.filter_clients_for_request(
-                potential_clients, agent_config
-            )
-            if not allowed_clients:
-                raise ValueError(
-                    f"Tool '{tool_name}' is provided by clients {potential_clients}, "
-                    f"but none are allowed for agent '{agent_name}' by client_ids."
-                )
-
-        # 3. Determine target client (handle ambiguity)
-        if client_name:
-            if client_name not in allowed_clients:
-                raise ValueError(
-                    f"Specified client '{client_name}' is not allowed for agent '{agent_name}'."
-                )
-            target_client_id = client_name
-        else:
-            if len(allowed_clients) > 1:
-                raise ValueError(
-                    f"Tool '{tool_name}' is ambiguous for agent '{agent_name}'; "
-                    f"found on multiple allowed clients: {allowed_clients}. Specify a client_name."
-                )
-            elif not allowed_clients:
-                # Should have been caught earlier
-                raise ValueError(
-                    f"No allowed client found for tool '{tool_name}' for agent '{agent_name}'."
-                )
-            else:
-                target_client_id = allowed_clients[0]
-                logger.debug(
-                    f"Determined unique allowed client '{target_client_id}' for tool '{tool_name}' for agent '{agent_name}'."
-                )
-
-        # 4. Check agent-specific component exclusion (if agent_config provided)
-        if agent_config:
-            if not self._filtering_manager.is_component_allowed_for_agent(
-                tool_name, agent_config
-            ):
-                logger.warning(
-                    f"Execution denied: Tool '{tool_name}' is excluded for agent '{agent_name}' by exclude_components."
-                )
-                raise ValueError(
-                    f"Tool '{tool_name}' is excluded for agent '{agent_name}'."
-                )
-
-        # 5. Execute the tool via ToolManager
-        if target_client_id:
-            logger.info(
-                f"Executing tool '{tool_name}' on client '{target_client_id}' for agent '{agent_name}'"
-            )
-            # Call the ToolManager's execute_tool, passing the determined client_name
-            return await self.tools.execute_tool(
-                client_name=target_client_id,  # Pass the determined client
-                tool_name=tool_name,
-                arguments=arguments,
-            )
-        else:
-            # Should be unreachable
-            raise ValueError(
-                f"Could not determine target client for tool '{tool_name}' for agent '{agent_name}'."
-            )
+        target_client_id = await self._resolve_target_client_for_component(
+            component_name=tool_name,
+            component_type="tool",
+            client_name=client_name,
+            agent_config=agent_config,
+        )
+        return await self.tools.execute_tool(
+            client_name=target_client_id,
+            tool_name=tool_name,
+            arguments=arguments,
+        )
 
     async def read_resource(
         self,
         uri: str,
         client_name: Optional[str] = None,
-        agent_config: Optional[AgentConfig] = None,  # Replaced filter_client_ids
+        agent_config: Optional[AgentConfig] = None,
     ) -> Optional[types.Resource]:
         """
-        Gets a specific resource definition, discovering the client if necessary,
-        applying agent-specific filtering if agent_config is provided.
-
-        Note: This retrieves the resource *definition* (mcp.types.Resource),
-              not the actual resource content. Reading content requires direct
-              access to the client session's `read_resource` method.
-
-        Args:
-            uri: The URI of the resource to read.
-            client_name: Optional specific client ID to read the resource from.
-                         If None, the host will attempt to find a unique client
-                         providing the resource, applying agent filters if provided.
-            agent_config: Optional configuration of the agent making the request, used
-                          for applying client_ids and exclude_components filters.
-
-        Returns:
-            The Resource definition object, or None if not found or excluded for the agent.
-
-        Raises:
-            ValueError: If client_name is None and the resource URI is not found or
-                        is found on multiple allowed clients (ambiguous).
-            ValueError: If client_name is specified but is not allowed for the agent
-                        or does not provide the resource.
-            ValueError: If the resource is explicitly excluded by the agent's config.
-            Exception: Any exception raised during the underlying resource reading.
-                       (Note: This method only gets the definition, not content).
+        Gets a specific resource definition by resolving the target client and
+        delegating to the ResourceManager.
         """
-        uri_str = str(uri)  # Ensure string comparison
-        target_client_id: Optional[str] = None
-        agent_name = agent_config.name if agent_config else "UnknownAgent"
-        resource_name = uri_str  # Use URI as the "name" for exclusion checks
-
-        # 1. Determine potential clients
-        if client_name:
-            # Validate specified client exists (using new method)
-            if not self.is_client_registered(client_name):
-                raise ValueError(f"Specified client '{client_name}' is not registered.")
-            # Check if this client provides the resource
-            providing_clients = await self._message_router.get_clients_for_resource(
-                uri_str
-            )
-            if client_name not in providing_clients:
-                raise ValueError(
-                    f"Specified client '{client_name}' does not provide resource '{uri_str}'."
-                )
-            potential_clients = [client_name]
-        else:
-            # Discover all clients providing the resource
-            logger.debug(f"Discovering clients for resource '{uri_str}'...")
-            potential_clients = await self._message_router.get_clients_for_resource(
-                uri_str
-            )
-            if not potential_clients:
-                logger.warning(
-                    f"Resource '{uri_str}' not found on any registered client."
-                )
-                return None
-
-        # 2. Filter clients based on AgentConfig.client_ids (if provided)
-        allowed_clients = potential_clients
-        if agent_config:
-            allowed_clients = self._filtering_manager.filter_clients_for_request(
-                potential_clients, agent_config
-            )
-            if not allowed_clients:
-                logger.warning(
-                    f"Resource '{uri_str}' is provided by clients {potential_clients}, "
-                    f"but none are allowed for agent '{agent_name}' by client_ids."
-                )
-                return None
-
-        # 3. Determine target client (handle ambiguity)
-        if client_name:
-            if client_name not in allowed_clients:
-                raise ValueError(
-                    f"Specified client '{client_name}' is not allowed for agent '{agent_name}'."
-                )
-            target_client_id = client_name
-        else:
-            if len(allowed_clients) > 1:
-                raise ValueError(
-                    f"Resource '{uri_str}' is ambiguous for agent '{agent_name}'; "
-                    f"found on multiple allowed clients: {allowed_clients}. Specify a client_name."
-                )
-            elif not allowed_clients:
-                logger.error(
-                    f"No allowed client found for resource '{uri_str}' for agent '{agent_name}'."
-                )
-                return None
-            else:
-                target_client_id = allowed_clients[0]
-                logger.info(
-                    f"Found unique allowed client '{target_client_id}' for resource '{uri_str}' for agent '{agent_name}'."
-                )
-
-        # 4. Check agent-specific component exclusion (if agent_config provided)
-        # We use the URI string as the component name for exclusion purposes
-        if agent_config:
-            if not self._filtering_manager.is_component_allowed_for_agent(
-                resource_name, agent_config
-            ):
-                logger.warning(
-                    f"Access denied: Resource '{resource_name}' is excluded for agent '{agent_name}' by exclude_components."
-                )
-                raise ValueError(
-                    f"Resource '{resource_name}' is excluded for agent '{agent_name}'."
-                )
-
-        # 5. Get the resource definition from the target client via ResourceManager
-        if target_client_id:
-            logger.info(
-                f"Getting resource definition '{uri_str}' from client '{target_client_id}' for agent '{agent_name}'"
-            )
-            return await self.resources.get_resource(
-                uri=uri_str, client_id=target_client_id
-            )
-        else:
-            # Should be unreachable
-            logger.error(
-                f"Could not determine target client for resource '{uri_str}' for agent '{agent_name}'."
-            )
-            return None
+        target_client_id = await self._resolve_target_client_for_component(
+            component_name=uri,
+            component_type="resource",
+            client_name=client_name,
+            agent_config=agent_config,
+        )
+        return await self.resources.get_resource(uri=uri, client_id=target_client_id)
 
     def get_formatted_tools(
         self,
@@ -716,6 +382,104 @@ class MCPHost:
             agent_config=agent_config,
             tool_names=tool_names,
         )
+
+    async def _resolve_target_client_for_component(
+        self,
+        component_name: str,
+        component_type: Literal["tool", "prompt", "resource"],
+        client_name: Optional[str] = None,
+        agent_config: Optional[AgentConfig] = None,
+    ) -> str:
+        """
+        Resolves which client should be used for a given component request.
+
+        This method centralizes the logic for:
+        1. Discovering clients that provide the component.
+        2. Filtering clients based on the agent's allowed list (`mcp_servers`).
+        3. Resolving ambiguity to find a single target client.
+        4. Validating against the agent's exclusion list (`exclude_components`).
+
+        Args:
+            component_name: The name of the tool, prompt, or resource URI.
+            component_type: The type of the component ('tool', 'prompt', or 'resource').
+            client_name: An optional, specific client to use.
+            agent_config: The configuration of the agent making the request.
+
+        Returns:
+            The resolved client ID as a string.
+
+        Raises:
+            ValueError: If no suitable client can be found, if the request is
+                        ambiguous, or if the component is disallowed for the agent.
+        """
+        agent_name = agent_config.name if agent_config else "UnknownAgent"
+
+        # 1. Discover potential clients based on component type
+        if client_name:
+            if not self.is_client_registered(client_name):
+                raise ValueError(f"Specified client '{client_name}' is not registered.")
+            potential_clients = [client_name]
+        else:
+            if component_type == "tool":
+                potential_clients = await self._message_router.get_clients_for_tool(
+                    component_name
+                )
+            elif component_type == "prompt":
+                potential_clients = await self._message_router.get_clients_for_prompt(
+                    component_name
+                )
+            elif component_type == "resource":
+                potential_clients = await self._message_router.get_clients_for_resource(
+                    component_name
+                )
+            else:
+                raise ValueError(f"Invalid component_type: {component_type}")
+
+            if not potential_clients:
+                raise ValueError(
+                    f"{component_type.capitalize()} '{component_name}' not found on any registered client."
+                )
+
+        # 2. Filter clients based on AgentConfig
+        allowed_clients = potential_clients
+        if agent_config:
+            allowed_clients = self._filtering_manager.filter_clients_for_request(
+                potential_clients, agent_config
+            )
+            if not allowed_clients:
+                raise ValueError(
+                    f"{component_type.capitalize()} '{component_name}' is provided by clients {potential_clients}, "
+                    f"but none are allowed for agent '{agent_name}' by its mcp_servers list."
+                )
+
+        # 3. Resolve to a single target client
+        target_client_id: str
+        if client_name:
+            if client_name not in allowed_clients:
+                raise ValueError(
+                    f"Specified client '{client_name}' is not allowed for agent '{agent_name}'."
+                )
+            target_client_id = client_name
+        else:
+            if len(allowed_clients) > 1:
+                raise ValueError(
+                    f"{component_type.capitalize()} '{component_name}' is ambiguous for agent '{agent_name}'; "
+                    f"found on multiple allowed clients: {allowed_clients}. Specify a client_name."
+                )
+            target_client_id = allowed_clients[0]
+
+        # 4. Validate against agent's explicit exclusion list
+        if agent_config and not self._filtering_manager.is_component_allowed_for_agent(
+            component_name, agent_config
+        ):
+            raise ValueError(
+                f"{component_type.capitalize()} '{component_name}' is explicitly excluded for agent '{agent_name}'."
+            )
+
+        logger.debug(
+            f"Resolved client '{target_client_id}' for {component_type} '{component_name}' for agent '{agent_name}'."
+        )
+        return target_client_id
 
     async def register_client(self, config: ClientConfig):
         """

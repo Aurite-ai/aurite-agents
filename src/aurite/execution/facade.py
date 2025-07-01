@@ -3,19 +3,16 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-import copy
 from typing import Any, Dict, Optional, List, AsyncGenerator
 
 from termcolor import colored
 from openai.types.chat import ChatCompletionMessage
 
 from ..components.llm.providers.litellm_client import LiteLLMClient
-from ..config.config_models import LLMConfig
 from ..components.agents.agent import Agent
 from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
 from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-from .tool_selector import select_tools_for_agent
 from ..host.host import MCPHost
 from ..storage.db_manager import StorageManager
 from ..config.config_models import ProjectConfig
@@ -50,34 +47,6 @@ class ExecutionFacade:
 
     # --- Private Helper Methods ---
 
-    def _get_llm_client(self, llm_config_id: Optional[str]) -> "LiteLLMClient":
-        """
-        Gets a cached or new LLM client.
-        If an llm_config_id is provided, it uses the project-level config.
-        Otherwise, it returns a new default, uncached client.
-        """
-        if llm_config_id and self._current_project.llms:
-            if llm_config_id in self._llm_client_cache:
-                return self._llm_client_cache[llm_config_id]
-
-            llm_config = self._current_project.llms.get(llm_config_id)
-            if llm_config:
-                client = LiteLLMClient(
-                    model_name=llm_config.model_name or "gpt-3.5-turbo",
-                    provider=llm_config.provider,
-                    temperature=llm_config.temperature,
-                    max_tokens=llm_config.max_tokens,
-                    system_prompt=llm_config.default_system_prompt,
-                    api_base=llm_config.api_base,
-                    api_key=llm_config.api_key,
-                    api_version=llm_config.api_version,
-                )
-                self._llm_client_cache[llm_config_id] = client
-                return client
-
-        logger.debug("Creating a default, uncached LiteLLMClient.")
-        return LiteLLMClient(model_name="gpt-3.5-turbo", provider="openai")
-
     async def _prepare_agent_for_run(
         self,
         agent_name: str,
@@ -93,46 +62,45 @@ class ExecutionFacade:
 
         agent_config_for_run = original_agent_config
 
-        if original_agent_config.auto:
-            logger.info(
-                f"Agent '{agent_name}' has 'auto=True'. Attempting dynamic tool selection."
-            )
-            tool_selector_client = self._get_llm_client(
-                original_agent_config.llm_config_id
-            )
-            system_prompt_for_tool_selector = tool_selector_client.system_prompt
+        # TODO: Dynamic tool selection needs to be re-evaluated in light of the new model.
+        # if original_agent_config.auto:
+        #     logger.info(
+        #         f"Agent '{agent_name}' has 'auto=True'. Attempting dynamic tool selection."
+        #     )
+        #     tool_selector_client = self._get_llm_client(
+        #         original_agent_config.llm_config_id
+        #     )
+        #     system_prompt_for_tool_selector = tool_selector_client.system_prompt
 
-            selected_client_ids = await select_tools_for_agent(
-                agent_config=original_agent_config,
-                user_message=user_message,
-                system_prompt_for_agent=system_prompt_for_tool_selector,
-                current_project=self._current_project,
-                llm_client_cache=self._llm_client_cache,
-            )
-            if selected_client_ids is not None:
-                agent_config_for_run = copy.deepcopy(original_agent_config)
-                agent_config_for_run.mcp_servers = selected_client_ids
-                logger.info(
-                    f"Dynamically selected mcp_servers for agent '{agent_name}': {selected_client_ids}"
-                )
-            else:
-                logger.warning(
-                    f"Dynamic tool selection failed for agent '{agent_name}'. Falling back to static mcp_servers: {original_agent_config.mcp_servers or 'None'}."
-                )
+        #     selected_client_ids = await select_tools_for_agent(
+        #         agent_config=original_agent_config,
+        #         user_message=user_message,
+        #         system_prompt_for_agent=system_prompt_for_tool_selector,
+        #         current_project=self._current_project,
+        #         llm_client_cache=self._llm_client_cache,
+        #     )
+        #     if selected_client_ids is not None:
+        #         agent_config_for_run = copy.deepcopy(original_agent_config)
+        #         agent_config_for_run.mcp_servers = selected_client_ids
+        #         logger.info(
+        #             f"Dynamically selected mcp_servers for agent '{agent_name}': {selected_client_ids}"
+        #         )
+        #     else:
+        #         logger.warning(
+        #             f"Dynamic tool selection failed for agent '{agent_name}'. Falling back to static mcp_servers: {original_agent_config.mcp_servers or 'None'}."
+        #         )
 
-        llm_client_instance = self._get_llm_client(agent_config_for_run.llm_config_id)
-
-        llm_config_for_override = LLMConfig(
-            llm_id="agent_override",
-            model_name=agent_config_for_run.model,
-            temperature=agent_config_for_run.temperature,
-            max_tokens=agent_config_for_run.max_tokens,
-            default_system_prompt=agent_config_for_run.system_prompt,
-            provider=llm_client_instance.provider,
-            api_base=llm_client_instance.api_base,
-            api_key=llm_client_instance.api_key,
-            api_version=llm_client_instance.api_version,
+        # The Agent is now responsible for its own LLM configuration and client.
+        # The Facade's role is to gather the necessary configs.
+        if not agent_config_for_run.llm_config_id:
+            raise ValueError(f"Agent '{agent_name}' must have an llm_config_id.")
+        base_llm_config = self._current_project.llms.get(
+            agent_config_for_run.llm_config_id
         )
+        if not base_llm_config:
+            raise ValueError(
+                f"LLM configuration '{agent_config_for_run.llm_config_id}' not found in project."
+            )
 
         initial_messages: List[Dict[str, Any]] = []
         if (
@@ -146,13 +114,19 @@ class ExecutionFacade:
 
         initial_messages.append({"role": "user", "content": user_message})
 
+        # The system_prompt_override is now handled inside the Agent's constructor
+        if system_prompt_override:
+            if agent_config_for_run.llm is None:
+                from ..config.config_models import LLMConfigOverrides
+
+                agent_config_for_run.llm = LLMConfigOverrides()
+            agent_config_for_run.llm.system_prompt = system_prompt_override
+
         return Agent(
-            config=agent_config_for_run,
-            llm_client=llm_client_instance,
+            agent_config=agent_config_for_run,
+            base_llm_config=base_llm_config,
             host_instance=self._host,
             initial_messages=initial_messages,
-            system_prompt_override=system_prompt_override,
-            llm_config_for_override=llm_config_for_override,
         )
 
     # --- Public Execution Methods ---

@@ -17,45 +17,31 @@ from ....config.config_models import LLMConfig
 
 logger = logging.getLogger(__name__)
 
-# Default values
-DEFAULT_TEMPERATURE = 0.7
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
-
 
 class LiteLLMClient:
-    """A client for interacting with LLMs via the LiteLLM library."""
+    """
+    A client for interacting with LLMs via the LiteLLM library.
+    This client is initialized with a resolved LLMConfig and is responsible
+    for making the final API calls.
+    """
 
-    def __init__(
-        self,
-        model_name: str,
-        provider: str,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        system_prompt: Optional[str] = None,
-        api_base: Optional[str] = None,
-        api_key: Optional[str] = None,
-        api_version: Optional[str] = None,
-    ):
-        self.model_name = model_name
-        self.temperature = (
-            temperature if temperature is not None else DEFAULT_TEMPERATURE
-        )
-        self.max_tokens = max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS
-        self.system_prompt = (
-            system_prompt if system_prompt is not None else DEFAULT_SYSTEM_PROMPT
-        )
-        self.provider = provider
-        self.api_base = api_base
-        self.api_key = api_key
-        self.api_version = api_version
-        
-        litellm.drop_params = True # automatically drops unsupported params rather than throwing error
+    def __init__(self, config: LLMConfig):
+        if not config.provider or not config.model:
+            raise ValueError("LLM provider and model must be specified in the config.")
 
-        if provider == "gemini":
+        self.config = config
+        litellm.drop_params = (
+            True  # Automatically drops unsupported params rather than throwing an error
+        )
+
+        # Handle provider-specific setup if necessary
+        if self.config.provider == "gemini":
             if "GEMINI_API_KEY" not in os.environ and "GOOGLE_API_KEY" in os.environ:
                 os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_API_KEY"]
-        logger.info(f"LiteLLM initialized for {self.provider}/{self.model_name}.")
+
+        logger.info(
+            f"LiteLLMClient initialized for {self.config.provider}/{self.config.model}."
+        )
 
     def _convert_messages_to_openai_format(
         self, messages: List[Dict[str, Any]], system_prompt: Optional[str]
@@ -99,42 +85,11 @@ class LiteLLMClient:
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
-        llm_config_override: Optional[LLMConfig] = None,
     ) -> Dict[str, Any]:
-        # Determine final parameters by layering configurations
-        model_to_use = self.model_name
-        if llm_config_override and llm_config_override.model_name:
-            model_to_use = llm_config_override.model_name
-
-        provider_to_use = self.provider
-        if llm_config_override and llm_config_override.provider:
-            provider_to_use = llm_config_override.provider
-
-        api_base_to_use = self.api_base
-        if llm_config_override and llm_config_override.api_base:
-            api_base_to_use = llm_config_override.api_base
-
-        api_key_to_use = self.api_key
-        if llm_config_override and llm_config_override.api_key:
-            api_key_to_use = llm_config_override.api_key
-
-        api_version_to_use = self.api_version
-        if llm_config_override and llm_config_override.api_version:
-            api_version_to_use = llm_config_override.api_version
-
-        temperature_to_use = self.temperature
-        if llm_config_override and llm_config_override.temperature is not None:
-            temperature_to_use = llm_config_override.temperature
-
-        max_tokens_to_use = self.max_tokens
-        if llm_config_override and llm_config_override.max_tokens is not None:
-            max_tokens_to_use = llm_config_override.max_tokens
-
-        resolved_system_prompt = self.system_prompt
-        if llm_config_override and llm_config_override.default_system_prompt:
-            resolved_system_prompt = llm_config_override.default_system_prompt
-        if system_prompt_override is not None:
-            resolved_system_prompt = system_prompt_override
+        # Use the resolved system prompt from the config, but allow a final override.
+        resolved_system_prompt = (
+            system_prompt_override or self.config.default_system_prompt
+        )
 
         if schema:
             json_instruction = f"Your response MUST be a single valid JSON object that conforms to the provided schema. Do NOT add any text or characters before or after, including code block formatting (NO ```) {json.dumps(schema, indent=2)}"
@@ -149,13 +104,13 @@ class LiteLLMClient:
         api_tools = self._convert_tools_to_openai_format(tools)
 
         request_params: Dict[str, Any] = {
-            "model": f"{provider_to_use}/{model_to_use}",
+            "model": f"{self.config.provider}/{self.config.model}",
             "messages": api_messages,
-            "temperature": temperature_to_use,
-            "max_tokens": max_tokens_to_use,
-            "api_base": api_base_to_use,
-            "api_key": api_key_to_use,
-            "api_version": api_version_to_use,
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+            "api_base": self.config.api_base,
+            "api_key": self.config.api_key,
+            "api_version": self.config.api_version,
         }
 
         if api_tools:
@@ -170,10 +125,9 @@ class LiteLLMClient:
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
-        llm_config_override: Optional[LLMConfig] = None,
     ) -> ChatCompletionMessage:
         request_params = self._build_request_params(
-            messages, tools, system_prompt_override, schema, llm_config_override
+            messages, tools, system_prompt_override, schema
         )
 
         logger.debug(f"Making LiteLLM call with params: {request_params}")
@@ -193,10 +147,9 @@ class LiteLLMClient:
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
-        llm_config_override: Optional[LLMConfig] = None,
     ) -> AsyncGenerator[ChatCompletionChunk, None]:
         request_params = self._build_request_params(
-            messages, tools, system_prompt_override, schema, llm_config_override
+            messages, tools, system_prompt_override, schema
         )
         request_params["stream"] = True
 

@@ -188,24 +188,21 @@ class WorkflowConfig(BaseModel):
 class LLMConfig(BaseModel):
     """Configuration for a specific LLM setup."""
 
-    llm_id: str = Field(description="Unique identifier for this LLM configuration.")
+    name: str = Field(description="Unique identifier for this LLM configuration.")
     provider: str = Field(
-        default="anthropic",
-        description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').",
+        description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini')."
     )
-    model_name: Optional[str] = Field(
-        None, description="The specific model name for the provider."
-    )  # Made optional
+    model: str = Field(description="The specific model name for the provider.")
 
     # Common LLM parameters
     temperature: Optional[float] = Field(
-        default=0.7, description="Default sampling temperature."
+        default=None, description="Default sampling temperature."
     )
     max_tokens: Optional[int] = Field(
         default=None, description="Default maximum tokens to generate."
     )
     default_system_prompt: Optional[str] = Field(
-        default="You are a helpful AI Assistant.",
+        default=None,
         description="A default system prompt for this LLM configuration.",
     )
 
@@ -215,15 +212,42 @@ class LLMConfig(BaseModel):
     api_base: Optional[str] = Field(
         default=None, description="The base URL for the LLM."
     )
-    api_key: Optional[str] = Field(
-        default=None, description="The API key for the LLM."
-    )
+    api_key: Optional[str] = Field(default=None, description="The API key for the LLM.")
     api_version: Optional[str] = Field(
         default=None, description="The API version for the LLM."
     )
 
     class Config:
         extra = "allow"  # Allow provider-specific fields not explicitly defined
+
+
+class LLMConfigOverrides(BaseModel):
+    """A model for agent-specific overrides of LLM parameters."""
+
+    model: Optional[str] = Field(
+        default=None, description="Overrides model from LLMConfig if specified."
+    )
+    temperature: Optional[float] = Field(
+        default=None, description="Overrides temperature from LLMConfig if specified."
+    )
+    max_tokens: Optional[int] = Field(
+        default=None, description="Overrides max_tokens from LLMConfig if specified."
+    )
+    system_prompt: Optional[str] = Field(
+        default=None, description="The primary system prompt for the agent."
+    )
+    api_base: Optional[str] = Field(
+        default=None, description="Overrides the base URL for the LLM."
+    )
+    api_key: Optional[str] = Field(
+        default=None, description="Overrides the API key for the LLM."
+    )
+    api_version: Optional[str] = Field(
+        default=None, description="Overrides the API version for the LLM."
+    )
+
+    class Config:
+        extra = "allow"
 
 
 # --- Agent Configuration ---
@@ -256,6 +280,9 @@ class AgentConfig(BaseModel):
     llm_config_id: Optional[str] = Field(
         default=None, description="ID of the LLMConfig to use for this agent."
     )
+    llm: Optional[LLMConfigOverrides] = Field(
+        default=None, description="LLM parameters to override the base LLMConfig."
+    )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
     system_prompt: Optional[str] = Field(
@@ -264,15 +291,6 @@ class AgentConfig(BaseModel):
     config_validation_schema: Optional[dict[str, Any]] = Field(
         default=None,
         description="JSON schema for validating agent-specific configurations.",
-    )
-    model: Optional[str] = Field(
-        default=None, description="Overrides model_name from LLMConfig if specified."
-    )
-    temperature: Optional[float] = Field(
-        default=None, description="Overrides temperature from LLMConfig if specified."
-    )
-    max_tokens: Optional[int] = Field(
-        default=None, description="Overrides max_tokens from LLMConfig if specified."
     )
     # --- Agent Behavior ---
     max_iterations: Optional[int] = Field(

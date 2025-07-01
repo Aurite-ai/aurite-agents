@@ -117,21 +117,23 @@ async def stream_agent_endpoint(
         #     f"COMPONENTS_ROUTES: event_generator started for agent {agent_name}"
         # )
         try:
+            if not manager.execution:
+                # This check is for the type checker, the one above handles the runtime.
+                raise HTTPException(
+                    status_code=503, detail="Execution subsystem not available."
+                )
             # logger.info(
             #     f"COMPONENTS_ROUTES: event_generator TRY block entered for agent {agent_name}. About to call manager.stream_agent_run_via_facade."
             # )
             # Use the query parameters directly
-            async for event in manager.stream_agent_run_via_facade(
+            async for event in manager.execution.stream_agent_run(
                 agent_name=agent_name,
                 user_message=user_message,
                 system_prompt=system_prompt,
             ):
-                if type(event) is dict:
-                    event_string = json.dumps(event)
-                else:
-                    event_string = event.model_dump_json()
-                
-                yield event_string
+                # All events from the stream are expected to be JSON-serializable dicts
+                event_string = json.dumps(event)
+                yield f"data: {event_string}\n\n"
         except Exception as e:
             logger.error(
                 f"Error during agent streaming for '{agent_name}': {e}", exc_info=True
@@ -319,21 +321,19 @@ async def register_llm_endpoint(
     manager: Aurite = Depends(get_host_manager),
 ):
     """Dynamically registers a new LLM configuration."""
-    logger.info(f"Received request to register LLM config: {llm_config.llm_id}")
+    logger.info(f"Received request to register LLM config: {llm_config.name}")
     try:
         await manager.register_llm_config(llm_config)
-        return {"status": "success", "llm_id": llm_config.llm_id}
+        return {"status": "success", "name": llm_config.name}
     except PermissionError as e:
-        logger.error(
-            f"Permission error registering LLM config {llm_config.llm_id}: {e}"
-        )
+        logger.error(f"Permission error registering LLM config {llm_config.name}: {e}")
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
-        logger.error(f"Value error registering LLM config {llm_config.llm_id}: {e}")
+        logger.error(f"Value error registering LLM config {llm_config.name}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(
-            f"Unexpected error registering LLM config {llm_config.llm_id}: {e}",
+            f"Unexpected error registering LLM config {llm_config.name}: {e}",
             exc_info=True,
         )
         raise HTTPException(
@@ -426,14 +426,7 @@ async def list_registered_clients(manager: Aurite = Depends(get_host_manager)):
     active_project = manager.project_manager.get_active_project_config()
     if not active_project or not active_project.mcp_servers:
         return []
-    # Client IDs are stored directly in the list if string, or as name attribute if ClientConfig object
-    names = []
-    for client_entry in active_project.mcp_servers:
-        if isinstance(client_entry, str):
-            names.append(client_entry)
-        elif hasattr(client_entry, "name"):  # Check if it's a ClientConfig model
-            names.append(client_entry.name)
-    return names
+    return list(active_project.mcp_servers.keys())
 
 
 @router.get("/components/llms", response_model=List[str])

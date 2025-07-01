@@ -42,9 +42,9 @@ async def select_tools_for_agent(
     )
 
     tool_selector_llm_config = LLMConfig(
-        llm_id="internal_dynamic_tool_selector_haiku",
+        name="internal_dynamic_tool_selector_haiku",
         provider="anthropic",
-        model_name="claude-3-haiku-20240307",
+        model="claude-3-haiku-20240307",
         temperature=0.2,
         max_tokens=1024,
         default_system_prompt=(
@@ -62,23 +62,13 @@ async def select_tools_for_agent(
         ),
     )
 
-    tool_selector_llm_client = llm_client_cache.get(tool_selector_llm_config.llm_id)
+    tool_selector_llm_client = llm_client_cache.get(tool_selector_llm_config.name)
     if not tool_selector_llm_client:
         try:
-            tool_selector_llm_client = LiteLLMClient(
-                model_name=tool_selector_llm_config.model_name
-                or "claude-3-haiku-20240307",
-                provider=tool_selector_llm_config.provider,
-                temperature=tool_selector_llm_config.temperature,
-                max_tokens=tool_selector_llm_config.max_tokens,
-                system_prompt=tool_selector_llm_config.default_system_prompt,
-                api_base=tool_selector_llm_config.api_base,
-                api_key=tool_selector_llm_config.api_key,
-                api_version=tool_selector_llm_config.api_version,
-            )
-            llm_client_cache[tool_selector_llm_config.llm_id] = tool_selector_llm_client
+            tool_selector_llm_client = LiteLLMClient(config=tool_selector_llm_config)
+            llm_client_cache[tool_selector_llm_config.name] = tool_selector_llm_client
             logger.debug(
-                f"Created and cached LLM client for tool selection: {tool_selector_llm_config.llm_id}"
+                f"Created and cached LLM client for tool selection: {tool_selector_llm_config.name}"
             )
         except Exception as e:
             logger.error(
@@ -87,7 +77,7 @@ async def select_tools_for_agent(
             return None
     else:
         logger.debug(
-            f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.llm_id}"
+            f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.name}"
         )
 
     available_clients = current_project.mcp_servers
@@ -140,7 +130,6 @@ async def select_tools_for_agent(
             messages=[{"role": "user", "content": prompt_content_for_tool_selection}],
             tools=None,
             schema=tool_selection_schema,
-            llm_config_override=tool_selector_llm_config,
         )
 
         if not response_message.content:

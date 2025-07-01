@@ -8,11 +8,12 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall, Function
+    ChatCompletionMessageToolCall,
+    Function,
 )
 from jsonschema import validate, ValidationError as JsonSchemaValidationError
 
-from ...config.config_models import AgentConfig, LLMConfig
+from ...config.config_models import AgentConfig
 from ...host.host import MCPHost
 from ..llm.providers.litellm_client import LiteLLMClient
 
@@ -34,7 +35,6 @@ class AgentTurnProcessor:
         current_messages: List[Dict[str, Any]],
         tools_data: Optional[List[Dict[str, Any]]],
         effective_system_prompt: Optional[str],
-        llm_config_for_override: Optional[LLMConfig] = None,
     ):
         self.config = config
         self.llm = llm_client
@@ -42,7 +42,6 @@ class AgentTurnProcessor:
         self.messages = current_messages
         self.tools = tools_data
         self.system_prompt = effective_system_prompt
-        self.llm_config_for_override = llm_config_for_override
         self._last_llm_response: Optional[ChatCompletionMessage] = None
         self._tool_uses_this_turn: List[ChatCompletionMessageToolCall] = []
         logger.debug("AgentTurnProcessor initialized.")
@@ -58,19 +57,12 @@ class AgentTurnProcessor:
     ) -> Tuple[Optional[ChatCompletionMessage], Optional[List[Dict[str, Any]]], bool]:
         logger.debug("Processing conversation turn...")
 
-        # Conditionally pass tools based on the last message role.
-        # Anthropic's API (when using tools) requires the last message to be from the user.
-        tools_for_this_turn = self.tools
-        if self.messages and self.messages[-1].get("role") == "assistant":
-            tools_for_this_turn = None
-
         try:
             llm_response = await self.llm.create_message(
                 messages=self.messages,
-                tools=tools_for_this_turn,
+                tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,
-                llm_config_override=self.llm_config_for_override,
             )
         except Exception as e:
             logger.error(f"LLM call failed within turn processor: {e}", exc_info=True)
@@ -80,7 +72,9 @@ class AgentTurnProcessor:
         is_final_turn = False
 
         if llm_response.tool_calls:
-            tool_results_for_next_turn = await self._process_tool_calls(llm_response.tool_calls)
+            tool_results_for_next_turn = await self._process_tool_calls(
+                llm_response.tool_calls
+            )
             return None, tool_results_for_next_turn, is_final_turn
         else:
             validated_response = self._handle_final_response(llm_response)
@@ -102,7 +96,7 @@ class AgentTurnProcessor:
         current_tool_call: Optional[Dict[str, Any]] = None
         current_text_buffer = ""
         current_message_id = None
-        
+
         try:
             logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
             async for llm_chunk in self.llm.stream_message(
@@ -110,43 +104,54 @@ class AgentTurnProcessor:
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
-                llm_config_override=self.llm_config_for_override,
             ):
-                logger.debug(
-                    f"ATP: Received LLM chunk from stream: {llm_chunk}"
-                ) 
-                chunk_choice = llm_chunk.get("choices", [{}])[0]
-                delta = chunk_choice.get("delta", {})
-                
-                yield llm_chunk
-                
+                logger.debug(f"ATP: Received LLM chunk from stream: {llm_chunk}")
+                yield llm_chunk.model_dump(exclude_none=True)
+
+                if not llm_chunk.choices:
+                    continue
+
+                chunk_choice = llm_chunk.choices[0]
+                delta = chunk_choice.delta
+
                 # Handle message start
-                if delta.get("role") == "assistant" and not current_text_buffer:
-                    current_message_id = llm_chunk.get("id")
-                    
+                if delta.role == "assistant" and not current_text_buffer:
+                    current_message_id = llm_chunk.id
+
                 # Handle content deltas
-                if content := delta.get("content"):
-                    current_text_buffer += content
-                    
+                if delta.content:
+                    current_text_buffer += delta.content
+
                 # Handle tool calls
-                tool_calls = delta.get("tool_calls", [])
-                if tool_calls:
-                    for tool_call in tool_calls:
+                if delta.tool_calls:
+                    for tool_call in delta.tool_calls:
                         # New tool call starting
-                        if tool_call.get("id") and tool_call.get("function", {}).get("name"):
+                        if (
+                            tool_call.id
+                            and tool_call.function
+                            and tool_call.function.name
+                        ):
                             current_tool_call = {
-                                "id": tool_call["id"],
-                                "name": tool_call["function"]["name"],
-                                "arguments": ""
+                                "id": tool_call.id,
+                                "name": tool_call.function.name,
+                                "arguments": "",
                             }
-                        
+
                         # Accumulate tool arguments
-                        if args := tool_call.get("function", {}).get("arguments"):
-                            if current_tool_call:
-                                current_tool_call["arguments"] += args
+                        if (
+                            tool_call.function
+                            and tool_call.function.arguments
+                            and current_tool_call
+                        ):
+                            current_tool_call["arguments"] += (
+                                tool_call.function.arguments
+                            )
 
                 # Handle completion, allow finish_reason to be stop for gemini
-                if chunk_choice.get("finish_reason") in ["tool_calls", "stop"] and current_tool_call:
+                if (
+                    chunk_choice.finish_reason in ["tool_calls", "stop"]
+                    and current_tool_call
+                ):
                     # Parse and execute tool
                     try:
                         tool_id = current_tool_call.get("id")
@@ -155,7 +160,7 @@ class AgentTurnProcessor:
                         logger.debug(
                             f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
                         )
-                        
+
                         yield {
                             "internal": True,
                             "type": "tool_complete",
@@ -164,24 +169,27 @@ class AgentTurnProcessor:
                             "arguments": tool_input_str,
                             "message_id": current_message_id,
                         }
-                        
-                        if tool_name:
+
+                        if tool_name and tool_id:
                             current_tool_calls = [
                                 ChatCompletionMessageToolCall(
                                     id=tool_id,
-                                    function = Function(
-                                        arguments=tool_input_str,
-                                        name=tool_name
+                                    function=Function(
+                                        arguments=tool_input_str, name=tool_name
                                     ),
-                                    type="function"
+                                    type="function",
                                 )
                             ]
-                            
-                            tool_results_for_next_turn = await self._process_tool_calls(current_tool_calls)
-                            
+
+                            tool_results_for_next_turn = await self._process_tool_calls(
+                                current_tool_calls
+                            )
+
                             if tool_results_for_next_turn:
-                                serializable_output = tool_results_for_next_turn[0].get("content")
-                                
+                                serializable_output = tool_results_for_next_turn[0].get(
+                                    "content"
+                                )
+
                                 yield {
                                     "role": "tool",
                                     "tool_call_id": current_tool_call["id"],
@@ -192,7 +200,7 @@ class AgentTurnProcessor:
                                     "type": "tool_result",
                                     "tool_id": current_tool_call["id"],
                                     "result": serializable_output,
-                                    "status": "success"
+                                    "status": "success",
                                 }
                             else:
                                 yield {
@@ -200,7 +208,7 @@ class AgentTurnProcessor:
                                     "type": "tool_result",
                                     "tool_id": current_tool_call["id"],
                                     "error": "Error executing tool.",
-                                    "status": "error"
+                                    "status": "error",
                                 }
                         else:
                             logger.error(
@@ -211,35 +219,32 @@ class AgentTurnProcessor:
                                 "type": "tool_result",
                                 "tool_id": current_tool_call["id"],
                                 "error": "LLM did not provide a tool name for a tool_use block.",
-                                "status": "error"
+                                "status": "error",
                             }
-                                                
+
                     except Exception as e:
                         yield {
                             "internal": True,
                             "type": "tool_result",
                             "tool_id": current_tool_call["id"],
                             "error": str(e),
-                            "status": "error"
+                            "status": "error",
                         }
                     current_tool_call = None
 
                 # Handle final completion
-                if chunk_choice.get("finish_reason") in ["stop", "length"]:
+                if chunk_choice.finish_reason in ["stop", "length"]:
                     yield {
                         "internal": True,
                         "type": "message_complete",
                         "content": current_text_buffer,
-                        "stop_reason": chunk_choice.get("finish_reason"),
+                        "stop_reason": chunk_choice.finish_reason,
                         "message_id": current_message_id,
                     }
                     break
 
         except Exception as e:
-            yield {
-                "type": "error",
-                "error": str(e)
-            }
+            yield {"type": "error", "error": str(e)}
         finally:
             logger.debug("Finished streaming conversation turn.")
 

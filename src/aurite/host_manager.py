@@ -10,8 +10,6 @@ import sys
 from pathlib import Path
 from typing import (  # Added AsyncGenerator, Dict, Any
     Any,
-    AsyncGenerator,
-    Dict,
     List,
     Optional,
 )
@@ -815,7 +813,7 @@ class Aurite:
             llm_config: The configuration for the LLM to register.
 
         Raises:
-            ValueError: If the Aurite is not initialized or the llm_id already exists.
+            ValueError: If the Aurite is not initialized or the name already exists.
             RuntimeError: If no active project is loaded.
             PermissionError: If dynamic registration is disabled.
         """
@@ -826,7 +824,7 @@ class Aurite:
             raise PermissionError("Dynamic registration is disabled by configuration.")
 
         logger.debug(
-            f"Attempting to dynamically register LLM config: {llm_config.llm_id}"
+            f"Attempting to dynamically register LLM config: {llm_config.name}"
         )
         if not self.host:  # Check self.host, implies manager is initialized
             logger.error("Aurite is not initialized. Cannot register LLM config.")
@@ -839,9 +837,9 @@ class Aurite:
                 "No active project loaded to register LLM config against."
             )
 
-        if llm_config.llm_id in active_project.llms:  # Changed llm_configs to llms
+        if llm_config.name in active_project.llms:  # Changed llm_configs to llms
             logger.debug(  # Changed from error to info, and adjusted message
-                f"LLM config ID '{llm_config.llm_id}' already exists in active project. It will be updated."
+                f"LLM config ID '{llm_config.name}' already exists in active project. It will be updated."
             )
             # No longer raising ValueError, proceeding to update via add_component_to_active_project
 
@@ -849,27 +847,27 @@ class Aurite:
         # Ensure component_type_key matches the new attribute name in ProjectConfig
         self.project_manager.add_component_to_active_project(
             "llms",
-            llm_config.llm_id,
+            llm_config.name,
             llm_config,
         )
         logger.debug(
-            f"LLM config '{llm_config.llm_id}' registered successfully in active project."
+            f"LLM config '{llm_config.name}' registered successfully in active project."
         )
         # Also update ComponentManager's in-memory store
         if self.component_manager and hasattr(self.component_manager, "llms"):
-            self.component_manager.llms[llm_config.llm_id] = llm_config
+            self.component_manager.llms[llm_config.name] = llm_config
             logger.debug(
-                f"LLM config '{llm_config.llm_id}' also updated in ComponentManager's in-memory store."
+                f"LLM config '{llm_config.name}' also updated in ComponentManager's in-memory store."
             )
 
         # Sync to DB if enabled
         if self.storage_manager:
             try:
                 self.storage_manager.sync_llm_config(llm_config)
-                logger.debug(f"LLM config '{llm_config.llm_id}' synced to database.")
+                logger.debug(f"LLM config '{llm_config.name}' synced to database.")
             except Exception as e:
                 logger.error(
-                    f"Failed to sync LLM config '{llm_config.llm_id}' to database: {e}",
+                    f"Failed to sync LLM config '{llm_config.name}' to database: {e}",
                     exc_info=True,
                 )
 
@@ -1100,46 +1098,6 @@ class Aurite:
     # Entrypoints (API, CLI, Worker) will need to be updated to call
     # self.execution.run_agent(), self.execution.run_simple_workflow(), etc.
     # (The actual method definitions below are removed by this change)
-
-    async def stream_agent_run_via_facade(
-        self,
-        agent_name: str,
-        user_message: str,
-        system_prompt: Optional[str] = None,
-        session_id: Optional[str] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        Streams an agent run by delegating to the ExecutionFacade.
-        """
-        logger.info(
-            f"HOST_MANAGER: stream_agent_run_via_facade CALLED for agent {agent_name}"
-        )  # MOVED AND MODIFIED
-        logger.info(
-            f"HOST_MANAGER: Inside stream_agent_run_via_facade. self.execution is set: {self.execution is not None}"
-        )
-        if not self.execution:
-            logger.error("ExecutionFacade not available on Aurite for streaming.")
-            # Yield an error event or raise an exception
-            # For now, let's yield an error event consistent with facade's stream_agent_run
-            yield {
-                "event_type": "error",
-                "data": {
-                    "message": "Execution subsystem not available for streaming.",
-                    "agent_name": agent_name,
-                },
-            }
-            return
-
-        logger.debug(
-            f"Aurite delegating streaming run for agent '{agent_name}' to ExecutionFacade."
-        )
-        async for event in self.execution.stream_agent_run(
-            agent_name=agent_name,
-            user_message=user_message,
-            system_prompt=system_prompt,
-            session_id=session_id,
-        ):
-            yield event
 
     async def run_agent(
         self,

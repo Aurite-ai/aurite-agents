@@ -5,7 +5,12 @@ Manages the multi-turn conversation loop for an Agent.
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from openai.types.chat import ChatCompletionMessage, ChatCompletionAssistantMessageParam, ChatCompletionToolMessageParam, ChatCompletionMessageToolCallParam
+from openai.types.chat import (
+    ChatCompletionMessage,
+    ChatCompletionAssistantMessageParam,
+    ChatCompletionToolMessageParam,
+    ChatCompletionMessageToolCallParam,
+)
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
@@ -27,22 +32,37 @@ class Agent:
 
     def __init__(
         self,
-        config: AgentConfig,
-        llm_client: LiteLLMClient,
+        agent_config: AgentConfig,
+        base_llm_config: LLMConfig,
         host_instance: MCPHost,
         initial_messages: List[Dict[str, Any]],
-        system_prompt_override: Optional[str] = None,
-        llm_config_for_override: Optional[LLMConfig] = None,
     ):
-        self.config = config
-        self.llm = llm_client
+        self.config = agent_config
         self.host = host_instance
-        self.system_prompt_override = system_prompt_override
-        self.llm_config_for_override = llm_config_for_override
         self.conversation_history: List[Dict[str, Any]] = initial_messages
         self.final_response: Optional[ChatCompletionMessage] = None
         self.tool_uses_in_last_turn: List[ChatCompletionMessageToolCall] = []
-        logger.debug(f"Agent '{self.config.name or 'Unnamed'}' initialized.")
+
+        # --- Configuration Resolution ---
+        # The Agent is responsible for resolving its final LLM configuration.
+        resolved_config = base_llm_config.model_copy(deep=True)
+
+        if agent_config.llm:
+            # Get the override values, excluding any that are not explicitly set
+            overrides = agent_config.llm.model_dump(exclude_unset=True)
+            # Update the resolved config with the overrides
+            resolved_config = resolved_config.model_copy(update=overrides)
+
+        # The agent's specific system prompt always takes precedence if provided.
+        if agent_config.system_prompt:
+            resolved_config.default_system_prompt = agent_config.system_prompt
+
+        self.resolved_llm_config: LLMConfig = resolved_config
+        self.llm = LiteLLMClient(config=self.resolved_llm_config)
+
+        logger.debug(
+            f"Agent '{self.config.name or 'Unnamed'}' initialized with resolved LLM config: {self.resolved_llm_config.model_dump_json(indent=2)}"
+        )
 
     async def run_conversation(self) -> Optional[ChatCompletionMessage]:
         """
@@ -50,9 +70,6 @@ class Agent:
         or the max iteration limit is reached.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
-        effective_system_prompt = (
-            self.system_prompt_override or self.config.system_prompt
-        )
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
 
@@ -65,8 +82,8 @@ class Agent:
                 host_instance=self.host,
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
-                effective_system_prompt=effective_system_prompt,
-                llm_config_for_override=self.llm_config_for_override,
+                # The effective system prompt is now part of the resolved config
+                effective_system_prompt=self.resolved_llm_config.default_system_prompt,
             )
 
             try:
@@ -116,29 +133,25 @@ class Agent:
             f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'"
         )
 
-        effective_system_prompt = (
-            self.system_prompt_override or self.config.system_prompt
-        )
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
 
         for current_iteration in range(max_iterations):
-            logger.debug(f"Starting conversation turn {current_iteration + 1}")            
-            
+            logger.debug(f"Starting conversation turn {current_iteration + 1}")
+
             turn_processor = AgentTurnProcessor(
                 config=self.config,
                 llm_client=self.llm,
                 host_instance=self.host,
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
-                effective_system_prompt=effective_system_prompt,
-                llm_config_for_override=self.llm_config_for_override,
+                effective_system_prompt=self.resolved_llm_config.default_system_prompt,
             )
-            
+
             # Process the turn
             is_tool_turn = False
             tool_results = []
-            
+
             try:
                 async for event in turn_processor.stream_turn_response():
                     # Pass through the event
@@ -146,45 +159,53 @@ class Agent:
                         yield event
                     else:
                         event_type = event["type"]
-                        
+
                         match event_type:
                             case "tool_complete":
                                 is_tool_turn = True
-                        
-                                message = ChatCompletionAssistantMessageParam(
-                                    role="assistant",
-                                    tool_calls=[ChatCompletionMessageToolCallParam(
-                                        id=event.get("tool_id"),
-                                        function=Function(
-                                            name=event.get("name"),
-                                            arguments=event.get("arguments"),
-                                        ),
-                                        type="function",
-                                    )],
-                                )
-                                
-                                self.conversation_history.append(message)
+                                tool_id = event.get("tool_id")
+                                tool_name = event.get("name")
+                                tool_args = event.get("arguments")
+
+                                if tool_id and tool_name and tool_args is not None:
+                                    message = ChatCompletionAssistantMessageParam(
+                                        role="assistant",
+                                        tool_calls=[
+                                            ChatCompletionMessageToolCallParam(
+                                                id=tool_id,
+                                                function=Function(
+                                                    name=tool_name,
+                                                    arguments=tool_args,
+                                                ),
+                                                type="function",
+                                            )
+                                        ],
+                                    )
+                                    self.conversation_history.append(dict(message))
                             case "message_complete":
+                                content = event.get("content") or ""
                                 message = ChatCompletionAssistantMessageParam(
                                     role="assistant",
-                                    content=[{
-                                        "type": "text",
-                                        "text": event.get("content")
-                                    }],
+                                    content=content,
                                 )
-                                
-                                logger.info(f"Streaming message complete: {event.get("content")}")
-                                
-                                self.conversation_history.append(message)
-                                
+
+                                logger.info(f"Streaming message complete: {content}")
+
+                                self.conversation_history.append(dict(message))
+
                                 # Store as final response if not a tool turn
                                 if not is_tool_turn:
-                                    self.final_response = message
+                                    # We need to construct a full ChatCompletionMessage
+                                    self.final_response = ChatCompletionMessage(
+                                        role="assistant", content=content
+                                    )
                                     return
                             case "tool_result":
                                 tool_results.append(event)
                             case _:
-                                raise ValueError(f"Unrecognized internal type while streaming: {event_type}")
+                                raise ValueError(
+                                    f"Unrecognized internal type while streaming: {event_type}"
+                                )
 
                 # Process tool results if any
                 if tool_results:
@@ -192,17 +213,15 @@ class Agent:
                         tool_message = ChatCompletionToolMessageParam(
                             role="tool",
                             tool_call_id=result["tool_id"],
-                            content=result["result"] if result["status"] == "success" else result["error"],
+                            content=result["result"]
+                            if result["status"] == "success"
+                            else result["error"],
                         )
-                        self.conversation_history.append(tool_message)
+                        self.conversation_history.append(dict(tool_message))
 
             except Exception as e:
                 logger.error(f"Error in conversation turn {current_iteration}: {e}")
-                yield {
-                    "type": "error",
-                    "error": str(e),
-                    "turn": current_iteration
-                }
+                yield {"type": "error", "error": str(e), "turn": current_iteration}
                 break
 
         logger.warning(
