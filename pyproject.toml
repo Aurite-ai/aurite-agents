@@ -1,133 +1,95 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
 [project]
 name = "aurite"
-version = "0.3.21"
-description = "Aurite Agent Development and Runtime Framework"
-readme = "README.md"
-requires-python = ">=3.11"
-
+version = "0.3.23"
+description = "Aurite Agents is an agent development and runtime framework."
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
     { name = "Blake R", email = "blake@aurite.ai" },
     { name = "Patrick W", email = "patrick@aurite.ai" },
     { name = "Jiten O", email = "jiten@aurite.ai" },
 ]
-
-license-files = ["LICENSE"]
-
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.11"
 keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    # --- Core Framework Dependencies ---
-    # Foundational packages required for the framework to function at a basic level.
-    "mcp>=1.8.1",
-    "pydantic>=2.10.6",
-    "pydantic-settings>=2.8.1",
-    "pyyaml>=6.0.2",
-    "python-dotenv>=1.0.1",
-    "colorlog>=6.0.0",
-    "termcolor>=3.0.0", # Added back as a required runtime dependency
-    "jsonschema",
-    "exceptiongroup", # Added based on deptry report
-    "pytz",           # Added for packaged example server
-
-    # --- Core Entrypoints (API & CLI) ---
-    # The framework's primary interfaces. These are included in the base install.
-    "fastapi",
-    "typer[all]>=0.9.0", # Using [all] pulls in shell completion support
-    "uvicorn>=0.34.0",   # Server for FastAPI
-    "httpx>=0.27.0",     # Direct dependency for CLI and API interactions
-    "anyio>=4.0.0", # Explicitly add for async testing support
-
-
-    # --- Core LLM & Agent Dependencies ---
-    # Essential clients for interacting with LLMs.
-    "openai>=1.80.0",
-    "anthropic>=0.49.0",
-    "google-genai>=1.11.0",
-    "litellm>=1.72.6",
-
-    # --- Core Database ORM & Migrations ---
-    # SQLAlchemy is central to the DB storage layer. Drivers are optional.
-    "sqlalchemy>=2.0.39",
-
-    # --- Miscellaneous Dependencies ---
-    "cryptography>=41.0.5,<44", # Pinned for Colab compatibility
-    "pydub>=0.25.1",
+    "mcp (>=1.10.1,<2.0.0)",
+    "pydantic (>=2.11.7,<3.0.0)",
+    "pyyaml (>=6.0.2,<7.0.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "colorlog (>=6.9.0,<7.0.0)",
+    "termcolor (>=3.1.0,<4.0.0)",
+    "jsonschema (>=4.24.0,<5.0.0)",
+    "exceptiongroup (>=1.3.0,<2.0.0)",
+    "pytz (>=2025.2,<2026.0)",
+    "fastapi (>=0.115.14,<0.116.0)",
+    "typer[all] (>=0.16.0,<0.17.0)",
+    "uvicorn (>=0.35.0,<0.36.0)",
+    "anyio (>=4.9.0,<5.0.0)",
+    "openai (>=1.93.0,<2.0.0)",
+    "pydantic-settings (>=2.10.1,<3.0.0)",
+    "sqlalchemy (>=2.0.41,<3.0.0)",
+    "anthropic (>=0.55.0,<0.56.0)",
+    "google-genai (>=1.23.0,<2.0.0)",
+    "litellm (>=1.73.6,<2.0.0)",
+    "cryptography (>=45.0.4,<46.0.0)",
+    "pydub (>=0.25.1,<0.26.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
 
 [project.urls]
 Homepage = "https://publish.obsidian.md/aurite/HOME"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
 
-[project.optional-dependencies]
-# --- For Development and Testing ---
-dev = [
-    "pytest>=8.3.5",
-    "pytest-timeout>=2.3.1",
-    "mypy>=1.15.0",
-    "types-PyYAML",
-    "types-pytz",
-    "jupyter>=1.0.0",
-    "pre-commit",
-    "alembic>=1.13.1", # Ensure alembic is available for migrations
-    "deptry", # Dependency management tool
-]
+[project.scripts]
+start-api = "aurite.bin.api.api:start"
+start-worker = "aurite.bin.worker:start"
+run-cli = "aurite.bin.cli.cli_executor:app"
+aurite = "aurite.bin.cli.main:app"
 
-# --- For Optional Production Features ---
-# Users can install these with `pip install aurite[feature]`
+[tool.poetry]
+packages = [{ include = "aurite", from = "src" }]
+include = ["LICENSE", "src/aurite/packaged"]
 
-# For data analysis and vector embeddings
-ml = [
-    "pandas>=2.2.3",
-    "sentence-transformers",
-]
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pytest-timeout = "^2.4.0"
+mypy = "^1.16.1"
+types-pyyaml = "^6.0.12.20250516"
+types-pytz = "^2025.2.0.20250516"
+jupyter = "^1.1.1"
+pre-commit = "^4.2.0"
+alembic = "^1.16.2"
+deptry = {version = "^0.23.0", python = ">=3.11,<4.0"}
 
-# For connecting to different storage backends
-storage = [
-    "redis>=5.0.0",
-    "psycopg2-binary>=2.9.10",
-]
+[tool.poetry.group.storage]
+optional = true
 
-# For agent memory capabilities
-memory = [
-    "mem0ai>=0.1.67",
-]
+[tool.poetry.group.storage.dependencies]
+redis = "^6.2.0"
+psycopg2-binary = "^2.9.10"
+mem0ai = {version = "^0.1.113", python = ">=3.11,<4.0"}
 
-# For Google Cloud Platform integrations
-gcp = ["google-cloud-secret-manager>=2.19.0"]
+[tool.poetry.group.ml]
+optional = true
 
+[tool.poetry.group.ml.dependencies]
+pandas = "^2.3.0"
+sentence-transformers = "^4.1.0"
 
-# --- Convenience Group to Install All Extras ---
-core = [
-    "aurite[dev]",
-    "aurite[storage]",
-    "aurite[gcp]",
-]
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-all = [
-    "aurite[core]",
-    "aurite[ml]",
-    "aurite[memory]",
-]
-
-[tool.setuptools]
-include-package-data = true # This tells setuptools to use MANIFEST.in (hyphenated)
-package-dir = {"" = "src"} # Maps importable package root to the 'src' directory
-
-[tool.setuptools.packages.find]
-where = ["src"]  # Look for packages within the 'src' directory
-include = ["aurite*"] # Find 'aurite' and any sub-packages
-namespaces = false
 # Pytest configuration
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -136,14 +98,12 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 log_cli = true
 log_cli_level = "INFO"
-# Ensure unit, integration, e2e markers are defined
 markers = [
     "unit: marks tests as unit tests (fast, isolated)",
     "integration: marks tests as integration tests (component interaction)",
     "e2e: marks tests as end-to-end tests (may require external resources)",
-    # "asyncio: mark test as async test", # Removed - use pytest.mark.anyio instead
-    "anyio: marks tests as anyio-based async tests", # Added for pytest-anyio
-    "core: mark test as core functionality test",                            # Keep existing
+    "anyio: marks tests as anyio-based async tests",
+    "core: mark test as core functionality test",
     "user: mark test as requiring user credentials",
     "extended: mark test as extended functionality test",
     "agent: mark test as agent test",
@@ -151,7 +111,7 @@ markers = [
     "evaluation: mark test as agent evaluation test",
     "rubric: mark test that uses an evaluation rubric",
     "multirun: mark test that runs multiple evaluation iterations",
-    "benchmark: mark test that compares against benchmarks",                 # Keep existing
+    "benchmark: mark test that compares against benchmarks",
 ]
 pythonpath = [".", "src", "aurite"]
 filterwarnings = [
@@ -162,44 +122,27 @@ filterwarnings = [
     "ignore::pytest.PytestUnknownMarkWarning",
     "ignore::pytest.PytestConfigWarning",
 ]
-# Add HTML and JSON report options
 addopts = "--verbose --no-header --disable-warnings"
-# Configure test result captures
 junit_family = "xunit2"
-# asyncio_mode moved up
-timeout = 60 # Increase default test timeout to 60 seconds
+timeout = 60
 
 [tool.mypy]
-warn_return_any = false # Don't warn about functions returning Any implicitly
-ignore_missing_imports = true # Don't fail if a library doesn't have type hints (important for dependencies)
-check_untyped_defs = false # Don't require type hints for functions without them (relaxed start)
-disallow_untyped_defs = false # Corresponds to check_untyped_defs
-show_error_codes = true # Makes errors easier to understand/suppress if needed
-disallow_untyped_calls = false # Corresponds to check_untyped_defs
+warn_return_any = false
+ignore_missing_imports = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+show_error_codes = true
+disallow_untyped_calls = false
 files=["src/aurite/**/*.py"]
 follow_imports = "silent"
 
 [tool.deptry]
-# Explicitly tell deptry that 'aurite' is the main package.
 known_first_party = ["aurite"]
-
-# Extend the default exclusion list to also ignore tests and docs,
-# while still respecting .gitignore.
 extend_exclude = ["tests", "docs"]
+per_rule_ignores = {DEP004 = ["pandas", "redis", "mem0", "psycopg2", "sentence_transformers"]}
 
-# Tell deptry that only the 'dev' group should be treated as containing development-only dependencies.
-pep621_dev_dependency_groups = ["dev"]
-
-# Map package names to the modules they provide. This is crucial for packages
-# where the installable name differs from the importable module name.
 [tool.deptry.package_module_name_map]
 "psycopg2-binary" = "psycopg2"
 "mem0ai" = "mem0"
+"pandas" = "pandas"
 "sentence-transformers" = "sentence_transformers"
-"google-cloud-secret-manager" = "google"
-
-[project.scripts]
-start-api = "aurite.bin.api.api:start"
-start-worker = "aurite.bin.worker:start" # Point to the synchronous wrapper
-run-cli = "aurite.bin.cli.cli_executor:app" # Makes 'run-cli' command available; args must be added manually
-aurite = "aurite.bin.cli.main:app"
