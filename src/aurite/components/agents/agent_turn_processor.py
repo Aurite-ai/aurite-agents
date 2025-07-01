@@ -8,7 +8,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall,
+    ChatCompletionMessageToolCall, Function
 )
 from jsonschema import validate, ValidationError as JsonSchemaValidationError
 
@@ -80,7 +80,7 @@ class AgentTurnProcessor:
         is_final_turn = False
 
         if llm_response.tool_calls:
-            tool_results_for_next_turn = await self._process_tool_calls(llm_response)
+            tool_results_for_next_turn = await self._process_tool_calls(llm_response.tool_calls)
             return None, tool_results_for_next_turn, is_final_turn
         else:
             validated_response = self._handle_final_response(llm_response)
@@ -89,41 +89,170 @@ class AgentTurnProcessor:
             return validated_response, None, is_final_turn
 
     async def stream_turn_response(self) -> AsyncGenerator[Dict[str, Any], None]:
-        # This method will need significant rework to align with the new model
-        # For now, we focus on the non-streaming path.
-        # A full implementation would require accumulating deltas to build tool calls
-        # and then executing them, which is complex.
-        logger.warning(
-            "Streaming turn processing is not fully implemented in this refactored version."
-        )
-        # To satisfy the generator requirement:
-        if False:
-            yield {}
+        """
+        Processes a single conversation turn by streaming events from the LLM,
+        handling tool calls inline, and yielding standardized event dictionaries.
 
-        # Fallback to non-streaming logic for now
-        final_response, tool_results, is_final = await self.process_turn()
+        Yields:
+            Dict[str, Any]: Standardized event dictionaries for SSE.
+                            Includes text_delta, tool_use_start, tool_use_input_delta,
+                            tool_use_end, tool_result, tool_execution_error, stream_end.
+        """
+        self._tool_uses_this_turn = []
+        current_tool_call: Optional[Dict[str, Any]] = None
+        current_text_buffer = ""
+        current_message_id = None
+        
+        try:
+            logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
+            async for llm_chunk in self.llm.stream_message(
+                messages=self.messages,  # type: ignore[arg-type]
+                tools=self.tools,
+                system_prompt_override=self.system_prompt,
+                schema=self.config.config_validation_schema,  # Though schema less used in streaming
+                llm_config_override=self.llm_config_for_override,
+            ):
+                logger.debug(
+                    f"ATP: Received LLM chunk from stream: {llm_chunk}"
+                ) 
+                chunk_choice = llm_chunk.get("choices", [{}])[0]
+                delta = chunk_choice.get("delta", {})
+                
+                yield llm_chunk
+                
+                # Handle message start
+                if delta.get("role") == "assistant" and not current_text_buffer:
+                    current_message_id = llm_chunk.get("id")
+                    
+                # Handle content deltas
+                if content := delta.get("content"):
+                    current_text_buffer += content
+                    
+                # Handle tool calls
+                tool_calls = delta.get("tool_calls", [])
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        # New tool call starting
+                        if tool_call.get("id") and tool_call.get("function", {}).get("name"):
+                            current_tool_call = {
+                                "id": tool_call["id"],
+                                "name": tool_call["function"]["name"],
+                                "arguments": ""
+                            }
+                        
+                        # Accumulate tool arguments
+                        if args := tool_call.get("function", {}).get("arguments"):
+                            if current_tool_call:
+                                current_tool_call["arguments"] += args
 
-        yield {
-            "type": "full_response",
-            "data": {
-                "final_response": final_response.model_dump()
-                if final_response
-                else None,
-                "tool_results": tool_results,
-                "is_final": is_final,
-            },
-        }
+                # Handle completion, allow finish_reason to be stop for gemini
+                if chunk_choice.get("finish_reason") in ["tool_calls", "stop"] and current_tool_call:
+                    # Parse and execute tool
+                    try:
+                        tool_id = current_tool_call.get("id")
+                        tool_name = current_tool_call.get("name")
+                        tool_input_str = current_tool_call.get("arguments", "")
+                        logger.debug(
+                            f"Executing tool '{tool_name}' (ID: {tool_id}) from stream with input: {tool_input_str}"
+                        )
+                        
+                        yield {
+                            "internal": True,
+                            "type": "tool_complete",
+                            "tool_id": tool_id,
+                            "name": tool_name,
+                            "arguments": tool_input_str,
+                            "message_id": current_message_id,
+                        }
+                        
+                        if tool_name:
+                            current_tool_calls = [
+                                ChatCompletionMessageToolCall(
+                                    id=tool_id,
+                                    function = Function(
+                                        arguments=tool_input_str,
+                                        name=tool_name
+                                    ),
+                                    type="function"
+                                )
+                            ]
+                            
+                            tool_results_for_next_turn = await self._process_tool_calls(current_tool_calls)
+                            
+                            if tool_results_for_next_turn:
+                                serializable_output = tool_results_for_next_turn[0].get("content")
+                                
+                                yield {
+                                    "role": "tool",
+                                    "tool_call_id": current_tool_call["id"],
+                                    "content": serializable_output,
+                                }
+                                yield {
+                                    "internal": True,
+                                    "type": "tool_result",
+                                    "tool_id": current_tool_call["id"],
+                                    "result": serializable_output,
+                                    "status": "success"
+                                }
+                            else:
+                                yield {
+                                    "internal": True,
+                                    "type": "tool_result",
+                                    "tool_id": current_tool_call["id"],
+                                    "error": "Error executing tool.",
+                                    "status": "error"
+                                }
+                        else:
+                            logger.error(
+                                f"Tool name missing for tool use event. Tool ID: {tool_id}"
+                            )
+                            yield {
+                                "internal": True,
+                                "type": "tool_result",
+                                "tool_id": current_tool_call["id"],
+                                "error": "LLM did not provide a tool name for a tool_use block.",
+                                "status": "error"
+                            }
+                                                
+                    except Exception as e:
+                        yield {
+                            "internal": True,
+                            "type": "tool_result",
+                            "tool_id": current_tool_call["id"],
+                            "error": str(e),
+                            "status": "error"
+                        }
+                    current_tool_call = None
+
+                # Handle final completion
+                if chunk_choice.get("finish_reason") in ["stop", "length"]:
+                    yield {
+                        "internal": True,
+                        "type": "message_complete",
+                        "content": current_text_buffer,
+                        "stop_reason": chunk_choice.get("finish_reason"),
+                        "message_id": current_message_id,
+                    }
+                    break
+
+        except Exception as e:
+            yield {
+                "type": "error",
+                "error": str(e)
+            }
+        finally:
+            logger.debug("Finished streaming conversation turn.")
 
     async def _process_tool_calls(
-        self, llm_response: ChatCompletionMessage
+        self, tool_calls: Optional[List[ChatCompletionMessageToolCall]]
     ) -> List[Dict[str, Any]]:
         tool_results_for_next_turn: List[Dict[str, Any]] = []
-        if not llm_response.tool_calls:
+        if not tool_calls:
             return tool_results_for_next_turn
 
-        self._tool_uses_this_turn = llm_response.tool_calls
+        self._tool_uses_this_turn = tool_calls
 
-        for tool_call in llm_response.tool_calls:
+        for tool_call in tool_calls:
             tool_name = tool_call.function.name
             tool_input = {}
             try:

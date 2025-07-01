@@ -5,10 +5,11 @@ Manages the multi-turn conversation loop for an Agent.
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from openai.types.chat import ChatCompletionMessage
+from openai.types.chat import ChatCompletionMessage, ChatCompletionAssistantMessageParam, ChatCompletionToolMessageParam, ChatCompletionMessageToolCallParam
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
+from openai.types.chat.chat_completion_message_tool_call_param import Function
 
 from ...config.config_models import AgentConfig, LLMConfig
 from ...host.host import MCPHost
@@ -122,8 +123,8 @@ class Agent:
         max_iterations = self.config.max_iterations or 10
 
         for current_iteration in range(max_iterations):
-            logger.debug(f"Starting conversation turn {current_iteration + 1}")
-
+            logger.debug(f"Starting conversation turn {current_iteration + 1}")            
+            
             turn_processor = AgentTurnProcessor(
                 config=self.config,
                 llm_client=self.llm,
@@ -133,42 +134,76 @@ class Agent:
                 effective_system_prompt=effective_system_prompt,
                 llm_config_for_override=self.llm_config_for_override,
             )
-
+            
+            # Process the turn
+            is_tool_turn = False
+            tool_results = []
+            
             try:
-                # The refactored turn processor yields a single event for now.
                 async for event in turn_processor.stream_turn_response():
-                    yield event  # Forward the event from the turn processor
+                    # Pass through the event
+                    if not event.get("internal"):
+                        yield event
+                    else:
+                        event_type = event["type"]
+                        
+                        match event_type:
+                            case "tool_complete":
+                                is_tool_turn = True
+                        
+                                message = ChatCompletionAssistantMessageParam(
+                                    role="assistant",
+                                    tool_calls=[ChatCompletionMessageToolCallParam(
+                                        id=event.get("tool_id"),
+                                        function=Function(
+                                            name=event.get("name"),
+                                            arguments=event.get("arguments"),
+                                        ),
+                                        type="function",
+                                    )],
+                                )
+                                
+                                self.conversation_history.append(message)
+                            case "message_complete":
+                                message = ChatCompletionAssistantMessageParam(
+                                    role="assistant",
+                                    content=[{
+                                        "type": "text",
+                                        "text": event.get("content")
+                                    }],
+                                )
+                                
+                                logger.info(f"Streaming message complete: {event.get("content")}")
+                                
+                                self.conversation_history.append(message)
+                                
+                                # Store as final response if not a tool turn
+                                if not is_tool_turn:
+                                    self.final_response = message
+                                    return
+                            case "tool_result":
+                                tool_results.append(event)
+                            case _:
+                                raise ValueError(f"Unrecognized internal type while streaming: {event_type}")
 
-                    # Process the result of the turn
-                    data = event.get("data", {})
-                    tool_results = data.get("tool_results")
-                    is_final = data.get("is_final")
-
-                    # Add assistant response to history
-                    assistant_message = turn_processor.get_last_llm_response()
-                    if assistant_message:
-                        self.conversation_history.append(
-                            assistant_message.model_dump(exclude_none=True)
+                # Process tool results if any
+                if tool_results:
+                    for result in tool_results:
+                        tool_message = ChatCompletionToolMessageParam(
+                            role="tool",
+                            tool_call_id=result["tool_id"],
+                            content=result["result"] if result["status"] == "success" else result["error"],
                         )
-
-                    # Add tool results to history
-                    if tool_results:
-                        self.conversation_history.extend(tool_results)
-
-                    # If it's the final turn, stop the conversation.
-                    if is_final:
-                        logger.debug(
-                            "Final response received in stream. Ending conversation."
-                        )
-                        return
+                        self.conversation_history.append(tool_message)
 
             except Exception as e:
-                logger.error(
-                    f"Error in streaming conversation turn {current_iteration + 1}: {e}",
-                    exc_info=True,
-                )
-                yield {"type": "error", "data": {"message": str(e)}}
-                return
+                logger.error(f"Error in conversation turn {current_iteration}: {e}")
+                yield {
+                    "type": "error",
+                    "error": str(e),
+                    "turn": current_iteration
+                }
+                break
 
         logger.warning(
             f"Reached max iterations ({max_iterations}) in stream. Ending conversation."
