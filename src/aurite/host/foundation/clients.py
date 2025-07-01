@@ -108,15 +108,46 @@ class ClientManager:
                         "localhost", "host.docker.internal"
                     )
 
-                # Pre-flight check to see if the server is reachable
+                # Pre-flight check to see if the server is reachable and authenticatable
                 try:
+                    headers = {
+                        "Accept": "application/json, text/event-stream",
+                        "Content-Type": "application/json",
+                    }
                     async with httpx.AsyncClient() as client:
-                        await client.head(endpoint_url, timeout=5.0)
+                        # Use a POST request with a valid initialize request to mimic a
+                        # real MCP handshake.
+                        init_request = {
+                            "jsonrpc": "2.0",
+                            "method": "initialize",
+                            "id": 0,
+                            "params": {
+                                "protocolVersion": "2024-11-05",
+                                "clientInfo": {
+                                    "name": "aurite-pre-flight",
+                                    "version": "0.1.0",
+                                },
+                                "capabilities": {},
+                            },
+                        }
+                        response = await client.post(
+                            endpoint_url,
+                            headers=headers,
+                            json=init_request,
+                            timeout=5.0,
+                        )
+                        response.raise_for_status()  # Raise an exception for 4xx/5xx responses
                     logger.debug(
                         f"Pre-flight check for {client_id} at {endpoint_url} successful."
                     )
                 except httpx.ConnectError as e:
                     logger.error(f"Pre-flight check failed for client {client_id}: {e}")
+                    task_status.started(None)
+                    return
+                except httpx.HTTPStatusError as e:
+                    logger.error(
+                        f"Pre-flight check failed for client {client_id} with status {e.response.status_code}: {e.response.text}"
+                    )
                     task_status.started(None)
                     return
 

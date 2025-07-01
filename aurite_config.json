@@ -12,6 +12,13 @@
       "name": "planning_server",
       "server_path": "src/aurite/packaged/example_mcp_servers/planning_server.py",
       "capabilities": ["tools", "prompts", "resources"]
+    },
+    {
+      "name": "stock_analysis",
+      "transport_type": "http_stream",
+      "http_endpoint": "https://server.smithery.ai/@qubaomingg/stock-analysis-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+      "capabilities": ["tools"],
+      "timeout": 15.0
     }
   ],
   "llms": [
