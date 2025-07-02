@@ -6,6 +6,8 @@ This document provides details on the packaged email-related MCP servers availab
 
 This server provides tools to interact with the Gmail API, allowing agents to send, read, and manage emails.
 
+> **Disclaimer:**
+> The `gmail_server` described here is an open-source, community-maintained server and is **not** an official Google product or service. It runs locally on your machine and does **not** transmit your credentials to any third party. However, you should always exercise caution and protect your OAuth credentials and tokens, as they grant access to your Gmail account.
 **Configuration File**: `config/mcp_servers/email_servers.json`
 
 ### Authentication Setup (Manual Action Required)
