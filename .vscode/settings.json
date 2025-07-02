@@ -16,7 +16,7 @@
     "**/.venv/**": true,
     "notebook-venv/**": true,
     "**/*.egg-info/**": true,
-    "**/.mypy_cache/**": true
+    "**/.mypy_cache/**": true,
   },
 
   "ruff.lint.ignore": ["F841", "E722", "E402"],

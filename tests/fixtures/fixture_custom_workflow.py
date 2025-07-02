@@ -1,5 +1,8 @@
 from aurite.execution.facade import ExecutionFacade
 from aurite.components.agents.agent_models import AgentRunResult
+from aurite.config.config_models import CustomWorkflowConfig
+from pathlib import Path
+import pytest
 
 
 class TestRefactoredAgentWorkflow:
@@ -33,3 +36,13 @@ class TestRefactoredAgentWorkflow:
                 }
         else:
             return {"status": "error", "message": agent_result.error_message}
+
+
+@pytest.fixture
+def example_workflow_config():
+    return CustomWorkflowConfig(
+        name="test_refactored_agent_workflow",
+        module_path=Path("tests/fixtures/fixture_custom_workflow.py"),
+        class_name="TestRefactoredAgentWorkflow",
+        description="A test workflow that runs an agent and checks the result.",
+    )
