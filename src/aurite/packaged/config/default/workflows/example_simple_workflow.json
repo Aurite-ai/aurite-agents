@@ -1,0 +1,10 @@
+[
+  {
+    "name": "test_weather_workflow",
+    "steps": [
+      "Weather Planning Workflow Step 1",
+      "Weather Planning Workflow Step 2"
+    ],
+    "description": "Example workflow to test simple workflow execution using agents in a sequence."
+  }
+]

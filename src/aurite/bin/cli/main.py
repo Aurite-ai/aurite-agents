@@ -69,83 +69,15 @@ def init(
         logger(f"Created project directory: {project_path}")
 
         default_project_config_name = "aurite_config.json"
-        copy_packaged_example(
-            f"component_configs/projects/{default_project_config_name}",
-            project_path,
-        )
-
+        
         # 3. Create recommended subdirectories
-        subdirectories_to_create = [
-            project_path / "config" / "agents",
-            project_path / "config" / "llms",
-            project_path / "config" / "mcp_servers",
-            project_path / "config" / "workflows",
-            project_path / "config" / "custom_workflows",
-            project_path / "config" / "testing",
-            project_path / "mcp_servers",
-            project_path / "custom_workflows",
-        ]
-        for subdir in subdirectories_to_create:
-            subdir.mkdir(parents=True, exist_ok=True)
-        logger(
-            "Created standard subdirectories: config/, mcp_servers/, custom_workflows/"
-        )
-
-        # 4. Optionally, copy basic example files
-        logger("Copying example configuration files...")
-        copy_packaged_example(
-            "component_configs/llms/llms.json",
-            project_path / "config" / "llms",
-        )
-        copy_packaged_example(
-            "component_configs/mcp_servers/mcp_servers.json",
-            project_path / "config" / "mcp_servers",
-        )
-        copy_packaged_example(
-            "component_configs/agents/agents.json",
-            project_path / "config" / "agents",
-        )
-
-        copy_packaged_example(
-            "component_configs/custom_workflows/custom_workflows.json",
-            project_path / "config" / "custom_workflows",
-        )
-        # Copy the __init__.py to make the custom workflows directory a package
-        copy_packaged_example(
-            "custom_workflows/__init__.py",
-            project_path / "custom_workflows",
-        )
-
-        copy_packaged_example(
-            "testing/planning_agent_test.json",
-            project_path / "config" / "testing",
-        )
-        logger("Copying example workflow and MCP server...")
-        copy_packaged_example(
-            "custom_workflows/example_workflow.py",  # Corrected source path
-            project_path / "custom_workflows",  # Corrected destination path
-        )
-        copy_packaged_example(
-            "mcp_servers/weather_mcp_server.py",
-            project_path / "mcp_servers",
-        )
-
-        copy_packaged_example(
-            "mcp_servers/planning_server.py",
-            project_path / "mcp_servers",
-        )
-
-        copy_packaged_example(
-            "run_example_project.py", project_path,
-        )
-
-        # Create .env.example file
-        env_example_content = (
-            "OPENAI_API_KEY=\n" "SMITHERY_API_KEY=\n" "SMITHERY_PROFILE_ID=\n" "API_KEY=my_custom_key\n" "PROJECT_CONFIG_PATH=aurite_config.json\n"
-        )
-        env_example_path = project_path / ".." / ".env.example"
-        env_example_path.write_text(env_example_content)
-        logger("  Created example environment file: .env.example")
+        logger("Copying example config files...")
+        copy_packaged_example(f"config/projects/{default_project_config_name}", project_path)
+        copy_packaged_example("config", project_path)
+        copy_packaged_example("mcp_servers", project_path)
+        copy_packaged_example("custom_workflows", project_path)
+        copy_packaged_example("run_example_project.py", project_path)
+        copy_packaged_example(".env.example", project_path / "..")
 
         logger(f"\nProject '{project_path.name}' initialized successfully!")
         logger("\nNext steps:")

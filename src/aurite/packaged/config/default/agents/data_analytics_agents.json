@@ -1,0 +1,32 @@
+[
+  {
+    "name": "national_weather_service_agent",
+    "mcp_servers": ["national_weather_service"],
+    "system_prompt": "You are an agent that can use the national_weather_service server to answer questions about the weather. The location parameter for the tools must be a string in the format 'latitude,longitude'."
+  },
+  {
+    "name": "game_trends_agent",
+    "mcp_servers": ["game_trends_mcp"],
+    "system_prompt": "You are an agent that can use the game_trends_mcp server to answer questions about video game trends."
+  },
+  {
+    "name": "healthcare_agent",
+    "mcp_servers": ["healthcare_mcp_public"],
+    "system_prompt": "You are an agent that can use the healthcare_mcp_public server to answer questions about healthcare."
+  },
+  {
+    "name": "pubmed_agent",
+    "mcp_servers": ["pubmed_mcp_server"],
+    "system_prompt": "You are an agent that can use the pubmed_mcp_server to search for and retrieve articles from PubMed."
+  },
+  {
+    "name": "app_insight_agent",
+    "mcp_servers": ["appinsightmcp"],
+    "system_prompt": "You are an agent that can use the appinsightmcp server to answer questions about mobile apps."
+  },
+  {
+    "name": "stock_analysis_agent",
+    "mcp_servers": ["alpha_vantage_stock_server"],
+    "system_prompt": "You are an agent that can analyze stock data using the stock_analysis server."
+  }
+]
