@@ -24,8 +24,8 @@ Key responsibilities include:
 | `src/config/component_manager.py`     | `ComponentManager`       | Manages loading/storage of default component configs (clients, agents, LLMs, etc.). | Used by ProjectManager.                                                                              |
 | `src/config/config_models.py`         | Config Models            | Pydantic models for all configurations (Project, Client, Agent, LLM, Workflow etc.) | Defines structure for JSON configs (formerly `src/host/models.py`). `AgentConfig.config_validation_schema`. |
 | `src/config/config_utils.py`          | utils                    | Configuration loading utilities.                                                    | Handles JSON loading, path resolution.                                                               |
-| `src/execution/facade.py`             | `ExecutionFacade`        | Unified execution interface, LLM client caching & shutdown (`aclose`)               | Delegates to executors, passes StorageManager to Agent, manages LLM client lifecycle                 |
-| `src/agents/agent.py`                 | `Agent`                  | Core LLM interaction loop, tool use, filtering, history (opt.)                      | Interacts with Host & Storage (opt.), stores full `AgentOutputMessage` for assistant turns.        |
+| `src/execution/facade.py`             | `ExecutionFacade`        | Unified execution interface, LLM client caching & shutdown (`aclose`)               | Delegates to executors, passes base LLMConfig and StorageManager to Agent.                           |
+| `src/agents/agent.py`                 | `Agent`                  | Core LLM interaction loop, tool use, history, LLM config resolution.                | Resolves final LLM config, creates `LiteLLMClient`, returns structured `AgentRunResult`.             |
 | `src/workflows/simple_workflow.py`    | `SimpleWorkflowExecutor` | Executes sequential agent steps                                                     | Uses Facade/Agent instances                                                                          |
 | `src/workflows/custom_workflow.py`    | `CustomWorkflowExecutor` | Dynamically loads and executes custom Python workflows                              | Uses Facade instance                                                                                 |
 | `src/storage/db_manager.py`           | `StorageManager`         | Handles DB interactions (config sync, history load/save)                            | Optional component, initialized by HostManager                                                       |
@@ -48,11 +48,11 @@ This layer orchestrates the core agentic capabilities of the framework.
 *   **Registration:** The `HostManager` provides methods (`register_client`, `register_agent`, etc.) for dynamic registration. When a component like an Agent is registered, the `HostManager` will automatically perform Just-in-Time (JIT) registration for its dependencies (e.g., any `mcp_servers` listed in the `AgentConfig`). It looks up the dependency in the `ComponentManager`'s store of packaged components and registers it if it's not already active. This allows users to reference packaged components by name without needing a project file. These changes are then reflected in the active project config and optionally synced to the database.
 *   **Execution:** Entrypoints use `HostManager.execution` (`ExecutionFacade`).
     *   `ExecutionFacade` looks up component configs from its `_current_project` attribute (the active `ProjectConfig`).
-    *   It manages a cache of LLM clients (`_llm_client_cache`) to reuse instances based on `LLMConfig.llm_id`. All LLM clients are instances of `LiteLLMClient`. If an `AgentConfig` has no `llm_config_id`, a temporary, non-cached client is created using agent-specific LLM parameters or defaults.
-    *   It instantiates the appropriate executor (`Agent`, `SimpleWorkflowExecutor`, `CustomWorkflowExecutor`).
-    *   It calls the execution method (`run_conversation` for `Agent`, `execute` for workflows).
-    *   Crucially, when instantiating `Agent`, the `ExecutionFacade` passes the resolved `LLMClient` and the `StorageManager` instance (if available).
-    *   The `Agent` checks its `config.include_history` flag and uses the passed `StorageManager` to load/save conversation history.
+    *   It resolves the base `LLMConfig` for an agent run, but no longer manages LLM client instances directly.
+    *   It instantiates the `Agent`, passing the `AgentConfig`, the base `LLMConfig`, the `MCPHost`, and the optional `StorageManager`.
+    *   The `Agent` is now responsible for resolving its final `LLMConfig` by overriding the base config with its own specific settings. It then instantiates its own `LiteLLMClient`.
+    *   The `Agent.run_conversation` method is called, which now returns a structured `AgentRunResult` object containing the status, final response, full history, and any errors.
+    *   The `Agent` still checks its `config.include_history` flag and uses the passed `StorageManager` to load/save conversation history.
 *   **Configuration Loading:** `ProjectManager` and `ComponentManager` (in `src/config/`) handle parsing/validation of JSON configs into Pydantic models (`config_models.py`), resolving paths, and managing default vs. project-specific components.
 *   **Shutdown:** `HostManager.shutdown` calls `ExecutionFacade.aclose()` to close cached LLM clients, then shuts down the `MCPHost` (which closes its MCP client sessions), and disposes of the database engine if it was created.
 
@@ -79,17 +79,16 @@ This layer orchestrates the core agentic capabilities of the framework.
 *   **`execution/facade.py` (`ExecutionFacade`):**
     *   Provides unified API (`run_agent`, `run_simple_workflow`, `run_custom_workflow`, `stream_agent_run`).
     *   Holds references to `MCPHost`, the active `ProjectConfig`, and optional `StorageManager`.
-    *   Manages a cache for `BaseLLM` clients (`_llm_client_cache`) identified by `LLMConfig.llm_id`. Creates temporary clients if no `llm_config_id` is provided in `AgentConfig`.
-    *   Has an `aclose()` method to shut down all cached LLM clients.
-    *   Instantiates appropriate executors.
-    *   Passes `StorageManager` instance and resolved `LLMClient` to `Agent`.
+    *   Resolves the base `LLMConfig` to be used for an agent run. It no longer caches or directly manages LLM client instances.
+    *   Instantiates the `Agent`, passing it the necessary configs and managers.
 *   **`agents/agent.py` (`Agent`):**
-    *   Manages core LLM interaction loop.
-    *   Stores full `AgentOutputMessage` objects for assistant turns in its `conversation_history` list to preserve all metadata (id, model, usage). Other message types (user, tool_result) are stored as `MessageParam` dicts.
+    *   Resolves its final `LLMConfig` by merging its specific `llm` settings over the base config provided by the `ExecutionFacade`.
+    *   Instantiates its own `LiteLLMClient` for the duration of its run.
+    *   Manages the core multi-turn conversation loop.
+    *   The `conversation_history` is now stored as a list of dictionaries conforming to the `openai` message format, simplifying data handling.
+    *   The `run_conversation` method returns a detailed `AgentRunResult` object, which includes the run status, final response, full history, and any error messages.
     *   Handles `tool_use` via `MCPHost`.
-    *   Applies filtering via `MCPHost`.
     *   If `config.include_history` is true and a `StorageManager` is provided, loads previous history and saves the full history after execution.
-    *   **Streaming SSE Indexing:** When streaming agent responses, the `Agent` (via `AgentTurnProcessor`) now primarily passes through the LLM provider's original content block indices for Server-Sent Events. This simplifies backend logic compared to previous custom index mapping.
 *   **`workflows/simple_workflow.py` (`SimpleWorkflowExecutor`):**
     *   Executes a sequence of agents defined in `WorkflowConfig`.
     *   Uses `ExecutionFacade` to run each agent step.
@@ -143,8 +142,8 @@ This layer orchestrates the core agentic capabilities of the framework.
 | **ExecutionFacade: `run_simple_workflow`**         | `facade.py`, `simple_workflow.py`, `agent.py`                                    | `tests/orchestration/facade/test_facade_integration.py` (Integration), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good.** |
 | **ExecutionFacade: `run_custom_workflow`**         | `facade.py`, `custom_workflow.py`                                                | `tests/orchestration/facade/test_facade_integration.py` (Integration - xfail for event loop), `tests/orchestration/facade/test_facade_unit.py` (Unit). **Coverage: Good (Unit), Fair (Integration - xfail).** |
 | **ExecutionFacade: Error Handling**                | `facade.py`                                                                      | `tests/orchestration/facade/test_facade_integration.py` (Integration - Not Found), `tests/orchestration/facade/test_facade_unit.py` (Unit - Not Found, Setup Error, Exec Error). **Coverage: Good.** |
-| **Agent: Execution Loop & Tool Use**               | `agent.py`                                                                       | `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks LLM/Host). **Coverage: Good.** |
-| **Agent: History Storage (Full Messages)**         | `agent.py`                                                                       | `tests/orchestration/agent/test_agent_unit.py` (Unit - verifies history content). **Coverage: Good.** |
+| **Agent: Execution Loop & Tool Use**               | `agent.py`, `agent_turn_processor.py`                                            | `tests/integration/agent/test_agent_integration.py` (Integration - mocks LLM/Host, verifies full multi-turn loop). `tests/integration/agent/test_agent_turn_processor.py` (Integration - verifies single turn logic). **Coverage: Excellent.** |
+| **Agent: History Storage (Standardized)**          | `agent.py`                                                                       | `tests/integration/agent/test_agent_integration.py` (Integration - verifies structure of all messages in history). **Coverage: Good.** |
 | **Agent: History Load/Save (DB)**                  | `agent.py`, `db_manager.py`                                                      | `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks StorageManager). **Coverage: Good (Unit).** Integration depends on Facade tests. |
 | **Agent: Filtering (`client_ids`, `exclude`)**     | `agent.py`, `host.py` (filtering logic)                                          | `tests/orchestration/agent/test_agent_unit.py` (Unit - mocks Host). **Coverage: Good (Unit).** Integration depends on Facade/E2E tests. |
 | **SimpleWorkflowExecutor: Sequential Execution**   | `simple_workflow.py`                                                             | `tests/orchestration/workflow/test_simple_workflow_executor_unit.py` (Unit). Integration via Facade tests. **Coverage: Good.** |

@@ -36,9 +36,7 @@ An Agent configuration is a JSON object with the following fields:
 | `llm_config_id`            | string               | `null`  | The `llm_id` of an `LLMConfig` to use for this agent. This determines the base LLM provider, model, and default parameters.                                                                                |
 | `system_prompt`            | string               | `null`  | A specific system prompt for this agent. This overrides the `default_system_prompt` from the referenced `LLMConfig`. If `null`, the `default_system_prompt` from `LLMConfig` is used.                      |
 | `config_validation_schema` | object (JSON Schema) | `null`  | An optional JSON schema. If provided, the agent's final text response (if it's expected to be JSON) will be validated against this schema. If validation fails, the agent may be prompted to correct its response. |
-| `model`                    | string               | `null`  | Overrides the `model_name` from the referenced `LLMConfig` for this specific agent.                                                                                                                       |
-| `temperature`              | number               | `null`  | Overrides the `temperature` from the referenced `LLMConfig` for this specific agent.                                                                                                                      |
-| `max_tokens`               | integer              | `null`  | Overrides the `max_tokens` from the referenced `LLMConfig` for this specific agent.                                                                                                                       |
+| `llm`                      | object (LLMConfig)   | `null`  | An inline `LLMConfig` object. Any fields set here (`model`, `temperature`, `max_tokens`, etc.) will override the settings from the base `LLMConfig` specified by `llm_config_id`. This is the preferred way to specify agent-specific LLM settings. |
 | `max_iterations`           | integer              | `null`  | The maximum number of conversation turns (LLM calls and tool executions) the agent will perform before stopping. If `null`, a default (e.g., 10) is used.                                                 |
 | `include_history`          | boolean              | `null`  | If `true`, the entire conversation history is provided to the LLM on each turn. If `false`, only the most recent user message (and potentially tool results) might be sent. Behavior can depend on LLM client implementation. If `null`, defaults to`false`. |
 | `exclude_components`       | array of string      | `null`  | A list of specific component names (tools, prompts, or resources) that this agent should NOT be able to use, even if they are provided by the servers listed in `mcp_servers`. This allows for fine-grained control over an agent's capabilities. |
@@ -49,8 +47,10 @@ An Agent configuration is a JSON object with the following fields:
 ### LLM Configuration and Overrides
 
 -   Agents select their primary LLM settings (provider, base model, default temperature, etc.) by referencing an `LLMConfig` via `llm_config_id`.
--   Specific LLM parameters like `model`, `temperature`, and `max_tokens` can be overridden directly in the `AgentConfig` for fine-tuning that particular agent's LLM interaction.
--   The `system_prompt` in `AgentConfig` always takes precedence over the `default_system_prompt` in the associated `LLMConfig`.
+-   An agent's `LLMConfig` is resolved in two steps:
+    1.  The base configuration is loaded via `llm_config_id`.
+    2.  Any parameters defined in the agent's own `llm` object are used to override the base configuration.
+-   This allows for defining a few base LLM configurations (e.g., for different providers) and then fine-tuning specific agents by providing an inline `llm` object with just the parameters you want to change (e.g., a different `system_prompt`, a higher `temperature`, etc.).
 
 ### MCP Server and Tool Access
 
@@ -69,6 +69,48 @@ An Agent configuration is a JSON object with the following fields:
 
 -   **`config_validation_schema`**: If an agent is expected to produce structured JSON output, providing a JSON schema here enables automatic validation of its text responses. If validation fails, the agent can be internally reprompted to correct its output.
 
+## Agent Execution and Results
+
+When an agent is run via the `ExecutionFacade`, it returns a structured `AgentRunResult` object. This object provides detailed information about the outcome of the conversation.
+
+| `AgentRunResult` Field    | Type                               | Description                                                                                                                                  |
+| ------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`                  | string                             | The final status of the run. Can be `"success"`, `"error"`, or `"max_iterations_reached"`.                                                     |
+| `final_response`          | `ChatCompletionMessage` or `null`  | The final message from the assistant if the run was successful. This is an `openai` Pydantic model.                                            |
+| `conversation_history`    | list of dict                       | The complete conversation history, with each message represented as a dictionary conforming to the `openai` message format.                      |
+| `error_message`           | string or `null`                   | A detailed error message if the `status` is `"error"`.                                                                                       |
+| `tool_uses_in_last_turn`  | list of `ToolCall` or `null`       | A list of the tools the agent used in its final turn before responding.                                                                      |
+
+### Handling the Result
+
+```python
+# Example of how to run an agent and handle the result
+# This code would typically be in a custom workflow or API endpoint.
+
+from aurite.execution.facade import ExecutionFacade
+from aurite.components.agents.agent_models import AgentRunResult
+
+async def run_my_agent(facade: ExecutionFacade):
+    result: AgentRunResult = await facade.run_agent(
+        agent_id="MyAgentName",
+        initial_message="What is the weather in Boston?"
+    )
+
+    if result.status == "success" and result.final_response:
+        print(f"Agent finished successfully!")
+        print(f"Final Response: {result.final_response.content}")
+    elif result.status == "error":
+        print(f"Agent encountered an error: {result.error_message}")
+    elif result.status == "max_iterations_reached":
+        print("Agent stopped after reaching max iterations.")
+
+    # You can always inspect the full history
+    print("\n--- Conversation History ---")
+    for message in result.conversation_history:
+        print(f"- Role: {message.get('role')}, Content: {message.get('content')}")
+
+```
+
 ## Example AgentConfig
 
 Agent configurations are typically stored in JSON files (e.g., `config/agents/my_agent.json`) and referenced by name in the main project configuration or by workflows.
@@ -78,12 +120,14 @@ Agent configurations are typically stored in JSON files (e.g., `config/agents/my
   "name": "SmartTaskAutomatorAgent",
   "llm_config_id": "anthropic_claude_3_opus",
   "mcp_servers": ["email_client", "calendar_client", "database_client", "file_system_client"],
-  "auto": true, // Enable dynamic tool selection
-  "system_prompt": "You are an intelligent assistant that automates tasks by selecting and using the best tools for the job. Analyze the user's request and the available tools to achieve the goal.",
-  "temperature": 0.6,
-  "max_iterations": 8,
+  "auto": true,
   "include_history": true,
-  "exclude_components": ["database_admin_tool"] // Never allow this specific tool
+  "exclude_components": ["database_admin_tool"],
+  "llm": {
+    "system_prompt": "You are an intelligent assistant that automates tasks by selecting and using the best tools for the job. Analyze the user's request and the available tools to achieve the goal.",
+    "temperature": 0.6,
+    "max_iterations": 8
+  }
 }
 ```
 

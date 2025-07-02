@@ -23,9 +23,9 @@ The framework follows a layered architecture:
 *   **Layer 2.5: Execution Facade & Executors:** This sub-layer is responsible for the actual execution of agentic components.
     *   The **`ExecutionFacade`** (`src/aurite/execution/facade.py`) provides a unified and simplified interface (`run_agent`, `stream_agent_run`, `run_simple_workflow`, `run_custom_workflow`) for Layer 1 entrypoints to execute any configured component.
     *   It looks up component configurations from the active project (managed by `ProjectManager`).
-    *   It manages a cache of LLM client instances to optimize resource usage and provides an `aclose()` method for their graceful shutdown.
+    *   It resolves the base `LLMConfig` for a run but no longer manages a cache of LLM clients directly.
     *   It instantiates and delegates tasks to specific **Executors**:
-        *   **`Agent`** (`src/aurite/components/agents/agent.py`): Handles the core LLM interaction loop, tool use (via `MCPHost`), filtering, and optionally manages conversation history with the `StorageManager`.
+        *   **`Agent`** (`src/aurite/components/agents/agent.py`): Resolves its final LLM configuration, creates its own `LiteLLMClient`, handles the core interaction loop, and returns a structured `AgentRunResult`. It also manages tool use (via `MCPHost`) and optionally handles conversation history with the `StorageManager`.
         *   **`SimpleWorkflowExecutor`** (`src/aurite/components/workflows/simple_workflow.py`): Executes a defined sequence of agents or other workflows.
         *   **`CustomWorkflowExecutor`** (`src/aurite/components/workflows/custom_workflow.py`): Dynamically loads and executes user-defined Python classes for complex orchestration logic.
     *   The `ExecutionFacade` also passes the `StorageManager` instance (if available) to the `Agent` during its instantiation, enabling history persistence.
