@@ -19,6 +19,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import Function
 from ...config.config_models import AgentConfig, LLMConfig
 from ...host.host import MCPHost
 from ..llm.providers.litellm_client import LiteLLMClient
+from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
 
 logger = logging.getLogger(__name__)
@@ -64,10 +65,14 @@ class Agent:
             f"Agent '{self.config.name or 'Unnamed'}' initialized with resolved LLM config: {self.resolved_llm_config.model_dump_json(indent=2)}"
         )
 
-    async def run_conversation(self) -> Optional[ChatCompletionMessage]:
+    async def run_conversation(self) -> AgentRunResult:
         """
         Runs the agent's conversation loop until a final response is generated
         or the max iteration limit is reached.
+
+        Returns:
+            AgentRunResult: An object containing the final status, response,
+                            history, and any errors.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
@@ -82,7 +87,6 @@ class Agent:
                 host_instance=self.host,
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
-                # The effective system prompt is now part of the resolved config
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,
             )
 
@@ -93,12 +97,14 @@ class Agent:
                     is_final_turn,
                 ) = await turn_processor.process_turn()
 
+                # Always append the assistant's attempt to the history
                 assistant_message = turn_processor.get_last_llm_response()
                 if assistant_message:
                     self.conversation_history.append(
                         assistant_message.model_dump(exclude_none=True)
                     )
 
+                # Append tool results if any were generated
                 if tool_results_for_next_turn:
                     self.conversation_history.extend(tool_results_for_next_turn)
                     self.tool_uses_in_last_turn = (
@@ -108,18 +114,30 @@ class Agent:
                 if is_final_turn:
                     self.final_response = final_response_this_turn
                     logger.debug("Final response received. Ending conversation.")
-                    return self.final_response
+                    return AgentRunResult(
+                        status="success",
+                        final_response=self.final_response,
+                        conversation_history=self.conversation_history,
+                        error_message=None,
+                    )
 
             except Exception as e:
-                logger.error(
-                    f"Error during conversation turn {current_iteration + 1}: {e}"
+                error_message = f"Error during conversation turn {current_iteration + 1}: {type(e).__name__}: {e}"
+                logger.error(error_message, exc_info=True)
+                return AgentRunResult(
+                    status="error",
+                    final_response=None,
+                    conversation_history=self.conversation_history,
+                    error_message=error_message,
                 )
-                # In case of an error, we might want to return a custom error message
-                # For now, we'll just end the conversation.
-                return None
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
-        return self.final_response
+        return AgentRunResult(
+            status="max_iterations_reached",
+            final_response=self.final_response,  # Could be None if no response was ever generated
+            conversation_history=self.conversation_history,
+            error_message=f"Agent stopped after reaching the maximum of {max_iterations} iterations.",
+        )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
         """

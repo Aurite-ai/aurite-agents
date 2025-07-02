@@ -6,10 +6,10 @@ import logging
 from typing import Any, Dict, Optional, List, AsyncGenerator
 
 from termcolor import colored
-from openai.types.chat import ChatCompletionMessage
 
 from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..components.agents.agent import Agent
+from ..components.agents.agent_models import AgentRunResult
 from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
 from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
@@ -157,7 +157,7 @@ class ExecutionFacade:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> Optional[ChatCompletionMessage]:
+    ) -> AgentRunResult:
         try:
             agent_instance = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, session_id
@@ -170,15 +170,16 @@ class ExecutionFacade:
                     attrs=["bold"],
                 )
             )
-            final_response = await agent_instance.run_conversation()
+            run_result = await agent_instance.run_conversation()
             logger.info(
                 colored(
-                    f"Facade: Agent '{agent_name}' conversation finished.",
+                    f"Facade: Agent '{agent_name}' conversation finished with status: {run_result.status}.",
                     "blue",
                     attrs=["bold"],
                 )
             )
 
+            # Save history regardless of the outcome, as it's valuable for debugging.
             if (
                 agent_instance.config.include_history
                 and self._storage_manager
@@ -188,10 +189,10 @@ class ExecutionFacade:
                     self._storage_manager.save_full_history(
                         agent_name=agent_name,
                         session_id=session_id,
-                        conversation=agent_instance.conversation_history,
+                        conversation=run_result.conversation_history,
                     )
                     logger.info(
-                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
+                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
                     )
                 except Exception as e:
                     logger.error(
@@ -199,11 +200,17 @@ class ExecutionFacade:
                         exc_info=True,
                     )
 
-            return final_response
+            return run_result
         except Exception as e:
-            error_msg = f"Unexpected error running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            error_msg = f"Unexpected error in ExecutionFacade while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return None
+            # Return a consistent error format
+            return AgentRunResult(
+                status="error",
+                final_response=None,
+                conversation_history=[],  # History might not be available if setup failed
+                error_message=error_msg,
+            )
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any

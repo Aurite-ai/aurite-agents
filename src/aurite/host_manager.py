@@ -31,7 +31,7 @@ from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
 from .storage.db_connection import create_db_engine
 from .storage.db_manager import StorageManager
-from openai.types.chat import ChatCompletionMessage
+from .components.agents.agent_models import AgentRunResult
 from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from termcolor import colored
 
@@ -248,7 +248,7 @@ class Aurite:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> Optional[ChatCompletionMessage]:
+    ) -> AgentRunResult:
         if not self.execution:
             raise RuntimeError("Aurite execution facade is not initialized.")
         return await self.execution.run_agent(

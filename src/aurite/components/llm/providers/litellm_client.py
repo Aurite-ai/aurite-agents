@@ -8,6 +8,7 @@ import json
 from typing import List, Optional, Dict, Any, AsyncGenerator
 
 import litellm
+import openai
 from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionChunk,
@@ -138,9 +139,22 @@ class LiteLLMClient:
         try:
             completion: Any = litellm.completion(**request_params)
             return completion.choices[0].message
+        except (
+            openai.APITimeoutError,
+            openai.RateLimitError,
+            openai.BadRequestError,
+            openai.AuthenticationError,
+            openai.APIConnectionError,
+        ) as e:
+            logger.error(
+                f"LiteLLM API call failed with specific error: {type(e).__name__}: {e}"
+            )
+            raise  # Re-raise the specific, informative exception
         except Exception as e:
-            logger.error(f"LiteLLM API call failed: {type(e).__name__}: {e}")
-            raise
+            logger.error(
+                f"An unexpected error occurred during LiteLLM API call: {type(e).__name__}: {e}"
+            )
+            raise  # Re-raise as a generic exception
 
     async def stream_message(
         self,
@@ -160,7 +174,20 @@ class LiteLLMClient:
             response_stream: Any = await litellm.acompletion(**request_params)
             async for chunk in response_stream:
                 yield chunk
+        except (
+            openai.APITimeoutError,
+            openai.RateLimitError,
+            openai.BadRequestError,
+            openai.AuthenticationError,
+            openai.APIConnectionError,
+        ) as e:
+            logger.error(
+                f"LiteLLM streaming call failed with specific error: {type(e).__name__}: {e}"
+            )
+            raise  # Re-raise the specific, informative exception
         except Exception as e:
-            logger.error(f"Error in LiteLLMClient.stream_message: {e}")
+            logger.error(
+                f"An unexpected error occurred during LiteLLM streaming call: {type(e).__name__}: {e}"
+            )
             # In case of an error, we might want to yield a specific error chunk or just raise
             raise
