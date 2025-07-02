@@ -65,7 +65,7 @@ class AgentTurnProcessor:
                 schema=self.config.config_validation_schema,
             )
         except Exception as e:
-            logger.error(f"LLM call failed within turn processor: {e}", exc_info=True)
+            logger.error(f"LLM call failed within turn processor: {e}")
             raise
 
         self._last_llm_response = llm_response
@@ -274,9 +274,7 @@ class AgentTurnProcessor:
                         args=tool_input,
                     )
                 except Exception as e:
-                    logger.error(
-                        f"Error executing tool {tool_name}: {e}", exc_info=True
-                    )
+                    logger.error(f"Error executing tool {tool_name}: {e}")
                     tool_result_content = (
                         f"Error executing tool '{tool_name}': {str(e)}"
                     )

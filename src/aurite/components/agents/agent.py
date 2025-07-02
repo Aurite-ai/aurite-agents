@@ -112,8 +112,7 @@ class Agent:
 
             except Exception as e:
                 logger.error(
-                    f"Error during conversation turn {current_iteration + 1}: {e}",
-                    exc_info=True,
+                    f"Error during conversation turn {current_iteration + 1}: {e}"
                 )
                 # In case of an error, we might want to return a custom error message
                 # For now, we'll just end the conversation.
