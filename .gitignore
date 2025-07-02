@@ -180,7 +180,7 @@ docs/plans/completed/**
 src/packaged_servers/plans/*
 config/testing/*_output.json
 docs/notebooks/01_Introducing_txtai.ipynb
-.env
+.env*
 .flaskenv*
 !.env.project
 !.env.vault
@@ -188,3 +188,4 @@ docs/.copilot/
 notebook-venv/
 docs/guides/
 docs/reports/newman/*
+!src/aurite/packaged/.env.example
