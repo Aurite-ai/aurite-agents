@@ -1,0 +1,7 @@
+[
+  {
+    "name": "gmail_agent",
+    "mcp_servers": ["gmail_server"],
+    "system_prompt": "You are a helpful assistant that can manage emails using the available tools. When asked to read or search for emails, summarize the results concisely."
+  }
+]

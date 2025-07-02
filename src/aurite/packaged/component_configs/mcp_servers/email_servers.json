@@ -1,0 +1,16 @@
+[
+  {
+    "name": "gmail_server",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@gongrzhe/server-gmail-autoauth-mcp",
+      "--key",
+      "{SMITHERY_API_KEY}"
+    ],
+    "capabilities": ["tools"],
+    "timeout": 20.0
+  }
+]
