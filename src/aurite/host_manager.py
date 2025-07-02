@@ -128,11 +128,18 @@ class Aurite:
             await self.host.__aenter__()
 
             if self.storage_manager:
+                # Convert lists to dictionaries before syncing with the database
+                agents_dict = {a.name: a for a in active_project.agents if a.name}
+                workflows_dict = {w.name: w for w in active_project.simple_workflows}
+                custom_workflows_dict = {
+                    cw.name: cw for cw in active_project.custom_workflows
+                }
+                llm_configs_dict = {llm.name: llm for llm in active_project.llms}
                 self.storage_manager.sync_all_configs(
-                    agents=active_project.agents,
-                    workflows=active_project.simple_workflows,
-                    custom_workflows=active_project.custom_workflows,
-                    llm_configs=active_project.llms,
+                    agents=agents_dict,
+                    workflows=workflows_dict,
+                    custom_workflows=custom_workflows_dict,
+                    llm_configs=llm_configs_dict,
                 )
 
             self.execution = ExecutionFacade(
@@ -236,11 +243,21 @@ class Aurite:
 
     def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
         active_project = self.project_manager.get_active_project_config()
-        return active_project.agents.get(agent_name) if active_project else None
+        if not active_project:
+            return None
+        for agent in active_project.agents:
+            if agent.name == agent_name:
+                return agent
+        return None
 
     def get_llm_config(self, llm_config_id: str) -> Optional[LLMConfig]:
         active_project = self.project_manager.get_active_project_config()
-        return active_project.llms.get(llm_config_id) if active_project else None
+        if not active_project:
+            return None
+        for llm_config in active_project.llms:
+            if llm_config.name == llm_config_id:
+                return llm_config
+        return None
 
     async def run_agent(
         self,

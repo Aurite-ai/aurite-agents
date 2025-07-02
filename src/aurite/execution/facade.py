@@ -56,9 +56,13 @@ class ExecutionFacade:
     ) -> Agent:
         if not self._current_project.agents:
             raise KeyError("Agent configurations not found in project.")
-        original_agent_config = self._current_project.agents.get(agent_name)
-        if not original_agent_config:
+
+        agent_config_list = [
+            a for a in self._current_project.agents if a.name == agent_name
+        ]
+        if not agent_config_list:
             raise KeyError(f"Agent configuration '{agent_name}' not found.")
+        original_agent_config = agent_config_list[0]
 
         agent_config_for_run = original_agent_config
 
@@ -94,13 +98,17 @@ class ExecutionFacade:
         # The Facade's role is to gather the necessary configs.
         if not agent_config_for_run.llm_config_id:
             raise ValueError(f"Agent '{agent_name}' must have an llm_config_id.")
-        base_llm_config = self._current_project.llms.get(
-            agent_config_for_run.llm_config_id
-        )
-        if not base_llm_config:
+
+        llm_config_list = [
+            llm_config
+            for llm_config in self._current_project.llms
+            if llm_config.name == agent_config_for_run.llm_config_id
+        ]
+        if not llm_config_list:
             raise ValueError(
                 f"LLM configuration '{agent_config_for_run.llm_config_id}' not found in project."
             )
+        base_llm_config = llm_config_list[0]
 
         initial_messages: List[Dict[str, Any]] = []
         if (
@@ -221,13 +229,21 @@ class ExecutionFacade:
         try:
             if not self._current_project.simple_workflows:
                 raise KeyError("No simple workflows found in the project.")
-            workflow_config = self._current_project.simple_workflows.get(workflow_name)
-            if not workflow_config:
-                raise KeyError(f"Simple Workflow '{workflow_name}' not found.")
 
+            workflow_config_list = [
+                w
+                for w in self._current_project.simple_workflows
+                if w.name == workflow_name
+            ]
+            if not workflow_config_list:
+                raise KeyError(f"Simple Workflow '{workflow_name}' not found.")
+            workflow_config = workflow_config_list[0]
+
+            # The executor now expects a dictionary of agents.
+            agents_dict = {a.name: a for a in self._current_project.agents if a.name}
             workflow_executor = SimpleWorkflowExecutor(
                 config=workflow_config,
-                agent_configs=self._current_project.agents,
+                agent_configs=agents_dict,
                 facade=self,
             )
 
@@ -266,9 +282,15 @@ class ExecutionFacade:
         try:
             if not self._current_project.custom_workflows:
                 raise KeyError("No custom workflows found in the project.")
-            workflow_config = self._current_project.custom_workflows.get(workflow_name)
-            if not workflow_config:
+
+            workflow_config_list = [
+                w
+                for w in self._current_project.custom_workflows
+                if w.name == workflow_name
+            ]
+            if not workflow_config_list:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+            workflow_config = workflow_config_list[0]
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
 
@@ -300,9 +322,15 @@ class ExecutionFacade:
         try:
             if not self._current_project.custom_workflows:
                 raise KeyError("No custom workflows found in the project.")
-            workflow_config = self._current_project.custom_workflows.get(workflow_name)
-            if not workflow_config:
+
+            workflow_config_list = [
+                w
+                for w in self._current_project.custom_workflows
+                if w.name == workflow_name
+            ]
+            if not workflow_config_list:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+            workflow_config = workflow_config_list[0]
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_input_type()
@@ -324,9 +352,15 @@ class ExecutionFacade:
         try:
             if not self._current_project.custom_workflows:
                 raise KeyError("No custom workflows found in the project.")
-            workflow_config = self._current_project.custom_workflows.get(workflow_name)
-            if not workflow_config:
+
+            workflow_config_list = [
+                w
+                for w in self._current_project.custom_workflows
+                if w.name == workflow_name
+            ]
+            if not workflow_config_list:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+            workflow_config = workflow_config_list[0]
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_output_type()

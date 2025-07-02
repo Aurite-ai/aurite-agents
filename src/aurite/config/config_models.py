@@ -329,23 +329,23 @@ class ProjectConfig(BaseModel):
     description: Optional[str] = Field(
         None, description="A brief description of the project."
     )
-    mcp_servers: Dict[str, ClientConfig] = Field(
-        default_factory=dict,
+    mcp_servers: List[ClientConfig] = Field(
+        default_factory=list,
         description="Defines MCP Servers available within this project.",
     )
-    llms: Dict[str, LLMConfig] = Field(  # Renamed from llm_configs
-        default_factory=dict,
+    llms: List[LLMConfig] = Field(
+        default_factory=list,
         description="LLM configurations available within this project.",
     )
-    agents: Dict[str, AgentConfig] = Field(
-        default_factory=dict,
+    agents: List[AgentConfig] = Field(
+        default_factory=list,
         description="Agents defined or referenced by this project.",
     )
-    simple_workflows: Dict[str, WorkflowConfig] = Field(
-        default_factory=dict,
+    simple_workflows: List[WorkflowConfig] = Field(
+        default_factory=list,
         description="Simple workflows defined or referenced by this project.",
     )
-    custom_workflows: Dict[str, CustomWorkflowConfig] = Field(
-        default_factory=dict,
+    custom_workflows: List[CustomWorkflowConfig] = Field(
+        default_factory=list,
         description="Custom workflows defined or referenced by this project.",
     )

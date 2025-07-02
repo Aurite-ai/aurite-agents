@@ -4,7 +4,7 @@ Executor for Simple Sequential Workflows.
 
 import logging
 import json
-from typing import Dict, Any, TYPE_CHECKING, Optional
+from typing import Dict, Any, TYPE_CHECKING
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
@@ -14,8 +14,7 @@ from ...config.config_models import (
     WorkflowComponent,
 )
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
-
-from openai.types.chat import ChatCompletionMessage
+from ..agents.agent_models import AgentRunResult
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
@@ -111,21 +110,33 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # run_agent now returns Optional[ChatCompletionMessage]
-                            agent_response: Optional[
-                                ChatCompletionMessage
-                            ] = await self.facade.run_agent(
-                                agent_name=component.name,
-                                user_message=str(current_message),
+                            # The facade's run_agent now returns a structured AgentRunResult
+                            agent_run_result: AgentRunResult = (
+                                await self.facade.run_agent(
+                                    agent_name=component.name,
+                                    user_message=str(current_message),
+                                )
                             )
 
-                            if agent_response is None:
+                            # Check the status of the agent run
+                            if agent_run_result.status != "success":
+                                error_detail = (
+                                    agent_run_result.error_message
+                                    or f"Agent finished with status: {agent_run_result.status}"
+                                )
                                 raise Exception(
-                                    f"Agent '{component.name}' failed to produce a response."
+                                    f"Agent '{component.name}' failed to execute successfully. Details: {error_detail}"
                                 )
 
-                            component_output = agent_response.model_dump()
-                            current_message = agent_response.content or ""
+                            if agent_run_result.final_response is None:
+                                raise Exception(
+                                    f"Agent '{component.name}' succeeded but produced no response."
+                                )
+
+                            # The output for the step is the full result object for better logging
+                            component_output = agent_run_result.model_dump()
+                            # The input for the next step is the agent's final text response
+                            current_message = agent_run_result.final_response.content
 
                         case "simple_workflow":
                             workflow_result = await self.facade.run_simple_workflow(
@@ -212,11 +223,17 @@ class SimpleWorkflowExecutor:
         project_config = self.facade.get_project_config()
 
         possible_types = []
-        if component_name in project_config.agents:
+        if any(agent.name == component_name for agent in project_config.agents):
             possible_types.append("agent")
-        if component_name in project_config.simple_workflows:
+        if any(
+            workflow.name == component_name
+            for workflow in project_config.simple_workflows
+        ):
             possible_types.append("simple_workflow")
-        if component_name in project_config.custom_workflows:
+        if any(
+            workflow.name == component_name
+            for workflow in project_config.custom_workflows
+        ):
             possible_types.append("custom_workflow")
 
         if len(possible_types) == 1:
