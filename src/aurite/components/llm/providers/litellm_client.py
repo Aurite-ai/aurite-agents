@@ -34,6 +34,9 @@ class LiteLLMClient:
             True  # Automatically drops unsupported params rather than throwing an error
         )
 
+        litellm_logger = logging.getLogger("LiteLLM")
+        litellm_logger.setLevel(logging.ERROR)
+
         # Handle provider-specific setup if necessary
         if self.config.provider == "gemini":
             if "GEMINI_API_KEY" not in os.environ and "GOOGLE_API_KEY" in os.environ:
@@ -136,9 +139,7 @@ class LiteLLMClient:
             completion: Any = litellm.completion(**request_params)
             return completion.choices[0].message
         except Exception as e:
-            logger.error(
-                f"LiteLLM API call failed: {type(e).__name__}: {e}", exc_info=True
-            )
+            logger.error(f"LiteLLM API call failed: {type(e).__name__}: {e}")
             raise
 
     async def stream_message(
@@ -160,6 +161,6 @@ class LiteLLMClient:
             async for chunk in response_stream:
                 yield chunk
         except Exception as e:
-            logger.error(f"Error in LiteLLMClient.stream_message: {e}", exc_info=True)
+            logger.error(f"Error in LiteLLMClient.stream_message: {e}")
             # In case of an error, we might want to yield a specific error chunk or just raise
             raise
