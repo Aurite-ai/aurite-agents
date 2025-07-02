@@ -24,12 +24,13 @@ The new architecture is composed of three distinct, loosely coupled services, or
 *   **Responsibility:** To be the single source of truth for discovering, loading, parsing, and providing access to raw configuration data. It does not understand component relationships or the runtime state; it only serves validated configuration dictionaries.
 *   **Key Features:**
     *   **Hierarchical Loading:** Searches for configuration files in a defined order of precedence (e.g., `~/.aurite/config` -> `PROJECT_ROOT/config`). This allows for global user defaults to be overridden by project-specific settings.
-    *   **Multi-Format Support:** Natively supports `.json` and `.yaml`/`.yml` files. The design will include a handler pattern to make adding new formats (e.g., TOML) straightforward.
-    *   **Source Abstraction:** The initial implementation will load from the local filesystem, but its interface will be designed to accommodate future sources, such as a cloud-based configuration registry, without impacting consumers.
-    *   **Schema Validation:** Performs Pydantic model validation on all loaded data. Any configuration served by this service is guaranteed to be structurally correct.
+    *   **Content-Driven Discovery:** The manager scans all `.json` and `.yaml` files in the source directories. It intelligently parses them to identify all defined components (e.g., `agents`, `llms`) regardless of the file they are in, allowing for both monolithic project files and modular, single-component files.
+    *   **Hybrid Caching:** To balance performance and dynamism, the manager caches parsed configurations in memory after the first read. Subsequent requests for components from the same file are served from the cache.
+    *   **Dynamic Reloading:** A feature flag, `AURITE_CONFIG_FORCE_REFRESH=true` (default), can be set. When true, the configuration index is rebuilt on every `get_config` call, ensuring the latest version is always used, which is ideal for development and rapid iteration. When false, the cache is used, providing maximum performance for production environments.
 *   **Proposed API:**
     *   `get_config(component_type: str, component_id: str) -> Dict[str, Any]`
     *   `list_configs(component_type: str) -> List[Dict[str, Any]]`
+    *   `refresh()`
 
 ### 2.2. The `HostService` (Existing `MCPHost`)
 
@@ -85,8 +86,8 @@ graph TD
     end
 
     subgraph Services
-        C(ConfigService)
-        D(HostService / MCPHost)
+        C(ConfigManager)
+        D(MCPHost)
     end
 
     A --> B

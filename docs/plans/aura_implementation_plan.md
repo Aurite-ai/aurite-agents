@@ -29,20 +29,25 @@
 
 This implementation is broken down into phases to ensure a logical and testable progression.
 
-### Phase 1: Build the `ConfigService`
+### Phase 1: Build the `ConfigManager`
 
-The foundation of the new architecture is the `ConfigService`. We will build this first as a self-contained unit.
+The foundation of the new architecture is the `ConfigManager`. We will build this first as a self-contained unit.
 
-1.  **Step 1.1: Create `src/aurite/config/service.py`**
-    *   **Action:** Create a new file for the `ConfigService`.
-    *   **Action:** Define the `ConfigService` class with a constructor that initializes its search paths (e.g., `~/.aurite/config`, project root).
-    *   **Action:** Implement the `_load_configs_from_path` private method, which will scan a directory for `.json` and `.yaml` files, parse them, and store them in an internal dictionary.
-    *   **Verification:** Create a unit test `tests/unit/config/test_config_service.py` that initializes the service and verifies it can find and parse sample config files from a temporary directory.
+1.  **Step 1.1: Create and Implement `ConfigManager`**
+    *   **Action:** Rename `src/aurite/config/service.py` to `src/aurite/config/config_manager.py`.
+    *   **Action:** Rename the class to `ConfigManager`.
+    *   **Action:** Implement the constructor to read the `AURITE_CONFIG_FORCE_REFRESH` environment variable (defaulting to `true`).
+    *   **Action:** Implement the `_initialize_sources` method to build the hierarchical list of configuration paths.
+    *   **Action:** Implement the `_build_component_index` method. This method will scan all files in the source paths.
+    *   **Action:** Implement the `_parse_and_index_file` helper. This method will parse each file and inspect its content to identify all components within (e.g., `llms`, `agents`), adding them to the `_component_index` dictionary. This supports both monolithic and modular files.
+    *   **Verification:** Create a unit test `tests/unit/config/test_config_manager.py` that verifies the hierarchical loading, content-driven discovery, and correct indexing of components from various file types and structures.
 
-2.  **Step 1.2: Implement `get_config` and `list_configs`**
-    *   **File(s):** `src/aurite/config/service.py`
-    *   **Action:** Implement the public methods `get_config(component_type, component_id)` and `list_configs(component_type)`. These methods will retrieve data from the service's internal store.
-    *   **Verification:** Add unit tests to `test_config_service.py` to verify that `get_config` returns the correct dictionary and `list_configs` returns the correct list of dictionaries for a given type.
+2.  **Step 1.2: Implement Caching and Public API**
+    *   **File(s):** `src/aurite/config/config_manager.py`
+    *   **Action:** Implement the public methods `get_config(component_type, component_id)` and `list_configs(component_type)`.
+    *   **Action:** The `get_config` method will incorporate the caching logic. If `AURITE_CONFIG_FORCE_REFRESH` is true, it will call `refresh()` before retrieving the config. Otherwise, it will serve from the in-memory index.
+    *   **Action:** Implement the `refresh()` method, which clears the internal index and re-runs the `_build_component_index` method.
+    *   **Verification:** Add unit tests to `test_config_manager.py` to verify the caching behavior and the `refresh` functionality.
 
 ### Phase 2: Decouple and Refactor Core Services
 
