@@ -19,27 +19,28 @@ def main_callback():
 logger = typer.echo  # Use typer.echo for CLI output
 
 
-def copy_packaged_example(
-    packaged_path_str: str, user_project_path: Path, filename: str
-):
-    """Helper to copy a packaged example file to the user's project."""
+def copy_packaged_example(packaged_path_str: str, user_project_path: Path):
+    """Helper to copy a packaged example file or directory to the user's project."""
     try:
-        # Access the packaged file using importlib.resources
+        # Access the packaged file or directory using importlib.resources
         # Assuming 'aurite.packaged' is the base for packaged resources
-        source_file_path = importlib.resources.files("aurite.packaged").joinpath(
-            packaged_path_str
-        )
+        source_path = importlib.resources.files("aurite.packaged").joinpath(packaged_path_str)
 
-        if source_file_path.is_file():
-            destination_path = user_project_path / filename
+        if source_path.is_file():
+            # If it's a file, copy it directly
+            destination_path = user_project_path / source_path.name
             destination_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(source_file_path), destination_path)
-            logger(f"  Copied example: {filename} to {destination_path.parent.name}/")
+            shutil.copy2(str(source_path), destination_path)
+            logger(f"  Copied example file: {source_path.name} to {destination_path.parent.name}/")
+        elif source_path.is_dir():
+            # If it's a directory, copy the entire directory
+            destination_path = user_project_path / source_path.name
+            shutil.copytree(str(source_path), destination_path, dirs_exist_ok=True)
+            logger(f"  Copied example directory: {source_path.name} to {user_project_path.name}/")
         else:
             logger(f"  Warning: Packaged example not found at {packaged_path_str}")
     except Exception as e:
-        logger(f"  Warning: Could not copy example {filename}: {e}")
-
+        logger(f"  Warning: Could not copy example {packaged_path_str}: {e}")
 
 @app.command("init")  # Explicitly name the command
 def init(
@@ -69,9 +70,8 @@ def init(
 
         default_project_config_name = "aurite_config.json"
         copy_packaged_example(
-            "component_configs/projects/default_project.json",
+            f"component_configs/projects/{default_project_config_name}",
             project_path,
-            default_project_config_name,
         )
 
         # 3. Create recommended subdirectories
@@ -82,70 +82,61 @@ def init(
             project_path / "config" / "workflows",
             project_path / "config" / "custom_workflows",
             project_path / "config" / "testing",
-            project_path / "example_mcp_servers",
-            project_path / "example_custom_workflows",
+            project_path / "mcp_servers",
+            project_path / "custom_workflows",
         ]
         for subdir in subdirectories_to_create:
             subdir.mkdir(parents=True, exist_ok=True)
         logger(
-            "Created standard subdirectories: config/, example_mcp_servers/, example_custom_workflows/"
+            "Created standard subdirectories: config/, mcp_servers/, custom_workflows/"
         )
 
         # 4. Optionally, copy basic example files
         logger("Copying example configuration files...")
         copy_packaged_example(
-            "component_configs/llms/example_llms.json",
+            "component_configs/llms/llms.json",
             project_path / "config" / "llms",
-            "llms.json",
         )
         copy_packaged_example(
-            "component_configs/mcp_servers/example_mcp_servers.json",
+            "component_configs/mcp_servers/mcp_servers.json",
             project_path / "config" / "mcp_servers",
-            "example_mcp_servers.json",
         )
         copy_packaged_example(
-            "component_configs/agents/example_agents.json",
+            "component_configs/agents/agents.json",
             project_path / "config" / "agents",
-            "agents.json",  # Renaming for user project
         )
 
         copy_packaged_example(
-            "component_configs/custom_workflows/example_custom_workflow.json",
+            "component_configs/custom_workflows/custom_workflows.json",
             project_path / "config" / "custom_workflows",
-            "custom_workflows.json",
         )
         # Copy the __init__.py to make the custom workflows directory a package
         copy_packaged_example(
-            "example_custom_workflows/__init__.py",
-            project_path / "example_custom_workflows",
-            "__init__.py",
+            "custom_workflows/__init__.py",
+            project_path / "custom_workflows",
         )
 
         copy_packaged_example(
-            "testing/planning_agent_multiple.json",
+            "testing/planning_agent_test.json",
             project_path / "config" / "testing",
-            "planning_agent_test.json",  # Renaming for user project
         )
         logger("Copying example workflow and MCP server...")
         copy_packaged_example(
-            "example_custom_workflows/example_workflow.py",  # Corrected source path
-            project_path / "example_custom_workflows",  # Corrected destination path
-            "example_workflow.py",
+            "custom_workflows/example_workflow.py",  # Corrected source path
+            project_path / "custom_workflows",  # Corrected destination path
         )
         copy_packaged_example(
-            "example_mcp_servers/weather_mcp_server.py",
-            project_path / "example_mcp_servers",
-            "weather_mcp_server.py",
+            "mcp_servers/weather_mcp_server.py",
+            project_path / "mcp_servers",
         )
 
         copy_packaged_example(
-            "example_mcp_servers/planning_server.py",
-            project_path / "example_mcp_servers",
-            "planning_server.py",
+            "mcp_servers/planning_server.py",
+            project_path / "mcp_servers",
         )
 
         copy_packaged_example(
-            "run_test_project.py", project_path, "run_example_project.py"
+            "run_example_project.py", project_path,
         )
 
         # Create .env.example file
@@ -165,7 +156,7 @@ def init(
         )
         logger("3. Start defining your components in the 'config/' subdirectories.")
         logger(
-            "4. Place custom MCP server scripts in 'example_mcp_servers/' and custom workflow Python modules in 'example_custom_workflows/'."
+            "4. Place custom MCP server scripts in 'mcp_servers/' and custom workflow Python modules in 'custom_workflows/'."
         )
         logger(
             "5. Pathing for component configs, custom workflow sources, and MCP server scripts is relative to"
