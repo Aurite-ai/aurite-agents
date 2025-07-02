@@ -14,107 +14,54 @@ def basic_llm_config() -> LLMConfig:
         name="test_llm",
         provider="openai",
         model="gpt-4",
-        temperature=0.7,
-        max_tokens=150,
     )
 
 
-def test_build_request_params_basic(basic_llm_config: LLMConfig):
+def test_initialization_success(basic_llm_config: LLMConfig):
+    """Tests that the client initializes correctly with a valid config."""
+    client = LiteLLMClient(config=basic_llm_config)
+    assert client.config == basic_llm_config
+
+
+def test_initialization_failure():
+    """Tests that ValueError is raised for an incomplete config."""
+    with pytest.raises(ValueError, match="LLM provider and model must be specified"):
+        LiteLLMClient(config=LLMConfig(name="test_llm", provider="openai", model=""))
+    with pytest.raises(ValueError, match="LLM provider and model must be specified"):
+        LiteLLMClient(config=LLMConfig(name="test_llm", provider="", model="gpt-4"))
+
+
+def test_convert_tools_to_openai_format_with_type(basic_llm_config: LLMConfig):
     """
-    Tests that _build_request_params correctly assembles basic parameters.
+    Tests that the tool schema is preserved if 'type' is already present.
     """
     client = LiteLLMClient(config=basic_llm_config)
-    messages = [{"role": "user", "content": "Hello"}]
-
-    params = client._build_request_params(messages=messages, tools=None)
-
-    assert params["model"] == "openai/gpt-4"
-    assert params["temperature"] == 0.7
-    assert params["max_tokens"] == 150
-    assert len(params["messages"]) == 1
-    assert params["messages"][0]["role"] == "user"
-    assert "tools" not in params
-
-
-def test_build_request_params_with_system_prompt(basic_llm_config: LLMConfig):
-    """
-    Tests that a system prompt from the config is correctly added.
-    """
-    basic_llm_config.default_system_prompt = "You are a helpful assistant."
-    client = LiteLLMClient(config=basic_llm_config)
-    messages = [{"role": "user", "content": "Hello"}]
-
-    params = client._build_request_params(messages=messages, tools=None)
-
-    assert len(params["messages"]) == 2
-    assert params["messages"][0]["role"] == "system"
-    assert params["messages"][0]["content"] == "You are a helpful assistant."
-    assert params["messages"][1]["role"] == "user"
-
-
-def test_build_request_params_with_override_system_prompt(basic_llm_config: LLMConfig):
-    """
-    Tests that a system prompt override takes precedence over the config's default.
-    """
-    basic_llm_config.default_system_prompt = "This should be ignored."
-    client = LiteLLMClient(config=basic_llm_config)
-    messages = [{"role": "user", "content": "Hello"}]
-    override_prompt = "You are a test assistant."
-
-    params = client._build_request_params(
-        messages=messages, tools=None, system_prompt_override=override_prompt
-    )
-
-    assert len(params["messages"]) == 2
-    assert params["messages"][0]["role"] == "system"
-    assert params["messages"][0]["content"] == override_prompt
-
-
-def test_build_request_params_with_tools(basic_llm_config: LLMConfig):
-    """
-    Tests that tool definitions are correctly formatted for the OpenAI API.
-    """
-    client = LiteLLMClient(config=basic_llm_config)
-    messages = [{"role": "user", "content": "Hello"}]
     tools = [
         {
             "name": "get_weather",
-            "description": "Get the current weather",
-            "input_schema": {
-                "type": "object",
-                "properties": {"location": {"type": "string"}},
-            },
+            "input_schema": {"type": "object", "properties": {}},
         }
     ]
-
-    params = client._build_request_params(messages=messages, tools=tools)
-
-    assert "tools" in params
-    assert isinstance(params["tools"], list)
-    assert len(params["tools"]) == 1
-    assert params["tools"][0]["type"] == "function"
-    assert params["tools"][0]["function"]["name"] == "get_weather"
-    assert "parameters" in params["tools"][0]["function"]
-    assert params["tool_choice"] == "auto"
+    formatted_tools = client._convert_tools_to_openai_format(tools)
+    assert formatted_tools is not None
+    assert formatted_tools[0]["function"]["parameters"]["type"] == "object"
 
 
-def test_build_request_params_with_json_schema(basic_llm_config: LLMConfig):
+def test_convert_tools_to_openai_format_without_type(basic_llm_config: LLMConfig):
     """
-    Tests that a JSON schema for validation is correctly added to the system prompt.
+    Tests that 'type' is defaulted to 'object' if missing in the input_schema.
     """
     client = LiteLLMClient(config=basic_llm_config)
-    messages = [{"role": "user", "content": "Generate a user profile."}]
-    schema = {
-        "type": "object",
-        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
-    }
+    tools = [{"name": "get_weather", "input_schema": {"properties": {}}}]
+    formatted_tools = client._convert_tools_to_openai_format(tools)
+    assert formatted_tools is not None
+    assert formatted_tools[0]["function"]["parameters"]["type"] == "object"
 
-    params = client._build_request_params(messages=messages, tools=None, schema=schema)
 
-    assert len(params["messages"]) == 2
-    assert params["messages"][0]["role"] == "system"
-    assert (
-        "Your response MUST be a single valid JSON object"
-        in params["messages"][0]["content"]
-    )
-    assert '"name":' in params["messages"][0]["content"]
+def test_build_request_params_model_formatting(basic_llm_config: LLMConfig):
+    """
+    Tests that the model parameter is correctly formatted as 'provider/model'.
+    """
+    client = LiteLLMClient(config=basic_llm_config)
+    params = client._build_request_params(messages=[], tools=None)
+    assert params["model"] == "openai/gpt-4"

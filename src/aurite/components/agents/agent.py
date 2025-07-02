@@ -114,6 +114,11 @@ class Agent:
                 if is_final_turn:
                     self.final_response = final_response_this_turn
                     logger.debug("Final response received. Ending conversation.")
+                    # Convert to OpenAI type before validation
+                    if self.final_response:
+                        self.final_response = ChatCompletionMessage.model_validate(
+                            self.final_response.model_dump()
+                        )
                     return AgentRunResult(
                         status="success",
                         final_response=self.final_response,
