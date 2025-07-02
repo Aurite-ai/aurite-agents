@@ -34,5 +34,12 @@
     "http_endpoint": "https://server.smithery.ai/@JiantaoFu/appinsightmcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
     "capabilities": ["tools"],
     "timeout": 60.0
+  },
+  {
+    "name": "game_trends_mcp",
+    "transport_type": "http_stream",
+    "http_endpoint": "https://server.smithery.ai/@halismertkir/game-trends-mcp/mcp?profile={SMITHERY_PROFILE_ID}&api_key={SMITHERY_API_KEY}",
+    "capabilities": ["tools"],
+    "timeout": 60.0
   }
 ]
