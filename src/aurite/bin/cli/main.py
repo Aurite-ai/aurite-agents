@@ -22,23 +22,49 @@ logger = typer.echo  # Use typer.echo for CLI output
 def copy_packaged_example(
     packaged_path_str: str, user_project_path: Path, filename: str
 ):
-    """Helper to copy a packaged example file to the user's project."""
+    """Helper to copy a single packaged file to the user's project."""
     try:
-        # Access the packaged file using importlib.resources
-        # Assuming 'aurite.packaged' is the base for packaged resources
         source_file_path = importlib.resources.files("aurite.packaged").joinpath(
             packaged_path_str
         )
+        if not source_file_path.is_file():
+            logger(f"  Warning: Packaged file not found at {packaged_path_str}")
+            return
 
-        if source_file_path.is_file():
-            destination_path = user_project_path / filename
-            destination_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(source_file_path), destination_path)
-            logger(f"  Copied example: {filename} to {destination_path.parent.name}/")
-        else:
-            logger(f"  Warning: Packaged example not found at {packaged_path_str}")
+        destination_path = user_project_path / filename
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(source_file_path), destination_path)
+        logger(f"  Copied: {filename} to {destination_path.parent.name}/")
     except Exception as e:
-        logger(f"  Warning: Could not copy example {filename}: {e}")
+        logger(f"  Warning: Could not copy file {filename}: {e}")
+
+
+def copy_packaged_component_configs(component_type: str, user_project_path: Path):
+    """Helper to copy all JSON config files for a component type."""
+    try:
+        packaged_component_dir = importlib.resources.files("aurite.packaged").joinpath(
+            f"component_configs/{component_type}"
+        )
+
+        if not packaged_component_dir.is_dir():
+            logger(
+                f"  Warning: Packaged component directory not found for '{component_type}'"
+            )
+            return
+
+        destination_dir = user_project_path / "config" / component_type
+        destination_dir.mkdir(parents=True, exist_ok=True)
+
+        for source_file in packaged_component_dir.iterdir():
+            if source_file.is_file() and source_file.name.endswith(".json"):
+                shutil.copy2(str(source_file), destination_dir / source_file.name)
+                logger(
+                    f"  Copied {component_type} config: {source_file.name} to {destination_dir.parent.name}/{destination_dir.name}/"
+                )
+    except Exception as e:
+        logger(
+            f"  Warning: Could not copy component configs for '{component_type}': {e}"
+        )
 
 
 @app.command("init")  # Explicitly name the command
@@ -91,29 +117,17 @@ def init(
             "Created standard subdirectories: config/, example_mcp_servers/, example_custom_workflows/"
         )
 
-        # 4. Optionally, copy basic example files
-        logger("Copying example configuration files...")
-        copy_packaged_example(
-            "component_configs/llms/example_llms.json",
-            project_path / "config" / "llms",
-            "llms.json",
-        )
-        copy_packaged_example(
-            "component_configs/mcp_servers/example_mcp_servers.json",
-            project_path / "config" / "mcp_servers",
-            "example_mcp_servers.json",
-        )
-        copy_packaged_example(
-            "component_configs/agents/example_agents.json",
-            project_path / "config" / "agents",
-            "agents.json",  # Renaming for user project
-        )
-
-        copy_packaged_example(
-            "component_configs/custom_workflows/example_custom_workflow.json",
-            project_path / "config" / "custom_workflows",
-            "custom_workflows.json",
-        )
+        # 4. Copy all packaged component configurations
+        logger("Copying all packaged component configurations...")
+        component_types_to_copy = [
+            "llms",
+            "mcp_servers",
+            "agents",
+            "custom_workflows",
+            "workflows",
+        ]
+        for component_type in component_types_to_copy:
+            copy_packaged_component_configs(component_type, project_path)
         # Copy the __init__.py to make the custom workflows directory a package
         copy_packaged_example(
             "example_custom_workflows/__init__.py",
@@ -150,7 +164,11 @@ def init(
 
         # Create .env.example file
         env_example_content = (
-            "OPENAI_API_KEY=\n" "SMITHERY_API_KEY=\n" "SMITHERY_PROFILE_ID=\n" "API_KEY=my_custom_key\n" "PROJECT_CONFIG_PATH=aurite_config.json\n"
+            "OPENAI_API_KEY=\n"
+            "SMITHERY_API_KEY=\n"
+            "SMITHERY_PROFILE_ID=\n"
+            "API_KEY=my_custom_key\n"
+            "PROJECT_CONFIG_PATH=aurite_config.json\n"
         )
         env_example_path = project_path / ".." / ".env.example"
         env_example_path.write_text(env_example_content)
