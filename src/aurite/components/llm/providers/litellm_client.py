@@ -8,7 +8,7 @@ import json
 from typing import List, Optional, Dict, Any, AsyncGenerator
 
 import litellm
-import openai
+from openai import OpenAIError
 from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionChunk,
@@ -145,13 +145,7 @@ class LiteLLMClient:
         try:
             completion: Any = litellm.completion(**request_params)
             return completion.choices[0].message
-        except (
-            openai.APITimeoutError,
-            openai.RateLimitError,
-            openai.BadRequestError,
-            openai.AuthenticationError,
-            openai.APIConnectionError,
-        ) as e:
+        except OpenAIError as e:
             logger.error(
                 f"LiteLLM API call failed with specific error: {type(e).__name__}: {e}"
             )
@@ -180,13 +174,7 @@ class LiteLLMClient:
             response_stream: Any = await litellm.acompletion(**request_params)
             async for chunk in response_stream:
                 yield chunk
-        except (
-            openai.APITimeoutError,
-            openai.RateLimitError,
-            openai.BadRequestError,
-            openai.AuthenticationError,
-            openai.APIConnectionError,
-        ) as e:
+        except OpenAIError as e:
             logger.error(
                 f"LiteLLM streaming call failed with specific error: {type(e).__name__}: {e}"
             )

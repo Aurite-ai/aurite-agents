@@ -170,7 +170,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"initial_input\": \"test\"\n}",
+					"raw": "{\n    \"initial_input\": \"London\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -188,6 +188,53 @@
 						"custom",
 						"ExampleCustomWorkflow",
 						"run"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Stream Weather Agent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/execution/agents/Weather Agent/stream",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"agents",
+						"Weather Agent",
+						"stream"
 					]
 				}
 			},

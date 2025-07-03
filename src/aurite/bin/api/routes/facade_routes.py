@@ -4,7 +4,9 @@ import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
 
 from ....execution.facade import ExecutionFacade
 from ...dependencies import get_api_key, get_execution_facade
@@ -59,6 +61,44 @@ async def run_agent(
     except Exception as e:
         logger.error(f"Error running agent '{agent_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/agents/{agent_name}/stream")
+async def stream_agent(
+    agent_name: str,
+    request: AgentRunRequest,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Execute an agent by name and stream the response.
+    """
+    try:
+
+        async def event_generator():
+            async for event in facade.stream_agent_run(
+                agent_name=agent_name,
+                user_message=request.user_message,
+                system_prompt=request.system_prompt,
+                session_id=request.session_id,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    except Exception as e:
+        logger.error(f"Error streaming agent '{agent_name}': {e}", exc_info=True)
+        # Cannot raise HTTPException for a streaming response.
+        # The error will be logged, and the client will see a dropped connection.
+        # A more robust solution could involve yielding a final error event.
+        return StreamingResponse(
+            iter(
+                [
+                    f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"
+                ]
+            ),
+            media_type="text/event-stream",
+            status_code=500,
+        )
 
 
 @router.post("/workflows/simple/{workflow_name}/run")
