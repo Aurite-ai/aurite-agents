@@ -44,10 +44,12 @@ class ConfigManager:
     def _initialize_sources(self, project_root: Optional[Path]):
         """Initializes the configuration source paths in order of precedence."""
         logger.debug("Initializing configuration sources...")
+        logger.debug(f"Project root: {project_root}")
 
         # 1. Project Configuration
         if project_root:
             project_config_path = project_root / "config"
+            logger.debug(f"Calculated project config path: {project_config_path}")
             if project_config_path.is_dir():
                 self._config_sources.append(project_config_path)
                 logger.debug(f"Added project config source: {project_config_path}")
@@ -81,11 +83,16 @@ class ConfigManager:
         for source_path in reversed(
             self._config_sources
         ):  # Reverse to process highest priority last
-            if not source_path.is_dir():
-                continue
-
-            for config_file in source_path.iterdir():
-                self._parse_and_index_file(config_file)
+            if isinstance(source_path, Path) and source_path.is_dir():
+                for config_file in source_path.rglob("*.json"):
+                    self._parse_and_index_file(config_file)
+                for config_file in source_path.rglob("*.yaml"):
+                    self._parse_and_index_file(config_file)
+                for config_file in source_path.rglob("*.yml"):
+                    self._parse_and_index_file(config_file)
+            elif hasattr(source_path, "iterdir"):  # Check for Traversable
+                for config_file in source_path.iterdir():
+                    self._parse_and_index_file(config_file)
 
     def _parse_and_index_file(self, config_file: Union[Path, Traversable]):
         """Parses a file and adds its component(s) to the index."""

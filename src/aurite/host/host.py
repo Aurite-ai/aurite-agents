@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from datetime import timedelta
 
 import mcp.types as types
+from mcp.client.session import ClientSession
 from mcp.client.session_group import (
     ClientSessionGroup,
     ServerParameters,
@@ -48,6 +49,7 @@ class MCPHost:
         # Session management
         self._session_group = ClientSessionGroup()
         self._exit_stack = AsyncExitStack()
+        self._sessions_by_name: Dict[str, ClientSession] = {}
 
         # Resource management (These might be simplified or removed if SessionGroup handles all)
         self._prompt_manager = PromptManager(
@@ -175,7 +177,8 @@ class MCPHost:
         # which serves as our duplicate check.
         try:
             params = await self._get_server_params(config)
-            await self._session_group.connect_to_server(params)
+            session = await self._session_group.connect_to_server(params)
+            self._sessions_by_name[config.name] = session
             logger.info(f"Client '{config.name}' dynamically registered successfully.")
         except Exception as e:
             logger.error(
@@ -183,6 +186,27 @@ class MCPHost:
                 exc_info=True,
             )
             # Do not re-raise the exception. Allow the host to continue with other clients.
+
+    async def unregister_client(self, server_name: str):
+        """Dynamically unregisters a client."""
+        logger.info(f"Attempting to dynamically unregister client: {server_name}")
+        session_to_remove = self._sessions_by_name.pop(server_name, None)
+
+        if session_to_remove:
+            try:
+                await self._session_group.disconnect_from_server(session_to_remove)
+                await self._message_router.unregister_server(server_name)
+                logger.info(
+                    f"Client '{server_name}' dynamically unregistered successfully."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to dynamically unregister client '{server_name}': {e}",
+                    exc_info=True,
+                )
+                raise
+        else:
+            logger.warning(f"Client '{server_name}' not found for unregistration.")
 
     def get_formatted_tools(
         self,

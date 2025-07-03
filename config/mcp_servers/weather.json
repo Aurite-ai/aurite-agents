@@ -1,0 +1,13 @@
+{
+    "mcp_servers": [
+        {
+            "name": "weather_server",
+            "server_path": "src/aurite/packaged/example_mcp_servers/weather_mcp_server.py",
+            "capabilities": [
+                "tools",
+                "prompts"
+            ],
+            "roots": []
+        }
+    ]
+}

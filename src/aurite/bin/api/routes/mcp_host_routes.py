@@ -41,14 +41,14 @@ async def list_tools(
     return [tool.model_dump() for tool in host.tools.values()]
 
 
-@router.post("/register")
-async def register_server(
+@router.post("/register/config")
+async def register_server_by_config(
     server_config: ClientConfig,
     api_key: str = Security(get_api_key),
     host: MCPHost = Depends(get_host),
 ):
     """
-    Register a new MCP server with the host.
+    Register a new MCP server with the host using a provided configuration.
     """
     try:
         await host.register_client(server_config)
@@ -60,72 +60,69 @@ async def register_server(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/register/{server_name}")
+async def register_server_by_name(
+    server_name: str,
+    api_key: str = Security(get_api_key),
+    host: MCPHost = Depends(get_host),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Register a new MCP server with the host by its configured name.
+    """
+    server_config_dict = config_manager.get_config("mcp_servers", server_name)
+    if not server_config_dict:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Server '{server_name}' not found in configuration.",
+        )
+
+    try:
+        server_config = ClientConfig(**server_config_dict)
+        await host.register_client(server_config)
+        return {"status": "success", "name": server_config.name}
+    except Exception as e:
+        logger.error(f"Failed to register server '{server_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/servers/{server_name}")
+async def unregister_server(
+    server_name: str,
+    api_key: str = Security(get_api_key),
+    host: MCPHost = Depends(get_host),
+):
+    """
+    Unregister an MCP server from the host.
+    """
+    try:
+        await host.unregister_client(server_name)
+        return {"status": "success", "name": server_name}
+    except Exception as e:
+        logger.error(f"Failed to unregister server '{server_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/tools/{tool_name}/call")
 async def call_tool(
     tool_name: str,
     tool_call_args: ToolCallArgs,
     api_key: str = Security(get_api_key),
     host: MCPHost = Depends(get_host),
-    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute a specific tool by name with the given arguments.
-    If the tool is not found, it will attempt to register all configured MCP servers and retry.
     """
     try:
-        # First attempt
-        if tool_name in host.tools:
-            result = await host.call_tool(tool_name, tool_call_args.args)
-            return result.model_dump()
-
-        # If tool not found, register all servers and retry
-        logger.info(
-            f"Tool '{tool_name}' not found. Attempting to register all configured servers."
-        )
-        all_configs = config_manager.get_all_configs()
-        server_configs = all_configs.get("mcp_servers", {})
-        logger.debug(f"Found {len(server_configs)} server configurations to process.")
-        for server_name, server_config_dict in server_configs.items():
-            logger.debug(f"Processing server: {server_name}")
-            try:
-                # A simple check to see if a server might already be registered.
-                if server_name not in [
-                    tool.split(".")[0] for tool in host.tools.keys()
-                ]:
-                    logger.debug(
-                        f"Server '{server_name}' not found in host, attempting registration."
-                    )
-                    server_config = ClientConfig(**server_config_dict)
-                    logger.debug(
-                        f"Successfully created ClientConfig for '{server_name}'."
-                    )
-                    await host.register_client(server_config)
-                    logger.info(
-                        f"Successfully registered client for server: {server_name}"
-                    )
-                else:
-                    logger.debug(
-                        f"Server '{server_name}' appears to be already registered, skipping."
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Failed to register server '{server_name}': {e}", exc_info=True
-                )
-
-        # Retry the tool call
-        if tool_name in host.tools:
-            result = await host.call_tool(tool_name, tool_call_args.args)
-            return result.model_dump()
-        else:
-            raise KeyError(
-                f"Tool '{tool_name}' not found after attempting to register all servers."
+        if tool_name not in host.tools:
+            raise HTTPException(
+                status_code=404, detail=f"Tool '{tool_name}' not found."
             )
-
+        result = await host.call_tool(tool_name, tool_call_args.args)
+        return result.model_dump()
     except KeyError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Tool '{tool_name}' not found after attempting to register all servers.",
-        )
+        # This is now redundant, but kept for safety.
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
     except Exception as e:
         logger.error(f"Error calling tool '{tool_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

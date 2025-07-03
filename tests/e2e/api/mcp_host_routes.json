@@ -92,7 +92,7 @@
 			"response": []
 		},
 		{
-			"name": "Register Weather Server",
+			"name": "Register Weather Server By Name",
 			"event": [
 				{
 					"listen": "test",
@@ -119,23 +119,15 @@
 						"value": "{{api_key}}"
 					}
 				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"name\": \"weather_server\",\n    \"server_path\": \"src/aurite/packaged/example_mcp_servers/weather_mcp_server.py\",\n    \"capabilities\": [\"tools\", \"prompts\"],\n    \"roots\": []\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
 				"url": {
-					"raw": "{{base_url}}/host/register",
+					"raw": "{{base_url}}/host/register/weather_server",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"host",
-						"register"
+						"register",
+						"weather_server"
 					]
 				}
 			},
@@ -154,6 +146,95 @@
 							"pm.test(\"Response body has correct content\", function () {",
 							"    var jsonData = pm.response.json();",
 							"    pm.expect(jsonData.content[0].text).to.include('Weather for San Francisco');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"args\": {\n        \"location\": \"San Francisco\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/host/tools/weather_lookup/call",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"tools",
+						"weather_lookup",
+						"call"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Unregister Weather Server",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct status\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('success');",
+							"    pm.expect(jsonData.name).to.eql('weather_server');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/host/servers/weather_server",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"servers",
+						"weather_server"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Call Weather Lookup Tool (After Unregister)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
 							"});"
 						],
 						"type": "text/javascript"
