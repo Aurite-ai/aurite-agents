@@ -1,0 +1,11 @@
+[
+    {
+      "name": "default",
+      "provider": "anthropic",
+      "model": "claude-3-haiku-20240307",
+      "temperature": 0.5,
+      "max_tokens": 2048,
+      "default_system_prompt": "You are the default LLM, Claude Haiku, a concise and fast assistant by Anthropic.",
+      "api_key_env_var": "ANTHROPIC_API_KEY"
+    }
+]

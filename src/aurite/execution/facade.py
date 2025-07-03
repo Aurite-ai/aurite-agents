@@ -69,7 +69,7 @@ class ExecutionFacade:
         # JIT Registration of MCP Servers
         if agent_config_for_run.mcp_servers:
             for server_name in agent_config_for_run.mcp_servers:
-                if server_name not in self._host.tools:  # A proxy for "is registered"
+                if server_name not in self._host.registered_server_names:
                     server_config_dict = self._config_manager.get_config(
                         "mcp_servers", server_name
                     )
@@ -80,17 +80,37 @@ class ExecutionFacade:
                     server_config = ClientConfig(**server_config_dict)
                     await self._host.register_client(server_config)
 
-        if not agent_config_for_run.llm_config_id:
-            raise ValueError(f"Agent '{agent_name}' must have an llm_config_id.")
-
-        llm_config_dict = self._config_manager.get_config(
-            "llms", agent_config_for_run.llm_config_id
-        )
-        if not llm_config_dict:
-            raise ValueError(
-                f"LLM configuration '{agent_config_for_run.llm_config_id}' not found."
+        llm_config_id = agent_config_for_run.llm_config_id
+        if not llm_config_id:
+            logger.warning(
+                f"Agent '{agent_name}' does not have an llm_config_id. Trying to use 'default' LLM."
             )
+            llm_config_id = "default"
+
+        llm_config_dict = self._config_manager.get_config("llms", llm_config_id)
+
+        if not llm_config_dict:
+            if llm_config_id == "default":
+                logger.warning(
+                    "No 'default' LLM config found. Falling back to hardcoded OpenAI GPT-4."
+                )
+                llm_config_dict = {
+                    "name": "default_openai_fallback",
+                    "provider": "openai",
+                    "model": "gpt-4-turbo-preview",
+                    "temperature": 0.7,
+                    "max_tokens": 4000,
+                    "default_system_prompt": "You are a helpful OpenAI assistant.",
+                    "api_key_env_var": "OPENAI_API_KEY",
+                }
+            else:
+                raise ValueError(f"LLM configuration '{llm_config_id}' not found.")
+
         base_llm_config = LLMConfig(**llm_config_dict)
+        if not base_llm_config:
+            raise ValueError(
+                f"Could not determine LLM configuration for Agent '{agent_name}'."
+            )
 
         initial_messages: List[Dict[str, Any]] = []
         if (

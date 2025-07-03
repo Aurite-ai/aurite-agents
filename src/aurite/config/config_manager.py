@@ -84,12 +84,22 @@ class ConfigManager:
             self._config_sources
         ):  # Reverse to process highest priority last
             if isinstance(source_path, Path) and source_path.is_dir():
-                for config_file in source_path.rglob("*.json"):
-                    self._parse_and_index_file(config_file)
-                for config_file in source_path.rglob("*.yaml"):
-                    self._parse_and_index_file(config_file)
-                for config_file in source_path.rglob("*.yml"):
-                    self._parse_and_index_file(config_file)
+                for sub_dir in source_path.iterdir():
+                    if sub_dir.is_dir() and sub_dir.name == "testing":
+                        continue  # Skip the testing directory
+                    if sub_dir.is_dir():
+                        for config_file in sub_dir.rglob("*.json"):
+                            self._parse_and_index_file(config_file)
+                        for config_file in sub_dir.rglob("*.yaml"):
+                            self._parse_and_index_file(config_file)
+                        for config_file in sub_dir.rglob("*.yml"):
+                            self._parse_and_index_file(config_file)
+                    elif sub_dir.is_file() and sub_dir.suffix in [
+                        ".json",
+                        ".yaml",
+                        ".yml",
+                    ]:
+                        self._parse_and_index_file(sub_dir)
             elif hasattr(source_path, "iterdir"):  # Check for Traversable
                 for config_file in source_path.iterdir():
                     self._parse_and_index_file(config_file)

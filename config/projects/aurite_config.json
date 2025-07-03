@@ -115,6 +115,7 @@
     },
     {
       "name": "Weather Reporter",
+      "llm_config_id": "anthropic_claude_3_haiku",
       "system_prompt": "You are a Weather Reporter. You will be provided with a weather forecast for a specific city. Your job is to use this information to provide an informal weather report."
     },
     {

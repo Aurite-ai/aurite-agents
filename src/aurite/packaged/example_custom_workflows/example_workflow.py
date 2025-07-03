@@ -1,11 +1,8 @@
-# tests/fixtures/custom_workflows/example_workflow.py
 import logging
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional
 
-# Type hint for ExecutionFacade to avoid circular import
-if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade
-    from aurite.components.agents.agent_models import AgentExecutionResult
+from aurite.execution.facade import ExecutionFacade
+from aurite.components.agents.agent_models import AgentRunResult
 
 
 logger = logging.getLogger(__name__)
@@ -39,44 +36,44 @@ class ExampleCustomWorkflow:
         """
         logger.info(f"ExampleCustomWorkflow started with input: {initial_input}")
 
-        try:
-            # 1. Define which agent to run and prepare the input.
-            # This agent name must match an agent configured in your project.
-            agent_name = "Weather Agent"
-            # Support both dict and string input for initial_input
-            if isinstance(initial_input, dict):
-                city = initial_input.get("city", "London")
-            elif isinstance(initial_input, str):
-                city = initial_input or "London"
+        # 1. Define which agent to run and prepare the input.
+        agent_name = "Weather Agent"
+        if isinstance(initial_input, dict):
+            city = initial_input.get("city", "London")
+        elif isinstance(initial_input, str):
+            city = initial_input or "London"
+        else:
+            city = "London"
+        user_message = f"What is the weather in {city}?"
+
+        logger.info(f"Running agent '{agent_name}' with message: '{user_message}'")
+
+        # 2. Use the executor to run the agent.
+        agent_result: AgentRunResult = await executor.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            session_id=session_id,
+        )
+
+        # 3. Process and return the result.
+        if agent_result.status == "success":
+            if agent_result.final_response and agent_result.final_response.content:
+                logger.info(
+                    f"Workflow finished successfully. Returning: {agent_result.final_response.content}"
+                )
+                return {
+                    "status": "completed",
+                    "result": agent_result.final_response.content,
+                }
             else:
-                city = "London"
-            user_message = f"What is the weather in {city}?"
-
-            logger.info(f"Running agent '{agent_name}' with message: '{user_message}'")
-
-            # 2. Use the executor to run the agent.
-            # The executor handles finding the agent, its LLM, its tools, and running the conversation.
-            agent_result: "AgentExecutionResult" = await executor.run_agent(
-                agent_name=agent_name,
-                user_message=user_message,
-                session_id=session_id,
-            )
-
-            # 3. Process and return the result.
-            if agent_result.error:
-                logger.error(f"Agent execution failed: {agent_result.error}")
-                return {"status": "failed", "error": agent_result.error}
-
-            # For simplicity, we'll just return the main text from the agent's response.
-            final_response = agent_result.primary_text
-            logger.info(f"Workflow finished successfully. Returning: {final_response}")
-            return {"status": "completed", "result": final_response}
-
-        except Exception as e:
-            logger.error(
-                f"An unexpected error occurred in the workflow: {e}", exc_info=True
-            )
-            return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}
+                logger.error("Agent succeeded but returned no response.")
+                return {
+                    "status": "failed",
+                    "error": "Agent succeeded but returned no response.",
+                }
+        else:
+            logger.error(f"Agent execution failed: {agent_result.error_message}")
+            return {"status": "failed", "error": agent_result.error_message}
 
     def get_input_type(self):
         """Specifies the expected input type for this workflow."""

@@ -82,6 +82,11 @@ class MCPHost:
         """Returns the tools as a dictionary of names to tools."""
         return self._session_group.tools
 
+    @property
+    def registered_server_names(self) -> List[str]:
+        """Returns a list of the names of all registered servers."""
+        return list(self._sessions_by_name.keys())
+
     async def __aenter__(self):
         await self._exit_stack.__aenter__()
         await self._exit_stack.enter_async_context(self._session_group)
