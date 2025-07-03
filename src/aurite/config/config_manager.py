@@ -166,6 +166,17 @@ class ConfigManager:
             self.refresh()
         return list(self._component_index.get(component_type, {}).values())
 
+    def get_all_configs(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """
+        Returns the entire component index.
+
+        Returns:
+            A dictionary containing all component configurations, grouped by type.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._component_index
+
     def refresh(self):
         """Clears the component index and rebuilds it from the sources."""
         logger.debug("Refreshing configuration index...")

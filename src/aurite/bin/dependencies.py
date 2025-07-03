@@ -9,8 +9,9 @@ from fastapi.security import APIKeyHeader
 
 # Import config/models needed by dependencies
 from ..config import ServerConfig
-from ..config.component_manager import ComponentManager  # Added for new dependency
-from ..config.project_manager import ProjectManager  # Added for new dependency
+from ..config.config_manager import ConfigManager
+from ..execution.facade import ExecutionFacade
+from ..host.host import MCPHost  # Added for get_host
 from ..host_manager import Aurite  # Needed for get_host_manager
 
 logger = logging.getLogger(__name__)
@@ -119,42 +120,59 @@ async def get_host_manager(request: Request) -> Aurite:
     return manager
 
 
-# --- ComponentManager Dependency ---
-async def get_component_manager(
-    host_manager: Aurite = Depends(get_host_manager),
-) -> ComponentManager:
+# --- MCPHost Dependency ---
+async def get_host(host_manager: Aurite = Depends(get_host_manager)) -> MCPHost:
     """
-    Dependency function to get the ComponentManager instance from the Aurite.
+    Dependency function to get the MCPHost instance from the Aurite manager.
     """
-    if not host_manager.component_manager:
+    if not host_manager.host:
         # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
-            "ComponentManager not found on Aurite instance. This indicates an initialization issue."
+            "MCPHost not found on Aurite instance. This indicates an initialization issue."
         )
         raise HTTPException(
             status_code=503,
-            detail="ComponentManager is not available due to an internal error.",
+            detail="MCPHost is not available due to an internal error.",
         )
-    return host_manager.component_manager
+    return host_manager.host
 
 
-# --- ProjectManager Dependency ---
-async def get_project_manager(
+# --- ConfigManager Dependency ---
+async def get_config_manager(
     host_manager: Aurite = Depends(get_host_manager),
-) -> ProjectManager:
+) -> ConfigManager:
     """
-    Dependency function to get the ProjectManager instance from the Aurite.
+    Dependency function to get the ConfigManager instance from the Aurite manager.
     """
-    if not host_manager.project_manager:
+    if not host_manager.config_manager:
         # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
-            "ProjectManager not found on Aurite instance. This indicates an initialization issue."
+            "ConfigManager not found on Aurite instance. This indicates an initialization issue."
         )
         raise HTTPException(
             status_code=503,
-            detail="ProjectManager is not available due to an internal error.",
+            detail="ConfigManager is not available due to an internal error.",
         )
-    return host_manager.project_manager
+    return host_manager.config_manager
+
+
+# --- ExecutionFacade Dependency ---
+async def get_execution_facade(
+    host_manager: Aurite = Depends(get_host_manager),
+) -> ExecutionFacade:
+    """
+    Dependency function to get the ExecutionFacade instance from the Aurite manager.
+    """
+    if not host_manager.execution:
+        # This case should ideally not happen if Aurite is initialized correctly
+        logger.error(
+            "ExecutionFacade not found on Aurite instance. This indicates an initialization issue."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="ExecutionFacade is not available due to an internal error.",
+        )
+    return host_manager.execution
 
 
 async def get_current_project_root(
@@ -162,18 +180,15 @@ async def get_current_project_root(
 ) -> Path:
     """
     Dependency function to get the current project's root path
-    from the ProjectManager instance on Aurite.
+    from the Aurite instance.
     """
-    if (
-        not host_manager.project_manager
-        or not host_manager.project_manager.current_project_root
-    ):
+    if not host_manager.project_root:
         logger.error(
-            "Current project root not available via host_manager.project_manager.current_project_root. "
+            "Current project root not available via host_manager.project_root. "
             "This indicates an initialization issue or no active project."
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Project context is not fully initialized or no project is active. Cannot determine project root.",
         )
-    return host_manager.project_manager.current_project_root
+    return host_manager.project_root

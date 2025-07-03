@@ -10,7 +10,7 @@ and the project's root directory.
 
 import logging
 from typing import Optional, List
-from pydantic import Field, FilePath
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,6 @@ class ServerConfig(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["*"]  # Default to allow all, refine as needed
 
     # Host configuration path (Now refers to the *Project* config file)
-    # Ensure PROJECT_CONFIG_PATH points to a valid project config JSON file
-    PROJECT_CONFIG_PATH: FilePath = Field(
-        "aurite_config.json",
-        description="Path to the Project configuration JSON file (e.g., config/projects/default.json)",
-    )
 
     # Pydantic-settings configuration
     model_config = SettingsConfigDict(

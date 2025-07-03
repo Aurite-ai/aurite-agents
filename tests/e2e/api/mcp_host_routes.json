@@ -1,0 +1,202 @@
+{
+	"info": {
+		"_postman_id": "b8f5f2e8-e2a1-4f5d-b0f2-2e1b1f3b3b1e",
+		"name": "Aurite MCP Host API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Host Status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct status\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('active');",
+							"});",
+							"pm.test(\"Response body has tool_count\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.tool_count).to.be.a('number');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/host/status",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List Tools",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body is an array\", function () {",
+							"    pm.response.to.be.withBody;",
+							"    pm.response.to.be.json;",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/host/tools",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"tools"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Register Weather Server",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct status\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('success');",
+							"    pm.expect(jsonData.name).to.eql('weather_server');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"weather_server\",\n    \"server_path\": \"src/aurite/packaged/example_mcp_servers/weather_mcp_server.py\",\n    \"capabilities\": [\"tools\", \"prompts\"],\n    \"roots\": []\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/host/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Call Weather Lookup Tool",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct content\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.content[0].text).to.include('Weather for San Francisco');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"args\": {\n        \"location\": \"San Francisco\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/host/tools/weather_lookup/call",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"host",
+						"tools",
+						"weather_lookup",
+						"call"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://0.0.0.0:8000"
+		}
+	]
+}

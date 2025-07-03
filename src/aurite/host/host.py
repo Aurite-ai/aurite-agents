@@ -182,7 +182,7 @@ class MCPHost:
                 f"Failed to dynamically register client '{config.name}': {e}",
                 exc_info=True,
             )
-            raise
+            # Do not re-raise the exception. Allow the host to continue with other clients.
 
     def get_formatted_tools(
         self,

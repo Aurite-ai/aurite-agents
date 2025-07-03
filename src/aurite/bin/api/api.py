@@ -9,7 +9,7 @@ from typing import Callable, Optional  # Added List
 import uvicorn
 import yaml
 from dotenv import load_dotenv  # Add this import
-from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
@@ -25,14 +25,11 @@ from ..dependencies import (
 )
 from ..dependencies import (  # Corrected relative import (up one level from src/bin/api)
     PROJECT_ROOT,
-    get_api_key,
-    get_host_manager,
 )
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import evaluation_api  # evaluation_api is not being renamed as per plan
-from .routes import components_routes, config_routes, project_routes
+from .routes import mcp_host_routes, config_manager_routes, facade_routes
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -132,23 +129,15 @@ async def health_check():
 
 
 # --- Application Endpoints ---
-@app.get("/status")
-async def get_status(
-    # Use Security instead of Depends for the API key
-    api_key: str = Security(get_api_key),
-    manager: Aurite = Depends(get_host_manager),
-):
-    """Endpoint to check the status of the Aurite and its underlying MCPHost."""
-    # The get_host_manager dependency ensures the manager and host are initialized
-    # We can add more detailed status checks later if needed (e.g., check manager.host)
-    return {"status": "initialized", "manager_status": "active"}
+# All application endpoints are now defined in their respective router files.
 
 
-# Include the routers
-app.include_router(config_routes.router)
-app.include_router(components_routes.router)
-app.include_router(evaluation_api.router)  # evaluation_api is not being renamed
-app.include_router(project_routes.router)
+# Include the new routers
+app.include_router(mcp_host_routes.router, prefix="/host", tags=["MCP Host"])
+app.include_router(
+    config_manager_routes.router, prefix="/config", tags=["Configuration Manager"]
+)
+app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
 
 
 # Custom OpenAPI schema
