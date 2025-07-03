@@ -44,6 +44,154 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Run Weather Agent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct content\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var finalResponse = JSON.parse(jsonData.final_response.content);",
+							"    pm.expect(finalResponse.weather_summary).to.exist;",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user_message\": \"What is the weather in San Francisco?\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/execution/agents/Weather Agent/run",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"agents",
+						"Weather Agent",
+						"run"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Run Simple Workflow",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"initial_input\": \"What is the weather in San Francisco?\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/simple/Weather Planning Workflow/run",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"simple",
+						"Weather Planning Workflow",
+						"run"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Run Custom Workflow",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"initial_input\": \"test\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/custom/ExampleCustomWorkflow/run",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"custom",
+						"ExampleCustomWorkflow",
+						"run"
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"variable": [
