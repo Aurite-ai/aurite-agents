@@ -54,6 +54,8 @@ class ConfigManager:
                 self._config_sources.append(project_config_path)
                 logger.debug(f"Added project config source: {project_config_path}")
 
+        # 2. Workspace Configuration
+
         # 2. Global User Configuration
         user_config_path = Path.home() / ".aurite" / "config"
         if user_config_path.is_dir():

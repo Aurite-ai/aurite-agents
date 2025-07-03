@@ -33,9 +33,9 @@ async def main():
 
         # 1. Define and register an LLM configuration
         llm_config = LLMConfig(
-            llm_id="openai_gpt4_turbo",
+            name="openai_gpt4_turbo",
             provider="openai",
-            model_name="gpt-4-turbo-preview",
+            model="gpt-4-turbo-preview",
         )
 
         await aurite.register_llm_config(llm_config)

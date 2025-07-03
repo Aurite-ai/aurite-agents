@@ -3,6 +3,10 @@ import uvicorn
 from mcp.server.fastmcp import FastMCP
 import logging
 
+# Create a FastAPI application to mount the MCP server
+import contextlib  # Add this import
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp-http-example-server")
 
@@ -33,10 +37,6 @@ def add_numbers(a: int, b: int) -> int:
     result = a + b
     logger.info(f"Addition result: {result}")
     return result
-
-
-# Create a FastAPI application to mount the MCP server
-import contextlib  # Add this import
 
 
 @contextlib.asynccontextmanager
