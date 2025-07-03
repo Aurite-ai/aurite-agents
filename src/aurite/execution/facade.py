@@ -15,7 +15,13 @@ from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
 from ..host.host import MCPHost
 from ..storage.db_manager import StorageManager
-from ..config.config_models import ProjectConfig
+from ..config.config_manager import ConfigManager
+from ..config.config_models import (
+    AgentConfig,
+    ClientConfig,
+    LLMConfig,
+    LLMConfigOverrides,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,21 +34,21 @@ class ExecutionFacade:
 
     def __init__(
         self,
+        config_manager: "ConfigManager",
         host_instance: "MCPHost",
-        current_project: "ProjectConfig",
         storage_manager: Optional["StorageManager"] = None,
     ):
+        if not config_manager:
+            raise ValueError("ConfigManager instance is required for ExecutionFacade.")
         if not host_instance:
             raise ValueError("MCPHost instance is required for ExecutionFacade.")
-        if not current_project:
-            raise ValueError("Current ProjectConfig is required for ExecutionFacade.")
 
+        self._config_manager = config_manager
         self._host = host_instance
-        self._current_project = current_project
         self._storage_manager = storage_manager
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         logger.debug(
-            f"ExecutionFacade initialized with project '{current_project.name}' (StorageManager {'present' if storage_manager else 'absent'})."
+            f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'})."
         )
 
     # --- Private Helper Methods ---
@@ -54,61 +60,37 @@ class ExecutionFacade:
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> Agent:
-        if not self._current_project.agents:
-            raise KeyError("Agent configurations not found in project.")
-
-        agent_config_list = [
-            a for a in self._current_project.agents if a.name == agent_name
-        ]
-        if not agent_config_list:
+        agent_config_dict = self._config_manager.get_config("agents", agent_name)
+        if not agent_config_dict:
             raise KeyError(f"Agent configuration '{agent_name}' not found.")
-        original_agent_config = agent_config_list[0]
 
-        agent_config_for_run = original_agent_config
+        agent_config_for_run = AgentConfig(**agent_config_dict)
 
-        # TODO: Dynamic tool selection needs to be re-evaluated in light of the new model.
-        # if original_agent_config.auto:
-        #     logger.info(
-        #         f"Agent '{agent_name}' has 'auto=True'. Attempting dynamic tool selection."
-        #     )
-        #     tool_selector_client = self._get_llm_client(
-        #         original_agent_config.llm_config_id
-        #     )
-        #     system_prompt_for_tool_selector = tool_selector_client.system_prompt
+        # JIT Registration of MCP Servers
+        if agent_config_for_run.mcp_servers:
+            for server_name in agent_config_for_run.mcp_servers:
+                if server_name not in self._host.tools:  # A proxy for "is registered"
+                    server_config_dict = self._config_manager.get_config(
+                        "mcp_servers", server_name
+                    )
+                    if not server_config_dict:
+                        raise ValueError(
+                            f"MCP Server '{server_name}' required by agent '{agent_name}' not found."
+                        )
+                    server_config = ClientConfig(**server_config_dict)
+                    await self._host.register_client(server_config)
 
-        #     selected_client_ids = await select_tools_for_agent(
-        #         agent_config=original_agent_config,
-        #         user_message=user_message,
-        #         system_prompt_for_agent=system_prompt_for_tool_selector,
-        #         current_project=self._current_project,
-        #         llm_client_cache=self._llm_client_cache,
-        #     )
-        #     if selected_client_ids is not None:
-        #         agent_config_for_run = copy.deepcopy(original_agent_config)
-        #         agent_config_for_run.mcp_servers = selected_client_ids
-        #         logger.info(
-        #             f"Dynamically selected mcp_servers for agent '{agent_name}': {selected_client_ids}"
-        #         )
-        #     else:
-        #         logger.warning(
-        #             f"Dynamic tool selection failed for agent '{agent_name}'. Falling back to static mcp_servers: {original_agent_config.mcp_servers or 'None'}."
-        #         )
-
-        # The Agent is now responsible for its own LLM configuration and client.
-        # The Facade's role is to gather the necessary configs.
         if not agent_config_for_run.llm_config_id:
             raise ValueError(f"Agent '{agent_name}' must have an llm_config_id.")
 
-        llm_config_list = [
-            llm_config
-            for llm_config in self._current_project.llms
-            if llm_config.name == agent_config_for_run.llm_config_id
-        ]
-        if not llm_config_list:
+        llm_config_dict = self._config_manager.get_config(
+            "llms", agent_config_for_run.llm_config_id
+        )
+        if not llm_config_dict:
             raise ValueError(
-                f"LLM configuration '{agent_config_for_run.llm_config_id}' not found in project."
+                f"LLM configuration '{agent_config_for_run.llm_config_id}' not found."
             )
-        base_llm_config = llm_config_list[0]
+        base_llm_config = LLMConfig(**llm_config_dict)
 
         initial_messages: List[Dict[str, Any]] = []
         if (
@@ -122,11 +104,8 @@ class ExecutionFacade:
 
         initial_messages.append({"role": "user", "content": user_message})
 
-        # The system_prompt_override is now handled inside the Agent's constructor
         if system_prompt_override:
             if agent_config_for_run.llm is None:
-                from ..config.config_models import LLMConfigOverrides
-
                 agent_config_for_run.llm = LLMConfigOverrides()
             agent_config_for_run.llm.system_prompt = system_prompt_override
 
@@ -227,23 +206,18 @@ class ExecutionFacade:
             f"Facade: Received request to run Simple Workflow '{workflow_name}'"
         )
         try:
-            if not self._current_project.simple_workflows:
-                raise KeyError("No simple workflows found in the project.")
-
-            workflow_config_list = [
-                w
-                for w in self._current_project.simple_workflows
-                if w.name == workflow_name
-            ]
-            if not workflow_config_list:
+            workflow_config_dict = self._config_manager.get_config(
+                "simple_workflows", workflow_name
+            )
+            if not workflow_config_dict:
                 raise KeyError(f"Simple Workflow '{workflow_name}' not found.")
-            workflow_config = workflow_config_list[0]
 
-            # The executor now expects a dictionary of agents.
-            agents_dict = {a.name: a for a in self._current_project.agents if a.name}
+            from ..config.config_models import WorkflowConfig
+
+            workflow_config = WorkflowConfig(**workflow_config_dict)
+
             workflow_executor = SimpleWorkflowExecutor(
                 config=workflow_config,
-                agent_configs=agents_dict,
                 facade=self,
             )
 
@@ -280,17 +254,15 @@ class ExecutionFacade:
             f"Facade: Received request to run Custom Workflow '{workflow_name}'"
         )
         try:
-            if not self._current_project.custom_workflows:
-                raise KeyError("No custom workflows found in the project.")
-
-            workflow_config_list = [
-                w
-                for w in self._current_project.custom_workflows
-                if w.name == workflow_name
-            ]
-            if not workflow_config_list:
+            workflow_config_dict = self._config_manager.get_config(
+                "custom_workflows", workflow_name
+            )
+            if not workflow_config_dict:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
-            workflow_config = workflow_config_list[0]
+
+            from ..config.config_models import CustomWorkflowConfig
+
+            workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
 
@@ -312,25 +284,20 @@ class ExecutionFacade:
             logger.error(f"Facade: {error_msg}", exc_info=True)
             return {"status": "failed", "error": error_msg}
 
-    def get_project_config(self) -> "ProjectConfig":
-        return self._current_project
-
     async def get_custom_workflow_input_type(self, workflow_name: str) -> Any:
         logger.info(
             f"Facade: Received request for input type of Custom Workflow '{workflow_name}'"
         )
         try:
-            if not self._current_project.custom_workflows:
-                raise KeyError("No custom workflows found in the project.")
-
-            workflow_config_list = [
-                w
-                for w in self._current_project.custom_workflows
-                if w.name == workflow_name
-            ]
-            if not workflow_config_list:
+            workflow_config_dict = self._config_manager.get_config(
+                "custom_workflows", workflow_name
+            )
+            if not workflow_config_dict:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
-            workflow_config = workflow_config_list[0]
+
+            from ..config.config_models import CustomWorkflowConfig
+
+            workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_input_type()
@@ -350,17 +317,15 @@ class ExecutionFacade:
             f"Facade: Received request for output type of Custom Workflow '{workflow_name}'"
         )
         try:
-            if not self._current_project.custom_workflows:
-                raise KeyError("No custom workflows found in the project.")
-
-            workflow_config_list = [
-                w
-                for w in self._current_project.custom_workflows
-                if w.name == workflow_name
-            ]
-            if not workflow_config_list:
+            workflow_config_dict = self._config_manager.get_config(
+                "custom_workflows", workflow_name
+            )
+            if not workflow_config_dict:
                 raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
-            workflow_config = workflow_config_list[0]
+
+            from ..config.config_models import CustomWorkflowConfig
+
+            workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_output_type()

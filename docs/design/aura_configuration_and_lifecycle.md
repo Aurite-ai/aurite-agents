@@ -86,8 +86,8 @@ graph TD
     end
 
     subgraph Services
-        C(ConfigManager)
-        D(MCPHost)
+        C(ConfigService)
+        D(HostService / MCPHost)
     end
 
     A --> B

@@ -4,13 +4,12 @@ Executor for Simple Sequential Workflows.
 
 import logging
 import json
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
 from ...config.config_models import (
     WorkflowConfig,
-    AgentConfig,
     WorkflowComponent,
 )
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
@@ -36,9 +35,6 @@ class SimpleWorkflowExecutor:
     def __init__(
         self,
         config: WorkflowConfig,
-        agent_configs: Dict[
-            str, AgentConfig
-        ],  # This is passed by Facade from current_project
         facade: "ExecutionFacade",
     ):
         """
@@ -46,24 +42,14 @@ class SimpleWorkflowExecutor:
 
         Args:
             config: The configuration for the specific workflow to execute.
-            agent_configs: A dictionary containing all available agent configurations
-                           from the current project, keyed by agent name.
-                           (Used by the facade when it runs agents for this workflow).
             facade: The ExecutionFacade instance, used to run agents.
         """
         if not isinstance(config, WorkflowConfig):
             raise TypeError("config must be an instance of WorkflowConfig")
-        if not isinstance(agent_configs, dict):
-            raise TypeError("agent_configs must be a dictionary")
         if not facade:
             raise ValueError("ExecutionFacade instance is required.")
 
         self.config = config
-        # _agent_configs is not strictly needed by SimpleWorkflowExecutor itself if facade handles agent lookup,
-        # but keeping it for now as it was passed by the updated facade.
-        # If facade.run_agent can fully resolve agents using its own _current_project.agent_configs,
-        # this could potentially be removed too. For now, it's harmless.
-        self._agent_configs = agent_configs
         self.facade = facade
         logger.debug(
             f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}"
@@ -219,21 +205,12 @@ class SimpleWorkflowExecutor:
 
     def _infer_component_type(self, component_name: str):
         """Search through the project's defined components to find the type of a component"""
-
-        project_config = self.facade.get_project_config()
-
         possible_types = []
-        if any(agent.name == component_name for agent in project_config.agents):
+        if self.facade._config_manager.get_config("agents", component_name):
             possible_types.append("agent")
-        if any(
-            workflow.name == component_name
-            for workflow in project_config.simple_workflows
-        ):
+        if self.facade._config_manager.get_config("simple_workflows", component_name):
             possible_types.append("simple_workflow")
-        if any(
-            workflow.name == component_name
-            for workflow in project_config.custom_workflows
-        ):
+        if self.facade._config_manager.get_config("custom_workflows", component_name):
             possible_types.append("custom_workflow")
 
         if len(possible_types) == 1:

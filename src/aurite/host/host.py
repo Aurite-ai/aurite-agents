@@ -20,7 +20,6 @@ from mcp.client.stdio import StdioServerParameters
 from ..config.config_models import (
     AgentConfig,
     ClientConfig,
-    HostConfig,
 )
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
@@ -38,7 +37,6 @@ class MCPHost:
 
     def __init__(
         self,
-        config: HostConfig,
         encryption_key: Optional[str] = None,
     ):
         # Foundation
@@ -65,7 +63,7 @@ class MCPHost:
         )
 
         # State
-        self._config = config
+        self._config: Dict[str, ClientConfig] = {}
 
     @property
     def prompts(self) -> dict[str, types.Prompt]:
@@ -95,24 +93,7 @@ class MCPHost:
         await self._resource_manager.initialize()
         await self._tool_manager.initialize()
 
-        for server_config in self._config.mcp_servers:
-            try:
-                params = await self._get_server_params(server_config)
-                await self._session_group.connect_to_server(params)
-            except Exception as e:
-                logger.error(f"Failed to connect to server {server_config.name}: {e}")
-
-        num_configured = len(self._config.mcp_servers)
-        num_active = len(self._session_group.sessions)
-        logger.info(
-            f"MCP Host initialization finished. "
-            f"Successfully started {num_active}/{num_configured} configured clients."
-        )
-        if num_active < num_configured:
-            logger.warning(
-                f"{num_configured - num_active} client(s) failed to start. "
-                "Check error logs for details."
-            )
+        logger.info("MCP Host initialization finished.")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
         # Instantiate Aurite
         # Ensure Aurite path is correct relative to project root if needed
         # Assuming Aurite itself handles path resolution correctly based on CWD or PROJECT_ROOT
-        manager_instance = Aurite(config_path=server_config.PROJECT_CONFIG_PATH)
+        manager_instance = Aurite()
 
         # Initialize Aurite (loads configs, initializes MCPHost)
         await manager_instance.initialize()

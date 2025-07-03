@@ -56,7 +56,7 @@ aurite = "aurite.bin.cli.main:app"
 
 [tool.poetry]
 packages = [{ include = "aurite", from = "src" }]
-include = ["LICENSE", "src/aurite/packaged/**/*"]
+include = ["LICENSE", "src/aurite/packaged"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
