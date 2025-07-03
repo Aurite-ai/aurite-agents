@@ -1,10 +1,16 @@
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from importlib.abc import Traversable
 import yaml
 import json
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 
 logger = logging.getLogger(__name__)
@@ -32,29 +38,63 @@ class ConfigManager:
         Args:
             project_root: The root directory of the current project.
         """
+        self.project_root = project_root
         self._config_sources: List[Union[Path, Traversable]] = []
+        self._project_settings: Dict[str, Any] = {}
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self._force_refresh = (
             os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
         )
 
-        self._initialize_sources(project_root)
+        self._load_project_settings()
+        self._initialize_sources()
         self._build_component_index()
 
-    def _initialize_sources(self, project_root: Optional[Path]):
+    def _load_project_settings(self):
+        """Loads project-specific settings from pyproject.toml or aurite.toml."""
+        if not self.project_root:
+            return
+
+        pyproject_path = self.project_root / "pyproject.toml"
+        aurite_toml_path = self.project_root / "aurite.toml"
+
+        config_path = None
+        is_pyproject = False
+
+        if pyproject_path.is_file():
+            config_path = pyproject_path
+            is_pyproject = True
+        elif aurite_toml_path.is_file():
+            config_path = aurite_toml_path
+
+        if config_path:
+            try:
+                with open(config_path, "rb") as f:
+                    toml_data = tomllib.load(f)
+                    if is_pyproject:
+                        self._project_settings = toml_data.get("tool", {}).get(
+                            "aurite", {}
+                        )
+                    else:
+                        self._project_settings = toml_data
+                logger.debug(f"Loaded project settings from {config_path}")
+            except (tomllib.TOMLDecodeError, IOError) as e:
+                logger.error(f"Failed to load or parse {config_path}: {e}")
+
+    def _initialize_sources(self):
         """Initializes the configuration source paths in order of precedence."""
         logger.debug("Initializing configuration sources...")
-        logger.debug(f"Project root: {project_root}")
 
-        # 1. Project Configuration
-        if project_root:
-            project_config_path = project_root / "config"
-            logger.debug(f"Calculated project config path: {project_config_path}")
-            if project_config_path.is_dir():
-                self._config_sources.append(project_config_path)
-                logger.debug(f"Added project config source: {project_config_path}")
-
-        # 2. Workspace Configuration
+        # 1. Project Configuration from TOML or defaults
+        if self.project_root:
+            source_paths = self._project_settings.get("config_sources", ["config/"])
+            for rel_path in source_paths:
+                abs_path = self.project_root / rel_path
+                if abs_path.is_dir():
+                    self._config_sources.append(abs_path)
+                    logger.debug(f"Added project config source: {abs_path}")
+                else:
+                    logger.warning(f"Project config source not found: {abs_path}")
 
         # 2. Global User Configuration
         user_config_path = Path.home() / ".aurite" / "config"
@@ -62,14 +102,13 @@ class ConfigManager:
             self._config_sources.append(user_config_path)
             logger.debug(f"Added user config source: {user_config_path}")
 
-        # TODO: Add Repository source detection
-
-        # 3. Packaged Defaults
+        # 3. Packaged Defaults (Legacy/Fallback)
         try:
             import importlib.resources
 
-            packaged_root_trav = importlib.resources.files("aurite.packaged")
-            packaged_configs_dir = packaged_root_trav.joinpath("component_configs")
+            # This path needs to be updated if we move the packaged configs
+            packaged_root_trav = importlib.resources.files("aurite")
+            packaged_configs_dir = packaged_root_trav.joinpath("config")
             if packaged_configs_dir.is_dir():
                 self._config_sources.append(packaged_configs_dir)
                 logger.debug(f"Added packaged defaults source: {packaged_configs_dir}")

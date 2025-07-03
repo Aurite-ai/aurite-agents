@@ -58,10 +58,13 @@ class Aurite:
     """
 
     def __init__(self, project_root: Optional[Path] = None):
-        if project_root and not project_root.is_absolute():
-            project_root = project_root.resolve()
+        if project_root:
+            # User provided an explicit path, use it.
+            self.project_root = project_root.resolve()
+        else:
+            # Auto-detect the project root.
+            self.project_root = self._find_project_root()
 
-        self.project_root = project_root
         self.config_manager = ConfigManager(project_root=self.project_root)
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
@@ -78,6 +81,32 @@ class Aurite:
             storage_manager=self.storage_manager,
         )
         logger.debug(f"Aurite initialized for project root: {self.project_root}")
+
+    def _find_project_root(self) -> Optional[Path]:
+        """
+        Searches upward from CWD for a project marker file in order of precedence.
+        1. pyproject.toml
+        2. aurite.toml
+        3. .aurite
+        """
+        current_dir = Path.cwd()
+        # Stop at the filesystem root
+        while current_dir != current_dir.parent:
+            if (current_dir / "pyproject.toml").is_file():
+                logger.debug(
+                    f"Found project root at {current_dir} via 'pyproject.toml'"
+                )
+                return current_dir
+            if (current_dir / "aurite.toml").is_file():
+                logger.debug(f"Found project root at {current_dir} via 'aurite.toml'")
+                return current_dir
+            if (current_dir / ".aurite").exists():  # .exists() for file or dir
+                logger.debug(f"Found project root at {current_dir} via '.aurite'")
+                return current_dir
+            current_dir = current_dir.parent
+
+        logger.warning("Could not auto-detect project root. No anchor file found.")
+        return None
 
     async def __aenter__(self):
         await self.initialize()
