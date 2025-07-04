@@ -9,6 +9,7 @@ from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 from datetime import timedelta
 
+import mcp
 import mcp.types as types
 from mcp.client.session import ClientSession
 from mcp.client.session_group import (
@@ -16,6 +17,8 @@ from mcp.client.session_group import (
     ServerParameters,
     StreamableHttpParameters,
 )
+from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 from mcp.client.stdio import StdioServerParameters
 
 from ..config.config_models import (
@@ -110,7 +113,6 @@ class MCPHost:
 
     async def _get_server_params(self, config: ClientConfig) -> ServerParameters:
         client_env = os.environ.copy()
-        client_env["MCP_LOG_LEVEL"] = "ERROR"  # Suppress MCP server logs
 
         # 2. Helper to replace placeholders in strings (for URLs and args)
         def _resolve_placeholders(value: str) -> str:
@@ -132,13 +134,9 @@ class MCPHost:
             if not config.server_path:
                 raise ValueError("'server_path' is required for stdio transport")
 
-            # Use a wrapper to silence the MCP server's stdout/stderr
-            wrapper_path = (
-                "/home/wilcoxr/workspace/aurite/framework/scripts/run_mcp_server.py"
-            )
             return StdioServerParameters(
                 command="python",
-                args=[wrapper_path, "python", str(config.server_path)],
+                args=[str(config.server_path)],
                 env=client_env,
             )
 
@@ -170,13 +168,9 @@ class MCPHost:
 
             resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
 
-            # Use a wrapper to silence the MCP server's stdout/stderr
-            wrapper_path = (
-                "/home/wilcoxr/workspace/aurite/framework/scripts/run_mcp_server.py"
-            )
             return StdioServerParameters(
-                command="python",
-                args=[wrapper_path, config.command] + resolved_args,
+                command=config.command,
+                args=resolved_args,
                 env=client_env,
             )
 
@@ -187,24 +181,69 @@ class MCPHost:
         """Executes a tool given its name and arguments."""
         return await self._session_group.call_tool(name, args)
 
+    async def _establish_session_silently(
+        self, server_params: ServerParameters
+    ) -> tuple[types.Implementation, mcp.ClientSession]:
+        """Establish a client session to an MCP server, silencing stderr for stdio."""
+        import contextlib
+
+        session_stack = contextlib.AsyncExitStack()
+        try:
+            # Create read and write streams that facilitate io with the server.
+            if isinstance(server_params, StdioServerParameters):
+                # This is the key change: pass errlog=open(os.devnull, 'w')
+                client = stdio_client(server_params, errlog=open(os.devnull, "w"))
+                read, write = await session_stack.enter_async_context(client)
+            elif isinstance(server_params, StreamableHttpParameters):
+                client = streamablehttp_client(
+                    url=server_params.url,
+                    headers=server_params.headers,
+                    timeout=server_params.timeout,
+                    sse_read_timeout=timedelta(seconds=60 * 5),
+                    terminate_on_close=True,
+                )
+                read, write, _ = await session_stack.enter_async_context(client)
+            else:
+                # Fallback for SseServerParameters or other types if added in the future
+                # This part is adapted from the original session_group logic
+                # Note: sse_client is not directly imported, so this path is less likely
+                # to be used but included for robustness.
+                raise TypeError(
+                    f"Unsupported server_params type: {type(server_params)}"
+                )
+
+            session = await session_stack.enter_async_context(
+                mcp.ClientSession(read, write)
+            )
+            result = await session.initialize()
+
+            # This is a deviation from the library, we need to manage the stack
+            # The session_group would normally do this. We'll store it on the host.
+            # This part of the logic is complex, so for now, we will rely on the host's main exit stack.
+            # A more robust solution might involve a custom session group.
+            # For now, we will just return the session and server_info
+            # and let the caller manage it.
+            # The session_group will manage the lifecycle of the session after connection.
+            await self._session_group._exit_stack.enter_async_context(session_stack)
+
+            return result.serverInfo, session
+        except Exception:
+            await session_stack.aclose()
+            raise
+
     async def register_client(self, config: ClientConfig):
         """Dynamically registers and initializes a new client."""
         logger.info(f"Attempting to dynamically register client: {config.name}")
-        # The ClientSessionGroup will raise an error if a component name conflicts,
-        # which serves as our duplicate check.
         try:
             params = await self._get_server_params(config)
-            session = await self._session_group.connect_to_server(params)
-            self._sessions_by_name[config.name] = session
 
-            # Suppress informational logs from the server by default
-            try:
-                await session.set_logging_level("error")
-                logger.debug(f"Set log level to 'error' for client '{config.name}'.")
-            except Exception as log_e:
-                logger.warning(
-                    f"Could not set log level for client '{config.name}': {log_e}"
-                )
+            # Instead of connect_to_server, we use our custom method
+            server_info, session = await self._establish_session_silently(params)
+
+            # Now, register the established session with the group
+            await self._session_group.connect_with_session(server_info, session)
+
+            self._sessions_by_name[config.name] = session
 
             logger.info(f"Client '{config.name}' dynamically registered successfully.")
         except Exception as e:
@@ -212,7 +251,6 @@ class MCPHost:
                 f"Failed to dynamically register client '{config.name}': {e}",
                 exc_info=True,
             )
-            # Do not re-raise the exception. Allow the host to continue with other clients.
 
     async def unregister_client(self, server_name: str):
         """Dynamically unregisters a client."""
