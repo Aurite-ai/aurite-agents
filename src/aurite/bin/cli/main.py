@@ -12,6 +12,7 @@ from rich.prompt import Confirm, Prompt
 
 # Relative imports from within the bin directory
 from ..api.api import start as start_api_server
+from ..tui.main import AuriteTUI
 from ...host_manager import Aurite
 from ...config.fast_loader import list_component_names
 
@@ -219,6 +220,15 @@ def api():
     """
     logger("[bold green]Starting Aurite API server...[/bold green]")
     start_api_server()
+
+
+@app.command()
+def tui():
+    """
+    Starts the Aurite Textual TUI.
+    """
+    app = AuriteTUI()
+    app.run()
 
 
 # --- List Commands ---
