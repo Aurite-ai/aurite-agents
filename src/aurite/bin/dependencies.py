@@ -17,9 +17,9 @@ from ..host_manager import Aurite  # Needed for get_host_manager
 logger = logging.getLogger(__name__)
 
 # --- Project Root ---
-# Define project root relative to this file's location (src/bin/dependencies.py)
-# Assuming this file is at src/bin/dependencies.py
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # Point to workspace root
+# The project root is now determined by the Aurite instance's ConfigManager,
+# which finds the nearest `.aurite` file. This makes the API project-aware.
+PROJECT_ROOT = Path.cwd()
 
 
 # --- Configuration Dependency ---
@@ -109,14 +109,13 @@ async def get_host_manager(request: Request) -> Aurite:
     """
     Dependency function to get the initialized Aurite instance from app state.
     """
-    manager: Optional[Aurite] = getattr(request.app.state, "host_manager", None)
+    manager: Optional[Aurite] = getattr(request.app.state, "aurite_instance", None)
     if not manager:
         logger.error("Aurite not initialized or not found in app state.")
         raise HTTPException(
             status_code=503,
             detail="Aurite is not available or not initialized.",
         )
-    # Removed debug log from here, keep it in api.py if needed upon retrieval
     return manager
 
 
@@ -125,7 +124,7 @@ async def get_host(host_manager: Aurite = Depends(get_host_manager)) -> MCPHost:
     """
     Dependency function to get the MCPHost instance from the Aurite manager.
     """
-    if not host_manager.host:
+    if not host_manager.kernel.host:
         # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
             "MCPHost not found on Aurite instance. This indicates an initialization issue."
@@ -134,7 +133,7 @@ async def get_host(host_manager: Aurite = Depends(get_host_manager)) -> MCPHost:
             status_code=503,
             detail="MCPHost is not available due to an internal error.",
         )
-    return host_manager.host
+    return host_manager.kernel.host
 
 
 # --- ConfigManager Dependency ---
@@ -144,16 +143,7 @@ async def get_config_manager(
     """
     Dependency function to get the ConfigManager instance from the Aurite manager.
     """
-    if not host_manager.config_manager:
-        # This case should ideally not happen if Aurite is initialized correctly
-        logger.error(
-            "ConfigManager not found on Aurite instance. This indicates an initialization issue."
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="ConfigManager is not available due to an internal error.",
-        )
-    return host_manager.config_manager
+    return host_manager.get_config_manager()
 
 
 # --- ExecutionFacade Dependency ---
@@ -163,7 +153,7 @@ async def get_execution_facade(
     """
     Dependency function to get the ExecutionFacade instance from the Aurite manager.
     """
-    if not host_manager.execution:
+    if not host_manager.kernel.execution:
         # This case should ideally not happen if Aurite is initialized correctly
         logger.error(
             "ExecutionFacade not found on Aurite instance. This indicates an initialization issue."
@@ -172,7 +162,7 @@ async def get_execution_facade(
             status_code=503,
             detail="ExecutionFacade is not available due to an internal error.",
         )
-    return host_manager.execution
+    return host_manager.kernel.execution
 
 
 async def get_current_project_root(
@@ -182,7 +172,7 @@ async def get_current_project_root(
     Dependency function to get the current project's root path
     from the Aurite instance.
     """
-    if not host_manager.project_root:
+    if not host_manager.kernel.project_root:
         logger.error(
             "Current project root not available via host_manager.project_root. "
             "This indicates an initialization issue or no active project."
@@ -191,4 +181,4 @@ async def get_current_project_root(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Project context is not fully initialized or no project is active. Cannot determine project root.",
         )
-    return host_manager.project_root
+    return host_manager.kernel.project_root

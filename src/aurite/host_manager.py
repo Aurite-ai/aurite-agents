@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 if sys.version_info < (3, 11):
     try:
@@ -207,6 +207,25 @@ class Aurite:
             initial_input=initial_input,
             session_id=session_id,
         )
+
+    async def stream_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Runs an agent and streams the response back event by event.
+        """
+        await self._ensure_initialized()
+        async for event in self.kernel.execution.stream_agent_run(
+            agent_name=agent_name,
+            user_message=user_message,
+            system_prompt=system_prompt,
+            session_id=session_id,
+        ):
+            yield event
 
     # Allow the wrapper to be used as a context manager for users who
     # prefer explicit resource management over relying on the __del__ finalizer.

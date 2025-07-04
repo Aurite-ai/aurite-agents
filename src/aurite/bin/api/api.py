@@ -4,15 +4,14 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Callable, Optional  # Added List
+from typing import Callable  # Added List
 
 import uvicorn
-import yaml
 from dotenv import load_dotenv  # Add this import
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import FileResponse, JSONResponse  # Add JSONResponse
+from fastapi.responses import JSONResponse  # Add JSONResponse
 
 # Adjust imports for new location (src/bin -> src)
 from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
@@ -22,9 +21,6 @@ from ...host_manager import (  # Corrected relative import (up two levels from s
 # Import shared dependencies (relative to parent directory - src/bin)
 from ..dependencies import (
     get_server_config,  # Re-import ServerConfig if needed locally, or remove if only used in dependencies.py
-)
-from ..dependencies import (  # Corrected relative import (up one level from src/bin/api)
-    PROJECT_ROOT,
 )
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
@@ -51,61 +47,19 @@ load_dotenv()  # Add this call
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle FastAPI lifecycle events: initialize Aurite on startup, shutdown on exit."""
-    manager_instance: Optional[Aurite] = None
-    try:
-        logger.info("Starting FastAPI server and initializing Aurite...")
-        # Load server config
-        server_config = get_server_config()
-        if not server_config:
-            raise RuntimeError(
-                "Server configuration could not be loaded. Aborting startup."
-            )
+    logger.info("Initializing Aurite for FastAPI application...")
+    aurite_instance = Aurite()
+    # The __aenter__ will trigger the lazy initialization.
+    await aurite_instance.__aenter__()
+    app.state.aurite_instance = aurite_instance
+    logger.info("Aurite initialized and ready.")
 
-        # Instantiate Aurite
-        # Ensure Aurite path is correct relative to project root if needed
-        # Assuming Aurite itself handles path resolution correctly based on CWD or PROJECT_ROOT
-        manager_instance = Aurite(project_root=PROJECT_ROOT)
+    yield  # Server runs here
 
-        # Initialize Aurite (loads configs, initializes MCPHost)
-        await manager_instance.initialize()
-        logger.debug("Aurite initialized successfully.")
-
-        # Store manager instance in app state
-        app.state.host_manager = manager_instance
-
-        yield  # Server runs here
-
-    except Exception as e:
-        logger.error(
-            f"Error during Aurite initialization or server startup: {e}",
-            exc_info=True,
-        )
-        # Ensure manager (and its host) is cleaned up if initialization partially succeeded
-        if manager_instance:
-            try:
-                await manager_instance.shutdown()
-            except Exception as shutdown_e:
-                logger.error(
-                    f"Error during manager shutdown after startup failure: {shutdown_e}"
-                )
-        raise  # Re-raise the original exception to prevent server from starting improperly
-    finally:
-        # Shutdown Aurite on application exit
-        final_manager_instance = getattr(app.state, "host_manager", None)
-        if final_manager_instance:
-            logger.info("Shutting down Aurite...")
-            try:
-                await final_manager_instance.shutdown()
-                logger.debug("Aurite shutdown complete.")
-            except Exception as e:
-                logger.error(f"Error during Aurite shutdown: {e}")
-        else:
-            logger.info("Aurite was not initialized or already shut down.")
-
-        # Clear manager from state
-        if hasattr(app.state, "host_manager"):
-            del app.state.host_manager
-        logger.info("FastAPI server shutdown sequence complete.")
+    logger.info("Shutting down Aurite...")
+    # The __aexit__ will handle the graceful shutdown.
+    await aurite_instance.__aexit__(None, None, None)
+    logger.info("Aurite shutdown complete.")
 
 
 # Create FastAPI app
@@ -145,29 +99,6 @@ def custom_openapi():
     """Generate custom OpenAPI schema, optionally loading from external file."""
     if app.openapi_schema:
         return app.openapi_schema
-
-    # Try to load the detailed OpenAPI spec from file
-    openapi_file = PROJECT_ROOT / "openapi.yaml"
-    if openapi_file.exists():
-        try:
-            with open(openapi_file, "r") as f:
-                openapi_schema = yaml.safe_load(f)
-            logger.info(f"Loaded OpenAPI schema from {openapi_file}")
-
-            # Update server URL based on current configuration
-            server_config = get_server_config()
-            if server_config:
-                openapi_schema["servers"] = [
-                    {
-                        "url": f"http://{server_config.HOST}:{server_config.PORT}",
-                        "description": "Current server",
-                    }
-                ]
-
-            app.openapi_schema = openapi_schema
-            return app.openapi_schema
-        except Exception as e:
-            logger.warning(f"Failed to load OpenAPI schema from file: {e}")
 
     # Fallback to auto-generated schema
     openapi_schema = get_openapi(
@@ -357,33 +288,9 @@ app.add_middleware(
 # IMPORTANT: This must come AFTER all other API routes
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_react_app(full_path: str):  # Parameter name doesn't matter much here
-    # Check if the requested path looks like a file extension common in frontend builds
-    # This is a basic check to avoid serving index.html for potential API-like paths
-    # that weren't explicitly defined. Adjust extensions as needed.
-    if "." in full_path and full_path.split(".")[-1] in [
-        "js",
-        "css",
-        "html",
-        "ico",
-        "png",
-        "jpg",
-        "svg",
-        "woff2",
-        "woff",
-        "ttf",
-    ]:
-        # If it looks like a file request that wasn't caught by /assets mount, return 404
-        # This prevents serving index.html for potentially missing asset files.
-        # Alternatively, you could try serving from PROJECT_ROOT / "frontend/dist" / full_path
-        # but the /assets mount should handle most cases.
-        raise HTTPException(status_code=404, detail="Static file not found in assets")
-
-    # For all other paths, serve the main index.html file
-    index_path = PROJECT_ROOT / "frontend/dist/index.html"
-    if not index_path.is_file():
-        logger.error(f"Frontend build index.html not found at: {index_path}")
-        raise HTTPException(status_code=500, detail="Frontend build not found.")
-    return FileResponse(index_path)
+    # This is a placeholder for serving a frontend.
+    # For now, it will return a 404 for any path not matching an API route.
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 # --- End Serve React Frontend Build ---

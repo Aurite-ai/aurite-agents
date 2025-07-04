@@ -243,7 +243,7 @@ def _get_aurite_instance() -> Aurite:
 def list_all():
     """Lists all available component configurations, grouped by type."""
     aurite = _get_aurite_instance()
-    all_configs = aurite.config_manager.get_all_configs()
+    all_configs = aurite.get_config_manager().get_all_configs()
     for comp_type, configs in all_configs.items():
         logger(f"\n[bold cyan]{comp_type.replace('_', ' ').title()}[/bold cyan]")
         if not configs:
@@ -264,7 +264,7 @@ def list_all():
 def list_agents():
     """Lists all available agent configurations."""
     aurite = _get_aurite_instance()
-    configs = aurite.config_manager.list_configs("agents")
+    configs = aurite.get_config_manager().list_configs("agents")
     # Similar table rendering as above
     table = Table(title="Agents")
     table.add_column("Name", style="cyan")
@@ -359,7 +359,7 @@ def run(
                         "[bold red]Error:[/bold red] An initial input is required to run a simple workflow."
                     )
                     raise typer.Exit(code=1)
-                result = await aurite.run_workflow(
+                result = await aurite.run_simple_workflow(
                     workflow_name=name, initial_input=user_message
                 )
                 logger("[bold]Simple Workflow Result:[/bold]")
