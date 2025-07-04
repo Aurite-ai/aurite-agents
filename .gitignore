@@ -188,3 +188,4 @@ docs/.copilot/
 notebook-venv/
 docs/guides/
 docs/reports/newman/*
+!src/aurite/init_templates/.env.example

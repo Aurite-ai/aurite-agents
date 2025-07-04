@@ -13,6 +13,7 @@ from rich.prompt import Confirm, Prompt
 # Relative imports from within the bin directory
 from ..api.api import start as start_api_server
 from ...host_manager import Aurite
+from ...config.fast_loader import list_component_names
 
 app = typer.Typer(
     name="aurite",
@@ -270,6 +271,35 @@ def list_agents():
 
 # ... (Implement other list commands: llms, simple-workflows, etc. in a similar fashion)
 
+# --- Completion Functions ---
+
+
+def complete_component_type(incomplete: str):
+    """Provides completion for component types."""
+    types = ["agent", "simple-workflow", "custom-workflow"]
+    for comp_type in types:
+        if comp_type.startswith(incomplete):
+            yield comp_type
+
+
+def complete_component_name(ctx: typer.Context):
+    """
+    Provides completion for component names based on the component_type argument.
+    """
+    # The component_type is in the command's arguments list
+    comp_type_arg = None
+    if ctx.args:
+        comp_type_arg = ctx.args[0]
+
+    if comp_type_arg:
+        # Typer might add quotes, remove them
+        comp_type_clean = comp_type_arg.strip("'\"")
+        # Use the fast loader to get names
+        names = list_component_names(comp_type_clean)
+        for name in names:
+            yield name
+
+
 # --- Run Commands ---
 
 
@@ -278,8 +308,13 @@ def run(
     component_type: str = typer.Argument(
         ...,
         help="The type of component to run (agent, simple-workflow, custom-workflow).",
+        autocompletion=complete_component_type,
     ),
-    name: str = typer.Argument(..., help="The name of the component to run."),
+    name: str = typer.Argument(
+        ...,
+        help="The name of the component to run.",
+        autocompletion=complete_component_name,
+    ),
     user_message: Optional[str] = typer.Argument(
         None, help="The user message or initial input."
     ),

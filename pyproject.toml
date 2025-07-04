@@ -41,7 +41,6 @@ dependencies = [
     "litellm (>=1.73.6,<2.0.0)",
     "cryptography (>=45.0.4,<46.0.0)",
     "pydub (>=0.25.1,<0.26.0)",
-    "httpx (>=0.28.1,<0.29.0)",
     "rich (>=14.0.0,<15.0.0)",
     "tomli (>=2.2.1,<3.0.0)"
 ]
@@ -51,9 +50,6 @@ Homepage = "https://publish.obsidian.md/aurite/HOME"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
 
 [project.scripts]
-start-api = "aurite.bin.api.api:start"
-start-worker = "aurite.bin.worker:start"
-run-cli = "aurite.bin.cli.cli_executor:app"
 aurite = "aurite.bin.cli.main:app"
 
 [tool.poetry]
