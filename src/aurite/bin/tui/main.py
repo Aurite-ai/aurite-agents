@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import Any
 
 from textual.app import App, ComposeResult
@@ -87,6 +88,11 @@ class AuriteTUI(App):
             self.text = text
             super().__init__()
 
+    class ClearLogMessage(Message):
+        """A message to clear the output log."""
+
+        pass
+
     CSS_PATH = "main.tcss"
 
     def __init__(self):
@@ -94,6 +100,8 @@ class AuriteTUI(App):
         self.aurite = Aurite()
         self.current_component_type: str | None = None
         self.current_component_name: str | None = None
+        self.current_session_id: str | None = None
+        self.session_agent_name: str | None = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -108,7 +116,7 @@ class AuriteTUI(App):
                     yield RichLog(wrap=True, id="output-pane")
                     with Horizontal(id="output-pane-controls"):
                         yield Input(placeholder="Enter message...")
-                        yield Button("▶ Run", variant="primary")
+                        yield Button("▶ Run", variant="primary", id="run-button")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -147,8 +155,11 @@ class AuriteTUI(App):
         if self.current_component_type is None:
             return
 
+        # Clear the output pane when a new component is selected
+        output_log = self.query_one("#output-pane", RichLog)
+        output_log.clear()
+
         detail_pane = self.query_one("#detail-pane", VerticalScroll)
-        # Clear previous content
         detail_pane.remove_children()
 
         row_key = event.row_key
@@ -159,22 +170,19 @@ class AuriteTUI(App):
                     self.current_component_type, self.current_component_name
                 )
                 if config:
+                    widgets_to_mount = []
                     for key, value in config.items():
-                        # Don't show internal keys in the editor
                         if key.startswith("_"):
                             continue
 
-                        # For complex values (lists, dicts), show as JSON string
                         display_value = (
                             json.dumps(value)
                             if isinstance(value, (dict, list))
                             else str(value)
                         )
-
                         new_label = Label(f"{key}:", classes="editor-label")
 
                         if key == "system_prompt":
-                            # Special case for system_prompt
                             truncated_prompt = (
                                 (display_value[:50] + "...")
                                 if len(display_value) > 50
@@ -184,14 +192,13 @@ class AuriteTUI(App):
                                 truncated_prompt, classes="prompt-display"
                             )
                             edit_button = Button("Edit", id="edit-prompt-button")
-                            # We still need a hidden input to store the full value for the main save logic
                             hidden_input = Input(
                                 value=display_value,
                                 id="input-system_prompt",
                                 classes="hidden-input",
                             )
-                            detail_pane.mount(hidden_input)
-                            detail_pane.mount(
+                            widgets_to_mount.append(hidden_input)
+                            widgets_to_mount.append(
                                 Horizontal(
                                     new_label,
                                     prompt_label,
@@ -203,13 +210,13 @@ class AuriteTUI(App):
                             llm_configs = self.aurite.config_manager.list_configs(
                                 "llms"
                             )
-                            llm_names = [config["name"] for config in llm_configs]
+                            llm_names = [c["name"] for c in llm_configs]
                             select = Select(
                                 options=[(name, name) for name in llm_names],
                                 value=display_value,
                                 id="select-llm_config_id",
                             )
-                            detail_pane.mount(
+                            widgets_to_mount.append(
                                 Horizontal(new_label, select, classes="editor-row")
                             )
                         elif key == "mcp_servers":
@@ -225,14 +232,13 @@ class AuriteTUI(App):
                                 summary_text, classes="prompt-display"
                             )
                             edit_button = Button("Edit", id="edit-servers-button")
-                            # Hidden input to store the JSON list for saving
                             hidden_input = Input(
                                 value=json.dumps(current_servers),
                                 id="input-mcp_servers",
                                 classes="hidden-input",
                             )
-                            detail_pane.mount(hidden_input)
-                            detail_pane.mount(
+                            widgets_to_mount.append(hidden_input)
+                            widgets_to_mount.append(
                                 Horizontal(
                                     new_label,
                                     servers_label,
@@ -243,35 +249,63 @@ class AuriteTUI(App):
                             )
                         else:
                             new_input = Input(value=display_value, id=f"input-{key}")
-                            detail_pane.mount(
+                            widgets_to_mount.append(
                                 Horizontal(new_label, new_input, classes="editor-row")
                             )
 
-                    detail_pane.mount(
+                    widgets_to_mount.append(
                         Button("Save", variant="success", id="save-button")
                     )
+                    detail_pane.mount(Vertical(*widgets_to_mount))
 
     def on_stream_message(self, message: StreamMessage) -> None:
         """Write stream message to the output log."""
-        output_log = self.query_one("#output-pane", RichLog)
-        output_log.write(message.text)
+        try:
+            output_log = self.query_one("#output-pane", RichLog)
+            output_log.write(message.text)
+        except Exception as e:
+            self.notify(f"Error writing to log: {e}", severity="error")
+
+    def on_clear_log_message(self, message: ClearLogMessage) -> None:
+        """Clears the output log."""
+        try:
+            output_log = self.query_one("#output-pane", RichLog)
+            output_log.clear()
+        except Exception as e:
+            self.notify(f"Error clearing log: {e}", severity="error")
 
     @work(exclusive=True)
     async def execute_run(self, message: str):
         """Executes a component run in a worker thread."""
-        output_log = self.query_one("#output-pane", RichLog)
-        self.call_from_thread(output_log.clear)
+        self.post_message(self.StreamMessage(f"\n[bold]You:[/bold] {message}"))
 
         if not self.current_component_name:
             self.post_message(self.StreamMessage("Error: No component selected."))
             return
 
-        if self.current_component_type == "agent":
+        if self.current_component_type == "agents":
+            # Session management
+            if self.session_agent_name != self.current_component_name:
+                self.session_agent_name = self.current_component_name
+                self.current_session_id = str(uuid.uuid4())
+                self.post_message(self.ClearLogMessage())
+                self.post_message(
+                    self.StreamMessage(
+                        f"[dim]New chat session started (ID: {self.current_session_id})[/dim]\n"
+                    )
+                )
+
+            self.post_message(self.StreamMessage("[bold]Agent:[/bold] "))
             async for event in self.aurite.execution.stream_agent_run(
-                self.current_component_name, message
+                self.current_component_name, message, session_id=self.current_session_id
             ):
-                self.post_message(self.StreamMessage(str(event)))
-        elif self.current_component_type == "simple_workflow":
+                if event.get("type") == "llm_response":
+                    self.post_message(
+                        self.StreamMessage(event.get("data", {}).get("content", ""))
+                    )
+
+        elif self.current_component_type == "simple_workflows":
+            self.post_message(self.ClearLogMessage())
             result = await self.aurite.execution.run_simple_workflow(
                 self.current_component_name, message
             )
@@ -289,14 +323,20 @@ class AuriteTUI(App):
             self.edit_system_prompt()
         elif event.button.id == "edit-servers-button":
             self.edit_mcp_servers()
-        elif self.current_component_name and self.current_component_type in [
-            "agent",
-            "simple_workflow",
-        ]:
-            run_input = self.query_one("#output-pane-controls Input", Input)
-            message = run_input.value
-            run_input.clear()
-            self.execute_run(message)
+        elif event.button.id == "run-button":
+            if self.current_component_name and self.current_component_type in [
+                "agents",
+                "simple_workflows",
+            ]:
+                run_input = self.query_one("#output-pane-controls Input", Input)
+                message = run_input.value
+                run_input.clear()
+                self.execute_run(message)
+            else:
+                self.notify(
+                    "Please select a runnable component (agent or workflow) first.",
+                    severity="warning",
+                )
 
     def edit_system_prompt(self) -> None:
         """Pushes the system prompt editor screen."""
