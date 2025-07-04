@@ -1,7 +1,7 @@
 [
   {
     "name": "weather_server",
-    "server_path": "mcp_servers/weather_mcp_server.py",
+    "server_path": "mcp_servers/weather_server.py",
     "transport_type": "stdio",
     "capabilities": ["tools", "prompts"],
     "timeout": 15.0

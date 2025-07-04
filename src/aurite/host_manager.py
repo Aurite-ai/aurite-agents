@@ -2,6 +2,7 @@
 Host Manager for orchestrating MCPHost, Agents, and Workflows.
 """
 
+import asyncio
 import logging
 import os
 import sys
@@ -50,10 +51,10 @@ class DuplicateClientIdError(ValueError):
     pass
 
 
-class Aurite:
+class _AuriteCore:
     """
-    Manages the lifecycle of the Aurite framework services and provides
-    a simplified entrypoint for executing agents and workflows.
+    The internal core of the Aurite framework, designed to be used as an
+    async context manager to ensure proper resource management.
     """
 
     def __init__(self):
@@ -62,6 +63,7 @@ class Aurite:
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
         self._db_engine = None
+        self._is_shut_down = False
 
         if os.getenv("AURITE_ENABLE_DB", "false").lower() == "true":
             self._db_engine = create_db_engine()
@@ -73,7 +75,7 @@ class Aurite:
             host_instance=self.host,
             storage_manager=self.storage_manager,
         )
-        logger.debug(f"Aurite initialized for project root: {self.project_root}")
+        logger.debug(f"Aurite Core initialized for project root: {self.project_root}")
 
     async def __aenter__(self):
         await self.initialize()
@@ -83,35 +85,37 @@ class Aurite:
         await self.shutdown()
 
     async def initialize(self):
-        logger.debug("Initializing Aurite services...")
+        logger.debug("Initializing Aurite Core services...")
         try:
             if self.storage_manager:
                 self.storage_manager.init_db()
-
             if self.host:
                 await self.host.__aenter__()
-
             logger.info(
-                colored("Aurite initialization complete.", "yellow", attrs=["bold"])
+                colored(
+                    "Aurite Core initialization complete.", "yellow", attrs=["bold"]
+                )
             )
         except Exception as e:
-            logger.error(f"Error during Aurite initialization: {e}", exc_info=True)
+            logger.error(f"Error during Aurite Core initialization: {e}", exc_info=True)
             await self.shutdown()
-            raise RuntimeError(f"Aurite initialization failed: {e}") from e
+            raise RuntimeError(f"Aurite Core initialization failed: {e}") from e
 
     async def shutdown(self):
-        logger.debug("Shutting down Aurite...")
-        if self.host and self.host._exit_stack:
+        if self._is_shut_down:
+            return
+        logger.debug("Shutting down Aurite Core...")
+        if self.host:
             await self.host.__aexit__(None, None, None)
             self.host = None
         if self._db_engine:
             self._db_engine.dispose()
             self._db_engine = None
         self.storage_manager = None
-        logger.info("Aurite shutdown complete.")
+        self._is_shut_down = True
+        logger.info("Aurite Core shutdown complete.")
 
     def get_config_manager(self) -> ConfigManager:
-        """Returns the ConfigManager instance."""
         return self.config_manager
 
     async def run_agent(
@@ -121,8 +125,6 @@ class Aurite:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> AgentRunResult:
-        if not self.execution:
-            raise RuntimeError("Aurite execution facade is not initialized.")
         return await self.execution.run_agent(
             agent_name=agent_name,
             user_message=user_message,
@@ -130,11 +132,9 @@ class Aurite:
             session_id=session_id,
         )
 
-    async def run_workflow(
+    async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
     ) -> SimpleWorkflowExecutionResult:
-        if not self.execution:
-            raise RuntimeError("Aurite execution facade is not initialized.")
         return await self.execution.run_simple_workflow(
             workflow_name=workflow_name, initial_input=initial_input
         )
@@ -142,10 +142,70 @@ class Aurite:
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
     ) -> Any:
-        if not self.execution:
-            raise RuntimeError("Aurite execution facade is not initialized.")
         return await self.execution.run_custom_workflow(
             workflow_name=workflow_name,
             initial_input=initial_input,
             session_id=session_id,
         )
+
+
+class Aurite:
+    """
+    A user-friendly wrapper for the Aurite framework that manages the
+    underlying async lifecycle, ensuring graceful shutdown even when not
+    used as a context manager.
+    """
+
+    def __init__(self):
+        self._core = _AuriteCore()
+        self._loop = asyncio.get_event_loop()
+
+    def __del__(self):
+        if not self._core._is_shut_down:
+            if self._loop.is_running():
+                self._loop.create_task(self._core.shutdown())
+            else:
+                asyncio.run(self._core.shutdown())
+
+    def get_config_manager(self) -> ConfigManager:
+        return self._core.get_config_manager()
+
+    async def run_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        system_prompt: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AgentRunResult:
+        async with self._core as core:
+            return await core.run_agent(
+                agent_name=agent_name,
+                user_message=user_message,
+                system_prompt=system_prompt,
+                session_id=session_id,
+            )
+
+    async def run_simple_workflow(
+        self, workflow_name: str, initial_input: Any
+    ) -> SimpleWorkflowExecutionResult:
+        async with self._core as core:
+            return await core.run_simple_workflow(
+                workflow_name=workflow_name, initial_input=initial_input
+            )
+
+    async def run_custom_workflow(
+        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+    ) -> Any:
+        async with self._core as core:
+            return await core.run_custom_workflow(
+                workflow_name=workflow_name,
+                initial_input=initial_input,
+                session_id=session_id,
+            )
+
+    # Allow the wrapper to be used as a context manager as well
+    async def __aenter__(self):
+        return await self._core.__aenter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._core.__aexit__(exc_type, exc_val, exc_tb)

@@ -12,14 +12,9 @@ from datetime import timedelta
 import mcp
 import mcp.types as types
 from mcp.client.session import ClientSession
-from mcp.client.session_group import (
-    ClientSessionGroup,
-    ServerParameters,
-    StreamableHttpParameters,
-)
-from mcp.client.stdio import stdio_client
+from mcp.client.session_group import StreamableHttpParameters
 from mcp.client.streamable_http import streamablehttp_client
-from mcp.client.stdio import StdioServerParameters
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 from ..config.config_models import (
     AgentConfig,
@@ -27,7 +22,7 @@ from ..config.config_models import (
 )
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
-from .resources import PromptManager, ResourceManager, ToolManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +31,7 @@ class MCPHost:
     """
     The MCP Host manages connections to configured MCP servers (clients) and provides
     a unified interface for interacting with their capabilities (tools, prompts, resources).
-    It serves as the core infrastructure layer used by higher-level components.
+    It now manages session lifecycles directly to avoid asyncio/anyio conflicts.
     """
 
     def __init__(
@@ -49,229 +44,162 @@ class MCPHost:
         self._message_router = MessageRouter()
         self._filtering_manager = FilteringManager()
 
-        # Session management
-        self._session_group = ClientSessionGroup()
-        self._exit_stack = AsyncExitStack()
-        self._sessions_by_name: Dict[str, ClientSession] = {}
-
-        # Resource management (These might be simplified or removed if SessionGroup handles all)
-        self._prompt_manager = PromptManager(
-            message_router=self._message_router, session_group=self._session_group
-        )
-        self._resource_manager = ResourceManager(
-            message_router=self._message_router, session_group=self._session_group
-        )
-        self._tool_manager = ToolManager(
-            root_manager=self._root_manager,
-            message_router=self._message_router,
-            session_group=self._session_group,
-        )
-
-        # State
-        self._config: Dict[str, ClientConfig] = {}
+        # Direct session and component management
+        self._sessions: Dict[str, ClientSession] = {}
+        self._session_exit_stacks: Dict[str, AsyncExitStack] = {}
+        self._tools: Dict[str, types.Tool] = {}
+        self._prompts: Dict[str, types.Prompt] = {}
+        self._resources: Dict[str, types.Resource] = {}
+        self._tool_to_session: Dict[str, ClientSession] = {}
 
     @property
     def prompts(self) -> dict[str, types.Prompt]:
         """Returns the prompts as a dictionary of names to prompts."""
-        return self._session_group.prompts
+        return self._prompts
 
     @property
     def resources(self) -> dict[str, types.Resource]:
         """Returns the resources as a dictionary of names to resources."""
-        return self._session_group.resources
+        return self._resources
 
     @property
     def tools(self) -> dict[str, types.Tool]:
         """Returns the tools as a dictionary of names to tools."""
-        return self._session_group.tools
+        return self._tools
 
     @property
     def registered_server_names(self) -> List[str]:
         """Returns a list of the names of all registered servers."""
-        return list(self._sessions_by_name.keys())
+        return list(self._sessions.keys())
 
     async def __aenter__(self):
-        await self._exit_stack.__aenter__()
-        await self._exit_stack.enter_async_context(self._session_group)
-
         logger.debug("Initializing MCP Host...")
-        # Initialize managers
-        await self._security_manager.initialize()
-        await self._root_manager.initialize()
-        await self._message_router.initialize()
-        await self._prompt_manager.initialize()
-        await self._resource_manager.initialize()
-        await self._tool_manager.initialize()
-
-        logger.info("MCP Host initialization finished.")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         logger.debug("Shutting down MCP Host...")
-        await self._exit_stack.aclose()
+        server_names = list(self._sessions.keys())
+        for server_name in server_names:
+            await self.unregister_client(server_name)
         logger.debug("MCP Host shutdown complete.")
-
-    async def _get_server_params(self, config: ClientConfig) -> ServerParameters:
-        client_env = os.environ.copy()
-
-        # 2. Helper to replace placeholders in strings (for URLs and args)
-        def _resolve_placeholders(value: str) -> str:
-            placeholders = re.findall(r"\{([^}]+)\}", value)
-            for placeholder in placeholders:
-                env_value = client_env.get(placeholder)
-                if env_value:
-                    value = value.replace(f"{{{placeholder}}}", env_value)
-                else:
-                    # Keep unresolved placeholders for clarity, but log a warning
-                    logger.warning(
-                        f"Could not resolve placeholder '{{{placeholder}}}' for client '{config.name}'. "
-                        f"Ensure the environment variable '{placeholder}' is set."
-                    )
-            return value
-
-        # 3. Determine parameters based on transport type
-        if config.transport_type == "stdio":
-            if not config.server_path:
-                raise ValueError("'server_path' is required for stdio transport")
-
-            return StdioServerParameters(
-                command="python",
-                args=[str(config.server_path)],
-                env=client_env,
-            )
-
-        elif config.transport_type == "http_stream":
-            if not config.http_endpoint:
-                raise ValueError("URL is required for http_stream transport")
-
-            endpoint_url = _resolve_placeholders(config.http_endpoint)
-
-            # Handle Docker environment
-            if os.environ.get("DOCKER_ENV", "false").lower() == "true":
-                if "localhost" in endpoint_url:
-                    endpoint_url = endpoint_url.replace(
-                        "localhost", "host.docker.internal"
-                    )
-                    logger.info(
-                        f"DOCKER_ENV is true, updated http_endpoint to: {endpoint_url}"
-                    )
-
-            return StreamableHttpParameters(
-                url=endpoint_url,
-                headers=config.headers,
-                timeout=timedelta(seconds=config.timeout or 30.0),
-            )
-
-        elif config.transport_type == "local":
-            if not config.command:
-                raise ValueError("'command' is required for local transport")
-
-            resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
-
-            return StdioServerParameters(
-                command=config.command,
-                args=resolved_args,
-                env=client_env,
-            )
-
-        else:
-            raise ValueError(f"Unsupported transport type: {config.transport_type}")
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> types.CallToolResult:
         """Executes a tool given its name and arguments."""
-        return await self._session_group.call_tool(name, args)
+        if name not in self._tool_to_session:
+            raise KeyError(f"Tool '{name}' not found or its server is not registered.")
+        session = self._tool_to_session[name]
+        return await session.call_tool(name, args)
 
-    async def _establish_session_silently(
-        self, server_params: ServerParameters
-    ) -> tuple[types.Implementation, mcp.ClientSession]:
-        """Establish a client session to an MCP server, silencing stderr for stdio."""
-        import contextlib
+    async def register_client(self, config: ClientConfig):
+        """
+        Dynamically registers and initializes a new client, managing its lifecycle
+        with a dedicated AsyncExitStack to ensure proper cleanup.
+        """
+        logger.info(f"Attempting to dynamically register client: {config.name}")
+        if config.name in self._sessions:
+            logger.warning(f"Client '{config.name}' is already registered.")
+            return
 
-        session_stack = contextlib.AsyncExitStack()
+        session_stack = AsyncExitStack()
         try:
-            # Create read and write streams that facilitate io with the server.
-            if isinstance(server_params, StdioServerParameters):
-                # This is the key change: pass errlog=open(os.devnull, 'w')
-                client = stdio_client(server_params, errlog=open(os.devnull, "w"))
+            client_env = os.environ.copy()
+
+            def _resolve_placeholders(value: str) -> str:
+                placeholders = re.findall(r"\{([^}]+)\}", value)
+                for placeholder in placeholders:
+                    env_value = client_env.get(placeholder)
+                    if env_value:
+                        value = value.replace(f"{{{placeholder}}}", env_value)
+                return value
+
+            if config.transport_type in ["stdio", "local"]:
+                if config.transport_type == "stdio":
+                    if not config.server_path:
+                        raise ValueError(
+                            "'server_path' is required for stdio transport"
+                        )
+                    params = StdioServerParameters(
+                        command="python", args=[str(config.server_path)], env=client_env
+                    )
+                else:  # local
+                    if not config.command:
+                        raise ValueError("'command' is required for local transport")
+                    resolved_args = [
+                        _resolve_placeholders(arg) for arg in (config.args or [])
+                    ]
+                    params = StdioServerParameters(
+                        command=config.command, args=resolved_args, env=client_env
+                    )
+                client = stdio_client(params, errlog=open(os.devnull, "w"))
                 read, write = await session_stack.enter_async_context(client)
-            elif isinstance(server_params, StreamableHttpParameters):
+
+            elif config.transport_type == "http_stream":
+                if not config.http_endpoint:
+                    raise ValueError("URL is required for http_stream transport")
+                endpoint_url = _resolve_placeholders(config.http_endpoint)
+                params = StreamableHttpParameters(
+                    url=endpoint_url,
+                    headers=config.headers,
+                    timeout=timedelta(seconds=config.timeout or 30.0),
+                )
                 client = streamablehttp_client(
-                    url=server_params.url,
-                    headers=server_params.headers,
-                    timeout=server_params.timeout,
-                    sse_read_timeout=timedelta(seconds=60 * 5),
+                    url=params.url,
+                    headers=params.headers,
+                    timeout=params.timeout,
+                    sse_read_timeout=params.sse_read_timeout,
                     terminate_on_close=True,
                 )
                 read, write, _ = await session_stack.enter_async_context(client)
             else:
-                # Fallback for SseServerParameters or other types if added in the future
-                # This part is adapted from the original session_group logic
-                # Note: sse_client is not directly imported, so this path is less likely
-                # to be used but included for robustness.
-                raise TypeError(
-                    f"Unsupported server_params type: {type(server_params)}"
-                )
+                raise ValueError(f"Unsupported transport type: {config.transport_type}")
 
             session = await session_stack.enter_async_context(
                 mcp.ClientSession(read, write)
             )
-            result = await session.initialize()
+            await session.initialize()
 
-            # This is a deviation from the library, we need to manage the stack
-            # The session_group would normally do this. We'll store it on the host.
-            # This part of the logic is complex, so for now, we will rely on the host's main exit stack.
-            # A more robust solution might involve a custom session group.
-            # For now, we will just return the session and server_info
-            # and let the caller manage it.
-            # The session_group will manage the lifecycle of the session after connection.
-            await self._session_group._exit_stack.enter_async_context(session_stack)
+            # Aggregate components
+            try:
+                tools_response = await session.list_tools()
+                for tool in tools_response.tools:
+                    self._tools[tool.name] = tool
+                    self._tool_to_session[tool.name] = session
+            except Exception as e:
+                logger.warning(f"Could not fetch tools from '{config.name}': {e}")
 
-            return result.serverInfo, session
-        except Exception:
-            await session_stack.aclose()
-            raise
-
-    async def register_client(self, config: ClientConfig):
-        """Dynamically registers and initializes a new client."""
-        logger.info(f"Attempting to dynamically register client: {config.name}")
-        try:
-            params = await self._get_server_params(config)
-
-            # Instead of connect_to_server, we use our custom method
-            server_info, session = await self._establish_session_silently(params)
-
-            # Now, register the established session with the group
-            await self._session_group.connect_with_session(server_info, session)
-
-            self._sessions_by_name[config.name] = session
+            self._sessions[config.name] = session
+            self._session_exit_stacks[config.name] = session_stack
 
             logger.info(f"Client '{config.name}' dynamically registered successfully.")
+
         except Exception as e:
             logger.error(
                 f"Failed to dynamically register client '{config.name}': {e}",
                 exc_info=True,
             )
+            await session_stack.aclose()
+            raise
 
     async def unregister_client(self, server_name: str):
-        """Dynamically unregisters a client."""
+        """Dynamically unregisters a client and cleans up its resources."""
         logger.info(f"Attempting to dynamically unregister client: {server_name}")
-        session_to_remove = self._sessions_by_name.pop(server_name, None)
+        session_to_remove = self._sessions.pop(server_name, None)
+        session_stack = self._session_exit_stacks.pop(server_name, None)
 
         if session_to_remove:
-            try:
-                await self._session_group.disconnect_from_server(session_to_remove)
-                await self._message_router.unregister_server(server_name)
-                logger.info(
-                    f"Client '{server_name}' dynamically unregistered successfully."
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to dynamically unregister client '{server_name}': {e}",
-                    exc_info=True,
-                )
-                raise
-        else:
-            logger.warning(f"Client '{server_name}' not found for unregistration.")
+            tools_to_remove = [
+                name
+                for name, session in self._tool_to_session.items()
+                if session == session_to_remove
+            ]
+            for tool_name in tools_to_remove:
+                del self._tools[tool_name]
+                del self._tool_to_session[tool_name]
+
+        if session_stack:
+            await session_stack.aclose()
+
+        logger.info(f"Client '{server_name}' dynamically unregistered successfully.")
 
     def get_formatted_tools(
         self,

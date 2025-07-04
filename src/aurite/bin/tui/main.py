@@ -134,7 +134,7 @@ class AuriteTUI(App):
         tree.root.expand()
 
         # Populate the navigation tree
-        component_types = self.aurite.config_manager.get_all_configs().keys()
+        component_types = self.aurite._core.config_manager.get_all_configs().keys()
         for component_type in component_types:
             tree.root.add(component_type)
 
@@ -150,7 +150,9 @@ class AuriteTUI(App):
         table.clear()
 
         self.current_component_type = str(event.node.label)
-        configs = self.aurite.config_manager.list_configs(self.current_component_type)
+        configs = self.aurite._core.config_manager.list_configs(
+            self.current_component_type
+        )
 
         for config in configs:
             # A simple description, can be improved
@@ -175,7 +177,7 @@ class AuriteTUI(App):
         if row_key is not None:
             self.current_component_name = event.data_table.get_row(row_key)[0]
             if self.current_component_name:
-                config = self.aurite.config_manager.get_config(
+                config = self.aurite._core.config_manager.get_config(
                     self.current_component_type, self.current_component_name
                 )
                 if config:
@@ -216,7 +218,7 @@ class AuriteTUI(App):
                                 )
                             )
                         elif key == "llm_config_id":
-                            llm_configs = self.aurite.config_manager.list_configs(
+                            llm_configs = self.aurite._core.config_manager.list_configs(
                                 "llms"
                             )
                             llm_names = [c["name"] for c in llm_configs]
@@ -305,7 +307,7 @@ class AuriteTUI(App):
                 )
 
             self.post_message(self.StreamMessage("[bold]Agent:[/bold] "))
-            async for event in self.aurite.execution.stream_agent_run(
+            async for event in self.aurite._core.execution.stream_agent_run(
                 self.current_component_name, message, session_id=self.current_session_id
             ):
                 if event.get("type") == "llm_response":
@@ -315,7 +317,7 @@ class AuriteTUI(App):
 
         elif self.current_component_type == "simple_workflows":
             self.post_message(self.ClearLogMessage())
-            result = await self.aurite.execution.run_simple_workflow(
+            result = await self.aurite._core.execution.run_simple_workflow(
                 self.current_component_name, message
             )
             self.post_message(self.StreamMessage(str(result)))
@@ -388,7 +390,9 @@ class AuriteTUI(App):
         try:
             servers_input = self.query_one("#input-mcp_servers", Input)
             current_servers = json.loads(servers_input.value)
-            all_server_configs = self.aurite.config_manager.list_configs("mcp_servers")
+            all_server_configs = self.aurite._core.config_manager.list_configs(
+                "mcp_servers"
+            )
             all_server_names = [config["name"] for config in all_server_configs]
 
             self.app.push_screen(
@@ -460,7 +464,7 @@ class AuriteTUI(App):
             # We need to add back the 'name' as it's not an editable field
             new_config["name"] = self.current_component_name
 
-            success = self.aurite.config_manager.upsert_component(
+            success = self.aurite._core.config_manager.upsert_component(
                 self.current_component_type, self.current_component_name, new_config
             )
 
