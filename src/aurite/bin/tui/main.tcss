@@ -1,0 +1,53 @@
+/* General container for the main app view, under the header */
+Container {
+    height: 1fr;
+    width: 100%;
+    layout: horizontal;
+}
+
+/* Left and Right Panes */
+#left-pane {
+    width: 30%;
+    height: 100%;
+    dock: left;
+    overflow: auto;
+}
+
+#right-pane {
+    height: 100%;
+    layout: vertical;
+}
+
+/* Panes within the left side */
+#nav-pane {
+    height: 50%;
+    border: solid blue;
+}
+#list-pane {
+    height: 50%;
+    border: solid yellow;
+}
+
+/* Panes within the right side */
+#detail-pane {
+    height: 50%;
+    border: solid green;
+}
+#output-pane-container {
+    height: 50%;
+    border: solid red;
+}
+
+/* Controls within the output pane */
+#output-pane-controls {
+    height: auto;
+    dock: bottom;
+}
+#output-pane-controls > Input {
+    width: 1fr;
+}
+
+/* The actual log area in the output pane */
+#output-pane {
+    height: auto;
+}

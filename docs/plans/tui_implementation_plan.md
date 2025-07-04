@@ -1,109 +1,106 @@
-# Implementation Plan: Aurite Textual TUI
+# Implementation Plan: Aurite Textual TUI (v2 - Incremental Layout)
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** 2025-07-04
 **Author(s):** Ryan, Gemini
 **Related Design Document:** [Aurite Textual TUI Design](docs/design/tui.md)
 
 ## 1. Goals
 
-*   To create a functional, interactive Textual TUI for the Aurite framework.
-*   To provide a user-friendly interface for listing, inspecting, and running all major Aurite components.
-*   To structure the TUI code in a modular and maintainable way.
+*   To create a functional and stable Textual TUI for the Aurite framework, with a correct and robust layout.
+*   To provide a user-friendly interface for listing, inspecting, and running Aurite components.
+*   To build the TUI incrementally, verifying each layout and functional step before proceeding to the next.
 
-## 2. Scope
+## 2. Core Strategy: Incremental Build
 
-*   **In Scope:**
-    *   A new TUI application file (`src/aurite/bin/tui/main.py`).
-    *   A new CLI command `aurite tui` to launch the application.
-    *   Implementation of all panes described in the design document (Navigation, List, Detail/Action, Output/Log).
-    *   Integration with `ConfigManager` to display components.
-    *   Integration with `ExecutionFacade` to run components and stream output.
-*   **Out of Scope:**
-    *   Editing component configurations directly from the TUI. (This can be a future enhancement).
-    *   Advanced features like saving/loading TUI state, custom themes, etc.
+This plan abandons the "all-at-once" layout approach. We will build the UI in small, verifiable steps, ensuring the grid layout is correct at each stage before adding complexity. This minimizes debugging and isolates layout issues immediately.
 
 ## 3. Implementation Steps
 
-The implementation is broken down into phases, starting with the core application structure and progressively adding interactive features.
+### Phase 1: Foundational Layout & Core Structure
 
-### Phase 1: Core Application Setup
+This phase focuses exclusively on getting the 2x2 grid layout correct with simple placeholders.
 
-1.  **Step 1.1: Create TUI Application File**
+1.  **Step 1.1: Clean Slate & Basic App**
     *   **File(s):** `src/aurite/bin/tui/main.py`
     *   **Action:**
-        *   Create a new directory `src/aurite/bin/tui/` and an empty `__init__.py` file within it.
-        *   Create `main.py`.
-        *   Define a basic `TextualApp` class (e.g., `AuriteTUI`).
-        *   Use the `compose` method to set up the static layout using `Header`, `Footer`, and placeholder `Static` widgets for the four main panes as defined in the design document.
-        *   Add basic CSS for the layout grid.
-    *   **Verification:** Running `python -m src.aurite.bin.tui.main` should display the static layout with headers, footers, and placeholders.
+        *   Delete all existing content in `main.py`.
+        *   Create a minimal `AuriteTUI(App)` class.
+        *   Add a `CSS_PATH` attribute.
+        *   Add a `compose` method that yields a `Header` and a `Footer`.
+    *   **Verification:** Running the app shows only a header and footer.
 
-2.  **Step 1.2: Add `tui` command to CLI**
-    *   **File(s):** `src/aurite/bin/cli/main.py`
+2.  **Step 1.2: Establish the Main Grid Container**
+    *   **File(s):** `src/aurite/bin/tui/main.py`, `src/aurite/bin/tui/main.css`
     *   **Action:**
-        *   Import the `AuriteTUI` app from `src.aurite.bin.tui.main`.
-        *   Add a new Typer command `@app.command() def tui():`.
-        *   Inside this function, instantiate `AuriteTUI` and call `app.run()`.
-    *   **Verification:** Running `aurite tui` from the terminal should launch the basic TUI application.
+        *   In `compose`, yield a `Container` with `id="app-grid"` between the `Header` and `Footer`.
+        *   In `main.css`, style `#app-grid` with `layout: grid;`, `grid-size: 2 2;`, `grid-gutter: 1;`, and make it take up the remaining space (`width: 100%; height: 1fr;`).
+    *   **Verification:** The app runs, but the grid is invisible as it has no content.
 
-### Phase 2: Displaying Component Information
-
-1.  **Step 2.1: Integrate `ConfigManager` and Populate Navigation Pane**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
+3.  **Step 1.3: Add the Navigation Pane (Top-Left)**
+    *   **File(s):** `src/aurite/bin/tui/main.py`, `src/aurite/bin/tui/main.css`
     *   **Action:**
-        *   In the `AuriteTUI` class, initialize an instance of `Aurite()` in the `on_mount` handler.
-        *   Replace the placeholder for the Navigation Pane with a `Tree` widget.
-        *   In `on_mount`, after initializing `Aurite`, get the component types from `aurite.config_manager.get_all_configs().keys()`.
-        *   Populate the `Tree` with these component types as top-level nodes.
-    *   **Verification:** The TUI should launch and display the component types (Agents, LLMs, etc.) in the navigation tree.
+        *   Inside the `#app-grid` container in `compose`, yield a `Static` widget with `id="nav-pane"`.
+        *   In `main.css`, style `#nav-pane` with a border and background color. Set its `row-span: 2;` to make it occupy the entire left column.
+    *   **Verification:** The app displays a single pane on the left, spanning the full height between the header and footer.
 
-2.  **Step 2.2: Populate List Pane based on Navigation**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
+4.  **Step 1.4: Add the Detail and Output Panes (Right Column)**
+    *   **File(s):** `src/aurite/bin/tui/main.py`, `src/aurite/bin/tui/main.css`
     *   **Action:**
-        *   Replace the placeholder for the List Pane with a `DataTable` widget.
-        *   Implement an `on(Tree.NodeSelected)` message handler.
-        *   Inside the handler, get the selected component type, clear the `DataTable`, and use `aurite.config_manager.list_configs()` to fetch the list of components.
-        *   Add the components as rows to the `DataTable`.
-    *   **Verification:** Clicking a node in the navigation tree should populate the data table with the correct list of components.
+        *   In `compose`, after the `#nav-pane`, yield two more `Static` widgets: `#detail-pane` (top-right) and `#output-pane` (bottom-right).
+        *   In `main.css`, give them distinct borders/backgrounds. They should automatically fill the second column.
+    *   **Verification:** The app now shows a 2x1 layout: a tall left pane and two stacked panes on the right. This is still not the final layout, but it's a key intermediate step.
 
-3.  **Step 2.3: Populate Detail Pane based on List Selection**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
+5.  **Step 1.5: Finalize the 2x2 Grid Layout**
+    *   **File(s):** `src/aurite/bin/tui/main.py`, `src/aurite/bin/tui/main.css`
     *   **Action:**
-        *   Replace the placeholder for the Detail/Action pane with a container that includes a `RichLog` or `Static` widget for displaying details.
-        *   Implement an `on(DataTable.RowSelected)` message handler.
-        *   Inside the handler, get the selected component name, use `aurite.config_manager.get_config()` to fetch its full configuration.
-        *   Pretty-print the configuration dictionary (e.g., using `json.dumps` or by iterating) and display it in the detail widget.
-    *   **Verification:** Clicking a row in the data table should display the full configuration of that component in the detail pane.
+        *   Modify the `compose` method. The first widget in the grid should be for the top-left (`#nav-pane`), the second for the top-right (`#detail-pane`), the third for the bottom-left (`#list-pane`), and the fourth for the bottom-right (`#output-pane`).
+        *   Remove the `row-span: 2;` from `#nav-pane`.
+        *   Create a new `Static` widget with `id="list-pane"` and place it correctly in the `compose` order.
+        *   Adjust CSS to have four distinct panes.
+    *   **Verification:** The app now displays a stable 2x2 grid of four placeholder panes. **This is the critical milestone for this phase.**
 
-### Phase 3: Component Execution
+### Phase 2: Widget Integration
 
-1.  **Step 3.1: Add Execution Controls to Detail Pane**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
-    *   **Action:**
-        *   Modify the `on(DataTable.RowSelected)` handler. If the selected component is runnable (agent or workflow), dynamically add an `Input` and a `Button("▶ Run")` to the Detail/Action pane.
-    *   **Verification:** When an agent or workflow is selected, the input field and run button should appear. When an LLM or MCP server is selected, they should not.
+Now, we replace the `Static` placeholders with the real, functional widgets.
 
-2.  **Step 3.2: Implement Run Logic**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
-    *   **Action:**
-        *   Replace the placeholder for the Output/Log pane with a `RichLog` widget.
-        *   Implement an `on(Button.Pressed)` message handler.
-        *   Inside the handler, identify which button was pressed (the "Run" button).
-        *   Retrieve the component type, name, and the user message from the `Input` widget.
-        *   Call the appropriate `aurite.execution` method (e.g., `stream_agent_run`) in a non-blocking way using `self.run_worker()`.
-        *   Clear the `RichLog` and write a "Running..." message.
-    *   **Verification:** Pressing the run button should trigger the execution logic and show a "Running..." message in the log.
+1.  **Step 2.1: Integrate Navigation `Tree`**
+    *   **Action:** Replace the `#nav-pane` `Static` widget with a `Tree` widget. Populate it with static, dummy data for now.
+    *   **Verification:** The top-left pane contains a `Tree` widget, and the layout remains a stable 2x2 grid.
 
-3.  **Step 3.3: Stream Execution Output**
-    *   **File(s):** `src/aurite/bin/tui/main.py`
-    *   **Action:**
-        *   In the worker method that calls `stream_agent_run`, iterate over the async generator.
-        *   For each event yielded by the stream, use `self.call_from_thread()` to post a custom message back to the main app thread containing the event data.
-        *   Create a message handler for this custom message that writes the formatted event data to the `RichLog`.
-    *   **Verification:** Running an agent should display the full, real-time stream of its execution in the output pane, with appropriate color-coding.
+2.  **Step 2.2: Integrate List `DataTable`**
+    *   **Action:** Replace the `#list-pane` `Static` widget with a `DataTable`. Add dummy columns and rows.
+    *   **Verification:** The bottom-left pane contains a `DataTable`, and the layout remains stable.
+
+3.  **Step 2.3: Integrate Detail `RichLog`**
+    *   **Action:** Replace the `#detail-pane` `Static` widget with a `RichLog`.
+    *   **Verification:** The top-right pane contains a `RichLog`, and the layout remains stable.
+
+4.  **Step 2.4: Integrate Output `RichLog` and Controls**
+    *   **Action:** Replace the `#output-pane` `Static` widget with a `Container` holding an `Input` and a `Button`, and below them, a `RichLog`.
+    *   **Verification:** The bottom-right pane contains the specified controls, and the layout remains stable.
+
+### Phase 3: Backend Integration & Interactivity
+
+This phase mirrors the logic from the original plan, but is built upon a now-stable layout.
+
+1.  **Step 3.1: Connect `ConfigManager` to Navigation `Tree`**
+    *   **Action:** In `on_mount`, initialize `Aurite()` and populate the `Tree` with actual component types from `config_manager`.
+    *   **Verification:** The navigation tree shows the real component types from the project.
+
+2.  **Step 3.2: Connect `Tree` to `DataTable`**
+    *   **Action:** Implement `on(Tree.NodeSelected)` to populate the `DataTable` with the list of components for the selected type.
+    *   **Verification:** Clicking a tree node populates the `DataTable`.
+
+3.  **Step 3.3: Connect `DataTable` to Detail Pane**
+    *   **Action:** Implement `on(DataTable.RowSelected)` to display the selected component's configuration in the detail `RichLog`.
+    *   **Verification:** Clicking a table row shows the component's JSON config.
+
+4.  **Step 3.4: Implement Execution Logic**
+    *   **Action:** Implement `on(Button.Pressed)` to trigger `execution.stream_agent_run` (or similar) using `run_worker`. Stream the results back to the output `RichLog` using `call_from_thread`.
+    *   **Verification:** Entering a message and clicking "Run" executes the selected agent/workflow, and the output streams into the bottom-right pane.
 
 ## 4. Testing Strategy
 
-*   **Manual Verification:** Each step will be manually verified by running the TUI (`aurite tui`) and checking that the UI behaves as described in the verification criteria for that step.
-*   **Component Testing:** The test will use the existing project configuration (`.aurite` pointing to `src/aurite/init_templates`) to ensure the TUI can correctly load and run the example components.
+*   **Incremental Manual Verification:** Each step in Phase 1 and 2 MUST be manually run and visually confirmed to work as described before proceeding.
+*   **Functional Testing:** Phase 3 will be tested by running the TUI and interacting with the example project components to ensure they load and run correctly.

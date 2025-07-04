@@ -35,7 +35,7 @@
     "README.md": "usage_guide.md, openapi.yaml, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md, claude.md"
   },
   "files.associations": {
-    "*.css": "tailwindcss",
+    "*.css": "ansi",
     "*.ipynb": "jupyter"
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
