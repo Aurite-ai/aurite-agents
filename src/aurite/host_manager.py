@@ -140,17 +140,6 @@ class Aurite:
         self._loop = asyncio.get_event_loop()
         self._initialized = False
 
-    def __del__(self):
-        # This finalizer is the key to robust cleanup. Since __del__ cannot be
-        # async, we schedule the async shutdown() method on the event loop
-        # that was running when the object was created.
-        if not self.kernel._is_shut_down:
-            if self._loop.is_running():
-                self._loop.create_task(self.kernel.shutdown())
-            else:
-                # If the loop is already closed, run a new one just for cleanup.
-                asyncio.run(self.kernel.shutdown())
-
     async def _ensure_initialized(self):
         """
         Initializes the kernel on the first call (lazy initialization).
