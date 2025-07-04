@@ -3,6 +3,7 @@ import json
 from unittest.mock import AsyncMock, patch
 from pathlib import Path
 import tempfile
+import os
 
 from aurite.host_manager import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
@@ -37,7 +38,14 @@ def temp_project_root():
         with open(project_root / "config" / "project.json", "w") as f:
             json.dump(config_data, f)
 
+        # Create the anchor file
+        (project_root / ".aurite").touch()
+
+        # Yield and change back directory
+        original_cwd = Path.cwd()
+        os.chdir(project_root)
         yield project_root
+        os.chdir(original_cwd)
 
 
 @pytest.mark.anyio
@@ -57,7 +65,7 @@ async def test_aurite_initialization_and_agent_run(mock_files, temp_project_root
         "mcp.client.session_group.ClientSessionGroup.connect_to_server",
         new_callable=AsyncMock,
     ) as mock_connect:
-        async with Aurite(project_root=temp_project_root) as aurite:
+        async with Aurite() as aurite:
             # Mock the agent's conversation run
             with patch(
                 "aurite.components.agents.agent.Agent.run_conversation",

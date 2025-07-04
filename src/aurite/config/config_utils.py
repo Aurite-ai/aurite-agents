@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, List
 
 # Import model classes for type checking and field identification
 # These are the models that currently have path fields needing resolution/relativization
@@ -122,3 +122,31 @@ def relativize_path_fields(
     # that need similar relativization logic.
 
     return relativized_data
+
+
+def find_anchor_files(start_path: Path) -> List[Path]:
+    """
+    Searches upwards from a starting directory for all .aurite anchor files.
+
+    Args:
+        start_path: The directory to begin the search from.
+
+    Returns:
+        A list of Path objects for each .aurite file found, ordered from the
+        closest (most specific) to the furthest (most general).
+    """
+    anchor_files = []
+    current_path = start_path.resolve()
+
+    while True:
+        anchor_file = current_path / ".aurite"
+        if anchor_file.is_file():
+            anchor_files.append(anchor_file)
+
+        # Stop if we've reached the filesystem root
+        if current_path.parent == current_path:
+            break
+
+        current_path = current_path.parent
+
+    return anchor_files

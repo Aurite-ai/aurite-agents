@@ -16,7 +16,8 @@ from ...config.config_models import CustomWorkflowConfig  # Updated import path
 # Type hint for ExecutionFacade
 if TYPE_CHECKING:
     from ...execution.facade import ExecutionFacade
-    # MCPHost type hint is no longer needed here for the execute signature
+
+from .workflow_models import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class CustomWorkflowExecutor:
 
         methods_to_load = [
             {
-                "name": "execute_workflow",
+                "name": "run",
                 "is_async": True,
                 "optional": False,
             },
@@ -62,7 +63,7 @@ class CustomWorkflowExecutor:
             },
         ]
 
-        self.methods = self._load_methods(methods_to_load)
+        self.workflow_instance, self.methods = self._load_methods(methods_to_load)
 
     # Changed signature to accept executor (ExecutionFacade) and session_id
     async def execute(
@@ -98,11 +99,9 @@ class CustomWorkflowExecutor:
                 "Calling 'execute_workflow', passing ExecutionFacade."
             )
             # Pass the ExecutionFacade instance as the 'executor' argument and session_id
-            result = await self.methods.get("execute_workflow")(
-                initial_input=initial_input,
-                executor=executor,
-                session_id=session_id,  # Pass session_id
-            )
+            workflow_instance = self.workflow_instance
+            workflow_instance.set_executor(executor)
+            result = await self.methods.get("run")(initial_input=initial_input)
 
             logger.info(  # Keep final success as INFO
                 f"Custom workflow '{workflow_name}' execution finished successfully."
@@ -208,6 +207,10 @@ class CustomWorkflowExecutor:
 
             # 4. Instantiate Workflow Class
             try:
+                if not issubclass(WorkflowClass, BaseCustomWorkflow):
+                    raise TypeError(
+                        f"Class '{class_name}' must inherit from BaseCustomWorkflow."
+                    )
                 workflow_instance = WorkflowClass()
                 logger.debug(
                     f"Instantiated workflow class '{class_name}'"
@@ -265,7 +268,7 @@ class CustomWorkflowExecutor:
             logger.info(  # Keep final success as INFO
                 f"Finished loading methods for workflow: {workflow_name}"
             )
-            return loaded_methods
+            return workflow_instance, loaded_methods
 
         except (
             FileNotFoundError,

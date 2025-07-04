@@ -3,11 +3,11 @@ import typer
 from pathlib import Path
 import shutil
 import importlib.resources
-from importlib.abc import Traversable
 import json
 from typing import Optional
 from rich.console import Console
 from rich.table import Table
+from rich.prompt import Confirm, Prompt
 
 # Relative imports from within the bin directory
 from ..api.api import start as start_api_server
@@ -19,6 +19,9 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+init_app = typer.Typer(
+    name="init", help="Initialize a new Aurite project or workspace."
+)
 run_app = typer.Typer(
     name="run", help="Execute framework components like agents and workflows."
 )
@@ -26,6 +29,7 @@ list_app = typer.Typer(
     name="list", help="Inspect configurations for different component types."
 )
 
+app.add_typer(init_app)
 app.add_typer(run_app)
 app.add_typer(list_app)
 
@@ -33,107 +37,121 @@ console = Console()
 logger = console.print
 
 
-def copy_project_template(template_path: Traversable, project_path: Path):
-    """
-    Copies the project template from the packaged data, excluding specified items.
-    """
-    excluded_items = {
-        "__pycache__",
-        "py.typed",
-        ".pytest_cache",
-        "__init__.py",
-        "poetry.lock",
-        "aurite.egg-info",
-        ".git",
-    }
+def copy_project_template(project_path: Path):
+    """Copies the project template from the packaged data."""
+    try:
+        template_root = importlib.resources.files("aurite").joinpath("init_templates")
 
-    for item in template_path.iterdir():
-        if item.name in excluded_items or item.name.endswith(".egg-info"):
-            continue
+        for item in template_root.iterdir():
+            source_path = template_root.joinpath(item.name)
+            dest_path = project_path / item.name
+            with importlib.resources.as_file(source_path) as sp:
+                if sp.is_dir():
+                    shutil.copytree(sp, dest_path)
+                else:
+                    shutil.copy2(sp, dest_path)
 
-        destination = project_path / item.name
-        try:
-            with importlib.resources.as_file(item) as item_path:
-                if item_path.is_dir():
-                    shutil.copytree(item_path, destination, dirs_exist_ok=True)
-                elif item_path.is_file():
-                    shutil.copy2(item_path, destination)
-        except Exception as e:
-            logger(f"[bold red]Warning:[/bold red] Could not copy {item.name}: {e}")
+    except (ModuleNotFoundError, FileNotFoundError):
+        logger(
+            "[bold red]Error:[/bold red] Could not find 'aurite' package data. Creating minimal project."
+        )
+        (project_path / "config").mkdir(exist_ok=True)
+        (project_path / "custom_workflows").mkdir(exist_ok=True)
+        (project_path / "mcp_servers").mkdir(exist_ok=True)
 
 
-@app.command()
-def init(
-    project_directory_name: str = typer.Argument(
-        ..., help="The name of the new project directory to create."
+@init_app.command("workspace")
+def init_workspace(
+    name: Optional[str] = typer.Argument(
+        None, help="The name of the new workspace directory."
     ),
 ):
-    """
-    Initializes a new Aurite project with a default structure and configuration.
-    """
-    project_path = Path(project_directory_name)
+    """Initializes a new workspace to hold Aurite projects."""
+    if not name:
+        if Confirm.ask(
+            "[bold yellow]No workspace name provided.[/bold yellow] Make the current directory a new workspace?"
+        ):
+            workspace_path = Path.cwd()
+            name = workspace_path.name
+        else:
+            name = Prompt.ask(
+                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
+            )
+            workspace_path = Path(name)
+            workspace_path.mkdir()
+    else:
+        workspace_path = Path(name)
+        workspace_path.mkdir()
 
+    if (workspace_path / ".aurite").exists():
+        logger(
+            f"[bold red]Error:[/bold red] An .aurite file already exists at '{workspace_path}'."
+        )
+        raise typer.Exit(code=1)
+
+    (workspace_path / ".aurite").write_text(
+        '[aurite]\ntype = "workspace"\nprojects = []'
+    )
+    logger(f"Initialized new workspace '{name}'.")
+
+
+@init_app.command("project")
+def init_project(
+    name: Optional[str] = typer.Argument(
+        None, help="The name of the new project directory."
+    ),
+):
+    """Initializes a new Aurite project."""
+    if not name:
+        name = Prompt.ask(
+            "[bold cyan]Project name[/bold cyan]", default="aurite-project"
+        )
+
+    project_path = Path(name)
     if project_path.exists():
-        logger(
-            f"[bold red]Error:[/bold red] Directory '{project_path.name}' already exists."
-        )
+        logger(f"[bold red]Error:[/bold red] Directory '{name}' already exists.")
         raise typer.Exit(code=1)
 
-    try:
-        logger(f"Initializing new Aurite project at: [cyan]./{project_path}[/cyan]")
-        project_path.mkdir(parents=True)
+    project_path.mkdir()
+    (project_path / ".aurite").touch()
 
-        logger("Copying project template files...")
-        template_root = importlib.resources.files("aurite")
-        copy_project_template(template_root, project_path)
+    logger(f"Creating project '{name}'...")
+    copy_project_template(project_path)
 
-        # Create pyproject.toml
-        pyproject_content = """
-[tool.poetry]
-name = "{project_name}"
-version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+    # Add project to workspace if applicable
+    workspace_path = None
+    for parent in project_path.resolve().parents:
+        if (parent / ".aurite").exists():
+            workspace_path = parent
+            break
 
-[tool.poetry.dependencies]
-python = "^3.9"
-aurite = "*" # Replace with the correct version constraint
+    if workspace_path:
+        try:
+            with open(workspace_path / ".aurite", "r+") as f:
+                content = f.read()
+                if "projects = []" in content:
+                    content = content.replace(
+                        "projects = []", f'projects = ["./{name}"]'
+                    )
+                elif "projects = [" in content:
+                    content = content.replace("]", f', "./{name}"]')
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+                f.seek(0)
+                f.write(content)
+                f.truncate()
+            logger(f"Added project '{name}' to workspace '{workspace_path.name}'.")
+        except Exception as e:
+            logger(
+                f"[bold yellow]Warning:[/bold yellow] Could not automatically add project to workspace file: {e}"
+            )
 
-[tool.aurite]
-# A list of directories, relative to this file, where component configs are located.
-config_sources = [
-    "config/"
-]
-# A list of directories, relative to this file, where custom Python modules are located.
-custom_workflow_modules = [
-    "custom_workflows/"
-]
-mcp_server_modules = [
-    "mcp_servers/"
-]
-""".format(project_name=project_path.name)
-        (project_path / "pyproject.toml").write_text(pyproject_content.strip())
-
-        logger(
-            f"\n[bold green]Project '{project_path.name}' initialized successfully![/bold green]"
-        )
-        logger("\n[bold]Next steps:[/bold]")
-        logger(f"1. Navigate into your project: [cyan]cd {project_path.name}[/cyan]")
-        logger(
-            "2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow]."
-        )
-        logger("3. Install dependencies: [cyan]poetry install[/cyan]")
-        logger("4. Run the example project: [cyan]python run_example_project.py[/cyan]")
-
-    except Exception as e:
-        logger(f"[bold red]Error during project initialization:[/bold red] {e}")
-        if project_path.exists():
-            shutil.rmtree(project_path)
-        raise typer.Exit(code=1)
+    logger(f"\n[bold green]Project '{name}' initialized successfully![/bold green]")
+    logger("\n[bold]Next steps:[/bold]")
+    logger(f"1. Navigate into your project: [cyan]cd {name}[/cyan]")
+    logger(
+        "2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow]."
+    )
+    logger("3. Start building your agents and workflows!")
 
 
 @app.command()

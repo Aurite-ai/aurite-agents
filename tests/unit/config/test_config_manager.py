@@ -1,105 +1,125 @@
-import unittest
-import tempfile
-import json
+import pytest
 from pathlib import Path
-from unittest.mock import patch
-
-from aurite.config.config_manager import ConfigManager
-
-
-class TestConfigManager(unittest.TestCase):
-    """Unit tests for the ConfigManager."""
-
-    def setUp(self):
-        """Set up a temporary directory for config files."""
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.project_root = Path(self.temp_dir.name)
-
-        # Create a dummy project structure
-        (self.project_root / "config").mkdir(parents=True, exist_ok=True)
-
-        # Create a monolithic config file
-        monolithic_config = {
-            "agents": [
-                {"name": "agent1"},
-                {"name": "agent2"},
-            ],
-            "llms": [
-                {"name": "llm1"},
-            ],
-        }
-        with open(self.project_root / "config" / "project.json", "w") as f:
-            json.dump(monolithic_config, f)
-
-    def tearDown(self):
-        """Clean up the temporary directory."""
-        self.temp_dir.cleanup()
-
-    def test_initialization(self):
-        """Test that the ConfigManager can be initialized."""
-        manager = ConfigManager()
-        self.assertIsInstance(manager, ConfigManager)
-
-    def test_initialize_sources_with_project_root(self):
-        """Test that project root is added to sources if it exists."""
-        manager = ConfigManager(project_root=self.project_root)
-        self.assertIn(self.project_root / "config", manager._config_sources)
-
-    @patch("importlib.resources.files")
-    def test_build_component_index(self, mock_files):
-        """Test that the component index is built correctly from a monolithic file."""
-        mock_files.return_value.joinpath.return_value.is_dir.return_value = False
-        manager = ConfigManager(project_root=self.project_root)
-
-        # Check agents
-        self.assertIn("agents", manager._component_index)
-        self.assertEqual(len(manager._component_index["agents"]), 2)
-        self.assertIn("agent1", manager._component_index["agents"])
-        self.assertIn("agent2", manager._component_index["agents"])
-
-        # Check llms
-        self.assertIn("llms", manager._component_index)
-        self.assertEqual(len(manager._component_index["llms"]), 1)
-        self.assertIn("llm1", manager._component_index["llms"])
-        self.assertEqual(manager._component_index["llms"]["llm1"].get("name"), "llm1")
-
-    @patch("importlib.resources.files")
-    def test_get_config(self, mock_files):
-        """Test retrieving a single component's configuration."""
-        mock_files.return_value.joinpath.return_value.is_dir.return_value = False
-        manager = ConfigManager(project_root=self.project_root)
-
-        agent1_config = manager.get_config("agents", "agent1")
-        self.assertIsNotNone(agent1_config)
-        assert agent1_config is not None
-        self.assertEqual(agent1_config.get("name"), "agent1")
-
-        llm1_config = manager.get_config("llms", "llm1")
-        self.assertIsNotNone(llm1_config)
-        assert llm1_config is not None
-        self.assertEqual(llm1_config.get("name"), "llm1")
-
-        non_existent = manager.get_config("agents", "non_existent_agent")
-        self.assertIsNone(non_existent)
-
-    @patch("importlib.resources.files")
-    def test_list_configs(self, mock_files):
-        """Test listing all configurations for a component type."""
-        mock_files.return_value.joinpath.return_value.is_dir.return_value = False
-        manager = ConfigManager(project_root=self.project_root)
-
-        agents = manager.list_configs("agents")
-        self.assertEqual(len(agents), 2)
-        agent_names = {a.get("name") for a in agents}
-        self.assertEqual(agent_names, {"agent1", "agent2"})
-
-        llms = manager.list_configs("llms")
-        self.assertEqual(len(llms), 1)
-        self.assertEqual(llms[0].get("name"), "llm1")
-
-        non_existent = manager.list_configs("non_existent_type")
-        self.assertEqual(len(non_existent), 0)
+import os
+from src.aurite.config.config_manager import ConfigManager
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture
+def mock_config_structure(tmp_path: Path):
+    """Creates a mock project/workspace structure for testing."""
+    # Super-workspace
+    super_workspace_path = tmp_path / "super_ws"
+    super_workspace_path.mkdir()
+    (super_workspace_path / ".aurite").write_text("""
+[aurite]
+type = "workspace"
+projects = ["./ws"]
+
+[env]
+SUPER_VAR = "super_value"
+DEFAULT_MODEL = "super_model"
+""")
+    (super_workspace_path / "config").mkdir()
+    (super_workspace_path / "config" / "super_agents.json").write_text("""
+{"agents": [{"name": "super_agent", "llm_config_id": "super_model"}]}
+""")
+
+    # Workspace
+    workspace_path = super_workspace_path / "ws"
+    workspace_path.mkdir()
+    (workspace_path / ".aurite").write_text("""
+[aurite]
+type = "workspace"
+projects = ["./proj_a", "./proj_b"]
+include_configs = ["./shared_configs"]
+
+[env]
+WS_VAR = "ws_value"
+DEFAULT_MODEL = "ws_model"
+""")
+    (workspace_path / "config").mkdir()
+    (workspace_path / "config" / "ws_agents.json").write_text("""
+{"agents": [{"name": "ws_agent", "llm_config_id": "ws_model"}]}
+""")
+    (workspace_path / "shared_configs").mkdir()
+    (workspace_path / "shared_configs" / "shared_llms.json").write_text("""
+{"llms": [{"name": "shared_llm", "provider": "test"}]}
+""")
+
+    # Project A (current project)
+    project_a_path = workspace_path / "proj_a"
+    project_a_path.mkdir()
+    (project_a_path / ".aurite").write_text("""
+[aurite]
+type = "project"
+
+[env]
+PROJ_VAR = "proj_a_value"
+DEFAULT_MODEL = "proj_a_model"
+""")
+    (project_a_path / "config").mkdir()
+    (project_a_path / "config" / "proj_a_agents.json").write_text("""
+{"agents": [{"name": "proj_a_agent", "llm_config_id": "proj_a_model"}]}
+""")
+
+    # Project B (peer project)
+    project_b_path = workspace_path / "proj_b"
+    project_b_path.mkdir()
+    (project_b_path / ".aurite").write_text("""
+[aurite]
+type = "project"
+""")
+    (project_b_path / "config").mkdir()
+    (project_b_path / "config" / "proj_b_agents.json").write_text("""
+{"agents": [{"name": "proj_b_agent", "llm_config_id": "proj_b_model"}]}
+""")
+
+    # Change CWD to project A for the test
+    os.chdir(project_a_path)
+    return project_a_path
+
+
+def test_config_manager_initialization(mock_config_structure):
+    """Tests that the ConfigManager correctly identifies roots and merges settings."""
+    cm = ConfigManager()
+
+    # Test root paths
+    assert cm.project_root == mock_config_structure
+    assert cm.workspace_root == mock_config_structure.parent
+
+    # Test environment variable merging
+    assert os.environ["SUPER_VAR"] == "super_value"
+    assert os.environ["WS_VAR"] == "ws_value"
+    assert os.environ["PROJ_VAR"] == "proj_a_value"
+    assert (
+        os.environ["DEFAULT_MODEL"] == "proj_a_model"
+    )  # Project overrides workspace and super-workspace
+
+
+def test_config_manager_component_loading_priority(mock_config_structure):
+    """Tests that components are loaded with the correct priority."""
+    cm = ConfigManager()
+
+    # Test finding agents from different levels
+    assert cm.get_config("agents", "proj_a_agent") is not None
+    assert cm.get_config("agents", "ws_agent") is not None
+    assert cm.get_config("agents", "proj_b_agent") is not None
+    assert (
+        cm.get_config("agents", "super_agent") is None
+    )  # Should not be found due to priority
+
+    # Test finding a shared component
+    assert cm.get_config("llms", "shared_llm") is not None
+
+
+def test_config_manager_list_configs(mock_config_structure):
+    """Tests listing all available configs from the current context."""
+    cm = ConfigManager()
+
+    all_agents = cm.list_configs("agents")
+    agent_names = {agent["name"] for agent in all_agents}
+
+    assert "proj_a_agent" in agent_names
+    assert "ws_agent" in agent_names
+    assert "proj_b_agent" in agent_names
+    assert "super_agent" not in agent_names  # Should not be found

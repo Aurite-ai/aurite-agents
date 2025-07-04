@@ -1,6 +1,6 @@
 [project]
 name = "aurite"
-version = "0.3.23"
+version = "0.3.25"
 description = "Aurite Agents is an agent development and runtime framework."
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
@@ -60,11 +60,7 @@ aurite = "aurite.bin.cli.main:app"
 packages = [{ include = "aurite", from = "src" }]
 include = [
     "LICENSE",
-    ".env.example",
-    "run_example_project.py",
-    "config/",
-    "custom_workflows/",
-    "mcp_servers/",
+    { path = "src/aurite/init_templates", format = ["sdist", "wheel"] },
 ]
 
 [tool.poetry.group.dev.dependencies]

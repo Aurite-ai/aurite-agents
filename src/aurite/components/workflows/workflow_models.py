@@ -3,7 +3,11 @@ Pydantic models for Workflow execution inputs and outputs.
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Union, Dict
+from typing import List, Optional, Any, Union, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...execution.facade import ExecutionFacade
+    from ..agents.agent_models import AgentRunResult
 
 
 class SimpleWorkflowStepResult(BaseModel):
@@ -68,3 +72,52 @@ class SimpleWorkflowExecutionResult(BaseModel):
 
 # This is needed to allow the recursive type hint in SimpleWorkflowStepResult
 SimpleWorkflowStepResult.model_rebuild()
+
+
+class BaseCustomWorkflow:
+    """
+    Abstract base class for custom Python-based workflows.
+
+    Users should subclass this and implement the `execute` method.
+    The `run_agent` method is provided to allow the workflow to easily
+    call agents managed by the framework.
+    """
+
+    def __init__(self):
+        self._executor: Optional["ExecutionFacade"] = None
+
+    @property
+    def executor(self) -> "ExecutionFacade":
+        if self._executor is None:
+            raise RuntimeError(
+                "Executor not set. This workflow must be run via the Aurite ExecutionFacade."
+            )
+        return self._executor
+
+    def set_executor(self, executor: "ExecutionFacade"):
+        """
+        Called by the framework to provide the workflow with an execution facade.
+        """
+        self._executor = executor
+
+    async def run_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        session_id: Optional[str] = None,
+    ) -> "AgentRunResult":
+        """
+        A helper method for the workflow to execute an agent.
+        """
+        return await self.executor.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            session_id=session_id,
+        )
+
+    async def run(self, initial_input: Any) -> Any:
+        """
+        The main entry point for the workflow's logic.
+        This method must be implemented by the subclass.
+        """
+        raise NotImplementedError

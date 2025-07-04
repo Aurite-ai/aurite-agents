@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 import tempfile
+import os
 
 from aurite.host_manager import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
@@ -34,7 +35,30 @@ def temp_project_root():
         with open(project_root / "config" / "custom_workflow_project.json", "w") as f:
             json.dump(config_data, f)
 
+        # Create the fixture file inside the temp directory
+        fixture_path = project_root / "tests" / "fixtures"
+        fixture_path.mkdir(parents=True)
+        (fixture_path / "fixture_custom_workflow.py").write_text("""
+from aurite.components.workflows.custom_workflow import BaseCustomWorkflow
+from aurite.components.agents.agent_models import AgentRunResult
+
+class TestRefactoredAgentWorkflow(BaseCustomWorkflow):
+    async def run(self, initial_input: str) -> dict:
+        result: AgentRunResult = await self.run_agent("Weather Agent", initial_input)
+        if result.status == "success":
+            return {"status": "ok", "response": result.final_response.content}
+        else:
+            return {"status": "error", "response": result.error_message}
+""")
+
+        # Create the anchor file
+        (project_root / ".aurite").touch()
+
+        # Yield and change back directory
+        original_cwd = Path.cwd()
+        os.chdir(project_root)
         yield project_root
+        os.chdir(original_cwd)
 
 
 @pytest.mark.anyio
@@ -49,7 +73,7 @@ async def test_custom_workflow_with_refactored_agent_run(mock_files, temp_projec
     # Arrange
     mock_files.return_value.joinpath.return_value.is_dir.return_value = False
 
-    async with Aurite(project_root=temp_project_root) as aurite:
+    async with Aurite() as aurite:
         execution_facade = aurite.execution
 
         mock_run_agent = patch.object(

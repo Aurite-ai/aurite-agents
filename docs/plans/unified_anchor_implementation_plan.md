@@ -23,30 +23,49 @@
 
 ## 3. Implementation Steps
 
-### Phase 1: Core Context Discovery
+### Phase 0: Architectural Refactoring
 
-**Objective:** Implement the upward search for `.aurite` files and establish the context hierarchy.
+**Objective:** Revert the initial changes and align the codebase with the improved architectural design.
 
-1.  **Step 1.1: Create Context Discovery Utilities**
-    *   **File(s):** `src/aurite/config/config_utils.py` (or a new `src/aurite/host/path_utils.py`)
-    *   **Action:**
-        *   Create a function `find_anchor_files(start_path: Path) -> List[Path]` that searches upwards from `start_path` to the filesystem root, collecting the paths of all `.aurite` files it finds. The list should be ordered from the closest file to the furthest.
-    *   **Verification:**
-        *   Create a unit test `tests/unit/config/test_config_utils.py` to verify that `find_anchor_files` correctly finds all anchors and in the correct order in a mock directory structure.
-
-2.  **Step 1.2: Integrate Discovery into `Aurite` Host Class**
+1.  **Step 0.1: Revert Changes to `host_manager.py`**
     *   **File(s):** `src/aurite/host_manager.py`
     *   **Action:**
-        *   Modify the `Aurite` class's `__init__` method.
-        *   Call `find_anchor_files` to get the list of context paths.
-        *   Store this hierarchy (e.g., in an attribute like `self.context_paths: List[Path]`).
-        *   Define properties like `self.project_root` (first path) and `self.workspace_root` (second path, if it exists).
+        *   Restore the file to its state before the `find_anchor_files` integration. The `Aurite` class `__init__` should be simplified, preparing it for a self-sufficient `ConfigManager`.
     *   **Verification:**
-        *   Update integration tests in `tests/integration/orchestration/test_aurite_class.py` to assert that the `Aurite` class correctly identifies project and workspace roots in a test fixture.
+        *   The file is reverted to its previous state.
 
-### Phase 2: Hierarchical Configuration Loading
+### Phase 1: Self-Contained Context Discovery in ConfigManager
 
-**Objective:** Rewrite the `ConfigManager` to load and merge configurations according to the new priority rules.
+**Objective:** Implement the context discovery and hierarchical loading logic entirely within the `ConfigManager`.
+
+1.  **Step 1.1: Create Context Discovery Utilities**
+    *   **File(s):** `src/aurite/config/config_utils.py`
+    *   **Action:**
+        *   Ensure the function `find_anchor_files(start_path: Path) -> List[Path]` exists and is correct.
+    *   **Verification:**
+        *   Create a unit test `tests/unit/config/test_config_utils.py` to verify `find_anchor_files`.
+
+2.  **Step 1.2: Rewrite `ConfigManager` Initialization**
+    *   **File(s):** `src/aurite/config/config_manager.py`
+    *   **Action:**
+        *   Modify the `ConfigManager` `__init__` method to take no arguments.
+        *   Inside `__init__`, call `find_anchor_files(Path.cwd())` to discover the context.
+        *   Store `context_paths`, `project_root`, etc., as internal attributes of the `ConfigManager`.
+        *   The `__init__` method will now orchestrate the entire loading process: finding anchors, parsing `.aurite` files, merging settings, and building the component index.
+    *   **Verification:**
+        *   Update unit tests for `ConfigManager` to reflect the new initialization process.
+
+3.  **Step 1.3: Simplify `Aurite` Host Class**
+    *   **File(s):** `src/aurite/host_manager.py`
+    *   **Action:**
+        *   Modify the `Aurite` class's `__init__` method to simply instantiate `ConfigManager()` with no arguments.
+        *   If the `Aurite` class needs access to the project root, it should get it from the `ConfigManager` instance (e.g., `self.config_manager.project_root`).
+    *   **Verification:**
+        *   Update integration tests in `tests/integration/orchestration/test_aurite_class.py` to assert that the `Aurite` class initializes correctly and can retrieve context information from the `ConfigManager`.
+
+### Phase 2: Hierarchical Configuration Loading (in ConfigManager)
+
+**Objective:** Implement the configuration merging and component loading logic within the `ConfigManager`.
 
 1.  **Step 2.1: Implement `.aurite` File Parsing**
     *   **File(s):** `src/aurite/config/config_manager.py`

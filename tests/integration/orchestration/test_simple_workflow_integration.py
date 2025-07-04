@@ -3,6 +3,7 @@ import json
 from unittest.mock import AsyncMock, patch
 from pathlib import Path
 import tempfile
+import os
 
 from aurite.host_manager import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
@@ -33,7 +34,14 @@ def temp_project_root():
         with open(project_root / "config" / "workflow_project.json", "w") as f:
             json.dump(config_data, f)
 
+        # Create the anchor file
+        (project_root / ".aurite").touch()
+
+        # Yield and change back directory
+        original_cwd = Path.cwd()
+        os.chdir(project_root)
         yield project_root
+        os.chdir(original_cwd)
 
 
 @pytest.mark.anyio
@@ -47,7 +55,7 @@ async def test_simple_workflow_success(mock_files, temp_project_root):
     # Arrange
     mock_files.return_value.joinpath.return_value.is_dir.return_value = False
 
-    async with Aurite(project_root=temp_project_root) as aurite:
+    async with Aurite() as aurite:
         execution_facade = aurite.execution
 
         # Mock the facade's run_agent method to simulate successful agent runs
@@ -106,7 +114,7 @@ async def test_simple_workflow_agent_failure(mock_files, temp_project_root):
     # Arrange
     mock_files.return_value.joinpath.return_value.is_dir.return_value = False
 
-    async with Aurite(project_root=temp_project_root) as aurite:
+    async with Aurite() as aurite:
         execution_facade = aurite.execution
 
         mock_run_agent = patch.object(
