@@ -17,6 +17,11 @@ from fastapi.responses import JSONResponse  # Add JSONResponse
 from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
     Aurite,
 )
+from ...errors import (
+    ConfigurationError,
+    AgentExecutionError,
+    WorkflowExecutionError,
+)
 
 # Import shared dependencies (relative to parent directory - src/bin)
 from ..dependencies import (
@@ -126,51 +131,43 @@ app.openapi = custom_openapi  # type: ignore[no-redef]
 # Define handlers before endpoints that might raise these exceptions
 
 
-# Handler for KeyErrors (typically indicates resource not found)
-@app.exception_handler(KeyError)
-async def key_error_exception_handler(request: Request, exc: KeyError):
-    logger.warning(
-        f"Resource not found (KeyError): {exc} for request {request.url.path}"
-    )
-    # Extract the key name if possible from the exception args
-    detail = f"Resource not found: {str(exc)}"
+# Handler for ConfigurationErrors
+@app.exception_handler(ConfigurationError)
+async def configuration_error_exception_handler(
+    request: Request, exc: ConfigurationError
+):
+    logger.warning(f"Configuration error: {exc} for request {request.url.path}")
     return JSONResponse(
-        status_code=404,
-        content={"detail": detail},
+        status_code=404,  # Not Found, as the requested resource config is missing
+        content={"detail": str(exc)},
     )
 
 
-# Handler for ValueErrors (can indicate bad input, conflicts, or bad state)
-@app.exception_handler(ValueError)
-async def value_error_exception_handler(request: Request, exc: ValueError):
-    detail = f"Invalid request or state: {str(exc)}"
-    status_code = 400  # Default to Bad Request
-
-    # Check for specific error messages to set more specific status codes
-    exc_str = str(exc).lower()
-    if "already registered" in exc_str:
-        status_code = 409  # Conflict
-        logger.warning(
-            f"Conflict during registration: {exc} for request {request.url.path}"
-        )
-    elif "Aurite is not initialized" in exc_str:
-        status_code = 503  # Service Unavailable
-        logger.error(
-            f"Service unavailable (Aurite not init): {exc} for request {request.url.path}"
-        )
-    elif "not found for agent" in exc_str or "not found for workflow" in exc_str:
-        status_code = (
-            400  # Bad request because config references non-existent component
-        )
-        logger.warning(
-            f"Configuration error (invalid reference): {exc} for request {request.url.path}"
-        )
-    else:
-        logger.warning(f"ValueError encountered: {exc} for request {request.url.path}")
-
+# Handler for AgentExecutionErrors
+@app.exception_handler(AgentExecutionError)
+async def agent_execution_error_exception_handler(
+    request: Request, exc: AgentExecutionError
+):
+    logger.error(
+        f"Agent execution error: {exc} for request {request.url.path}", exc_info=True
+    )
     return JSONResponse(
-        status_code=status_code,
-        content={"detail": detail},
+        status_code=500,  # Internal Server Error
+        content={"detail": f"Agent execution failed: {str(exc)}"},
+    )
+
+
+# Handler for WorkflowExecutionErrors
+@app.exception_handler(WorkflowExecutionError)
+async def workflow_execution_error_exception_handler(
+    request: Request, exc: WorkflowExecutionError
+):
+    logger.error(
+        f"Workflow execution error: {exc} for request {request.url.path}", exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,  # Internal Server Error
+        content={"detail": f"Workflow execution failed: {str(exc)}"},
     )
 
 

@@ -22,6 +22,11 @@ from ..config.config_models import (
     LLMConfig,
     LLMConfigOverrides,
 )
+from ..errors import (
+    ConfigurationError,
+    AgentExecutionError,
+    WorkflowExecutionError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +67,7 @@ class ExecutionFacade:
     ) -> Agent:
         agent_config_dict = self._config_manager.get_config("agents", agent_name)
         if not agent_config_dict:
-            raise KeyError(f"Agent configuration '{agent_name}' not found.")
+            raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
 
         agent_config_for_run = AgentConfig(**agent_config_dict)
 
@@ -74,7 +79,7 @@ class ExecutionFacade:
                         "mcp_servers", server_name
                     )
                     if not server_config_dict:
-                        raise ValueError(
+                        raise ConfigurationError(
                             f"MCP Server '{server_name}' required by agent '{agent_name}' not found."
                         )
                     server_config = ClientConfig(**server_config_dict)
@@ -104,11 +109,13 @@ class ExecutionFacade:
                     "api_key_env_var": "OPENAI_API_KEY",
                 }
             else:
-                raise ValueError(f"LLM configuration '{llm_config_id}' not found.")
+                raise ConfigurationError(
+                    f"LLM configuration '{llm_config_id}' not found."
+                )
 
         base_llm_config = LLMConfig(**llm_config_dict)
         if not base_llm_config:
-            raise ValueError(
+            raise ConfigurationError(
                 f"Could not determine LLM configuration for Agent '{agent_name}'."
             )
 
@@ -157,6 +164,7 @@ class ExecutionFacade:
             error_msg = f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             yield {"type": "error", "data": {"message": error_msg}}
+            raise AgentExecutionError(error_msg) from e
 
     async def run_agent(
         self,
@@ -211,13 +219,7 @@ class ExecutionFacade:
         except Exception as e:
             error_msg = f"Unexpected error in ExecutionFacade while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            # Return a consistent error format
-            return AgentRunResult(
-                status="error",
-                final_response=None,
-                conversation_history=[],  # History might not be available if setup failed
-                error_message=error_msg,
-            )
+            raise AgentExecutionError(error_msg) from e
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
@@ -230,7 +232,9 @@ class ExecutionFacade:
                 "simple_workflows", workflow_name
             )
             if not workflow_config_dict:
-                raise KeyError(f"Simple Workflow '{workflow_name}' not found.")
+                raise ConfigurationError(
+                    f"Simple Workflow '{workflow_name}' not found."
+                )
 
             from ..config.config_models import WorkflowConfig
 
@@ -246,26 +250,15 @@ class ExecutionFacade:
                 f"Facade: Simple Workflow '{workflow_name}' execution finished."
             )
             return result
-        except (KeyError, ValueError) as e:
-            error_msg = f"Configuration or setup error for Simple Workflow '{workflow_name}': {e}"
-            logger.error(f"Facade: {error_msg}", exc_info=True)
-            return SimpleWorkflowExecutionResult(
-                workflow_name=workflow_name,
-                status="failed",
-                final_output=None,
-                error=error_msg,
-            )
+        except ConfigurationError as e:
+            # Re-raise configuration errors directly
+            raise e
         except Exception as e:
             error_msg = (
                 f"Unexpected error running Simple Workflow '{workflow_name}': {e}"
             )
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return SimpleWorkflowExecutionResult(
-                workflow_name=workflow_name,
-                status="failed",
-                final_output=None,
-                error=error_msg,
-            )
+            raise WorkflowExecutionError(error_msg) from e
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
@@ -278,7 +271,9 @@ class ExecutionFacade:
                 "custom_workflows", workflow_name
             )
             if not workflow_config_dict:
-                raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+                raise ConfigurationError(
+                    f"Custom Workflow '{workflow_name}' not found."
+                )
 
             from ..config.config_models import CustomWorkflowConfig
 
@@ -293,16 +288,15 @@ class ExecutionFacade:
                 f"Facade: Custom Workflow '{workflow_name}' execution finished."
             )
             return result
-        except (KeyError, ValueError, ImportError) as e:
-            error_msg = f"Configuration or setup error for Custom Workflow '{workflow_name}': {e}"
-            logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+        except ConfigurationError as e:
+            # Re-raise configuration errors directly
+            raise e
         except Exception as e:
             error_msg = (
                 f"Unexpected error running Custom Workflow '{workflow_name}': {e}"
             )
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+            raise WorkflowExecutionError(error_msg) from e
 
     async def get_custom_workflow_input_type(self, workflow_name: str) -> Any:
         logger.info(
@@ -313,7 +307,9 @@ class ExecutionFacade:
                 "custom_workflows", workflow_name
             )
             if not workflow_config_dict:
-                raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+                raise ConfigurationError(
+                    f"Custom Workflow '{workflow_name}' not found."
+                )
 
             from ..config.config_models import CustomWorkflowConfig
 
@@ -321,16 +317,12 @@ class ExecutionFacade:
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_input_type()
-        except (KeyError, ValueError, ImportError) as e:
-            error_msg = (
-                f"Could not get input type for Custom Workflow '{workflow_name}': {e}"
-            )
-            logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+        except ConfigurationError as e:
+            raise e
         except Exception as e:
             error_msg = f"Unexpected error getting input type for Custom Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+            raise WorkflowExecutionError(error_msg) from e
 
     async def get_custom_workflow_output_type(self, workflow_name: str) -> Any:
         logger.info(
@@ -341,7 +333,9 @@ class ExecutionFacade:
                 "custom_workflows", workflow_name
             )
             if not workflow_config_dict:
-                raise KeyError(f"Custom Workflow '{workflow_name}' not found.")
+                raise ConfigurationError(
+                    f"Custom Workflow '{workflow_name}' not found."
+                )
 
             from ..config.config_models import CustomWorkflowConfig
 
@@ -349,13 +343,9 @@ class ExecutionFacade:
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
             return workflow_executor.get_output_type()
-        except (KeyError, ValueError, ImportError) as e:
-            error_msg = (
-                f"Could not get output type for Custom Workflow '{workflow_name}': {e}"
-            )
-            logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+        except ConfigurationError as e:
+            raise e
         except Exception as e:
             error_msg = f"Unexpected error getting output type for Custom Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
-            return {"status": "failed", "error": error_msg}
+            raise WorkflowExecutionError(error_msg) from e
