@@ -51,9 +51,9 @@ class DuplicateClientIdError(ValueError):
     pass
 
 
-class _AuriteCore:
+class AuriteKernel:
     """
-    The internal core of the Aurite framework, designed to be used as an
+    The internal kernel of the Aurite framework, designed to be used as an
     async context manager to ensure proper resource management.
     """
 
@@ -75,7 +75,7 @@ class _AuriteCore:
             host_instance=self.host,
             storage_manager=self.storage_manager,
         )
-        logger.debug(f"Aurite Core initialized for project root: {self.project_root}")
+        logger.debug(f"Aurite Kernel initialized for project root: {self.project_root}")
 
     async def __aenter__(self):
         await self.initialize()
@@ -85,7 +85,7 @@ class _AuriteCore:
         await self.shutdown()
 
     async def initialize(self):
-        logger.debug("Initializing Aurite Core services...")
+        logger.debug("Initializing Aurite Kernel services...")
         try:
             if self.storage_manager:
                 self.storage_manager.init_db()
@@ -93,18 +93,20 @@ class _AuriteCore:
                 await self.host.__aenter__()
             logger.info(
                 colored(
-                    "Aurite Core initialization complete.", "yellow", attrs=["bold"]
+                    "Aurite Kernel initialization complete.", "yellow", attrs=["bold"]
                 )
             )
         except Exception as e:
-            logger.error(f"Error during Aurite Core initialization: {e}", exc_info=True)
+            logger.error(
+                f"Error during Aurite Kernel initialization: {e}", exc_info=True
+            )
             await self.shutdown()
-            raise RuntimeError(f"Aurite Core initialization failed: {e}") from e
+            raise RuntimeError(f"Aurite Kernel initialization failed: {e}") from e
 
     async def shutdown(self):
         if self._is_shut_down:
             return
-        logger.debug("Shutting down Aurite Core...")
+        logger.debug("Shutting down Aurite Kernel...")
         if self.host:
             await self.host.__aexit__(None, None, None)
             self.host = None
@@ -113,7 +115,7 @@ class _AuriteCore:
             self._db_engine = None
         self.storage_manager = None
         self._is_shut_down = True
-        logger.info("Aurite Core shutdown complete.")
+        logger.info("Aurite Kernel shutdown complete.")
 
     def get_config_manager(self) -> ConfigManager:
         return self.config_manager
@@ -157,23 +159,31 @@ class Aurite:
     """
 
     def __init__(self):
-        self._core = _AuriteCore()
+        self.kernel = AuriteKernel()
         self._loop = asyncio.get_event_loop()
+        self._initialized = False
 
     def __del__(self):
-        if not self._core._is_shut_down:
+        if not self.kernel._is_shut_down:
             if self._loop.is_running():
-                self._loop.create_task(self._core.shutdown())
+                self._loop.create_task(self.kernel.shutdown())
             else:
-                asyncio.run(self._core.shutdown())
+                asyncio.run(self.kernel.shutdown())
+
+    async def _ensure_initialized(self):
+        """Initializes the kernel on the first call."""
+        if not self._initialized:
+            await self.kernel.initialize()
+            self._initialized = True
 
     def get_config_manager(self) -> ConfigManager:
-        return self._core.get_config_manager()
+        return self.kernel.get_config_manager()
 
     async def unregister_server(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""
-        if self._core.host:
-            await self._core.host.unregister_client(server_name)
+        await self._ensure_initialized()
+        if self.kernel.host:
+            await self.kernel.host.unregister_client(server_name)
 
     async def run_agent(
         self,
@@ -183,39 +193,40 @@ class Aurite:
         session_id: Optional[str] = None,
         unregister_servers: Optional[List[str]] = None,
     ) -> AgentRunResult:
-        async with self._core as core:
-            result = await core.run_agent(
-                agent_name=agent_name,
-                user_message=user_message,
-                system_prompt=system_prompt,
-                session_id=session_id,
-            )
-            if unregister_servers and core.host:
-                for server_name in unregister_servers:
-                    await core.host.unregister_client(server_name)
-            return result
+        await self._ensure_initialized()
+        result = await self.kernel.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            system_prompt=system_prompt,
+            session_id=session_id,
+        )
+        if unregister_servers and self.kernel.host:
+            for server_name in unregister_servers:
+                await self.kernel.host.unregister_client(server_name)
+        return result
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
     ) -> SimpleWorkflowExecutionResult:
-        async with self._core as core:
-            return await core.run_simple_workflow(
-                workflow_name=workflow_name, initial_input=initial_input
-            )
+        await self._ensure_initialized()
+        return await self.kernel.run_simple_workflow(
+            workflow_name=workflow_name, initial_input=initial_input
+        )
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
     ) -> Any:
-        async with self._core as core:
-            return await core.run_custom_workflow(
-                workflow_name=workflow_name,
-                initial_input=initial_input,
-                session_id=session_id,
-            )
+        await self._ensure_initialized()
+        return await self.kernel.run_custom_workflow(
+            workflow_name=workflow_name,
+            initial_input=initial_input,
+            session_id=session_id,
+        )
 
     # Allow the wrapper to be used as a context manager as well
     async def __aenter__(self):
-        return await self._core.__aenter__()
+        await self._ensure_initialized()
+        return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._core.__aexit__(exc_type, exc_val, exc_tb)
+        await self.kernel.__aexit__(exc_type, exc_val, exc_tb)
