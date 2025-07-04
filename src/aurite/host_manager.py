@@ -57,7 +57,9 @@ class AuriteKernel:
 
     This class is responsible for managing the lifecycle of all core
     components (Host, Storage, etc.). It is an internal implementation
-    detail and should not be used directly.
+    detail and should not be used directly. Its primary purpose is to hold
+    the state and async-native components that the public-facing Aurite
+    class will manage.
     """
 
     def __init__(self):
@@ -121,22 +123,40 @@ class Aurite:
     This class provides the primary API for running agents and workflows.
     It manages the underlying async lifecycle, ensuring graceful shutdown
     even when not used as an explicit context manager.
+
+    This class uses a wrapper pattern around an internal `AuriteKernel`
+    to solve a critical async challenge: the `mcp` library's use of `anyio`
+    for subprocesses conflicts with the main `asyncio` event loop. The
+    `__del__` finalizer provides a robust, guaranteed cleanup mechanism
+    by scheduling the kernel's async shutdown on the event loop, bridging
+    the sync/async gap and preventing resource leaks.
     """
 
     def __init__(self):
+        # The kernel holds the actual state and core components.
         self.kernel = AuriteKernel()
+        # We capture the event loop on initialization to ensure we can
+        # schedule the shutdown correctly, even if the loop is manipulated later.
         self._loop = asyncio.get_event_loop()
         self._initialized = False
 
     def __del__(self):
+        # This finalizer is the key to robust cleanup. Since __del__ cannot be
+        # async, we schedule the async shutdown() method on the event loop
+        # that was running when the object was created.
         if not self.kernel._is_shut_down:
             if self._loop.is_running():
                 self._loop.create_task(self.kernel.shutdown())
             else:
+                # If the loop is already closed, run a new one just for cleanup.
                 asyncio.run(self.kernel.shutdown())
 
     async def _ensure_initialized(self):
-        """Initializes the kernel on the first call."""
+        """
+        Initializes the kernel on the first call (lazy initialization).
+        This improves performance by only starting up the host and other
+        services when they are actually needed.
+        """
         if not self._initialized:
             await self.kernel.initialize()
             self._initialized = True
@@ -188,7 +208,8 @@ class Aurite:
             session_id=session_id,
         )
 
-    # Allow the wrapper to be used as a context manager as well
+    # Allow the wrapper to be used as a context manager for users who
+    # prefer explicit resource management over relying on the __del__ finalizer.
     async def __aenter__(self):
         await self._ensure_initialized()
         return self
