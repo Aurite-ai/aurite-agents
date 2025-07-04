@@ -1,6 +1,6 @@
 [project]
 name = "aurite"
-version = "0.3.25"
+version = "0.3.26"
 description = "Aurite Agents is an agent development and runtime framework."
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },

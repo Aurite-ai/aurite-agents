@@ -1,4 +1,5 @@
 import asyncio
+import os
 import typer
 from pathlib import Path
 import shutil
@@ -19,9 +20,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-init_app = typer.Typer(
-    name="init", help="Initialize a new Aurite project or workspace."
-)
 run_app = typer.Typer(
     name="run", help="Execute framework components like agents and workflows."
 )
@@ -29,7 +27,6 @@ list_app = typer.Typer(
     name="list", help="Inspect configurations for different component types."
 )
 
-app.add_typer(init_app)
 app.add_typer(run_app)
 app.add_typer(list_app)
 
@@ -60,12 +57,35 @@ def copy_project_template(project_path: Path):
         (project_path / "mcp_servers").mkdir(exist_ok=True)
 
 
-@init_app.command("workspace")
-def init_workspace(
+@app.command()
+def init(
     name: Optional[str] = typer.Argument(
-        None, help="The name of the new workspace directory."
+        None, help="The name of the new project or workspace."
+    ),
+    project: bool = typer.Option(
+        False, "--project", "-p", help="Initialize a new project."
+    ),
+    workspace: bool = typer.Option(
+        False, "--workspace", "-w", help="Initialize a new workspace."
     ),
 ):
+    """Initializes a new Aurite project or workspace."""
+
+    if project and workspace:
+        logger(
+            "[bold red]Error:[/bold red] Cannot initialize a project and a workspace at the same time."
+        )
+        raise typer.Exit(code=1)
+
+    if project:
+        init_project(name)
+    elif workspace:
+        init_workspace(name)
+    else:
+        interactive_init()
+
+
+def init_workspace(name: Optional[str] = None):
     """Initializes a new workspace to hold Aurite projects."""
     if not name:
         if Confirm.ask(
@@ -95,12 +115,7 @@ def init_workspace(
     logger(f"Initialized new workspace '{name}'.")
 
 
-@init_app.command("project")
-def init_project(
-    name: Optional[str] = typer.Argument(
-        None, help="The name of the new project directory."
-    ),
-):
+def init_project(name: Optional[str] = None):
     """Initializes a new Aurite project."""
     if not name:
         name = Prompt.ask(
@@ -152,6 +167,52 @@ def init_project(
         "2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow]."
     )
     logger("3. Start building your agents and workflows!")
+
+
+def interactive_init():
+    """Interactive initialization of a new Aurite project."""
+    # 1. Check for existing project
+    if Path(".aurite").exists():
+        logger(
+            "[bold red]Error:[/bold red] An .aurite file already exists in this directory. Cannot create a project in a project."
+        )
+        raise typer.Exit(code=1)
+
+    # 2. Check for workspace
+    workspace_path = None
+    for parent in Path.cwd().parents:
+        if (parent / ".aurite").exists():
+            workspace_path = parent
+            break
+
+    if not workspace_path:
+        if Confirm.ask(
+            "[bold yellow]No workspace found.[/bold yellow] Make the current directory a new workspace?"
+        ):
+            workspace_path = Path.cwd()
+            (workspace_path / ".aurite").write_text(
+                '[aurite]\ntype = "workspace"\nprojects = []'
+            )
+            logger("Initialized new workspace in current directory.")
+        elif Confirm.ask("Create a new workspace directory instead?"):
+            ws_name = Prompt.ask(
+                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
+            )
+            new_workspace_path = Path(ws_name)
+            new_workspace_path.mkdir()
+            (new_workspace_path / ".aurite").write_text(
+                '[aurite]\ntype = "workspace"\nprojects = []'
+            )
+            logger(f"Workspace '{ws_name}' created. You are now inside of it.")
+            os.chdir(new_workspace_path)
+            # Update workspace_path to the new directory
+            workspace_path = new_workspace_path
+
+    # 3. Create the project
+    proj_name = Prompt.ask(
+        "[bold cyan]Project name[/bold cyan]", default="aurite-project"
+    )
+    init_project(proj_name)
 
 
 @app.command()
