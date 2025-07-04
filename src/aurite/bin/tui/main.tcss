@@ -49,5 +49,51 @@ Container {
 
 /* The actual log area in the output pane */
 #output-pane {
+    height: 1fr;
+}
+
+/* Styles for the dynamic editor */
+.editor-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
+.editor-label {
+    width: 20;
+    text-align: right;
+    padding-right: 1;
+}
+
+.hidden-input {
+    display: none;
+}
+
+.prompt-display {
+    width: 1fr;
+    height: 1;
+    content-align-vertical: middle;
+}
+
+/* Styles for the modal prompt editor */
+SystemPromptEditorScreen {
+    align: center middle;
+}
+
+#prompt-editor-container {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: thick $primary;
+    layout: vertical;
+}
+
+#prompt-editor {
+    height: 1fr;
+    border: none;
+}
+
+#prompt-editor-buttons {
     height: auto;
+    align: right middle;
+    padding-top: 1;
 }

@@ -23,26 +23,37 @@
     {
       "name": "weather_server",
       "server_path": "mcp_servers/weather_server.py",
-      "capabilities": ["tools", "prompts"],
+      "capabilities": [
+        "tools",
+        "prompts"
+      ],
       "timeout": 15.0
     },
     {
       "name": "planning_server",
       "server_path": "mcp_servers/planning_server.py",
-      "capabilities": ["tools", "prompts", "resources"],
+      "capabilities": [
+        "tools",
+        "prompts",
+        "resources"
+      ],
       "timeout": 15.0
     }
   ],
   "agents": [
     {
       "name": "Weather Agent",
-      "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
-      "mcp_servers": ["weather_server"],
+      "system_prompt": "Your job is to use the tools at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tools at your disposal, clearly specify this in your response. DO NOT make up a weather forecast.",
+      "mcp_servers": [
+        "weather_server"
+      ],
       "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
       "name": "Weather Planning Workflow Step 2",
-      "mcp_servers": ["planning_server"],
+      "mcp_servers": [
+        "planning_server"
+      ],
       "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
       "llm_config_id": "my_openai_gpt4_turbo"
     }
@@ -51,7 +62,10 @@
     {
       "name": "Weather Planning Workflow",
       "description": "A simple workflow to plan based on weather data.",
-      "steps": ["Weather Agent", "Weather Planning Workflow Step 2"]
+      "steps": [
+        "Weather Agent",
+        "Weather Planning Workflow Step 2"
+      ]
     }
   ],
   "custom_workflows": [

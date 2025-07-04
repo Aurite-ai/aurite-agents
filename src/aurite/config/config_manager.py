@@ -199,7 +199,8 @@ class ConfigManager:
                         component_id
                         and component_id not in self._component_index[component_type]
                     ):
-                        component_data["_origin"] = context_root
+                        component_data["_origin"] = str(context_root)
+                        component_data["_source_file"] = str(config_file.resolve())
                         self._component_index[component_type][component_id] = (
                             component_data
                         )
@@ -255,3 +256,88 @@ class ConfigManager:
     def refresh(self):
         logger.debug("Refreshing configuration index...")
         self.__init__()
+
+    def upsert_component(
+        self, component_type: str, component_name: str, new_config: Dict[str, Any]
+    ) -> bool:
+        """
+        Updates an existing component or inserts a new one into its source file.
+        """
+        logger.info(
+            f"Attempting to upsert component '{component_name}' of type '{component_type}'."
+        )
+
+        # Find the component's original file path from the index
+        original_component_data = self._component_index.get(component_type, {}).get(
+            component_name
+        )
+        if not original_component_data or "_source_file" not in original_component_data:
+            logger.error(
+                f"Could not find source file for component '{component_name}'."
+            )
+            return False
+
+        source_file_path = Path(original_component_data["_source_file"])
+        if not source_file_path.is_file():
+            logger.error(
+                f"Source file '{source_file_path}' not found for component '{component_name}'."
+            )
+            return False
+
+        try:
+            # Read the entire original file
+            with source_file_path.open("r", encoding="utf-8") as f:
+                if source_file_path.suffix == ".json":
+                    full_content = json.load(f)
+                else:
+                    full_content = yaml.safe_load(f)
+
+            if component_type not in full_content or not isinstance(
+                full_content[component_type], list
+            ):
+                logger.error(
+                    f"Malformed config file: component type '{component_type}' not found or not a list in '{source_file_path}'."
+                )
+                return False
+
+            # Find and update the specific component in the list
+            component_found = False
+            for i, component in enumerate(full_content[component_type]):
+                if (
+                    isinstance(component, dict)
+                    and component.get("name") == component_name
+                ):
+                    # Preserve internal keys before updating
+                    internal_keys = {
+                        k: v for k, v in component.items() if k.startswith("_")
+                    }
+                    new_config.update(internal_keys)
+                    full_content[component_type][i] = new_config
+                    component_found = True
+                    break
+
+            if not component_found:
+                logger.error(
+                    f"Component '{component_name}' not found within the list in '{source_file_path}'."
+                )
+                return False
+
+            # Write the modified content back to the file
+            with source_file_path.open("w", encoding="utf-8") as f:
+                if source_file_path.suffix == ".json":
+                    json.dump(full_content, f, indent=2)
+                else:
+                    yaml.dump(full_content, f, indent=2)
+
+            logger.info(
+                f"Successfully updated component '{component_name}' in '{source_file_path}'."
+            )
+            # Force a refresh of the index to reflect the changes immediately
+            self.refresh()
+            return True
+
+        except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+            logger.error(
+                f"Failed to read, update, or write config file {source_file_path}: {e}"
+            )
+            return False
