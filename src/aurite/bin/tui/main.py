@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal, VerticalScroll
@@ -13,11 +14,45 @@ from textual.widgets import (
     Button,
     Label,
     TextArea,
+    Select,
+    Checkbox,
 )
 from textual import work
 from textual.message import Message
 
 from aurite import Aurite
+
+
+class MCPServersEditorScreen(ModalScreen):
+    """A modal screen for selecting MCP servers."""
+
+    def __init__(self, all_servers: list[str], selected_servers: list[str]) -> None:
+        self.all_servers = all_servers
+        self.selected_servers = selected_servers
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="mcp-editor-container"):
+            with VerticalScroll():
+                for server_name in self.all_servers:
+                    yield Checkbox(
+                        server_name,
+                        value=server_name in self.selected_servers,
+                        id=f"mcp-checkbox-{server_name}",
+                    )
+            with Horizontal(id="mcp-editor-buttons"):
+                yield Button("Save & Close", variant="primary", id="save-mcp")
+                yield Button("Cancel", id="cancel-mcp")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save-mcp":
+            selected = []
+            for checkbox in self.query(Checkbox):
+                if checkbox.value:
+                    selected.append(str(checkbox.label))
+            self.dismiss((True, selected))
+        elif event.button.id == "cancel-mcp":
+            self.dismiss((False, None))
 
 
 class SystemPromptEditorScreen(ModalScreen):
@@ -37,9 +72,9 @@ class SystemPromptEditorScreen(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save-prompt":
             editor = self.query_one("#prompt-editor", TextArea)
-            self.dismiss(editor.text)
+            self.dismiss((True, editor.text))
         elif event.button.id == "cancel-prompt":
-            self.dismiss(None)
+            self.dismiss((False, None))
 
 
 class AuriteTUI(App):
@@ -164,6 +199,48 @@ class AuriteTUI(App):
                                     classes="editor-row",
                                 )
                             )
+                        elif key == "llm_config_id":
+                            llm_configs = self.aurite.config_manager.list_configs(
+                                "llms"
+                            )
+                            llm_names = [config["name"] for config in llm_configs]
+                            select = Select(
+                                options=[(name, name) for name in llm_names],
+                                value=display_value,
+                                id="select-llm_config_id",
+                            )
+                            detail_pane.mount(
+                                Horizontal(new_label, select, classes="editor-row")
+                            )
+                        elif key == "mcp_servers":
+                            current_servers = value if isinstance(value, list) else []
+                            summary_text = (
+                                ", ".join(current_servers)
+                                if current_servers
+                                else "None"
+                            )
+                            if len(summary_text) > 50:
+                                summary_text = summary_text[:47] + "..."
+                            servers_label = Label(
+                                summary_text, classes="prompt-display"
+                            )
+                            edit_button = Button("Edit", id="edit-servers-button")
+                            # Hidden input to store the JSON list for saving
+                            hidden_input = Input(
+                                value=json.dumps(current_servers),
+                                id="input-mcp_servers",
+                                classes="hidden-input",
+                            )
+                            detail_pane.mount(hidden_input)
+                            detail_pane.mount(
+                                Horizontal(
+                                    new_label,
+                                    servers_label,
+                                    edit_button,
+                                    classes="editor-row",
+                                    id="mcp_servers-row",
+                                )
+                            )
                         else:
                             new_input = Input(value=display_value, id=f"input-{key}")
                             detail_pane.mount(
@@ -210,6 +287,8 @@ class AuriteTUI(App):
             self.save_component_config()
         elif event.button.id == "edit-prompt-button":
             self.edit_system_prompt()
+        elif event.button.id == "edit-servers-button":
+            self.edit_mcp_servers()
         elif self.current_component_name and self.current_component_type in [
             "agent",
             "simple_workflow",
@@ -229,8 +308,12 @@ class AuriteTUI(App):
         except Exception as e:
             self.notify(f"Error opening editor: {e}", severity="error")
 
-    def update_system_prompt(self, new_prompt: str | None) -> None:
+    def update_system_prompt(self, result: Any) -> None:
         """Callback to update the system prompt from the editor screen."""
+        if result is None:
+            return
+
+        should_save, new_prompt = result
         if new_prompt is not None:
             try:
                 prompt_input = self.query_one("#input-system_prompt", Input)
@@ -241,9 +324,53 @@ class AuriteTUI(App):
                     (new_prompt[:50] + "...") if len(new_prompt) > 50 else new_prompt
                 )
                 prompt_label.update(truncated_prompt)
-                self.notify("System prompt updated. Click 'Save' to persist changes.")
+
+                if should_save:
+                    self.save_component_config()
+                else:
+                    self.notify(
+                        "System prompt updated locally. Click 'Save' to persist changes."
+                    )
             except Exception as e:
                 self.notify(f"Error updating prompt: {e}", severity="error")
+
+    def edit_mcp_servers(self) -> None:
+        """Pushes the MCP servers editor screen."""
+        try:
+            servers_input = self.query_one("#input-mcp_servers", Input)
+            current_servers = json.loads(servers_input.value)
+            all_server_configs = self.aurite.config_manager.list_configs("mcp_servers")
+            all_server_names = [config["name"] for config in all_server_configs]
+
+            self.app.push_screen(
+                MCPServersEditorScreen(all_server_names, current_servers),
+                self.update_mcp_servers,
+            )
+        except Exception as e:
+            self.notify(f"Error opening MCP servers editor: {e}", severity="error")
+
+    def update_mcp_servers(self, result: Any) -> None:
+        """Callback to update the MCP servers from the editor screen."""
+        if result is None:
+            return
+
+        should_save, new_servers = result
+        if new_servers is not None:
+            try:
+                servers_input = self.query_one("#input-mcp_servers", Input)
+                servers_input.value = json.dumps(new_servers)
+                # Also update the summary label
+                servers_row = self.query_one("#mcp_servers-row")
+                servers_label = servers_row.query_one(".prompt-display", Label)
+                summary_text = ", ".join(new_servers) if new_servers else "None"
+                if len(summary_text) > 50:
+                    summary_text = summary_text[:47] + "..."
+                servers_label.update(summary_text)
+
+                if should_save:
+                    self.save_component_config()
+            except Exception as e:
+                self.notify(f"Error updating MCP servers: {e}", severity="error")
 
     def save_component_config(self) -> None:
         """Gathers data from editor inputs and saves the component."""
@@ -254,24 +381,32 @@ class AuriteTUI(App):
             return
 
         detail_pane = self.query_one("#detail-pane")
-        inputs = detail_pane.query(Input)
         new_config = {}
         try:
-            for input_widget in inputs:
-                if input_widget.id is None:
+            # Handle regular inputs
+            for input_widget in detail_pane.query(Input):
+                if input_widget.id is None or "input-" not in input_widget.id:
                     continue
                 key = input_widget.id.replace("input-", "")
                 value = input_widget.value
-                # Attempt to parse complex values back from JSON string
                 try:
                     if value.strip().startswith(("[", "{")):
                         new_config[key] = json.loads(value)
                     else:
-                        # Handle potential type conversions for non-string values if necessary
-                        # For now, we treat them as strings.
                         new_config[key] = value
                 except json.JSONDecodeError:
-                    new_config[key] = value  # Keep as string if not valid JSON
+                    new_config[key] = value
+
+            # Handle the Select widget for llm_config_id
+            try:
+                select_widget = detail_pane.query_one("#select-llm_config_id", Select)
+                if select_widget.value is not None:
+                    new_config["llm_config_id"] = select_widget.value
+            except Exception:
+                pass  # Widget might not exist
+
+            # The mcp_servers value is now stored in a hidden input, so it's handled by the main loop.
+            # No special handling is needed here anymore.
 
             # We need to add back the 'name' as it's not an editable field
             new_config["name"] = self.current_component_name

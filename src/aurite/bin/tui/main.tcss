@@ -74,6 +74,23 @@ Container {
     content-align-vertical: middle;
 }
 
+.editor-row-tall {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.checkbox-container {
+    height: auto;
+    overflow-y: auto;
+    max-height: 10; /* Adjust as needed */
+    border: $boost;
+    padding: 0 1;
+}
+
+.checkbox-container > Checkbox {
+    margin-top: 1;
+}
+
 /* Styles for the modal prompt editor */
 SystemPromptEditorScreen {
     align: center middle;
@@ -93,6 +110,29 @@ SystemPromptEditorScreen {
 }
 
 #prompt-editor-buttons {
+    height: auto;
+    align: right middle;
+    padding-top: 1;
+}
+
+/* Styles for the modal MCP servers editor */
+MCPServersEditorScreen {
+    align: center middle;
+}
+
+#mcp-editor-container {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: thick $primary;
+    layout: vertical;
+}
+
+#mcp-editor-container > VerticalScroll {
+    height: 1fr;
+}
+
+#mcp-editor-buttons {
     height: auto;
     align: right middle;
     padding-top: 1;
