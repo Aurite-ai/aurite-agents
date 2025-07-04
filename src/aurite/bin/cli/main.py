@@ -20,14 +20,10 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-run_app = typer.Typer(
-    name="run", help="Execute framework components like agents and workflows."
-)
 list_app = typer.Typer(
     name="list", help="Inspect configurations for different component types."
 )
 
-app.add_typer(run_app)
 app.add_typer(list_app)
 
 console = Console()

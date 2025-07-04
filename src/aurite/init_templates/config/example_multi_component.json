@@ -38,7 +38,7 @@
       "name": "Weather Agent",
       "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed to answer the user's query.",
       "mcp_servers": ["weather_server"],
-      "llm_config_id": "my_openai_gpt4_turbo"
+      "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
       "name": "Weather Planning Workflow Step 2",

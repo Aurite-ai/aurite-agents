@@ -36,7 +36,9 @@ class ConfigManager:
             if len(self.context_paths) > 1:
                 self.workspace_root = self.context_paths[1].parent
 
-        self._config_sources: List[Path] = []
+        self._config_sources: List[
+            tuple[Path, Path]
+        ] = []  # (source_path, context_root)
         self._merged_settings: Dict[str, Any] = {}
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self._force_refresh = (
@@ -89,38 +91,65 @@ class ConfigManager:
         """Initializes the configuration source paths based on the hierarchical context."""
         logger.debug("Initializing configuration sources...")
 
-        config_sources = []
+        config_sources: List[tuple[Path, Path]] = []
 
         # Process up to the first two levels (project and workspace)
-        for i, anchor_path in enumerate(self.context_paths[:2]):
+        for anchor_path in self.context_paths[:2]:
             context_root = anchor_path.parent
-
-            # 1. Add the default 'config' directory for the current level
-            config_sources.append(context_root / "config")
-
-            # 2. Add any 'include_configs' from the .aurite file at this level
             try:
                 with open(anchor_path, "rb") as f:
                     toml_data = tomllib.load(f)
                     aurite_settings = toml_data.get("aurite", {})
-                    for rel_path in aurite_settings.get("include_configs", []):
-                        config_sources.append(context_root / rel_path)
 
-                    # 3. For the workspace, add peer projects
+                    # Always check for the default 'config' directory first for this context.
+                    default_config_path = context_root / "config"
+                    if default_config_path.is_dir():
+                        config_sources.append((default_config_path, context_root))
+
+                    # Then, add any paths from 'include_configs'.
+                    for rel_path in aurite_settings.get("include_configs", []):
+                        resolved_path = (context_root / rel_path).resolve()
+                        if resolved_path.is_dir():
+                            config_sources.append((resolved_path, context_root))
+
+                    # For a workspace, add peer projects' configs
                     if aurite_settings.get("type") == "workspace":
                         for rel_path in aurite_settings.get("projects", []):
                             peer_project_root = (context_root / rel_path).resolve()
-                            if (peer_project_root / ".aurite").is_file():
-                                config_sources.append(peer_project_root / "config")
+                            peer_anchor = peer_project_root / ".aurite"
+                            if peer_anchor.is_file():
+                                with open(peer_anchor, "rb") as peer_f:
+                                    peer_toml = tomllib.load(peer_f)
+                                    peer_settings = peer_toml.get("aurite", {})
+
+                                    # Always check for the default 'config' directory in the peer.
+                                    default_peer_path = peer_project_root / "config"
+                                    if default_peer_path.is_dir():
+                                        config_sources.append(
+                                            (default_peer_path, peer_project_root)
+                                        )
+
+                                    # Then, add any 'include_configs' from the peer.
+                                    for peer_rel_path in peer_settings.get(
+                                        "include_configs", []
+                                    ):
+                                        resolved_path = (
+                                            peer_project_root / peer_rel_path
+                                        ).resolve()
+                                        if resolved_path.is_dir():
+                                            config_sources.append(
+                                                (resolved_path, peer_project_root)
+                                            )
             except (tomllib.TOMLDecodeError, IOError) as e:
                 logger.error(
                     f"Could not parse {anchor_path} during source initialization: {e}"
                 )
 
         # Global config is last
-        user_config_path = Path.home() / ".aurite" / "config"
+        user_config_root = Path.home() / ".aurite"
+        user_config_path = user_config_root / "config"
         if user_config_path.is_dir():
-            config_sources.append(user_config_path)
+            config_sources.append((user_config_path, user_config_root))
 
         self._config_sources = config_sources
         logger.debug(f"Final configuration source order: {self._config_sources}")
@@ -130,18 +159,19 @@ class ConfigManager:
         logger.debug("Building component index...")
         self._component_index = {}
 
-        for source_path in self._config_sources:
+        for source_path, context_root in self._config_sources:
             if not source_path.is_dir():
+                logger.warning(f"Config source path {source_path} is not a directory.")
                 continue
 
             for config_file in source_path.rglob("*.json"):
-                self._parse_and_index_file(config_file)
+                self._parse_and_index_file(config_file, context_root)
             for config_file in source_path.rglob("*.yaml"):
-                self._parse_and_index_file(config_file)
+                self._parse_and_index_file(config_file, context_root)
             for config_file in source_path.rglob("*.yml"):
-                self._parse_and_index_file(config_file)
+                self._parse_and_index_file(config_file, context_root)
 
-    def _parse_and_index_file(self, config_file: Path):
+    def _parse_and_index_file(self, config_file: Path, context_root: Path):
         """Parses a file and adds its component(s) to the index if not already present."""
         try:
             with config_file.open("r", encoding="utf-8") as f:
@@ -169,18 +199,20 @@ class ConfigManager:
                         component_id
                         and component_id not in self._component_index[component_type]
                     ):
+                        component_data["_origin"] = context_root
                         self._component_index[component_type][component_id] = (
                             component_data
                         )
                         logger.debug(
-                            f"Indexed '{component_id}' ({component_type}) from {config_file}"
+                            f"Indexed '{component_id}' ({component_type}) from {config_file} with origin {context_root}"
                         )
 
     def _resolve_paths_in_config(
         self, config_data: Dict[str, Any], component_type: str
     ) -> Dict[str, Any]:
         """Resolves relative paths in a component's configuration data."""
-        if not self.project_root:
+        origin_path = config_data.get("_origin")
+        if not origin_path:
             return config_data
 
         resolved_data = config_data.copy()
@@ -189,13 +221,13 @@ class ConfigManager:
             if "server_path" in resolved_data and resolved_data["server_path"]:
                 path = Path(resolved_data["server_path"])
                 if not path.is_absolute():
-                    resolved_data["server_path"] = (self.project_root / path).resolve()
+                    resolved_data["server_path"] = (origin_path / path).resolve()
 
         elif component_type == "custom_workflows":
             if "module_path" in resolved_data and resolved_data["module_path"]:
                 path = Path(resolved_data["module_path"])
                 if not path.is_absolute():
-                    resolved_data["module_path"] = (self.project_root / path).resolve()
+                    resolved_data["module_path"] = (origin_path / path).resolve()
 
         return resolved_data
 
