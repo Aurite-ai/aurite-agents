@@ -13,6 +13,11 @@ async def main():
         agent_name="Weather Agent",
         user_message="Weather in London?",
     )
+
+    print("\n--- Unregistering Server ---")
+    await aurite.unregister_server("weather_server")
+    print("Server unregistered.")
+
     print("\n--- Agent Result ---")
     if result and result.primary_text:
         print(result.primary_text)

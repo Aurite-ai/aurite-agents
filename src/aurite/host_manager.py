@@ -170,20 +170,30 @@ class Aurite:
     def get_config_manager(self) -> ConfigManager:
         return self._core.get_config_manager()
 
+    async def unregister_server(self, server_name: str):
+        """Dynamically unregisters a client and cleans up its resources."""
+        if self._core.host:
+            await self._core.host.unregister_client(server_name)
+
     async def run_agent(
         self,
         agent_name: str,
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
+        unregister_servers: Optional[List[str]] = None,
     ) -> AgentRunResult:
         async with self._core as core:
-            return await core.run_agent(
+            result = await core.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
                 system_prompt=system_prompt,
                 session_id=session_id,
             )
+            if unregister_servers and core.host:
+                for server_name in unregister_servers:
+                    await core.host.unregister_client(server_name)
+            return result
 
     async def run_simple_workflow(
         self, workflow_name: str, initial_input: Any
