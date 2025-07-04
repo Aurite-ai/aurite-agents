@@ -1,9 +1,11 @@
 import json
+import logging
 import uuid
 from typing import Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal, VerticalScroll
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.logging import TextualHandler
 from textual.screen import ModalScreen
 from textual.widgets import (
     Header,
@@ -20,8 +22,15 @@ from textual.widgets import (
 )
 from textual import work
 from textual.message import Message
-
 from aurite import Aurite
+
+
+# This MUST be at the top of the file, before other imports,
+# to ensure it runs before the aurite framework configures logging.
+logging.basicConfig(
+    level="INFO",
+    handlers=[TextualHandler()],
+)
 
 
 class MCPServersEditorScreen(ModalScreen):

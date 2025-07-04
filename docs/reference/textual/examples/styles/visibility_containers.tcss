@@ -1,0 +1,23 @@
+Horizontal {
+    padding: 1 2;     /* (1)! */
+    background: white;
+    height: 1fr;
+}
+
+#top {}               /* (2)! */
+
+#middle {             /* (3)! */
+    visibility: hidden;
+}
+
+#bot {                /* (4)! */
+    visibility: hidden;
+}
+
+#bot > Placeholder {  /* (5)! */
+    visibility: visible;
+}
+
+Placeholder {
+    width: 1fr;
+}

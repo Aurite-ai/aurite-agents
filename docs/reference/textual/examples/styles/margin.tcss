@@ -1,0 +1,11 @@
+Screen {
+    background: white;
+    color: black;
+}
+
+Label {
+    margin: 4 8;
+    background: blue 20%;
+    border: blue wide;
+    width: 100%;
+}

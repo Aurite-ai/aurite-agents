@@ -1,0 +1,22 @@
+Screen {
+    align: center middle;
+    padding: 1;
+}
+
+#buttons {
+    height: 3;
+    width: auto;
+}
+
+ContentSwitcher {
+    border: round $primary;
+    width: 90%;
+    height: 1fr;
+}
+
+MarkdownH2 {
+    background: $panel;
+    color: yellow;
+    border: none;
+    padding: 0 1;
+}

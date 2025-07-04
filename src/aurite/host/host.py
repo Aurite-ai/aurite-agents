@@ -110,6 +110,7 @@ class MCPHost:
 
     async def _get_server_params(self, config: ClientConfig) -> ServerParameters:
         client_env = os.environ.copy()
+        client_env["MCP_LOG_LEVEL"] = "ERROR"  # Suppress MCP server logs
 
         # 2. Helper to replace placeholders in strings (for URLs and args)
         def _resolve_placeholders(value: str) -> str:
@@ -130,9 +131,14 @@ class MCPHost:
         if config.transport_type == "stdio":
             if not config.server_path:
                 raise ValueError("'server_path' is required for stdio transport")
+
+            # Use a wrapper to silence the MCP server's stdout/stderr
+            wrapper_path = (
+                "/home/wilcoxr/workspace/aurite/framework/scripts/run_mcp_server.py"
+            )
             return StdioServerParameters(
                 command="python",
-                args=[str(config.server_path)],
+                args=[wrapper_path, "python", str(config.server_path)],
                 env=client_env,
             )
 
@@ -164,8 +170,14 @@ class MCPHost:
 
             resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
 
+            # Use a wrapper to silence the MCP server's stdout/stderr
+            wrapper_path = (
+                "/home/wilcoxr/workspace/aurite/framework/scripts/run_mcp_server.py"
+            )
             return StdioServerParameters(
-                command=config.command, args=resolved_args, env=client_env
+                command="python",
+                args=[wrapper_path, config.command] + resolved_args,
+                env=client_env,
             )
 
         else:
@@ -184,6 +196,16 @@ class MCPHost:
             params = await self._get_server_params(config)
             session = await self._session_group.connect_to_server(params)
             self._sessions_by_name[config.name] = session
+
+            # Suppress informational logs from the server by default
+            try:
+                await session.set_logging_level("error")
+                logger.debug(f"Set log level to 'error' for client '{config.name}'.")
+            except Exception as log_e:
+                logger.warning(
+                    f"Could not set log level for client '{config.name}': {log_e}"
+                )
+
             logger.info(f"Client '{config.name}' dynamically registered successfully.")
         except Exception as e:
             logger.error(

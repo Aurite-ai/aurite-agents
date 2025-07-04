@@ -1,0 +1,14 @@
+Label {
+    width: 150%;
+    height: 150%;
+}
+
+.right {
+    scrollbar-background: red;
+    scrollbar-color: green;
+    scrollbar-corner-color: blue;
+}
+
+Horizontal > ScrollableContainer {
+    width: 50%;
+}

@@ -1,0 +1,10 @@
+Screen {
+    align: center middle;
+}
+
+VerticalScroll {
+    width: auto;
+    height: auto;
+    background: $boost;
+    padding: 2;
+}

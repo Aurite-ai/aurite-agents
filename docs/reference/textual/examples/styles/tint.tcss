@@ -1,0 +1,8 @@
+Label {
+    height: 3;
+    width: 100%;
+    text-style: bold;
+    background: white;
+    color: black;
+    content-align: center middle;
+}
