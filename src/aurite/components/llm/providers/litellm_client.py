@@ -70,10 +70,10 @@ class LiteLLMClient:
             return None
         openai_tools = []
         for tool_def in tools:
-            if "name" in tool_def and "input_schema" in tool_def:
+            if "name" in tool_def and "inputSchema" in tool_def:
                 # Ensure the input_schema has a 'type', defaulting to 'object'.
                 # This is required by some providers like Anthropic.
-                input_schema = tool_def["input_schema"].copy()
+                input_schema = tool_def["inputSchema"].copy()
                 if "type" not in input_schema:
                     input_schema["type"] = "object"
 
