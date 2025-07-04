@@ -277,11 +277,15 @@ def list_agents():
 # --- Run Commands ---
 
 
-@run_app.command("agent")
-def run_agent(
-    agent_name: str = typer.Argument(..., help="The name of the agent to run."),
-    user_message: str = typer.Argument(
-        ..., help="The user message to send to the agent."
+@app.command()
+def run(
+    component_type: str = typer.Argument(
+        ...,
+        help="The type of component to run (agent, simple-workflow, custom-workflow).",
+    ),
+    name: str = typer.Argument(..., help="The name of the component to run."),
+    user_message: Optional[str] = typer.Argument(
+        None, help="The user message or initial input."
     ),
     system_prompt: Optional[str] = typer.Option(
         None, "--system-prompt", "-s", help="Override the default system prompt."
@@ -290,71 +294,57 @@ def run_agent(
         None, "--session-id", "-id", help="The session ID for history."
     ),
 ):
-    """Runs a single turn of an agent's conversation."""
+    """Executes a framework component."""
 
     async def main():
         async with Aurite() as aurite:
-            result = await aurite.run_agent(
-                agent_name=agent_name,
-                user_message=user_message,
-                system_prompt=system_prompt,
-                session_id=session_id,
-            )
-            logger("[bold]Agent Run Result:[/bold]")
-            console.print(result)
-
-    asyncio.run(main())
-
-
-@run_app.command("simple-workflow")
-def run_simple_workflow(
-    workflow_name: str = typer.Argument(
-        ..., help="The name of the simple workflow to run."
-    ),
-    initial_input: str = typer.Argument(..., help="The initial input to the workflow."),
-):
-    """Executes a simple workflow."""
-
-    async def main():
-        async with Aurite() as aurite:
-            result = await aurite.run_workflow(
-                workflow_name=workflow_name, initial_input=initial_input
-            )
-            logger("[bold]Simple Workflow Result:[/bold]")
-            console.print(result)
-
-    asyncio.run(main())
-
-
-@run_app.command("custom-workflow")
-def run_custom_workflow(
-    workflow_name: str = typer.Argument(
-        ..., help="The name of the custom workflow to run."
-    ),
-    initial_input: str = typer.Argument(
-        ..., help="The initial input to the workflow (as a JSON string)."
-    ),
-    session_id: Optional[str] = typer.Option(
-        None, "--session-id", "-id", help="The session ID for history."
-    ),
-):
-    """Executes a custom workflow."""
-
-    async def main():
-        async with Aurite() as aurite:
-            try:
-                # Assuming input is a simple string for now, can be expanded to JSON
-                parsed_input = json.loads(initial_input)
-            except json.JSONDecodeError:
-                parsed_input = initial_input
-
-            result = await aurite.run_custom_workflow(
-                workflow_name=workflow_name,
-                initial_input=parsed_input,
-                session_id=session_id,
-            )
-            logger("[bold]Custom Workflow Result:[/bold]")
-            console.print(result)
+            if component_type == "agent":
+                if not user_message:
+                    logger(
+                        "[bold red]Error:[/bold red] A user message is required to run an agent."
+                    )
+                    raise typer.Exit(code=1)
+                result = await aurite.run_agent(
+                    agent_name=name,
+                    user_message=user_message,
+                    system_prompt=system_prompt,
+                    session_id=session_id,
+                )
+                logger("[bold]Agent Run Result:[/bold]")
+                console.print(result)
+            elif component_type == "simple-workflow":
+                if not user_message:
+                    logger(
+                        "[bold red]Error:[/bold red] An initial input is required to run a simple workflow."
+                    )
+                    raise typer.Exit(code=1)
+                result = await aurite.run_workflow(
+                    workflow_name=name, initial_input=user_message
+                )
+                logger("[bold]Simple Workflow Result:[/bold]")
+                console.print(result)
+            elif component_type == "custom-workflow":
+                if not user_message:
+                    logger(
+                        "[bold red]Error:[/bold red] An initial input is required to run a custom workflow."
+                    )
+                    raise typer.Exit(code=1)
+                try:
+                    parsed_input = json.loads(user_message)
+                except json.JSONDecodeError:
+                    parsed_input = user_message
+                result = await aurite.run_custom_workflow(
+                    workflow_name=name,
+                    initial_input=parsed_input,
+                    session_id=session_id,
+                )
+                logger("[bold]Custom Workflow Result:[/bold]")
+                console.print(result)
+            else:
+                logger(
+                    f"[bold red]Error:[/bold red] Unknown component type '{component_type}'."
+                )
+                raise typer.Exit(code=1)
 
     asyncio.run(main())
 
