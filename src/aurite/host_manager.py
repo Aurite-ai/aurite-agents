@@ -53,8 +53,11 @@ class DuplicateClientIdError(ValueError):
 
 class AuriteKernel:
     """
-    The internal kernel of the Aurite framework, designed to be used as an
-    async context manager to ensure proper resource management.
+    The internal kernel of the Aurite framework.
+
+    This class is responsible for managing the lifecycle of all core
+    components (Host, Storage, etc.). It is an internal implementation
+    detail and should not be used directly.
     """
 
     def __init__(self):
@@ -76,13 +79,6 @@ class AuriteKernel:
             storage_manager=self.storage_manager,
         )
         logger.debug(f"Aurite Kernel initialized for project root: {self.project_root}")
-
-    async def __aenter__(self):
-        await self.initialize()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.shutdown()
 
     async def initialize(self):
         logger.debug("Initializing Aurite Kernel services...")
@@ -117,45 +113,14 @@ class AuriteKernel:
         self._is_shut_down = True
         logger.info("Aurite Kernel shutdown complete.")
 
-    def get_config_manager(self) -> ConfigManager:
-        return self.config_manager
-
-    async def run_agent(
-        self,
-        agent_name: str,
-        user_message: str,
-        system_prompt: Optional[str] = None,
-        session_id: Optional[str] = None,
-    ) -> AgentRunResult:
-        return await self.execution.run_agent(
-            agent_name=agent_name,
-            user_message=user_message,
-            system_prompt=system_prompt,
-            session_id=session_id,
-        )
-
-    async def run_simple_workflow(
-        self, workflow_name: str, initial_input: Any
-    ) -> SimpleWorkflowExecutionResult:
-        return await self.execution.run_simple_workflow(
-            workflow_name=workflow_name, initial_input=initial_input
-        )
-
-    async def run_custom_workflow(
-        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
-    ) -> Any:
-        return await self.execution.run_custom_workflow(
-            workflow_name=workflow_name,
-            initial_input=initial_input,
-            session_id=session_id,
-        )
-
 
 class Aurite:
     """
-    A user-friendly wrapper for the Aurite framework that manages the
-    underlying async lifecycle, ensuring graceful shutdown even when not
-    used as a context manager.
+    The main entrypoint for the Aurite framework.
+
+    This class provides the primary API for running agents and workflows.
+    It manages the underlying async lifecycle, ensuring graceful shutdown
+    even when not used as an explicit context manager.
     """
 
     def __init__(self):
@@ -177,7 +142,7 @@ class Aurite:
             self._initialized = True
 
     def get_config_manager(self) -> ConfigManager:
-        return self.kernel.get_config_manager()
+        return self.kernel.config_manager
 
     async def unregister_server(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""
@@ -194,7 +159,7 @@ class Aurite:
         unregister_servers: Optional[List[str]] = None,
     ) -> AgentRunResult:
         await self._ensure_initialized()
-        result = await self.kernel.run_agent(
+        result = await self.kernel.execution.run_agent(
             agent_name=agent_name,
             user_message=user_message,
             system_prompt=system_prompt,
@@ -209,7 +174,7 @@ class Aurite:
         self, workflow_name: str, initial_input: Any
     ) -> SimpleWorkflowExecutionResult:
         await self._ensure_initialized()
-        return await self.kernel.run_simple_workflow(
+        return await self.kernel.execution.run_simple_workflow(
             workflow_name=workflow_name, initial_input=initial_input
         )
 
@@ -217,7 +182,7 @@ class Aurite:
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
     ) -> Any:
         await self._ensure_initialized()
-        return await self.kernel.run_custom_workflow(
+        return await self.kernel.execution.run_custom_workflow(
             workflow_name=workflow_name,
             initial_input=initial_input,
             session_id=session_id,
@@ -229,4 +194,4 @@ class Aurite:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.kernel.__aexit__(exc_type, exc_val, exc_tb)
+        await self.kernel.shutdown()
