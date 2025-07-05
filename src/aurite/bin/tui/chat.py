@@ -12,6 +12,14 @@ from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.widgets import Footer, Header, Input, Markdown, Static
 
 from ...host_manager import Aurite, disable_all_logging
+from ..ui_utils import (
+    format_agent_message,
+    format_error_message,
+    format_status_message,
+    format_tool_call_message,
+    format_tool_output_message,
+    format_user_message,
+)
 
 
 class TextualChatApp(App):
@@ -86,7 +94,8 @@ class TextualChatApp(App):
         """Add a user message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        user_widget = Static(f"You: {message}", classes="user-message")
+        formatted_message = format_user_message(message)
+        user_widget = Static(formatted_message, classes="user-message")
         chat_history.mount(user_widget)
         chat_history.scroll_end()
 
@@ -94,8 +103,8 @@ class TextualChatApp(App):
         """Add an agent message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        # Use Static widget for simpler display
-        agent_widget = Static(f"Agent: {message}", classes="agent-message")
+        formatted_message = format_agent_message(message)
+        agent_widget = Static(formatted_message, classes="agent-message")
         chat_history.mount(agent_widget)
         chat_history.scroll_end()
 
@@ -103,10 +112,8 @@ class TextualChatApp(App):
         """Add a tool call message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        tool_widget = Static(
-            f"[yellow]🔧 Calling tool:[/yellow] [bold]{tool_name}[/bold]\n" f"[dim]Input: {tool_input}[/dim]",
-            classes="tool-message",
-        )
+        formatted_message = format_tool_call_message(tool_name, tool_input)
+        tool_widget = Static(formatted_message, classes="tool-message")
         chat_history.mount(tool_widget)
         chat_history.scroll_end()
 
@@ -114,15 +121,8 @@ class TextualChatApp(App):
         """Add a tool output message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        # Truncate very long outputs for display
-        display_output = tool_output
-        if len(display_output) > 200:
-            display_output = display_output[:200] + "..."
-
-        tool_widget = Static(
-            f"[green]✅ Tool result:[/green] [bold]{tool_name}[/bold]\n" f"[dim]{display_output}[/dim]",
-            classes="tool-output-message",
-        )
+        formatted_message = format_tool_output_message(tool_name, tool_output)
+        tool_widget = Static(formatted_message, classes="tool-output-message")
         chat_history.mount(tool_widget)
         chat_history.scroll_end()
 
@@ -130,7 +130,8 @@ class TextualChatApp(App):
         """Add a status message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        status_widget = Static(f"[{style}]{message}[/{style}]", classes="status-message")
+        formatted_message = format_status_message(message, style)
+        status_widget = Static(formatted_message, classes="status-message")
         chat_history.mount(status_widget)
         chat_history.scroll_end()
 
@@ -207,10 +208,12 @@ class TextualChatApp(App):
 
                 elif event_type == "error":
                     error_message = event_data.get("message", "An error occurred")
-                    self._add_status_message(f"❌ Error: {error_message}", "bold red")
+                    formatted_error = format_error_message(error_message)
+                    self._add_status_message(formatted_error, "bold red")
 
         except Exception as e:
-            self._add_status_message(f"❌ Unexpected error: {str(e)}", "bold red")
+            formatted_error = format_error_message(f"Unexpected error: {str(e)}")
+            self._add_status_message(formatted_error, "bold red")
         finally:
             self.conversation_active = False
 
@@ -252,8 +255,9 @@ class TextualChatApp(App):
                 self.current_agent_widget.remove()
                 delattr(self, "current_agent_widget")
 
-            # Add a final static widget
-            final_widget = Static(f"Agent: {content}", classes="agent-message")
+            # Add a final static widget using shared formatting
+            formatted_message = format_agent_message(content)
+            final_widget = Static(formatted_message, classes="agent-message")
             chat_history.mount(final_widget)
             chat_history.scroll_end()
         except Exception:
