@@ -116,7 +116,7 @@ Header {
 }
 
 #footer {
-    tint: hsl(300, 20%, 70%);  /* HSL description */
+    tint: hsl(271, 90.40%, 41.00%);  /* HSL description */
 }
 ```
 

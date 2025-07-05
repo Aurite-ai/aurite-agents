@@ -6,10 +6,12 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from textual import on, work
+from textual import work
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, VerticalScroll
-from textual.widgets import Footer, Header, Input, Markdown, Static
+from textual.events import Key
+from textual.widgets import Footer, Header, Markdown, Static, TextArea
 
 from ...host_manager import Aurite, disable_all_logging
 from ..ui_utils import (
@@ -24,6 +26,9 @@ class TextualChatApp(App):
     """A Textual TUI application for interactive agent chat."""
 
     CSS_PATH = "chat.tcss"
+    BINDINGS = [
+        Binding("ctrl+enter", "send_message", "Send Message", priority=True),
+    ]
 
     def __init__(
         self,
@@ -44,19 +49,97 @@ class TextualChatApp(App):
         self.session_id = session_id or str(uuid.uuid4())
         self.system_prompt = system_prompt
         self.conversation_active = False
+        self.title = f"Chat with {self.agent_name}\n(Session: {self.session_id})"
 
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         yield Header()
-        yield Static(f"Agent: {self.agent_name} | Session: {self.session_id[:8]}...")
+        yield self._create_agent_info_widget()
         with VerticalScroll(id="chat-history"):
             yield Static("Welcome! Type a message below to start chatting.")
-        yield Input(placeholder="Type your message here and press Enter...", id="message-input")
+        text_area = TextArea(
+            text="",
+            id="message-input",
+            soft_wrap=True,
+        )
+        text_area.border_title = "User Input (Ctrl+Enter to send)"
+        yield text_area
         yield Footer()
 
     def on_mount(self) -> None:
         """Called when the app is mounted."""
-        pass
+        # Focus the text area when the app starts
+        self.query_one("#message-input", TextArea).focus()
+
+    async def on_key(self, event: Key) -> None:
+        """Handle key events globally."""
+        # Check for Ctrl+Enter specifically
+        if event.key == "ctrl+enter":
+            # Prevent the event from being processed further
+            event.prevent_default()
+            # Call our send message action
+            self.action_send_message()
+
+    def _create_agent_info_widget(self) -> Static:
+        """Create a simplified agent information widget."""
+        try:
+            # Get the component index to find our agent
+            config_manager = self.aurite.get_config_manager()
+            component_index = config_manager.get_component_index()
+
+            # Find the agent component
+            agent_component = None
+            for component in component_index:
+                if component["name"] == self.agent_name and component["component_type"] == "agent":
+                    agent_component = component
+                    break
+
+            if agent_component:
+                config = agent_component["config"]
+                source_file = agent_component.get("source_file", "Unknown")
+
+                # Simplify the file path
+                try:
+                    import os
+
+                    source_file = os.path.relpath(source_file, Path.cwd())
+                except (ValueError, TypeError):
+                    pass
+
+                # Get system prompt and truncate if too long
+                system_prompt = config.get("system_prompt", "No system prompt")
+                if len(system_prompt) > 100:
+                    system_prompt = system_prompt[:97] + "..."
+
+                # Format MCP servers
+                mcp_servers = config.get("mcp_servers", [])
+                servers_str = ", ".join(mcp_servers) if mcp_servers else "None"
+
+                # Create simplified info display
+                info_text = (
+                    f"[bold blue]System Prompt:[/bold blue] {system_prompt}\n"
+                    f"[bold blue]LLM:[/bold blue] {config.get('llm_config_id', 'default')}\n"
+                    f"[bold blue]MCP Servers:[/bold blue] {servers_str}\n"
+                    f"[bold blue]File Path:[/bold blue] {source_file}"
+                )
+            else:
+                # Fallback if agent not found
+                info_text = (
+                    f"[bold blue]Agent:[/bold blue] {self.agent_name}\n"
+                    f"[bold blue]Status:[/bold blue] Configuration not found\n"
+                    f"[bold blue]Session:[/bold blue] {self.session_id[:8]}..."
+                )
+
+        except Exception:
+            # Fallback for any errors
+            info_text = (
+                f"[bold blue]Agent:[/bold blue] {self.agent_name}\n"
+                f"[bold blue]Session:[/bold blue] {self.session_id[:8]}..."
+            )
+
+        agent_info = Static(info_text, id="agent-info")
+        agent_info.border_title = f"{self.agent_name} (agent)"
+        return agent_info
 
     def _add_user_message(self, message: str) -> None:
         """Add a user message to the chat history."""
@@ -141,19 +224,19 @@ class TextualChatApp(App):
         chat_history.mount(tool_widget)
         chat_history.scroll_end()
 
-    @on(Input.Submitted)
-    def handle_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle user input submission."""
+    def action_send_message(self) -> None:
+        """Handle send message action."""
         if self.conversation_active:
             self.notify("Please wait for the current response to complete.", severity="warning")
             return
 
-        message = event.value.strip()
+        text_area = self.query_one("#message-input", TextArea)
+        message = text_area.text.strip()
         if not message:
             return
 
-        # Clear the input
-        event.input.clear()
+        # Clear the text area
+        text_area.clear()
 
         # Add user message to chat
         self._add_user_message(message)

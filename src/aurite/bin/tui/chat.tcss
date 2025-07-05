@@ -1,13 +1,7 @@
 /* Basic CSS for the chat interface */
 
-/* Remove all complex styling for now */
-Static {
-    padding: 1;
-    margin: 1;
-}
-
 Header {
-    background: $primary;
+    background: hsl(271, 48.20%, 43.10%);
 }
 
 Footer {
@@ -21,15 +15,17 @@ Footer {
     border: solid $primary;
 }
 
-/* Message styling - consistent rounded borders with titles */
+/* Message styling - consistent rounded borders with titles, no backgrounds */
 .user-message {
     border: round $success;
+    background: transparent;
     margin: 1 0;
     padding: 1;
 }
 
 .agent-message {
     border: round $primary;
+    background: transparent;
     margin: 1 0;
     padding: 1;
 }
@@ -37,22 +33,33 @@ Footer {
 /* Tool message styling */
 .tool-message {
     border: round $warning;
+    background: transparent;
     margin: 1 0;
     padding: 1;
 }
 
 .tool-output-message {
     border: round $success;
+    background: transparent;
     margin: 1 0;
     padding: 1;
 }
 
-/* Input styling */
+/* Agent info styling */
+#agent-info {
+    border: round $primary;
+    background: transparent;
+}
+
+/* TextArea styling - enhanced rounded border without background issues */
 #message-input {
     margin: 1;
-    border: solid $accent;
+    height: 4;
+    border: round $primary;
+    background: transparent;
 }
 
 #message-input:focus {
-    border: solid $primary;
+    border: round $accent;
+    background: transparent;
 }
