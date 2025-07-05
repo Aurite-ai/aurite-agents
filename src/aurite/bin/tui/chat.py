@@ -63,6 +63,7 @@ class TextualChatApp(App):
         chat_history = self.query_one("#chat-history", VerticalScroll)
         formatted_message = format_user_message(message)
         user_widget = Static(formatted_message, classes="user-message")
+        user_widget.border_title = "User"
         chat_history.mount(user_widget)
         chat_history.scroll_end()
 
@@ -84,6 +85,7 @@ class TextualChatApp(App):
             classes="agent-message",
             id="current-agent-container",
         )
+        agent_container.border_title = self.agent_name
         chat_history.mount(agent_container)
         chat_history.scroll_end()
         return agent_container
@@ -112,6 +114,7 @@ class TextualChatApp(App):
             # Add a final static widget using shared formatting
             formatted_message = format_agent_message(content)
             final_widget = Static(formatted_message, classes="agent-message")
+            final_widget.border_title = self.agent_name
             chat_history.mount(final_widget)
             chat_history.scroll_end()
         except Exception:
@@ -124,6 +127,7 @@ class TextualChatApp(App):
 
         formatted_message = format_tool_call_message(tool_name, tool_input)
         tool_widget = Static(formatted_message, classes="tool-message")
+        tool_widget.border_title = f"Tool Call: {tool_name}"
         chat_history.mount(tool_widget)
         chat_history.scroll_end()
 
@@ -133,6 +137,7 @@ class TextualChatApp(App):
 
         formatted_message = format_tool_output_message(tool_name, tool_output)
         tool_widget = Static(formatted_message, classes="tool-output-message")
+        tool_widget.border_title = f"Tool Result: {tool_name}"
         chat_history.mount(tool_widget)
         chat_history.scroll_end()
 
