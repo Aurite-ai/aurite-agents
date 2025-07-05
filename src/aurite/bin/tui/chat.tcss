@@ -21,32 +21,32 @@ Footer {
     border: solid $primary;
 }
 
-/* Message styling */
+/* Message styling with thin rounded outlines and faint backgrounds */
 .user-message {
-    background: $success-darken-1;
-    border-left: thick $success;
+    background: $success 10%;
+    border: round $success;
     margin: 1 0;
     padding: 1;
 }
 
 .agent-message {
-    background: $primary-darken-3;
-    border-left: thick $primary;
+    background: $primary 10%;
+    border: round $primary;
     margin: 1 0;
     padding: 1;
 }
 
 /* Tool message styling */
 .tool-message {
-    background: $warning-darken-2;
-    border-left: thick $warning;
+    background: $warning 10%;
+    border: round $warning;
     margin: 1 0;
     padding: 1;
 }
 
 .tool-output-message {
-    background: $success-darken-2;
-    border-left: thick $success;
+    background: $success 15%;
+    border: round $success;
     margin: 1 0;
     padding: 1;
 }
