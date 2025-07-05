@@ -1,114 +1,62 @@
-/* Textual CSS for the chat interface */
+/* Basic CSS for the chat interface */
 
-/* Main container styling */
-#main-container {
-    height: 100%;
-    width: 100%;
-}
-
-#chat-container {
-    height: 100%;
-    width: 100%;
-}
-
-/* Chat header styling */
-#chat-header {
-    height: 4;
+/* Remove all complex styling for now */
+Static {
     padding: 1;
-    background: $surface;
-    border: solid $primary;
-    margin-bottom: 1;
+    margin: 1;
 }
 
-/* Chat history area */
+Header {
+    background: $primary;
+}
+
+Footer {
+    background: $surface;
+}
+
+/* Chat history styling */
 #chat-history {
     height: 1fr;
     padding: 1;
-    background: $surface;
-    border: solid $primary;
-    margin-bottom: 1;
-}
-
-/* Input container */
-#input-container {
-    height: 3;
-    padding: 0 1;
-}
-
-#message-input {
-    width: 1fr;
-    background: $surface;
-    border: solid $accent;
-}
-
-#message-input:focus {
     border: solid $primary;
 }
 
 /* Message styling */
 .user-message {
-    margin: 1 0;
-    padding: 1;
     background: $success-darken-1;
     border-left: thick $success;
+    margin: 1 0;
+    padding: 1;
 }
 
 .agent-message {
-    margin: 1 0;
-    padding: 1;
     background: $primary-darken-3;
     border-left: thick $primary;
-}
-
-.agent-label {
-    margin-bottom: 1;
-}
-
-.agent-response {
-    background: transparent;
-    padding: 0;
+    margin: 1 0;
+    padding: 1;
 }
 
 /* Tool message styling */
 .tool-message {
-    margin: 1 0;
-    padding: 1;
     background: $warning-darken-2;
     border-left: thick $warning;
+    margin: 1 0;
+    padding: 1;
 }
 
 .tool-output-message {
-    margin: 1 0;
-    padding: 1;
     background: $success-darken-2;
     border-left: thick $success;
-}
-
-/* Status message styling */
-.status-message {
     margin: 1 0;
     padding: 1;
-    background: $surface-lighten-1;
-    border-left: thick $accent;
-    text-align: center;
 }
 
-/* Scrollbar styling */
-ScrollBar {
-    background: $surface;
-    color: $primary;
+/* Input styling */
+#message-input {
+    margin: 1;
+    border: solid $accent;
 }
 
-ScrollBar:hover {
-    background: $surface-lighten-1;
-}
-
-/* Footer styling */
-Footer {
-    background: $surface;
-}
-
-/* Header styling */
-Header {
-    background: $primary;
+#message-input:focus {
+    border: solid $primary;
 }

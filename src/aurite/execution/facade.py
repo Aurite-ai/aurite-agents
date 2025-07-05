@@ -123,7 +123,18 @@ class ExecutionFacade:
             if history:
                 initial_messages.extend(history)
 
-        initial_messages.append({"role": "user", "content": user_message})
+        # Add current user message
+        current_user_message = {"role": "user", "content": user_message}
+        initial_messages.append(current_user_message)
+
+        # Immediately update the cache with the current user message
+        # so the agent can reference it as part of the conversation history
+        if agent_config_for_run.include_history and session_id and self._cache_manager:
+            # Get the existing history again to make sure we have the latest
+            existing_history = self._cache_manager.get_history(session_id) or []
+            # Add only the current user message to the existing history
+            updated_history = existing_history + [current_user_message]
+            self._cache_manager.save_history(session_id, updated_history)
 
         if system_prompt_override:
             if agent_config_for_run.llm is None:
