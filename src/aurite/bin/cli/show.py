@@ -236,7 +236,7 @@ def _get_aurite_instance() -> Aurite:
 def show_components(name: str, full: bool = False, short: bool = False):
     """Displays the configuration for a component or all components of a type."""
     aurite = _get_aurite_instance()
-    component_index = aurite.get_config_manager().get_component_index()
+    component_index = aurite.kernel.config_manager.get_component_index()
 
     # Check if the name is a component type
     component_types = {item["component_type"] for item in component_index}

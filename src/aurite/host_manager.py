@@ -6,7 +6,6 @@ import asyncio
 import logging
 import os
 import sys
-import weakref
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -141,18 +140,8 @@ class Aurite:
         self.kernel = AuriteKernel(start_dir=start_dir)
         # We capture the event loop on initialization to ensure we can
         # schedule the shutdown correctly, even if the loop is manipulated later.
-        try:
-            self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-
+        self._loop = asyncio.get_event_loop()
         self._initialized = False
-        # The finalizer is a safety net. It ensures that if an Aurite
-        # instance is garbage collected without being properly closed
-        # (i.e., without using 'async with'), we still attempt to shut
-        # down the kernel to release resources like subprocesses.
-        self._finalizer = weakref.finalize(self, self._schedule_shutdown)
 
     async def _ensure_initialized(self):
         """
@@ -163,18 +152,6 @@ class Aurite:
         if not self._initialized:
             await self.kernel.initialize()
             self._initialized = True
-
-    def _schedule_shutdown(self):
-        """
-        Thread-safe method to schedule the kernel shutdown on the event loop.
-        This is called by the weakref.finalize when the Aurite object is
-        garbage collected.
-        """
-        if self._initialized and not self.kernel._is_shut_down:
-            if self._loop and self._loop.is_running() and not self._loop.is_closed():
-                self._loop.call_soon_threadsafe(
-                    self._loop.create_task, self.kernel.shutdown()
-                )
 
     def get_config_manager(self) -> ConfigManager:
         return self.kernel.config_manager
@@ -250,9 +227,3 @@ class Aurite:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.kernel.shutdown()
-        # This sleep is a pragmatic solution to a common issue when mixing
-        # asyncio with libraries like anyio/aiohttp. It gives the event loop
-        # a moment to process background cleanup tasks (like closing TCP
-        # connectors) that were initiated by the shutdown sequence, preventing
-        # "Unclosed connector" warnings and race conditions on exit.
-        await asyncio.sleep(0.25)

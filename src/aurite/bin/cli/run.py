@@ -20,7 +20,7 @@ async def run_component(
     """
     try:
         async with Aurite(start_dir=Path.cwd()) as aurite:
-            component_index = aurite.get_config_manager().get_component_index()
+            component_index = aurite.kernel.config_manager.get_component_index()
             found_components = [
                 item for item in component_index if item["name"] == name
             ]

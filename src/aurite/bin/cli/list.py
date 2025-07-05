@@ -43,7 +43,7 @@ def _get_aurite_instance() -> Aurite:
 def list_all():
     """Lists all available component configurations, grouped by type."""
     aurite = _get_aurite_instance()
-    component_index = aurite.get_config_manager().get_component_index()
+    component_index = aurite.kernel.config_manager.get_component_index()
 
     grouped_by_type = {}
     for item in component_index:
@@ -59,7 +59,7 @@ def list_all():
 def list_components_by_type(component_type: str):
     """Lists all available components of a specific type."""
     aurite = _get_aurite_instance()
-    component_index = aurite.get_config_manager().get_component_index()
+    component_index = aurite.kernel.config_manager.get_component_index()
     items = [
         item for item in component_index if item["component_type"] == component_type
     ]
@@ -69,7 +69,7 @@ def list_components_by_type(component_type: str):
 def list_workflows():
     """Lists all available workflow components."""
     aurite = _get_aurite_instance()
-    component_index = aurite.get_config_manager().get_component_index()
+    component_index = aurite.kernel.config_manager.get_component_index()
     items = [
         item for item in component_index if item["component_type"].endswith("_workflow")
     ]
@@ -79,7 +79,7 @@ def list_workflows():
 def list_index():
     """Displays the entire component index as a table."""
     aurite = _get_aurite_instance()
-    component_index = aurite.get_config_manager().get_component_index()
+    component_index = aurite.kernel.config_manager.get_component_index()
 
     if not component_index:
         logger("Component index is empty.")
