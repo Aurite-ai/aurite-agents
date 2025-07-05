@@ -34,20 +34,18 @@ class RunPresenter:
                 event_type = event.get("type")
                 event_data = event.get("data", {})
 
-                # Accumulate final output for 'short' mode
-                if event_type == "llm_response":
-                    self._full_response += event_data.get("content", "")
-                elif event_type == "llm_response_stop":
-                    final_output = self._full_response
-                elif event_type == "tool_output":
-                    final_output = event_data.get("output", "")
-
                 # Handle different display modes
                 if self.mode == "debug":
                     console.print(event)
                 elif self.mode == "default":
                     handler = getattr(self, f"_handle_{event_type}", self._handle_unknown)
                     await handler(event_data)
+                elif self.mode == "short":
+                    # Only accumulate for short mode
+                    if event_type == "llm_response":
+                        final_output += event_data.get("content", "")
+                    elif event_type == "tool_output":
+                        final_output = event_data.get("output", "")
 
         finally:
             if self._live and self._live.is_started:
