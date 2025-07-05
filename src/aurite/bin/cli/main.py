@@ -185,15 +185,15 @@ def run(
         autocompletion=complete_runnable_component_name,
     ),
     user_message: Optional[str] = typer.Argument(None, help="The user message or initial input."),
-    system_prompt: Optional[str] = typer.Option(
-        None, "--system-prompt", "-s", help="Override the default system prompt."
-    ),
+    system_prompt: Optional[str] = typer.Option(None, "--system-prompt", help="Override the default system prompt."),
     session_id: Optional[str] = typer.Option(None, "--session-id", "-id", help="The session ID for history."),
+    short: bool = typer.Option(False, "--short", "-s", help="Display a compact, one-line summary of the run."),
+    debug: bool = typer.Option(False, "--debug", "-d", help="Display the full, raw event stream for debugging."),
 ):
     """Executes a framework component."""
 
     async def main_run():
-        await run_component(name, user_message, system_prompt, session_id)
+        await run_component(name, user_message, system_prompt, session_id, short, debug)
 
     asyncio.run(main_run())
 

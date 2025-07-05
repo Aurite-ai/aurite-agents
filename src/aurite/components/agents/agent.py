@@ -2,6 +2,7 @@
 Manages the multi-turn conversation loop for an Agent.
 """
 
+import json
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -141,9 +142,8 @@ class Agent:
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Streams the agent's conversation, handling multiple turns and tool executions.
-        Note: This implementation currently relies on a fallback to the non-streaming
-        turn processor. A future enhancement would be to process the token stream
-        directly to enable real-time tool execution.
+        This method acts as a translator, consuming the raw event stream from the
+        turn processor and yielding a standardized, UI-friendly event stream.
         """
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
@@ -162,62 +162,72 @@ class Agent:
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,
             )
 
-            # Process the turn
-            is_tool_turn = False
-            tool_results = []
-
             try:
+                is_tool_turn = False
+                tool_results = []
+                current_tool_name = None
+
                 async for event in turn_processor.stream_turn_response():
-                    # Pass through the event
-                    if not event.get("internal"):
-                        yield event
-                    else:
+                    # --- Event Translation Logic ---
+
+                    # It's a raw litellm chunk for text delta
+                    if "choices" in event:
+                        if not event["choices"]:
+                            continue
+                        delta = event["choices"][0].get("delta", {})
+                        if delta.get("role") == "assistant":
+                            yield {"type": "llm_response_start", "data": {}}
+                        if content := delta.get("content"):
+                            yield {"type": "llm_response", "data": {"content": content}}
+                        continue
+
+                    # It's a structured internal event
+                    if event.get("internal"):
                         event_type = event["type"]
 
-                        match event_type:
-                            case "tool_complete":
-                                is_tool_turn = True
-                                tool_id = event.get("tool_id")
-                                tool_name = event.get("name")
-                                tool_args = event.get("arguments")
+                        if event_type == "tool_complete":
+                            is_tool_turn = True
+                            current_tool_name = event.get("name")
+                            if not current_tool_name:
+                                logger.error("Tool name missing in 'tool_complete' event.")
+                                continue  # Skip this malformed event
 
-                                if tool_id and tool_name and tool_args is not None:
-                                    message = ChatCompletionAssistantMessageParam(
-                                        role="assistant",
-                                        tool_calls=[
-                                            ChatCompletionMessageToolCallParam(
-                                                id=tool_id,
-                                                function=Function(
-                                                    name=tool_name,
-                                                    arguments=tool_args,
-                                                ),
-                                                type="function",
-                                            )
-                                        ],
+                            tool_args_str = event.get("arguments", "{}")
+                            try:
+                                tool_args = json.loads(tool_args_str)
+                            except json.JSONDecodeError:
+                                tool_args = {"raw_arguments": tool_args_str}
+
+                            yield {"type": "tool_call", "data": {"name": current_tool_name, "input": tool_args}}
+
+                            # Update history for the next turn
+                            message = ChatCompletionAssistantMessageParam(
+                                role="assistant",
+                                tool_calls=[
+                                    ChatCompletionMessageToolCallParam(
+                                        id=event["tool_id"],
+                                        function=Function(name=current_tool_name, arguments=tool_args_str),
+                                        type="function",
                                     )
-                                    self.conversation_history.append(dict(message))
-                            case "message_complete":
-                                content = event.get("content") or ""
-                                message = ChatCompletionAssistantMessageParam(
-                                    role="assistant",
-                                    content=content,
-                                )
+                                ],
+                            )
+                            self.conversation_history.append(dict(message))
 
-                                logger.info(f"Streaming message complete: {content}")
+                        elif event_type == "tool_result":
+                            tool_results.append(event)  # Collect for history
+                            yield {
+                                "type": "tool_output",
+                                "data": {"name": current_tool_name, "output": event.get("result")},
+                            }
 
-                                self.conversation_history.append(dict(message))
+                        elif event_type == "message_complete":
+                            content = event.get("content", "")
+                            self.conversation_history.append({"role": "assistant", "content": content})
+                            yield {"type": "llm_response_stop", "data": {}}
+                            if not is_tool_turn:
+                                return  # End of conversation
 
-                                # Store as final response if not a tool turn
-                                if not is_tool_turn:
-                                    # We need to construct a full ChatCompletionMessage
-                                    self.final_response = ChatCompletionMessage(role="assistant", content=content)
-                                    return
-                            case "tool_result":
-                                tool_results.append(event)
-                            case _:
-                                raise ValueError(f"Unrecognized internal type while streaming: {event_type}")
-
-                # Process tool results if any
+                # After the turn, append all tool results to history
                 if tool_results:
                     for result in tool_results:
                         tool_message = ChatCompletionToolMessageParam(
@@ -228,8 +238,8 @@ class Agent:
                         self.conversation_history.append(dict(tool_message))
 
             except Exception as e:
-                logger.error(f"Error in conversation turn {current_iteration}: {e}")
-                yield {"type": "error", "error": str(e), "turn": current_iteration}
-                break
+                logger.error(f"Error in conversation turn {current_iteration}: {e}", exc_info=True)
+                yield {"type": "error", "data": {"message": str(e)}}
+                return
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")

@@ -3,12 +3,18 @@ from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 
 from ...errors import AuriteError
 from ...host_manager import Aurite
+from .ui_presenter import RunPresenter
 
 console = Console()
 logger = console.print
+
+
+# --- Main Execution Logic ---
 
 
 async def run_component(
@@ -16,10 +22,18 @@ async def run_component(
     user_message: Optional[str],
     system_prompt: Optional[str],
     session_id: Optional[str],
+    short: bool,
+    debug: bool,
 ):
     """
-    Finds a component by name, infers its type, and executes it.
+    Finds a component by name, infers its type, and executes it with rich UI rendering.
     """
+    output_mode = "default"
+    if short:
+        output_mode = "short"
+    if debug:
+        output_mode = "debug"
+
     try:
         async with Aurite(start_dir=Path.cwd()) as aurite:
             component_index = aurite.kernel.config_manager.get_component_index()
@@ -29,65 +43,67 @@ async def run_component(
                 logger(f"Component '{name}' not found.")
                 return
 
-            component_to_run = None
-            if len(found_components) > 1:
-                # Disambiguate if multiple components have the same name
-                # For now, we'll just pick the first runnable one.
-                # A better implementation might prompt the user.
-                runnable_types = ["agent", "simple_workflow", "custom_workflow"]
-                for comp in found_components:
-                    if comp["component_type"] in runnable_types:
-                        component_to_run = comp
-                        break
-                if not component_to_run:
-                    logger(f"Found multiple components named '{name}', but none are runnable.")
-                    return
-            else:
-                component_to_run = found_components[0]
+            component_to_run = next(
+                (
+                    comp
+                    for comp in found_components
+                    if comp["component_type"] in ["agent", "simple_workflow", "custom_workflow"]
+                ),
+                found_components[0],
+            )
 
             component_type = component_to_run["component_type"]
+            presenter = RunPresenter(mode=output_mode)
 
             if component_type == "agent":
                 if not user_message:
                     logger("[bold red]Error:[/bold red] A user message is required to run an agent.")
                     return
-
-                logger("[bold]Agent Run Result:[/bold]")
-                async for event in aurite.stream_agent(
+                stream = aurite.stream_agent(
                     agent_name=name,
                     user_message=user_message,
                     system_prompt=system_prompt,
                     session_id=session_id,
-                ):
-                    if event.get("type") == "llm_response":
-                        print(event.get("data", {}).get("content", ""), end="", flush=True)
-                print()  # for newline at the end
-
-            elif component_type == "simple_workflow":
-                if not user_message:
-                    logger("[bold red]Error:[/bold red] An initial input is required to run a simple workflow.")
-                    return
-                result = await aurite.run_simple_workflow(workflow_name=name, initial_input=user_message)
-                logger("\n[bold]Simple Workflow Result:[/bold]")
-                console.print(result)
-
-            elif component_type == "custom_workflow":
-                if not user_message:
-                    logger("[bold red]Error:[/bold red] An initial input is required to run a custom workflow.")
-                    return
-                try:
-                    parsed_input = json.loads(user_message)
-                except json.JSONDecodeError:
-                    parsed_input = user_message
-                result = await aurite.run_custom_workflow(
-                    workflow_name=name,
-                    initial_input=parsed_input,
-                    session_id=session_id,
                 )
-                logger("\n[bold]Custom Workflow Result:[/bold]")
-                console.print(result)
+                await presenter.render_stream(stream, component_to_run)
+
+            elif component_type in ["simple_workflow", "custom_workflow"]:
+                if not user_message:
+                    logger(f"[bold red]Error:[/bold red] An initial input is required to run a {component_type}.")
+                    return
+
+                async def workflow_streamer():
+                    yield {"type": "workflow_step_start", "data": {"name": name}}
+                    try:
+                        if component_type == "simple_workflow":
+                            result = await aurite.run_simple_workflow(workflow_name=name, initial_input=user_message)
+                        else:
+                            try:
+                                parsed_input = json.loads(user_message)
+                            except json.JSONDecodeError:
+                                parsed_input = user_message
+                            result = await aurite.run_custom_workflow(
+                                workflow_name=name,
+                                initial_input=parsed_input,
+                                session_id=session_id,
+                            )
+                        yield {"type": "tool_output", "data": {"name": "Workflow Result", "output": str(result)}}
+                    except Exception as e:
+                        yield {"type": "error", "data": {"message": str(e)}}
+                    finally:
+                        yield {"type": "workflow_step_end", "data": {"name": name}}
+
+                await presenter.render_stream(workflow_streamer(), component_to_run)
+
             else:
                 logger(f"Component '{name}' is of type '{component_type}', which is not runnable.")
 
     except AuriteError as e:
-        logger(f"\n[bold red]Framework Error:[/bold red] {e}")
+        # Use a simple panel for top-level errors
+        console.print(
+            Panel(
+                Text(str(e), "bold red"),
+                title="[bold red]:x: Error[/bold red]",
+                border_style="red",
+            )
+        )
