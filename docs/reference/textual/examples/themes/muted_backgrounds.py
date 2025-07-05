@@ -6,8 +6,7 @@ COLORS = ("primary", "secondary", "accent", "warning", "error", "success")
 
 class MutedBackgrounds(App[None]):
     CSS = "\n".join(
-        f".text-{color} {{padding: 0 1; color: $text-{color}; background: ${color}-muted;}}"
-        for color in COLORS
+        f".text-{color} {{padding: 0 1; color: $text-{color}; background: ${color}-muted;}}" for color in COLORS
     )
 
     def compose(self) -> ComposeResult:

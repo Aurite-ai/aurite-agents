@@ -1,6 +1,5 @@
 from rich.segment import Segment
 from rich.style import Style
-
 from textual.app import App, ComposeResult
 from textual.strip import Strip
 from textual.widget import Widget
@@ -23,10 +22,7 @@ class CheckerBoard(Widget):
         black = Style.parse("on black")  # Get a style object for a black background
 
         # Generate a list of segments with alternating black and white space characters
-        segments = [
-            Segment(" " * 8, black if (column + is_odd) % 2 else white)
-            for column in range(8)
-        ]
+        segments = [Segment(" " * 8, black if (column + is_odd) % 2 else white) for column in range(8)]
         strip = Strip(segments, 8 * 8)
         return strip
 

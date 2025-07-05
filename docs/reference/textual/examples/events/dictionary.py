@@ -6,7 +6,6 @@ except ImportError:
     raise ImportError("Please install httpx with 'pip install httpx' ")
 
 from rich.json import JSON
-
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Input, Static

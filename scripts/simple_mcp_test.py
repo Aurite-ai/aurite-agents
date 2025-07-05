@@ -10,9 +10,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class Server:
@@ -35,9 +33,7 @@ class Server:
             command = shutil.which("npx")
 
         if not command:
-            raise ValueError(
-                f"Command '{self.config.get('command')}' not found in PATH."
-            )
+            raise ValueError(f"Command '{self.config.get('command')}' not found in PATH.")
 
         server_params = StdioServerParameters(
             command=command,
@@ -49,9 +45,7 @@ class Server:
                 stdio_client(server_params, errlog=open(os.devnull, "w"))
             )
             read, write = stdio_transport
-            session = await self.exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
+            session = await self.exit_stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
             self.session = session
             logging.info(f"Successfully initialized server: {self.name}")
@@ -87,9 +81,7 @@ def load_server_config(file_path: str, server_name: str) -> dict[str, Any]:
         if config.get("name") == server_name:
             return config
 
-    raise ValueError(
-        f"Server configuration for '{server_name}' not found in {file_path}"
-    )
+    raise ValueError(f"Server configuration for '{server_name}' not found in {file_path}")
 
 
 async def main() -> None:
@@ -98,9 +90,7 @@ async def main() -> None:
     server = None
     try:
         # Path to the packaged config used by the agent runner
-        config_path = (
-            "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
-        )
+        config_path = "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
         server_name = "weather_server"
 
         logging.info(f"Loading config for '{server_name}' from '{config_path}'")
@@ -109,9 +99,7 @@ async def main() -> None:
         # The server_path in the config is relative to the project root created by `aurite init`
         # We need to adjust it to be relative to our current working directory.
         original_path = server_config["server_path"]
-        server_config["server_path"] = os.path.join(
-            "src/aurite/init_templates", original_path
-        )
+        server_config["server_path"] = os.path.join("src/aurite/init_templates", original_path)
 
         # The command for a python script is 'python'
         server_config["command"] = "python"

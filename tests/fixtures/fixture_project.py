@@ -248,15 +248,11 @@ VALID_CLIENT_CONFIG_DATA_FULL = {
     "client_id": "test_client_full",
     "server_path": "fixtures/servers/another_dummy_server.py",  # Relative to project root
     "capabilities": ["prompts", "tools"],
-    "roots": [
-        {"uri": "file://./test_root", "name": "Test Root", "capabilities": ["read"]}
-    ],
+    "roots": [{"uri": "file://./test_root", "name": "Test Root", "capabilities": ["read"]}],
     "timeout": 15.0,
     "routing_weight": 0.8,
     "exclude": ["excluded_tool_1"],
-    "gcp_secrets": [
-        {"secret_id": "projects/p/secrets/s/versions/l", "env_var_name": "MY_SECRET"}
-    ],
+    "gcp_secrets": [{"secret_id": "projects/p/secrets/s/versions/l", "env_var_name": "MY_SECRET"}],
 }
 
 VALID_LLM_CONFIG_DATA = {

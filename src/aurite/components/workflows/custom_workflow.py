@@ -2,10 +2,10 @@
 Executor for Custom Python-based Workflows.
 """
 
-import logging
 import importlib.util
 import inspect
-from typing import Any, TYPE_CHECKING, Optional  # Added Optional
+import logging
+from typing import TYPE_CHECKING, Any, Optional  # Added Optional
 
 # Relative imports assuming this file is in src/workflows/
 from ...config.config_models import CustomWorkflowConfig  # Updated import path
@@ -40,9 +40,7 @@ class CustomWorkflowExecutor:
 
         self.config = config
         # self._host = host_instance # Removed host instance storage
-        logger.debug(
-            f"CustomWorkflowExecutor initialized for workflow: {self.config.name}"
-        )
+        logger.debug(f"CustomWorkflowExecutor initialized for workflow: {self.config.name}")
 
         methods_to_load = [
             {
@@ -127,9 +125,7 @@ class CustomWorkflowExecutor:
                 exc_info=True,  # Include traceback for runtime errors within the workflow
             )
             # Wrap internal workflow errors in a RuntimeError for consistent handling upstream
-            raise RuntimeError(
-                f"Exception during custom workflow '{workflow_name}' execution: {e}"
-            ) from e
+            raise RuntimeError(f"Exception during custom workflow '{workflow_name}' execution: {e}") from e
 
     async def get_input_type(self):
         """Gets the input type of the custom workflow's execute method, if the get_input_type method is defined
@@ -171,9 +167,7 @@ class CustomWorkflowExecutor:
         workflow_name = self.config.name
         module_path = self.config.module_path
         class_name = self.config.class_name
-        logger.info(
-            f"Loading methods for workflow: {workflow_name}"
-        )  # Keep start as INFO
+        logger.info(f"Loading methods for workflow: {workflow_name}")  # Keep start as INFO
         logger.debug(f"Config: path={module_path}, class={class_name}")  # Already DEBUG
 
         try:
@@ -184,9 +178,7 @@ class CustomWorkflowExecutor:
 
             if not module_path.exists():
                 logger.error(f"Custom workflow module file not found: {module_path}")
-                raise FileNotFoundError(
-                    f"Custom workflow module file not found: {module_path}"
-                )
+                raise FileNotFoundError(f"Custom workflow module file not found: {module_path}")
 
             # 2. Dynamic Import
             spec = importlib.util.spec_from_file_location(module_path.stem, module_path)
@@ -200,9 +192,7 @@ class CustomWorkflowExecutor:
             WorkflowClass = getattr(module, class_name, None)
             if WorkflowClass is None:
                 logger.error(f"Class '{class_name}' not found in module {module_path}")
-                raise AttributeError(
-                    f"Class '{class_name}' not found in module {module_path}"
-                )
+                raise AttributeError(f"Class '{class_name}' not found in module {module_path}")
 
             # 4. Instantiate Workflow Class
             try:
@@ -213,17 +203,13 @@ class CustomWorkflowExecutor:
                 #         f"Class '{class_name}' must inherit from BaseCustomWorkflow."
                 #     )
                 workflow_instance = WorkflowClass()
-                logger.debug(
-                    f"Instantiated workflow class '{class_name}'"
-                )  # Already DEBUG
+                logger.debug(f"Instantiated workflow class '{class_name}'")  # Already DEBUG
             except Exception as init_err:
                 logger.error(
                     f"Error instantiating workflow class '{class_name}' from {module_path}: {init_err}",
                     exc_info=True,
                 )
-                raise TypeError(
-                    f"Failed to instantiate workflow class '{class_name}': {init_err}"
-                ) from init_err
+                raise TypeError(f"Failed to instantiate workflow class '{class_name}': {init_err}") from init_err
 
             loaded_methods = {}
             for method in methods_to_load:
@@ -236,21 +222,15 @@ class CustomWorkflowExecutor:
                         )
                         continue
                     else:
-                        logger.error(
-                            f"Method '{method_name}' not found in class '{class_name}' from {module_path}"
-                        )
-                        raise AttributeError(
-                            f"Method '{method_name}' not found in class '{class_name}'"
-                        )
+                        logger.error(f"Method '{method_name}' not found in class '{class_name}' from {module_path}")
+                        raise AttributeError(f"Method '{method_name}' not found in class '{class_name}'")
 
                 execute_method = getattr(workflow_instance, method_name)
                 if not callable(execute_method):
                     logger.error(
                         f"Attribute '{method_name}' is not callable in class '{class_name}' from {module_path}"
                     )
-                    raise AttributeError(
-                        f"Attribute '{method_name}' is not callable in class '{class_name}'"
-                    )
+                    raise AttributeError(f"Attribute '{method_name}' is not callable in class '{class_name}'")
 
                 # Check if async
                 is_async = method.get("is_async")
@@ -259,9 +239,7 @@ class CustomWorkflowExecutor:
                     logger.error(
                         f"Method '{method_name}' in class '{class_name}' from {module_path} must {'not ' if is_coroutine else ''}be async."
                     )
-                    raise TypeError(
-                        f"Method '{method_name}' must {'not ' if is_coroutine else ''}be async."
-                    )
+                    raise TypeError(f"Method '{method_name}' must {'not ' if is_coroutine else ''}be async.")
 
                 # 6. Store the method
                 loaded_methods[method.get("name")] = execute_method

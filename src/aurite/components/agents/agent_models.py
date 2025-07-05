@@ -2,9 +2,10 @@
 Pydantic models for Agent execution results.
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal, Dict, Any
+from typing import Any, Dict, List, Literal, Optional
+
 from openai.types.chat import ChatCompletionMessage
+from pydantic import BaseModel, Field
 
 
 class AgentRunResult(BaseModel):
@@ -22,9 +23,7 @@ class AgentRunResult(BaseModel):
     conversation_history: List[Dict[str, Any]] = Field(
         description="The complete conversation history as a list of dictionaries, compliant with OpenAI's message format."
     )
-    error_message: Optional[str] = Field(
-        None, description="An error message if the agent execution failed."
-    )
+    error_message: Optional[str] = Field(None, description="An error message if the agent execution failed.")
 
     @property
     def primary_text(self) -> Optional[str]:

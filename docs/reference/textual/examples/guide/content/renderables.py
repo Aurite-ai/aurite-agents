@@ -1,5 +1,4 @@
 from rich.syntax import Syntax
-
 from textual.app import App, ComposeResult, RenderResult
 from textual.reactive import reactive
 from textual.widget import Widget

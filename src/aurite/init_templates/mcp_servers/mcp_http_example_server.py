@@ -1,11 +1,10 @@
-from fastapi import FastAPI
-import uvicorn
-from mcp.server.fastmcp import FastMCP
-import logging
-
 # Create a FastAPI application to mount the MCP server
 import contextlib  # Add this import
+import logging
 
+import uvicorn
+from fastapi import FastAPI
+from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp-http-example-server")
@@ -66,12 +65,8 @@ try:
         tools_registry = {}
     logger.info(f"Tools available: {[tool.name for tool in tools_registry.values()]}")
 except AttributeError:
-    logger.warning(
-        "Could not determine how to list tools directly from FastMCP instance for logging."
-    )
-logger.info(
-    "Mounting MCP application at /mcp_stream_example/"
-)  # Added trailing slash here too for logging consistency
+    logger.warning("Could not determine how to list tools directly from FastMCP instance for logging.")
+logger.info("Mounting MCP application at /mcp_stream_example/")  # Added trailing slash here too for logging consistency
 
 if __name__ == "__main__":
     logger.info("Starting Uvicorn server for MCP HTTP Example Server...")

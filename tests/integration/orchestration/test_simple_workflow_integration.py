@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
-from aurite.host_manager import Aurite
-from aurite.components.agents.agent_models import AgentRunResult
+import pytest
 from openai.types.chat import ChatCompletionMessage
+
+from aurite.components.agents.agent_models import AgentRunResult
+from aurite.host_manager import Aurite
 
 
 @pytest.mark.anyio
@@ -21,9 +22,7 @@ async def test_simple_workflow_success():
         execution_facade = aurite.kernel.execution
 
         # Mock the facade's run_agent method to simulate successful agent runs
-        mock_run_agent = patch.object(
-            execution_facade, "run_agent", new_callable=AsyncMock
-        ).start()
+        mock_run_agent = patch.object(execution_facade, "run_agent", new_callable=AsyncMock).start()
 
         # Define the mock return values for each agent in the workflow
         weather_agent_result = AgentRunResult(
@@ -36,9 +35,7 @@ async def test_simple_workflow_success():
         )
         planning_agent_result = AgentRunResult(
             status="success",
-            final_response=ChatCompletionMessage(
-                role="assistant", content="It's a beautiful sunny day at 72 degrees!"
-            ),
+            final_response=ChatCompletionMessage(role="assistant", content="It's a beautiful sunny day at 72 degrees!"),
             conversation_history=[],
             error_message=None,
         )

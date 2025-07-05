@@ -2,8 +2,8 @@
 Unit tests for the ResourceManager class.
 """
 
-import pytest
 import mcp.types as types
+import pytest
 from pydantic import AnyUrl
 
 from src.aurite.host.resources.resources import ResourceManager
@@ -13,21 +13,17 @@ pytestmark = [pytest.mark.unit, pytest.mark.host]
 
 
 @pytest.mark.anyio
-async def test_resource_manager_initialization(
-    mock_message_router, mock_client_session_group
-):
+async def test_resource_manager_initialization(mock_message_router, mock_client_session_group):
     """
     Test that the ResourceManager can be initialized successfully and registers resources.
     """
     # 1. Arrange
     resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
-    setattr(resource, "client_id", "test_client")
+    resource.client_id = "test_client"
     mock_client_session_group.resources = {"mcp://resource/1": resource}
 
     # 2. Act
-    resource_manager = ResourceManager(
-        message_router=mock_message_router, session_group=mock_client_session_group
-    )
+    resource_manager = ResourceManager(message_router=mock_message_router, session_group=mock_client_session_group)
     await resource_manager.initialize()
 
     # 3. Assert
@@ -45,9 +41,7 @@ async def test_get_resource(mock_message_router, mock_client_session_group):
     # 1. Arrange
     resource = types.Resource(uri=AnyUrl("mcp://resource/1"), name="Test Resource")
     mock_client_session_group.resources = {"mcp://resource/1": resource}
-    resource_manager = ResourceManager(
-        message_router=mock_message_router, session_group=mock_client_session_group
-    )
+    resource_manager = ResourceManager(message_router=mock_message_router, session_group=mock_client_session_group)
 
     # 2. Act
     retrieved_resource = await resource_manager.get_resource("mcp://resource/1")
@@ -68,9 +62,7 @@ async def test_list_resources(mock_message_router, mock_client_session_group):
         "mcp://resource/1": resource1,
         "mcp://resource/2": resource2,
     }
-    resource_manager = ResourceManager(
-        message_router=mock_message_router, session_group=mock_client_session_group
-    )
+    resource_manager = ResourceManager(message_router=mock_message_router, session_group=mock_client_session_group)
 
     # 2. Act
     all_resources = await resource_manager.list_resources()

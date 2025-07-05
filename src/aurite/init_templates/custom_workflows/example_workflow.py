@@ -1,15 +1,14 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade
     from aurite.components.agents.agent_models import AgentRunResult
+    from aurite.execution.facade import ExecutionFacade
 
 
 from aurite.components.workflows.workflow_models import BaseCustomWorkflow
-
 
 logger = logging.getLogger(__name__)
 
@@ -73,18 +72,14 @@ class ExampleCustomWorkflow(BaseCustomWorkflow):
             # For simplicity, we'll just return the main text from the agent's response.
             if agent_result.final_response:
                 final_response = agent_result.final_response.content
-                logger.info(
-                    f"Workflow finished successfully. Returning: {final_response}"
-                )
+                logger.info(f"Workflow finished successfully. Returning: {final_response}")
                 return {"status": "ok", "response": final_response}
             else:
                 logger.error("Agent run was successful but returned no final response.")
                 return {"status": "failed", "error": "Agent returned no response."}
 
         except Exception as e:
-            logger.error(
-                f"An unexpected error occurred in the workflow: {e}", exc_info=True
-            )
+            logger.error(f"An unexpected error occurred in the workflow: {e}", exc_info=True)
             return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}
 
     def get_input_type(self):

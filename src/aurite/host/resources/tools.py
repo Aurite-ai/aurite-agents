@@ -8,17 +8,19 @@ This module provides a ToolManager class that handles:
 4. Integration with agent frameworks
 """
 
-from typing import Dict, List, Any, Optional
 import logging
-# import asyncio # No longer needed after removing _active_requests
+from typing import Any, Dict, List, Optional
 
+# import asyncio # No longer needed after removing _active_requests
 import mcp.types as types
+from mcp.client.session_group import ClientSessionGroup
+
+from aurite.config.config_models import AgentConfig
+
+from ..filtering import FilteringManager
 
 # Import from lower layers for dependencies
-from ..foundation import RootManager, MessageRouter
-from ..filtering import FilteringManager
-from aurite.config.config_models import AgentConfig
-from mcp.client.session_group import ClientSessionGroup
+from ..foundation import MessageRouter, RootManager
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +104,7 @@ class ToolManager:
         formatted_tools = [tool.model_dump() for tool in all_tools]
 
         if agent_config:
-            return filtering_manager.filter_component_list(
-                formatted_tools, agent_config
-            )
+            return filtering_manager.filter_component_list(formatted_tools, agent_config)
 
         return formatted_tools
 
@@ -117,22 +117,16 @@ class ToolManager:
         else:
             return str(tool_result)
 
-    def create_tool_result_blocks(
-        self, tool_use_id: str, tool_result: Any, is_error: bool = False
-    ) -> Dict[str, Any]:
+    def create_tool_result_blocks(self, tool_use_id: str, tool_result: Any, is_error: bool = False) -> Dict[str, Any]:
         """
         Create a properly formatted tool result block for LLM APIs.
         """
-        if isinstance(tool_result, list) and all(
-            hasattr(item, "text") for item in tool_result
-        ):
+        if isinstance(tool_result, list) and all(hasattr(item, "text") for item in tool_result):
             content_list = [{"type": "text", "text": item.text} for item in tool_result]
         elif isinstance(tool_result, str):
             content_list = [{"type": "text", "text": tool_result}]
         else:
-            logger.warning(
-                f"Formatting unexpected tool result type: {type(tool_result)}"
-            )
+            logger.warning(f"Formatting unexpected tool result type: {type(tool_result)}")
             content_list = [{"type": "text", "text": str(tool_result)}]
 
         return {

@@ -1,9 +1,10 @@
 import logging
+
+from textual import work
 from textual.app import App, ComposeResult
-from textual.widgets import RichLog
 from textual.logging import TextualHandler
 from textual.message import Message
-from textual import work
+from textual.widgets import RichLog
 
 from aurite import Aurite
 
@@ -34,9 +35,7 @@ class TempApp(App):
         if result and result.primary_text:
             self.post_message(self.AgentResponseMessage(result.primary_text))
         else:
-            self.post_message(
-                self.AgentResponseMessage("Agent did not return a response.")
-            )
+            self.post_message(self.AgentResponseMessage("Agent did not return a response."))
 
     def on_temp_app_agent_response_message(self, message: AgentResponseMessage) -> None:
         """Write the agent response to the log."""

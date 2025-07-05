@@ -4,10 +4,10 @@ Provides a helper function for dynamically selecting tools for an agent using an
 
 import json
 import logging
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from ..config.config_models import AgentConfig, LLMConfig
 from ..components.llm.providers.litellm_client import LiteLLMClient
+from ..config.config_models import AgentConfig, LLMConfig
 
 if TYPE_CHECKING:
     from ..config.config_models import ProjectConfig
@@ -37,9 +37,7 @@ async def select_tools_for_agent(
     Returns:
         A list of selected client IDs, or None if the selection process fails.
     """
-    logger.debug(
-        f"Attempting to dynamically select client_ids for agent '{agent_config.name}'."
-    )
+    logger.debug(f"Attempting to dynamically select client_ids for agent '{agent_config.name}'.")
 
     tool_selector_llm_config = LLMConfig(
         name="internal_dynamic_tool_selector_haiku",
@@ -67,18 +65,12 @@ async def select_tools_for_agent(
         try:
             tool_selector_llm_client = LiteLLMClient(config=tool_selector_llm_config)
             llm_client_cache[tool_selector_llm_config.name] = tool_selector_llm_client
-            logger.debug(
-                f"Created and cached LLM client for tool selection: {tool_selector_llm_config.name}"
-            )
+            logger.debug(f"Created and cached LLM client for tool selection: {tool_selector_llm_config.name}")
         except Exception as e:
-            logger.error(
-                f"Failed to create LLM client for tool selection: {e}", exc_info=True
-            )
+            logger.error(f"Failed to create LLM client for tool selection: {e}", exc_info=True)
             return None
     else:
-        logger.debug(
-            f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.name}"
-        )
+        logger.debug(f"Reusing cached LLM client for tool selection: {tool_selector_llm_config.name}")
 
     available_clients = current_project.mcp_servers
     client_info_parts = ["Available Tool Sets (MCP Clients):"]
@@ -92,11 +84,7 @@ async def select_tools_for_agent(
                 client_capabilities.update(root.capabilities or [])
                 root_names.append(root.name)
 
-            cap_string = (
-                ", ".join(sorted(list(client_capabilities)))
-                if client_capabilities
-                else "None"
-            )
+            cap_string = ", ".join(sorted(client_capabilities)) if client_capabilities else "None"
             roots_string = ", ".join(root_names) if root_names else "N/A"
             client_info_parts.append(
                 f"---\nTool Set ID: {client_id}\nCapabilities: {cap_string}\nRoot Names: {roots_string}"
@@ -153,13 +141,9 @@ async def select_tools_for_agent(
         ]
 
         if len(valid_selected_ids) != len(selected_ids_from_llm):
-            logger.warning(
-                "Some selected client_ids were invalid and have been ignored."
-            )
+            logger.warning("Some selected client_ids were invalid and have been ignored.")
 
-        logger.info(
-            f"Dynamically selected client_ids: {valid_selected_ids} (Agent: {agent_config.name})"
-        )
+        logger.info(f"Dynamically selected client_ids: {valid_selected_ids} (Agent: {agent_config.name})")
         return valid_selected_ids
 
     except json.JSONDecodeError as e:
@@ -169,7 +153,5 @@ async def select_tools_for_agent(
         )
         return None
     except Exception as e:
-        logger.error(
-            f"Error during LLM call for dynamic tool selection: {e}", exc_info=True
-        )
+        logger.error(f"Error during LLM call for dynamic tool selection: {e}", exc_info=True)
         return None

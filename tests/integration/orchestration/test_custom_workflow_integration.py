@@ -1,10 +1,11 @@
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from aurite.host_manager import Aurite
-from aurite.components.agents.agent_models import AgentRunResult
+import pytest
 from openai.types.chat import ChatCompletionMessage
+
+from aurite.components.agents.agent_models import AgentRunResult
+from aurite.host_manager import Aurite
 
 
 @pytest.mark.anyio
@@ -28,9 +29,7 @@ async def test_custom_workflow_with_refactored_agent_run():
             new_callable=AsyncMock,
             return_value=AgentRunResult(
                 status="success",
-                final_response=ChatCompletionMessage(
-                    role="assistant", content="It is sunny."
-                ),
+                final_response=ChatCompletionMessage(role="assistant", content="It is sunny."),
                 conversation_history=[],
                 error_message=None,
             ),

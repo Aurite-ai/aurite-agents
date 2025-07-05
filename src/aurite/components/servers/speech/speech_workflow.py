@@ -1,12 +1,12 @@
 import pathlib
 import uuid
 
-from .speech_server import speech_to_text  # Relative import
 from ..memory.mem0_server import (
     add_memories,
-    get_all_memories,
     delete_all_memories,
-)  # Relative import
+    get_all_memories,
+)
+from .speech_server import speech_to_text  # Relative import
 
 PARENT_PATH = pathlib.Path(__file__).parent.absolute()
 

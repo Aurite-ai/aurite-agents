@@ -9,7 +9,7 @@ class Box(Placeholder):
     DEFAULT_CSS = """
     Box {
         width: 16;
-        height: 5;        
+        height: 5;
     }
     """
 

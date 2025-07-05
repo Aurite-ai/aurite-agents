@@ -2,18 +2,19 @@
 Executor for Simple Sequential Workflows.
 """
 
-import logging
 import json
-from typing import Any, TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Any
+
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
 from ...config.config_models import (
-    WorkflowConfig,
     WorkflowComponent,
+    WorkflowConfig,
 )
-from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 from ..agents.agent_models import AgentRunResult
+from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
@@ -51,9 +52,7 @@ class SimpleWorkflowExecutor:
 
         self.config = config
         self.facade = facade
-        logger.debug(
-            f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}"
-        )
+        logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
 
     async def execute(self, initial_input: str) -> SimpleWorkflowExecutionResult:
         """
@@ -97,11 +96,9 @@ class SimpleWorkflowExecutor:
                                 current_message = json.dumps(current_message)
 
                             # The facade's run_agent now returns a structured AgentRunResult
-                            agent_run_result: AgentRunResult = (
-                                await self.facade.run_agent(
-                                    agent_name=component.name,
-                                    user_message=str(current_message),
-                                )
+                            agent_run_result: AgentRunResult = await self.facade.run_agent(
+                                agent_name=component.name,
+                                user_message=str(current_message),
                             )
 
                             # Check the status of the agent run
@@ -115,9 +112,7 @@ class SimpleWorkflowExecutor:
                                 )
 
                             if agent_run_result.final_response is None:
-                                raise Exception(
-                                    f"Agent '{component.name}' succeeded but produced no response."
-                                )
+                                raise Exception(f"Agent '{component.name}' succeeded but produced no response.")
 
                             # The output for the step is the full result object for better logging
                             component_output = agent_run_result.model_dump()
@@ -130,39 +125,27 @@ class SimpleWorkflowExecutor:
                                 initial_input=current_message,
                             )
                             if workflow_result.error:
-                                raise Exception(
-                                    f"Nested workflow '{component.name}' failed: {workflow_result.error}"
-                                )
+                                raise Exception(f"Nested workflow '{component.name}' failed: {workflow_result.error}")
 
                             component_output = workflow_result
                             current_message = workflow_result.final_output
 
                         case "custom_workflow":
-                            input_type = (
-                                await self.facade.get_custom_workflow_input_type(
-                                    workflow_name=component.name
-                                )
-                            )
+                            input_type = await self.facade.get_custom_workflow_input_type(workflow_name=component.name)
                             if isinstance(current_message, str) and input_type is dict:
                                 current_message = json.loads(current_message)
-                            elif (
-                                isinstance(current_message, dict) and input_type is str
-                            ):
+                            elif isinstance(current_message, dict) and input_type is str:
                                 current_message = json.dumps(current_message)
 
-                            custom_workflow_output = (
-                                await self.facade.run_custom_workflow(
-                                    workflow_name=component.name,
-                                    initial_input=current_message,
-                                )
+                            custom_workflow_output = await self.facade.run_custom_workflow(
+                                workflow_name=component.name,
+                                initial_input=current_message,
                             )
                             component_output = custom_workflow_output
                             current_message = custom_workflow_output
 
                         case _:
-                            raise ValueError(
-                                f"Component type not recognized: {component.type}"
-                            )
+                            raise ValueError(f"Component type not recognized: {component.type}")
 
                     step_results.append(
                         SimpleWorkflowStepResult(

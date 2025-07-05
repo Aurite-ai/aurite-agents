@@ -1,5 +1,4 @@
 from rich.text import Text
-
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Label, RadioButton, RadioSet
@@ -19,11 +18,7 @@ class RadioSetChangedApp(App[None]):
                     yield RadioButton("Star Trek: The Motion Picture")
                     yield RadioButton("Star Wars: A New Hope")
                     yield RadioButton("The Last Starfighter")
-                    yield RadioButton(
-                        Text.from_markup(
-                            "Total Recall :backhand_index_pointing_right: :red_circle:"
-                        )
-                    )
+                    yield RadioButton(Text.from_markup("Total Recall :backhand_index_pointing_right: :red_circle:"))
                     yield RadioButton("Wing Commander")
             with Horizontal():
                 yield Label(id="pressed")
@@ -34,12 +29,8 @@ class RadioSetChangedApp(App[None]):
         self.query_one(RadioSet).focus()
 
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
-        self.query_one("#pressed", Label).update(
-            f"Pressed button label: {event.pressed.label}"
-        )
-        self.query_one("#index", Label).update(
-            f"Pressed button index: {event.radio_set.pressed_index}"
-        )
+        self.query_one("#pressed", Label).update(f"Pressed button label: {event.pressed.label}")
+        self.query_one("#index", Label).update(f"Pressed button index: {event.radio_set.pressed_index}")
 
 
 if __name__ == "__main__":

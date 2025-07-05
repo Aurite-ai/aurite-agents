@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import json
 
 from ....execution.facade import ExecutionFacade
 from ...dependencies import get_api_key, get_execution_facade
@@ -60,7 +60,7 @@ async def run_agent(
         return result.model_dump()
     except Exception as e:
         logger.error(f"Error running agent '{agent_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/agents/{agent_name}/stream")
@@ -91,11 +91,7 @@ async def stream_agent(
         # The error will be logged, and the client will see a dropped connection.
         # A more robust solution could involve yielding a final error event.
         return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"
-                ]
-            ),
+            iter([f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"]),
             media_type="text/event-stream",
             status_code=500,
         )
@@ -118,10 +114,8 @@ async def run_simple_workflow(
         )
         return result.model_dump()
     except Exception as e:
-        logger.error(
-            f"Error running simple workflow '{workflow_name}': {e}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error running simple workflow '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/workflows/custom/{workflow_name}/run")
@@ -142,7 +136,5 @@ async def run_custom_workflow(
         )
         return result
     except Exception as e:
-        logger.error(
-            f"Error running custom workflow '{workflow_name}': {e}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error running custom workflow '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -1,10 +1,10 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
+from typing import TYPE_CHECKING, Any, Optional
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from aurite.servers.storage.vector.pgvector_server import search
-from typing import TYPE_CHECKING, Optional, Any
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -54,7 +54,5 @@ class DocsQuestionWorkflow:
 
             return return_value
         except Exception as e:
-            logger.error(
-                f"Error within DocsQuestionWorkflow execution: {e}", exc_info=True
-            )
+            logger.error(f"Error within DocsQuestionWorkflow execution: {e}", exc_info=True)
             return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}

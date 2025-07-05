@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from pytz import timezone
-
 from textual.app import App, ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget

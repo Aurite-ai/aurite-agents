@@ -1,12 +1,12 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
 import re
+from typing import TYPE_CHECKING, Any, Optional
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
 from aurite.servers.storage.file_server import FILES, read_file
 from aurite.servers.storage.vector.pgvector_server import batch_store, clear_database
-from typing import TYPE_CHECKING, Optional, Any
 
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ class InitializeDocsWorkflow:
             for path in FILES:
                 file = read_file(path)
 
-                paragraphs = [paragraph for paragraph in self.separate_markdown(file)]
+                paragraphs = list(self.separate_markdown(file))
 
                 batch_store(paragraphs, {"filepath": path})
 
@@ -87,7 +87,5 @@ class InitializeDocsWorkflow:
 
             return return_value
         except Exception as e:
-            logger.error(
-                f"Error within InitializeDocsWorkflow execution: {e}", exc_info=True
-            )
+            logger.error(f"Error within InitializeDocsWorkflow execution: {e}", exc_info=True)
             return {"status": "failed", "error": f"Internal workflow error: {str(e)}"}

@@ -3,8 +3,9 @@ Reusable mocks for the MCPHost system, primarily for unit testing dependents
 like Aurite, Agent, and Executors.
 """
 
+from unittest.mock import AsyncMock, MagicMock, Mock  # Added Mock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, Mock  # Added Mock
 
 # Import the class we are mocking to ensure the mock spec matches
 from aurite.host.host import MCPHost
@@ -35,9 +36,7 @@ def mock_mcp_host() -> MagicMock:
         shutdown=AsyncMock(),
         # === Attributes/Methods for Agent/Executor Execution ===
         tools=MagicMock(spec=ToolManager),  # Mock the 'tools' attribute
-        get_formatted_tools=Mock(
-            return_value=[]
-        ),  # Default: no tools - Should be synchronous Mock
+        get_formatted_tools=Mock(return_value=[]),  # Default: no tools - Should be synchronous Mock
         execute_tool=AsyncMock(),  # Default: no specific return/side_effect
     )
 

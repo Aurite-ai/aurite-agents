@@ -7,8 +7,6 @@ It exposes the core classes and functions for users to build and run AI agents.
 """
 
 # Core classes for users
-from .host_manager import Aurite
-
 # Configuration models
 from .config.config_models import (
     AgentConfig,
@@ -18,10 +16,11 @@ from .config.config_models import (
     LLMConfig,
     ProjectConfig,
     WorkflowConfig,
-    # Add other config models if they are part of the public API
 )
 
+# Add other config models if they are part of the public API
 from .execution.facade import ExecutionFacade
+from .host_manager import Aurite
 
 __all__ = [
     "Aurite",

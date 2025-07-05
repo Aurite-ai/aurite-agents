@@ -3,7 +3,6 @@ import io
 
 from rich.syntax import Syntax
 from rich.table import Table
-
 from textual import events
 from textual.app import App, ComposeResult
 from textual.widgets import RichLog

@@ -3,18 +3,16 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-from typing import Any, Dict, Optional, List, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from termcolor import colored
 
-from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..components.agents.agent import Agent
 from ..components.agents.agent_models import AgentRunResult
+from ..components.llm.providers.litellm_client import LiteLLMClient
+from ..components.workflows.custom_workflow import CustomWorkflowExecutor
 from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
 from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
-from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-from ..host.host import MCPHost
-from ..storage.db_manager import StorageManager
 from ..config.config_manager import ConfigManager
 from ..config.config_models import (
     AgentConfig,
@@ -23,10 +21,12 @@ from ..config.config_models import (
     LLMConfigOverrides,
 )
 from ..errors import (
-    ConfigurationError,
     AgentExecutionError,
+    ConfigurationError,
     WorkflowExecutionError,
 )
+from ..host.host import MCPHost
+from ..storage.db_manager import StorageManager
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,7 @@ class ExecutionFacade:
         self._host = host_instance
         self._storage_manager = storage_manager
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
-        logger.debug(
-            f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'})."
-        )
+        logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     # --- Private Helper Methods ---
 
@@ -75,9 +73,7 @@ class ExecutionFacade:
         if agent_config_for_run.mcp_servers:
             for server_name in agent_config_for_run.mcp_servers:
                 if server_name not in self._host.registered_server_names:
-                    server_config_dict = self._config_manager.get_config(
-                        "mcp_server", server_name
-                    )
+                    server_config_dict = self._config_manager.get_config("mcp_server", server_name)
                     if not server_config_dict:
                         raise ConfigurationError(
                             f"MCP Server '{server_name}' required by agent '{agent_name}' not found."
@@ -87,18 +83,14 @@ class ExecutionFacade:
 
         llm_config_id = agent_config_for_run.llm_config_id
         if not llm_config_id:
-            logger.warning(
-                f"Agent '{agent_name}' does not have an llm_config_id. Trying to use 'default' LLM."
-            )
+            logger.warning(f"Agent '{agent_name}' does not have an llm_config_id. Trying to use 'default' LLM.")
             llm_config_id = "default"
 
         llm_config_dict = self._config_manager.get_config("llm", llm_config_id)
 
         if not llm_config_dict:
             if llm_config_id == "default":
-                logger.warning(
-                    "No 'default' LLM config found. Falling back to hardcoded OpenAI GPT-4."
-                )
+                logger.warning("No 'default' LLM config found. Falling back to hardcoded OpenAI GPT-4.")
                 llm_config_dict = {
                     "name": "default_openai_fallback",
                     "provider": "openai",
@@ -109,22 +101,14 @@ class ExecutionFacade:
                     "api_key_env_var": "OPENAI_API_KEY",
                 }
             else:
-                raise ConfigurationError(
-                    f"LLM configuration '{llm_config_id}' not found."
-                )
+                raise ConfigurationError(f"LLM configuration '{llm_config_id}' not found.")
 
         base_llm_config = LLMConfig(**llm_config_dict)
         if not base_llm_config:
-            raise ConfigurationError(
-                f"Could not determine LLM configuration for Agent '{agent_name}'."
-            )
+            raise ConfigurationError(f"Could not determine LLM configuration for Agent '{agent_name}'.")
 
         initial_messages: List[Dict[str, Any]] = []
-        if (
-            agent_config_for_run.include_history
-            and self._storage_manager
-            and session_id
-        ):
+        if agent_config_for_run.include_history and self._storage_manager and session_id:
             history = self._storage_manager.load_history(agent_name, session_id)
             if history:
                 initial_messages.extend(history)
@@ -154,14 +138,14 @@ class ExecutionFacade:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
         try:
-            agent_instance = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
-            )
+            agent_instance = await self._prepare_agent_for_run(agent_name, user_message, system_prompt, session_id)
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
             async for event in agent_instance.stream_conversation():
                 yield event
         except Exception as e:
-            error_msg = f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            error_msg = (
+                f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            )
             logger.error(f"Facade: {error_msg}", exc_info=True)
             yield {"type": "error", "data": {"message": error_msg}}
             raise AgentExecutionError(error_msg) from e
@@ -174,9 +158,7 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
     ) -> AgentRunResult:
         try:
-            agent_instance = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
-            )
+            agent_instance = await self._prepare_agent_for_run(agent_name, user_message, system_prompt, session_id)
 
             logger.info(
                 colored(
@@ -195,11 +177,7 @@ class ExecutionFacade:
             )
 
             # Save history regardless of the outcome, as it's valuable for debugging.
-            if (
-                agent_instance.config.include_history
-                and self._storage_manager
-                and session_id
-            ):
+            if agent_instance.config.include_history and self._storage_manager and session_id:
                 try:
                     self._storage_manager.save_full_history(
                         agent_name=agent_name,
@@ -217,24 +195,18 @@ class ExecutionFacade:
 
             return run_result
         except Exception as e:
-            error_msg = f"Unexpected error in ExecutionFacade while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            error_msg = (
+                f"Unexpected error in ExecutionFacade while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+            )
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise AgentExecutionError(error_msg) from e
 
-    async def run_simple_workflow(
-        self, workflow_name: str, initial_input: Any
-    ) -> SimpleWorkflowExecutionResult:
-        logger.info(
-            f"Facade: Received request to run Simple Workflow '{workflow_name}'"
-        )
+    async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
+        logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}'")
         try:
-            workflow_config_dict = self._config_manager.get_config(
-                "simple_workflow", workflow_name
-            )
+            workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
             if not workflow_config_dict:
-                raise ConfigurationError(
-                    f"Simple Workflow '{workflow_name}' not found."
-                )
+                raise ConfigurationError(f"Simple Workflow '{workflow_name}' not found.")
 
             from ..config.config_models import WorkflowConfig
 
@@ -246,34 +218,24 @@ class ExecutionFacade:
             )
 
             result = await workflow_executor.execute(initial_input=initial_input)
-            logger.info(
-                f"Facade: Simple Workflow '{workflow_name}' execution finished."
-            )
+            logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
             return result
         except ConfigurationError as e:
             # Re-raise configuration errors directly
             raise e
         except Exception as e:
-            error_msg = (
-                f"Unexpected error running Simple Workflow '{workflow_name}': {e}"
-            )
+            error_msg = f"Unexpected error running Simple Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
     ) -> Any:
-        logger.info(
-            f"Facade: Received request to run Custom Workflow '{workflow_name}'"
-        )
+        logger.info(f"Facade: Received request to run Custom Workflow '{workflow_name}'")
         try:
-            workflow_config_dict = self._config_manager.get_config(
-                "custom_workflow", workflow_name
-            )
+            workflow_config_dict = self._config_manager.get_config("custom_workflow", workflow_name)
             if not workflow_config_dict:
-                raise ConfigurationError(
-                    f"Custom Workflow '{workflow_name}' not found."
-                )
+                raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
             from ..config.config_models import CustomWorkflowConfig
 
@@ -281,35 +243,23 @@ class ExecutionFacade:
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
 
-            result = await workflow_executor.execute(
-                initial_input=initial_input, executor=self, session_id=session_id
-            )
-            logger.info(
-                f"Facade: Custom Workflow '{workflow_name}' execution finished."
-            )
+            result = await workflow_executor.execute(initial_input=initial_input, executor=self, session_id=session_id)
+            logger.info(f"Facade: Custom Workflow '{workflow_name}' execution finished.")
             return result
         except ConfigurationError as e:
             # Re-raise configuration errors directly
             raise e
         except Exception as e:
-            error_msg = (
-                f"Unexpected error running Custom Workflow '{workflow_name}': {e}"
-            )
+            error_msg = f"Unexpected error running Custom Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 
     async def get_custom_workflow_input_type(self, workflow_name: str) -> Any:
-        logger.info(
-            f"Facade: Received request for input type of Custom Workflow '{workflow_name}'"
-        )
+        logger.info(f"Facade: Received request for input type of Custom Workflow '{workflow_name}'")
         try:
-            workflow_config_dict = self._config_manager.get_config(
-                "custom_workflow", workflow_name
-            )
+            workflow_config_dict = self._config_manager.get_config("custom_workflow", workflow_name)
             if not workflow_config_dict:
-                raise ConfigurationError(
-                    f"Custom Workflow '{workflow_name}' not found."
-                )
+                raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
             from ..config.config_models import CustomWorkflowConfig
 
@@ -325,17 +275,11 @@ class ExecutionFacade:
             raise WorkflowExecutionError(error_msg) from e
 
     async def get_custom_workflow_output_type(self, workflow_name: str) -> Any:
-        logger.info(
-            f"Facade: Received request for output type of Custom Workflow '{workflow_name}'"
-        )
+        logger.info(f"Facade: Received request for output type of Custom Workflow '{workflow_name}'")
         try:
-            workflow_config_dict = self._config_manager.get_config(
-                "custom_workflow", workflow_name
-            )
+            workflow_config_dict = self._config_manager.get_config("custom_workflow", workflow_name)
             if not workflow_config_dict:
-                raise ConfigurationError(
-                    f"Custom Workflow '{workflow_name}' not found."
-                )
+                raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
             from ..config.config_models import CustomWorkflowConfig
 

@@ -6,12 +6,13 @@ import json
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
+from jsonschema import ValidationError as JsonSchemaValidationError
+from jsonschema import validate
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
-from jsonschema import validate, ValidationError as JsonSchemaValidationError
 
 from ...config.config_models import AgentConfig
 from ...host.host import MCPHost
@@ -72,9 +73,7 @@ class AgentTurnProcessor:
         is_final_turn = False
 
         if llm_response.tool_calls:
-            tool_results_for_next_turn = await self._process_tool_calls(
-                llm_response.tool_calls
-            )
+            tool_results_for_next_turn = await self._process_tool_calls(llm_response.tool_calls)
             return None, tool_results_for_next_turn, is_final_turn
         else:
             validated_response = self._handle_final_response(llm_response)
@@ -126,11 +125,7 @@ class AgentTurnProcessor:
                 if delta.tool_calls:
                     for tool_call in delta.tool_calls:
                         # New tool call starting
-                        if (
-                            tool_call.id
-                            and tool_call.function
-                            and tool_call.function.name
-                        ):
+                        if tool_call.id and tool_call.function and tool_call.function.name:
                             current_tool_call = {
                                 "id": tool_call.id,
                                 "name": tool_call.function.name,
@@ -138,20 +133,11 @@ class AgentTurnProcessor:
                             }
 
                         # Accumulate tool arguments
-                        if (
-                            tool_call.function
-                            and tool_call.function.arguments
-                            and current_tool_call
-                        ):
-                            current_tool_call["arguments"] += (
-                                tool_call.function.arguments
-                            )
+                        if tool_call.function and tool_call.function.arguments and current_tool_call:
+                            current_tool_call["arguments"] += tool_call.function.arguments
 
                 # Handle completion, allow finish_reason to be stop for gemini
-                if (
-                    chunk_choice.finish_reason in ["tool_calls", "stop"]
-                    and current_tool_call
-                ):
+                if chunk_choice.finish_reason in ["tool_calls", "stop"] and current_tool_call:
                     # Parse and execute tool
                     try:
                         tool_id = current_tool_call.get("id")
@@ -174,21 +160,15 @@ class AgentTurnProcessor:
                             current_tool_calls = [
                                 ChatCompletionMessageToolCall(
                                     id=tool_id,
-                                    function=Function(
-                                        arguments=tool_input_str, name=tool_name
-                                    ),
+                                    function=Function(arguments=tool_input_str, name=tool_name),
                                     type="function",
                                 )
                             ]
 
-                            tool_results_for_next_turn = await self._process_tool_calls(
-                                current_tool_calls
-                            )
+                            tool_results_for_next_turn = await self._process_tool_calls(current_tool_calls)
 
                             if tool_results_for_next_turn:
-                                serializable_output = tool_results_for_next_turn[0].get(
-                                    "content"
-                                )
+                                serializable_output = tool_results_for_next_turn[0].get("content")
 
                                 yield {
                                     "role": "tool",
@@ -211,9 +191,7 @@ class AgentTurnProcessor:
                                     "status": "error",
                                 }
                         else:
-                            logger.error(
-                                f"Tool name missing for tool use event. Tool ID: {tool_id}"
-                            )
+                            logger.error(f"Tool name missing for tool use event. Tool ID: {tool_id}")
                             yield {
                                 "internal": True,
                                 "type": "tool_result",
@@ -263,9 +241,7 @@ class AgentTurnProcessor:
             try:
                 tool_input = json.loads(tool_call.function.arguments)
             except json.JSONDecodeError:
-                logger.warning(
-                    f"Failed to parse JSON for tool '{tool_name}' arguments: {tool_call.function.arguments}"
-                )
+                logger.warning(f"Failed to parse JSON for tool '{tool_name}' arguments: {tool_call.function.arguments}")
                 tool_result_content = f"Error: Invalid JSON arguments provided: {tool_call.function.arguments}"
             else:
                 try:
@@ -275,9 +251,7 @@ class AgentTurnProcessor:
                     )
                 except Exception as e:
                     logger.error(f"Error executing tool {tool_name}: {e}")
-                    tool_result_content = (
-                        f"Error executing tool '{tool_name}': {str(e)}"
-                    )
+                    tool_result_content = f"Error executing tool '{tool_name}': {str(e)}"
 
             # Format the result into an OpenAI-compatible tool message
             tool_message = {
@@ -308,9 +282,7 @@ class AgentTurnProcessor:
             # Fallback for any other object type
             return str(tool_result_content)
 
-    def _handle_final_response(
-        self, llm_response: ChatCompletionMessage
-    ) -> Optional[ChatCompletionMessage]:
+    def _handle_final_response(self, llm_response: ChatCompletionMessage) -> Optional[ChatCompletionMessage]:
         if not self.config.config_validation_schema:
             return llm_response
 

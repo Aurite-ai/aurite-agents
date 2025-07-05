@@ -9,8 +9,7 @@ class ToastApp(App[None]):
         # Show a warning. Note that Textual's notification system allows
         # for the use of Rich console markup.
         self.notify(
-            "Now witness the firepower of this fully "
-            "[b]ARMED[/b] and [i][b]OPERATIONAL[/b][/i] battle station!",
+            "Now witness the firepower of this fully " "[b]ARMED[/b] and [i][b]OPERATIONAL[/b][/i] battle station!",
             title="Possible trap detected",
             severity="warning",
         )

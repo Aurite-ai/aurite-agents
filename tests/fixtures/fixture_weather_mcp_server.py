@@ -2,16 +2,16 @@
 Test MCP server for host integration testing
 """
 
-import anyio
-import sys
 import logging
-from typing import Dict, Any
+import sys
 from datetime import datetime
-import pytz
+from typing import Any, Dict
 
+import anyio
+import mcp.types as types
+import pytz
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
-import mcp.types as types
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -125,11 +125,7 @@ async def _get_prompt_handler(name: str, arguments: dict) -> types.GetPromptResu
         prompt += f"\nPreferred units: {arguments['preferred_units'].upper()}"
 
     return types.GetPromptResult(
-        messages=[
-            types.PromptMessage(
-                role="user", content=types.TextContent(type="text", text=prompt)
-            )
-        ]
+        messages=[types.PromptMessage(role="user", content=types.TextContent(type="text", text=prompt))]
     )
 
 
@@ -164,9 +160,7 @@ async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
         "Tokyo": {"temp": 25, "condition": "Sunny", "humidity": 50},
     }
 
-    data = weather_data.get(
-        location, {"temp": 20, "condition": "Clear", "humidity": 65}
-    )
+    data = weather_data.get(location, {"temp": 20, "condition": "Clear", "humidity": 65})
 
     # Convert temperature if needed
     temp = data["temp"]
@@ -177,7 +171,9 @@ async def weather_lookup(args: Dict[str, Any]) -> list[types.TextContent]:
         unit_label = "°C"
 
     # Simplify to a single line
-    simple_response_text = f"Weather for {location}: Temp {temp}{unit_label}, {data['condition']}, Humidity {data['humidity']}%"
+    simple_response_text = (
+        f"Weather for {location}: Temp {temp}{unit_label}, {data['condition']}, Humidity {data['humidity']}%"
+    )
 
     return [types.TextContent(type="text", text=simple_response_text)]
 
@@ -191,11 +187,7 @@ async def current_time(args: Dict[str, Any]) -> list[types.TextContent]:
         current_time = datetime.now(tz)
         formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        return [
-            types.TextContent(
-                type="text", text=f"Current time in {timezone}: {formatted_time}"
-            )
-        ]
+        return [types.TextContent(type="text", text=f"Current time in {timezone}: {formatted_time}")]
     except pytz.exceptions.UnknownTimeZoneError:
         return [
             types.TextContent(

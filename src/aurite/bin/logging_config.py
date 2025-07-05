@@ -4,6 +4,7 @@ Uses colorlog to provide colored output for different log levels and logger name
 """
 
 import logging
+
 import colorlog
 
 DEFAULT_LOG_FORMAT = (

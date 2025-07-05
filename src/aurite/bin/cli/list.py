@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
+
 from rich.console import Console
 from rich.table import Table
+
 from ...host_manager import Aurite
 
 console = Console()
@@ -60,9 +62,7 @@ def list_components_by_type(component_type: str):
     """Lists all available components of a specific type."""
     aurite = _get_aurite_instance()
     component_index = aurite.kernel.config_manager.get_component_index()
-    items = [
-        item for item in component_index if item["component_type"] == component_type
-    ]
+    items = [item for item in component_index if item["component_type"] == component_type]
     display_component_table(items, component_type)
 
 
@@ -70,9 +70,7 @@ def list_workflows():
     """Lists all available workflow components."""
     aurite = _get_aurite_instance()
     component_index = aurite.kernel.config_manager.get_component_index()
-    items = [
-        item for item in component_index if item["component_type"].endswith("_workflow")
-    ]
+    items = [item for item in component_index if item["component_type"].endswith("_workflow")]
     display_component_table(items, "Workflows")
 
 

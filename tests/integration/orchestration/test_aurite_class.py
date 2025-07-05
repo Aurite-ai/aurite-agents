@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
-from aurite.host_manager import Aurite
-from aurite.components.agents.agent_models import AgentRunResult
+import pytest
 from openai.types.chat import ChatCompletionMessage
+
+from aurite.components.agents.agent_models import AgentRunResult
+from aurite.host_manager import Aurite
 
 
 @pytest.mark.anyio
@@ -20,11 +21,10 @@ async def test_aurite_initialization_and_agent_run():
     example_project_path = Path("src/aurite/init_templates").resolve()
 
     # Mock the dependencies that perform external actions
-    with patch(
-        "aurite.components.agents.agent.Agent.run_conversation", new_callable=AsyncMock
-    ) as mock_run_conv, patch(
-        "aurite.host_manager.MCPHost", autospec=True
-    ) as mock_host_class:
+    with (
+        patch("aurite.components.agents.agent.Agent.run_conversation", new_callable=AsyncMock) as mock_run_conv,
+        patch("aurite.host_manager.MCPHost", autospec=True) as mock_host_class,
+    ):
         # We mock the entire MCPHost class as used by the host_manager
         # This ensures we are patching the correct instance.
         mock_host_instance = mock_host_class.return_value
@@ -58,7 +58,5 @@ async def test_aurite_initialization_and_agent_run():
             # Verify that the host attempted to register the agent's required server
             # We check the call args to see if the 'weather_server' was passed.
             mock_host_instance.register_client.assert_awaited()
-            registered_server_config = mock_host_instance.register_client.call_args[0][
-                0
-            ]
+            registered_server_config = mock_host_instance.register_client.call_args[0][0]
             assert registered_server_config.name == "weather_server"

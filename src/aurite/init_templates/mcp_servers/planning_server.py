@@ -11,9 +11,9 @@ This server provides:
 
 import json
 import logging
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # MCP imports
 from mcp.server.fastmcp import FastMCP
@@ -57,9 +57,7 @@ def load_plans():
                     try:
                         metadata = json.load(f)
                     except json.JSONDecodeError:
-                        logger.warning(
-                            f"Failed to parse metadata for plan: {plan_name}"
-                        )
+                        logger.warning(f"Failed to parse metadata for plan: {plan_name}")
 
             # Store in cache
             plans_cache[plan_name] = {
@@ -157,9 +155,7 @@ async def list_plans(tag: Optional[str] = None) -> Dict[str, Any]:
         # Filter plans by tag if specified
         if tag:
             filtered_plans = {
-                name: plan
-                for name, plan in plans_cache.items()
-                if tag in plan["metadata"].get("tags", [])
+                name: plan for name, plan in plans_cache.items() if tag in plan["metadata"].get("tags", [])
             }
         else:
             filtered_plans = plans_cache

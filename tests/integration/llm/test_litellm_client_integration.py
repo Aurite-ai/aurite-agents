@@ -2,12 +2,12 @@
 Integration tests for the LiteLLMClient using a mock HTTP server.
 """
 
+import openai
 import pytest
 from pytest_httpserver import HTTPServer
-import openai
 
-from aurite.config.config_models import LLMConfig
 from aurite.components.llm.providers.litellm_client import LiteLLMClient
+from aurite.config.config_models import LLMConfig
 
 # --- Fixtures ---
 
@@ -28,9 +28,7 @@ def mock_llm_config(httpserver: HTTPServer) -> LLMConfig:
 
 
 @pytest.mark.anyio
-async def test_create_message_success(
-    httpserver: HTTPServer, mock_llm_config: LLMConfig
-):
+async def test_create_message_success(httpserver: HTTPServer, mock_llm_config: LLMConfig):
     """
     Tests a successful API call to create_message.
     Verifies that the request is correctly formatted and a valid response is processed.
@@ -76,9 +74,7 @@ async def test_create_message_success(
 
 
 @pytest.mark.anyio
-async def test_create_message_api_error_handling(
-    httpserver: HTTPServer, mock_llm_config: LLMConfig
-):
+async def test_create_message_api_error_handling(httpserver: HTTPServer, mock_llm_config: LLMConfig):
     """
     Tests that the client correctly handles a 429 RateLimitError from the API.
     """
@@ -99,9 +95,7 @@ async def test_create_message_api_error_handling(
 
 
 @pytest.mark.anyio
-async def test_create_message_bad_request_error(
-    httpserver: HTTPServer, mock_llm_config: LLMConfig
-):
+async def test_create_message_bad_request_error(httpserver: HTTPServer, mock_llm_config: LLMConfig):
     """
     Tests that the client correctly handles a 400 BadRequestError from the API.
     """

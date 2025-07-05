@@ -1,11 +1,13 @@
-import os
-import typer
-from pathlib import Path
-import shutil
 import importlib.resources
+import os
+import shutil
+from pathlib import Path
 from typing import Optional
+
+import typer
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
+
 from ...host_manager import Aurite
 
 console = Console()
@@ -27,9 +29,7 @@ def copy_project_template(project_path: Path):
                     shutil.copy2(sp, dest_path)
 
     except (ModuleNotFoundError, FileNotFoundError):
-        logger(
-            "[bold red]Error:[/bold red] Could not find 'aurite' package data. Creating minimal project."
-        )
+        logger("[bold red]Error:[/bold red] Could not find 'aurite' package data. Creating minimal project.")
         (project_path / "config").mkdir(exist_ok=True)
         (project_path / "custom_workflows").mkdir(exist_ok=True)
         (project_path / "mcp_servers").mkdir(exist_ok=True)
@@ -44,9 +44,7 @@ def init_workspace(name: Optional[str] = None):
             workspace_path = Path.cwd()
             name = workspace_path.name
         else:
-            name = Prompt.ask(
-                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
-            )
+            name = Prompt.ask("[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace")
             workspace_path = Path(name)
             workspace_path.mkdir()
     else:
@@ -54,23 +52,17 @@ def init_workspace(name: Optional[str] = None):
         workspace_path.mkdir()
 
     if (workspace_path / ".aurite").exists():
-        logger(
-            f"[bold red]Error:[/bold red] An .aurite file already exists at '{workspace_path}'."
-        )
+        logger(f"[bold red]Error:[/bold red] An .aurite file already exists at '{workspace_path}'.")
         raise typer.Exit(code=1)
 
-    (workspace_path / ".aurite").write_text(
-        '[aurite]\ntype = "workspace"\nprojects = []'
-    )
+    (workspace_path / ".aurite").write_text('[aurite]\ntype = "workspace"\nprojects = []')
     logger(f"Initialized new workspace '{name}'.")
 
 
 def init_project(name: Optional[str] = None):
     """Initializes a new Aurite project."""
     if not name:
-        name = Prompt.ask(
-            "[bold cyan]Project name[/bold cyan]", default="aurite-project"
-        )
+        name = Prompt.ask("[bold cyan]Project name[/bold cyan]", default="aurite-project")
 
     project_path = Path(name)
     if project_path.exists():
@@ -119,16 +111,12 @@ def init_project(name: Optional[str] = None):
                 f.truncate()
             logger(f"Added project '{name}' to workspace '{workspace_path.name}'.")
         except Exception as e:
-            logger(
-                f"[bold yellow]Warning:[/bold yellow] Could not automatically add project to workspace file: {e}"
-            )
+            logger(f"[bold yellow]Warning:[/bold yellow] Could not automatically add project to workspace file: {e}")
 
     logger(f"\n[bold green]Project '{name}' initialized successfully![/bold green]")
     logger("\n[bold]Next steps:[/bold]")
     logger(f"1. Navigate into your project: [cyan]cd {name}[/cyan]")
-    logger(
-        "2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow]."
-    )
+    logger("2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow].")
     logger("3. Start building your agents and workflows!")
 
 
@@ -149,32 +137,22 @@ def interactive_init():
             break
 
     if not workspace_path:
-        if Confirm.ask(
-            "[bold yellow]No workspace found.[/bold yellow] Make the current directory a new workspace?"
-        ):
+        if Confirm.ask("[bold yellow]No workspace found.[/bold yellow] Make the current directory a new workspace?"):
             workspace_path = Path.cwd()
-            (workspace_path / ".aurite").write_text(
-                '[aurite]\ntype = "workspace"\nprojects = []'
-            )
+            (workspace_path / ".aurite").write_text('[aurite]\ntype = "workspace"\nprojects = []')
             logger("Initialized new workspace in current directory.")
         elif Confirm.ask("Create a new workspace directory instead?"):
-            ws_name = Prompt.ask(
-                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
-            )
+            ws_name = Prompt.ask("[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace")
             new_workspace_path = Path(ws_name)
             new_workspace_path.mkdir()
-            (new_workspace_path / ".aurite").write_text(
-                '[aurite]\ntype = "workspace"\nprojects = []'
-            )
+            (new_workspace_path / ".aurite").write_text('[aurite]\ntype = "workspace"\nprojects = []')
             logger(f"Workspace '{ws_name}' created. You are now inside of it.")
             os.chdir(new_workspace_path)
             # Update workspace_path to the new directory
             workspace_path = new_workspace_path
 
     # 3. Create the project
-    proj_name = Prompt.ask(
-        "[bold cyan]Project name[/bold cyan]", default="aurite-project"
-    )
+    proj_name = Prompt.ask("[bold cyan]Project name[/bold cyan]", default="aurite-project")
     init_project(proj_name)
 
 

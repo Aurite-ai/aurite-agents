@@ -1,19 +1,17 @@
 import asyncio
+import json
 import logging
 import os
-import json
 
 # Add the project root to the Python path to allow imports from 'src/aurite'
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.aurite.host.host import MCPHost
 from src.aurite.config.config_models import ClientConfig
+from src.aurite.host.host import MCPHost
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def load_server_config(file_path: str, server_name: str) -> dict:
@@ -25,9 +23,7 @@ def load_server_config(file_path: str, server_name: str) -> dict:
         if config.get("name") == server_name:
             return config
 
-    raise ValueError(
-        f"Server configuration for '{server_name}' not found in {file_path}"
-    )
+    raise ValueError(f"Server configuration for '{server_name}' not found in {file_path}")
 
 
 async def main():
@@ -43,17 +39,13 @@ async def main():
             logging.info("Host entered context.")
 
             # 1. Load server configuration
-            config_path = (
-                "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
-            )
+            config_path = "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
             server_name = "weather_server"
             server_config_dict = load_server_config(config_path, server_name)
 
             # Adjust path for local execution
             original_path = server_config_dict["server_path"]
-            server_config_dict["server_path"] = os.path.join(
-                "src/aurite/init_templates", original_path
-            )
+            server_config_dict["server_path"] = os.path.join("src/aurite/init_templates", original_path)
 
             client_config = ClientConfig(**server_config_dict)
 

@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from typing import List
+
 import yaml
 
 from .config_utils import find_anchor_files
@@ -56,12 +57,8 @@ def list_component_names(component_type: str) -> List[str]:
                                 if default_peer_path.is_dir():
                                     config_sources.append(default_peer_path)
                                 # 'include_configs' in peer
-                                for peer_rel_path in peer_settings.get(
-                                    "include_configs", []
-                                ):
-                                    resolved_peer_path = (
-                                        peer_project_root / peer_rel_path
-                                    ).resolve()
+                                for peer_rel_path in peer_settings.get("include_configs", []):
+                                    resolved_peer_path = (peer_project_root / peer_rel_path).resolve()
                                     if resolved_peer_path.is_dir():
                                         config_sources.append(resolved_peer_path)
         except (tomllib.TOMLDecodeError, IOError) as e:
@@ -81,12 +78,10 @@ def list_component_names(component_type: str) -> List[str]:
         for config_file in source_path.rglob("*.yml"):
             _shallow_parse_and_add_names(config_file, component_type, names)
 
-    return sorted(list(names))
+    return sorted(names)
 
 
-def _shallow_parse_and_add_names(
-    config_file: Path, target_component_type: str, names: set
-):
+def _shallow_parse_and_add_names(config_file: Path, target_component_type: str, names: set):
     """
     Opens a config file and adds the 'name' of any components of the target type to the set.
     """

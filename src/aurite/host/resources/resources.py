@@ -2,19 +2,18 @@
 Resource management for MCP host.
 """
 
-from typing import List, Optional
 import logging
+from typing import List, Optional
 from urllib.parse import urlparse
 
 import mcp.types as types
-
-# Import RootManager for type hinting
-from ..foundation.roots import RootManager
+from mcp.client.session_group import ClientSessionGroup
 
 # Import necessary types and models for filtering
 from ..foundation import MessageRouter  # Import MessageRouter
-from mcp.client.session_group import ClientSessionGroup
 
+# Import RootManager for type hinting
+from ..foundation.roots import RootManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +24,7 @@ class ResourceManager:
     Handles resource registration, retrieval, and access validation based on roots.
     """
 
-    def __init__(
-        self, message_router: MessageRouter, session_group: ClientSessionGroup
-    ):  # Inject MessageRouter
+    def __init__(self, message_router: MessageRouter, session_group: ClientSessionGroup):  # Inject MessageRouter
         self._message_router = message_router
         self._session_group = session_group
 
@@ -36,9 +33,7 @@ class ResourceManager:
         logger.debug("Initializing resource manager")
         for resource in self._session_group.resources.values():
             client_id = getattr(resource, "client_id", "unknown")
-            await self._message_router.register_resource(
-                resource_uri=str(resource.uri), client_id=client_id
-            )
+            await self._message_router.register_resource(resource_uri=str(resource.uri), client_id=client_id)
 
     async def get_resource(self, uri: str) -> Optional[types.Resource]:
         """Get a specific resource"""
@@ -66,17 +61,13 @@ class ResourceManager:
 
             if parsed.scheme == root_parsed.scheme:
                 resource_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-                root_path = (
-                    f"{root_parsed.scheme}://{root_parsed.netloc}{root_parsed.path}"
-                )
+                root_path = f"{root_parsed.scheme}://{root_parsed.netloc}{root_parsed.path}"
 
                 if resource_path.startswith(root_path):
                     logger.info(f"Resource {uri_str} validated against root {root_str}")
                     return True
 
-        raise ValueError(
-            f"Resource {uri_str} is not accessible within client {client_id}'s roots"
-        )
+        raise ValueError(f"Resource {uri_str} is not accessible within client {client_id}'s roots")
 
     async def shutdown(self):
         """Shutdown the resource manager"""

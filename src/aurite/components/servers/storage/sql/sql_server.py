@@ -1,17 +1,16 @@
-from mcp.server.fastmcp import FastMCP, Context
-from sqlalchemy import create_engine, text, inspect
-from typing import Dict, Optional, Any
+import json
+import os
 import re
 import uuid
-import os
-import json
 from pathlib import Path
+from typing import Any, Dict, Optional
+
 import pandas as pd
+from mcp.server.fastmcp import Context, FastMCP
+from sqlalchemy import create_engine, inspect, text
 
 # Create the MCP server
-mcp = FastMCP(
-    "SQL Explorer", dependencies=["sqlalchemy", "pandas", "pymysql", "psycopg2-binary"]
-)
+mcp = FastMCP("SQL Explorer", dependencies=["sqlalchemy", "pandas", "pymysql", "psycopg2-binary"])
 
 # Dictionary to store connections for reuse
 active_connections = {}
@@ -35,13 +34,8 @@ def load_named_connections():
         alt_paths = [
             Path(__file__).parents[4] / "config" / "storage" / "connections.json",
             Path(__file__).parents[3] / "config" / "storage" / "connections.json",
-            Path(__file__).parent.parent.parent.parent
-            / "config"
-            / "storage"
-            / "connections.json",
-            Path(
-                "/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/storage/connections.json"
-            ),
+            Path(__file__).parent.parent.parent.parent / "config" / "storage" / "connections.json",
+            Path("/home/wilcoxr/workspace/aurite-agents/aurite-mcp/config/storage/connections.json"),
         ]
 
         for path in alt_paths:
@@ -51,9 +45,7 @@ def load_named_connections():
                 break
 
     if not CONFIG_PATH.exists():
-        print(
-            f"No connection configuration found at {CONFIG_PATH} or alternative paths"
-        )
+        print(f"No connection configuration found at {CONFIG_PATH} or alternative paths")
         return
 
     try:
@@ -164,9 +156,7 @@ def connect_database(
             port = config.get("port")
             db_type = config.get("type", "postgresql")
 
-            ctx.info(
-                f"Using named connection {connection_name} for {db_type} database at {host}"
-            )
+            ctx.info(f"Using named connection {connection_name} for {db_type} database at {host}")
 
             # For SQLite, we don't need username/password
             if db_type == "sqlite":
@@ -186,9 +176,7 @@ def connect_database(
 
                 # Build the connection string
                 port_str = f":{port}" if port else ""
-                connection_string = (
-                    f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
-                )
+                connection_string = f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
 
         # Construct connection string if individual parameters are provided (not from named connection)
         elif not connection_string and (host and database):
@@ -208,9 +196,7 @@ def connect_database(
                 # Default to PostgreSQL
                 dialect = "postgresql+psycopg2"
 
-                connection_string = (
-                    f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
-                )
+                connection_string = f"{dialect}://{username}:{password}@{host}{port_str}/{database}"
 
         # Ensure we have a connection string at this point
         if not connection_string:
@@ -233,15 +219,11 @@ def connect_database(
         ):
             # Try to detect database type and correct format
             if "mysql" in connection_string.lower():
-                connection_string = connection_string.replace(
-                    "mysql://", "mysql+pymysql://"
-                )
+                connection_string = connection_string.replace("mysql://", "mysql+pymysql://")
                 if not connection_string.startswith("mysql+"):
                     connection_string = "mysql+pymysql://" + connection_string
             elif "postgre" in connection_string.lower():
-                connection_string = connection_string.replace(
-                    "postgresql://", "postgresql+psycopg2://"
-                )
+                connection_string = connection_string.replace("postgresql://", "postgresql+psycopg2://")
                 if not connection_string.startswith("postgresql+"):
                     connection_string = "postgresql+psycopg2://" + connection_string
             elif "sqlite" in connection_string.lower():
@@ -277,9 +259,7 @@ def connect_database(
         schema_info = {}
         for table in tables:
             columns = inspector.get_columns(table)
-            schema_info[table] = [
-                {"name": col["name"], "type": str(col["type"])} for col in columns
-            ]
+            schema_info[table] = [{"name": col["name"], "type": str(col["type"])} for col in columns]
 
         # Generate a unique connection ID
         conn_id = str(uuid.uuid4())
@@ -410,9 +390,7 @@ def list_tables(connection_id: str, ctx: Context = None) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def describe_table(
-    connection_id: str, table_name: str, ctx: Context = None
-) -> Dict[str, Any]:
+def describe_table(connection_id: str, table_name: str, ctx: Context = None) -> Dict[str, Any]:
     """
     Get detailed schema information for a specific table.
 
@@ -440,9 +418,7 @@ def describe_table(
         columns = inspector.get_columns(table_name)
 
         # Get primary key information
-        pk_columns = inspector.get_pk_constraint(table_name).get(
-            "constrained_columns", []
-        )
+        pk_columns = inspector.get_pk_constraint(table_name).get("constrained_columns", [])
 
         # Get foreign key information
         foreign_keys = inspector.get_foreign_keys(table_name)
@@ -582,11 +558,7 @@ def query_resource(connection_id: str, query: str) -> str:
 
             # Add data rows
             for row in result["rows"]:
-                output += (
-                    "| "
-                    + " | ".join(str(row.get(col, "")) for col in result["columns"])
-                    + " |\n"
-                )
+                output += "| " + " | ".join(str(row.get(col, "")) for col in result["columns"]) + " |\n"
 
             if result["row_count"] >= 20:
                 output += "\n*Query limited to 20 rows. Use the execute_query tool for more results.*\n"

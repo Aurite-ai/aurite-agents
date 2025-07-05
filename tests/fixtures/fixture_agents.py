@@ -3,6 +3,7 @@ Pytest fixtures related to Agent configuration and setup.
 """
 
 import pytest
+
 from aurite.config.config_models import AgentConfig
 
 
@@ -15,9 +16,7 @@ def minimal_agent_config() -> AgentConfig:
 @pytest.fixture
 def agent_config_with_mcp_servers() -> AgentConfig:
     """AgentConfig with specific mcp_servers."""
-    return AgentConfig(
-        name="TestAgentWithServers", mcp_servers=["weather_server", "planning_server"]
-    )
+    return AgentConfig(name="TestAgentWithServers", mcp_servers=["weather_server", "planning_server"])
 
 
 @pytest.fixture

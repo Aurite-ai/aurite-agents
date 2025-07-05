@@ -4,13 +4,14 @@ Handles database connection setup (SQLAlchemy engine, sessions).
 Reads connection details from environment variables.
 """
 
-import os
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.engine import Engine
+import os
 from contextlib import contextmanager
-from typing import Optional, Generator
+from typing import Generator, Optional
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,7 @@ def get_database_url() -> Optional[str]:
         return None
 
     # Using psycopg2 driver for PostgreSQL
-    return (
-        f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    )
+    return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 
 # Renamed to indicate it's a factory creating a *new* engine instance
@@ -56,9 +55,7 @@ def create_db_engine() -> Optional[Engine]:
         logger.info(f"SQLAlchemy engine created for {engine.url}.")
         return engine
     except Exception as e:
-        logger.error(
-            f"Failed to create SQLAlchemy engine for URL {db_url}: {e}", exc_info=True
-        )
+        logger.error(f"Failed to create SQLAlchemy engine for URL {db_url}: {e}", exc_info=True)
         return None
 
 

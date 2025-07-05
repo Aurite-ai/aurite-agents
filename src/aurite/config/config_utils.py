@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any, Type, List
+from typing import Any, Dict, List, Type
 
 # Import model classes for type checking and field identification
 # These are the models that currently have path fields needing resolution/relativization
@@ -13,9 +13,7 @@ from .config_models import ClientConfig, CustomWorkflowConfig
 logger = logging.getLogger(__name__)
 
 
-def resolve_path_fields(
-    data: Dict[str, Any], model_class: Type, base_path: Path
-) -> Dict[str, Any]:
+def resolve_path_fields(data: Dict[str, Any], model_class: Type, base_path: Path) -> Dict[str, Any]:
     """
     Resolves string path fields in a data dictionary to absolute Path objects.
 
@@ -60,9 +58,7 @@ def resolve_path_fields(
     return resolved_data
 
 
-def relativize_path_fields(
-    data: Dict[str, Any], model_class: Type, base_path: Path
-) -> Dict[str, Any]:
+def relativize_path_fields(data: Dict[str, Any], model_class: Type, base_path: Path) -> Dict[str, Any]:
     """
     Converts absolute Path object fields in a data dictionary to relative string paths.
 

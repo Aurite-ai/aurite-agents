@@ -4,8 +4,8 @@ Unit tests for the RootManager class.
 
 import pytest
 
-from src.aurite.host.foundation.roots import RootManager
 from src.aurite.config.config_models import RootConfig
+from src.aurite.host.foundation.roots import RootManager
 
 # Mark all tests in this file as 'unit' and 'host'
 pytestmark = [pytest.mark.unit, pytest.mark.host]
@@ -68,9 +68,7 @@ async def test_register_roots_invalid_uri():
     root_manager = RootManager()
     client_id = "test_client"
     # This root is invalid because it lacks a scheme
-    invalid_roots = [
-        RootConfig(name="invalid_root", uri="not-a-valid-uri", capabilities=["tools"])
-    ]
+    invalid_roots = [RootConfig(name="invalid_root", uri="not-a-valid-uri", capabilities=["tools"])]
 
     # 2. Act & Assert
     with pytest.raises(ValueError, match="Root URI not-a-valid-uri must have a scheme"):

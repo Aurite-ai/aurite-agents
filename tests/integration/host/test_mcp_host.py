@@ -2,11 +2,12 @@
 Integration tests for the MCPHost class.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
-from src.aurite.host.host import MCPHost
+import pytest
+
 from src.aurite.config.config_models import ClientConfig
+from src.aurite.host.host import MCPHost
 
 # Mark all tests in this file as 'integration' and 'host'
 pytestmark = [pytest.mark.integration, pytest.mark.host]
@@ -33,18 +34,14 @@ async def test_mcp_host_registers_and_unregisters_clients(mocker):
     )
 
     # Mock the underlying client connections and sessions
-    mock_stdio_client = mocker.patch(
-        "src.aurite.host.host.stdio_client", return_value=AsyncMock()
-    )
+    mock_stdio_client = mocker.patch("src.aurite.host.host.stdio_client", return_value=AsyncMock())
     # Ensure the mock returns a 2-tuple as expected by the code for stdio
     mock_stdio_client.return_value.__aenter__.return_value = (
         AsyncMock(),
         AsyncMock(),
     )
 
-    mock_http_client = mocker.patch(
-        "src.aurite.host.host.streamablehttp_client", return_value=AsyncMock()
-    )
+    mock_http_client = mocker.patch("src.aurite.host.host.streamablehttp_client", return_value=AsyncMock())
     # Ensure the mock returns a 3-tuple as expected by the code for http_stream
     mock_http_client.return_value.__aenter__.return_value = (
         AsyncMock(),
@@ -58,9 +55,7 @@ async def test_mcp_host_registers_and_unregisters_clients(mocker):
     mock_session_cm = AsyncMock()
     mock_session_cm.__aenter__.return_value = mock_session_instance
 
-    mock_client_session_class = mocker.patch(
-        "src.aurite.host.host.mcp.ClientSession", return_value=mock_session_cm
-    )
+    mock_client_session_class = mocker.patch("src.aurite.host.host.mcp.ClientSession", return_value=mock_session_cm)
 
     # 2. Act & Assert
     async with MCPHost() as host:
@@ -101,9 +96,7 @@ async def test_register_client_resolves_env_vars(mocker):
     )
 
     mocker.patch.dict("os.environ", {"PORT": "8080"}, clear=True)
-    mock_http_client = mocker.patch(
-        "src.aurite.host.host.streamablehttp_client", return_value=AsyncMock()
-    )
+    mock_http_client = mocker.patch("src.aurite.host.host.streamablehttp_client", return_value=AsyncMock())
     # Ensure the mock returns a 3-tuple as expected
     mock_http_client.return_value.__aenter__.return_value = (
         AsyncMock(),

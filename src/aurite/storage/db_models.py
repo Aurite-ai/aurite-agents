@@ -8,15 +8,15 @@ import logging
 from datetime import datetime
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
+    JSON,
     Boolean,
+    Column,
     DateTime,
     Float,
     Index,
-    JSON,
+    Integer,
+    String,
+    Text,
 )
 
 # Use generic JSON type for broader compatibility (SQLite unit tests)
@@ -51,9 +51,7 @@ class AgentConfigDB(Base):
     evaluation = Column(String, nullable=True)
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_updated = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<AgentConfigDB(name='{self.name}')>"
@@ -70,9 +68,7 @@ class WorkflowConfigDB(Base):
     description = Column(Text, nullable=True)
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_updated = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<WorkflowConfigDB(name='{self.name}')>"
@@ -90,9 +86,7 @@ class CustomWorkflowConfigDB(Base):
     description = Column(Text, nullable=True)
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_updated = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<CustomWorkflowConfigDB(name='{self.name}')>"
@@ -112,9 +106,7 @@ class LLMConfigDB(Base):
     default_system_prompt = Column(Text, nullable=True)
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_updated = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self):
         return f"<LLMConfigDB(llm_id='{self.llm_id}', model_name='{self.model_name}')>"

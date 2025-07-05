@@ -9,8 +9,9 @@ This module provides:
 """
 
 import logging
-from typing import Any, List, Optional, Dict, Literal  # Added Dict and Literal
 from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional  # Added Dict and Literal
+
 from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,7 @@ class BaseComponentConfig(BaseModel):
     """A base model for all components, providing common fields."""
 
     name: str = Field(description="The unique name of the component.")
-    description: Optional[str] = Field(
-        default=None, description="A brief description of the component."
-    )
+    description: Optional[str] = Field(default=None, description="A brief description of the component.")
 
 
 class RootConfig(BaseModel):
@@ -30,9 +29,7 @@ class RootConfig(BaseModel):
 
     uri: str = Field(description="The URI of the root.")
     name: str = Field(description="The name of the root.")
-    capabilities: List[str] = Field(
-        description="A list of capabilities provided by this root."
-    )
+    capabilities: List[str] = Field(description="A list of capabilities provided by this root.")
 
 
 class ClientConfig(BaseComponentConfig):
@@ -45,30 +42,14 @@ class ClientConfig(BaseComponentConfig):
     server_path: Optional[Path | str] = Field(
         default=None, description="Path to the server script for 'stdio' transport."
     )
-    http_endpoint: Optional[str] = Field(
-        default=None, description="URL endpoint for 'http_stream' transport."
-    )
-    headers: Optional[Dict[str, str]] = Field(
-        default=None, description="HTTP headers for 'http_stream' transport."
-    )
-    command: Optional[str] = Field(
-        default=None, description="The command to run for 'local' transport."
-    )
-    args: Optional[List[str]] = Field(
-        default=None, description="Arguments for the 'local' transport command."
-    )
-    roots: List[RootConfig] = Field(
-        default_factory=list, description="List of root configurations for this client."
-    )
-    capabilities: List[str] = Field(
-        description="List of capabilities this client provides (e.g., 'tools', 'prompts')."
-    )
-    timeout: float = Field(
-        default=10.0, description="Default timeout in seconds for client operations."
-    )
-    routing_weight: float = Field(
-        default=1.0, description="Weight for server selection during routing."
-    )
+    http_endpoint: Optional[str] = Field(default=None, description="URL endpoint for 'http_stream' transport.")
+    headers: Optional[Dict[str, str]] = Field(default=None, description="HTTP headers for 'http_stream' transport.")
+    command: Optional[str] = Field(default=None, description="The command to run for 'local' transport.")
+    args: Optional[List[str]] = Field(default=None, description="Arguments for the 'local' transport command.")
+    roots: List[RootConfig] = Field(default_factory=list, description="List of root configurations for this client.")
+    capabilities: List[str] = Field(description="List of capabilities this client provides (e.g., 'tools', 'prompts').")
+    timeout: float = Field(default=10.0, description="Default timeout in seconds for client operations.")
+    routing_weight: float = Field(default=1.0, description="Weight for server selection during routing.")
     exclude: Optional[List[str]] = Field(
         default=None,
         description="List of component names (prompt, resource, tool) to exclude from this client.",
@@ -118,21 +99,15 @@ class ClientConfig(BaseComponentConfig):
                 raise ValueError("Only `server_path` is allowed for 'stdio' transport")
         elif transport_type == "http_stream":
             if http_endpoint is None:
-                raise ValueError(
-                    "`http_endpoint` is required for 'http_stream' transport"
-                )
+                raise ValueError("`http_endpoint` is required for 'http_stream' transport")
             if server_path is not None or command is not None:
-                raise ValueError(
-                    "Only `http_endpoint` is allowed for 'http_stream' transport"
-                )
+                raise ValueError("Only `http_endpoint` is allowed for 'http_stream' transport")
         elif transport_type == "local":
             if command is None:
                 raise ValueError("`command` is required for 'local' transport")
             # `args` are optional for local, so we don't need to check them here.
             if server_path is not None or http_endpoint is not None:
-                raise ValueError(
-                    "Only `command` and `args` are allowed for 'local' transport"
-                )
+                raise ValueError("Only `command` and `args` are allowed for 'local' transport")
         else:
             raise ValueError(
                 "Could not determine transport type. Please provide one of: "
@@ -146,16 +121,12 @@ class HostConfig(BaseComponentConfig):
     """Configuration for the MCP host"""
 
     type: Literal["host"] = "host"
-    mcp_servers: List[ClientConfig] = Field(
-        description="A list of MCP server client configurations."
-    )
+    mcp_servers: List[ClientConfig] = Field(description="A list of MCP server client configurations.")
 
 
 class WorkflowComponent(BaseModel):
     name: str = Field(description="The name of the component in the workflow step.")
-    type: Literal["agent", "simple_workflow", "custom_workflow"] = Field(
-        description="The type of the component."
-    )
+    type: Literal["agent", "simple_workflow", "custom_workflow"] = Field(description="The type of the component.")
 
 
 class WorkflowConfig(BaseComponentConfig):
@@ -176,18 +147,12 @@ class LLMConfig(BaseComponentConfig):
     """Configuration for a specific LLM setup."""
 
     type: Literal["llm"] = "llm"
-    provider: str = Field(
-        description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini')."
-    )
+    provider: str = Field(description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').")
     model: str = Field(description="The specific model name for the provider.")
 
     # Common LLM parameters
-    temperature: Optional[float] = Field(
-        default=None, description="Default sampling temperature."
-    )
-    max_tokens: Optional[int] = Field(
-        default=None, description="Default maximum tokens to generate."
-    )
+    temperature: Optional[float] = Field(default=None, description="Default sampling temperature.")
+    max_tokens: Optional[int] = Field(default=None, description="Default maximum tokens to generate.")
     default_system_prompt: Optional[str] = Field(
         default=None,
         description="A default system prompt for this LLM configuration.",
@@ -196,13 +161,9 @@ class LLMConfig(BaseComponentConfig):
     # Provider-specific settings (Example - adjust as needed)
     # api_key_env_var: Optional[str] = Field(None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).")
     # credentials_path: Optional[Path] = Field(None, description="Path to credentials file for some providers.")
-    api_base: Optional[str] = Field(
-        default=None, description="The base URL for the LLM."
-    )
+    api_base: Optional[str] = Field(default=None, description="The base URL for the LLM.")
     api_key: Optional[str] = Field(default=None, description="The API key for the LLM.")
-    api_version: Optional[str] = Field(
-        default=None, description="The API version for the LLM."
-    )
+    api_version: Optional[str] = Field(default=None, description="The API version for the LLM.")
 
     class Config:
         extra = "allow"  # Allow provider-specific fields not explicitly defined
@@ -211,27 +172,13 @@ class LLMConfig(BaseComponentConfig):
 class LLMConfigOverrides(BaseModel):
     """A model for agent-specific overrides of LLM parameters."""
 
-    model: Optional[str] = Field(
-        default=None, description="Overrides model from LLMConfig if specified."
-    )
-    temperature: Optional[float] = Field(
-        default=None, description="Overrides temperature from LLMConfig if specified."
-    )
-    max_tokens: Optional[int] = Field(
-        default=None, description="Overrides max_tokens from LLMConfig if specified."
-    )
-    system_prompt: Optional[str] = Field(
-        default=None, description="The primary system prompt for the agent."
-    )
-    api_base: Optional[str] = Field(
-        default=None, description="Overrides the base URL for the LLM."
-    )
-    api_key: Optional[str] = Field(
-        default=None, description="Overrides the API key for the LLM."
-    )
-    api_version: Optional[str] = Field(
-        default=None, description="Overrides the API version for the LLM."
-    )
+    model: Optional[str] = Field(default=None, description="Overrides model from LLMConfig if specified.")
+    temperature: Optional[float] = Field(default=None, description="Overrides temperature from LLMConfig if specified.")
+    max_tokens: Optional[int] = Field(default=None, description="Overrides max_tokens from LLMConfig if specified.")
+    system_prompt: Optional[str] = Field(default=None, description="The primary system prompt for the agent.")
+    api_base: Optional[str] = Field(default=None, description="Overrides the base URL for the LLM.")
+    api_key: Optional[str] = Field(default=None, description="Overrides the API key for the LLM.")
+    api_version: Optional[str] = Field(default=None, description="Overrides the API version for the LLM.")
 
     class Config:
         extra = "allow"
@@ -261,25 +208,19 @@ class AgentConfig(BaseComponentConfig):
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
     )
     # --- LLM Selection ---
-    llm_config_id: Optional[str] = Field(
-        default=None, description="ID of the LLMConfig to use for this agent."
-    )
+    llm_config_id: Optional[str] = Field(default=None, description="ID of the LLMConfig to use for this agent.")
     llm: Optional[LLMConfigOverrides] = Field(
         default=None, description="LLM parameters to override the base LLMConfig."
     )
     # --- LLM Overrides (Optional) ---
     # Agent-specific LLM parameters (override LLMConfig or act as primary if no llm_config_id)
-    system_prompt: Optional[str] = Field(
-        default=None, description="The primary system prompt for the agent."
-    )
+    system_prompt: Optional[str] = Field(default=None, description="The primary system prompt for the agent.")
     config_validation_schema: Optional[dict[str, Any]] = Field(
         default=None,
         description="JSON schema for validating agent-specific configurations.",
     )
     # --- Agent Behavior ---
-    max_iterations: Optional[int] = Field(
-        default=None, description="Max conversation turns before stopping."
-    )
+    max_iterations: Optional[int] = Field(default=None, description="Max conversation turns before stopping.")
     include_history: Optional[bool] = Field(
         default=None,
         description="Whether to include the conversation history, or just the latest message.",
@@ -303,12 +244,8 @@ class CustomWorkflowConfig(BaseComponentConfig):
     """
 
     type: Literal["custom_workflow"] = "custom_workflow"
-    module_path: Path = Field(
-        description="Resolved absolute path to the Python file containing the workflow class."
-    )
-    class_name: str = Field(
-        description="Name of the class within the module that implements the workflow."
-    )
+    module_path: Path = Field(description="Resolved absolute path to the Python file containing the workflow class.")
+    class_name: str = Field(description="Name of the class within the module that implements the workflow.")
 
 
 # --- Project Configuration ---

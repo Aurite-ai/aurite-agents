@@ -19,14 +19,15 @@ if sys.version_info < (3, 11):
 else:
     pass
 
+from termcolor import colored
+
+from .components.agents.agent_models import AgentRunResult
+from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from .config.config_manager import ConfigManager
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
 from .storage.db_connection import create_db_engine
 from .storage.db_manager import StorageManager
-from .components.agents.agent_models import AgentRunResult
-from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
-from termcolor import colored
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,7 @@ try:
     numeric_level = getattr(logging, log_level_str, logging.INFO)
     setup_logging(level=numeric_level)
 except ImportError:
-    logger.warning(
-        "aurite.bin.logging_config not found. Colored logging will not be applied."
-    )
+    logger.warning("aurite.bin.logging_config not found. Colored logging will not be applied.")
     if not logging.getLogger().hasHandlers():
         log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
         numeric_level = getattr(logging, log_level_str, logging.INFO)
@@ -95,15 +94,9 @@ class AuriteKernel:
                 self.storage_manager.init_db()
             if self.host:
                 await self.host.__aenter__()
-            logger.info(
-                colored(
-                    "Aurite Kernel initialization complete.", "yellow", attrs=["bold"]
-                )
-            )
+            logger.info(colored("Aurite Kernel initialization complete.", "yellow", attrs=["bold"]))
         except Exception as e:
-            logger.error(
-                f"Error during Aurite Kernel initialization: {e}", exc_info=True
-            )
+            logger.error(f"Error during Aurite Kernel initialization: {e}", exc_info=True)
             await self.shutdown()
             raise RuntimeError(f"Aurite Kernel initialization failed: {e}") from e
 
@@ -182,13 +175,9 @@ class Aurite:
                 await self.kernel.host.unregister_client(server_name)
         return result
 
-    async def run_simple_workflow(
-        self, workflow_name: str, initial_input: Any
-    ) -> SimpleWorkflowExecutionResult:
+    async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
         await self._ensure_initialized()
-        return await self.kernel.execution.run_simple_workflow(
-            workflow_name=workflow_name, initial_input=initial_input
-        )
+        return await self.kernel.execution.run_simple_workflow(workflow_name=workflow_name, initial_input=initial_input)
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None

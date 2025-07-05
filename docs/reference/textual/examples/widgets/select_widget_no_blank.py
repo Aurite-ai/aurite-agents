@@ -23,14 +23,14 @@ class SelectApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Select(zip(LINES, LINES), allow_blank=False)
+        yield Select(zip(LINES, LINES, strict=False), allow_blank=False)
 
     @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
         self.title = str(event.value)
 
     def action_swap(self) -> None:
-        self.query_one(Select).set_options(zip(ALTERNATE_LINES, ALTERNATE_LINES))
+        self.query_one(Select).set_options(zip(ALTERNATE_LINES, ALTERNATE_LINES, strict=False))
 
 
 if __name__ == "__main__":

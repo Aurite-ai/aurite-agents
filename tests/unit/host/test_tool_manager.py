@@ -2,8 +2,8 @@
 Unit tests for the ToolManager class.
 """
 
-import pytest
 import mcp.types as types
+import pytest
 
 from src.aurite.host.resources.tools import ToolManager
 
@@ -12,15 +12,13 @@ pytestmark = [pytest.mark.unit, pytest.mark.host]
 
 
 @pytest.mark.anyio
-async def test_tool_manager_initialization(
-    mock_root_manager, mock_message_router, mock_client_session_group
-):
+async def test_tool_manager_initialization(mock_root_manager, mock_message_router, mock_client_session_group):
     """
     Test that the ToolManager can be initialized successfully and registers tools.
     """
     # 1. Arrange
     tool = types.Tool(name="test_tool", description="A test tool", inputSchema={})
-    setattr(tool, "client_id", "test_client")
+    tool.client_id = "test_client"
     mock_client_session_group.tools = {"test_tool": tool}
 
     # 2. Act
@@ -33,15 +31,11 @@ async def test_tool_manager_initialization(
 
     # 3. Assert
     assert isinstance(tool_manager, ToolManager)
-    mock_message_router.register_tool.assert_awaited_once_with(
-        "test_tool", "test_client"
-    )
+    mock_message_router.register_tool.assert_awaited_once_with("test_tool", "test_client")
 
 
 @pytest.mark.anyio
-async def test_execute_tool(
-    mock_root_manager, mock_message_router, mock_client_session_group
-):
+async def test_execute_tool(mock_root_manager, mock_message_router, mock_client_session_group):
     """
     Test that execute_tool calls the session group's call_tool method.
     """
@@ -53,9 +47,7 @@ async def test_execute_tool(
     )
     tool_name = "test_tool"
     tool_args = {"arg1": "value1"}
-    expected_result = types.CallToolResult(
-        isError=False, content=[types.TextContent(type="text", text="Success!")]
-    )
+    expected_result = types.CallToolResult(isError=False, content=[types.TextContent(type="text", text="Success!")])
     mock_client_session_group.call_tool.return_value = expected_result
 
     # 2. Act
@@ -67,9 +59,7 @@ async def test_execute_tool(
 
 
 @pytest.mark.anyio
-async def test_list_tools(
-    mock_root_manager, mock_message_router, mock_client_session_group
-):
+async def test_list_tools(mock_root_manager, mock_message_router, mock_client_session_group):
     """
     Test that list_tools returns all tools from the session group.
     """

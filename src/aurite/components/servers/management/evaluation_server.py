@@ -5,12 +5,12 @@ This module implements an MCP server with tools for evaluating agent outputs
 based on configurable rubrics.
 """
 
-import os
 import json
-import time
 import logging
+import os
+import time
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from mcp.server.fastmcp import FastMCP
 
@@ -44,7 +44,7 @@ def evaluate_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     agent_output = arguments.get("agent_output", "")
     criteria = arguments.get("criteria", {})
     expected_output = arguments.get("expected_output", "")
-    detailed_feedback = arguments.get("detailed_feedback", True)
+    arguments.get("detailed_feedback", True)
 
     # Log evaluation request
     logger.info(f"Evaluating agent output against {len(criteria)} criteria")
@@ -106,8 +106,8 @@ def score_agent(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
         Numeric scores with minimal feedback
     """
     # Extract arguments
-    agent_output = arguments.get("agent_output", "")
-    rubric_spec = arguments.get("rubric", {})
+    arguments.get("agent_output", "")
+    arguments.get("rubric", {})
 
     # Log scoring request
     logger.info("Scoring agent output with rubric")
@@ -146,10 +146,10 @@ def analyze_agent_performance(arguments: Dict[str, Any]) -> List[Dict[str, Any]]
         Detailed analysis with qualitative feedback
     """
     # Extract arguments
-    agent_output = arguments.get("agent_output", "")
-    expected_output = arguments.get("expected_output", "")
+    arguments.get("agent_output", "")
+    arguments.get("expected_output", "")
     analysis_type = arguments.get("analysis_type", "standard")
-    focus_areas = arguments.get("focus_areas", [])
+    arguments.get("focus_areas", [])
 
     # Log analysis request
     logger.info(f"Analyzing agent performance with {analysis_type} analysis")
@@ -202,8 +202,8 @@ def aggregate_evaluations(arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     # Extract arguments
     evaluation_ids = arguments.get("evaluation_ids", [])
-    agent_id = arguments.get("agent_id", None)
-    rubric_id = arguments.get("rubric_id", None)
+    arguments.get("agent_id", None)
+    arguments.get("rubric_id", None)
 
     # Log aggregation request
     eval_count = len(evaluation_ids)
@@ -467,9 +467,7 @@ Justification: While most of the information is accurate, there are specific fac
 # Helper functions
 
 
-def save_evaluation_result(
-    result: Dict[str, Any], agent_output: str, expected_output: str
-) -> None:
+def save_evaluation_result(result: Dict[str, Any], agent_output: str, expected_output: str) -> None:
     """Save evaluation result to a file."""
     try:
         timestamp = time.strftime("%Y%m%d%H%M%S")

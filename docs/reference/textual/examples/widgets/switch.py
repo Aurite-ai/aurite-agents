@@ -19,9 +19,7 @@ class SwitchApp(App):
 
         focused_switch = Switch()
         focused_switch.focus()
-        yield Horizontal(
-            Static("focused: ", classes="label"), focused_switch, classes="container"
-        )
+        yield Horizontal(Static("focused: ", classes="label"), focused_switch, classes="container")
 
         yield Horizontal(
             Static("custom:  ", classes="label"),

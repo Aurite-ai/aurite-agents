@@ -3,8 +3,9 @@
 import os
 from pathlib import Path  # Added Path import
 
-from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
+
 # from aurite.config import PROJECT_ROOT_DIR # PROJECT_ROOT_DIR is no longer available globally
 
 load_dotenv()

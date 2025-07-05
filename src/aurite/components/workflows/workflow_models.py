@@ -2,8 +2,9 @@
 Pydantic models for Workflow execution inputs and outputs.
 """
 
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...execution.facade import ExecutionFacade
@@ -17,12 +18,8 @@ class SimpleWorkflowStepResult(BaseModel):
     or a Custom Workflow.
     """
 
-    step_name: str = Field(
-        description="The name of the component that was executed in this step."
-    )
-    step_type: str = Field(
-        description="The type of the component (e.g., 'agent', 'simple_workflow')."
-    )
+    step_name: str = Field(description="The name of the component that was executed in this step.")
+    step_type: str = Field(description="The type of the component (e.g., 'agent', 'simple_workflow').")
 
     # The 'result' field will hold the specific output model for the component type.
     # Agent results are now stored as dicts from model_dump().
@@ -37,9 +34,7 @@ class SimpleWorkflowExecutionResult(BaseModel):
     """
 
     workflow_name: str = Field(description="The name of the executed workflow.")
-    status: str = Field(
-        description="The final status of the workflow (e.g., 'completed', 'failed')."
-    )
+    status: str = Field(description="The final status of the workflow (e.g., 'completed', 'failed').")
 
     # A list of step results to provide a full execution trace
     step_results: List[SimpleWorkflowStepResult] = Field(
@@ -48,13 +43,9 @@ class SimpleWorkflowExecutionResult(BaseModel):
     )
 
     # The final output from the last step in the workflow
-    final_output: Optional[Any] = Field(
-        None, description="The final output from the last step of the workflow."
-    )
+    final_output: Optional[Any] = Field(None, description="The final output from the last step of the workflow.")
 
-    error: Optional[str] = Field(
-        None, description="An error message if the workflow execution failed."
-    )
+    error: Optional[str] = Field(None, description="An error message if the workflow execution failed.")
 
     @property
     def final_message(self) -> Optional[str]:
@@ -89,9 +80,7 @@ class BaseCustomWorkflow:
     @property
     def executor(self) -> "ExecutionFacade":
         if self._executor is None:
-            raise RuntimeError(
-                "Executor not set. This workflow must be run via the Aurite ExecutionFacade."
-            )
+            raise RuntimeError("Executor not set. This workflow must be run via the Aurite ExecutionFacade.")
         return self._executor
 
     def set_executor(self, executor: "ExecutionFacade"):

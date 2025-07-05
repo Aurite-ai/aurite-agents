@@ -6,10 +6,11 @@ various filtering rules based on ClientConfig and AgentConfig settings.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Import necessary types and models
-from aurite.config.config_models import ClientConfig, AgentConfig
+from aurite.config.config_models import AgentConfig, ClientConfig
+
 # from .foundation import MessageRouter  # MessageRouter is not used
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,7 @@ class FilteringManager:
         # self._message_router = message_router # Removed as it's not used by current methods
         logger.debug("FilteringManager initialized.")  # INFO -> DEBUG
 
-    def is_registration_allowed(
-        self, component_name: str, client_config: ClientConfig
-    ) -> bool:
+    def is_registration_allowed(self, component_name: str, client_config: ClientConfig) -> bool:
         """
         Checks if a component should be registered based on the client's exclude list.
 
@@ -53,9 +52,7 @@ class FilteringManager:
             return False
         return True
 
-    def filter_clients_for_request(
-        self, available_clients: List[str], agent_config: AgentConfig
-    ) -> List[str]:
+    def filter_clients_for_request(self, available_clients: List[str], agent_config: AgentConfig) -> List[str]:
         """
         Filters a list of clients based on the agent's allowed mcp_servers.
 
@@ -71,20 +68,14 @@ class FilteringManager:
             return available_clients
         else:
             # Filter available clients by the agent's allowed list
-            allowed_clients = [
-                client_id
-                for client_id in available_clients
-                if client_id in agent_config.mcp_servers
-            ]
+            allowed_clients = [client_id for client_id in available_clients if client_id in agent_config.mcp_servers]
             logger.debug(
                 f"Filtered available clients {available_clients} to {allowed_clients} "
                 f"based on AgentConfig.mcp_servers for agent '{agent_config.name}'."
             )
             return allowed_clients
 
-    def is_component_allowed_for_agent(
-        self, component_name: str, agent_config: AgentConfig
-    ) -> bool:
+    def is_component_allowed_for_agent(self, component_name: str, agent_config: AgentConfig) -> bool:
         """
         Checks if a specific component is allowed for an agent based on its exclude_components list.
 
@@ -95,10 +86,7 @@ class FilteringManager:
         Returns:
             True if the component is allowed for the agent, False otherwise.
         """
-        if (
-            agent_config.exclude_components
-            and component_name in agent_config.exclude_components
-        ):
+        if agent_config.exclude_components and component_name in agent_config.exclude_components:
             logger.debug(
                 f"Component '{component_name}' denied for agent '{agent_config.name}' "
                 f"due to AgentConfig.exclude_components."
@@ -126,11 +114,7 @@ class FilteringManager:
             # No agent-specific exclusions, return the original list
             return components
 
-        filtered_components = [
-            comp
-            for comp in components
-            if comp.get("name") not in agent_config.exclude_components
-        ]
+        filtered_components = [comp for comp in components if comp.get("name") not in agent_config.exclude_components]
 
         if len(filtered_components) < len(components):
             excluded_count = len(components) - len(filtered_components)

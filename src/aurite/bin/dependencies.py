@@ -75,9 +75,7 @@ async def get_api_key(
         logger.debug("API key provided via header.")
 
     if not provided_api_key:
-        logger.warning(
-            "API key missing. Attempted sources: query (for stream), header."
-        )
+        logger.warning("API key missing. Attempted sources: query (for stream), header.")
         raise HTTPException(
             status_code=401,
             detail="API key required either in X-API-Key header or as 'api_key' query parameter for streaming endpoints.",
@@ -87,9 +85,7 @@ async def get_api_key(
 
     if not expected_api_key:
         logger.error("API_KEY not found in server configuration.")
-        raise HTTPException(
-            status_code=500, detail="Server configuration error: API Key not set."
-        )
+        raise HTTPException(status_code=500, detail="Server configuration error: API Key not set.")
 
     if not secrets.compare_digest(provided_api_key, expected_api_key):
         logger.warning(
@@ -126,9 +122,7 @@ async def get_host(host_manager: Aurite = Depends(get_host_manager)) -> MCPHost:
     """
     if not host_manager.kernel.host:
         # This case should ideally not happen if Aurite is initialized correctly
-        logger.error(
-            "MCPHost not found on Aurite instance. This indicates an initialization issue."
-        )
+        logger.error("MCPHost not found on Aurite instance. This indicates an initialization issue.")
         raise HTTPException(
             status_code=503,
             detail="MCPHost is not available due to an internal error.",
@@ -155,9 +149,7 @@ async def get_execution_facade(
     """
     if not host_manager.kernel.execution:
         # This case should ideally not happen if Aurite is initialized correctly
-        logger.error(
-            "ExecutionFacade not found on Aurite instance. This indicates an initialization issue."
-        )
+        logger.error("ExecutionFacade not found on Aurite instance. This indicates an initialization issue.")
         raise HTTPException(
             status_code=503,
             detail="ExecutionFacade is not available due to an internal error.",

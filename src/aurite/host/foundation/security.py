@@ -49,9 +49,7 @@ class SecurityManager:
 
     def __init__(self, encryption_key: Optional[str] = None):
         # Initialize encryption key or generate one
-        self._encryption_key = encryption_key or os.environ.get(
-            "AURITE_MCP_ENCRYPTION_KEY"
-        )
+        self._encryption_key = encryption_key or os.environ.get("AURITE_MCP_ENCRYPTION_KEY")
         if not self._encryption_key:
             self._encryption_key = self._generate_encryption_key()
 
@@ -75,9 +73,7 @@ class SecurityManager:
         """Generate a new random encryption key"""
         key = Fernet.generate_key()
         key_str = base64.urlsafe_b64encode(key).decode("ascii")
-        logger.debug(
-            "Generated new encryption key. For production, set AURITE_MCP_ENCRYPTION_KEY in environment."
-        )
+        logger.debug("Generated new encryption key. For production, set AURITE_MCP_ENCRYPTION_KEY in environment.")
         return key_str
 
     def _setup_cipher(self, key: str | bytes) -> Fernet:  # Allow bytes input too
@@ -100,9 +96,7 @@ class SecurityManager:
 
             except Exception:  # Includes binascii.Error and potentially others
                 # If not a valid base64 string, derive a key
-                logger.debug(
-                    "Encryption key is not valid base64, deriving key from string."
-                )
+                logger.debug("Encryption key is not valid base64, deriving key from string.")
                 salt = b"aurite-mcp-salt"  # Consistent salt
                 kdf = PBKDF2HMAC(
                     algorithm=hashes.SHA256(),
@@ -123,9 +117,7 @@ class SecurityManager:
                 if len(base64.urlsafe_b64decode(key_bytes_for_fernet)) != 32:
                     raise ValueError("Provided key bytes must decode to 32 bytes.")
             except Exception as e:
-                raise ValueError(
-                    f"Provided key bytes are not valid urlsafe-base64: {e}"
-                )
+                raise ValueError(f"Provided key bytes are not valid urlsafe-base64: {e}") from e
         else:
             raise TypeError("Encryption key must be a string or bytes.")
 
@@ -175,7 +167,7 @@ class SecurityManager:
         if cred.expiry and cred.expiry < time.time():
             warn_msg = f"Credential {cred_id} has expired"
             logger.warning(warn_msg)
-            warnings.warn(warn_msg, UserWarning)  # Raise UserWarning
+            warnings.warn(warn_msg, UserWarning, stacklevel=2)  # Raise UserWarning
             return None
 
         # Decrypt
@@ -229,16 +221,10 @@ class SecurityManager:
             if m.group(1):  # Check if password group was captured
                 # Replace the part of the full match that corresponds to group 1
                 start, end = m.span(1)
-                return (
-                    m.group(0)[: start - m.start(0)]
-                    + "*****"
-                    + m.group(0)[end - m.start(0) :]
-                )
+                return m.group(0)[: start - m.start(0)] + "*****" + m.group(0)[end - m.start(0) :]
             return m.group(0)  # Return original match if no password captured
 
-        masked_data = re.sub(
-            SENSITIVE_PATTERNS["database_url"], db_replacer, masked_data
-        )
+        masked_data = re.sub(SENSITIVE_PATTERNS["database_url"], db_replacer, masked_data)
 
         # Mask other password patterns (case-insensitive)
         masked_data = re.sub(

@@ -3,8 +3,9 @@ Unit tests for the LiteLLMClient.
 """
 
 import pytest
-from aurite.config.config_models import LLMConfig
+
 from aurite.components.llm.providers.litellm_client import LiteLLMClient
+from aurite.config.config_models import LLMConfig
 
 
 @pytest.fixture

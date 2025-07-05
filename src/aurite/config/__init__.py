@@ -9,7 +9,8 @@ and the project's root directory.
 """
 
 import logging
-from typing import Optional, List
+from typing import List, Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,9 +37,7 @@ class ServerConfig(BaseSettings):
     # Security settings
     # Ensure API_KEY and ENCRYPTION_KEY are set in the environment
     API_KEY: str = Field(..., description="API key required for accessing endpoints")
-    ENCRYPTION_KEY: Optional[str] = Field(
-        None, description="Key for data encryption (if used by host)"
-    )
+    ENCRYPTION_KEY: Optional[str] = Field(None, description="Key for data encryption (if used by host)")
     ALLOWED_ORIGINS: List[str] = ["*"]  # Default to allow all, refine as needed
 
     # Host configuration path (Now refers to the *Project* config file)

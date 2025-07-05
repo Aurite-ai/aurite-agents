@@ -3,27 +3,27 @@ import logging
 import uuid
 from typing import Any
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.logging import TextualHandler
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import (
-    Header,
-    Footer,
-    Tree,
-    DataTable,
-    RichLog,
-    Input,
     Button,
-    Label,
-    TextArea,
-    Select,
     Checkbox,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    RichLog,
+    Select,
+    TextArea,
+    Tree,
 )
-from textual import work
-from textual.message import Message
-from aurite import Aurite
 
+from aurite import Aurite
 
 # This MUST be at the top of the file, before other imports,
 # to ensure it runs before the aurite framework configures logging.
@@ -150,9 +150,7 @@ class AuriteTUI(App):
         table.clear()
 
         self.current_component_type = str(event.node.label)
-        configs = self.aurite.kernel.config_manager.list_configs(
-            self.current_component_type
-        )
+        configs = self.aurite.kernel.config_manager.list_configs(self.current_component_type)
 
         for config in configs:
             # A simple description, can be improved
@@ -186,22 +184,14 @@ class AuriteTUI(App):
                         if key.startswith("_"):
                             continue
 
-                        display_value = (
-                            json.dumps(value)
-                            if isinstance(value, (dict, list))
-                            else str(value)
-                        )
+                        display_value = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
                         new_label = Label(f"{key}:", classes="editor-label")
 
                         if key == "system_prompt":
                             truncated_prompt = (
-                                (display_value[:50] + "...")
-                                if len(display_value) > 50
-                                else display_value
+                                (display_value[:50] + "...") if len(display_value) > 50 else display_value
                             )
-                            prompt_label = Label(
-                                truncated_prompt, classes="prompt-display"
-                            )
+                            prompt_label = Label(truncated_prompt, classes="prompt-display")
                             edit_button = Button("Edit", id="edit-prompt-button")
                             hidden_input = Input(
                                 value=display_value,
@@ -218,30 +208,20 @@ class AuriteTUI(App):
                                 )
                             )
                         elif key == "llm_config_id":
-                            llm_configs = (
-                                self.aurite.kernel.config_manager.list_configs("llms")
-                            )
+                            llm_configs = self.aurite.kernel.config_manager.list_configs("llms")
                             llm_names = [c["name"] for c in llm_configs]
                             select = Select(
                                 options=[(name, name) for name in llm_names],
                                 value=display_value,
                                 id="select-llm_config_id",
                             )
-                            widgets_to_mount.append(
-                                Horizontal(new_label, select, classes="editor-row")
-                            )
+                            widgets_to_mount.append(Horizontal(new_label, select, classes="editor-row"))
                         elif key == "mcp_servers":
                             current_servers = value if isinstance(value, list) else []
-                            summary_text = (
-                                ", ".join(current_servers)
-                                if current_servers
-                                else "None"
-                            )
+                            summary_text = ", ".join(current_servers) if current_servers else "None"
                             if len(summary_text) > 50:
                                 summary_text = summary_text[:47] + "..."
-                            servers_label = Label(
-                                summary_text, classes="prompt-display"
-                            )
+                            servers_label = Label(summary_text, classes="prompt-display")
                             edit_button = Button("Edit", id="edit-servers-button")
                             hidden_input = Input(
                                 value=json.dumps(current_servers),
@@ -260,13 +240,9 @@ class AuriteTUI(App):
                             )
                         else:
                             new_input = Input(value=display_value, id=f"input-{key}")
-                            widgets_to_mount.append(
-                                Horizontal(new_label, new_input, classes="editor-row")
-                            )
+                            widgets_to_mount.append(Horizontal(new_label, new_input, classes="editor-row"))
 
-                    widgets_to_mount.append(
-                        Button("Save", variant="success", id="save-button")
-                    )
+                    widgets_to_mount.append(Button("Save", variant="success", id="save-button"))
                     detail_pane.mount(Vertical(*widgets_to_mount))
 
     def on_stream_message(self, message: StreamMessage) -> None:
@@ -301,9 +277,7 @@ class AuriteTUI(App):
                 self.current_session_id = str(uuid.uuid4())
                 self.post_message(self.ClearLogMessage())
                 self.post_message(
-                    self.StreamMessage(
-                        f"[dim]New chat session started (ID: {self.current_session_id})[/dim]\n"
-                    )
+                    self.StreamMessage(f"[dim]New chat session started (ID: {self.current_session_id})[/dim]\n")
                 )
 
             self.post_message(self.StreamMessage("[bold]Agent:[/bold] "))
@@ -311,20 +285,14 @@ class AuriteTUI(App):
                 self.current_component_name, message, session_id=self.current_session_id
             ):
                 if event.get("type") == "llm_response":
-                    self.post_message(
-                        self.StreamMessage(event.get("data", {}).get("content", ""))
-                    )
+                    self.post_message(self.StreamMessage(event.get("data", {}).get("content", "")))
 
         elif self.current_component_type == "simple_workflows":
             self.post_message(self.ClearLogMessage())
-            result = await self.aurite.kernel.execution.run_simple_workflow(
-                self.current_component_name, message
-            )
+            result = await self.aurite.kernel.execution.run_simple_workflow(self.current_component_name, message)
             self.post_message(self.StreamMessage(str(result)))
         else:
-            self.post_message(
-                self.StreamMessage("This component type is not runnable.")
-            )
+            self.post_message(self.StreamMessage("This component type is not runnable."))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Called when a button is pressed."""
@@ -353,9 +321,7 @@ class AuriteTUI(App):
         """Pushes the system prompt editor screen."""
         try:
             prompt_input = self.query_one("#input-system_prompt", Input)
-            self.app.push_screen(
-                SystemPromptEditorScreen(prompt_input.value), self.update_system_prompt
-            )
+            self.app.push_screen(SystemPromptEditorScreen(prompt_input.value), self.update_system_prompt)
         except Exception as e:
             self.notify(f"Error opening editor: {e}", severity="error")
 
@@ -371,17 +337,13 @@ class AuriteTUI(App):
                 prompt_input.value = new_prompt
                 # Also update the truncated label
                 prompt_label = self.query_one(".prompt-display", Label)
-                truncated_prompt = (
-                    (new_prompt[:50] + "...") if len(new_prompt) > 50 else new_prompt
-                )
+                truncated_prompt = (new_prompt[:50] + "...") if len(new_prompt) > 50 else new_prompt
                 prompt_label.update(truncated_prompt)
 
                 if should_save:
                     self.save_component_config()
                 else:
-                    self.notify(
-                        "System prompt updated locally. Click 'Save' to persist changes."
-                    )
+                    self.notify("System prompt updated locally. Click 'Save' to persist changes.")
             except Exception as e:
                 self.notify(f"Error updating prompt: {e}", severity="error")
 
@@ -390,9 +352,7 @@ class AuriteTUI(App):
         try:
             servers_input = self.query_one("#input-mcp_servers", Input)
             current_servers = json.loads(servers_input.value)
-            all_server_configs = self.aurite.kernel.config_manager.list_configs(
-                "mcp_servers"
-            )
+            all_server_configs = self.aurite.kernel.config_manager.list_configs("mcp_servers")
             all_server_names = [config["name"] for config in all_server_configs]
 
             self.app.push_screen(
@@ -428,9 +388,7 @@ class AuriteTUI(App):
     def save_component_config(self) -> None:
         """Gathers data from editor inputs and saves the component."""
         if not self.current_component_name or not self.current_component_type:
-            self.notify(
-                "No component selected to save.", title="Error", severity="error"
-            )
+            self.notify("No component selected to save.", title="Error", severity="error")
             return
 
         detail_pane = self.query_one("#detail-pane")
@@ -469,9 +427,7 @@ class AuriteTUI(App):
             )
 
             if success:
-                self.notify(
-                    f"Component '{self.current_component_name}' saved successfully."
-                )
+                self.notify(f"Component '{self.current_component_name}' saved successfully.")
             else:
                 self.notify(
                     f"Failed to save component '{self.current_component_name}'.",

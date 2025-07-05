@@ -1,7 +1,12 @@
 import asyncio
-import typer
 from typing import Optional
+
+import typer
 from rich.console import Console
+
+from ...config.fast_loader import list_component_names
+from ..api.api import start as start_api_server
+from ..tui.main import AuriteTUI
 
 # Relative imports from within the bin directory
 from .commands import (
@@ -9,17 +14,14 @@ from .commands import (
     init_workspace,
     interactive_init,
 )
-from .run import run_component
-from .show import show_components
 from .list import (
     list_all,
     list_components_by_type,
     list_index,
     list_workflows,
 )
-from ..api.api import start as start_api_server
-from ..tui.main import AuriteTUI
-from ...config.fast_loader import list_component_names
+from .run import run_component
+from .show import show_components
 
 app = typer.Typer(
     name="aurite",
@@ -51,22 +53,14 @@ logger = console.print
 
 @app.command()
 def init(
-    name: Optional[str] = typer.Argument(
-        None, help="The name of the new project or workspace."
-    ),
-    project: bool = typer.Option(
-        False, "--project", "-p", help="Initialize a new project."
-    ),
-    workspace: bool = typer.Option(
-        False, "--workspace", "-w", help="Initialize a new workspace."
-    ),
+    name: Optional[str] = typer.Argument(None, help="The name of the new project or workspace."),
+    project: bool = typer.Option(False, "--project", "-p", help="Initialize a new project."),
+    workspace: bool = typer.Option(False, "--workspace", "-w", help="Initialize a new workspace."),
 ):
     """Initializes a new Aurite project or workspace."""
 
     if project and workspace:
-        logger(
-            "[bold red]Error:[/bold red] Cannot initialize a project and a workspace at the same time."
-        )
+        logger("[bold red]Error:[/bold red] Cannot initialize a project and a workspace at the same time.")
         raise typer.Exit(code=1)
 
     if project:
@@ -97,12 +91,8 @@ def tui():
 
 @app.command()
 def show(
-    name: str = typer.Argument(
-        ..., help="The name or type of the component(s) to show."
-    ),
-    full: bool = typer.Option(
-        False, "--full", "-f", help="Display the full configuration."
-    ),
+    name: str = typer.Argument(..., help="The name or type of the component(s) to show."),
+    full: bool = typer.Option(False, "--full", "-f", help="Display the full configuration."),
     short: bool = typer.Option(False, "--short", "-s", help="Display a short summary."),
 ):
     """Displays the configuration for a component or all components of a type."""
@@ -194,15 +184,11 @@ def run(
         help="The name of the component to run.",
         autocompletion=complete_runnable_component_name,
     ),
-    user_message: Optional[str] = typer.Argument(
-        None, help="The user message or initial input."
-    ),
+    user_message: Optional[str] = typer.Argument(None, help="The user message or initial input."),
     system_prompt: Optional[str] = typer.Option(
         None, "--system-prompt", "-s", help="Override the default system prompt."
     ),
-    session_id: Optional[str] = typer.Option(
-        None, "--session-id", "-id", help="The session ID for history."
-    ),
+    session_id: Optional[str] = typer.Option(None, "--session-id", "-id", help="The session ID for history."),
 ):
     """Executes a framework component."""
 

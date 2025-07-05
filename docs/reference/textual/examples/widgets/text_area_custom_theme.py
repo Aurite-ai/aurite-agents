@@ -1,5 +1,4 @@
 from rich.style import Style
-
 from textual._text_area_theme import TextAreaTheme
 from textual.app import App, ComposeResult
 from textual.widgets import TextArea

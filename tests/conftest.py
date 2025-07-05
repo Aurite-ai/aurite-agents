@@ -7,8 +7,9 @@ framework.
 
 import json
 import logging
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 from src.aurite.config.config_models import HostConfig
 

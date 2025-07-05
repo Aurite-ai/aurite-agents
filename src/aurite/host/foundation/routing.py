@@ -2,9 +2,9 @@
 Registry for mapping tools and prompts to the clients that provide them.
 """
 
-from typing import Dict, List, Set
 import logging
 from collections import defaultdict  # Import defaultdict
+from typing import Dict, List, Set
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +111,7 @@ class MessageRouter:
     # Removed get_tool_capabilities
     # Removed find_tool_by_capability
 
-    async def register_server(
-        self, server_id: str, capabilities: Set[str], weight: float = 1.0
-    ):
+    async def register_server(self, server_id: str, capabilities: Set[str], weight: float = 1.0):
         """Register an MCP server (client) with its capabilities and routing weight."""
         self._server_capabilities[server_id] = capabilities
         self._server_weights[server_id] = weight
@@ -148,9 +146,7 @@ class MessageRouter:
             # Check against server_capabilities as the primary indicator of registration
             raise ValueError(f"Server not registered: {server_id}")
         self._server_weights[server_id] = weight
-        logger.debug(
-            f"Updated weight for server '{server_id}' to: {weight}"
-        )  # Changed to DEBUG
+        logger.debug(f"Updated weight for server '{server_id}' to: {weight}")  # Changed to DEBUG
 
     async def unregister_server(self, server_id: str):
         """Unregister a server (client) and remove all its associated registrations."""
@@ -180,9 +176,7 @@ class MessageRouter:
                     del self._prompt_routes[prompt_name]
 
         # Remove the client from resource routes
-        resources_to_update = list(
-            self._resource_routes.keys()
-        )  # Iterate over keys copy
+        resources_to_update = list(self._resource_routes.keys())  # Iterate over keys copy
         for resource_uri in resources_to_update:
             if server_id in self._resource_routes[resource_uri]:
                 self._resource_routes[resource_uri].remove(server_id)
@@ -195,6 +189,4 @@ class MessageRouter:
         self._client_prompts.pop(server_id, None)
         self._client_resources.pop(server_id, None)  # Remove client resources
 
-        logger.debug(
-            f"Removed server '{server_id}' and its registrations."
-        )  # Changed to DEBUG
+        logger.debug(f"Removed server '{server_id}' and its registrations.")  # Changed to DEBUG

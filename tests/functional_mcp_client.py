@@ -1,18 +1,17 @@
 import asyncio
 import json
 import os
-import sys
 import re
-from typing import Optional, List, Dict, Any
+import sys
 from contextlib import AsyncExitStack
+from typing import Any, Dict, List, Optional
 
+from anthropic import Anthropic
+from anthropic.types import MessageParam, TextBlock, ToolParam, ToolUseBlock
+from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
-
-from anthropic import Anthropic
-from anthropic.types import MessageParam, ToolParam, ToolUseBlock, TextBlock
-from dotenv import load_dotenv
 
 load_dotenv()  # load environment variables from .env
 
@@ -36,29 +35,21 @@ class MCPClient:
         transport_context = None
         try:
             config = json.loads(server_config_str)
-            transport_type = config.get(
-                "transport_type", "local"
-            )  # Default to local for old format
+            transport_type = config.get("transport_type", "local")  # Default to local for old format
 
             if transport_type == "http_stream":
                 endpoint_url = config.get("http_endpoint")
                 if not endpoint_url:
-                    raise ValueError(
-                        "http_endpoint is required for http_stream transport"
-                    )
+                    raise ValueError("http_endpoint is required for http_stream transport")
 
                 # Resolve environment variable placeholders in the URL
                 placeholders = re.findall(r"\{([^}]+)\}", endpoint_url)
                 for placeholder in placeholders:
                     env_value = os.getenv(placeholder)
                     if env_value:
-                        endpoint_url = endpoint_url.replace(
-                            f"{{{placeholder}}}", env_value
-                        )
+                        endpoint_url = endpoint_url.replace(f"{{{placeholder}}}", env_value)
                     else:
-                        raise ValueError(
-                            f"Could not resolve placeholder '{{{placeholder}}}' in http_endpoint."
-                        )
+                        raise ValueError(f"Could not resolve placeholder '{{{placeholder}}}' in http_endpoint.")
 
                 transport_context = streamablehttp_client(endpoint_url)
 
@@ -71,26 +62,20 @@ class MCPClient:
                         var_name = arg[1:-1]
                         value = os.getenv(var_name)
                         if value is None:
-                            raise ValueError(
-                                f"Environment variable {var_name} not set."
-                            )
+                            raise ValueError(f"Environment variable {var_name} not set.")
                         expanded_args.append(value)
                     else:
                         expanded_args.append(arg)
                 args = expanded_args
-                server_params = StdioServerParameters(
-                    command=command, args=args, env=None
-                )
+                server_params = StdioServerParameters(command=command, args=args, env=None)
                 transport_context = stdio_client(server_params)
 
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError) as e:
             # Fallback to legacy script path logic
             is_python = server_config_str.endswith(".py")
             is_js = server_config_str.endswith(".js")
             if not (is_python or is_js):
-                raise ValueError(
-                    "Argument must be a path to a .py or .js file, or a valid JSON config string."
-                )
+                raise ValueError("Argument must be a path to a .py or .js file, or a valid JSON config string.") from e
             command = "python" if is_python else "node"
             args = [server_config_str]
             server_params = StdioServerParameters(command=command, args=args, env=None)
@@ -99,9 +84,7 @@ class MCPClient:
         transport_streams = await self.exit_stack.enter_async_context(transport_context)
         # Handle both 2-tuple (stdio) and 3-tuple (http) returns
         self.stdio, self.write = transport_streams[:2]
-        self.session = await self.exit_stack.enter_async_context(
-            ClientSession(self.stdio, self.write)
-        )
+        self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
 
         await self.session.initialize()
         assert self.session is not None, "Session should be initialized"
@@ -130,10 +113,10 @@ class MCPClient:
         # Print tool descriptions and input schemas
         for tool in available_tools:
             print(f"Tool Name: {tool['name']}")
-            if 'description' in tool:
+            if "description" in tool:
                 print(f"Tool Description: {tool['description']}")
             else:
-                print(f"Tool Description: No description provided")
+                print("Tool Description: No description provided")
             print(f"Tool Input Schema: {tool['input_schema']}")
 
         # Start the conversation
@@ -169,9 +152,7 @@ class MCPClient:
                     # Execute tool call
                     assert self.session is not None
                     if not isinstance(tool_args, dict):
-                        raise TypeError(
-                            f"Tool arguments must be a dictionary, but got {type(tool_args)}"
-                        )
+                        raise TypeError(f"Tool arguments must be a dictionary, but got {type(tool_args)}")
                     result = await self.session.call_tool(tool_name, tool_args)
 
                     # Prepare the tool result for the next user message
@@ -188,9 +169,7 @@ class MCPClient:
 
             # Append the full assistant message to history
             if assistant_message_content:
-                messages.append(
-                    {"role": "assistant", "content": assistant_message_content}
-                )
+                messages.append({"role": "assistant", "content": assistant_message_content})
 
             # Append the tool results to history for the next turn
             if tool_results_message_content:

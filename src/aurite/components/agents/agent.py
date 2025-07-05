@@ -6,10 +6,10 @@ import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from openai.types.chat import (
-    ChatCompletionMessage,
     ChatCompletionAssistantMessageParam,
-    ChatCompletionToolMessageParam,
+    ChatCompletionMessage,
     ChatCompletionMessageToolCallParam,
+    ChatCompletionToolMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
@@ -100,25 +100,19 @@ class Agent:
                 # Always append the assistant's attempt to the history
                 assistant_message = turn_processor.get_last_llm_response()
                 if assistant_message:
-                    self.conversation_history.append(
-                        assistant_message.model_dump(exclude_none=True)
-                    )
+                    self.conversation_history.append(assistant_message.model_dump(exclude_none=True))
 
                 # Append tool results if any were generated
                 if tool_results_for_next_turn:
                     self.conversation_history.extend(tool_results_for_next_turn)
-                    self.tool_uses_in_last_turn = (
-                        turn_processor.get_tool_uses_this_turn()
-                    )
+                    self.tool_uses_in_last_turn = turn_processor.get_tool_uses_this_turn()
 
                 if is_final_turn:
                     self.final_response = final_response_this_turn
                     logger.debug("Final response received. Ending conversation.")
                     # Convert to OpenAI type before validation
                     if self.final_response:
-                        self.final_response = ChatCompletionMessage.model_validate(
-                            self.final_response.model_dump()
-                        )
+                        self.final_response = ChatCompletionMessage.model_validate(self.final_response.model_dump())
                     return AgentRunResult(
                         status="success",
                         final_response=self.final_response,
@@ -151,9 +145,7 @@ class Agent:
         turn processor. A future enhancement would be to process the token stream
         directly to enable real-time tool execution.
         """
-        logger.info(
-            f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'"
-        )
+        logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
@@ -218,16 +210,12 @@ class Agent:
                                 # Store as final response if not a tool turn
                                 if not is_tool_turn:
                                     # We need to construct a full ChatCompletionMessage
-                                    self.final_response = ChatCompletionMessage(
-                                        role="assistant", content=content
-                                    )
+                                    self.final_response = ChatCompletionMessage(role="assistant", content=content)
                                     return
                             case "tool_result":
                                 tool_results.append(event)
                             case _:
-                                raise ValueError(
-                                    f"Unrecognized internal type while streaming: {event_type}"
-                                )
+                                raise ValueError(f"Unrecognized internal type while streaming: {event_type}")
 
                 # Process tool results if any
                 if tool_results:
@@ -235,9 +223,7 @@ class Agent:
                         tool_message = ChatCompletionToolMessageParam(
                             role="tool",
                             tool_call_id=result["tool_id"],
-                            content=result["result"]
-                            if result["status"] == "success"
-                            else result["error"],
+                            content=result["result"] if result["status"] == "success" else result["error"],
                         )
                         self.conversation_history.append(dict(tool_message))
 
@@ -246,6 +232,4 @@ class Agent:
                 yield {"type": "error", "error": str(e), "turn": current_iteration}
                 break
 
-        logger.warning(
-            f"Reached max iterations ({max_iterations}) in stream. Ending conversation."
-        )
+        logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")

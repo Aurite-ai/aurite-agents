@@ -22,9 +22,7 @@ class ToolCallArgs(BaseModel):
 
 
 @router.get("/status")
-async def get_host_status(
-    api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)
-):
+async def get_host_status(api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)):
     """
     Get the status of the MCPHost.
     """
@@ -32,9 +30,7 @@ async def get_host_status(
 
 
 @router.get("/tools", response_model=List[Dict[str, Any]])
-async def list_tools(
-    api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)
-):
+async def list_tools(api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)):
     """
     List all available tools from the MCPHost.
     """
@@ -54,10 +50,8 @@ async def register_server_by_config(
         await host.register_client(server_config)
         return {"status": "success", "name": server_config.name}
     except Exception as e:
-        logger.error(
-            f"Failed to register server '{server_config.name}': {e}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to register server '{server_config.name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/register/{server_name}")
@@ -83,7 +77,7 @@ async def register_server_by_name(
         return {"status": "success", "name": server_config.name}
     except Exception as e:
         logger.error(f"Failed to register server '{server_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/servers/{server_name}")
@@ -100,7 +94,7 @@ async def unregister_server(
         return {"status": "success", "name": server_name}
     except Exception as e:
         logger.error(f"Failed to unregister server '{server_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/tools/{tool_name}/call")
@@ -115,14 +109,12 @@ async def call_tool(
     """
     try:
         if tool_name not in host.tools:
-            raise HTTPException(
-                status_code=404, detail=f"Tool '{tool_name}' not found."
-            )
+            raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
         result = await host.call_tool(tool_name, tool_call_args.args)
         return result.model_dump()
-    except KeyError:
+    except KeyError as e:
         # This is now redundant, but kept for safety.
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.") from e
     except Exception as e:
         logger.error(f"Error calling tool '{tool_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

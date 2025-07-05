@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
@@ -63,9 +64,7 @@ async def main():
 
         # Run the agent with the user's query. The check for the execution
         # facade is now handled internally by the `aurite.run_agent` method.
-        agent_result = await aurite.run_agent(
-            agent_name="My Weather Agent", user_message=user_query
-        )
+        agent_result = await aurite.run_agent(agent_name="My Weather Agent", user_message=user_query)
 
         # Print the agent's response in a colored format for better visibility.
         print(colored("\n--- Agent Result ---", "yellow", attrs=["bold"]))

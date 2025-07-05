@@ -153,3 +153,26 @@ per_rule_ignores = { DEP003 = ["google"], DEP004 = ["pandas", "redis", "mem0", "
 "mem0ai" = "mem0"
 "pandas" = "pandas"
 "sentence-transformers" = "sentence_transformers"
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+exclude = ["docs/"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501", # line too long, handled by formatter
+    "B008", # do not perform function calls in argument defaults
+    "C901", # too complex
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aurite"]

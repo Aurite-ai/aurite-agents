@@ -13,14 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
 
+from ...errors import (
+    AgentExecutionError,
+    ConfigurationError,
+    WorkflowExecutionError,
+)
+
 # Adjust imports for new location (src/bin -> src)
 from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
     Aurite,
-)
-from ...errors import (
-    ConfigurationError,
-    AgentExecutionError,
-    WorkflowExecutionError,
 )
 
 # Import shared dependencies (relative to parent directory - src/bin)
@@ -30,7 +31,7 @@ from ..dependencies import (
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import mcp_host_routes, config_manager_routes, facade_routes
+from .routes import config_manager_routes, facade_routes, mcp_host_routes
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -93,9 +94,7 @@ async def health_check():
 
 # Include the new routers
 app.include_router(mcp_host_routes.router, prefix="/host", tags=["MCP Host"])
-app.include_router(
-    config_manager_routes.router, prefix="/config", tags=["Configuration Manager"]
-)
+app.include_router(config_manager_routes.router, prefix="/config", tags=["Configuration Manager"])
 app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
 
 
@@ -115,9 +114,7 @@ def custom_openapi():
 
     # Let FastAPI auto-detect security from Security() dependencies
     # Testing if newer FastAPI versions can detect nested Security dependencies
-    logger.info(
-        "Using auto-generated OpenAPI schema with FastAPI's built-in security detection"
-    )
+    logger.info("Using auto-generated OpenAPI schema with FastAPI's built-in security detection")
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -133,9 +130,7 @@ app.openapi = custom_openapi  # type: ignore[no-redef]
 
 # Handler for ConfigurationErrors
 @app.exception_handler(ConfigurationError)
-async def configuration_error_exception_handler(
-    request: Request, exc: ConfigurationError
-):
+async def configuration_error_exception_handler(request: Request, exc: ConfigurationError):
     logger.warning(f"Configuration error: {exc} for request {request.url.path}")
     return JSONResponse(
         status_code=404,  # Not Found, as the requested resource config is missing
@@ -145,12 +140,8 @@ async def configuration_error_exception_handler(
 
 # Handler for AgentExecutionErrors
 @app.exception_handler(AgentExecutionError)
-async def agent_execution_error_exception_handler(
-    request: Request, exc: AgentExecutionError
-):
-    logger.error(
-        f"Agent execution error: {exc} for request {request.url.path}", exc_info=True
-    )
+async def agent_execution_error_exception_handler(request: Request, exc: AgentExecutionError):
+    logger.error(f"Agent execution error: {exc} for request {request.url.path}", exc_info=True)
     return JSONResponse(
         status_code=500,  # Internal Server Error
         content={"detail": f"Agent execution failed: {str(exc)}"},
@@ -159,12 +150,8 @@ async def agent_execution_error_exception_handler(
 
 # Handler for WorkflowExecutionErrors
 @app.exception_handler(WorkflowExecutionError)
-async def workflow_execution_error_exception_handler(
-    request: Request, exc: WorkflowExecutionError
-):
-    logger.error(
-        f"Workflow execution error: {exc} for request {request.url.path}", exc_info=True
-    )
+async def workflow_execution_error_exception_handler(request: Request, exc: WorkflowExecutionError):
+    logger.error(f"Workflow execution error: {exc} for request {request.url.path}", exc_info=True)
     return JSONResponse(
         status_code=500,  # Internal Server Error
         content={"detail": f"Workflow execution failed: {str(exc)}"},
@@ -236,9 +223,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
     return JSONResponse(
         status_code=500,
-        content={
-            "detail": f"An unexpected internal server error occurred: {type(exc).__name__}"
-        },
+        content={"detail": f"An unexpected internal server error occurred: {type(exc).__name__}"},
     )
 
 
@@ -250,9 +235,7 @@ async def log_requests(request: Request, call_next: Callable):
     response = await call_next(request)
     duration = time.time() - start_time
 
-    client_ip = request.headers.get(
-        "X-Forwarded-For", request.client.host if request.client else "Unknown"
-    )
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "Unknown")
 
     logger.info(
         f"[{request.method}] {request.url.path} - Status: {response.status_code} - "
@@ -303,9 +286,7 @@ def start():
     config = get_server_config()
     if not config:
         logger.critical("Server configuration could not be loaded. Aborting startup.")
-        raise RuntimeError(
-            "Server configuration could not be loaded. Aborting startup."
-        )
+        raise RuntimeError("Server configuration could not be loaded. Aborting startup.")
 
     # Determine reload mode based on environment. Default to development mode.
     reload_mode = os.getenv("ENV", "development").lower() != "production"

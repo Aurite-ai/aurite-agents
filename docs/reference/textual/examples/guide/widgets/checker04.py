@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from rich.segment import Segment
+from rich.style import Style
 from textual import events
 from textual.app import App, ComposeResult
 from textual.geometry import Offset, Region, Size
 from textual.reactive import var
-from textual.strip import Strip
 from textual.scroll_view import ScrollView
-
-from rich.segment import Segment
-from rich.style import Style
+from textual.strip import Strip
 
 
 class CheckerBoard(ScrollView):
@@ -43,9 +42,7 @@ class CheckerBoard(ScrollView):
         mouse_position = event.offset + self.scroll_offset
         self.cursor_square = Offset(mouse_position.x // 8, mouse_position.y // 4)
 
-    def watch_cursor_square(
-        self, previous_square: Offset, cursor_square: Offset
-    ) -> None:
+    def watch_cursor_square(self, previous_square: Offset, cursor_square: Offset) -> None:
         """Called when the cursor square changes."""
 
         def get_square_region(square_offset: Offset) -> Region:
@@ -86,10 +83,7 @@ class CheckerBoard(ScrollView):
                 square_style = black if (column + is_odd) % 2 else white
             return square_style
 
-        segments = [
-            Segment(" " * 8, get_square_style(column, row_index))
-            for column in range(self.board_size)
-        ]
+        segments = [Segment(" " * 8, get_square_style(column, row_index)) for column in range(self.board_size)]
         strip = Strip(segments, self.board_size * 8)
         # Crop the strip so that is covers the visible area
         strip = strip.crop(scroll_x, scroll_x + self.size.width)

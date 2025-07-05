@@ -3,9 +3,9 @@ Foundation layer for the Aurite MCP Host.
 Provides security and resource boundary management.
 """
 
-from .security import SecurityManager
-from .roots import RootManager, RootConfig
+from .roots import RootConfig, RootManager
 from .routing import MessageRouter
+from .security import SecurityManager
 
 __all__ = [
     "SecurityManager",

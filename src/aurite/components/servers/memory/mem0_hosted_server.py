@@ -1,10 +1,9 @@
 import os
-
 from urllib.parse import unquote_plus
-from mem0 import MemoryClient
-from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
+from mem0 import MemoryClient
 
 load_dotenv()
 

@@ -1,5 +1,4 @@
 from rich.segment import Segment
-
 from textual.app import App, ComposeResult
 from textual.strip import Strip
 from textual.widget import Widget
@@ -35,10 +34,7 @@ class CheckerBoard(Widget):
         white = self.get_component_rich_style("checkerboard--white-square")
         black = self.get_component_rich_style("checkerboard--black-square")
 
-        segments = [
-            Segment(" " * 8, black if (column + is_odd) % 2 else white)
-            for column in range(8)
-        ]
+        segments = [Segment(" " * 8, black if (column + is_odd) % 2 else white) for column in range(8)]
         strip = Strip(segments, 8 * 8)
         return strip
 

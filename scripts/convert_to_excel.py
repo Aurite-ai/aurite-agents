@@ -1,5 +1,6 @@
-import pandas as pd
 import csv
+
+import pandas as pd
 
 # Read the CSV file into a pandas DataFrame, specifying the quote character
 # to handle commas within the comment fields properly.

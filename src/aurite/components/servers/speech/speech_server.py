@@ -1,9 +1,9 @@
-import tempfile
 import os
+import tempfile
 
-from openai import OpenAI
-from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
+from openai import OpenAI
 from pydub import AudioSegment
 
 load_dotenv()
@@ -38,9 +38,7 @@ def speech_to_text(filepath: str) -> str:
 
         try:
             with open(temp_filename, "rb") as file:
-                transcription = client.audio.transcriptions.create(
-                    model="gpt-4o-transcribe", file=file
-                )
+                transcription = client.audio.transcriptions.create(model="gpt-4o-transcribe", file=file)
 
             transcriptions.append(transcription.text)
 

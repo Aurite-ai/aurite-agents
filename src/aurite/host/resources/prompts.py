@@ -2,14 +2,14 @@
 Prompt management for MCP host.
 """
 
-from typing import List, Optional  # Removed Union
 import logging
+from typing import List, Optional  # Removed Union
+
 import mcp.types as types
+from mcp.client.session_group import ClientSessionGroup
 
 # Import necessary types and models for filtering
 from ..foundation import MessageRouter  # Import MessageRouter
-
-from mcp.client.session_group import ClientSessionGroup
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,7 @@ class PromptManager:
     Handles prompt registration and retrieval.
     """
 
-    def __init__(
-        self, message_router: MessageRouter, session_group: ClientSessionGroup
-    ):  # Inject MessageRouter
+    def __init__(self, message_router: MessageRouter, session_group: ClientSessionGroup):  # Inject MessageRouter
         self._message_router = message_router  # Store router instance
         self._session_group = session_group
 
@@ -37,9 +35,7 @@ class PromptManager:
             # If not, we may need to adjust this logic.
             # For now, we'll assume a single "owner" or that the router can handle duplicates.
             client_id = getattr(prompt, "client_id", "unknown")
-            await self._message_router.register_prompt(
-                prompt_name=prompt.name, client_id=client_id
-            )
+            await self._message_router.register_prompt(prompt_name=prompt.name, client_id=client_id)
 
     async def get_prompt(self, name: str) -> Optional[types.Prompt]:
         """

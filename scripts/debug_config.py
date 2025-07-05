@@ -1,7 +1,7 @@
-from pathlib import Path
 import sys
-from src.aurite.host_manager import Aurite
+from pathlib import Path
 
+from src.aurite.host_manager import Aurite
 
 # Add the project root to the Python path
 project_root = Path(__file__).resolve().parent.parent

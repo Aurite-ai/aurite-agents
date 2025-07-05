@@ -2,8 +2,10 @@ import json
 import os
 import shutil
 from pathlib import Path
+
 from rich.console import Console
 from rich.panel import Panel
+
 from ...host_manager import Aurite
 
 console = Console()
@@ -15,20 +17,12 @@ def _format_agent_details(component: dict, level: str) -> str:
     config = component["config"]
     content = ""
     if level == "short":
-        content += (
-            f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
-        )
-        content += (
-            f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}"
-        )
+        content += f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
+        content += f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}"
     elif level == "full":
         content += f"[bold blue]Description:[/bold blue] {config.get('description', 'No description.')}\n"
-        content += (
-            f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
-        )
-        content += (
-            f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}\n"
-        )
+        content += f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
+        content += f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}\n"
         content += f"[bold blue]System Prompt:[/bold blue] {config.get('system_prompt', 'N/A')}\n"
         other_vars = {
             k: v
@@ -51,27 +45,15 @@ def _format_agent_details(component: dict, level: str) -> str:
         max_len = terminal_width - 25  # Adjust for label and padding
 
         description = config.get("description", "No description.")
-        truncated_description = (
-            (description[: max_len - 4] + "...")
-            if len(description) > max_len
-            else description
-        )
+        truncated_description = (description[: max_len - 4] + "...") if len(description) > max_len else description
         content += f"[bold blue]Description:[/bold blue] {truncated_description}\n"
 
-        content += (
-            f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
-        )
-        content += (
-            f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}\n"
-        )
+        content += f"[bold blue]LLM Config:[/bold blue] {config.get('llm_config_id', 'N/A')}\n"
+        content += f"[bold blue]MCP Servers:[/bold blue] {config.get('mcp_servers', [])}\n"
 
         system_prompt = config.get("system_prompt", "")
         if system_prompt:
-            truncated_prompt = (
-                (system_prompt[: max_len - 4] + "...")
-                if len(system_prompt) > max_len
-                else system_prompt
-            )
+            truncated_prompt = (system_prompt[: max_len - 4] + "...") if len(system_prompt) > max_len else system_prompt
             content += f"[bold blue]System Prompt:[/bold blue] {truncated_prompt}"
     return content
 
@@ -86,16 +68,10 @@ def _format_llm_details(component: dict, level: str) -> str:
     elif level == "full":
         content += f"[bold blue]Provider:[/bold blue] {config.get('provider', 'N/A')}\n"
         content += f"[bold blue]Model:[/bold blue] {config.get('model', 'N/A')}\n"
-        content += (
-            f"[bold blue]Temperature:[/bold blue] {config.get('temperature', 'N/A')}\n"
-        )
-        content += (
-            f"[bold blue]Max Tokens:[/bold blue] {config.get('max_tokens', 'N/A')}\n"
-        )
+        content += f"[bold blue]Temperature:[/bold blue] {config.get('temperature', 'N/A')}\n"
+        content += f"[bold blue]Max Tokens:[/bold blue] {config.get('max_tokens', 'N/A')}\n"
         content += f"[bold blue]API Base:[/bold blue] {config.get('api_base', 'N/A')}\n"
-        content += (
-            f"[bold blue]API Version:[/bold blue] {config.get('api_version', 'N/A')}"
-        )
+        content += f"[bold blue]API Version:[/bold blue] {config.get('api_version', 'N/A')}"
     else:  # default
         content += f"[bold blue]Provider:[/bold blue] {config.get('provider', 'N/A')}\n"
         content += f"[bold blue]Model:[/bold blue] {config.get('model', 'N/A')}"
@@ -110,22 +86,16 @@ def _format_mcp_server_details(component: dict, level: str) -> str:
     content += f"[bold blue]Transport:[/bold blue] {transport_type}\n"
 
     if transport_type == "stdio":
-        content += (
-            f"[bold blue]Server Path:[/bold blue] {config.get('server_path', 'N/A')}"
-        )
+        content += f"[bold blue]Server Path:[/bold blue] {config.get('server_path', 'N/A')}"
     elif transport_type == "http_stream":
-        content += (
-            f"[bold blue]Endpoint:[/bold blue] {config.get('http_endpoint', 'N/A')}"
-        )
+        content += f"[bold blue]Endpoint:[/bold blue] {config.get('http_endpoint', 'N/A')}"
     elif transport_type == "local":
         content += f"[bold blue]Command:[/bold blue] {config.get('command', 'N/A')}\n"
         content += f"[bold blue]Arguments:[/bold blue] {config.get('args', [])}"
 
     if level == "full":
         content += f"\n[bold blue]Timeout:[/bold blue] {config.get('timeout', 10.0)}\n"
-        content += (
-            f"[bold blue]Capabilities:[/bold blue] {config.get('capabilities', [])}"
-        )
+        content += f"[bold blue]Capabilities:[/bold blue] {config.get('capabilities', [])}"
     return content
 
 
@@ -138,11 +108,7 @@ def _format_simple_workflow_details(component: dict, level: str) -> str:
     if level == "default":
         terminal_width = shutil.get_terminal_size().columns
         max_len = terminal_width - 25
-        truncated_description = (
-            (description[: max_len - 4] + "...")
-            if len(description) > max_len
-            else description
-        )
+        truncated_description = (description[: max_len - 4] + "...") if len(description) > max_len else description
         content += f"[bold blue]Description:[/bold blue] {truncated_description}\n"
     else:
         content += f"[bold blue]Description:[/bold blue] {description}\n"
@@ -169,18 +135,12 @@ def _format_custom_workflow_details(component: dict, level: str) -> str:
     if level == "default":
         terminal_width = shutil.get_terminal_size().columns
         max_len = terminal_width - 25
-        truncated_description = (
-            (description[: max_len - 4] + "...")
-            if len(description) > max_len
-            else description
-        )
+        truncated_description = (description[: max_len - 4] + "...") if len(description) > max_len else description
         content += f"[bold blue]Description:[/bold blue] {truncated_description}\n"
     else:
         content += f"[bold blue]Description:[/bold blue] {description}\n"
 
-    content += (
-        f"[bold blue]Module Path:[/bold blue] {config.get('module_path', 'N/A')}\n"
-    )
+    content += f"[bold blue]Module Path:[/bold blue] {config.get('module_path', 'N/A')}\n"
     content += f"[bold blue]Class Name:[/bold blue] {config.get('class_name', 'N/A')}"
     return content
 
@@ -195,9 +155,7 @@ def format_component_details(component: dict, level: str) -> str:
         "simple_workflow": _format_simple_workflow_details,
         "custom_workflow": _format_custom_workflow_details,
     }
-    formatter = formatters.get(
-        comp_type, lambda c, loc: json.dumps(loc["config"], indent=2)
-    )
+    formatter = formatters.get(comp_type, lambda c, loc: json.dumps(loc["config"], indent=2))
 
     # Base details for default and full levels
     base_content = ""
@@ -249,9 +207,7 @@ def show_components(name: str, full: bool = False, short: bool = False):
         type_to_show = name.rstrip("s")
 
     if type_to_show:
-        components_to_show = [
-            item for item in component_index if item["component_type"] == type_to_show
-        ]
+        components_to_show = [item for item in component_index if item["component_type"] == type_to_show]
         for component in components_to_show:
             display_component(component, level="short" if short else "default")
         return
@@ -266,9 +222,7 @@ def show_components(name: str, full: bool = False, short: bool = False):
     if len(found_components) > 1:
         first_type = found_components[0]["component_type"]
         if not all(c["component_type"] == first_type for c in found_components):
-            logger(
-                f"Multiple components found with name '{name}'. Please specify a type:"
-            )
+            logger(f"Multiple components found with name '{name}'. Please specify a type:")
             for comp in found_components:
                 logger(f"  - {comp['component_type']}")
             return

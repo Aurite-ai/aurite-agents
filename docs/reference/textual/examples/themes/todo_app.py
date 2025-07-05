@@ -57,9 +57,7 @@ Screen {
 """
 
     BINDINGS = [Binding("ctrl+t", "cycle_theme", "Cycle theme")]
-    THEMES = cycle(
-        ["nord", "gruvbox", "tokyo-night", "textual-dark", "solarized-light"]
-    )
+    THEMES = cycle(["nord", "gruvbox", "tokyo-night", "textual-dark", "solarized-light"])
 
     def compose(self) -> ComposeResult:
         yield Header()

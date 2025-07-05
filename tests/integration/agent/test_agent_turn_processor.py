@@ -2,18 +2,18 @@
 Integration tests for the AgentTurnProcessor.
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
 
-from aurite.config.config_models import AgentConfig
-from aurite.components.llm.providers.litellm_client import LiteLLMClient
 from aurite.components.agents.agent_turn_processor import AgentTurnProcessor
+from aurite.components.llm.providers.litellm_client import LiteLLMClient
+from aurite.config.config_models import AgentConfig
 from aurite.host.host import MCPHost
 
 # --- Fixtures ---
@@ -50,9 +50,7 @@ async def test_process_turn_text_response(
     Tests a simple turn where the LLM returns a final text response.
     """
     # Arrange
-    llm_response = ChatCompletionMessage(
-        role="assistant", content="This is the final answer.", tool_calls=None
-    )
+    llm_response = ChatCompletionMessage(role="assistant", content="This is the final answer.", tool_calls=None)
     mock_llm_client.create_message.return_value = llm_response  # type: ignore
 
     processor = AgentTurnProcessor(
@@ -91,9 +89,7 @@ async def test_process_turn_successful_tool_call(
         function=Function(name="get_weather", arguments='{"location": "Boston"}'),
         type="function",
     )
-    llm_response = ChatCompletionMessage(
-        role="assistant", content=None, tool_calls=[tool_call]
-    )
+    llm_response = ChatCompletionMessage(role="assistant", content=None, tool_calls=[tool_call])
     mock_llm_client.create_message.return_value = llm_response  # type: ignore
     mock_host.call_tool.return_value = {"temperature": "75F"}  # type: ignore
 
@@ -139,9 +135,7 @@ async def test_process_turn_failed_tool_call(
         function=Function(name="get_stock_price", arguments='{"ticker": "XYZ"}'),
         type="function",
     )
-    llm_response = ChatCompletionMessage(
-        role="assistant", content=None, tool_calls=[tool_call]
-    )
+    llm_response = ChatCompletionMessage(role="assistant", content=None, tool_calls=[tool_call])
     mock_llm_client.create_message.return_value = llm_response  # type: ignore
     mock_host.call_tool.side_effect = Exception("API unavailable")  # type: ignore
 
@@ -164,10 +158,7 @@ async def test_process_turn_failed_tool_call(
     assert len(tool_results) == 1
     assert tool_results[0]["role"] == "tool"
     assert tool_results[0]["tool_call_id"] == "tool_456"
-    assert (
-        "Error executing tool 'get_stock_price': API unavailable"
-        in tool_results[0]["content"]
-    )
+    assert "Error executing tool 'get_stock_price': API unavailable" in tool_results[0]["content"]
 
     mock_llm_client.create_message.assert_awaited_once()  # type: ignore
     mock_host.call_tool.assert_awaited_once_with(  # type: ignore

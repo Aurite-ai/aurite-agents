@@ -2,8 +2,8 @@
 Root management for MCP host.
 """
 
-from typing import Dict, List, Set
 import logging
+from typing import Dict, List, Set
 from urllib.parse import urlparse
 
 # Import the Pydantic model
@@ -31,9 +31,7 @@ class RootManager:
         """Initialize the root manager"""
         logger.debug("Initializing root manager")  # INFO -> DEBUG
 
-    async def register_roots(
-        self, client_id: str, roots: List[RootConfig]
-    ):  # Type hint uses imported RootConfig
+    async def register_roots(self, client_id: str, roots: List[RootConfig]):  # Type hint uses imported RootConfig
         """
         Register roots for a client using Pydantic RootConfig models.
         This defines the operational boundaries for the client.
@@ -55,7 +53,7 @@ class RootManager:
                     raise ValueError(f"Root URI {root.uri} must have a scheme")
             except Exception as e:
                 # Catch potential validation errors or other issues
-                raise ValueError(f"Invalid root URI configuration for {root.uri}: {e}")
+                raise ValueError(f"Invalid root URI configuration for {root.uri}: {e}") from e
 
             normalized_roots.append(root)  # Store the validated Pydantic model
             normalized_uris.add(str(root.uri))  # Store URI as string
@@ -80,9 +78,7 @@ class RootManager:
         # Actual resource URI validation against roots happens in ResourceManager.
         if client_id not in self._client_roots:
             # This case might indicate an issue elsewhere if ToolManager calls this
-            logger.debug(
-                f"validate_access called for unknown or rootless client: {client_id}"
-            )
+            logger.debug(f"validate_access called for unknown or rootless client: {client_id}")
             # Return False if the client is not registered with roots.
             # Although the original logic returned True, it's safer to return False
             # if the client isn't properly registered here. ToolManager should ideally
@@ -93,9 +89,7 @@ class RootManager:
         # If the client is known (has roots registered), return True.
         return True
 
-    async def get_client_roots(
-        self, client_id: str
-    ) -> List[RootConfig]:  # Type hint uses imported RootConfig
+    async def get_client_roots(self, client_id: str) -> List[RootConfig]:  # Type hint uses imported RootConfig
         """Get all roots registered for a client"""
         # Return a copy to prevent external modification
         return list(self._client_roots.get(client_id, []))

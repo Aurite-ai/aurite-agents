@@ -1,16 +1,16 @@
 """MCP server for vector embeddings with pgvector"""
 
-import os
-import psycopg2
-import logging
 import json
-
-from mcp.server.fastmcp import FastMCP
-from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
-from pydantic import BaseModel
+import logging
+import os
 from typing import Any
+
+import psycopg2
+from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
 from psycopg2 import sql
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
@@ -33,9 +33,7 @@ class SearchResult(BaseModel):
 
 
 @mcp.tool()
-def search(
-    query_text: str, limit: int = 3, metadata_filter: dict[str, Any] | None = None
-) -> list[SearchResult]:
+def search(query_text: str, limit: int = 3, metadata_filter: dict[str, Any] | None = None) -> list[SearchResult]:
     """
     Search for text similar to the query in the vector database
 
@@ -64,9 +62,7 @@ def search(
         where_conditions = []
         for key, value in metadata_filter.items():
             where_conditions.append(
-                sql.SQL("metadata->>{} = {}").format(
-                    sql.Literal(str(key)), sql.Literal(str(value))
-                )
+                sql.SQL("metadata->>{} = {}").format(sql.Literal(str(key)), sql.Literal(str(value)))
             )
 
         if where_conditions:
@@ -100,7 +96,7 @@ def search(
     return search_results
 
 
-def store(input_text: str, metadata: dict[str, Any] = {}) -> bool:
+def store(input_text: str, metadata: dict[str, Any] = None) -> bool:
     """
     Store text as vector embedding
 
@@ -111,6 +107,8 @@ def store(input_text: str, metadata: dict[str, Any] = {}) -> bool:
     Returns:
         bool: True if successful, False otherwise
     """
+    if metadata is None:
+        metadata = {}
     try:
         embedding = _text_to_embedding(input_text.value)
 
@@ -136,7 +134,7 @@ def store(input_text: str, metadata: dict[str, Any] = {}) -> bool:
         return False
 
 
-def batch_store(texts: list[str], metadata: dict[str, Any] = {}):
+def batch_store(texts: list[str], metadata: dict[str, Any] = None):
     """
     Store multiple strings as vector embeddings simultaneously
 
@@ -147,6 +145,8 @@ def batch_store(texts: list[str], metadata: dict[str, Any] = {}):
     Returns:
         bool: True if successful, False otherwise
     """
+    if metadata is None:
+        metadata = {}
     try:
         embeddings = _text_to_embedding(texts)
 
@@ -159,7 +159,7 @@ def batch_store(texts: list[str], metadata: dict[str, Any] = {}):
         """,
             [
                 (text, embedding.tolist(), json.dumps(metadata))
-                for text, embedding in zip(texts, embeddings)
+                for text, embedding in zip(texts, embeddings, strict=False)
             ],
         )
 
@@ -299,9 +299,7 @@ def clear_database(confirmation_code: str = None) -> bool:
         conn.close()
 
         if count_after == 0:
-            logging.info(
-                f"Successfully cleared database. Removed {count_before} entries."
-            )
+            logging.info(f"Successfully cleared database. Removed {count_before} entries.")
             return True
         else:
             logging.warning("Database not completely cleared")
@@ -317,14 +315,14 @@ def _initialize_table():
 
     cursor.execute("""
         CREATE EXTENSION IF NOT EXISTS vector;
-        
+
         CREATE TABLE IF NOT EXISTS text_embeddings (
             id SERIAL PRIMARY KEY,
             text_content TEXT NOT NULL,
             embedding vector(384) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
         ALTER TABLE text_embeddings
         ADD metadata JSONB NOT NULL;
     """)
@@ -347,9 +345,9 @@ def _establish_connection():
 def _text_to_embedding(input_text: str | list[str]):
     model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    if type(input_text) is str:
+    if isinstance(input_text, str):
         embedding = model.encode([input_text])[0]
-    elif type(input_text) is list:
+    elif isinstance(input_text, list):
         embedding = model.encode(input_text)
     else:
         raise ValueError(f"Invalid type to be embedded: {type(input_text)}")

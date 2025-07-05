@@ -32,9 +32,7 @@ class PagesApp(App):
         self.refresh_bindings()  # (2)!
         self.query_one(f"#page-{self.page_no}").scroll_visible()
 
-    def check_action(
-        self, action: str, parameters: tuple[object, ...]
-    ) -> bool | None:  # (3)!
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:  # (3)!
         """Check if an action may run."""
         if action == "next" and self.page_no == PAGES_COUNT - 1:
             return False

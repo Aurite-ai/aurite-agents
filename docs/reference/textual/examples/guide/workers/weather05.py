@@ -2,7 +2,6 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from rich.text import Text
-
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll

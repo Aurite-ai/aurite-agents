@@ -1,10 +1,11 @@
+import json
 import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import yaml
-import json
 
 from .config_utils import find_anchor_files
 
@@ -62,9 +63,7 @@ class ConfigManager:
 
         self._config_sources: List[tuple[Path, Path]] = []
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
-        self._force_refresh = (
-            os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
-        )
+        self._force_refresh = os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
 
         self._initialize_sources()
         self._build_component_index()
@@ -99,13 +98,8 @@ class ConfigManager:
                                 p_settings = tomllib.load(pf).get("aurite", {})
                             for p_rel_path in p_settings.get("include_configs", []):
                                 resolved_p_path = (project_root / p_rel_path).resolve()
-                                if (
-                                    resolved_p_path.is_dir()
-                                    and resolved_p_path not in processed_paths
-                                ):
-                                    config_sources.append(
-                                        (resolved_p_path, project_root)
-                                    )
+                                if resolved_p_path.is_dir() and resolved_p_path not in processed_paths:
+                                    config_sources.append((resolved_p_path, project_root))
                                     processed_paths.add(resolved_p_path)
             except (tomllib.TOMLDecodeError, IOError) as e:
                 logger.error(f"Could not parse {anchor_path} during source init: {e}")
@@ -150,9 +144,7 @@ class ConfigManager:
             return
 
         if not isinstance(content, list):
-            logger.warning(
-                f"Skipping config file {config_file}: root is not a list of components."
-            )
+            logger.warning(f"Skipping config file {config_file}: root is not a list of components.")
             return
 
         for component_data in content:
@@ -163,9 +155,7 @@ class ConfigManager:
             component_id = component_data.get("name")
 
             if not component_type or not component_id:
-                logger.warning(
-                    f"Skipping component in {config_file} due to missing 'type' or 'name'."
-                )
+                logger.warning(f"Skipping component in {config_file} due to missing 'type' or 'name'.")
                 continue
 
             self._component_index.setdefault(component_type, {})
@@ -192,9 +182,7 @@ class ConfigManager:
                         component_data["_workspace_name"] = self.workspace_name
 
                 self._component_index[component_type][component_id] = component_data
-                logger.debug(
-                    f"Indexed '{component_id}' ({component_type}) from {config_file}"
-                )
+                logger.debug(f"Indexed '{component_id}' ({component_type}) from {config_file}")
 
     def _resolve_paths_in_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Resolves relative paths in a component's configuration data."""
@@ -233,9 +221,7 @@ class ConfigManager:
 
         return resolved_data
 
-    def get_config(
-        self, component_type: str, component_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_config(self, component_type: str, component_id: str) -> Optional[Dict[str, Any]]:
         if self._force_refresh:
             self.refresh()
 
@@ -272,9 +258,7 @@ class ConfigManager:
                     "project_name": config.get("_project_name"),
                     "workspace_name": config.get("_workspace_name"),
                     "source_file": config.get("_source_file"),
-                    "config": {
-                        k: v for k, v in config.items() if not k.startswith("_")
-                    },
+                    "config": {k: v for k, v in config.items() if not k.startswith("_")},
                 }
                 flat_list.append(item)
         return flat_list
@@ -283,12 +267,8 @@ class ConfigManager:
         logger.debug("Refreshing configuration index...")
         self.__init__()
 
-    def upsert_component(
-        self, component_type: str, component_name: str, new_config: Dict[str, Any]
-    ) -> bool:
+    def upsert_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
         # This method would need to be updated to work with the new flat-list structure
         # For now, we focus on getting the loading right.
-        logger.error(
-            "upsert_component is not implemented for the new config structure yet."
-        )
+        logger.error("upsert_component is not implemented for the new config structure yet.")
         return False

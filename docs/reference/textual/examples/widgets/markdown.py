@@ -4,9 +4,9 @@ from textual.widgets import Markdown
 EXAMPLE_MARKDOWN = """\
 ## Markdown
 
-- Typography *emphasis*, **strong**, `inline code` etc.    
-- Headers    
-- Lists    
+- Typography *emphasis*, **strong**, `inline code` etc.
+- Headers
+- Lists
 - Syntax highlighted code blocks
 - Tables and more
 
@@ -43,7 +43,7 @@ def loop_last(values: Iterable[T]) -> Iterable[Tuple[bool, T]]:
         previous_value = value
     yield True, previous_value
 ```
-    
+
 
 """
 

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from rich.segment import Segment
 from textual.app import App, ComposeResult
 from textual.geometry import Size
-from textual.strip import Strip
 from textual.scroll_view import ScrollView
-
-from rich.segment import Segment
+from textual.strip import Strip
 
 
 class CheckerBoard(ScrollView):
@@ -44,10 +43,7 @@ class CheckerBoard(ScrollView):
 
         is_odd = row_index % 2
 
-        segments = [
-            Segment(" " * 8, black if (column + is_odd) % 2 else white)
-            for column in range(self.board_size)
-        ]
+        segments = [Segment(" " * 8, black if (column + is_odd) % 2 else white) for column in range(self.board_size)]
         strip = Strip(segments, self.board_size * 8)
         # Crop the strip so that is covers the visible area
         strip = strip.crop(scroll_x, scroll_x + self.size.width)

@@ -1,6 +1,8 @@
-import pytest
-from pathlib import Path
 import os
+from pathlib import Path
+
+import pytest
+
 from src.aurite.config.config_manager import ConfigManager
 
 

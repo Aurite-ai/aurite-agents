@@ -1,8 +1,10 @@
-from aurite.execution.facade import ExecutionFacade
+from pathlib import Path
+
+import pytest
+
 from aurite.components.agents.agent_models import AgentRunResult
 from aurite.config.config_models import CustomWorkflowConfig
-from pathlib import Path
-import pytest
+from aurite.execution.facade import ExecutionFacade
 
 
 class TestRefactoredAgentWorkflow:
@@ -22,9 +24,7 @@ class TestRefactoredAgentWorkflow:
             session_id=session_id,
         )
 
-        assert isinstance(
-            agent_result, AgentRunResult
-        ), f"Expected AgentRunResult, but got {type(agent_result)}"
+        assert isinstance(agent_result, AgentRunResult), f"Expected AgentRunResult, but got {type(agent_result)}"
 
         if agent_result.status == "success":
             if agent_result.final_response:

@@ -1,5 +1,4 @@
 from rich.text import Text
-
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import RadioButton, RadioSet
@@ -19,11 +18,7 @@ class RadioChoicesApp(App[None]):
                 yield RadioButton("Star Trek: The Motion Picture")
                 yield RadioButton("Star Wars: A New Hope")
                 yield RadioButton("The Last Starfighter")
-                yield RadioButton(
-                    Text.from_markup(
-                        "Total Recall :backhand_index_pointing_right: :red_circle:"
-                    )
-                )
+                yield RadioButton(Text.from_markup("Total Recall :backhand_index_pointing_right: :red_circle:"))
                 yield RadioButton("Wing Commander")
             # A RadioSet built up from a collection of strings.
             yield RadioSet(

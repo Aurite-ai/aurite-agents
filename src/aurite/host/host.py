@@ -6,15 +6,15 @@ import logging
 import os
 import re
 from contextlib import AsyncExitStack
-from typing import Any, Dict, List, Optional
 from datetime import timedelta
+from typing import Any, Dict, List, Optional
 
 import mcp
 import mcp.types as types
 from mcp.client.session import ClientSession
 from mcp.client.session_group import StreamableHttpParameters
-from mcp.client.streamable_http import streamablehttp_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 from ..config.config_models import (
     AgentConfig,
@@ -22,7 +22,6 @@ from ..config.config_models import (
 )
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
-
 
 logger = logging.getLogger(__name__)
 
@@ -115,21 +114,13 @@ class MCPHost:
             if config.transport_type in ["stdio", "local"]:
                 if config.transport_type == "stdio":
                     if not config.server_path:
-                        raise ValueError(
-                            "'server_path' is required for stdio transport"
-                        )
-                    params = StdioServerParameters(
-                        command="python", args=[str(config.server_path)], env=client_env
-                    )
+                        raise ValueError("'server_path' is required for stdio transport")
+                    params = StdioServerParameters(command="python", args=[str(config.server_path)], env=client_env)
                 else:  # local
                     if not config.command:
                         raise ValueError("'command' is required for local transport")
-                    resolved_args = [
-                        _resolve_placeholders(arg) for arg in (config.args or [])
-                    ]
-                    params = StdioServerParameters(
-                        command=config.command, args=resolved_args, env=client_env
-                    )
+                    resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
+                    params = StdioServerParameters(command=config.command, args=resolved_args, env=client_env)
                 client = stdio_client(params, errlog=open(os.devnull, "w"))
                 read, write = await session_stack.enter_async_context(client)
 
@@ -153,9 +144,7 @@ class MCPHost:
             else:
                 raise ValueError(f"Unsupported transport type: {config.transport_type}")
 
-            session = await session_stack.enter_async_context(
-                mcp.ClientSession(read, write)
-            )
+            session = await session_stack.enter_async_context(mcp.ClientSession(read, write))
             await session.initialize()
 
             # Aggregate components
@@ -187,11 +176,7 @@ class MCPHost:
         session_stack = self._session_exit_stacks.pop(server_name, None)
 
         if session_to_remove:
-            tools_to_remove = [
-                name
-                for name, session in self._tool_to_session.items()
-                if session == session_to_remove
-            ]
+            tools_to_remove = [name for name, session in self._tool_to_session.items() if session == session_to_remove]
             for tool_name in tools_to_remove:
                 del self._tools[tool_name]
                 del self._tool_to_session[tool_name]
@@ -217,8 +202,6 @@ class MCPHost:
         formatted_tools = [tool.model_dump() for tool in all_tools]
 
         if agent_config:
-            return self._filtering_manager.filter_component_list(
-                formatted_tools, agent_config
-            )
+            return self._filtering_manager.filter_component_list(formatted_tools, agent_config)
 
         return formatted_tools

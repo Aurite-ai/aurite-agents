@@ -2,10 +2,9 @@
 Simulates a screenshot of the Textual devtools
 """
 
-from textual_dev.renderables import DevConsoleHeader
-
 from textual.app import App
 from textual.widgets import Static
+from textual_dev.renderables import DevConsoleHeader
 
 
 class ConsoleApp(App):
