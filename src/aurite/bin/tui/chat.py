@@ -45,9 +45,9 @@ class TextualChatApp(App):
         with Container(id="main-container"):
             with Vertical(id="chat-container"):
                 yield Static(
-                    f"[bold cyan]Agent:[/bold cyan] {self.agent_name}\n"
-                    f"[dim]Session ID:[/dim] {self.session_id}\n"
-                    f"[dim]Type your message below. Press Ctrl+C to exit.[/dim]",
+                    f"Agent: {self.agent_name}\n"
+                    f"Session ID: {self.session_id}\n"
+                    f"Type your message below. Press Ctrl+C to exit.",
                     id="chat-header",
                 )
                 with VerticalScroll(id="chat-history"):
@@ -86,7 +86,7 @@ class TextualChatApp(App):
         """Add a user message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        user_widget = Static(f"[bold green]You:[/bold green] {message}", classes="user-message")
+        user_widget = Static(f"You: {message}", classes="user-message")
         chat_history.mount(user_widget)
         chat_history.scroll_end()
 
@@ -94,12 +94,8 @@ class TextualChatApp(App):
         """Add an agent message to the chat history."""
         chat_history = self.query_one("#chat-history", VerticalScroll)
 
-        # Use Markdown widget for rich formatting of agent responses
-        agent_widget = Container(
-            Static("[bold cyan]Agent:[/bold cyan]", classes="agent-label"),
-            Markdown(message, classes="agent-response"),
-            classes="agent-message",
-        )
+        # Use Static widget for simpler display
+        agent_widget = Static(f"Agent: {message}", classes="agent-message")
         chat_history.mount(agent_widget)
         chat_history.scroll_end()
 
@@ -192,8 +188,10 @@ class TextualChatApp(App):
                     self._update_agent_response(current_response)
 
                 elif event_type == "llm_response_stop":
-                    # Response is complete
-                    pass
+                    # Response is complete - finalize the response
+                    if hasattr(self, "current_agent_widget") and current_response:
+                        # Replace the streaming widget with a final static widget
+                        self._finalize_agent_response(current_response)
 
                 elif event_type == "tool_call":
                     tool_name = event_data.get("name", "Unknown")
@@ -242,6 +240,24 @@ class TextualChatApp(App):
             chat_history.scroll_end()
         except Exception:
             # Widget might not exist yet, ignore
+            pass
+
+    def _finalize_agent_response(self, content: str) -> None:
+        """Finalize the agent response by replacing the streaming widget with a static one."""
+        try:
+            chat_history = self.query_one("#chat-history", VerticalScroll)
+
+            # Remove the current streaming widget
+            if hasattr(self, "current_agent_widget"):
+                self.current_agent_widget.remove()
+                delattr(self, "current_agent_widget")
+
+            # Add a final static widget
+            final_widget = Static(f"Agent: {content}", classes="agent-message")
+            chat_history.mount(final_widget)
+            chat_history.scroll_end()
+        except Exception:
+            # If something goes wrong, just ignore
             pass
 
     def _remove_last_status_message(self) -> None:
