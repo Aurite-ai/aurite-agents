@@ -3,7 +3,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from termcolor import colored
 
@@ -62,12 +62,13 @@ class ExecutionFacade:
         user_message: str,
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
-    ) -> Agent:
+    ) -> Tuple[Agent, List[str]]:
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
 
         agent_config_for_run = AgentConfig(**agent_config_dict)
+        dynamically_registered_servers: List[str] = []
 
         # JIT Registration of MCP Servers
         if agent_config_for_run.mcp_servers:
@@ -80,6 +81,7 @@ class ExecutionFacade:
                         )
                     server_config = ClientConfig(**server_config_dict)
                     await self._host.register_client(server_config)
+                    dynamically_registered_servers.append(server_name)
 
         llm_config_id = agent_config_for_run.llm_config_id
         if not llm_config_id:
@@ -120,12 +122,13 @@ class ExecutionFacade:
                 agent_config_for_run.llm = LLMConfigOverrides()
             agent_config_for_run.llm.system_prompt = system_prompt_override
 
-        return Agent(
+        agent_instance = Agent(
             agent_config=agent_config_for_run,
             base_llm_config=base_llm_config,
             host_instance=self._host,
             initial_messages=initial_messages,
         )
+        return agent_instance, dynamically_registered_servers
 
     # --- Public Execution Methods ---
 
@@ -137,8 +140,12 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
+        agent_instance = None
+        servers_to_unregister: List[str] = []
         try:
-            agent_instance = await self._prepare_agent_for_run(agent_name, user_message, system_prompt, session_id)
+            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
+                agent_name, user_message, system_prompt, session_id
+            )
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
             async for event in agent_instance.stream_conversation():
                 yield event
@@ -148,7 +155,13 @@ class ExecutionFacade:
             )
             logger.error(f"Facade: {error_msg}", exc_info=True)
             yield {"type": "error", "data": {"message": error_msg}}
+            # Re-raise to be caught by the final `finally` block for cleanup
             raise AgentExecutionError(error_msg) from e
+        finally:
+            # Ensure dynamically registered servers are cleaned up
+            if servers_to_unregister:
+                for server_name in servers_to_unregister:
+                    await self._host.unregister_client(server_name)
 
     async def run_agent(
         self,
@@ -157,8 +170,12 @@ class ExecutionFacade:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> AgentRunResult:
+        agent_instance = None
+        servers_to_unregister: List[str] = []
         try:
-            agent_instance = await self._prepare_agent_for_run(agent_name, user_message, system_prompt, session_id)
+            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
+                agent_name, user_message, system_prompt, session_id
+            )
 
             logger.info(
                 colored(
@@ -177,7 +194,7 @@ class ExecutionFacade:
             )
 
             # Save history regardless of the outcome, as it's valuable for debugging.
-            if agent_instance.config.include_history and self._storage_manager and session_id:
+            if agent_instance and agent_instance.config.include_history and self._storage_manager and session_id:
                 try:
                     self._storage_manager.save_full_history(
                         agent_name=agent_name,
@@ -200,6 +217,11 @@ class ExecutionFacade:
             )
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise AgentExecutionError(error_msg) from e
+        finally:
+            # Ensure dynamically registered servers are cleaned up
+            if servers_to_unregister:
+                for server_name in servers_to_unregister:
+                    await self._host.unregister_client(server_name)
 
     async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}'")

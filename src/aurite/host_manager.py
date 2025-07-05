@@ -107,6 +107,7 @@ class AuriteKernel:
         if self.host:
             await self.host.__aexit__(None, None, None)
             self.host = None
+
         if self._db_engine:
             self._db_engine.dispose()
             self._db_engine = None
