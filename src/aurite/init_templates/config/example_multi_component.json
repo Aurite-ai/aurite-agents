@@ -23,49 +23,29 @@
     "name": "weather_server",
     "type": "mcp_server",
     "server_path": "mcp_servers/weather_server.py",
-    "capabilities": [
-      "tools",
-      "prompts"
-    ],
+    "capabilities": ["tools", "prompts"],
     "timeout": 15.0
   },
   {
     "name": "planning_server",
     "type": "mcp_server",
     "server_path": "mcp_servers/planning_server.py",
-    "capabilities": [
-      "tools",
-      "prompts",
-      "resources"
-    ],
+    "capabilities": ["tools", "prompts", "resources"],
     "timeout": 15.0
   },
   {
     "name": "Weather Agent",
     "type": "agent",
     "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
-    "mcp_servers": [
-      "weather_server"
-    ],
-    "llm_config_id": "anthropic_claude_3_haiku"
-  },
-  {
-    "name": "Weather Planning Workflow Step 2",
-    "type": "agent",
-    "mcp_servers": [
-      "planning_server"
-    ],
-    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
-    "llm_config_id": "my_openai_gpt4_turbo"
+    "mcp_servers": ["weather_server"],
+    "llm_config_id": "anthropic_claude_3_haiku",
+    "description": "An agent that retrieves mock weather data using the weather MCP server. ONLY supports New York, San Francisco, Tokyo, and London."
   },
   {
     "name": "Weather Planning Workflow",
     "type": "simple_workflow",
     "description": "A simple workflow to plan based on weather data.",
-    "steps": [
-      "Weather Agent",
-      "Weather Planning Workflow Step 2"
-    ]
+    "steps": ["Weather Agent", "Weather Planning Workflow Step 2"]
   },
   {
     "name": "ExampleCustomWorkflow",

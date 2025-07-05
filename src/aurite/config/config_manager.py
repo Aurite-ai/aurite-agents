@@ -256,6 +256,29 @@ class ConfigManager:
             self.refresh()
         return self._component_index
 
+    def get_component_index(self) -> List[Dict[str, Any]]:
+        """
+        Returns a flattened list of all indexed components, with their context.
+        """
+        if self._force_refresh:
+            self.refresh()
+
+        flat_list = []
+        for comp_type, components in self._component_index.items():
+            for comp_name, config in components.items():
+                item = {
+                    "name": comp_name,
+                    "component_type": comp_type,
+                    "project_name": config.get("_project_name"),
+                    "workspace_name": config.get("_workspace_name"),
+                    "source_file": config.get("_source_file"),
+                    "config": {
+                        k: v for k, v in config.items() if not k.startswith("_")
+                    },
+                }
+                flat_list.append(item)
+        return flat_list
+
     def refresh(self):
         logger.debug("Refreshing configuration index...")
         self.__init__()

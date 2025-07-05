@@ -1,21 +1,25 @@
 import asyncio
-import os
 import typer
-from pathlib import Path
-import shutil
-import importlib.resources
-import json
 from typing import Optional
 from rich.console import Console
-from rich.table import Table
-from rich.prompt import Confirm, Prompt
 
 # Relative imports from within the bin directory
+from .commands import (
+    init_project,
+    init_workspace,
+    interactive_init,
+)
+from .run import run_component
+from .show import show_components
+from .list import (
+    list_all,
+    list_components_by_type,
+    list_index,
+    list_workflows,
+)
 from ..api.api import start as start_api_server
 from ..tui.main import AuriteTUI
-from ...host_manager import Aurite
 from ...config.fast_loader import list_component_names
-from ...errors import AuriteError
 
 app = typer.Typer(
     name="aurite",
@@ -24,36 +28,25 @@ app = typer.Typer(
 )
 
 list_app = typer.Typer(
-    name="list", help="Inspect configurations for different component types."
+    name="list",
+    help="Inspect configurations for different component types.",
+    no_args_is_help=False,
+    invoke_without_command=True,
 )
-
 app.add_typer(list_app)
+
+
+@list_app.callback()
+def list_main(ctx: typer.Context):
+    """
+    Display the component index if no subcommand is specified.
+    """
+    if ctx.invoked_subcommand is None:
+        list_index()
+
 
 console = Console()
 logger = console.print
-
-
-def copy_project_template(project_path: Path):
-    """Copies the project template from the packaged data."""
-    try:
-        template_root = importlib.resources.files("aurite").joinpath("init_templates")
-
-        for item in template_root.iterdir():
-            source_path = template_root.joinpath(item.name)
-            dest_path = project_path / item.name
-            with importlib.resources.as_file(source_path) as sp:
-                if sp.is_dir():
-                    shutil.copytree(sp, dest_path)
-                else:
-                    shutil.copy2(sp, dest_path)
-
-    except (ModuleNotFoundError, FileNotFoundError):
-        logger(
-            "[bold red]Error:[/bold red] Could not find 'aurite' package data. Creating minimal project."
-        )
-        (project_path / "config").mkdir(exist_ok=True)
-        (project_path / "custom_workflows").mkdir(exist_ok=True)
-        (project_path / "mcp_servers").mkdir(exist_ok=True)
 
 
 @app.command()
@@ -84,135 +77,6 @@ def init(
         interactive_init()
 
 
-def init_workspace(name: Optional[str] = None):
-    """Initializes a new workspace to hold Aurite projects."""
-    if not name:
-        if Confirm.ask(
-            "[bold yellow]No workspace name provided.[/bold yellow] Make the current directory a new workspace?"
-        ):
-            workspace_path = Path.cwd()
-            name = workspace_path.name
-        else:
-            name = Prompt.ask(
-                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
-            )
-            workspace_path = Path(name)
-            workspace_path.mkdir()
-    else:
-        workspace_path = Path(name)
-        workspace_path.mkdir()
-
-    if (workspace_path / ".aurite").exists():
-        logger(
-            f"[bold red]Error:[/bold red] An .aurite file already exists at '{workspace_path}'."
-        )
-        raise typer.Exit(code=1)
-
-    (workspace_path / ".aurite").write_text(
-        '[aurite]\ntype = "workspace"\nprojects = []'
-    )
-    logger(f"Initialized new workspace '{name}'.")
-
-
-def init_project(name: Optional[str] = None):
-    """Initializes a new Aurite project."""
-    if not name:
-        name = Prompt.ask(
-            "[bold cyan]Project name[/bold cyan]", default="aurite-project"
-        )
-
-    project_path = Path(name)
-    if project_path.exists():
-        logger(f"[bold red]Error:[/bold red] Directory '{name}' already exists.")
-        raise typer.Exit(code=1)
-
-    project_path.mkdir()
-
-    logger(f"Creating project '{name}'...")
-    copy_project_template(project_path)
-
-    # Add project to workspace if applicable
-    workspace_path = None
-    for parent in project_path.resolve().parents:
-        if (parent / ".aurite").exists():
-            workspace_path = parent
-            break
-
-    if workspace_path:
-        try:
-            with open(workspace_path / ".aurite", "r+") as f:
-                content = f.read()
-                if "projects = []" in content:
-                    content = content.replace(
-                        "projects = []", f'projects = ["./{name}"]'
-                    )
-                elif "projects = [" in content:
-                    content = content.replace("]", f', "./{name}"]')
-
-                f.seek(0)
-                f.write(content)
-                f.truncate()
-            logger(f"Added project '{name}' to workspace '{workspace_path.name}'.")
-        except Exception as e:
-            logger(
-                f"[bold yellow]Warning:[/bold yellow] Could not automatically add project to workspace file: {e}"
-            )
-
-    logger(f"\n[bold green]Project '{name}' initialized successfully![/bold green]")
-    logger("\n[bold]Next steps:[/bold]")
-    logger(f"1. Navigate into your project: [cyan]cd {name}[/cyan]")
-    logger(
-        "2. Create and populate your [yellow].env[/yellow] file from [yellow].env.example[/yellow]."
-    )
-    logger("3. Start building your agents and workflows!")
-
-
-def interactive_init():
-    """Interactive initialization of a new Aurite project."""
-    # 1. Check for existing project
-    if Path(".aurite").exists():
-        logger(
-            "[bold red]Error:[/bold red] An .aurite file already exists in this directory. Cannot create a project in a project."
-        )
-        raise typer.Exit(code=1)
-
-    # 2. Check for workspace
-    workspace_path = None
-    for parent in Path.cwd().parents:
-        if (parent / ".aurite").exists():
-            workspace_path = parent
-            break
-
-    if not workspace_path:
-        if Confirm.ask(
-            "[bold yellow]No workspace found.[/bold yellow] Make the current directory a new workspace?"
-        ):
-            workspace_path = Path.cwd()
-            (workspace_path / ".aurite").write_text(
-                '[aurite]\ntype = "workspace"\nprojects = []'
-            )
-            logger("Initialized new workspace in current directory.")
-        elif Confirm.ask("Create a new workspace directory instead?"):
-            ws_name = Prompt.ask(
-                "[bold cyan]New workspace name[/bold cyan]", default="aurite-workspace"
-            )
-            new_workspace_path = Path(ws_name)
-            new_workspace_path.mkdir()
-            (new_workspace_path / ".aurite").write_text(
-                '[aurite]\ntype = "workspace"\nprojects = []'
-            )
-            logger(f"Workspace '{ws_name}' created. You are now inside of it.")
-            os.chdir(new_workspace_path)
-            # Update workspace_path to the new directory
-            workspace_path = new_workspace_path
-
-    # 3. Create the project
-    proj_name = Prompt.ask(
-        "[bold cyan]Project name[/bold cyan]", default="aurite-project"
-    )
-    init_project(proj_name)
-
-
 @app.command()
 def api():
     """
@@ -231,84 +95,92 @@ def tui():
     app.run()
 
 
+@app.command()
+def show(
+    name: str = typer.Argument(
+        ..., help="The name or type of the component(s) to show."
+    ),
+    full: bool = typer.Option(
+        False, "--full", "-f", help="Display the full configuration."
+    ),
+    short: bool = typer.Option(False, "--short", "-s", help="Display a short summary."),
+):
+    """Displays the configuration for a component or all components of a type."""
+    show_components(name, full=full, short=short)
+
+
 # --- List Commands ---
 
 
-def _get_aurite_instance() -> Aurite:
-    """Helper to instantiate Aurite, automatically finding the project root."""
-    # This helper now correctly finds the root to initialize Aurite from.
-    # It looks for an .aurite file in the current dir or any parent dir.
-    return Aurite(start_dir=Path.cwd())
-
-
 @list_app.command("all")
-def list_all():
+def list_all_cmd():
     """Lists all available component configurations, grouped by type."""
-    aurite = _get_aurite_instance()
-    all_configs = aurite.get_config_manager().get_all_configs()
-    for comp_type, configs in all_configs.items():
-        logger(f"\n[bold cyan]{comp_type.replace('_', ' ').title()}[/bold cyan]")
-        if not configs:
-            logger("  No configurations found.")
-            continue
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Name")
-        table.add_column("Details")
-        for name, config in configs.items():
-            details = f"Provider: {config.get('provider', 'N/A')}, Model: {config.get('model', 'N/A')}"
-            if comp_type == "agents":
-                details = f"LLM: {config.get('llm_config_id', 'N/A')}, Servers: {len(config.get('mcp_servers', []))}"
-            table.add_row(name, details)
-        console.print(table)
+    list_all()
 
 
 @list_app.command("agents")
-def list_agents():
+def list_agents_cmd():
     """Lists all available agent configurations."""
-    aurite = _get_aurite_instance()
-    configs = aurite.get_config_manager().list_configs("agent")
-    # Similar table rendering as above
-    table = Table(title="Agents")
-    table.add_column("Name", style="cyan")
-    table.add_column("LLM Config")
-    table.add_column("MCP Servers")
-    for config in configs:
-        table.add_row(
-            config.get("name"),
-            config.get("llm_config_id"),
-            str(config.get("mcp_servers", [])),
-        )
-    console.print(table)
+    list_components_by_type("agent")
 
 
-# ... (Implement other list commands: llms, simple-workflows, etc. in a similar fashion)
+@list_app.command("llms")
+def list_llms_cmd():
+    """Lists all available LLM configurations."""
+    list_components_by_type("llm")
+
+
+@list_app.command("mcp_servers")
+def list_mcp_servers_cmd():
+    """Lists all available MCP server configurations."""
+    list_components_by_type("mcp_server")
+
+
+@list_app.command("simple_workflows")
+def list_simple_workflows_cmd():
+    """Lists all available simple workflow configurations."""
+    list_components_by_type("simple_workflow")
+
+
+@list_app.command("custom_workflows")
+def list_custom_workflows_cmd():
+    """Lists all available custom workflow configurations."""
+    list_components_by_type("custom_workflow")
+
+
+@list_app.command("workflows")
+def list_workflows_cmd():
+    """Lists all available workflow configurations."""
+    list_workflows()
+
+
+@list_app.command("index")
+def list_index_cmd():
+    """Prints the entire component index as a formatted JSON."""
+    list_index()
+
 
 # --- Completion Functions ---
 
 
 def complete_component_type(incomplete: str):
     """Provides completion for component types."""
-    types = ["agent", "simple-workflow", "custom-workflow"]
+    types = ["agent", "simple_workflow", "custom_workflow"]
     for comp_type in types:
         if comp_type.startswith(incomplete):
             yield comp_type
 
 
-def complete_component_name(ctx: typer.Context):
-    """
-    Provides completion for component names based on the component_type argument.
-    """
-    # The component_type is in the command's arguments list
-    comp_type_arg = None
-    if ctx.args:
-        comp_type_arg = ctx.args[0]
+def complete_runnable_component_name(incomplete: str):
+    """Provides completion for runnable component names."""
+    # This is a simplified example. A real implementation would use the
+    # config manager to get a list of all runnable components.
+    all_names = []
+    for comp_type in ["agent", "simple_workflow", "custom_workflow"]:
+        all_names.extend(list_component_names(comp_type))
 
-    if comp_type_arg:
-        # Typer might add quotes, remove them
-        comp_type_clean = comp_type_arg.strip("'\"")
-        # Use the fast loader to get names
-        names = list_component_names(comp_type_clean)
-        for name in names:
+    for name in all_names:
+        if name.startswith(incomplete):
             yield name
 
 
@@ -317,15 +189,10 @@ def complete_component_name(ctx: typer.Context):
 
 @app.command()
 def run(
-    component_type: str = typer.Argument(
-        ...,
-        help="The type of component to run (agent, simple-workflow, custom-workflow).",
-        autocompletion=complete_component_type,
-    ),
     name: str = typer.Argument(
         ...,
         help="The name of the component to run.",
-        autocompletion=complete_component_name,
+        autocompletion=complete_runnable_component_name,
     ),
     user_message: Optional[str] = typer.Argument(
         None, help="The user message or initial input."
@@ -339,62 +206,10 @@ def run(
 ):
     """Executes a framework component."""
 
-    async def main():
-        try:
-            # Use the same root-finding logic for the run command
-            async with Aurite(start_dir=Path.cwd()) as aurite:
-                if component_type == "agent":
-                    if not user_message:
-                        logger(
-                            "[bold red]Error:[/bold red] A user message is required to run an agent."
-                        )
-                        raise typer.Exit(code=1)
-                    result = await aurite.run_agent(
-                        agent_name=name,
-                        user_message=user_message,
-                        system_prompt=system_prompt,
-                        session_id=session_id,
-                    )
-                    logger("[bold]Agent Run Result:[/bold]")
-                    console.print(result)
-                elif component_type == "simple-workflow":
-                    if not user_message:
-                        logger(
-                            "[bold red]Error:[/bold red] An initial input is required to run a simple workflow."
-                        )
-                        raise typer.Exit(code=1)
-                    result = await aurite.run_simple_workflow(
-                        workflow_name=name, initial_input=user_message
-                    )
-                    logger("[bold]Simple Workflow Result:[/bold]")
-                    console.print(result)
-                elif component_type == "custom-workflow":
-                    if not user_message:
-                        logger(
-                            "[bold red]Error:[/bold red] An initial input is required to run a custom workflow."
-                        )
-                        raise typer.Exit(code=1)
-                    try:
-                        parsed_input = json.loads(user_message)
-                    except json.JSONDecodeError:
-                        parsed_input = user_message
-                    result = await aurite.run_custom_workflow(
-                        workflow_name=name,
-                        initial_input=parsed_input,
-                        session_id=session_id,
-                    )
-                    logger("[bold]Custom Workflow Result:[/bold]")
-                    console.print(result)
-                else:
-                    logger(
-                        f"[bold red]Error:[/bold red] Unknown component type '{component_type}'."
-                    )
-                    raise typer.Exit(code=1)
-        except AuriteError as e:
-            logger(f"[bold red]Framework Error:[/bold red] {e}")
-            raise typer.Exit(code=1)
+    async def main_run():
+        await run_component(name, user_message, system_prompt, session_id)
 
-    asyncio.run(main())
+    asyncio.run(main_run())
 
 
 if __name__ == "__main__":

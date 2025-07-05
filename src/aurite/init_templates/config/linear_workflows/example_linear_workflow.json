@@ -6,6 +6,6 @@
       "Weather Agent",
       "Weather Planning Workflow Step 2"
     ],
-    "description": "Example workflow to test simple workflow execution using agents in a sequence."
+    "description": "A workflow to test weather-related tasks. The Weather Agent ONLY supports New York, San Francisco, Tokyo, and London with fixed responses."
   }
 ]

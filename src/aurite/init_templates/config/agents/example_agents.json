@@ -1,13 +1,7 @@
 [
   {
-    "name": "Mapping Agent",
-    "type": "agent",
-    "mcp_servers": ["address_server"],
-    "system_prompt": "You are a helpful assistant specializing in maps and directions. Use the tools to help the user with their requests.",
-    "llm_config_id": "my_openai_gpt4_turbo"
-  },
-  {
     "name": "Simple Planning Agent",
+    "description": "An agent that creates a step-by-step plan based on the user's request.",
     "type": "agent",
     "mcp_servers": [],
     "system_prompt": "Your job is to create a step by step plan based on the user's request. Think carefully about what steps are needed to achieve their goal. For each step, include a title and a one sentence summary.",
@@ -15,7 +9,16 @@
     "evaluation": "planning_agent_test.json"
   },
   {
+    "name": "Weather Planning Workflow Step 2",
+    "type": "agent",
+    "mcp_servers": ["planning_server"],
+    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
+    "llm_config_id": "default",
+    "description": "An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan."
+  },
+  {
     "name": "Structured Output Weather Agent",
+    "description": "An agent that retrieves mock weather information and provides structured output.",
     "type": "agent",
     "mcp_servers": ["weather_server"],
     "llm_config_id": "my_openai_gpt4_turbo",
@@ -54,9 +57,10 @@
   },
   {
     "name": "Weather Planning Agent",
+    "description": "An agent that uses mock weather data to create a plan for what to wear based on the weather conditions.",
     "type": "agent",
     "mcp_servers": ["weather_server", "planning_server"],
-    "llm_config_id": "my_openai_gpt4_turbo",
+    "llm_config_id": "default",
     "system_prompt": "Your job is to use the tools at your disposal to learn the weather information needed in order to assist the user. If requested by the user, you should use the planning tools to save a plan. This plan should explain what to wear based on the weather data you retrieve."
   }
 ]
