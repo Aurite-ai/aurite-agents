@@ -26,23 +26,50 @@ from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from .config.config_manager import ConfigManager
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
+from .storage.cache_manager import CacheManager
 from .storage.db_connection import create_db_engine
 from .storage.db_manager import StorageManager
 
 logger = logging.getLogger(__name__)
 
-try:
-    from .bin.logging_config import setup_logging
+# Global flag to track if logging has been disabled
+_logging_disabled = False
 
-    log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
-    numeric_level = getattr(logging, log_level_str, logging.INFO)
-    setup_logging(level=numeric_level)
-except ImportError:
-    logger.warning("aurite.bin.logging_config not found. Colored logging will not be applied.")
-    if not logging.getLogger().hasHandlers():
-        log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
-        numeric_level = getattr(logging, log_level_str, logging.INFO)
-        logging.basicConfig(level=numeric_level)
+
+def disable_all_logging():
+    """Disable all logging globally."""
+    global _logging_disabled
+    _logging_disabled = True
+    # Disable all logging by setting the root logger to CRITICAL+1
+    logging.getLogger().setLevel(logging.CRITICAL + 1)
+    # Also disable all existing handlers
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+
+def _setup_logging_if_needed(disable_logging: bool = False):
+    """Setup logging configuration unless explicitly disabled."""
+    global _logging_disabled
+
+    if disable_logging or _logging_disabled:
+        disable_all_logging()
+        return
+
+    # Only setup logging if it hasn't been disabled
+    if not _logging_disabled:
+        try:
+            from .bin.logging_config import setup_logging
+
+            log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+            numeric_level = getattr(logging, log_level_str, logging.INFO)
+            setup_logging(level=numeric_level)
+        except ImportError:
+            logger.warning("aurite.bin.logging_config not found. Colored logging will not be applied.")
+            if not logging.getLogger().hasHandlers():
+                log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+                numeric_level = getattr(logging, log_level_str, logging.INFO)
+                logging.basicConfig(level=numeric_level)
 
 
 class DuplicateClientIdError(ValueError):
@@ -62,16 +89,20 @@ class AuriteKernel:
     class will manage.
     """
 
-    def __init__(self, start_dir: Optional[Path] = None):
+    def __init__(self, start_dir: Optional[Path] = None, disable_logging: bool = False):
         if start_dir and isinstance(start_dir, str):
             start_dir = Path(start_dir).resolve()
         elif start_dir is None:
             start_dir = Path(os.getcwd()).resolve()
 
+        # Setup logging based on the disable_logging flag
+        _setup_logging_if_needed(disable_logging)
+
         self.config_manager = ConfigManager(start_dir=start_dir)
         self.project_root = self.config_manager.project_root
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
+        self.cache_manager = CacheManager()
         self._db_engine = None
         self._is_shut_down = False
 
@@ -84,6 +115,7 @@ class AuriteKernel:
             config_manager=self.config_manager,
             host_instance=self.host,
             storage_manager=self.storage_manager,
+            cache_manager=self.cache_manager,
         )
         logger.debug(f"Aurite Kernel initialized for project root: {self.project_root}")
 
@@ -129,9 +161,9 @@ class Aurite:
     for subprocesses conflicts with the main `asyncio` event loop.
     """
 
-    def __init__(self, start_dir: Optional[Path] = None):
+    def __init__(self, start_dir: Optional[Path] = None, disable_logging: bool = False):
         # The kernel holds the actual state and core components.
-        self.kernel = AuriteKernel(start_dir=start_dir)
+        self.kernel = AuriteKernel(start_dir=start_dir, disable_logging=disable_logging)
         # We capture the event loop on initialization to ensure we can
         # schedule the shutdown correctly, even if the loop is manipulated later.
         self._loop = asyncio.get_event_loop()

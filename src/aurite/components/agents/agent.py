@@ -149,6 +149,7 @@ class Agent:
 
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
+        llm_started = False
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Starting conversation turn {current_iteration + 1}")
@@ -175,8 +176,9 @@ class Agent:
                         if not event["choices"]:
                             continue
                         delta = event["choices"][0].get("delta", {})
-                        if delta.get("role") == "assistant":
+                        if delta.get("role") == "assistant" and not llm_started:
                             yield {"type": "llm_response_start", "data": {}}
+                            llm_started = True
                         if content := delta.get("content"):
                             yield {"type": "llm_response", "data": {"content": content}}
                         continue

@@ -25,16 +25,37 @@ class RunPresenter:
         """
         Renders the event stream from a component run.
         """
-        self._render_header(component_info)
+        if self.mode == "default":
+            self._render_header(component_info)
 
+        final_output = ""
         try:
             async for event in stream:
                 event_type = event.get("type")
-                handler = getattr(self, f"_handle_{event_type}", self._handle_unknown)
-                await handler(event.get("data", {}))
+                event_data = event.get("data", {})
+
+                # Accumulate final output for 'short' mode
+                if event_type == "llm_response":
+                    self._full_response += event_data.get("content", "")
+                elif event_type == "llm_response_stop":
+                    final_output = self._full_response
+                elif event_type == "tool_output":
+                    final_output = event_data.get("output", "")
+
+                # Handle different display modes
+                if self.mode == "debug":
+                    console.print(event)
+                elif self.mode == "default":
+                    handler = getattr(self, f"_handle_{event_type}", self._handle_unknown)
+                    await handler(event_data)
+
         finally:
             if self._live and self._live.is_started:
                 self._live.stop()
+            if self.mode == "short":
+                console.print(
+                    f"[bold green]✔[/bold green] {component_info.get('name', 'Component')} finished: {str(final_output).strip()}"
+                )
 
     def _render_header(self, component_info: Dict[str, Any]):
         """Renders the initial header for the component run."""
@@ -62,19 +83,14 @@ class RunPresenter:
         console.print(panel)
 
     async def _handle_llm_response_start(self, data: Dict[str, Any]):
-        if not self._live or not self._live.is_started:
-            self._live = Live(console=console, auto_refresh=False)
-            self._live.start()
+        # No longer using Live, so this is a no-op
+        pass
 
     async def _handle_llm_response(self, data: Dict[str, Any]):
-        if self._live:
-            content = data.get("content", "")
-            self._full_response += content
-            self._live.update(Text(self._full_response, "bright_white"), refresh=True)
+        content = data.get("content", "")
+        self._full_response += content
 
     async def _handle_llm_response_stop(self, data: Dict[str, Any]):
-        if self._live:
-            self._live.stop()
         console.print(
             Panel(
                 Text(self._full_response, "bright_white"),

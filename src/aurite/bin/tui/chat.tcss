@@ -1,0 +1,114 @@
+/* Textual CSS for the chat interface */
+
+/* Main container styling */
+#main-container {
+    height: 100%;
+    width: 100%;
+}
+
+#chat-container {
+    height: 100%;
+    width: 100%;
+}
+
+/* Chat header styling */
+#chat-header {
+    height: 4;
+    padding: 1;
+    background: $surface;
+    border: solid $primary;
+    margin-bottom: 1;
+}
+
+/* Chat history area */
+#chat-history {
+    height: 1fr;
+    padding: 1;
+    background: $surface;
+    border: solid $primary;
+    margin-bottom: 1;
+}
+
+/* Input container */
+#input-container {
+    height: 3;
+    padding: 0 1;
+}
+
+#message-input {
+    width: 1fr;
+    background: $surface;
+    border: solid $accent;
+}
+
+#message-input:focus {
+    border: solid $primary;
+}
+
+/* Message styling */
+.user-message {
+    margin: 1 0;
+    padding: 1;
+    background: $success-darken-1;
+    border-left: thick $success;
+}
+
+.agent-message {
+    margin: 1 0;
+    padding: 1;
+    background: $primary-darken-3;
+    border-left: thick $primary;
+}
+
+.agent-label {
+    margin-bottom: 1;
+}
+
+.agent-response {
+    background: transparent;
+    padding: 0;
+}
+
+/* Tool message styling */
+.tool-message {
+    margin: 1 0;
+    padding: 1;
+    background: $warning-darken-2;
+    border-left: thick $warning;
+}
+
+.tool-output-message {
+    margin: 1 0;
+    padding: 1;
+    background: $success-darken-2;
+    border-left: thick $success;
+}
+
+/* Status message styling */
+.status-message {
+    margin: 1 0;
+    padding: 1;
+    background: $surface-lighten-1;
+    border-left: thick $accent;
+    text-align: center;
+}
+
+/* Scrollbar styling */
+ScrollBar {
+    background: $surface;
+    color: $primary;
+}
+
+ScrollBar:hover {
+    background: $surface-lighten-1;
+}
+
+/* Footer styling */
+Footer {
+    background: $surface;
+}
+
+/* Header styling */
+Header {
+    background: $primary;
+}

@@ -26,6 +26,7 @@ from ..errors import (
     WorkflowExecutionError,
 )
 from ..host.host import MCPHost
+from ..storage.cache_manager import CacheManager
 from ..storage.db_manager import StorageManager
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class ExecutionFacade:
         config_manager: "ConfigManager",
         host_instance: "MCPHost",
         storage_manager: Optional["StorageManager"] = None,
+        cache_manager: Optional["CacheManager"] = None,
     ):
         if not config_manager:
             raise ValueError("ConfigManager instance is required for ExecutionFacade.")
@@ -51,6 +53,7 @@ class ExecutionFacade:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
+        self._cache_manager = cache_manager
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
@@ -110,8 +113,13 @@ class ExecutionFacade:
             raise ConfigurationError(f"Could not determine LLM configuration for Agent '{agent_name}'.")
 
         initial_messages: List[Dict[str, Any]] = []
-        if agent_config_for_run.include_history and self._storage_manager and session_id:
-            history = self._storage_manager.load_history(agent_name, session_id)
+        if agent_config_for_run.include_history and session_id:
+            history = None
+            if self._storage_manager:
+                history = self._storage_manager.load_history(agent_name, session_id)
+            elif self._cache_manager:
+                history = self._cache_manager.get_history(session_id)
+
             if history:
                 initial_messages.extend(history)
 
@@ -158,6 +166,29 @@ class ExecutionFacade:
             # Re-raise to be caught by the final `finally` block for cleanup
             raise AgentExecutionError(error_msg) from e
         finally:
+            # Save history at the end of the stream
+            if agent_instance and agent_instance.config.include_history and session_id:
+                if self._storage_manager:
+                    try:
+                        self._storage_manager.save_full_history(
+                            agent_name=agent_name,
+                            session_id=session_id,
+                            conversation=agent_instance.conversation_history,
+                        )
+                        logger.info(
+                            f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
+                            exc_info=True,
+                        )
+                elif self._cache_manager:
+                    self._cache_manager.save_history(session_id, agent_instance.conversation_history)
+                    logger.info(
+                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to in-memory cache."
+                    )
+
             # Ensure dynamically registered servers are cleaned up
             if servers_to_unregister:
                 for server_name in servers_to_unregister:

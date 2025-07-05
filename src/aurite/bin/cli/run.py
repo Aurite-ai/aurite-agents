@@ -34,31 +34,58 @@ async def run_component(
     if debug:
         output_mode = "debug"
 
+    aurite = None
     try:
-        async with Aurite(start_dir=Path.cwd()) as aurite:
-            component_index = aurite.kernel.config_manager.get_component_index()
-            found_components = [item for item in component_index if item["name"] == name]
+        aurite = Aurite(start_dir=Path.cwd())
+        await aurite._ensure_initialized()
 
-            if not found_components:
-                logger(f"Component '{name}' not found.")
-                return
+        component_index = aurite.kernel.config_manager.get_component_index()
+        found_components = [item for item in component_index if item["name"] == name]
 
-            component_to_run = next(
-                (
-                    comp
-                    for comp in found_components
-                    if comp["component_type"] in ["agent", "simple_workflow", "custom_workflow"]
-                ),
-                found_components[0],
-            )
+        if not found_components:
+            logger(f"Component '{name}' not found.")
+            return
 
-            component_type = component_to_run["component_type"]
-            presenter = RunPresenter(mode=output_mode)
+        component_to_run = next(
+            (
+                comp
+                for comp in found_components
+                if comp["component_type"] in ["agent", "simple_workflow", "custom_workflow"]
+            ),
+            found_components[0],
+        )
 
-            if component_type == "agent":
-                if not user_message:
-                    logger("[bold red]Error:[/bold red] A user message is required to run an agent.")
-                    return
+        component_type = component_to_run["component_type"]
+
+        if component_type == "agent":
+            if not user_message:
+                # Interactive mode - use Textual TUI
+                from ..tui.chat import TextualChatApp
+
+                if not session_id:
+                    logger(
+                        "[bold yellow]Warning:[/bold yellow] No --session-id provided. History will not be saved across runs."
+                    )
+
+                logger(f"[bold cyan]Launching interactive chat with agent: {name}[/bold cyan]")
+
+                # Create and run the textual chat app with logging disabled
+                chat_app = TextualChatApp(
+                    agent_name=name,
+                    session_id=session_id,
+                    system_prompt=system_prompt,
+                    start_dir=Path.cwd(),
+                )
+
+                try:
+                    await chat_app.run_async()
+                except KeyboardInterrupt:
+                    pass
+                finally:
+                    logger("[bold cyan]Exiting interactive chat.[/bold cyan]")
+            else:
+                # Single-shot mode
+                presenter = RunPresenter(mode=output_mode)
                 stream = aurite.stream_agent(
                     agent_name=name,
                     user_message=user_message,
@@ -67,36 +94,37 @@ async def run_component(
                 )
                 await presenter.render_stream(stream, component_to_run)
 
-            elif component_type in ["simple_workflow", "custom_workflow"]:
-                if not user_message:
-                    logger(f"[bold red]Error:[/bold red] An initial input is required to run a {component_type}.")
-                    return
+        elif component_type in ["simple_workflow", "custom_workflow"]:
+            presenter = RunPresenter(mode=output_mode)
+            if not user_message:
+                logger(f"[bold red]Error:[/bold red] An initial input is required to run a {component_type}.")
+                return
 
-                async def workflow_streamer():
-                    yield {"type": "workflow_step_start", "data": {"name": name}}
-                    try:
-                        if component_type == "simple_workflow":
-                            result = await aurite.run_simple_workflow(workflow_name=name, initial_input=user_message)
-                        else:
-                            try:
-                                parsed_input = json.loads(user_message)
-                            except json.JSONDecodeError:
-                                parsed_input = user_message
-                            result = await aurite.run_custom_workflow(
-                                workflow_name=name,
-                                initial_input=parsed_input,
-                                session_id=session_id,
-                            )
-                        yield {"type": "tool_output", "data": {"name": "Workflow Result", "output": str(result)}}
-                    except Exception as e:
-                        yield {"type": "error", "data": {"message": str(e)}}
-                    finally:
-                        yield {"type": "workflow_step_end", "data": {"name": name}}
+            async def workflow_streamer():
+                yield {"type": "workflow_step_start", "data": {"name": name}}
+                try:
+                    if component_type == "simple_workflow":
+                        result = await aurite.run_simple_workflow(workflow_name=name, initial_input=user_message)
+                    else:
+                        try:
+                            parsed_input = json.loads(user_message)
+                        except json.JSONDecodeError:
+                            parsed_input = user_message
+                        result = await aurite.run_custom_workflow(
+                            workflow_name=name,
+                            initial_input=parsed_input,
+                            session_id=session_id,
+                        )
+                    yield {"type": "tool_output", "data": {"name": "Workflow Result", "output": str(result)}}
+                except Exception as e:
+                    yield {"type": "error", "data": {"message": str(e)}}
+                finally:
+                    yield {"type": "workflow_step_end", "data": {"name": name}}
 
-                await presenter.render_stream(workflow_streamer(), component_to_run)
+            await presenter.render_stream(workflow_streamer(), component_to_run)
 
-            else:
-                logger(f"Component '{name}' is of type '{component_type}', which is not runnable.")
+        else:
+            logger(f"Component '{name}' is of type '{component_type}', which is not runnable.")
 
     except AuriteError as e:
         # Use a simple panel for top-level errors
@@ -107,3 +135,6 @@ async def run_component(
                 border_style="red",
             )
         )
+    finally:
+        if aurite:
+            await aurite.kernel.shutdown()

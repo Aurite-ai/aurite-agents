@@ -179,8 +179,8 @@ def complete_runnable_component_name(incomplete: str):
 
 @app.command()
 def run(
-    name: str = typer.Argument(
-        ...,
+    name: Optional[str] = typer.Argument(
+        None,
         help="The name of the component to run.",
         autocompletion=complete_runnable_component_name,
     ),
@@ -193,6 +193,11 @@ def run(
     """Executes a framework component."""
 
     async def main_run():
+        if not name:
+            # This is a placeholder for a future interactive agent selection TUI
+            console.print("[bold yellow]Interactive agent selection is not yet implemented.[/bold yellow]")
+            console.print("Please provide an agent name to run.")
+            return
         await run_component(name, user_message, system_prompt, session_id, short, debug)
 
     asyncio.run(main_run())
