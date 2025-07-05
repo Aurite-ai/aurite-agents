@@ -1,81 +1,27 @@
 import pytest
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
-import tempfile
-import os
 
 from aurite.host_manager import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
 from openai.types.chat import ChatCompletionMessage
 
 
-@pytest.fixture
-def temp_project_root():
-    """Creates a temporary directory for a test project."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_root = Path(temp_dir)
-        (project_root / "config").mkdir()
-
-        # Create a monolithic config file for the workflow test
-        config_data = {
-            "agents": [
-                {"name": "Weather Agent", "llm_config_id": "test_llm"},
-            ],
-            "llms": [{"name": "test_llm", "provider": "test", "model": "test"}],
-            "custom_workflows": [
-                {
-                    "name": "TestRefactoredWorkflow",
-                    "module_path": "tests/fixtures/fixture_custom_workflow.py",
-                    "class_name": "TestRefactoredAgentWorkflow",
-                    "description": "A workflow for testing the refactored agent.",
-                }
-            ],
-        }
-        with open(project_root / "config" / "custom_workflow_project.json", "w") as f:
-            json.dump(config_data, f)
-
-        # Create the fixture file inside the temp directory
-        fixture_path = project_root / "tests" / "fixtures"
-        fixture_path.mkdir(parents=True)
-        (fixture_path / "fixture_custom_workflow.py").write_text("""
-from aurite.components.workflows.custom_workflow import BaseCustomWorkflow
-from aurite.components.agents.agent_models import AgentRunResult
-
-class TestRefactoredAgentWorkflow(BaseCustomWorkflow):
-    async def run(self, initial_input: str) -> dict:
-        result: AgentRunResult = await self.run_agent("Weather Agent", initial_input)
-        if result.status == "success":
-            return {"status": "ok", "response": result.final_response.content}
-        else:
-            return {"status": "error", "response": result.error_message}
-""")
-
-        # Create the anchor file
-        (project_root / ".aurite").touch()
-
-        # Yield and change back directory
-        original_cwd = Path.cwd()
-        os.chdir(project_root)
-        yield project_root
-        os.chdir(original_cwd)
-
-
 @pytest.mark.anyio
 @pytest.mark.orchestration
 @pytest.mark.integration
-@patch("importlib.resources.files")
-async def test_custom_workflow_with_refactored_agent_run(mock_files, temp_project_root):
+async def test_custom_workflow_with_refactored_agent_run():
     """
     Tests that a custom workflow can successfully call the refactored run_agent method
-    and handle the AgentRunResult.
+    and handle the AgentRunResult, using the packaged example project.
     """
     # Arrange
-    mock_files.return_value.joinpath.return_value.is_dir.return_value = False
+    example_project_path = Path("src/aurite/init_templates").resolve()
 
-    async with Aurite() as aurite:
-        execution_facade = aurite.execution
+    async with Aurite(start_dir=example_project_path) as aurite:
+        execution_facade = aurite.kernel.execution
 
+        # Mock the underlying run_agent call to isolate the workflow logic
         mock_run_agent = patch.object(
             execution_facade,
             "run_agent",
@@ -91,15 +37,19 @@ async def test_custom_workflow_with_refactored_agent_run(mock_files, temp_projec
         ).start()
 
         # Act
+        # Use the custom workflow from the example project
         result = await execution_facade.run_custom_workflow(
-            workflow_name="TestRefactoredWorkflow", initial_input="What is the weather?"
+            workflow_name="Example Custom Workflow",
+            initial_input={"city": "New York"},
         )
 
         # Assert
+        # The example workflow is designed to return a dict
         assert result == {"status": "ok", "response": "It is sunny."}
+        # The example workflow calls the "Weather Agent"
         mock_run_agent.assert_called_once_with(
             agent_name="Weather Agent",
-            user_message="What is the weather?",
+            user_message="What is the weather in New York?",
             session_id=None,
         )
         patch.stopall()

@@ -206,11 +206,11 @@ class SimpleWorkflowExecutor:
     def _infer_component_type(self, component_name: str):
         """Search through the project's defined components to find the type of a component"""
         possible_types = []
-        if self.facade._config_manager.get_config("agents", component_name):
+        if self.facade._config_manager.get_config("agent", component_name):
             possible_types.append("agent")
-        if self.facade._config_manager.get_config("simple_workflows", component_name):
+        if self.facade._config_manager.get_config("simple_workflow", component_name):
             possible_types.append("simple_workflow")
-        if self.facade._config_manager.get_config("custom_workflows", component_name):
+        if self.facade._config_manager.get_config("custom_workflow", component_name):
             possible_types.append("custom_workflow")
 
         if len(possible_types) == 1:

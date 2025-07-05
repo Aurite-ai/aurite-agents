@@ -39,7 +39,7 @@ def test_convert_tools_to_openai_format_with_type(basic_llm_config: LLMConfig):
     tools = [
         {
             "name": "get_weather",
-            "input_schema": {"type": "object", "properties": {}},
+            "inputSchema": {"type": "object", "properties": {}},
         }
     ]
     formatted_tools = client._convert_tools_to_openai_format(tools)
@@ -52,7 +52,7 @@ def test_convert_tools_to_openai_format_without_type(basic_llm_config: LLMConfig
     Tests that 'type' is defaulted to 'object' if missing in the input_schema.
     """
     client = LiteLLMClient(config=basic_llm_config)
-    tools = [{"name": "get_weather", "input_schema": {"properties": {}}}]
+    tools = [{"name": "get_weather", "inputSchema": {"properties": {}}}]
     formatted_tools = client._convert_tools_to_openai_format(tools)
     assert formatted_tools is not None
     assert formatted_tools[0]["function"]["parameters"]["type"] == "object"

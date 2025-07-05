@@ -1,8 +1,9 @@
 [
   {
     "name": "test_weather_workflow",
+    "type": "simple_workflow",
     "steps": [
-      "Weather Planning Workflow Step 1",
+      "Weather Agent",
       "Weather Planning Workflow Step 2"
     ],
     "description": "Example workflow to test simple workflow execution using agents in a sequence."

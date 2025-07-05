@@ -1,6 +1,7 @@
 [
   {
     "name": "weather_server",
+    "type": "mcp_server",
     "server_path": "mcp_servers/weather_server.py",
     "transport_type": "stdio",
     "capabilities": ["tools", "prompts"],
@@ -8,6 +9,7 @@
   },
   {
     "name": "planning_server",
+    "type": "mcp_server",
     "server_path": "mcp_servers/planning_server.py",
     "transport_type": "stdio",
     "capabilities": ["tools", "prompts", "resources"],

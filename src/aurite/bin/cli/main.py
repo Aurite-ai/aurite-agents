@@ -127,7 +127,6 @@ def init_project(name: Optional[str] = None):
         raise typer.Exit(code=1)
 
     project_path.mkdir()
-    (project_path / ".aurite").touch()
 
     logger(f"Creating project '{name}'...")
     copy_project_template(project_path)
@@ -237,7 +236,9 @@ def tui():
 
 def _get_aurite_instance() -> Aurite:
     """Helper to instantiate Aurite, automatically finding the project root."""
-    return Aurite()
+    # This helper now correctly finds the root to initialize Aurite from.
+    # It looks for an .aurite file in the current dir or any parent dir.
+    return Aurite(start_dir=Path.cwd())
 
 
 @list_app.command("all")
@@ -265,7 +266,7 @@ def list_all():
 def list_agents():
     """Lists all available agent configurations."""
     aurite = _get_aurite_instance()
-    configs = aurite.get_config_manager().list_configs("agents")
+    configs = aurite.get_config_manager().list_configs("agent")
     # Similar table rendering as above
     table = Table(title="Agents")
     table.add_column("Name", style="cyan")
@@ -340,7 +341,8 @@ def run(
 
     async def main():
         try:
-            async with Aurite() as aurite:
+            # Use the same root-finding logic for the run command
+            async with Aurite(start_dir=Path.cwd()) as aurite:
                 if component_type == "agent":
                     if not user_message:
                         logger(

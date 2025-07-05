@@ -16,6 +16,15 @@ from pydantic import BaseModel, Field, model_validator  # Use model_validator
 logger = logging.getLogger(__name__)
 
 
+class BaseComponentConfig(BaseModel):
+    """A base model for all components, providing common fields."""
+
+    name: str = Field(description="The unique name of the component.")
+    description: Optional[str] = Field(
+        default=None, description="A brief description of the component."
+    )
+
+
 class RootConfig(BaseModel):
     """Configuration for an MCP root"""
 
@@ -26,10 +35,10 @@ class RootConfig(BaseModel):
     )
 
 
-class ClientConfig(BaseModel):
+class ClientConfig(BaseComponentConfig):
     """Configuration for an MCP client"""
 
-    name: str = Field(description="Unique name for the MCP server client.")
+    type: Literal["mcp_server"] = "mcp_server"
     transport_type: Optional[Literal["stdio", "http_stream", "local"]] = Field(
         default=None, description="The transport type for the client."
     )
@@ -133,15 +142,12 @@ class ClientConfig(BaseModel):
         return values
 
 
-class HostConfig(BaseModel):
+class HostConfig(BaseComponentConfig):
     """Configuration for the MCP host"""
 
+    type: Literal["host"] = "host"
     mcp_servers: List[ClientConfig] = Field(
         description="A list of MCP server client configurations."
-    )
-    name: Optional[str] = Field(default=None, description="The name of the host.")
-    description: Optional[str] = Field(
-        default=None, description="A description of the host."
     )
 
 
@@ -152,27 +158,24 @@ class WorkflowComponent(BaseModel):
     )
 
 
-class WorkflowConfig(BaseModel):
+class WorkflowConfig(BaseComponentConfig):
     """
     Configuration for a simple, sequential agent workflow.
     """
 
-    name: str = Field(description="The unique name of the workflow.")
+    type: Literal["simple_workflow"] = "simple_workflow"
     steps: List[str | WorkflowComponent] = Field(
         description="List of component names or component objects to execute in sequence."
-    )
-    description: Optional[str] = Field(
-        default=None, description="A description of the workflow."
     )
 
 
 # --- LLM Configuration ---
 
 
-class LLMConfig(BaseModel):
+class LLMConfig(BaseComponentConfig):
     """Configuration for a specific LLM setup."""
 
-    name: str = Field(description="Unique identifier for this LLM configuration.")
+    type: Literal["llm"] = "llm"
     provider: str = Field(
         description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini')."
     )
@@ -237,7 +240,7 @@ class LLMConfigOverrides(BaseModel):
 # --- Agent Configuration ---
 
 
-class AgentConfig(BaseModel):
+class AgentConfig(BaseComponentConfig):
     """
     Configuration for an Agent instance.
 
@@ -245,10 +248,7 @@ class AgentConfig(BaseModel):
     that provides the necessary MCP clients and capabilities.
     """
 
-    # Optional name for the agent instance
-    name: Optional[str] = Field(
-        default=None, description="A unique name for the agent instance."
-    )
+    type: Literal["agent"] = "agent"
     # Link to the Host configuration defining available clients/capabilities
     # host: Optional[HostConfig] = None # Removed as AgentConfig is now loaded separately
     # List of client IDs this agent is allowed to use (for host filtering)
@@ -297,27 +297,24 @@ class AgentConfig(BaseModel):
     )
 
 
-class CustomWorkflowConfig(BaseModel):
+class CustomWorkflowConfig(BaseComponentConfig):
     """
     Configuration for a custom Python-based workflow.
     """
 
-    name: str = Field(description="The unique name of the custom workflow.")
+    type: Literal["custom_workflow"] = "custom_workflow"
     module_path: Path = Field(
         description="Resolved absolute path to the Python file containing the workflow class."
     )
     class_name: str = Field(
         description="Name of the class within the module that implements the workflow."
     )
-    description: Optional[str] = Field(
-        default=None, description="A description of the custom workflow."
-    )
 
 
 # --- Project Configuration ---
 
 
-class ProjectConfig(BaseModel):
+class ProjectConfig(BaseComponentConfig):
     """
     Defines the overall configuration for a specific project, including
     all its components (clients, LLMs, agents, workflows).
@@ -325,10 +322,7 @@ class ProjectConfig(BaseModel):
     and may reference component configurations defined elsewhere.
     """
 
-    name: str = Field(description="The unique name of the project.")
-    description: Optional[str] = Field(
-        None, description="A brief description of the project."
-    )
+    type: Literal["project"] = "project"
     mcp_servers: List[ClientConfig] = Field(
         default_factory=list,
         description="Defines MCP Servers available within this project.",

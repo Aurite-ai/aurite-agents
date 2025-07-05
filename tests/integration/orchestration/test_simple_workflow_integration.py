@@ -1,68 +1,31 @@
 import pytest
-import json
 from unittest.mock import AsyncMock, patch
 from pathlib import Path
-import tempfile
-import os
 
 from aurite.host_manager import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
 from openai.types.chat import ChatCompletionMessage
 
 
-@pytest.fixture
-def temp_project_root():
-    """Creates a temporary directory for a test project."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_root = Path(temp_dir)
-        (project_root / "config").mkdir()
-
-        # Create a monolithic config file for the workflow test
-        config_data = {
-            "agents": [
-                {"name": "Weather Agent", "llm_config_id": "test_llm"},
-                {"name": "Weather Reporter", "llm_config_id": "test_llm"},
-            ],
-            "llms": [{"name": "test_llm", "provider": "test", "model": "test"}],
-            "simple_workflows": [
-                {
-                    "name": "Weather Planning Workflow",
-                    "steps": ["Weather Agent", "Weather Reporter"],
-                }
-            ],
-        }
-        with open(project_root / "config" / "workflow_project.json", "w") as f:
-            json.dump(config_data, f)
-
-        # Create the anchor file
-        (project_root / ".aurite").touch()
-
-        # Yield and change back directory
-        original_cwd = Path.cwd()
-        os.chdir(project_root)
-        yield project_root
-        os.chdir(original_cwd)
-
-
 @pytest.mark.anyio
 @pytest.mark.orchestration
 @pytest.mark.integration
-@patch("importlib.resources.files")
-async def test_simple_workflow_success(mock_files, temp_project_root):
+async def test_simple_workflow_success():
     """
-    Tests a successful execution of a simple workflow where each agent step succeeds.
+    Tests a successful execution of a simple workflow using the packaged example project.
     """
     # Arrange
-    mock_files.return_value.joinpath.return_value.is_dir.return_value = False
+    example_project_path = Path("src/aurite/init_templates").resolve()
 
-    async with Aurite() as aurite:
-        execution_facade = aurite.execution
+    async with Aurite(start_dir=example_project_path) as aurite:
+        execution_facade = aurite.kernel.execution
 
         # Mock the facade's run_agent method to simulate successful agent runs
         mock_run_agent = patch.object(
             execution_facade, "run_agent", new_callable=AsyncMock
         ).start()
 
+        # Define the mock return values for each agent in the workflow
         weather_agent_result = AgentRunResult(
             status="success",
             final_response=ChatCompletionMessage(
@@ -71,7 +34,7 @@ async def test_simple_workflow_success(mock_files, temp_project_root):
             conversation_history=[],
             error_message=None,
         )
-        weather_reporter_result = AgentRunResult(
+        planning_agent_result = AgentRunResult(
             status="success",
             final_response=ChatCompletionMessage(
                 role="assistant", content="It's a beautiful sunny day at 72 degrees!"
@@ -79,11 +42,11 @@ async def test_simple_workflow_success(mock_files, temp_project_root):
             conversation_history=[],
             error_message=None,
         )
-        mock_run_agent.side_effect = [weather_agent_result, weather_reporter_result]
+        mock_run_agent.side_effect = [weather_agent_result, planning_agent_result]
 
         # Act
         result = await execution_facade.run_simple_workflow(
-            workflow_name="Weather Planning Workflow",
+            workflow_name="test_weather_workflow",
             initial_input="What's the weather in Boston?",
         )
 
@@ -92,11 +55,14 @@ async def test_simple_workflow_success(mock_files, temp_project_root):
         assert result.error is None
         assert len(result.step_results) == 2
         assert result.final_output == "It's a beautiful sunny day at 72 degrees!"
+
+        # Check that the correct agents were called in order
         mock_run_agent.assert_any_call(
-            agent_name="Weather Agent", user_message="What's the weather in Boston?"
+            agent_name="Weather Agent",
+            user_message="What's the weather in Boston?",
         )
         mock_run_agent.assert_any_call(
-            agent_name="Weather Reporter",
+            agent_name="Weather Planning Workflow Step 2",
             user_message='{"temperature": 72, "conditions": "Sunny"}',
         )
         patch.stopall()
@@ -105,18 +71,17 @@ async def test_simple_workflow_success(mock_files, temp_project_root):
 @pytest.mark.anyio
 @pytest.mark.orchestration
 @pytest.mark.integration
-@patch("importlib.resources.files")
-async def test_simple_workflow_agent_failure(mock_files, temp_project_root):
+async def test_simple_workflow_agent_failure():
     """
-    Tests that the workflow correctly handles a failure from one of its agents
-    and terminates gracefully.
+    Tests that the workflow correctly handles a failure from one of its agents.
     """
     # Arrange
-    mock_files.return_value.joinpath.return_value.is_dir.return_value = False
+    example_project_path = Path("src/aurite/init_templates").resolve()
 
-    async with Aurite() as aurite:
-        execution_facade = aurite.execution
+    async with Aurite(start_dir=example_project_path) as aurite:
+        execution_facade = aurite.kernel.execution
 
+        # Mock the facade's run_agent to simulate a failure on the first call
         mock_run_agent = patch.object(
             execution_facade,
             "run_agent",
@@ -131,7 +96,7 @@ async def test_simple_workflow_agent_failure(mock_files, temp_project_root):
 
         # Act
         result = await execution_facade.run_simple_workflow(
-            workflow_name="Weather Planning Workflow",
+            workflow_name="test_weather_workflow",
             initial_input="What's the weather in Boston?",
         )
 
@@ -140,6 +105,7 @@ async def test_simple_workflow_agent_failure(mock_files, temp_project_root):
         assert result.error is not None
         assert "Agent 'Weather Agent' failed to execute successfully" in result.error
         mock_run_agent.assert_called_once_with(
-            agent_name="Weather Agent", user_message="What's the weather in Boston?"
+            agent_name="Weather Agent",
+            user_message="What's the weather in Boston?",
         )
         patch.stopall()

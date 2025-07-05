@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 if sys.version_info < (3, 11):
@@ -62,8 +63,13 @@ class AuriteKernel:
     class will manage.
     """
 
-    def __init__(self):
-        self.config_manager = ConfigManager()
+    def __init__(self, start_dir: Optional[Path] = None):
+        if start_dir and isinstance(start_dir, str):
+            start_dir = Path(start_dir).resolve()
+        elif start_dir is None:
+            start_dir = Path(os.getcwd()).resolve()
+
+        self.config_manager = ConfigManager(start_dir=start_dir)
         self.project_root = self.config_manager.project_root
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
@@ -126,15 +132,12 @@ class Aurite:
 
     This class uses a wrapper pattern around an internal `AuriteKernel`
     to solve a critical async challenge: the `mcp` library's use of `anyio`
-    for subprocesses conflicts with the main `asyncio` event loop. The
-    `__del__` finalizer provides a robust, guaranteed cleanup mechanism
-    by scheduling the kernel's async shutdown on the event loop, bridging
-    the sync/async gap and preventing resource leaks.
+    for subprocesses conflicts with the main `asyncio` event loop.
     """
 
-    def __init__(self):
+    def __init__(self, start_dir: Optional[Path] = None):
         # The kernel holds the actual state and core components.
-        self.kernel = AuriteKernel()
+        self.kernel = AuriteKernel(start_dir=start_dir)
         # We capture the event loop on initialization to ensure we can
         # schedule the shutdown correctly, even if the loop is manipulated later.
         self._loop = asyncio.get_event_loop()

@@ -17,7 +17,6 @@ from ...config.config_models import CustomWorkflowConfig  # Updated import path
 if TYPE_CHECKING:
     from ...execution.facade import ExecutionFacade
 
-from .workflow_models import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +97,10 @@ class CustomWorkflowExecutor:
             logger.debug(  # Already DEBUG
                 "Calling 'execute_workflow', passing ExecutionFacade."
             )
-            # Pass the ExecutionFacade instance as the 'executor' argument and session_id
-            workflow_instance = self.workflow_instance
-            workflow_instance.set_executor(executor)
-            result = await self.methods.get("run")(initial_input=initial_input)
+
+            result = await self.methods.get("run")(
+                initial_input=initial_input, executor=executor, session_id=session_id
+            )
 
             logger.info(  # Keep final success as INFO
                 f"Custom workflow '{workflow_name}' execution finished successfully."
@@ -207,10 +206,12 @@ class CustomWorkflowExecutor:
 
             # 4. Instantiate Workflow Class
             try:
-                if not issubclass(WorkflowClass, BaseCustomWorkflow):
-                    raise TypeError(
-                        f"Class '{class_name}' must inherit from BaseCustomWorkflow."
-                    )
+                # The check for BaseCustomWorkflow is removed because it's not a requirement
+                # for the dynamic loading logic, only for the type checker.
+                # if not issubclass(WorkflowClass, BaseCustomWorkflow):
+                #     raise TypeError(
+                #         f"Class '{class_name}' must inherit from BaseCustomWorkflow."
+                #     )
                 workflow_instance = WorkflowClass()
                 logger.debug(
                     f"Instantiated workflow class '{class_name}'"

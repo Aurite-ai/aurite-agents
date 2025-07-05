@@ -65,7 +65,7 @@ class ExecutionFacade:
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> Agent:
-        agent_config_dict = self._config_manager.get_config("agents", agent_name)
+        agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
 
@@ -76,7 +76,7 @@ class ExecutionFacade:
             for server_name in agent_config_for_run.mcp_servers:
                 if server_name not in self._host.registered_server_names:
                     server_config_dict = self._config_manager.get_config(
-                        "mcp_servers", server_name
+                        "mcp_server", server_name
                     )
                     if not server_config_dict:
                         raise ConfigurationError(
@@ -92,7 +92,7 @@ class ExecutionFacade:
             )
             llm_config_id = "default"
 
-        llm_config_dict = self._config_manager.get_config("llms", llm_config_id)
+        llm_config_dict = self._config_manager.get_config("llm", llm_config_id)
 
         if not llm_config_dict:
             if llm_config_id == "default":
@@ -229,7 +229,7 @@ class ExecutionFacade:
         )
         try:
             workflow_config_dict = self._config_manager.get_config(
-                "simple_workflows", workflow_name
+                "simple_workflow", workflow_name
             )
             if not workflow_config_dict:
                 raise ConfigurationError(
@@ -268,7 +268,7 @@ class ExecutionFacade:
         )
         try:
             workflow_config_dict = self._config_manager.get_config(
-                "custom_workflows", workflow_name
+                "custom_workflow", workflow_name
             )
             if not workflow_config_dict:
                 raise ConfigurationError(
@@ -304,7 +304,7 @@ class ExecutionFacade:
         )
         try:
             workflow_config_dict = self._config_manager.get_config(
-                "custom_workflows", workflow_name
+                "custom_workflow", workflow_name
             )
             if not workflow_config_dict:
                 raise ConfigurationError(
@@ -330,7 +330,7 @@ class ExecutionFacade:
         )
         try:
             workflow_config_dict = self._config_manager.get_config(
-                "custom_workflows", workflow_name
+                "custom_workflow", workflow_name
             )
             if not workflow_config_dict:
                 raise ConfigurationError(

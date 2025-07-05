@@ -5,19 +5,22 @@ from typing import Any, Optional, TYPE_CHECKING
 # Type hint for ExecutionFacade to avoid circular import
 if TYPE_CHECKING:
     from aurite.execution.facade import ExecutionFacade
-    from aurite.components.agents.agent_models import AgentExecutionResult
+    from aurite.components.agents.agent_models import AgentRunResult
+
+
+from aurite.components.workflows.workflow_models import BaseCustomWorkflow
 
 
 logger = logging.getLogger(__name__)
 
 
-class ExampleCustomWorkflow:
+class ExampleCustomWorkflow(BaseCustomWorkflow):
     """
     A simple example of a custom workflow that demonstrates how to use the
     ExecutionFacade to run a pre-configured agent.
     """
 
-    async def execute_workflow(
+    async def run(
         self,
         initial_input: Any,
         executor: "ExecutionFacade",
@@ -56,21 +59,27 @@ class ExampleCustomWorkflow:
 
             # 2. Use the executor to run the agent.
             # The executor handles finding the agent, its LLM, its tools, and running the conversation.
-            agent_result: "AgentExecutionResult" = await executor.run_agent(
+            agent_result: "AgentRunResult" = await executor.run_agent(
                 agent_name=agent_name,
                 user_message=user_message,
                 session_id=session_id,
             )
 
             # 3. Process and return the result.
-            if agent_result.error:
-                logger.error(f"Agent execution failed: {agent_result.error}")
-                return {"status": "failed", "error": agent_result.error}
+            if agent_result.status != "success":
+                logger.error(f"Agent execution failed: {agent_result.error_message}")
+                return {"status": "failed", "error": agent_result.error_message}
 
             # For simplicity, we'll just return the main text from the agent's response.
-            final_response = agent_result.primary_text
-            logger.info(f"Workflow finished successfully. Returning: {final_response}")
-            return {"status": "completed", "result": final_response}
+            if agent_result.final_response:
+                final_response = agent_result.final_response.content
+                logger.info(
+                    f"Workflow finished successfully. Returning: {final_response}"
+                )
+                return {"status": "ok", "response": final_response}
+            else:
+                logger.error("Agent run was successful but returned no final response.")
+                return {"status": "failed", "error": "Agent returned no response."}
 
         except Exception as e:
             logger.error(

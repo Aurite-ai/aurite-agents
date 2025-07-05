@@ -23,133 +23,97 @@ class ConfigManager:
     from various sources and formats in a hierarchical context.
     """
 
-    def __init__(self):
+    def __init__(self, start_dir: Optional[Path] = None):
         """
-        Initializes the ConfigManager, automatically discovering the context.
+        Initializes the ConfigManager, automatically discovering the context
+        from the start_dir or current working directory.
         """
-        self.context_paths: List[Path] = find_anchor_files(Path.cwd())
+        start_path = start_dir if start_dir else Path.cwd()
+        self.context_paths: List[Path] = find_anchor_files(start_path)
         self.project_root: Optional[Path] = None
         self.workspace_root: Optional[Path] = None
+        self.project_name: Optional[str] = None
+        self.workspace_name: Optional[str] = None
 
-        if self.context_paths:
+        # Identify workspace and project roots by inspecting the anchor files
+        for anchor_path in self.context_paths:
+            try:
+                with open(anchor_path, "rb") as f:
+                    settings = tomllib.load(f).get("aurite", {})
+                context_type = settings.get("type")
+                if context_type == "project":
+                    self.project_root = anchor_path.parent
+                    self.project_name = self.project_root.name
+                elif context_type == "workspace":
+                    self.workspace_root = anchor_path.parent
+                    self.workspace_name = self.workspace_root.name
+            except (tomllib.TOMLDecodeError, IOError) as e:
+                logger.error(f"Could not parse {anchor_path} during context init: {e}")
+
+        # If the workspace is the starting context, there is no project_root
+        # unless we are inside a nested project directory.
+        if self.workspace_root == start_path.resolve():
+            self.project_root = None
+            self.project_name = None
+        # Fallback for a standalone project not in a workspace
+        elif not self.project_root and self.context_paths:
             self.project_root = self.context_paths[0].parent
-            if len(self.context_paths) > 1:
-                self.workspace_root = self.context_paths[1].parent
+            self.project_name = self.project_root.name
 
-        self._config_sources: List[
-            tuple[Path, Path]
-        ] = []  # (source_path, context_root)
-        self._merged_settings: Dict[str, Any] = {}
+        self._config_sources: List[tuple[Path, Path]] = []
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self._force_refresh = (
             os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
         )
 
-        self._load_and_merge_settings()
         self._initialize_sources()
         self._build_component_index()
-
-    def _load_and_merge_settings(self):
-        """Loads and merges settings from all found .aurite files."""
-        for anchor_path in reversed(self.context_paths):
-            try:
-                with open(anchor_path, "rb") as f:
-                    toml_data = tomllib.load(f)
-                    aurite_settings = toml_data.get("aurite", {})
-
-                    # Merge [env] table
-                    env_settings = toml_data.get("env", {})
-                    self._merged_settings.setdefault("env", {}).update(env_settings)
-
-                    # Prepend path lists
-                    for key in [
-                        "include_configs",
-                        "custom_workflow_paths",
-                        "mcp_server_paths",
-                    ]:
-                        new_paths = aurite_settings.get(key, [])
-                        existing_paths = self._merged_settings.setdefault(key, [])
-                        self._merged_settings[key] = new_paths + existing_paths
-
-                    # Store other aurite settings, like 'type' and 'projects'
-                    for key, value in aurite_settings.items():
-                        if key not in [
-                            "include_configs",
-                            "custom_workflow_paths",
-                            "mcp_server_paths",
-                            "env",
-                        ]:
-                            self._merged_settings[key] = value
-
-            except (tomllib.TOMLDecodeError, IOError) as e:
-                logger.error(f"Failed to load or parse {anchor_path}: {e}")
-
-        for key, value in self._merged_settings.get("env", {}).items():
-            os.environ[key] = str(value)
 
     def _initialize_sources(self):
         """Initializes the configuration source paths based on the hierarchical context."""
         logger.debug("Initializing configuration sources...")
-
         config_sources: List[tuple[Path, Path]] = []
+        processed_paths = set()
 
-        # Process up to the first two levels (project and workspace)
-        for anchor_path in self.context_paths[:2]:
+        # Process contexts from most specific (project) to most general (workspace)
+        for anchor_path in self.context_paths:
             context_root = anchor_path.parent
             try:
                 with open(anchor_path, "rb") as f:
-                    toml_data = tomllib.load(f)
-                    aurite_settings = toml_data.get("aurite", {})
+                    settings = tomllib.load(f).get("aurite", {})
 
-                    # Always check for the default 'config' directory first for this context.
-                    default_config_path = context_root / "config"
-                    if default_config_path.is_dir():
-                        config_sources.append((default_config_path, context_root))
+                # Add config paths defined in the current .aurite file
+                for rel_path in settings.get("include_configs", []):
+                    resolved_path = (context_root / rel_path).resolve()
+                    if resolved_path.is_dir() and resolved_path not in processed_paths:
+                        config_sources.append((resolved_path, context_root))
+                        processed_paths.add(resolved_path)
 
-                    # Then, add any paths from 'include_configs'.
-                    for rel_path in aurite_settings.get("include_configs", []):
-                        resolved_path = (context_root / rel_path).resolve()
-                        if resolved_path.is_dir():
-                            config_sources.append((resolved_path, context_root))
-
-                    # For a workspace, add peer projects' configs
-                    if aurite_settings.get("type") == "workspace":
-                        for rel_path in aurite_settings.get("projects", []):
-                            peer_project_root = (context_root / rel_path).resolve()
-                            peer_anchor = peer_project_root / ".aurite"
-                            if peer_anchor.is_file():
-                                with open(peer_anchor, "rb") as peer_f:
-                                    peer_toml = tomllib.load(peer_f)
-                                    peer_settings = peer_toml.get("aurite", {})
-
-                                    # Always check for the default 'config' directory in the peer.
-                                    default_peer_path = peer_project_root / "config"
-                                    if default_peer_path.is_dir():
-                                        config_sources.append(
-                                            (default_peer_path, peer_project_root)
-                                        )
-
-                                    # Then, add any 'include_configs' from the peer.
-                                    for peer_rel_path in peer_settings.get(
-                                        "include_configs", []
-                                    ):
-                                        resolved_path = (
-                                            peer_project_root / peer_rel_path
-                                        ).resolve()
-                                        if resolved_path.is_dir():
-                                            config_sources.append(
-                                                (resolved_path, peer_project_root)
-                                            )
+                # If it's a workspace, find all its projects and their configs
+                if settings.get("type") == "workspace":
+                    for project_rel_path in settings.get("projects", []):
+                        project_root = (context_root / project_rel_path).resolve()
+                        project_anchor = project_root / ".aurite"
+                        if project_anchor.is_file():
+                            with open(project_anchor, "rb") as pf:
+                                p_settings = tomllib.load(pf).get("aurite", {})
+                            for p_rel_path in p_settings.get("include_configs", []):
+                                resolved_p_path = (project_root / p_rel_path).resolve()
+                                if (
+                                    resolved_p_path.is_dir()
+                                    and resolved_p_path not in processed_paths
+                                ):
+                                    config_sources.append(
+                                        (resolved_p_path, project_root)
+                                    )
+                                    processed_paths.add(resolved_p_path)
             except (tomllib.TOMLDecodeError, IOError) as e:
-                logger.error(
-                    f"Could not parse {anchor_path} during source initialization: {e}"
-                )
+                logger.error(f"Could not parse {anchor_path} during source init: {e}")
 
-        # Global config is last
+        # Global user config is always last
         user_config_root = Path.home() / ".aurite"
-        user_config_path = user_config_root / "config"
-        if user_config_path.is_dir():
-            config_sources.append((user_config_path, user_config_root))
+        if user_config_root.is_dir():
+            config_sources.append((user_config_root, user_config_root))
 
         self._config_sources = config_sources
         logger.debug(f"Final configuration source order: {self._config_sources}")
@@ -172,7 +136,9 @@ class ConfigManager:
                 self._parse_and_index_file(config_file, context_root)
 
     def _parse_and_index_file(self, config_file: Path, context_root: Path):
-        """Parses a file and adds its component(s) to the index if not already present."""
+        """
+        Parses a config file containing a list of components and adds them to the index.
+        """
         try:
             with config_file.open("r", encoding="utf-8") as f:
                 if config_file.suffix == ".json":
@@ -183,52 +149,87 @@ class ConfigManager:
             logger.error(f"Failed to load or parse config file {config_file}: {e}")
             return
 
-        if not isinstance(content, dict):
+        if not isinstance(content, list):
+            logger.warning(
+                f"Skipping config file {config_file}: root is not a list of components."
+            )
             return
 
-        for component_type, component_list in content.items():
-            if not isinstance(component_list, list):
+        for component_data in content:
+            if not isinstance(component_data, dict):
+                continue
+
+            component_type = component_data.get("type")
+            component_id = component_data.get("name")
+
+            if not component_type or not component_id:
+                logger.warning(
+                    f"Skipping component in {config_file} due to missing 'type' or 'name'."
+                )
                 continue
 
             self._component_index.setdefault(component_type, {})
 
-            for component_data in component_list:
-                if isinstance(component_data, dict):
-                    component_id = component_data.get("name")
-                    if (
-                        component_id
-                        and component_id not in self._component_index[component_type]
-                    ):
-                        component_data["_origin"] = str(context_root)
-                        component_data["_source_file"] = str(config_file.resolve())
-                        self._component_index[component_type][component_id] = (
-                            component_data
-                        )
-                        logger.debug(
-                            f"Indexed '{component_id}' ({component_type}) from {config_file} with origin {context_root}"
-                        )
+            if component_id not in self._component_index[component_type]:
+                component_data["_source_file"] = str(config_file.resolve())
+                component_data["_context_path"] = str(context_root.resolve())
 
-    def _resolve_paths_in_config(
-        self, config_data: Dict[str, Any], component_type: str
-    ) -> Dict[str, Any]:
+                if self.workspace_root and context_root == self.workspace_root:
+                    component_data["_context_level"] = "workspace"
+                    component_data["_workspace_name"] = self.workspace_name
+                elif self.project_root and context_root == self.project_root:
+                    component_data["_context_level"] = "project"
+                    component_data["_project_name"] = self.project_name
+                    if self.workspace_name:
+                        component_data["_workspace_name"] = self.workspace_name
+                elif context_root == Path.home() / ".aurite":
+                    component_data["_context_level"] = "user"
+                else:
+                    # It's a project within a workspace, but not the CWD project
+                    component_data["_context_level"] = "project"
+                    component_data["_project_name"] = context_root.name
+                    if self.workspace_name:
+                        component_data["_workspace_name"] = self.workspace_name
+
+                self._component_index[component_type][component_id] = component_data
+                logger.debug(
+                    f"Indexed '{component_id}' ({component_type}) from {config_file}"
+                )
+
+    def _resolve_paths_in_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Resolves relative paths in a component's configuration data."""
-        origin_path = config_data.get("_origin")
-        if not origin_path:
+        context_path_str = config_data.get("_context_path")
+        if not context_path_str:
             return config_data
 
+        context_path = Path(context_path_str)
         resolved_data = config_data.copy()
+        component_type = resolved_data.get("type")
 
-        if component_type == "mcp_servers":
+        if component_type == "mcp_server":
             if "server_path" in resolved_data and resolved_data["server_path"]:
                 path = Path(resolved_data["server_path"])
                 if not path.is_absolute():
-                    resolved_data["server_path"] = (origin_path / path).resolve()
+                    resolved_data["server_path"] = (context_path / path).resolve()
 
-        elif component_type == "custom_workflows":
+        elif component_type == "custom_workflow":
             if "module_path" in resolved_data and resolved_data["module_path"]:
-                path = Path(resolved_data["module_path"])
-                if not path.is_absolute():
-                    resolved_data["module_path"] = (origin_path / path).resolve()
+                # Convert module dot-path to a file path
+                module_str = resolved_data["module_path"]
+                # This assumes the module path is relative to the context root
+                # e.g., "custom_workflows.my_workflow" -> custom_workflows/my_workflow.py
+                module_as_path = Path(module_str.replace(".", "/")).with_suffix(".py")
+
+                path = context_path / module_as_path
+                if path.exists():
+                    resolved_data["module_path"] = path.resolve()
+                else:
+                    # Fallback for if the path was already a direct file path
+                    path = Path(module_str)
+                    if not path.is_absolute():
+                        resolved_data["module_path"] = (context_path / path).resolve()
+                    else:
+                        resolved_data["module_path"] = path
 
         return resolved_data
 
@@ -240,13 +241,15 @@ class ConfigManager:
 
         config = self._component_index.get(component_type, {}).get(component_id)
         if config:
-            return self._resolve_paths_in_config(config, component_type)
+            return self._resolve_paths_in_config(config)
         return None
 
     def list_configs(self, component_type: str) -> List[Dict[str, Any]]:
         if self._force_refresh:
             self.refresh()
-        return list(self._component_index.get(component_type, {}).values())
+
+        configs = self._component_index.get(component_type, {}).values()
+        return [self._resolve_paths_in_config(c) for c in configs]
 
     def get_all_configs(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         if self._force_refresh:
@@ -260,84 +263,9 @@ class ConfigManager:
     def upsert_component(
         self, component_type: str, component_name: str, new_config: Dict[str, Any]
     ) -> bool:
-        """
-        Updates an existing component or inserts a new one into its source file.
-        """
-        logger.info(
-            f"Attempting to upsert component '{component_name}' of type '{component_type}'."
+        # This method would need to be updated to work with the new flat-list structure
+        # For now, we focus on getting the loading right.
+        logger.error(
+            "upsert_component is not implemented for the new config structure yet."
         )
-
-        # Find the component's original file path from the index
-        original_component_data = self._component_index.get(component_type, {}).get(
-            component_name
-        )
-        if not original_component_data or "_source_file" not in original_component_data:
-            logger.error(
-                f"Could not find source file for component '{component_name}'."
-            )
-            return False
-
-        source_file_path = Path(original_component_data["_source_file"])
-        if not source_file_path.is_file():
-            logger.error(
-                f"Source file '{source_file_path}' not found for component '{component_name}'."
-            )
-            return False
-
-        try:
-            # Read the entire original file
-            with source_file_path.open("r", encoding="utf-8") as f:
-                if source_file_path.suffix == ".json":
-                    full_content = json.load(f)
-                else:
-                    full_content = yaml.safe_load(f)
-
-            if component_type not in full_content or not isinstance(
-                full_content[component_type], list
-            ):
-                logger.error(
-                    f"Malformed config file: component type '{component_type}' not found or not a list in '{source_file_path}'."
-                )
-                return False
-
-            # Find and update the specific component in the list
-            component_found = False
-            for i, component in enumerate(full_content[component_type]):
-                if (
-                    isinstance(component, dict)
-                    and component.get("name") == component_name
-                ):
-                    # Preserve internal keys before updating
-                    internal_keys = {
-                        k: v for k, v in component.items() if k.startswith("_")
-                    }
-                    new_config.update(internal_keys)
-                    full_content[component_type][i] = new_config
-                    component_found = True
-                    break
-
-            if not component_found:
-                logger.error(
-                    f"Component '{component_name}' not found within the list in '{source_file_path}'."
-                )
-                return False
-
-            # Write the modified content back to the file
-            with source_file_path.open("w", encoding="utf-8") as f:
-                if source_file_path.suffix == ".json":
-                    json.dump(full_content, f, indent=2)
-                else:
-                    yaml.dump(full_content, f, indent=2)
-
-            logger.info(
-                f"Successfully updated component '{component_name}' in '{source_file_path}'."
-            )
-            # Force a refresh of the index to reflect the changes immediately
-            self.refresh()
-            return True
-
-        except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
-            logger.error(
-                f"Failed to read, update, or write config file {source_file_path}: {e}"
-            )
-            return False
+        return False
