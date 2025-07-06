@@ -1,95 +1,94 @@
-# LLM Configurations (LLMConfig)
+# LLM Configuration
 
-LLM Configurations define the settings for different Large Language Models (LLMs) that your agents can use. Each configuration specifies the provider, model, and various parameters like temperature and maximum tokens. Agents reference these configurations by their unique `llm_id`.
+LLM (Large Language Model) configurations are reusable components that define the settings for a specific model from a specific provider. By defining LLMs centrally, you can easily share them across multiple agents and manage your model settings in one place.
 
-This document first provides a quickstart example and then details all available fields in an `LLMConfig` object, as defined in `src/aurite/config/config_models.py`.
+An LLM configuration is a JSON or YAML object with a `type` field set to `"llm"`.
 
-## Quickstart Example
+## Core Fields
 
-A minimal LLM configuration requires an `llm_id` and typically a `provider` and `model_name`. Other common parameters like `temperature` and `max_tokens` are often useful.
+### `name`
+**Type:** `string` (Required)
+**Description:** A unique identifier for the LLM configuration. This name is used in an agent's `llm_config_id` field to link to this configuration.
 
 ```json
 {
-  "llm_id": "my_default_claude_haiku",
-  "provider": "anthropic",
-  "model_name": "claude-3-haiku-20240307",
-  "temperature": 0.7,
-  "max_tokens": 2000,
-  "default_system_prompt": "You are a concise and helpful AI assistant."
+  "name": "Standard GPT4"
 }
 ```
 
--   **`llm_id`**: A unique name for this LLM setup.
--   **`provider`**: Specifies the LLM provider (e.g., `"anthropic"`, `"openai"`).
--   **`model_name`**: The specific model from the provider.
--   **`temperature`, `max_tokens`, `default_system_prompt`**: Common operational parameters.
-
-Many fields are optional and have defaults or can be overridden at the agent level.
-
-## Detailed Configuration Fields
-
-An LLM configuration is a JSON object with the following fields:
-
-| Field                   | Type   | Default     | Description                                                                                                                                                                                                                            |
-| ----------------------- | ------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `llm_id`                | string | Required    | A unique identifier for this specific LLM configuration. Agents will use this ID to select which LLM settings to use.                                                                                                                  |
-| `provider`              | string | `"anthropic"` | The LLM provider. Examples: `"anthropic"`, `"openai"`, `"gemini"`. This determines how the framework interacts with the LLM service.                                                                                                    |
-| `model_name`            | string | `null`      | The specific model name offered by the provider (e.g., `"claude-3-opus-20240229"`, `"gpt-4-turbo"`). If not provided, the LLM client might use a default model or require it to be set in the `AgentConfig`.                               |
-| `temperature`           | number | `null`      | The sampling temperature to use for generating responses. Higher values (e.g., 0.8) make output more random, while lower values (e.g., 0.2) make it more deterministic. If `null`, the LLM client's default or the provider's default will be used. |
-| `max_tokens`            | integer| `null`      | The maximum number of tokens to generate in a single response. If `null`, the LLM client's default or the provider's default will be used.                                                                                               |
-| `default_system_prompt` | string | `null`      | A default system prompt that will be used for this LLM configuration if an agent using it doesn't specify its own `system_prompt`.                                                                                                      |
-| `api_base` | string | `null`      | The base URL for the LLM. This will be used by some providers. See https://docs.litellm.ai/docs/providers |
-| `api_key` | string | `null`      | The API key for the LLM. |
-| `api_version` | string | `null`      | The API version for the LLM. |
-| `class Config: extra = "allow"` | N/A    | N/A         | This internal Pydantic setting allows for additional, provider-specific fields to be included in the configuration without causing validation errors. For example, you might add custom parameters required by a specific LLM provider. |
-
-**Note on API Keys and Credentials:**
-API keys (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are typically managed through environment variables. The framework's LLM clients (e.g., `AnthropicLLM`) will look for these standard environment variables. While the `LLMConfig` model has commented-out placeholders for `api_key_env_var` or `credentials_path`, the current primary mechanism relies on standard environment variables for API keys.
-
-## Example LLMConfig
-
-LLM configurations are usually stored in a JSON file (e.g., `config/llms/default_llms.json` or a custom file referenced in your project configuration). This file typically contains a list of `LLMConfig` objects.
+### `provider`
+**Type:** `string` (Required)
+**Description:** The name of the LLM provider. This typically corresponds to a provider supported by the underlying model library (e.g., LiteLLM). Common values include `openai`, `anthropic`, `gemini`, `groq`, etc.
 
 ```json
-[
-  {
-    "llm_id": "anthropic_claude_3_opus",
-    "provider": "anthropic",
-    "model_name": "claude-3-opus-20240229",
-    "temperature": 0.7,
-    "max_tokens": 4096,
-    "default_system_prompt": "You are a highly capable AI assistant."
-  },
-  {
-    "llm_id": "anthropic_claude_3_haiku_creative",
-    "provider": "anthropic",
-    "model_name": "claude-3-haiku-20240307",
-    "temperature": 0.9,
-    "max_tokens": 2048,
-    "default_system_prompt": "You are a creative AI assistant, ready to brainstorm."
-  },
-  {
-    "llm_id": "openai_gpt_4_turbo",
-    "provider": "openai",
-    "model_name": "gpt-4-turbo-preview",
-    "temperature": 0.5,
-    "max_tokens": 4000
-  }
-]
-```
-
-## How Agents Use LLMConfig
-
-An `AgentConfig` specifies which `LLMConfig` to use via its `llm_config_id` field. This allows for centralized management of LLM settings and easy switching between different models or providers for various agents.
-
-```json
-// Example snippet from an AgentConfig
 {
-  "name": "MyResearchAgent",
-  "llm_config_id": "anthropic_claude_3_opus", // References the LLMConfig above
-  "system_prompt": "You are a meticulous research assistant."
-  // ... other agent settings
+  "provider": "openai"
 }
 ```
 
-If an `AgentConfig` also defines parameters like `model`, `temperature`, or `max_tokens`, those values will override the ones specified in the `LLMConfig` for that specific agent. The `system_prompt` in `AgentConfig` always takes precedence over `default_system_prompt` in `LLMConfig`.
+### `model`
+**Type:** `string` (Required)
+**Description:** The specific model name as recognized by the provider.
+
+```json
+{
+  "model": "gpt-4-1106-preview"
+}
+```
+
+### `description`
+**Type:** `string` (Optional)
+**Description:** A brief, human-readable description of the LLM configuration.
+
+```json
+{
+  "description": "Standard configuration for OpenAI's GPT-4 model with default settings."
+}
+```
+
+## Common Parameters
+
+These are standard LLM parameters that can be set as defaults for this configuration. Agents can override these values.
+
+### `temperature`
+**Type:** `float` (Optional)
+**Description:** The sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
+
+### `max_tokens`
+**Type:** `integer` (Optional)
+**Description:** The maximum number of tokens to generate in the completion.
+
+### `default_system_prompt`
+**Type:** `string` (Optional)
+**Description:** A default system prompt to be used with this LLM. An agent's `system_prompt` will override this value.
+
+## Provider-Specific Fields
+
+These fields are used for connecting to specific APIs, especially for self-hosted or non-standard endpoints.
+
+### `api_base`
+**Type:** `string` (Optional)
+**Description:** The base URL for the API endpoint. This is commonly used for local models (e.g., `http://localhost:8000/v1`) or custom provider endpoints.
+
+### `api_key`
+**Type:** `string` (Optional)
+**Description:** The API key for the provider. It is **highly recommended** to manage API keys using environment variables instead of placing them directly in configuration files. However, this field is available for convenience or specific use cases.
+
+### `api_version`
+**Type:** `string` (Optional)
+**Description:** The API version string required by some providers (e.g., Azure OpenAI).
+
+## Full Example
+
+Here is an example of a complete LLM configuration for a local model served via Ollama:
+
+```json
+{
+  "type": "llm",
+  "name": "local-llama3",
+  "description": "Configuration for a local Llama 3 model served by Ollama.",
+  "provider": "ollama",
+  "model": "llama3",
+  "api_base": "http://localhost:11434",
+  "temperature": 0.7
+}

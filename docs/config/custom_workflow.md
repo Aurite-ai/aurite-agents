@@ -1,143 +1,75 @@
-# Custom Workflow Configurations (CustomWorkflowConfig)
+# Custom Workflow Configuration
 
-Custom Workflows provide the ultimate flexibility for orchestrating components within the Aurite Agents framework. Unlike Simple Workflows which execute a linear sequence of agents, Custom Workflows allow you to define complex logic, conditional branching, parallel execution (if your Python code implements it), and intricate interactions between Agents, other Simple Workflows, or even other Custom Workflows using custom Python classes.
+When a `simple_workflow` isn't enough to capture your logic, you can implement a **Custom Workflow** directly in Python. This gives you complete control over the execution flow, allowing for conditional logic, branching, looping, and complex data manipulation between steps.
 
-This document details the `CustomWorkflowConfig` model, which points to your Python module and class that implements the custom orchestration logic. The `CustomWorkflowConfig` model is defined in `src/aurite/config/config_models.py`.
+A custom workflow configuration is a JSON or YAML object with a `type` field set to `"custom_workflow"`. Its purpose is to link a component name to your Python code.
 
-## Quickstart Example
+## How It Works
 
-A Custom Workflow configuration primarily needs a `name`, a `module_path` pointing to your Python file, and the `class_name` within that file that implements the workflow logic.
+1.  **Configuration:** You create a configuration file that gives your custom workflow a `name` and points to the `module_path` and `class_name` of your Python implementation.
+2.  **Implementation:** You write a Python class that inherits from the framework's base workflow class `CustomWorkflow`. This class must implement an `execute_workflow` method, which contains your custom logic.
+3.  **Execution:** When you ask the framework to run your custom workflow by its `name`, the `ConfigManager` finds its configuration. The framework then dynamically loads the specified Python module, instantiates your class, and calls its `run` method.
+
+This approach cleanly separates the configuration (the "what") from the implementation (the "how"), allowing you to manage your workflows as named components within the Aurite ecosystem while retaining the full power of Python for complex logic.
+
+## Full Example
+
+This example defines a custom workflow implemented in the `AdvancedDataPipeline` class inside the `data_pipeline.py` file.
 
 ```json
 {
-  "name": "MyAdvancedOrchestrator",
-  "description": "A custom workflow for complex task management.",
-  "module_path": "src/my_custom_workflows/advanced_orchestrator.py", // Path relative to project root
-  "class_name": "AdvancedTaskOrchestratorWorkflow"
+  "type": "custom_workflow",
+  "name": "advanced-data-pipeline",
+  "description": "A custom Python workflow for processing and validating data with complex business rules.",
+  "module_path": "custom_workflows/data_pipeline.py",
+  "class_name": "AdvancedDataPipeline"
 }
 ```
 
--   **`name`**: A unique name for this custom workflow.
--   **`description`** (optional): A brief explanation of what the workflow does.
--   **`module_path`**: The file path (relative to your project root, where `aurite_config.json` or your `PROJECT_CONFIG_PATH` points) to the Python file containing your custom workflow class.
--   **`class_name`**: The name of the Python class within the specified `module_path` file that implements the custom workflow logic.
+## Core Fields
 
-## Detailed Configuration Fields (CustomWorkflowConfig)
+### `name`
+**Type:** `string` (Required)
+**Description:** A unique identifier for the custom workflow. This name is used to run the workflow from the framework's interfaces.
 
-A Custom Workflow configuration is a JSON object with the following fields:
-
-| Field         | Type   | Default  | Description                                                                                                                                                              |
-|---------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`        | string | Required | A unique identifier for this custom workflow configuration. This name is used to execute the workflow.                                                                   |
-| `module_path` | string (Path) | Required | The file path to the Python module (`.py` file) containing the custom workflow class. This path is resolved relative to the root of your Aurite project.                 |
-| `class_name`  | string | Required | The name of the Python class within the specified `module_path` that implements the custom workflow's execution logic.                                                     |
-| `description` | string | `null`   | An optional, human-readable description of what the custom workflow accomplishes and its intended use.                                                                     |
-
-## Implementing a Custom Workflow Class
-
-The Python class specified in `class_name` must adhere to a specific interface to be executable by the Aurite framework. It needs an `execute_workflow` asynchronous method.
-
-**Required Method Signature:**
-
-```python
-from typing import Any, Optional
-# Forward reference for ExecutionFacade if type hinting in the same file or for clarity
-# from src.aurite.execution.facade import ExecutionFacade # Actual import if needed
-
-class MyCustomWorkflowClass:
-    async def execute_workflow(
-        self,
-        initial_input: Any,
-        executor: "ExecutionFacade", # Instance of ExecutionFacade passed by the system
-        session_id: Optional[str] = None # Optional session_id for context
-    ) -> Any:
-        """
-        This method contains your custom orchestration logic.
-
-        Args:
-            initial_input: The initial data or message to start the workflow.
-            executor: An instance of ExecutionFacade, allowing this workflow
-                      to call other agents, simple workflows, or custom workflows.
-            session_id: An optional session ID for maintaining context across calls.
-
-        Returns:
-            The final result of the workflow's execution.
-        """
-        # --- Your custom Python orchestration logic here ---
-        # Example: Call an agent
-        agent_result = await executor.run_agent(
-            agent_name="MyProcessingAgent", # Ensure this agent is defined in your project
-            user_message=str(initial_input), # Ensure message is a string
-            session_id=session_id
-        )
-        processed_data = agent_result.primary_text
-
-        # Example: Conditional logic
-        if "error" in processed_data.lower():
-            # Handle error or call a different component
-            error_handling_result = await executor.run_agent(
-                agent_name="ErrorHandlingAgent",
-                user_message=processed_data,
-                session_id=session_id
-            )
-            return {"status": "error", "details": error_handling_result.final_response.content[0].text}
-
-        # Example: Call a simple workflow
-        simple_workflow_result = await executor.run_simple_workflow(
-            workflow_name="MyFollowUpWorkflow", # Ensure this simple workflow is defined
-            initial_input=processed_data,
-            session_id=session_id
-        )
-        # Assuming simple_workflow_result is a dict with a 'final_message' key
-        final_output = simple_workflow_result.get("final_message", "Workflow completed.")
-
-        return {"status": "success", "output": final_output}
-
-```
-
-**Key points for implementation:**
-1.  **Asynchronous:** The `execute_workflow` method must be `async def`.
-2.  **`executor` Argument:** The framework will pass an instance of `ExecutionFacade` as the `executor` argument. Use this object to run other agents (`executor.run_agent(...)`), simple workflows (`executor.run_simple_workflow(...)`), or even other custom workflows (`executor.run_custom_workflow(...)`).
-3.  **`initial_input`:** This is the data passed when the custom workflow is first invoked.
-4.  **`session_id`:** Optional Variable. Use this to maintain conversational context if your workflow involves multiple turns with stateful agents.
-5.  **Return Value:** The method should return the final result of the workflow's execution. The structure of this return value is up to you.
-
-## Example CustomWorkflowConfig File
-
-Custom Workflow configurations are typically stored in JSON files (e.g., `config/custom_workflows/my_custom_logic.json`) and referenced by name in the main project configuration. A file can contain a single `CustomWorkflowConfig` object or a list of them.
-
-**Example: `config/custom_workflows/orchestrators.json`**
 ```json
-[
-  {
-    "name": "ComplexDecisionFlow",
-    "description": "A workflow that makes decisions based on initial input and routes to different agents.",
-    "module_path": "src/my_workflows/decision_engine.py",
-    "class_name": "DecisionEngineWorkflow"
-  },
-  {
-    "name": "IterativeRefinementProcess",
-    "description": "Iteratively calls an agent to refine a document until a condition is met.",
-    "module_path": "src/my_workflows/refinement_loop.py",
-    "class_name": "DocumentRefinerWorkflow"
-  }
-]
+{
+  "name": "intelligent-routing-workflow"
+}
 ```
-*(Ensure the Python files like `src/my_workflows/decision_engine.py` exist and contain the specified classes with the correct `execute_workflow` method.)*
 
-## How Custom Workflows are Used
+### `description`
+**Type:** `string` (Optional)
+**Description:** A brief, human-readable description of what the custom workflow does.
 
-Custom Workflows are executed by their `name`. The `HostManager` (via the `ExecutionFacade`) loads your Python module, instantiates your custom class, and calls its `execute_workflow` method.
+```json
+{
+  "description": "A workflow that dynamically routes tasks to different agents based on input content."
+}
+```
 
-They can be invoked via:
--   The API (e.g., `/execute/custom-workflow/{workflow_name}`).
--   The CLI (`run-cli execute custom-workflow <workflow_name> '<json_initial_input>'`). Note that the input for CLI must be a valid JSON string.
--   From within another Custom Workflow.
--   From the Aurite class (mainly for packaged verison of the framework)
+## Python Code Linking
 
-## Component Documentation Links
+These fields tell the framework where to find and how to load your custom workflow implementation.
 
--   [Agent Configurations (AgentConfig)](./agent.md)
--   [Simple Workflow Configurations (WorkflowConfig)](./simple_workflow.md)
--   [Project Configurations (ProjectConfig)](./PROJECT.md): Custom Workflows are included in a project.
--   The `ExecutionFacade` class (`src/aurite/execution/facade.py`) documentation would be relevant for understanding how to use the `executor` object.
+### `module_path`
+**Type:** `string` (Required)
+**Description:** The path to the Python file containing your workflow implementation. This path should be relative to the location of the `.aurite` file that defines its context.
+
+**Important:** The framework resolves this path to an absolute path at runtime.
+
+```json
+{
+  "module_path": "custom_workflows/my_routing_logic.py"
+}
+```
+
+### `class_name`
+**Type:** `string` (Required)
+**Description:** The name of the class within the specified Python module that implements the workflow logic. This class must adhere to the framework's custom workflow interface.
+
+```json
+{
+  "class_name": "MyRoutingWorkflow"
+}
+```

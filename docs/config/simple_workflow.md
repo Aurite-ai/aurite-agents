@@ -1,99 +1,103 @@
-# Simple Workflow Configurations (WorkflowConfig)
+# Simple Workflow Configuration
 
-Simple Workflows in the Aurite Agents framework define a sequential execution of other components, which can include Agents, other Simple Workflows, or even Custom Workflows. They are designed for straightforward, multi-step tasks where the output of one step can become the input for the next.
+Simple workflows provide a straightforward way to execute a series of components in a predefined, sequential order. They are perfect for tasks that follow a linear process, such as "first run the data-ingestion agent, then run the analysis agent."
 
-This document outlines the structure and usage of `WorkflowConfig` objects, which are used to define these simple workflows. The `WorkflowConfig` model is defined in `src/aurite/config/config_models.py`.
+A simple workflow configuration is a JSON or YAML object with a `type` field set to `"simple_workflow"`.
 
-## Quickstart Example
+## How It Works
 
-A basic Simple Workflow requires a `name` and a list of `steps`. Each step is typically the name of an Agent to be executed in sequence, but can also be the name of another Simple Workflow or a Custom Workflow.
+When you execute a simple workflow, the framework iterates through the `steps` list in order. For each step, it runs the specified component and waits for it to complete before moving on to the next one. The output or result from one step is passed as the input to the next, allowing you to chain components together to create a processing pipeline.
+
+## Full Example
+
+This example defines a two-step workflow for processing customer feedback.
 
 ```json
 {
-  "name": "TwoStepGreetingProcess",
-  "description": "A simple workflow that first greets and then offers assistance.",
+  "type": "simple_workflow",
+  "name": "customer-feedback-pipeline",
+  "description": "Fetches customer feedback, analyzes sentiment, and saves the result.",
   "steps": [
-    "GreetingAgent", // Name of the first AgentConfig
-    "OfferHelpAgent"   // Name of the second AgentConfig
+    "fetch-feedback-agent",
+    "analyze-sentiment-agent"
   ]
 }
 ```
 
--   **`name`**: A unique name for this simple workflow.
--   **`description`** (optional): A brief explanation of what the workflow does.
--   **`steps`**: An ordered list of component names (usually Agent names) that will be executed sequentially.
+## Core Fields
 
-## Detailed Configuration Fields (WorkflowConfig)
+### `name`
+**Type:** `string` (Required)
+**Description:** A unique identifier for the workflow. This name is used to run the workflow from the command line or other interfaces.
 
-A Simple Workflow configuration is a JSON object with the following fields:
-
-| Field         | Type                                     | Default  | Description                                                                                                                                                                                                                            |
-|---------------|------------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`        | string                                   | Required | A unique identifier for this simple workflow configuration. This name is used to execute the workflow.                                                                                                                                   |
-| `steps`       | array of (string or `WorkflowComponent`) | Required | An ordered list defining the sequence of execution. Each item can be:<br/>- A `string`: The name of an Agent, Simple Workflow, or Custom Workflow to execute. The framework attempts to infer the type based on available component names.<br/>- A `WorkflowComponent` object: For explicit step definition, especially useful for disambiguation if component names clash across types (see details below). |
-| `description` | string                                   | `null`   | An optional, human-readable description of what the workflow accomplishes.                                                                                                                                                             |
-
-### WorkflowComponent Object
-
-While often just providing a component name as a string in the `steps` array is sufficient (the framework will try to infer its type), you can use a `WorkflowComponent` object for more explicit control. This is particularly useful if there's a naming conflict (e.g., an Agent and a Simple Workflow both named "DataProcessor").
-
-| Field  | Type                                                       | Description                                                                                                                                                              |
-|--------|------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name` | string                                                     | The name of the component to execute (e.g., an Agent's name, another Simple Workflow's name, or a Custom Workflow's name).                                              |
-| `type` | string (`"agent"`, `"simple_workflow"`, `"custom_workflow"`) | The explicit type of the component being executed in this step. Use this to resolve ambiguity if a component `name` could refer to multiple component types. |
-
-**Example of a step using `WorkflowComponent` for disambiguation:**
 ```json
 {
-  "name": "MyWorkflowWithSpecificStepTypes",
+  "name": "daily-report-workflow"
+}
+```
+
+### `type`
+**Type:** `string` (Required)
+
+**Description:** You must specify the component type as `simple_workflow` for the index's efficiency.
+```json
+  "type": "simple_workflow"
+```
+
+### `description`
+**Type:** `string` (Optional)
+**Description:** A brief, human-readable description of what the workflow accomplishes.
+
+```json
+{
+  "description": "A workflow that generates and distributes a daily sales report."
+}
+```
+
+## Steps Configuration
+
+The core of a simple workflow is the `steps` list. This list defines the sequence of components to be executed.
+
+### `steps`
+**Type:** `list[string | object]` (Required)
+**Description:** An ordered list of the components to execute. Each item in the list can be either a simple string (the name of the component) or a more detailed object.
+
+#### Simple Step (by Name)
+
+The easiest way to define a step is to simply provide the `name` of the component you want to run. The framework will look up the component in the configuration index.
+
+```json
+{
+  "name": "simple-ingestion-workflow",
   "steps": [
-    "InitialGatherer", // Assumed to be an Agent if only one component has this name
-    { "name": "DataProcessor", "type": "simple_workflow" }, // Explicitly run the Simple Workflow named "DataProcessor"
-    { "name": "FinalReport", "type": "agent" } // Explicitly run the Agent named "FinalReport"
+    "fetch-data-agent",
+    "process-data-agent",
+    "save-results-agent"
   ]
 }
 ```
-In most cases where component names are unique across types, simply listing the names as strings in the `steps` array is adequate. The framework defaults to interpreting string steps as agent names if not otherwise specified or uniquely identifiable as another workflow type.
 
-## Example WorkflowConfig File
+#### Detailed Step (by Object)
 
-Simple Workflow configurations are typically stored in JSON files (e.g., `config/workflows/my_workflow.json`) and referenced by name in the main project configuration. A file can contain a single `WorkflowConfig` object or a list of them. Like all components, Simple Workflows can also be defined directly in a project configuration file (`aurite_config.json`)
+For more clarity or to handle duplicate component names across component types, you can specify the component type. This object must include the `name` and `type` of the component.
 
-**Example: `config/workflows/data_processing_sequence.json`**
+-   `name` (string): The name of the component.
+-   `type` (string): The type of the component. Must be one of `"agent"`, `"simple_workflow"`, or `"custom_workflow"`.
+
+This more verbose format is functionally identical to the simple string format for now but may support additional step-specific parameters in the future.
+
 ```json
-[
-  {
-    "name": "StandardDataProcessing",
-    "description": "Fetches data, processes it, and then summarizes.",
-    "steps": [
-      "FetchDataSourceAgent",
-      "CleanDataAgent",
-      "AnalyzeDataAgent",
-      "GenerateSummaryAgent"
-    ]
-  },
-  {
-    "name": "QuickReportWorkflow",
-    "description": "A shorter workflow for generating a quick report.",
-    "steps": [
-      "FetchQuickDataAgent",
-      "QuickSummaryAgent"
-    ]
-  }
-]
+{
+  "name": "detailed-ingestion-workflow",
+  "steps": [
+    {
+      "name": "fetch-data-agent",
+      "type": "agent"
+    },
+    {
+      "name": "process-data-agent",
+      "type": "agent"
+    }
+  ]
+}
 ```
-
-## How Simple Workflows are Used
-
-Simple Workflows are executed by their `name`. The `HostManager` (via the `ExecutionFacade`) orchestrates the execution, calling each component (Agent, Simple Workflow, or Custom Workflow) in the `steps` list in order. The output from one component is typically passed as the initial input to the next component in the sequence.
-
-They can be invoked via:
--   The API (e.g., `/execute/workflow/{workflow_name}`).
--   The CLI (`run-cli execute workflow <workflow_name> "<initial_input>"`).
--   From within a Custom Workflow.
-
-## Component Documentation Links
-
--   [Agent Configurations (AgentConfig)](./agent.md)
--   [Custom Workflow Configurations (CustomWorkflowConfig)](./custom_workflow.md)
--   [Project Configurations (ProjectConfig)](./PROJECT.md): Simple Workflows are included in a project.

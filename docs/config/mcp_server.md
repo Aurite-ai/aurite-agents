@@ -1,193 +1,112 @@
-# Client Configurations (ClientConfig)
+# MCP Server Configuration
 
-Client Configurations define how the Aurite framework connects to and interacts with Model Context Protocol (MCP) servers. These servers provide external capabilities to your agents, such as tools, prompts, or other resources. Each `ClientConfig` specifies how to reach an MCP server, what capabilities it offers, and other connection parameters.
+MCP (Model-Context-Protocol) Servers are the backbone of an agent's capabilities. They are responsible for providing the tools, prompts, and resources that an agent can use to perform tasks. Each `mcp_server` configuration tells the framework how to connect to and interact with a specific server.
 
-This document first provides quickstart examples for common use cases and then details all available fields in a `ClientConfig` object, as defined in `src/aurite/config/config_models.py`.
+An MCP server configuration is a JSON or YAML object with a `type` field set to `"mcp_server"`.
 
-## Quickstart Examples
+## Core Fields
 
-For many common scenarios, you only need to define a few key fields.
-
-### 1. Basic stdio Client
-
-This is for running a local MCP server script (e.g., a Python file). The `transport_type` defaults to `"stdio"`, so you only need to specify `name`, `server_path`, and `capabilities`.
+### `name`
+**Type:** `string` (Required)
+**Description:** A unique identifier for the MCP server. This name is used in an agent's `mcp_servers` list to grant it access to this server.
 
 ```json
 {
-  "name": "my_local_script_server",
-  "server_path": "mcp_servers/my_script.py",
+  "name": "file-system-server"
+}
+```
+
+### `capabilities`
+**Type:** `list[string]` (Required)
+**Description:** A list of the types of components this server provides. Accepted values are `"tools"`, `"prompts"`, and `"resources"`.
+
+```json
+{
+  "capabilities": ["tools", "resources"]
+}
+```
+
+### `description`
+**Type:** `string` (Optional)
+**Description:** A brief, human-readable description of the server's purpose.
+
+```json
+{
+  "description": "A server that provides tools for reading and writing to the local file system."
+}
+```
+
+### Stdio Transport
+
+This is the most common transport for running local Python scripts as servers.
+
+**`server_path`**
+**Type:** `string` (Required for stdio)
+**Description:** The path to the Python script that runs the MCP server. This path can be relative to the `.aurite` file of its context.
+
+```json
+{
+  "name": "weather-server",
+  "server_path": "mcp_servers/weather_server.py",
   "capabilities": ["tools"]
 }
 ```
 
--   **`name`**: A unique name for your server.
--   **`server_path`**: Path to your server script, relative to your project root (where `aurite_config.json` is).
--   **`capabilities`**: What your server offers (e.g., `"tools"`, `"prompts"`).
+### HTTP Stream Transport
 
-### 2. Basic http_stream Client
+This transport is used for connecting to servers that are already running and accessible via an HTTP endpoint.
 
-This is for connecting to an MCP server that's running and accessible via an HTTP/HTTPS URL.
+**`http_endpoint`**
+**Type:** `string` (Required for http_stream)
+**Description:** The full URL of the server's streaming endpoint.
 
-```json
-{
-  "name": "my_remote_http_server",
-  "http_endpoint": "https://my-mcp-server.example.com/mcp",
-  "capabilities": ["resources"]
-}
-```
-
--   **`name`**: A unique name for your server.
--   **`http_endpoint`**: The full URL where the MCP server is listening.
--   **`capabilities`**: What your server offers.
-
-The `timeout`, `routing_weight`, and other fields have defaults or are optional for more advanced configurations.
-
-## Detailed Configuration Fields
-
-A Client configuration is a JSON object with the following fields:
-
-| Field            | Type                                  | Default   | Description                                                                                                                                                                                                                            |
-| ---------------- | ------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`           | string                                | Required  | A unique identifier for this MCP server configuration. Agents will use this name to specify which servers they can access. For backward compatibility, `client_id` is also supported.                                                    |
-| `transport_type` | string (`"stdio"` or `"http_stream"`) | `"stdio"` | Specifies the communication transport to use with the MCP server.<br>- `"stdio"`: For servers that communicate via standard input/output (e.g., a local Python script).<br>- `"http_stream"`: For servers that expose an HTTP endpoint for streaming MCP messages (e.g., a FastAPI-based MCP server).<br>- `"local"`: For local servers that are imported from outside sources, like smithery.ai.|
-| `server_path`    | string (Path)                         | `null`    | The file path to the MCP server script. Required if `transport_type` is `"stdio"`. The path is resolved relative to the project root directory (where `aurite_config.json` resides).                                                     |
-| `http_endpoint`  | string (URL)                          | `null`    | The full URL of the MCP server's HTTP streaming endpoint. Required if `transport_type` is `"http_stream"`. Must be a valid HTTP or HTTPS URL (e.g., `http://localhost:8080/mcp_stream`).                                              |
-| `roots`          | array of `RootConfig` objects       | `null`    | A list of specific MCP roots (entry points) provided by this server. If `null` or empty, the framework will discover roots from the server. See `RootConfig` details below.                                                              |
-| `capabilities`   | array of string                       | Required  | A list of capability types this client provides (e.g., `"tools"`, `"prompts"`, `"resources"`). This helps agents understand what the client offers.                                                                                      |
-| `timeout`        | number                                | `10.0`    | The timeout in seconds for waiting for a response from the MCP server.                                                                                                                                                                 |
-| `routing_weight` | number                                | `1.0`     | A weight used by the agent's `"auto"` mode when selecting which clients to use. Higher weights might indicate a preference for this client for relevant tasks.                                                                           |
-| `exclude`        | array of string                       | `null`    | A list of specific component names (tools, prompts, or resources) provided by this server that should be hidden from agents, even if the agent has access to this client.                                                              |
-| `gcp_secrets`    | array of `GCPSecretConfig` objects  | `null`    | A list of Google Cloud Platform secrets to resolve and inject as environment variables into the MCP server's environment when it's started by the framework (primarily for `"stdio"` transport). See `GCPSecretConfig` details below. |
-| `command`    | string  | `null`    | The command to be executed when accessing the MCP server. Required if `transport_type` is `local`. |
-| `args`    | array of string  | `null`    | The arguments to be used when accessing the MCP server. Required if `transport_type` is `local`.|
-
-### RootConfig Object
-
-Each object in the `roots` array has the following structure:
-
-| Field          | Type            | Description                                                                          |
-| -------------- | --------------- | ------------------------------------------------------------------------------------ |
-| `uri`          | string          | The URI of the MCP root (e.g., `"mcp://weather.com/tools"`).                           |
-| `name`         | string          | A human-readable name for the root.                                                  |
-| `capabilities` | array of string | Specific capabilities provided by this root (e.g., `["get_weather_forecast"]`).      |
-
-### GCPSecretConfig Object
-
-Each object in the `gcp_secrets` array has the following structure:
-
-| Field          | Type   | Description                                                                                                |
-| -------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| `secret_id`    | string | The full GCP Secret Manager secret ID (e.g., `"projects/my-proj/secrets/my-secret/versions/latest"`).      |
-| `env_var_name` | string | The name of the environment variable that the resolved secret value will be mapped to for the server process. |
-
-## Transport Types
-
-### 1. stdio
-
--   Used for MCP servers that are typically local scripts (e.g., Python scripts).
--   The Aurite framework starts these servers as subprocesses and communicates with them over their standard input and standard output streams.
--   Requires the `server_path` field to be set.
-
-**Example:**
+**`headers`**
+**Type:** `object` (Optional)
+**Description:** A dictionary of HTTP headers to include in the request (e.g., for authentication).
 
 ```json
 {
-  "name": "local_weather_tool",
-  "transport_type": "stdio",
-  "server_path": "mcp_servers/weather_mcp_server.py",
-  "capabilities": ["tools"],
-  "timeout": 15.0
-}
-```
-
-### 2. http_stream
-
--   Used for MCP servers that are accessible via an HTTP endpoint. These servers are expected to handle MCP communication over an HTTP stream (e.g., using Server-Sent Events or a similar streaming mechanism).
--   The Aurite framework connects to this endpoint as an HTTP client.
--   Requires the `http_endpoint` field to be set.
--   An example of an MCP server using this transport can be found in `src/aurite/packaged/example_mcp_servers/mcp_http_example_server.py`, which uses FastAPI.
-
-**Example:**
-
-```json
-{
-  "name": "remote_knowledge_base",
-  "transport_type": "http_stream",
-  "http_endpoint": "http://mcp-kb-service.example.com/mcp_stream",
-  "capabilities": ["resources", "prompts"],
-  "timeout": 20.0
-}
-```
-
-### 3. local
-
--   Used for MCP servers that are will be imported from an outside source like [smithery.ai](https://smithery.ai/)
--   'Remote' servers can be imported with 'http_stream'
--   Requires the `command` and `args` fields to be set. If using Smithery, these can be found under Install, JSON on the right side of the page for a server.
--   It is best practice to replace any keys with references to environment variables, like in the below example. Ensure the corresponding variables (`SMITHERY_API_KEY` in this case) are defined in the `.env`.
-
-**Example:**
-```json
-{
-  "name": "memory_server",
-  "transport_type": "local",
-  "command": "npx",
-  "args": [
-      "-y",
-      "@smithery/cli@latest",
-      "run",
-      "@jlia0/servers",
-      "--key",
-      "{SMITHERY_API_KEY}"
-  ],
-  "capabilities": ["tools", "prompts"],
-  "timeout": 15.0
-}
-```
-
-## Example MCP Server Config File
-
-MCP Server configurations are usually stored in a JSON file (e.g., `config/mcp_servers/mcp_servers.json` or a custom file referenced in your project configuration). This file typically contains a list of MCP Server configuration objects.
-
-```json
-[
-  {
-    "name": "stdio_example_server",
-    "transport_type": "stdio",
-    "server_path": "mcp_servers/my_stdio_server.py",
-    "capabilities": ["tools", "prompts"],
-    "timeout": 10.0,
-    "routing_weight": 1.0,
-    "exclude": ["internal_debug_tool"],
-    "gcp_secrets": [
-      {
-        "secret_id": "projects/my-gcp-project/secrets/my-server-api-key/versions/latest",
-        "env_var_name": "MY_SERVER_API_KEY"
-      }
-    ]
+  "name": "notion-api-server",
+  "http_endpoint": "https://api.notion.com/v1/mcp",
+  "headers": {
+    "Authorization": "Bearer {NOTION_API_KEY}"
   },
-  {
-    "name": "http_example_server",
-    "transport_type": "http_stream",
-    "http_endpoint": "http://localhost:8083/mcp_stream_example/",
-    "capabilities": ["tools"],
-    "timeout": 15.0,
-    "routing_weight": 1.5
-  }
-]
-```
-
-## How Agents Use MCP Server Configs
-
-An `AgentConfig` specifies which MCP servers it can use via its `mcp_servers` field. This list contains `name` strings that match the `name` in the MCP server configurations.
-
-```json
-// Example snippet from an AgentConfig
-{
-  "name": "MyWeatherAgent",
-  "mcp_servers": ["weather_server", "planning_server"], // References MCP Server configs by name
-  // ... other agent settings
+  "capabilities": ["tools"]
 }
 ```
 
-If an agent's `auto` mode is enabled, the framework (or an LLM) might dynamically select a subset of these allowed clients based on the task and client `routing_weight`.
+### Local Command Transport
+
+This transport is for running any executable command as a server.
+
+**`command`**
+**Type:** `string` (Required for local)
+**Description:** The command or executable to run.
+
+**`args`**
+**Type:** `list[string]` (Optional)
+**Description:** A list of arguments to pass to the command.
+
+```json
+{
+  "name": "my-custom-binary-server",
+  "command": "bin/my_server",
+  "args": ["--port", "8080"],
+  "capabilities": ["tools"]
+}
+```
+
+## Advanced Fields
+
+### `timeout`
+**Type:** `float` (Optional)
+**Default:** `10.0`
+**Description:** The default timeout in seconds for operations (like tool calls) sent to this server.
+
+### `exclude`
+**Type:** `list[string]` (Optional)
+**Description:** A list of component names (tools, prompts, or resources) to exclude from this server's offerings. This is useful if a server script provides many tools, but you only want to expose a subset of them in this particular configuration.
+
+### `roots`
+**Type:** `list[object]` (Optional)
+**Description:** A list of root objects that describe the server's capabilities in more detail. This is typically auto-discovered from the server and rarely needs to be set manually. Each root object contains a `uri`, `name`, and `capabilities`.
