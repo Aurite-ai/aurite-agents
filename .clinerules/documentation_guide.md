@@ -35,11 +35,9 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 **Documents:**
 - `MUST_READ_FIRST.md` - Entry point and task router for all development work
 - `documentation_guide.md` - This guide for navigating all documentation
-- `feature_development_rules.md` - Workflow and template for new features
-- `refactoring_rules.md` - Workflow and template for code improvements
-- `debugging_rules.md` - Workflow and template for bug fixes
-- `testing_rules.md` - Workflow and template for test development
-- `documentation_rules.md` - Workflow and template for documentation updates
+- `development_rules.md` - Workflow and template for all development tasks.
+  - `refactoring_rules.md` - Workflow and template for code improvements. Extension of development_rules.md
+  - `debugging_rules.md` - Workflow and template for bug fixes. Extension of devlepment_rules.md
 
 ### 3. Configuration Reference
 **Purpose:** Detailed guides for configuring each component type

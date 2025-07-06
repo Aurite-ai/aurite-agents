@@ -25,7 +25,7 @@ Not every task requires a formal plan. Use this guide to determine the appropria
 **Examples:** Fix a typo, update a comment, add a simple logging statement
 - **Plan Required:** No
 - **Approach:** Make the change directly if the solution is obvious
-- **Documentation:** Brief commit message
+- **Documentation:** Rarely needed
 
 ### Level 3: Standard Task
 **Examples:** Add a new method, fix a straightforward bug, update documentation
@@ -49,39 +49,29 @@ Not every task requires a formal plan. Use this guide to determine the appropria
 **Examples:** Project overhaul, multi-feature implementation, system-wide changes
 - **Plan Required:** Yes - Overarching plan + individual task plans
 - **Approach:** Break into sub-tasks, each with its own plan
-- **Documentation:** Project plan + individual implementation plans
+- **Documentation:** Project plan + first implementation plan
 
 ---
 
 ## 2. Task Router - Which Rules to Follow?
 
-Based on your task type (Level 3+), select the appropriate rule document:
+For development tasks (Level 3+), follow this guidance:
 
 ```
-Is this a NEW FEATURE or capability?
-├─ YES → Use `feature_development_rules.md`
+ALL development tasks:
+├─ Start with → `development_rules.md`
 │
-├─ NO → Is this improving EXISTING CODE without changing functionality?
-│  ├─ YES → Use `refactoring_rules.md`
-│  │
-│  ├─ NO → Is this FIXING a bug or error?
-│  │  ├─ YES → Use `debugging_rules.md`
-│  │  │
-│  │  ├─ NO → Is this adding or improving TESTS?
-│  │  │  ├─ YES → Use `testing_rules.md`
-│  │  │  │
-│  │  │  └─ NO → Is this updating DOCUMENTATION?
-│  │  │     ├─ YES → Use `documentation_rules.md`
-│  │  │     │
-│  │  │     └─ NO → Ask for clarification
+└─ Then, based on task type, ALSO read:
+   ├─ Improving existing code? → Add `refactoring_rules.md`
+   └─ Fixing bugs/errors? → Add `debugging_rules.md`
 ```
 
 ### Quick Reference:
-- **New capabilities** → `feature_development_rules.md`
-- **Code improvements** → `refactoring_rules.md`
-- **Bug fixes** → `debugging_rules.md`
-- **Test development** → `testing_rules.md`
-- **Documentation updates** → `documentation_rules.md`
+- **All development tasks** → Start with `development_rules.md`
+- **Code improvements** → Also read `refactoring_rules.md`
+- **Bug fixes** → Also read `debugging_rules.md`
+
+Note: Testing and documentation updates are integral parts of all development tasks and are covered in `development_rules.md`.
 
 ---
 
@@ -142,11 +132,9 @@ These rules apply to ALL development tasks, regardless of type:
 - **Testing Guide:** `tests/README.md`
 
 ### Task-Specific Rules (Level 3+ tasks)
-- **Features:** `.clinerules/feature_development_rules.md`
+- **All Development:** `.clinerules/development_rules.md`
 - **Refactoring:** `.clinerules/refactoring_rules.md`
 - **Debugging:** `.clinerules/debugging_rules.md`
-- **Testing:** `.clinerules/testing_rules.md`
-- **Documentation:** `.clinerules/documentation_rules.md`
 
 ### Implementation Plans
 - **Location:** `docs/plans/[project_name]/`
