@@ -1,0 +1,170 @@
+/* General container for the main app view, under the header */
+Container {
+    height: 1fr;
+    width: 100%;
+    layout: horizontal;
+}
+
+/* Left and Right Panes */
+#left-pane {
+    width: 30%;
+    height: 100%;
+    dock: left;
+    overflow: auto;
+}
+
+/* Right pane now takes full remaining width for configuration data editing */
+#config-data-pane {
+    height: 100%;
+    width: 1fr;
+    border: solid $boost;
+    padding: 2;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align: left top;
+    scrollbar-gutter: stable;
+}
+
+/* Panes within the left side */
+#nav-pane {
+    height: 50%;
+    border: solid $boost;
+}
+#config-list-pane {
+    height: 50%;
+    border: solid $boost;
+}
+
+/* Styles for the new vertical layout */
+.field-label {
+    height: 1;
+    margin-bottom: 1;
+    text-style: bold;
+    color: $text;
+}
+
+.field-input {
+    height: 3;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+.field-textarea {
+    margin-bottom: 1;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.field-textarea-small {
+    min-height: 3;
+    max-height: 6;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.field-textarea-large {
+    min-height: 5;
+    max-height: 8;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.field-select {
+    height: 3;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+.field-spacer {
+    height: 0;
+}
+
+.servers-row {
+    height: 3;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+.servers-summary {
+    width: 1fr;
+    height: 3;
+    content-align-vertical: middle;
+    padding: 0 1;
+    border: round $secondary;
+    background: $surface;
+}
+
+.edit-button {
+    width: auto;
+    margin-left: 1;
+}
+
+.save-button {
+    margin-top: 2;
+    width: 100%;
+    height: 3;
+}
+
+.hidden-input {
+    display: none;
+}
+
+.checkbox-container {
+    height: auto;
+    overflow-y: auto;
+    max-height: 10; /* Adjust as needed */
+    border: $boost;
+    padding: 0 1;
+}
+
+.checkbox-container > Checkbox {
+    margin-top: 1;
+}
+
+/* Styles for the modal prompt editor */
+SystemPromptEditorScreen {
+    align: center middle;
+}
+
+#prompt-editor-container {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: thick $primary;
+    layout: vertical;
+}
+
+#prompt-editor {
+    height: 1fr;
+    border: none;
+}
+
+#prompt-editor-buttons {
+    height: auto;
+    align: right middle;
+    padding-top: 1;
+}
+
+/* Styles for the modal MCP servers editor */
+MCPServersEditorScreen {
+    align: center middle;
+}
+
+#mcp-editor-container {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: thick $primary;
+    layout: vertical;
+}
+
+#mcp-editor-container > VerticalScroll {
+    height: 1fr;
+}
+
+#mcp-editor-buttons {
+    height: auto;
+    align: right middle;
+    padding-top: 1;
+}

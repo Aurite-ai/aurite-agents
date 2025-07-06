@@ -21,13 +21,13 @@
   },
   {
     "name": "weather_server",
-    "type": "mcp_server",
-    "server_path": "mcp_servers/weather_server.py",
+    "server_path": "/home/wilcoxr/workspace/aurite/framework/src/aurite/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"
     ],
-    "timeout": 15.0
+    "timeout": "15.0",
+    "type": "mcp_server"
   },
   {
     "name": "planning_server",
@@ -42,14 +42,14 @@
   },
   {
     "name": "Weather Agent",
-    "type": "agent",
-    "include_history": true,
-    "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
     "mcp_servers": [
       "weather_server"
     ],
+    "description": "An agent that retrieves mock weather data using the weather MCP server. ONLY supports New York, San Francisco, Tokyo, and London.",
+    "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
+    "include_history": true,
     "llm_config_id": "anthropic_claude_3_haiku",
-    "description": "An agent that retrieves mock weather data using the weather MCP server. ONLY supports New York, San Francisco, Tokyo, and London."
+    "type": "agent"
   },
   {
     "name": "Weather Planning Workflow Step 2",

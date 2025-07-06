@@ -14,11 +14,11 @@
 *   List the core source code files and primary classes/modules belonging to this layer.
 *   Briefly describe the main responsibility of each file/class in the context of the layer.
 
-| File Path                          | Primary Class(es)/Modules | Core Responsibility                                       |
-| :--------------------------------- | :------------------------ | :-------------------------------------------------------- |
-| `src/[path]/[file_name].py`        | `[ClassName]`             | [Brief description of responsibility]                     |
-| `src/[path]/[another_file].py`     | `[AnotherClass]`          | [Brief description of responsibility]                     |
-| ...                                | ...                       | ...                                                       |
+| File Path                      | Primary Class(es)/Modules | Core Responsibility                   |
+| :----------------------------- | :------------------------ | :------------------------------------ |
+| `src/[path]/[file_name].py`    | `[ClassName]`             | [Brief description of responsibility] |
+| `src/[path]/[another_file].py` | `[AnotherClass]`          | [Brief description of responsibility] |
+| ...                            | ...                       | ...                                   |
 
 ## 3. Functionality
 
@@ -65,12 +65,12 @@ Describe how the components within this layer work together and individually.
 *   Map the core functionalities (from Section 3) to the relevant source files and the test files that verify them.
 *   Indicate the current testing status or coverage level for each functionality.
 
-| Functionality                                      | Relevant File(s)                              | Test File(s) / Status                                                                 |
-| :------------------------------------------------- | :-------------------------------------------- | :------------------------------------------------------------------------------------ |
-| [Functionality Description 1 from Sec 3]           | `src/[path]/[file_name].py`                   | `tests/[layer_dir]/test_[file_name].py` / Status: [e.g., Good, Partial, Missing]      |
-| [Functionality Description 2 from Sec 3]           | `src/[path]/[another_file].py`                | `tests/[layer_dir]/test_[another_file]_unit.py` / Status: [e.g., Good, Partial, Missing] |
-| [Multi-file Flow Description from Sec 3.1]         | `[file1].py`, `[file2].py`                    | `tests/[layer_dir]/test_[integration_scenario].py` / Status: [e.g., Good, Partial]    |
-| ...                                                | ...                                           | ...                                                                                   |
+| Functionality                              | Relevant File(s)               | Test File(s) / Status                                                                    |
+| :----------------------------------------- | :----------------------------- | :--------------------------------------------------------------------------------------- |
+| [Functionality Description 1 from Sec 3]   | `src/[path]/[file_name].py`    | `tests/[layer_dir]/test_[file_name].py` / Status: [e.g., Good, Partial, Missing]         |
+| [Functionality Description 2 from Sec 3]   | `src/[path]/[another_file].py` | `tests/[layer_dir]/test_[another_file]_unit.py` / Status: [e.g., Good, Partial, Missing] |
+| [Multi-file Flow Description from Sec 3.1] | `[file1].py`, `[file2].py`     | `tests/[layer_dir]/test_[integration_scenario].py` / Status: [e.g., Good, Partial]       |
+| ...                                        | ...                            | ...                                                                                      |
 
 **4.D. Remaining Testing Steps:**
 

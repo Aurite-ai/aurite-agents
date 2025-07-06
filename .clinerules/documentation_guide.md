@@ -1,67 +1,139 @@
-# Aurite Agents Documentation Guide
+# Aurite Framework Documentation Guide
 
-## 1. Introduction
+## Purpose
+This guide helps developers navigate the Aurite Framework documentation and ensures consistency when updating docs. It maps common tasks to relevant documents and provides a checklist for maintaining documentation accuracy as the codebase evolves.
 
-This guide is designed to help navigate the documentation of the Aurite Agents framework. It maps common development tasks to the most relevant documents and provides a checklist for which documents to update when changes are made to the codebase. Its purpose is to ensure consistency and accuracy across the documentation as the framework evolves.
+## Documentation Overview
 
-## 2. Document Map
+### Categories at a Glance
+1. **Getting Started** - Installation, setup, and tutorials
+2. **Copilot Rules** - Development workflows and guidelines
+3. **Configuration Reference** - How to configure framework components
+4. **Interfaces & Usage** - How to interact with the framework (API, CLI, TUI)
+5. **Architecture & Design** - Technical architecture and design decisions
+6. **Testing** - Test strategies and execution
+7. **Internal Resources** - Implementation plans and external references
 
-This table provides a high-level overview of the key documents, their purpose, and their primary audience.
+### 1. Getting Started
+**Purpose:** Help new users install, configure, and learn the framework
+**Audience:** New users, developers setting up the framework
+**Location:** Root directory + `docs/getting-started/`
+**Documents:**
+- `README.md` - Framework overview and core concepts
+- `README_packaged.md` - Package installation and `aurite init` usage
+- `docs/getting-started/Learning_Path.md` - Overview and structured learning approach
+- `docs/getting-started/Quick_Start.md` - 5-minute guide for experienced developers
+- `docs/getting-started/installation_guides/package_installation_guide.md` - Detailed package setup
+- `docs/getting-started/installation_guides/repository_installation_guide.md` - Development setup from source
+- `docs/getting-started/tutorials/` - Sequential learning tutorials (01-08)
+- `docs/getting-started/project_ideas/` - Practical project exercises
 
-| Document Path                               | Purpose                                                                                             | Primary Audience      |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------- |
-| `README.md`                                 | High-level overview of the framework, core concepts, and architecture for repository users.         | Developers, Newcomers |
-| `README_packaged.md`                        | Information for users who have installed the `aurite` package via pip. Focuses on `aurite init`.      | End-Users             |
-| `frontend/README.md`                        | Technical details of the frontend application (stack, structure, setup).                            | Frontend Developers   |
-| `docs/package_installation_guide.md`        | Step-by-step guide for end-users to install the package and set up a project.                       | End-Users             |
-| `docs/repository_installation_guide.md`     | Guide for developers setting up the project from the source code repository.                        | Developers            |
-| `docs/toolbox/mcp_server_directory.md`      | A directory of all pre-configured MCP servers included in the `aurite` package.                     | End-Users, Developers |
-| `docs/toolbox/servers/*.md`                 | Detailed documentation for each category of packaged MCP servers.                                   | End-Users, Developers |
-| `docs/layers/framework_overview.md`         | The primary architectural document, explaining all layers and their interactions.                   | Framework Developers  |
-| `docs/layers/0_frontends.md`                | Deep dive into the frontend layer, its files, and its interaction with the backend API.             | Frontend Developers   |
-| `docs/layers/1_entrypoints.md`              | Deep dive into the API, CLI, and Worker entrypoints.                                                | Backend Developers    |
-| `docs/layers/2_orchestration.md`            | Deep dive into `HostManager`, `ExecutionFacade`, and component executors.                           | Backend Developers    |
-| `docs/layers/3_host.md`                     | Deep dive into `MCPHost` and its interaction with external MCP servers.                             | Backend Developers    |
-| `docs/components/PROJECT.md`                | Explains the central project configuration file (`aurite_config.json`) and how it works.            | End-Users, Developers |
-| `docs/components/*.md`                      | Detailed guides for configuring each component type (Agent, Client, LLM, etc.).                     | End-Users, Developers |
-| `docs/HOME.md`                              | The main landing page for the Obsidian Publish documentation site.                                  | All                   |
-| `docs/USC - Get Started/Start Here.md`      | The entry point for the USC tutorial modules.                                                       | Newcomers, Students   |
-| `docs/USC - Get Started/module1/*.md`       | Tutorial content for learning basic framework concepts and agent configuration.                     | Newcomers, Students   |
-| `docs/USC - Get Started/module2/*.md`       | Tutorial content for learning about the Model Context Protocol (MCP) and using the CLI.             | Newcomers, Students   |
-| `.clinerules/MUST_READ_FIRST.md`            | Core project rules and entry point for developers.                                                  | Developers            |
-| `.clinerules/documentation_guide.md`        | This document. Guides documentation structure and updates.                                          | Developers            |
-| `.clinerules/framework_development_rules.md`| Rules and workflow for framework development.                                                       | Developers            |
-| `.clinerules/package_development_rules.md`  | Rules and workflow for modifying the `aurite` package and the `aurite init` command templates.        | Developers            |
-| `.clinerules/package_toolbox_development_rules.md`  | Rules and workflow for adding new pre-configured ("packaged") components to the `aurite` package's toolbox.        | Developers            |
+### 2. Copilot Rules
+**Purpose:** Define development workflows, best practices, and guidelines for working with the codebase
+**Audience:** Framework developers and contributors
+**Location:** `.clinerules/`
+**Documents:**
+- `MUST_READ_FIRST.md` - Entry point and task router for all development work
+- `documentation_guide.md` - This guide for navigating all documentation
+- `feature_development_rules.md` - Workflow and template for new features
+- `refactoring_rules.md` - Workflow and template for code improvements
+- `debugging_rules.md` - Workflow and template for bug fixes
+- `testing_rules.md` - Workflow and template for test development
+- `documentation_rules.md` - Workflow and template for documentation updates
+
+### 3. Configuration Reference
+**Purpose:** Detailed guides for configuring each component type
+**Audience:** Users configuring agents, workflows, and other components
+**Location:** `docs/config/`
+**Documents:**
+- `projects_and_workspaces.md` - How the configuration system works
+- `agent.md` - Agent configuration options
+- `llm.md` - LLM provider configurations
+- `mcp_server.md` - MCP server setup and configuration
+- `simple_workflow.md` - Sequential workflow configuration
+- `custom_workflow.md` - Python-based workflow configuration
+
+### 4. Interfaces & Usage
+**Purpose:** How to interact with the framework through various interfaces
+**Audience:** Users and developers who need to run agents and workflows
+**Location:** `docs/usage/`
+**Documents:**
+- `overview.md` - Comparison of interfaces and when to use each
+- `cli_reference.md` - Complete CLI command reference
+- `api_reference.md` - API usage guide and authentication
+- `tui_guide.md` - Terminal UI interface guide
+- `openapi.yaml` - OpenAPI specification
+- API endpoints: `/api-docs`, `/redoc`, `/openapi.json` (when server is running)
+
+### 5. Architecture & Design
+**Purpose:** Explain the framework's technical architecture and design decisions
+**Audience:** Framework developers, advanced users
+**Location:** `docs/architecture/`
+**Documents:**
+- `overview.md` - High-level architecture overview
+- `layers/0_frontends.md` - Frontend layer (UI applications)
+- `layers/1_entrypoints.md` - API, CLI, and worker entrypoints
+- `layers/2_orchestration.md` - Core orchestration layer
+- `layers/3_host.md` - MCP host infrastructure
+- `design/` - Design documents and architectural decisions
+
+### 6. Testing
+**Purpose:** Guide for running tests and understanding test strategies
+**Audience:** Contributors and developers
+**Location:** `tests/`
+**Documents:**
+- `tests/README.md` - Test execution guide and strategies
+
+### 7. Internal Resources
+**Purpose:** Internal references and implementation details
+**Audience:** Framework maintainers
+**Location:** `docs/internal/`
+**Notes:**
+- `plans/` - Implementation plans for features and refactors
+- `reference/` - Documentation from external packages (textual, pyproject tools)
+- Not included in open-source releases
+
+### Documentation Assets
+**Location:** `docs/images/`
+**Purpose:** Diagrams, logos, and images used in documentation
+**Key Files:**
+- `architecture_diagram.svg` - Framework architecture visualization
+- `aurite_logo.png` - Project branding
 
 ---
 
-## 3. Part 1: Task-Based Document Reference
+## Quick Reference Tables
 
-Use this section to find the most relevant documents to consult *before* starting a specific task.
+### Finding Documentation by Task
+| If you need to...           | Start here...                                        |
+| --------------------------- | ---------------------------------------------------- |
+| Install the framework       | `docs/getting-started/installation_guides/package_installation_guide.md` |
+| Configure an agent          | `docs/config/agent.md`                               |
+| Understand the architecture | `docs/architecture/overview.md`                      |
+| Add a new API endpoint      | `docs/architecture/layers/1_entrypoints.md`          |
+| Create a custom workflow    | `docs/config/custom_workflow.md`                     |
+| Run tests                   | `tests/README.md`                                    |
+| Learn framework basics      | `docs/getting-started/Learning_Path.md`              |
+| Get started quickly         | `docs/getting-started/Quick_Start.md`                |
+| Contribute to the project   | `.clinerules/MUST_READ_FIRST.md`                     |
+| Develop a new feature       | `.clinerules/feature_development_rules.md`           |
+| Fix a bug                   | `.clinerules/debugging_rules.md`                     |
+| Refactor existing code      | `.clinerules/refactoring_rules.md`                   |
+| Add or improve tests        | `.clinerules/testing_rules.md`                       |
+| Update documentation        | `.clinerules/documentation_rules.md`                 |
+| Use the CLI                 | `docs/usage/cli_reference.md`                        |
+| Use the API                 | `docs/usage/api_reference.md`                        |
+| Choose an interface         | `docs/usage/overview.md`                             |
+| Understand projects/workspaces | `docs/config/projects_and_workspaces.md`         |
 
-| If your task is to...                                       | Start by reading these documents...                                                                                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Change a user-facing configuration** (e.g., an Agent's prompt, a Workflow's steps, an LLM's temperature) | 1. `docs/components/PROJECT.md` (to understand how components are referenced) <br> 2. The specific component document (e.g., `docs/components/agent.md`, `docs/components/simple_workflow.md`) |
-| **Add or change an API endpoint**                               | 1. `docs/layers/1_entrypoints.md` (to understand the API structure, routers, and dependencies) <br> 2. `docs/layers/framework_overview.md` (for context on how the API fits in) |
-| **Modify the core orchestration logic** (e.g., how agents are executed, how history is managed) | 1. `docs/layers/2_orchestration.md` (the primary document for this layer) <br> 2. `docs/layers/framework_overview.md` (for high-level context) <br> 3. `docs/layers/3_host.md` (to understand the `MCPHost` interface it calls) |
-| **Modify the low-level MCP interaction** (e.g., how clients connect, how tools are filtered) | 1. `docs/layers/3_host.md` (the primary document for this layer) <br> 2. `docs/layers/framework_overview.md` (for high-level context) |
-| **Modify the Frontend UI**                                      | 1. `frontend/README.md` (for tech stack, project structure, and setup) <br> 2. `docs/layers/0_frontends.md` (for how the frontend interacts with the backend API) |
-| **Change the packaged user experience** (e.g., the `aurite init` command or the default project template) | 1. `README_packaged.md` (describes the user experience) <br> 2. `docs/package_installation_guide.md` (details the user setup flow) <br> 3. `.clinerules/package_development_rules.md` (for the development workflow) <br> 4. `docs/toolbox/mcp_server_directory.md` (if adding/changing packaged servers) |
-| **Add a new component type** (e.g., a new kind of workflow)     | 1. `docs/layers/framework_overview.md` (to decide where it fits) <br> 2. `docs/layers/2_orchestration.md` (likely where new execution logic would go) <br> 3. `docs/components/PROJECT.md` (to understand how it would be configured) |
-
----
-
-## 4. Part 2: Document Update Cheatsheet
-
-After making changes to the codebase, use this section to identify which documents **must be reviewed and updated**.
-
-| If you changed...                                                                                                                                                                                                                                                                            | Documents to Review/Update                                                                                                                                                                                                                                                              |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **The structure of a component's JSON config** (e.g., adding a new field to `AgentConfig` in `src/aurite/config/config_models.py`) | 1. The relevant component document (e.g., `docs/components/agent.md`) - **MUST be updated** with the new field. <br> 2. `docs/components/PROJECT.md` (if the change affects inline definitions). <br> 3. `README.md` (if the concept is mentioned there). |
-| **The core behavior of `HostManager` or `ExecutionFacade`** (in `src/aurite/host_manager.py` or `src/aurite/execution/facade.py`) | 1. `docs/layers/2_orchestration.md` - **MUST be updated**. <br> 2. `docs/layers/framework_overview.md` - Review for high-level impact. |
-| **The core behavior of `MCPHost` or its managers** (in `src/aurite/host/`) | 1. `docs/layers/3_host.md` - **MUST be updated**. <br> 2. `docs/layers/framework_overview.md` - Review for high-level impact. |
-| **An API route's signature or behavior** (in `src/aurite/bin/api/routes/`) | 1. `docs/layers/1_entrypoints.md` - **MUST be updated**. <br> 2. `docs/layers/0_frontends.md` (if the frontend consumes this endpoint). |
-| **The frontend application** (in `frontend/src/`) | 1. `frontend/README.md` (if structure or setup changes). <br> 2. `docs/layers/0_frontends.md` (if the core interaction flow with the backend changes). |
-| **The `aurite init` command or its templates** | 1. `README_packaged.md` - **MUST be updated**. <br> 2. `docs/package_installation_guide.md` - **MUST be updated**. <br> 3. `.clinerules/package_development_rules.md` - Review for impact. <br> 4. `docs/toolbox/mcp_server_directory.md` and relevant `docs/toolbox/servers/*.md` - **MUST be updated** if packaged servers are added/changed. |
-| **High-level architecture or adding a new layer/major component** | 1. `docs/layers/framework_overview.md` - **MUST be updated**. <br> 2. `README.md` (especially the architecture diagram/description). <br> 3. A new layer document (`docs/layers/X_new_layer.md`) will likely be needed. |
+### Documentation Update Checklist
+| If you changed...                 | Update these docs...                                 |
+| --------------------------------- | ---------------------------------------------------- |
+| Component configuration structure | Relevant `docs/config/*.md` file                     |
+| Core architecture                 | `docs/architecture/` files                           |
+| API endpoints                     | `docs/architecture/layers/1_entrypoints.md`, `openapi.yaml` |
+| CLI commands                      | `docs/usage/cli_reference.md`                        |
+| TUI interfaces                    | `docs/usage/tui_guide.md`                             |
+| Installation process              | `docs/getting-started/installation_guides/*.md`      |
+| Development workflow              | `.clinerules/MUST_READ_FIRST.md` and relevant task-specific rules |
+| Test strategies                   | `tests/README.md`                                    |

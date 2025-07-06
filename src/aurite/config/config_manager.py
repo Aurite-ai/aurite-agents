@@ -268,7 +268,90 @@ class ConfigManager:
         self.__init__()
 
     def upsert_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
-        # This method would need to be updated to work with the new flat-list structure
-        # For now, we focus on getting the loading right.
-        logger.error("upsert_component is not implemented for the new config structure yet.")
-        return False
+        """
+        Updates or inserts a component configuration by writing back to its source file.
+        """
+        try:
+            # Find the existing component to get its source file
+            existing_config = self._component_index.get(component_type, {}).get(component_name)
+
+            if not existing_config:
+                logger.error(f"Component '{component_name}' of type '{component_type}' not found for update.")
+                return False
+
+            source_file_path = existing_config.get("_source_file")
+            if not source_file_path:
+                logger.error(f"No source file found for component '{component_name}'.")
+                return False
+
+            source_file = Path(source_file_path)
+            if not source_file.exists():
+                logger.error(f"Source file {source_file} does not exist.")
+                return False
+
+            # Load the current file content
+            try:
+                with source_file.open("r", encoding="utf-8") as f:
+                    if source_file.suffix == ".json":
+                        file_content = json.load(f)
+                    else:
+                        file_content = yaml.safe_load(f)
+            except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+                logger.error(f"Failed to load source file {source_file}: {e}")
+                return False
+
+            if not isinstance(file_content, list):
+                logger.error(f"Source file {source_file} does not contain a list of components.")
+                return False
+
+            # Find and update the component in the file content
+            component_updated = False
+            for i, component in enumerate(file_content):
+                if (
+                    isinstance(component, dict)
+                    and component.get("name") == component_name
+                    and component.get("type") == component_type
+                ):
+                    # Update the component with new config, preserving the type
+                    updated_component = new_config.copy()
+                    updated_component["type"] = component_type
+                    file_content[i] = updated_component
+                    component_updated = True
+                    break
+
+            if not component_updated:
+                logger.error(f"Component '{component_name}' not found in source file {source_file}.")
+                return False
+
+            # Write the updated content back to the file
+            try:
+                with source_file.open("w", encoding="utf-8") as f:
+                    if source_file.suffix == ".json":
+                        json.dump(file_content, f, indent=2, ensure_ascii=False)
+                    else:
+                        yaml.safe_dump(file_content, f, default_flow_style=False, allow_unicode=True)
+
+                logger.info(f"Successfully updated component '{component_name}' in {source_file}")
+
+                # Update the in-memory index
+                updated_config = new_config.copy()
+                updated_config.update(
+                    {
+                        "_source_file": source_file_path,
+                        "_context_path": existing_config.get("_context_path"),
+                        "_context_level": existing_config.get("_context_level"),
+                        "_project_name": existing_config.get("_project_name"),
+                        "_workspace_name": existing_config.get("_workspace_name"),
+                    }
+                )
+                self._component_index[component_type][component_name] = updated_config
+
+                return True
+
+            except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+                logger.error(f"Failed to write updated config to {source_file}: {e}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Unexpected error updating component '{component_name}': {e}")
+            return False

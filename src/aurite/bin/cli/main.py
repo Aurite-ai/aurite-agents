@@ -6,7 +6,7 @@ from rich.console import Console
 
 from ...config.fast_loader import list_component_names
 from ..api.api import start as start_api_server
-from ..tui.main import AuriteTUI
+from ..tui.edit import AuriteEditTUI
 
 # Relative imports from within the bin directory
 from .commands import (
@@ -81,11 +81,11 @@ def api():
 
 
 @app.command()
-def tui():
+def edit(component_name: Optional[str] = typer.Argument(None, help="The name of the component to edit directly.")):
     """
-    Starts the Aurite Textual TUI.
+    Starts the Aurite configuration editor TUI.
     """
-    app = AuriteTUI()
+    app = AuriteEditTUI(component_name=component_name)
     app.run()
 
 
