@@ -2,6 +2,7 @@
 MCP Host implementation for managing MCP client connections and interactions.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -182,7 +183,11 @@ class MCPHost:
                 del self._tool_to_session[tool_name]
 
         if session_stack:
-            await session_stack.aclose()
+            try:
+                await session_stack.aclose()
+            except (asyncio.CancelledError, Exception) as e:
+                logger.debug(f"Error during session cleanup for '{server_name}': {e}")
+                # Don't re-raise during shutdown - we want to continue cleaning up other clients
 
         logger.info(f"Client '{server_name}' dynamically unregistered successfully.")
 
