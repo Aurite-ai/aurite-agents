@@ -89,11 +89,15 @@ class RunPresenter:
         self._full_response += content
 
     async def _handle_llm_response_stop(self, data: Dict[str, Any]):
+        response_text = Text(self._full_response, "bright_white")
+        response_text.no_wrap = False
+        
         console.print(
             Panel(
-                Text(self._full_response, "bright_white"),
+                response_text,
                 title="[bold cyan]Agent Response[/bold cyan]",
                 border_style="cyan",
+                expand=True,
             )
         )
         self._full_response = ""  # Reset for next turn
@@ -103,13 +107,14 @@ class RunPresenter:
         tool_input = data.get("input", {})
 
         input_json = json.dumps(tool_input, indent=2)
-        syntax = Syntax(input_json, "json", theme="monokai", line_numbers=True)
+        syntax = Syntax(input_json, "json", theme="monokai", line_numbers=True, word_wrap=True)
 
         panel = Panel(
             syntax,
             title=f"[bold yellow]:hammer_and_wrench: Tool Call: {tool_name}[/bold yellow]",
             subtitle="[yellow]Input[/yellow]",
             border_style="yellow",
+            expand=True,
         )
         console.print(panel)
         console.print(Spinner("dots", text=f" Executing {tool_name}..."))
@@ -121,24 +126,31 @@ class RunPresenter:
         try:
             output_data = json.loads(tool_output)
             output_json = json.dumps(output_data, indent=2)
-            syntax = Syntax(output_json, "json", theme="monokai", line_numbers=True)
+            syntax = Syntax(output_json, "json", theme="monokai", line_numbers=True, word_wrap=True)
         except (json.JSONDecodeError, TypeError):
+            # For non-JSON output, create a Text object with proper wrapping
             syntax = Text(str(tool_output))
+            syntax.no_wrap = False
 
         panel = Panel(
             syntax,
             title=f"[bold green]:white_check_mark: Tool Output: {tool_name}[/bold green]",
             subtitle="[green]Output[/green]",
             border_style="green",
+            expand=True,
         )
         console.print(panel)
 
     async def _handle_error(self, data: Dict[str, Any]):
         error_message = data.get("message", "An unknown error occurred.")
+        error_text = Text(error_message, "bold red")
+        error_text.no_wrap = False
+        
         panel = Panel(
-            Text(error_message, "bold red"),
+            error_text,
             title="[bold red]:x: Error[/bold red]",
             border_style="red",
+            expand=True,
         )
         console.print(panel)
 
