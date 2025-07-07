@@ -81,14 +81,8 @@ class ConfigManager:
                 with open(anchor_path, "rb") as f:
                     settings = tomllib.load(f).get("aurite", {})
 
-                # Add config paths defined in the current .aurite file
-                for rel_path in settings.get("include_configs", []):
-                    resolved_path = (context_root / rel_path).resolve()
-                    if resolved_path.is_dir() and resolved_path not in processed_paths:
-                        config_sources.append((resolved_path, context_root))
-                        processed_paths.add(resolved_path)
-
-                # If it's a workspace, find all its projects and their configs
+                # If it's a workspace, find all its projects and their configs first
+                # to ensure project-level context is prioritized.
                 if settings.get("type") == "workspace":
                     for project_rel_path in settings.get("projects", []):
                         project_root = (context_root / project_rel_path).resolve()
@@ -101,6 +95,13 @@ class ConfigManager:
                                 if resolved_p_path.is_dir() and resolved_p_path not in processed_paths:
                                     config_sources.append((resolved_p_path, project_root))
                                     processed_paths.add(resolved_p_path)
+
+                # Add config paths defined in the current .aurite file
+                for rel_path in settings.get("include_configs", []):
+                    resolved_path = (context_root / rel_path).resolve()
+                    if resolved_path.is_dir() and resolved_path not in processed_paths:
+                        config_sources.append((resolved_path, context_root))
+                        processed_paths.add(resolved_path)
             except (tomllib.TOMLDecodeError, IOError) as e:
                 logger.error(f"Could not parse {anchor_path} during source init: {e}")
 
