@@ -22,7 +22,7 @@
   "ruff.lint.ignore": ["F841", "E722", "E402"],
   "fileNestingUpdater.autoUpdate": true,
   "explorer.fileNesting.patterns": {
-    "*.ts": "${capture}.js",
+    "*.ts": "${capture}.js, ${capture}.test.ts",
     "HOME.md": "aurite_logo.png, architecture_diagram.svg",
     "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
     "*.jsx": "${capture}.js",
