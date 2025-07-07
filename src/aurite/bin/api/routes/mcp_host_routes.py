@@ -64,7 +64,7 @@ async def register_server_by_name(
     """
     Register a new MCP server with the host by its configured name.
     """
-    server_config_dict = config_manager.get_config("mcp_servers", server_name)
+    server_config_dict = config_manager.get_config("mcp_server", server_name)
     if not server_config_dict:
         raise HTTPException(
             status_code=404,
@@ -107,13 +107,14 @@ async def call_tool(
     """
     Execute a specific tool by name with the given arguments.
     """
+    if tool_name not in host.tools:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+
     try:
-        if tool_name not in host.tools:
-            raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
         result = await host.call_tool(tool_name, tool_call_args.args)
         return result.model_dump()
     except KeyError as e:
-        # This is now redundant, but kept for safety.
+        # This handles the case where the tool was removed between check and call
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.") from e
     except Exception as e:
         logger.error(f"Error calling tool '{tool_name}': {e}", exc_info=True)
