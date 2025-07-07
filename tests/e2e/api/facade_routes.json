@@ -57,8 +57,11 @@
 							"});",
 							"pm.test(\"Response body has correct content\", function () {",
 							"    var jsonData = pm.response.json();",
-							"    var finalResponse = JSON.parse(jsonData.final_response.content);",
-							"    pm.expect(finalResponse.weather_summary).to.exist;",
+							"    pm.expect(jsonData.final_response).to.exist;",
+							"    pm.expect(jsonData.final_response.content).to.exist;",
+							"    // Check that the response contains weather information for San Francisco",
+							"    pm.expect(jsonData.final_response.content.toLowerCase()).to.include('san francisco');",
+							"    pm.expect(jsonData.final_response.content.toLowerCase()).to.match(/weather|temperature|forecast/);",
 							"});"
 						],
 						"type": "text/javascript"
