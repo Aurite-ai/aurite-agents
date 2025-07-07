@@ -1,14 +1,5 @@
 [
   {
-    "name": "weather_server",
-    "description": "A mock test server that ONLY supports New York, San Francisco, Tokyo, and London with fixed responses.",
-    "type": "mcp_server",
-    "server_path": "mcp_servers/weather_server.py",
-    "transport_type": "stdio",
-    "capabilities": ["tools", "prompts"],
-    "timeout": 15.0
-  },
-  {
     "name": "planning_server",
     "description": "A server for planning tasks and managing resources using the file system.",
     "type": "mcp_server",

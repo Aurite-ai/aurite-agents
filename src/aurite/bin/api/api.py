@@ -53,8 +53,11 @@ load_dotenv()  # Add this call
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle FastAPI lifecycle events: initialize Aurite on startup, shutdown on exit."""
+    from pathlib import Path
+
     logger.info("Initializing Aurite for FastAPI application...")
-    aurite_instance = Aurite()
+    # Explicitly set start_dir to ensure context is found regardless of CWD
+    aurite_instance = Aurite(start_dir=Path.cwd())
     # The __aenter__ will trigger the lazy initialization.
     await aurite_instance.__aenter__()
     app.state.aurite_instance = aurite_instance
