@@ -200,10 +200,12 @@ class ExecutionFacade:
                         f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to in-memory cache."
                     )
 
-            # Ensure dynamically registered servers are cleaned up
+            # Don't unregister servers - keep them available for future use
+            # This allows tools to remain available after agent execution
             if servers_to_unregister:
-                for server_name in servers_to_unregister:
-                    await self._host.unregister_client(server_name)
+                logger.debug(
+                    f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
+                )
 
     async def run_agent(
         self,
@@ -260,10 +262,12 @@ class ExecutionFacade:
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise AgentExecutionError(error_msg) from e
         finally:
-            # Ensure dynamically registered servers are cleaned up
+            # Don't unregister servers - keep them available for future use
+            # This allows tools to remain available after agent execution
             if servers_to_unregister:
-                for server_name in servers_to_unregister:
-                    await self._host.unregister_client(server_name)
+                logger.debug(
+                    f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
+                )
 
     async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}'")
