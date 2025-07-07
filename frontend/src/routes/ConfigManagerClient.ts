@@ -40,7 +40,7 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async listConfigs(configType: string): Promise<string[]> {
-    return this.request('GET', `/config/${configType}`);
+    return this.request('GET', `/config/components/${configType}`);
   }
 
   /**
@@ -83,7 +83,7 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async getConfig(configType: string, name: string): Promise<any> {
-    return this.request('GET', `/config/${configType}/${encodeURIComponent(name)}`);
+    return this.request('GET', `/config/components/${configType}/${encodeURIComponent(name)}`);
   }
 
   /**
@@ -122,7 +122,12 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async createConfig(configType: string, config: any): Promise<{ message: string }> {
-    return this.request('POST', `/config/${configType}`, config);
+    // Extract name from config and prepare the request body
+    const { name, ...configData } = config;
+    return this.request('POST', `/config/components/${configType}`, {
+      name,
+      config: configData
+    });
   }
 
   /**
@@ -153,7 +158,11 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async updateConfig(configType: string, name: string, config: any): Promise<{ message: string }> {
-    return this.request('PUT', `/config/${configType}/${encodeURIComponent(name)}`, config);
+    // Remove name from config since it's in the URL
+    const { name: _, ...configData } = config;
+    return this.request('PUT', `/config/components/${configType}/${encodeURIComponent(name)}`, {
+      config: configData
+    });
   }
 
   /**
@@ -177,7 +186,7 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async deleteConfig(configType: string, name: string): Promise<{ message: string }> {
-    return this.request('DELETE', `/config/${configType}/${encodeURIComponent(name)}`);
+    return this.request('DELETE', `/config/components/${configType}/${encodeURIComponent(name)}`);
   }
 
   /**
@@ -198,6 +207,32 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async reloadConfigs(): Promise<{ message: string }> {
-    return this.request('POST', '/config/reload');
+    return this.request('POST', '/config/refresh');
+  }
+
+  /**
+   * Validate a component's configuration
+   *
+   * Checks that the component has all required fields and that
+   * the values meet the expected criteria for the component type.
+   *
+   * @param configType - Type of configuration to validate
+   * @param name - Name of the configuration to validate
+   * @returns Success message if valid
+   * @throws Error with validation details if invalid
+   *
+   * @example
+   * ```typescript
+   * // Validate an agent configuration
+   * try {
+   *   await client.config.validateConfig('agent', 'Weather Agent');
+   *   console.log('Configuration is valid');
+   * } catch (error) {
+   *   console.error('Validation failed:', error.message);
+   * }
+   * ```
+   */
+  async validateConfig(configType: string, name: string): Promise<{ message: string }> {
+    return this.request('POST', `/config/components/${configType}/${encodeURIComponent(name)}/validate`);
   }
 }

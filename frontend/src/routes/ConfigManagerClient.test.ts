@@ -32,7 +32,7 @@ describe('ConfigManagerClient', () => {
       const agents = await client.listConfigs('agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent',
+        'http://localhost:8000/config/components/agent',
         {
           method: 'GET',
           headers: {
@@ -78,7 +78,7 @@ describe('ConfigManagerClient', () => {
       const config = await client.getConfig('agent', 'Weather Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Weather%20Agent',
+        'http://localhost:8000/config/components/agent/Weather%20Agent',
         {
           method: 'GET',
           headers: {
@@ -124,14 +124,23 @@ describe('ConfigManagerClient', () => {
       const result = await client.createConfig('agent', newAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent',
+        'http://localhost:8000/config/components/agent',
         {
           method: 'POST',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(newAgent),
+          body: JSON.stringify({
+            name: 'Translation Agent',
+            config: {
+              description: 'Translates text between languages',
+              system_prompt: 'You are a professional translator...',
+              llm_config_id: 'anthropic_claude',
+              mcp_servers: ['translation_server'],
+              max_iterations: 3,
+            }
+          }),
         }
       );
 
@@ -170,14 +179,22 @@ describe('ConfigManagerClient', () => {
       const result = await client.updateConfig('agent', 'Weather Agent', updatedAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Weather%20Agent',
+        'http://localhost:8000/config/components/agent/Weather%20Agent',
         {
           method: 'PUT',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(updatedAgent),
+          body: JSON.stringify({
+            config: {
+              description: 'Updated weather agent',
+              system_prompt: 'You are an expert meteorologist...',
+              llm_config_id: 'anthropic_claude',
+              mcp_servers: ['weather_server', 'news_server'],
+              max_iterations: 10,
+            }
+          }),
         }
       );
 
@@ -195,7 +212,7 @@ describe('ConfigManagerClient', () => {
       const result = await client.deleteConfig('agent', 'Old Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Old%20Agent',
+        'http://localhost:8000/config/components/agent/Old%20Agent',
         {
           method: 'DELETE',
           headers: {
@@ -232,7 +249,7 @@ describe('ConfigManagerClient', () => {
       const result = await client.reloadConfigs();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/reload',
+        'http://localhost:8000/config/refresh',
         {
           method: 'POST',
           headers: {
@@ -244,6 +261,43 @@ describe('ConfigManagerClient', () => {
       );
 
       expect(result).toEqual({ message: 'Configurations reloaded successfully' });
+    });
+  });
+
+  describe('validateConfig', () => {
+    it('should validate a configuration', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "Component 'Weather Agent' is valid." }),
+      } as Response);
+
+      const result = await client.validateConfig('agent', 'Weather Agent');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/components/agent/Weather%20Agent/validate',
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: undefined,
+        }
+      );
+
+      expect(result).toEqual({ message: "Component 'Weather Agent' is valid." });
+    });
+
+    it('should handle validation errors', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({ detail: 'Validation failed: Missing required field: system_prompt' }),
+      } as Response);
+
+      await expect(
+        client.validateConfig('agent', 'Invalid Agent')
+      ).rejects.toThrow('Validation failed: Missing required field: system_prompt');
     });
   });
 });
