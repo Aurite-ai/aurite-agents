@@ -15,7 +15,7 @@ The framework follows a layered architecture:
     All entrypoints primarily interact with the `Aurite` class (formerly `HostManager`) in Layer 2 to access configuration, registration methods, and the `ExecutionFacade` for running components.
 
 *   **Layer 2: Orchestration:** The `Aurite` class (`src/aurite/host_manager.py`) is the central orchestrator. Its key responsibilities include:
-    *   **Configuration Management:** Loading project configurations using `ProjectManager` (which in turn uses `ComponentManager` to resolve default and project-specific component definitions).
+    *   **Configuration Management:** Loading project configurations using `ConfigManager` which implements a sophisticated priority-based configuration system. See [Configuration Index Building Flow](./config/index_building_flow.md) for details on how configurations are discovered and prioritized.
     *   **Lifecycle Management:** Initializing and managing the lifecycle of the underlying `MCPHost` (Layer 3), the `ExecutionFacade` (Layer 2.5), and the optional `StorageManager` (if database persistence is enabled).
     *   **Dynamic Registration:** Handling dynamic registration of clients, agents, LLM configurations, and workflows. If database persistence is enabled, it syncs these configurations via the `StorageManager`.
     *   **Execution Hub:** Owning and providing access to the `ExecutionFacade` for all component execution requests.

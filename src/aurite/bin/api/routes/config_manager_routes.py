@@ -185,8 +185,14 @@ async def delete_component(
             detail=f"Component '{component_id}' of type '{component_type}' not found.",
         )
 
-    # For now, we'll need to implement a delete method in ConfigManager
-    logger.warning(f"Delete component not fully implemented yet for {component_id}")
+    # Use the delete_config method
+    success = config_manager.delete_config(singular_type, component_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete component '{component_id}'.",
+        )
 
     return MessageResponse(message=f"Component '{component_id}' deleted successfully.")
 

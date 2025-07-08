@@ -6,7 +6,6 @@
  */
 
 import { createAuriteClient } from './src';
-
 // Configuration - update these values as needed
 const API_URL = 'http://localhost:8000';
 const API_KEY = process.env.API_KEY || 'your-api-key-here';

@@ -1,3 +1,4 @@
 [aurite]
 type = "workspace"
-projects = ["./src/aurite/init_templates"]
+projects = ["./src/aurite/init_templates", "./project_bravo"]
+include_configs=["./shared_configs"]

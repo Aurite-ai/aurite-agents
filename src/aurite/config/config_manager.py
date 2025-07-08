@@ -74,44 +74,73 @@ class ConfigManager:
         config_sources: List[tuple[Path, Path]] = []
         processed_paths = set()
 
-        # Process contexts from most specific (project) to most general (workspace)
-        for anchor_path in self.context_paths:
-            context_root = anchor_path.parent
-            try:
-                with open(anchor_path, "rb") as f:
-                    settings = tomllib.load(f).get("aurite", {})
+        # Phase 1: Add current context configs (highest priority)
+        if self.project_root:
+            # We're in a project - add project configs first
+            logger.debug(f"Starting from project: {self.project_name}")
+            project_anchor = self.project_root / ".aurite"
+            if project_anchor.is_file():
+                try:
+                    with open(project_anchor, "rb") as f:
+                        settings = tomllib.load(f).get("aurite", {})
+                    for rel_path in settings.get("include_configs", []):
+                        resolved_path = (self.project_root / rel_path).resolve()
+                        if resolved_path.is_dir() and resolved_path not in processed_paths:
+                            config_sources.append((resolved_path, self.project_root))
+                            processed_paths.add(resolved_path)
+                            logger.debug(f"Added project config: {resolved_path}")
+                except (tomllib.TOMLDecodeError, IOError) as e:
+                    logger.error(f"Could not parse project .aurite: {e}")
 
-                # If it's a workspace, find all its projects and their configs first
-                # to ensure project-level context is prioritized.
-                if settings.get("type") == "workspace":
+        # Phase 2: Add workspace configs (second priority)
+        if self.workspace_root:
+            workspace_anchor = self.workspace_root / ".aurite"
+            if workspace_anchor.is_file():
+                try:
+                    with open(workspace_anchor, "rb") as f:
+                        settings = tomllib.load(f).get("aurite", {})
+
+                    # Add workspace's own configs
+                    for rel_path in settings.get("include_configs", []):
+                        resolved_path = (self.workspace_root / rel_path).resolve()
+                        if resolved_path.is_dir() and resolved_path not in processed_paths:
+                            config_sources.append((resolved_path, self.workspace_root))
+                            processed_paths.add(resolved_path)
+                            logger.debug(f"Added workspace config: {resolved_path}")
+
+                    # Phase 3: Add other projects' configs (lower priority)
                     for project_rel_path in settings.get("projects", []):
-                        project_root = (context_root / project_rel_path).resolve()
+                        project_root = (self.workspace_root / project_rel_path).resolve()
+
+                        # Skip the current project (already added in Phase 1)
+                        if self.project_root and project_root == self.project_root:
+                            continue
+
                         project_anchor = project_root / ".aurite"
                         if project_anchor.is_file():
-                            with open(project_anchor, "rb") as pf:
-                                p_settings = tomllib.load(pf).get("aurite", {})
-                            for p_rel_path in p_settings.get("include_configs", []):
-                                resolved_p_path = (project_root / p_rel_path).resolve()
-                                if resolved_p_path.is_dir() and resolved_p_path not in processed_paths:
-                                    config_sources.append((resolved_p_path, project_root))
-                                    processed_paths.add(resolved_p_path)
+                            try:
+                                with open(project_anchor, "rb") as pf:
+                                    p_settings = tomllib.load(pf).get("aurite", {})
+                                for p_rel_path in p_settings.get("include_configs", []):
+                                    resolved_p_path = (project_root / p_rel_path).resolve()
+                                    if resolved_p_path.is_dir() and resolved_p_path not in processed_paths:
+                                        config_sources.append((resolved_p_path, project_root))
+                                        processed_paths.add(resolved_p_path)
+                                        logger.debug(f"Added other project config: {resolved_p_path}")
+                            except (tomllib.TOMLDecodeError, IOError) as e:
+                                logger.error(f"Could not parse project {project_root} .aurite: {e}")
 
-                # Add config paths defined in the current .aurite file
-                for rel_path in settings.get("include_configs", []):
-                    resolved_path = (context_root / rel_path).resolve()
-                    if resolved_path.is_dir() and resolved_path not in processed_paths:
-                        config_sources.append((resolved_path, context_root))
-                        processed_paths.add(resolved_path)
-            except (tomllib.TOMLDecodeError, IOError) as e:
-                logger.error(f"Could not parse {anchor_path} during source init: {e}")
+                except (tomllib.TOMLDecodeError, IOError) as e:
+                    logger.error(f"Could not parse workspace .aurite: {e}")
 
-        # Global user config is always last
+        # Phase 4: Global user config is always last
         user_config_root = Path.home() / ".aurite"
         if user_config_root.is_dir():
             config_sources.append((user_config_root, user_config_root))
+            logger.debug(f"Added user config: {user_config_root}")
 
         self._config_sources = config_sources
-        logger.debug(f"Final configuration source order: {self._config_sources}")
+        logger.debug(f"Final configuration source order: {[str(s[0]) for s in self._config_sources]}")
 
     def _build_component_index(self):
         """Builds an index of all available components, respecting priority."""
@@ -355,4 +384,93 @@ class ConfigManager:
 
         except Exception as e:
             logger.error(f"Unexpected error updating component '{component_name}': {e}")
+            return False
+
+    def delete_config(self, component_type: str, component_name: str) -> bool:
+        """
+        Deletes a component configuration by removing it from its source file.
+        If the component is the last one in the file, the file will be deleted.
+        """
+        try:
+            # Find the existing component to get its source file
+            existing_config = self._component_index.get(component_type, {}).get(component_name)
+
+            if not existing_config:
+                logger.error(f"Component '{component_name}' of type '{component_type}' not found for deletion.")
+                return False
+
+            source_file_path = existing_config.get("_source_file")
+            if not source_file_path:
+                logger.error(f"No source file found for component '{component_name}'.")
+                return False
+
+            source_file = Path(source_file_path)
+            if not source_file.exists():
+                logger.error(f"Source file {source_file} does not exist.")
+                return False
+
+            # Load the current file content
+            try:
+                with source_file.open("r", encoding="utf-8") as f:
+                    if source_file.suffix == ".json":
+                        file_content = json.load(f)
+                    else:
+                        file_content = yaml.safe_load(f)
+            except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+                logger.error(f"Failed to load source file {source_file}: {e}")
+                return False
+
+            if not isinstance(file_content, list):
+                logger.error(f"Source file {source_file} does not contain a list of components.")
+                return False
+
+            # Find and remove the component from the file content
+            component_found = False
+            for i, component in enumerate(file_content):
+                if (
+                    isinstance(component, dict)
+                    and component.get("name") == component_name
+                    and component.get("type") == component_type
+                ):
+                    file_content.pop(i)
+                    component_found = True
+                    break
+
+            if not component_found:
+                logger.error(f"Component '{component_name}' not found in source file {source_file}.")
+                return False
+
+            # If the file is now empty, delete it
+            if not file_content:
+                try:
+                    source_file.unlink()
+                    logger.info(f"Deleted empty config file {source_file}")
+                except IOError as e:
+                    logger.error(f"Failed to delete empty config file {source_file}: {e}")
+                    return False
+            else:
+                # Write the updated content back to the file
+                try:
+                    with source_file.open("w", encoding="utf-8") as f:
+                        if source_file.suffix == ".json":
+                            json.dump(file_content, f, indent=2, ensure_ascii=False)
+                        else:
+                            yaml.safe_dump(file_content, f, default_flow_style=False, allow_unicode=True)
+
+                    logger.info(f"Successfully deleted component '{component_name}' from {source_file}")
+                except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+                    logger.error(f"Failed to write updated config to {source_file}: {e}")
+                    return False
+
+            # Remove from the in-memory index
+            if component_name in self._component_index.get(component_type, {}):
+                del self._component_index[component_type][component_name]
+                # If this was the last component of this type, remove the type entry
+                if not self._component_index[component_type]:
+                    del self._component_index[component_type]
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Unexpected error deleting component '{component_name}': {e}")
             return False

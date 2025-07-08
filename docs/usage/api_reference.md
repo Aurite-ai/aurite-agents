@@ -38,6 +38,8 @@ The API is structured around four main paths, each corresponding to a core manag
 
 Handles all configuration file operations, component CRUD operations, and project/workspace management.
 
+**📖 For detailed documentation including decision trees and error handling, see [Configuration Manager Routes](./routes/config_manager_routes.md)**
+
 ### Component CRUD Operations (Wildcard Approach)
 
 | Method | Endpoint | Description |

@@ -62,6 +62,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `tui_guide.md` - Terminal UI interface guide
 - `openapi.yaml` - OpenAPI specification
 - API endpoints: `/api-docs`, `/redoc`, `/openapi.json` (when server is running)
+- `routes/` - Detailed API route documentation
+  - `config_manager_routes.md` - Configuration Manager API details, decision trees, and error handling
 
 ### 5. Architecture & Design
 **Purpose:** Explain the framework's technical architecture and design decisions
@@ -74,6 +76,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `layers/2_orchestration.md` - Core orchestration layer
 - `layers/3_host.md` - MCP host infrastructure
 - `design/` - Design documents and architectural decisions
+- `config/` - Configuration system architecture
+  - `index_building_flow.md` - How the configuration index is built with priority resolution
 
 ### 6. Testing
 **Purpose:** Guide for running tests and understanding test strategies

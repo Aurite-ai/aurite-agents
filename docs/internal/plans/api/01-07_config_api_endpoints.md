@@ -150,3 +150,9 @@ Currently, only basic read operations are implemented for the Configuration Mana
   - Added validateConfig method to frontend client
   - Note: Need to implement create_config and delete_config methods in ConfigManager
   - Note: Need to implement /config/refresh endpoint
+- v1.2 (2025-01-08): Major revision based on team discussion
+  - Changed component creation approach - no longer requires file_path as mandatory
+  - Added Phase 1.5 for file operations (must be implemented before completing component CRUD)
+  - Component creation now supports automatic file selection/creation based on context
+  - Added comprehensive error handling documentation
+  - Created detailed API documentation in docs/usage/routes/config_manager_routes.md
