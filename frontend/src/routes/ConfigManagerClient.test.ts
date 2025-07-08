@@ -300,4 +300,124 @@ describe('ConfigManagerClient', () => {
       ).rejects.toThrow('Validation failed: Missing required field: system_prompt');
     });
   });
+
+  describe('listConfigSources', () => {
+    it('should list all configuration sources', async () => {
+      const mockSources = {
+        "project_bravo": {
+          "path": "/home/wilcoxr/workspace/aurite/framework/project_bravo",
+          "source_type": "project"
+        },
+        "workspace": {
+          "path": "/home/wilcoxr/workspace/aurite/framework",
+          "source_type": "workspace"
+        }
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSources,
+      } as Response);
+
+      const sources = await client.listConfigSources();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/sources',
+        {
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: undefined,
+        }
+      );
+
+      expect(sources).toEqual(mockSources);
+    });
+  });
+
+  describe('listConfigFiles', () => {
+    it('should list configuration files for a specific source', async () => {
+      const mockFiles = [
+        "config/agents/example_agents.json",
+        "config/custom_workflows/example_custom_workflows.json",
+        "config/example_multi_component.json",
+        "config/linear_workflows/example_linear_workflow.json",
+        "config/llms/example_llms.json",
+        "config/mcp_servers/example_mcp_servers.json"
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockFiles,
+      } as Response);
+
+      const files = await client.listConfigFiles('project_bravo');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files/project_bravo',
+        {
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: undefined,
+        }
+      );
+
+      expect(files).toEqual(mockFiles);
+    });
+
+    it('should handle source not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: 'Source not found' }),
+      } as Response);
+
+      await expect(
+        client.listConfigFiles('non_existent_source')
+      ).rejects.toThrow('Source not found');
+    });
+  });
+
+  describe('getFileContent', () => {
+    it('should get the content of a specific file', async () => {
+      const mockContent = '{"key": "value"}';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockContent,
+      } as Response);
+
+      const content = await client.getFileContent('workspace', 'agents.json');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files/workspace/agents.json',
+        {
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: undefined,
+        }
+      );
+
+      expect(content).toEqual(mockContent);
+    });
+
+    it('should handle file not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: 'File not found' }),
+      } as Response);
+
+      await expect(
+        client.getFileContent('workspace', 'non_existent_file.json')
+      ).rejects.toThrow('File not found');
+    });
+  });
 });

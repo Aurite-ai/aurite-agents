@@ -235,4 +235,79 @@ export class ConfigManagerClient extends BaseClient {
   async validateConfig(configType: string, name: string): Promise<{ message: string }> {
     return this.request('POST', `/config/components/${configType}/${encodeURIComponent(name)}/validate`);
   }
+
+  /**
+   * List all configuration source directories
+   *
+   * Returns a list of all directories being monitored for configuration files,
+   * in priority order. Each source includes context information (project/workspace/user)
+   * and associated names.
+   *
+   * @returns Array of configuration sources with metadata
+   *
+   * @example
+   * ```typescript
+   * const sources = await client.config.listConfigSources();
+   * sources.forEach(source => {
+   *   console.log(`${source.context} source: ${source.path}`);
+   *   if (source.project_name) {
+   *     console.log(`  Project: ${source.project_name}`);
+   *   }
+   * });
+   * ```
+   */
+  async listConfigSources(): Promise<Array<{
+    path: string;
+    context: 'project' | 'workspace' | 'user';
+    project_name?: string;
+    workspace_name?: string;
+  }>> {
+    return this.request('GET', '/config/sources');
+  }
+
+  /**
+   * List all configuration files for a given source
+   *
+   * Returns a comprehensive list of all configuration files found in the
+   * specified configuration source.
+   * This is useful for understanding what configurations are available and where
+   * they are located.
+   *
+   * @param sourceName - The name of the source to list files for
+   * @returns Array of configuration file paths
+   *
+   * @example
+   * ```typescript
+   * const files = await client.config.listConfigFiles('my_project');
+   *
+   * // Show workspace files
+   * console.log('Workspace configuration files:');
+   * byContext.workspace?.forEach(file => {
+   *   if (!acc[file.context]) acc[file.context] = [];
+   *   acc[file.context].push(file);
+   *   return acc;
+   * }, {} as Record<string, typeof files>);
+   *
+   * // Show workspace files
+   * console.log('Workspace configuration files:');
+   * byContext.workspace?.forEach(file => {
+   *   console.log(`  ${file.path}`);
+   * });
+   * ```
+   */
+  async listConfigFiles(sourceName: string): Promise<string[]> {
+    return this.request('GET', `/config/files/${sourceName}`);
+  }
+
+  /**
+   * Get the content of a specific configuration file.
+   *
+   * @param sourceName - The name of the source the file belongs to.
+   * @param filePath - The relative path of the file within the source.
+   * @returns The file content as a string.
+   * @throws Error if the file is not found.
+   */
+  async getFileContent(sourceName: string, filePath: string): Promise<string> {
+    return this.request('GET', `/config/files/${sourceName}/${filePath}`);
+  }
 }

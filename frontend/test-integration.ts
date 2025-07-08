@@ -141,6 +141,31 @@ async function runIntegrationTests() {
       );
     }
 
+    // Test 10: File Listing Operations
+    console.log('🔟 Testing File Listing Operations...');
+    const sources = await client.config.listConfigSources();
+    console.log(`✅ Found ${sources.length} configuration sources:`);
+    for (const source of sources) {
+      const sourceName = source.project_name || (source.context === 'workspace' ? 'workspace' : 'user');
+      console.log(`\n   - Source: ${sourceName} (context: ${source.context})`);
+      console.log(`     Path: ${source.path}`);
+
+      try {
+        const files = await client.config.listConfigFiles(sourceName);
+        console.log(`     Found ${files.length} config files:`);
+        for (const file of files.slice(0, 5)) {
+          console.log(`       - ${file}`);
+        }
+        if (files.length > 5) {
+          console.log(`       ... and ${files.length - 5} more`);
+        }
+      } catch (e) {
+        console.log(`     Could not list files for source '${sourceName}': ${e.message}`);
+      }
+    }
+    console.log('');
+
+
     console.log('✅ All integration tests completed successfully!');
 
   } catch (error) {
