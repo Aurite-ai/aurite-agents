@@ -267,6 +267,18 @@ async function runIntegrationTests() {
     } catch (e) {
       console.error("   ❌ FAILED to validate 'Weather Agent':", e);
     }
+
+    try {
+      console.log("   - Validating non-existent agent...");
+      await client.config.validateConfig('agent', 'non-existent-agent');
+      console.error("   ❌ FAILED: Validation of non-existent agent should have thrown an error.");
+    } catch (e) {
+      if (e.message.includes('not found')) {
+        console.log(`   ✅ Successfully caught expected error: ${e.message}`);
+      } else {
+        console.error("   ❌ FAILED: Unexpected error during validation of non-existent agent:", e);
+      }
+    }
     console.log('');
 
 
