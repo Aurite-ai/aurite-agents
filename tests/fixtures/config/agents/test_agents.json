@@ -1,105 +1,105 @@
 [
     {
-        "name": "Weather Agent A",
+        "name": "Weather Agent Control",
         "description": "Test weather agent.",
         "type": "agent",
-        "mcp_servers": ["weather_server_a"],
+        "mcp_servers": ["weather_server_control"],
         "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Weather Agent B",
+        "name": "Weather Agent Invalid Server Path",
         "description": "Test weather agent.",
         "type": "agent",
-        "mcp_servers": ["weather_server_b"],
+        "mcp_servers": ["weather_server_invalid_server_path"],
         "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Weather Agent C",
+        "name": "Weather Agent Duplicate Name",
         "description": "Test weather agent.",
         "type": "agent",
-        "mcp_servers": ["weather_server_c"],
+        "mcp_servers": ["weather_server_duplicate_name"],
         "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent A",
+        "name": "Duckduckgo Agent HTTP Control",
         "description": "Test search agent. HTTP. Control",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_a"],
+        "mcp_servers": ["duckduckgo_http_control"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent B",
+        "name": "Duckduckgo Agent HTTP Invalid API Key",
         "description": "Test search agent. HTTP. Invalid API key",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_b"],
+        "mcp_servers": ["duckduckgo_http_invalid_api_key"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent C",
+        "name": "Duckduckgo Agent HTTP Invalid Profile ID",
         "description": "Test search agent. HTTP. Invalid Profile ID",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_c"],
+        "mcp_servers": ["duckduckgo_http_invalid_profile_id"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent D",
+        "name": "Duckduckgo Agent HTTP Invalid Both",
         "description": "Test search agent. HTTP. Invalid both",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_d"],
+        "mcp_servers": ["duckduckgo_http_invalid_both"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent E",
+        "name": "Duckduckgo Agent Local Control",
         "description": "Test search agent. Local. Control",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_e"],
+        "mcp_servers": ["duckduckgo_local_control"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent F",
+        "name": "Duckduckgo Agent Local Invalid API Key",
         "description": "Test search agent. Local. Invalid API key",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_f"],
+        "mcp_servers": ["duckduckgo_local_invalid_api_key"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent G",
+        "name": "Duckduckgo Agent Local Invalid Profile ID",
         "description": "Test search agent. Local. Invalid Profile ID",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_g"],
+        "mcp_servers": ["duckduckgo_local_invalid_profile_id"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Search Agent H",
+        "name": "Duckduckgo Agent Local Invalid Both",
         "description": "Test search agent. Local. Invalid both",
         "type": "agent",
-        "mcp_servers": ["duckduckgo_mcp_h"],
+        "mcp_servers": ["duckduckgo_local_invalid_both"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Yahoo Agent HTTP A",
+        "name": "Yahoo Agent HTTP Control",
         "description": "Test yahoo finance agent. Http. Control",
         "type": "agent",
-        "mcp_servers": ["yahoo_finance_http_a"],
+        "mcp_servers": ["yahoo_finance_http_control"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. If you are not able to use a tool, clearly specify this in your response. DO NOT make up information if you cannot use a tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     },
     {
-        "name": "Yahoo Agent Local A",
+        "name": "Yahoo Agent Local Control",
         "description": "Test yahoo finance agent. Local. Control",
         "type": "agent",
-        "mcp_servers": ["yahoo_finance_local_a"],
+        "mcp_servers": ["yahoo_finance_local_control"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. If you are not able to use a tool, clearly specify this in your response. DO NOT make up information if you cannot use a tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
     }

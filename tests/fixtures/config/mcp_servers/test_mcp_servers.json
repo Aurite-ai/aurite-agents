@@ -1,6 +1,6 @@
 [
   {
-    "name": "weather_server_a",
+    "name": "weather_server_control",
     "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
@@ -10,7 +10,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "weather_server_b",
+    "name": "weather_server_invalid_server_path",
     "server_path": "../../../src/aurite/init_templates/mcp_servers/weathersdfsdfsdfsdfsdfs_server.py",
     "capabilities": [
       "tools",
@@ -20,7 +20,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "weather_server_c",
+    "name": "weather_server_duplicate_name",
     "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
@@ -30,7 +30,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "weather_server_c",
+    "name": "weather_server_duplicate_name",
     "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
@@ -40,7 +40,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_a",
+    "name": "duckduckgo_http_control",
     "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key={SMITHERY_API_KEY}&profile={SMITHERY_PROFILE_ID}",
     "capabilities": [
       "tools",
@@ -49,7 +49,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_b",
+    "name": "duckduckgo_http_invalid_api_key",
     "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=asdf&profile={SMITHERY_PROFILE_ID}",
     "capabilities": [
       "tools",
@@ -58,7 +58,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_c",
+    "name": "duckduckgo_http_invalid_profile_id",
     "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key={SMITHERY_API_KEY}&profile=asdf",
     "capabilities": [
       "tools",
@@ -67,7 +67,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_d",
+    "name": "duckduckgo_http_invalid_both",
     "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=asdf&profile=asdf",
     "capabilities": [
       "tools",
@@ -76,7 +76,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_e",
+    "name": "duckduckgo_local_control",
     "command": "npx",
     "args": [
       "-y",
@@ -95,7 +95,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_f",
+    "name": "duckduckgo_local_invalid_api_key",
     "command": "npx",
     "args": [
       "-y",
@@ -114,7 +114,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_g",
+    "name": "duckduckgo_local_invalid_profile_id",
     "command": "npx",
     "args": [
       "-y",
@@ -133,7 +133,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "duckduckgo_mcp_h",
+    "name": "duckduckgo_local_invalid_both",
     "command": "npx",
     "args": [
       "-y",
@@ -152,7 +152,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "yahoo_finance_http_a",
+    "name": "yahoo_finance_http_control",
     "http_endpoint": "https://server.smithery.ai/@hwangwoohyun-nav/yahoo-finance-mcp/mcp?api_key={SMITHERY_API_KEY}&profile={SMITHERY_PROFILE_ID}",
     "capabilities": [
       "tools",
@@ -161,7 +161,7 @@
     "type": "mcp_server"
   },
   {
-    "name": "yahoo_finance_local_a",
+    "name": "yahoo_finance_local_control",
     "command": "npx",
     "args": [
       "-y",
