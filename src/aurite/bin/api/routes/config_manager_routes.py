@@ -228,26 +228,12 @@ async def validate_component(
             detail=f"Component '{component_id}' of type '{component_type}' not found.",
         )
 
-    # TODO: Implement component-specific validation logic
-    # For now, we'll just check that required fields exist
-    validation_errors = []
+    is_valid, errors = config_manager.validate_component(singular_type, component_id)
 
-    # Basic validation based on component type
-    if singular_type == "agent":
-        required_fields = ["name", "system_prompt", "llm_config_id"]
-        for field in required_fields:
-            if field not in config:
-                validation_errors.append(f"Missing required field: {field}")
-    elif singular_type == "llm":
-        required_fields = ["name", "provider", "model"]
-        for field in required_fields:
-            if field not in config:
-                validation_errors.append(f"Missing required field: {field}")
-
-    if validation_errors:
+    if not is_valid:
         raise HTTPException(
             status_code=422,
-            detail=f"Validation failed: {', '.join(validation_errors)}",
+            detail=f"Validation failed: {', '.join(errors)}",
         )
 
     return MessageResponse(message=f"Component '{component_id}' is valid.")

@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -605,3 +605,33 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Unexpected error deleting component '{component_name}': {e}")
             return False
+
+    def validate_component(self, component_type: str, component_id: str) -> Tuple[bool, List[str]]:
+        """
+        Validates a component's configuration.
+
+        Args:
+            component_type: The type of component to validate.
+            component_id: The ID of the component to validate.
+
+        Returns:
+            A tuple containing a boolean indicating if the component is valid,
+            and a list of validation error messages.
+        """
+        config = self.get_config(component_type, component_id)
+        if not config:
+            return False, [f"Component '{component_id}' of type '{component_type}' not found."]
+
+        errors = []
+        if component_type == "agent":
+            required_fields = ["name", "system_prompt", "llm_config_id"]
+            for field in required_fields:
+                if field not in config:
+                    errors.append(f"Missing required field: {field}")
+        elif component_type == "llm":
+            required_fields = ["name", "provider", "model"]
+            for field in required_fields:
+                if field not in config:
+                    errors.append(f"Missing required field: {field}")
+
+        return not errors, errors

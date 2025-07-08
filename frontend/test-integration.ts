@@ -258,6 +258,17 @@ async function runIntegrationTests() {
     }
     console.log('');
 
+    // Test 13: Validation
+    console.log('1️⃣3️⃣ Testing Validation...');
+    try {
+      console.log("   - Validating 'Weather Agent'...");
+      const validationResult = await client.config.validateConfig('agent', 'Weather Agent');
+      console.log(`   ✅ Validation result: ${validationResult.message}`);
+    } catch (e) {
+      console.error("   ❌ FAILED to validate 'Weather Agent':", e);
+    }
+    console.log('');
+
 
     console.log('✅ All integration tests completed successfully!');
 
