@@ -433,7 +433,9 @@ class ConfigManager:
         component_found = False
         for i, comp in enumerate(file_data):
             if comp.get("name") == component_name and comp.get("type") == component_type:
-                file_data[i] = new_config
+                new_config_with_type = new_config.copy()
+                new_config_with_type["type"] = component_type
+                file_data[i] = new_config_with_type
                 component_found = True
                 break
 

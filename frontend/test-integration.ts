@@ -202,6 +202,62 @@ async function runIntegrationTests() {
     }
     console.log('');
 
+    // Test 12: Component CRUD operations
+    console.log('1️⃣2️⃣ Testing Component CRUD Operations...');
+    const newAgentName = 'integration-test-agent';
+    const newAgentConfig = {
+      name: newAgentName,
+      description: 'An agent created during integration tests',
+      system_prompt: 'You are a test agent.',
+      llm_config_id: 'my_openai_gpt4_turbo',
+    };
+
+    try {
+      // Create
+      console.log(`   - Creating agent '${newAgentName}'...`);
+      await client.config.createConfig('agent', newAgentConfig, { project: 'project_bravo', filePath: 'integration_test_agent.json' });
+      console.log('   ✅ Agent created.');
+
+      // Get to verify
+      console.log(`   - Getting agent '${newAgentName}' to verify creation...`);
+      const createdAgent = await client.config.getConfig('agent', newAgentName);
+      if (!createdAgent) {
+        throw new Error('Component not found after creation!');
+      }
+      console.log('   ✅ Agent found after creation.');
+
+      console.log(`   - Getting agent '${newAgentName}'...`);
+      const fetchedAgent = await client.config.getConfig('agent', newAgentName);
+      if (fetchedAgent.description !== newAgentConfig.description) {
+        throw new Error('Component content mismatch after creation!');
+      }
+      console.log('   ✅ Agent content verified.');
+
+      // Update
+      console.log(`   - Updating agent '${newAgentName}'...`);
+      const updatedAgentConfig = { ...newAgentConfig, description: 'An updated description' };
+      await client.config.updateConfig('agent', newAgentName, updatedAgentConfig);
+      const fetchedUpdatedAgent = await client.config.getConfig('agent', newAgentName);
+      if (fetchedUpdatedAgent.description !== 'An updated description') {
+        throw new Error('Component content mismatch after update!');
+      }
+      console.log('   ✅ Agent updated and verified.');
+
+    } catch (e) {
+      console.error("   ❌ ERROR in component CRUD test:", e);
+      throw e; // re-throw to fail the main test
+    } finally {
+      // Delete
+      console.log(`   - Deleting agent '${newAgentName}'...`);
+      try {
+        await client.config.deleteConfig('agent', newAgentName);
+        console.log('   ✅ Agent deleted.');
+      } catch (e) {
+        console.error(`   ❌ FAILED to delete agent '${newAgentName}':`, e);
+      }
+    }
+    console.log('');
+
 
     console.log('✅ All integration tests completed successfully!');
 

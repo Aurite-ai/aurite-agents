@@ -1,0 +1,8 @@
+[
+  {
+    "description": "An updated description",
+    "system_prompt": "You are a test agent.",
+    "llm_config_id": "my_openai_gpt4_turbo",
+    "name": "integration-test-agent"
+  }
+]

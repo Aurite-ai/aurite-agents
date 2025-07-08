@@ -442,9 +442,10 @@ class FileManager:
 
             # Check for existing component with the same name
             component_name = component_config.get("name")
-            if any(c.get("name") == component_name for c in content):
-                logger.error(f"Component '{component_name}' already exists in {file_path}.")
-                return False
+            if file_path.exists():
+                if any(c.get("name") == component_name for c in content):
+                    logger.error(f"Component '{component_name}' already exists in {file_path}.")
+                    return False
 
             content.append(component_config)
 
