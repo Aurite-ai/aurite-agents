@@ -292,6 +292,26 @@ async function runIntegrationTests() {
     }
     console.log('');
 
+    // Test 15: Duplicate component creation
+    console.log('1️⃣5️⃣ Testing Duplicate Component Creation...');
+    try {
+      console.log("   - Attempting to create duplicate agent 'Weather Agent'...");
+      await client.config.createConfig('agent', {
+        name: 'Weather Agent',
+        description: 'A duplicate weather agent',
+        system_prompt: 'You are a duplicate weather agent.',
+        llm_config_id: 'my_openai_gpt4_turbo',
+      });
+      console.error("   ❌ FAILED: Duplicate component creation should have thrown an error.");
+    } catch (e) {
+      if (e.message.includes('already exists')) {
+        console.log(`   ✅ Successfully caught expected error: ${e.message}`);
+      } else {
+        console.error("   ❌ FAILED: Unexpected error during duplicate component creation:", e);
+      }
+    }
+    console.log('');
+
 
     console.log('✅ All integration tests completed successfully!');
 
