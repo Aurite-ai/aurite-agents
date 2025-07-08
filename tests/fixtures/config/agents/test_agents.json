@@ -25,7 +25,7 @@
     },
     {
         "name": "Search Agent A",
-        "description": "Test search agent.",
+        "description": "Test search agent. HTTP. Control",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_a"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -33,7 +33,7 @@
     },
     {
         "name": "Search Agent B",
-        "description": "Test search agent.",
+        "description": "Test search agent. HTTP. Invalid API key",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_b"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -41,7 +41,7 @@
     },
     {
         "name": "Search Agent C",
-        "description": "Test search agent.",
+        "description": "Test search agent. HTTP. Invalid Profile ID",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_c"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -49,7 +49,7 @@
     },
     {
         "name": "Search Agent D",
-        "description": "Test search agent.",
+        "description": "Test search agent. HTTP. Invalid both",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_d"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -57,7 +57,7 @@
     },
     {
         "name": "Search Agent E",
-        "description": "Test search agent.",
+        "description": "Test search agent. Local. Control",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_e"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -65,7 +65,7 @@
     },
     {
         "name": "Search Agent F",
-        "description": "Test search agent.",
+        "description": "Test search agent. Local. Invalid API key",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_f"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -73,7 +73,7 @@
     },
     {
         "name": "Search Agent G",
-        "description": "Test search agent.",
+        "description": "Test search agent. Local. Invalid Profile ID",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_g"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
@@ -81,7 +81,7 @@
     },
     {
         "name": "Search Agent H",
-        "description": "Test search agent.",
+        "description": "Test search agent. Local. Invalid both",
         "type": "agent",
         "mcp_servers": ["duckduckgo_mcp_h"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
