@@ -368,6 +368,23 @@ async def delete_config_file(
     return MessageResponse(message="File deleted successfully.")
 
 
+@router.post("/validate", response_model=List[Dict[str, Any]])
+async def validate_all_components(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Validate all components in the system.
+    """
+    errors = config_manager.validate_all_components()
+    if errors:
+        raise HTTPException(
+            status_code=422,
+            detail=errors,
+        )
+    return []
+
+
 # Configuration Management Operations
 @router.post("/refresh", response_model=MessageResponse)
 async def refresh_configs(

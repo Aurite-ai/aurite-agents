@@ -200,29 +200,32 @@ class ConfigManager:
 
             self._component_index.setdefault(component_type, {})
 
-            if component_id not in self._component_index[component_type]:
-                component_data["_source_file"] = str(config_file.resolve())
-                component_data["_context_path"] = str(context_root.resolve())
+            # Honor the priority of sources: if a component is already indexed, skip
+            if component_id in self._component_index.get(component_type, {}):
+                continue
 
-                if self.workspace_root and context_root == self.workspace_root:
-                    component_data["_context_level"] = "workspace"
+            component_data["_source_file"] = str(config_file.resolve())
+            component_data["_context_path"] = str(context_root.resolve())
+
+            if self.workspace_root and context_root == self.workspace_root:
+                component_data["_context_level"] = "workspace"
+                component_data["_workspace_name"] = self.workspace_name
+            elif self.project_root and context_root == self.project_root:
+                component_data["_context_level"] = "project"
+                component_data["_project_name"] = self.project_name
+                if self.workspace_name:
                     component_data["_workspace_name"] = self.workspace_name
-                elif self.project_root and context_root == self.project_root:
-                    component_data["_context_level"] = "project"
-                    component_data["_project_name"] = self.project_name
-                    if self.workspace_name:
-                        component_data["_workspace_name"] = self.workspace_name
-                elif context_root == Path.home() / ".aurite":
-                    component_data["_context_level"] = "user"
-                else:
-                    # It's a project within a workspace, but not the CWD project
-                    component_data["_context_level"] = "project"
-                    component_data["_project_name"] = context_root.name
-                    if self.workspace_name:
-                        component_data["_workspace_name"] = self.workspace_name
+            elif context_root == Path.home() / ".aurite":
+                component_data["_context_level"] = "user"
+            else:
+                # It's a project within a workspace, but not the CWD project
+                component_data["_context_level"] = "project"
+                component_data["_project_name"] = context_root.name
+                if self.workspace_name:
+                    component_data["_workspace_name"] = self.workspace_name
 
-                self._component_index[component_type][component_id] = component_data
-                logger.debug(f"Indexed '{component_id}' ({component_type}) from {config_file}")
+            self._component_index.setdefault(component_type, {})[component_id] = component_data
+            logger.debug(f"Indexed '{component_id}' ({component_type}) from {config_file}")
 
     def _resolve_paths_in_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Resolves relative paths in a component's configuration data."""
@@ -635,3 +638,43 @@ class ConfigManager:
                     errors.append(f"Missing required field: {field}")
 
         return not errors, errors
+
+    def validate_all_components(self) -> List[Dict[str, Any]]:
+        """
+        Validates all components in the index.
+
+        Returns:
+            A list of validation error dictionaries.
+        """
+        errors = []
+        all_components = self.get_all_configs()
+        for comp_type, components in all_components.items():
+            for comp_id, _config in components.items():
+                is_valid, component_errors = self.validate_component(comp_type, comp_id)
+                if not is_valid:
+                    errors.append(
+                        {
+                            "component_type": comp_type,
+                            "component_id": comp_id,
+                            "errors": component_errors,
+                        }
+                    )
+
+        # Check for duplicate names across all component types
+        names = {}
+        for comp_type, components in all_components.items():
+            for comp_id in components:
+                if comp_id not in names:
+                    names[comp_id] = []
+                names[comp_id].append(comp_type)
+
+        for name, types in names.items():
+            if len(types) > 1:
+                errors.append(
+                    {
+                        "component_type": "multiple",
+                        "component_id": name,
+                        "errors": [f"Duplicate component name '{name}' found in types: {', '.join(types)}"],
+                    }
+                )
+        return errors
