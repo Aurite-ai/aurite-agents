@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from .config_utils import find_anchor_files
+from .file_manager import FileManager
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -67,6 +68,15 @@ class ConfigManager:
 
         self._initialize_sources()
         self._build_component_index()
+
+        # Initialize FileManager with our configuration sources
+        self._file_manager = FileManager(
+            config_sources=self._config_sources,
+            project_root=self.project_root,
+            workspace_root=self.workspace_root,
+            project_name=self.project_name,
+            workspace_name=self.workspace_name,
+        )
 
     def _initialize_sources(self):
         """Initializes the configuration source paths based on the hierarchical context."""
@@ -297,94 +307,213 @@ class ConfigManager:
         logger.debug("Refreshing configuration index...")
         self.__init__()
 
-    def upsert_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
+    def list_config_sources(self) -> List[Dict[str, Any]]:
         """
-        Updates or inserts a component configuration by writing back to its source file.
+        List all configuration source directories with context information.
+
+        Returns:
+            List of dictionaries containing source directory information
         """
-        try:
-            # Find the existing component to get its source file
-            existing_config = self._component_index.get(component_type, {}).get(component_name)
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.list_config_sources()
 
-            if not existing_config:
-                logger.error(f"Component '{component_name}' of type '{component_type}' not found for update.")
-                return False
+    def list_config_files(self, source_name: str) -> List[str]:
+        """
+        List all configuration files for a specific source.
 
-            source_file_path = existing_config.get("_source_file")
-            if not source_file_path:
-                logger.error(f"No source file found for component '{component_name}'.")
-                return False
+        Args:
+            source_name: The name of the source to list files for.
 
-            source_file = Path(source_file_path)
-            if not source_file.exists():
-                logger.error(f"Source file {source_file} does not exist.")
-                return False
+        Returns:
+            A list of relative file paths.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.list_config_files(source_name)
 
-            # Load the current file content
-            try:
-                with source_file.open("r", encoding="utf-8") as f:
-                    if source_file.suffix == ".json":
-                        file_content = json.load(f)
-                    else:
-                        file_content = yaml.safe_load(f)
-            except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
-                logger.error(f"Failed to load source file {source_file}: {e}")
-                return False
+    def get_file_content(self, source_name: str, relative_path: str) -> Optional[str]:
+        """
+        Get the content of a specific configuration file.
 
-            if not isinstance(file_content, list):
-                logger.error(f"Source file {source_file} does not contain a list of components.")
-                return False
+        Args:
+            source_name: The name of the source the file belongs to.
+            relative_path: The relative path of the file within the source.
 
-            # Find and update the component in the file content
-            component_updated = False
-            for i, component in enumerate(file_content):
-                if (
-                    isinstance(component, dict)
-                    and component.get("name") == component_name
-                    and component.get("type") == component_type
-                ):
-                    # Update the component with new config, preserving the type
-                    updated_component = new_config.copy()
-                    updated_component["type"] = component_type
-                    file_content[i] = updated_component
-                    component_updated = True
-                    break
+        Returns:
+            The file content as a string, or None if not found or invalid.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.get_file_content(source_name, relative_path)
 
-            if not component_updated:
-                logger.error(f"Component '{component_name}' not found in source file {source_file}.")
-                return False
+    def create_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
+        """
+        Create a new configuration file.
 
-            # Write the updated content back to the file
-            try:
-                with source_file.open("w", encoding="utf-8") as f:
-                    if source_file.suffix == ".json":
-                        json.dump(file_content, f, indent=2, ensure_ascii=False)
-                    else:
-                        yaml.safe_dump(file_content, f, default_flow_style=False, allow_unicode=True)
+        Args:
+            source_name: The name of the source to create the file in.
+            relative_path: The relative path for the new file.
+            content: The content to write to the file.
 
-                logger.info(f"Successfully updated component '{component_name}' in {source_file}")
+        Returns:
+            True if the file was created successfully, False otherwise.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.create_config_file(source_name, relative_path, content)
 
-                # Update the in-memory index
-                updated_config = new_config.copy()
-                updated_config.update(
-                    {
-                        "_source_file": source_file_path,
-                        "_context_path": existing_config.get("_context_path"),
-                        "_context_level": existing_config.get("_context_level"),
-                        "_project_name": existing_config.get("_project_name"),
-                        "_workspace_name": existing_config.get("_workspace_name"),
-                    }
-                )
-                self._component_index[component_type][component_name] = updated_config
+    def update_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
+        """
+        Update an existing configuration file.
 
-                return True
+        Args:
+            source_name: The name of the source where the file exists.
+            relative_path: The relative path of the file to update.
+            content: The new content to write to the file.
 
-            except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
-                logger.error(f"Failed to write updated config to {source_file}: {e}")
-                return False
+        Returns:
+            True if the file was updated successfully, False otherwise.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.update_config_file(source_name, relative_path, content)
 
-        except Exception as e:
-            logger.error(f"Unexpected error updating component '{component_name}': {e}")
+    def delete_config_file(self, source_name: str, relative_path: str) -> bool:
+        """
+        Delete an existing configuration file.
+
+        Args:
+            source_name: The name of the source where the file exists.
+            relative_path: The relative path of the file to delete.
+
+        Returns:
+            True if the file was deleted successfully, False otherwise.
+        """
+        if self._force_refresh:
+            self.refresh()
+        return self._file_manager.delete_config_file(source_name, relative_path)
+
+    def update_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
+        """
+        Updates a component configuration by writing back to its source file.
+        """
+        existing_config = self.get_config(component_type, component_name)
+        if not existing_config:
+            logger.error(f"Component '{component_name}' of type '{component_type}' not found for update.")
             return False
+
+        source_file_path = Path(existing_config["_source_file"])
+        source_info = next((s for s in self.list_config_sources() if source_file_path.is_relative_to(s["path"])), None)
+        if not source_info:
+            source_info = next(
+                (s for s in self.list_config_sources() if str(source_file_path).startswith(s["path"])), None
+            )
+        if not source_info:
+            logger.error(f"Could not determine source for file {source_file_path}")
+            return False
+
+        source_name = source_info.get("project_name") or source_info.get("workspace_name")
+        if not source_name:
+            logger.error(f"Could not determine source name for file {source_file_path}")
+            return False
+        relative_path = source_file_path.relative_to(source_info["path"])
+
+        # Read the whole file, update the specific component, and write it back
+        file_content_str = self.get_file_content(source_name, str(relative_path))
+        if file_content_str is None:
+            return False
+
+        file_format = self._file_manager._detect_file_format(source_file_path)
+        if file_format == "json":
+            file_data = json.loads(file_content_str)
+        else:
+            file_data = yaml.safe_load(file_content_str)
+
+        component_found = False
+        for i, comp in enumerate(file_data):
+            if comp.get("name") == component_name and comp.get("type") == component_type:
+                file_data[i] = new_config
+                component_found = True
+                break
+
+        if not component_found:
+            return False
+
+        if file_format == "json":
+            updated_content = json.dumps(file_data, indent=2)
+        else:
+            updated_content = yaml.safe_dump(file_data)
+
+        return self.update_config_file(source_name, str(relative_path), updated_content)
+
+    def create_component(
+        self,
+        component_type: str,
+        component_config: Dict[str, Any],
+        project: Optional[str] = None,
+        workspace: bool = False,
+        file_path: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        # Step 1: Determine context
+        context_name = None
+        if workspace:
+            context_name = self.workspace_name
+        elif project:
+            context_name = project
+        else:
+            # Auto-detect context
+            if self.project_name:
+                context_name = self.project_name
+            elif self.workspace_name:
+                # Check for multiple projects
+                sources = self._file_manager.list_config_sources()
+                project_sources = [s for s in sources if s["context"] == "project"]
+                if len(project_sources) > 1:
+                    logger.error("Multiple projects found. Specify 'project' or 'workspace'.")
+                    return None
+                context_name = self.workspace_name
+
+        if not context_name:
+            logger.error("Could not determine a valid context for component creation.")
+            return None
+
+        # Step 2: Determine target file
+        target_file = self._file_manager.find_or_create_component_file(component_type, context_name, file_path)
+        if not target_file:
+            return None
+
+        # Step 3: Add component to file
+        success = self._file_manager.add_component_to_file(target_file, component_config)
+        if not success:
+            return None
+
+        # Refresh index to include the new component
+        self.refresh()
+
+        # Return success response
+        source_info = self._file_manager.list_config_sources()
+        context_info = next(
+            (
+                s
+                for s in source_info
+                if s.get("project_name") == context_name
+                or (s.get("workspace_name") == context_name and s["context"] == "workspace")
+            ),
+            {},
+        )
+
+        return {
+            "message": "Component created successfully",
+            "component": {
+                "name": component_config["name"],
+                "type": component_type,
+                "file_path": str(target_file.relative_to(Path(context_info["path"]))),
+                "context": context_info.get("context"),
+                "project_name": context_info.get("project_name"),
+                "workspace_name": context_info.get("workspace_name"),
+            },
+        }
 
     def delete_config(self, component_type: str, component_name: str) -> bool:
         """

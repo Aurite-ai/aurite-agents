@@ -99,35 +99,31 @@ export class ConfigManagerClient extends BaseClient {
    *
    * @example
    * ```typescript
-   * // Create a new agent
+   * // Create a new agent in a specific project and file
    * await client.config.createConfig('agent', {
-   *   name: 'Translation Agent',
-   *   description: 'Translates text between languages',
-   *   system_prompt: 'You are a professional translator...',
-   *   llm_config_id: 'anthropic_claude',
-   *   mcp_servers: ['translation_server'],
-   *   max_iterations: 3,
-   *   include_history: true
-   * });
-   *
-   * // Create a new LLM configuration
-   * await client.config.createConfig('llm', {
-   *   name: 'fast_gpt',
-   *   provider: 'openai',
-   *   model: 'gpt-3.5-turbo',
-   *   temperature: 0.3,
-   *   max_tokens: 1000,
-   *   api_key_env_var: 'OPENAI_API_KEY'
-   * });
+   *   name: 'My New Agent',
+   *   description: 'This is a test agent.',
+   *   system_prompt: 'You are a test agent.',
+   *   llm_config_id: 'my_openai_gpt4_turbo'
+   * }, { project: 'project_bravo', filePath: 'new_agents.json' });
    * ```
    */
-  async createConfig(configType: string, config: any): Promise<{ message: string }> {
-    // Extract name from config and prepare the request body
+  async createConfig(
+    configType: string,
+    config: any,
+    options: { project?: string; workspace?: boolean; filePath?: string } = {}
+  ): Promise<{ message: string }> {
     const { name, ...configData } = config;
-    return this.request('POST', `/config/components/${configType}`, {
+    const body = {
       name,
-      config: configData
-    });
+      config: {
+        ...configData,
+        project: options.project,
+        workspace: options.workspace,
+        file_path: options.filePath,
+      },
+    };
+    return this.request('POST', `/config/components/${configType}`, body);
   }
 
   /**
@@ -309,5 +305,47 @@ export class ConfigManagerClient extends BaseClient {
    */
   async getFileContent(sourceName: string, filePath: string): Promise<string> {
     return this.request('GET', `/config/files/${sourceName}/${filePath}`);
+  }
+
+  /**
+   * Create a new configuration file.
+   *
+   * @param sourceName - The name of the source to create the file in.
+   * @param relativePath - The relative path for the new file.
+   * @param content - The content to write to the file.
+   * @returns A success message.
+   * @throws Error if the file creation fails.
+   */
+  async createConfigFile(sourceName: string, relativePath: string, content: string): Promise<{ message: string }> {
+    return this.request('POST', '/config/files', {
+      source_name: sourceName,
+      relative_path: relativePath,
+      content: content,
+    });
+  }
+
+  /**
+   * Update an existing configuration file.
+   *
+   * @param sourceName - The name of the source where the file exists.
+   * @param relativePath - The relative path of the file to update.
+   * @param content - The new content to write to the file.
+   * @returns A success message.
+   * @throws Error if the file update fails.
+   */
+  async updateConfigFile(sourceName: string, relativePath: string, content: string): Promise<{ message: string }> {
+    return this.request('PUT', `/config/files/${sourceName}/${relativePath}`, { content });
+  }
+
+  /**
+   * Delete an existing configuration file.
+   *
+   * @param sourceName - The name of the source where the file exists.
+   * @param relativePath - The relative path of the file to delete.
+   * @returns A success message.
+   * @throws Error if the file deletion fails.
+   */
+  async deleteConfigFile(sourceName: string, relativePath: string): Promise<{ message: string }> {
+    return this.request('DELETE', `/config/files/${sourceName}/${relativePath}`);
   }
 }

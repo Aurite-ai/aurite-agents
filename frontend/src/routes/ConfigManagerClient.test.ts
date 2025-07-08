@@ -158,6 +158,41 @@ describe('ConfigManagerClient', () => {
         client.createConfig('agent', { name: 'Existing Agent' })
       ).rejects.toThrow('Configuration with this name already exists');
     });
+
+    it('should create a new component with options', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Component created successfully' }),
+      } as Response);
+
+      const result = await client.createConfig(
+        'agent',
+        { name: 'My New Agent', description: 'A test agent' },
+        { project: 'project_bravo', filePath: 'new_agents.json' }
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/components/agent',
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: 'My New Agent',
+            config: {
+              description: 'A test agent',
+              project: 'project_bravo',
+              workspace: undefined,
+              file_path: 'new_agents.json',
+            },
+          }),
+        }
+      );
+
+      expect(result).toEqual({ message: 'Component created successfully' });
+    });
   });
 
   describe('updateConfig', () => {
@@ -418,6 +453,107 @@ describe('ConfigManagerClient', () => {
       await expect(
         client.getFileContent('workspace', 'non_existent_file.json')
       ).rejects.toThrow('File not found');
+    });
+  });
+
+  describe('createConfigFile', () => {
+    it('should create a new config file', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'File created successfully' }),
+      } as Response);
+
+      const result = await client.createConfigFile(
+        'project_bravo',
+        'new_llms.json',
+        '[{"name": "new_llm", "type": "llm"}]'
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files',
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            source_name: 'project_bravo',
+            relative_path: 'new_llms.json',
+            content: '[{"name": "new_llm", "type": "llm"}]',
+          }),
+        }
+      );
+
+      expect(result).toEqual({ message: 'File created successfully' });
+    });
+
+    it('should handle file creation failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: 'Failed to create file' }),
+      } as Response);
+
+      await expect(
+        client.createConfigFile('workspace', 'existing.json', '{}')
+      ).rejects.toThrow('Failed to create file');
+    });
+  });
+
+  describe('updateConfigFile', () => {
+    it('should update a config file', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'File updated successfully' }),
+      } as Response);
+
+      const result = await client.updateConfigFile(
+        'project_bravo',
+        'llms.json',
+        '[{"name": "updated_llm", "type": "llm"}]'
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files/project_bravo/llms.json',
+        {
+          method: 'PUT',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: '[{"name": "updated_llm", "type": "llm"}]',
+          }),
+        }
+      );
+
+      expect(result).toEqual({ message: 'File updated successfully' });
+    });
+  });
+
+  describe('deleteConfigFile', () => {
+    it('should delete a config file', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'File deleted successfully' }),
+      } as Response);
+
+      const result = await client.deleteConfigFile('project_bravo', 'old_agents.json');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files/project_bravo/old_agents.json',
+        {
+          method: 'DELETE',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: undefined,
+        }
+      );
+
+      expect(result).toEqual({ message: 'File deleted successfully' });
     });
   });
 });

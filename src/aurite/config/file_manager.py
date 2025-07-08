@@ -6,9 +6,12 @@ configuration files, including listing sources, reading/writing files, and
 managing component storage.
 """
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -146,3 +149,317 @@ class FileManager:
 
         logger.debug(f"Listed {len(sources)} configuration sources")
         return sources
+
+    def list_config_files(self, source_name: str) -> List[str]:
+        """
+        List all configuration files for a specific source.
+
+        Args:
+            source_name: The name of the source (e.g., 'workspace', 'project_bravo')
+
+        Returns:
+            A list of relative file paths.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if source_name not in source_map:
+            logger.warning(f"Source '{source_name}' not found.")
+            return []
+
+        source_info = source_map[source_name]
+        source_path = Path(source_info["path"])
+        source_path.parent if source_info["context"] == "project" else self.workspace_root
+
+        if not source_path.is_dir():
+            logger.warning(f"Config source path {source_path} is not a directory.")
+            return []
+
+        files = []
+        for pattern in ["*.json", "*.yaml", "*.yml"]:
+            for config_file in source_path.rglob(pattern):
+                try:
+                    # Use the source path as the base for the relative path
+                    rel_path = config_file.relative_to(source_path)
+                    files.append(str(rel_path))
+                except ValueError:
+                    # This can happen if the file is not under the source_path, which would be unexpected
+                    logger.warning(f"File {config_file} is not relative to source path {source_path}")
+
+        logger.debug(f"Found {len(files)} files in source '{source_name}'")
+        return files
+
+    def get_file_content(self, source_name: str, relative_path: str) -> Optional[str]:
+        """
+        Get the content of a specific configuration file.
+
+        Args:
+            source_name: The name of the source the file belongs to.
+            relative_path: The relative path of the file within the source.
+
+        Returns:
+            The file content as a string, or None if not found or invalid.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if source_name not in source_map:
+            logger.warning(f"Source '{source_name}' not found for getting file content.")
+            return None
+
+        source_info = source_map[source_name]
+        source_path = Path(source_info["path"])
+
+        # Construct the full path and validate it
+        full_path = source_path / relative_path
+        if not self._validate_path(full_path):
+            logger.warning(f"Invalid or unauthorized path requested: {full_path}")
+            return None
+
+        if not full_path.is_file():
+            logger.warning(f"File not found at path: {full_path}")
+            return None
+
+        try:
+            with full_path.open("r", encoding="utf-8") as f:
+                return f.read()
+        except IOError as e:
+            logger.error(f"Could not read file {full_path}: {e}")
+            return None
+
+    def create_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
+        """
+        Create a new configuration file.
+
+        Args:
+            source_name: The name of the source to create the file in.
+            relative_path: The relative path for the new file.
+            content: The content to write to the file.
+
+        Returns:
+            True if the file was created successfully, False otherwise.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if source_name not in source_map:
+            logger.warning(f"Source '{source_name}' not found for creating file.")
+            return False
+
+        source_info = source_map[source_name]
+        source_path = Path(source_info["path"])
+
+        # Construct the full path and validate it
+        full_path = source_path / relative_path
+        if not self._validate_path(full_path):
+            logger.warning(f"Invalid or unauthorized path for file creation: {full_path}")
+            return False
+
+        if full_path.exists():
+            logger.warning(f"File already exists at path: {full_path}")
+            return False
+
+        try:
+            # Create parent directories if they don't exist
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            with full_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+            logger.info(f"Successfully created file: {full_path}")
+            return True
+        except IOError as e:
+            logger.error(f"Could not create file {full_path}: {e}")
+            return False
+
+    def update_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
+        """
+        Update an existing configuration file.
+
+        Args:
+            source_name: The name of the source where the file exists.
+            relative_path: The relative path of the file to update.
+            content: The new content to write to the file.
+
+        Returns:
+            True if the file was updated successfully, False otherwise.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if source_name not in source_map:
+            logger.warning(f"Source '{source_name}' not found for updating file.")
+            return False
+
+        source_info = source_map[source_name]
+        source_path = Path(source_info["path"])
+
+        full_path = source_path / relative_path
+        if not self._validate_path(full_path) or not full_path.is_file():
+            logger.warning(f"File not found or invalid path for update: {full_path}")
+            return False
+
+        try:
+            with full_path.open("w", encoding="utf-8") as f:
+                f.write(content)
+            logger.info(f"Successfully updated file: {full_path}")
+            return True
+        except IOError as e:
+            logger.error(f"Could not update file {full_path}: {e}")
+            return False
+
+    def delete_config_file(self, source_name: str, relative_path: str) -> bool:
+        """
+        Delete an existing configuration file.
+
+        Args:
+            source_name: The name of the source where the file exists.
+            relative_path: The relative path of the file to delete.
+
+        Returns:
+            True if the file was deleted successfully, False otherwise.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if source_name not in source_map:
+            logger.warning(f"Source '{source_name}' not found for deleting file.")
+            return False
+
+        source_info = source_map[source_name]
+        source_path = Path(source_info["path"])
+
+        full_path = source_path / relative_path
+        if not self._validate_path(full_path) or not full_path.is_file():
+            logger.warning(f"File not found or invalid path for deletion: {full_path}")
+            return False
+
+        try:
+            full_path.unlink()
+            logger.info(f"Successfully deleted file: {full_path}")
+            return True
+        except IOError as e:
+            logger.error(f"Could not delete file {full_path}: {e}")
+            return False
+
+    def find_or_create_component_file(
+        self,
+        component_type: str,
+        context_name: str,
+        file_path: Optional[str] = None,
+    ) -> Optional[Path]:
+        """
+        Finds an existing config file or determines the path for a new one.
+
+        Args:
+            component_type: The type of component (e.g., 'agent').
+            context_name: The name of the context ('workspace' or a project name).
+            file_path: Optional user-provided file path.
+
+        Returns:
+            The absolute path to the target file, or None on error.
+        """
+        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
+        if self.workspace_name and "workspace" not in source_map:
+            for s in self.list_config_sources():
+                if s["context"] == "workspace":
+                    source_map["workspace"] = s
+                    break
+
+        if context_name not in source_map:
+            logger.error(f"Context '{context_name}' not found.")
+            return None
+
+        source_info = source_map[context_name]
+        source_path = Path(source_info["path"])
+
+        if file_path:
+            if "/" not in file_path:
+                # It's a filename, not a path
+                # Search for this file in the given context
+                existing_files = [f for f in self.list_config_files(context_name) if Path(f).name == file_path]
+                if len(existing_files) > 1:
+                    logger.error(f"Multiple files named '{file_path}' found in '{context_name}'.")
+                    return None
+                elif len(existing_files) == 1:
+                    return source_path / existing_files[0]
+                else:
+                    # File not found, create it in a default location
+                    return source_path / f"{component_type}s" / file_path
+            else:
+                # It's a relative path
+                return source_path / file_path
+        else:
+            # No file_path provided, use default
+            return source_path / f"{component_type}s" / f"{component_type}s.json"
+
+    def add_component_to_file(self, file_path: Path, component_config: Dict[str, Any]) -> bool:
+        """
+        Adds a new component to a configuration file.
+
+        Args:
+            file_path: The absolute path to the file.
+            component_config: The configuration of the component to add.
+
+        Returns:
+            True if the component was added successfully, False otherwise.
+        """
+        file_format = self._detect_file_format(file_path)
+        if not file_format:
+            logger.error(f"Unsupported file format for {file_path}")
+            return False
+
+        try:
+            if file_path.exists():
+                with file_path.open("r", encoding="utf-8") as f:
+                    if file_format == "json":
+                        content = json.load(f)
+                    else:
+                        content = yaml.safe_load(f)
+                if not isinstance(content, list):
+                    logger.error(f"File {file_path} does not contain a list of components.")
+                    return False
+            else:
+                content = []
+
+            # Check for existing component with the same name
+            component_name = component_config.get("name")
+            if any(c.get("name") == component_name for c in content):
+                logger.error(f"Component '{component_name}' already exists in {file_path}.")
+                return False
+
+            content.append(component_config)
+
+            # Create parent directories if they don't exist
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with file_path.open("w", encoding="utf-8") as f:
+                if file_format == "json":
+                    json.dump(content, f, indent=2, ensure_ascii=False)
+                else:
+                    yaml.safe_dump(content, f, default_flow_style=False, allow_unicode=True)
+
+            logger.info(f"Added component '{component_name}' to {file_path}")
+            return True
+
+        except (IOError, json.JSONDecodeError, yaml.YAMLError) as e:
+            logger.error(f"Failed to add component to {file_path}: {e}")
+            return False

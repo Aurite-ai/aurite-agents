@@ -165,6 +165,43 @@ async function runIntegrationTests() {
     }
     console.log('');
 
+    // Test 11: File-level CRUD operations
+    console.log('1️⃣1️⃣ Testing File-level CRUD Operations...');
+    const testFileName = 'integration_test_file.json';
+    const testFileContent = JSON.stringify([{ name: 'test-component', type: 'agent' }]);
+    const updatedTestFileContent = JSON.stringify([{ name: 'updated-test-component', type: 'agent' }]);
+
+    try {
+      // Create
+      console.log(`   - Creating file '${testFileName}' in project_bravo...`);
+      await client.config.createConfigFile('project_bravo', testFileName, testFileContent);
+      console.log('   ✅ File created.');
+
+      // Read
+      console.log(`   - Reading file '${testFileName}'...`);
+      const content = await client.config.getFileContent('project_bravo', testFileName);
+      if (content !== testFileContent) {
+        throw new Error('File content mismatch after creation!');
+      }
+      console.log('   ✅ File content verified.');
+
+      // Update
+      console.log(`   - Updating file '${testFileName}'...`);
+      await client.config.updateConfigFile('project_bravo', testFileName, updatedTestFileContent);
+      const updatedContent = await client.config.getFileContent('project_bravo', testFileName);
+      if (updatedContent !== updatedTestFileContent) {
+        throw new Error('File content mismatch after update!');
+      }
+      console.log('   ✅ File updated and verified.');
+
+    } finally {
+      // Delete
+      console.log(`   - Deleting file '${testFileName}'...`);
+      await client.config.deleteConfigFile('project_bravo', testFileName);
+      console.log('   ✅ File deleted.');
+    }
+    console.log('');
+
 
     console.log('✅ All integration tests completed successfully!');
 

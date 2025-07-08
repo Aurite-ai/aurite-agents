@@ -150,6 +150,152 @@ def main():
     print("  - From project: Project → Workspace → Other Projects → User")
     print("=" * 80)
 
+    # Phase 3: File listing operations
+    print_section("Phase 3: File Listing Operations")
+
+    # Save current directory for restoration
+    original_cwd = Path.cwd()
+
+    try:
+        # Test from workspace root
+        os.chdir(workspace_dir)
+        config_manager = ConfigManager()
+
+        print("Testing FileManager integration from workspace root:")
+
+        # Test list_config_sources
+        print("\nConfiguration Sources:")
+        sources = config_manager.list_config_sources()
+        for source in sources:
+            print(f"  - Path: {source['path']}")
+            print(f"    Context: {source['context']}")
+            if "project_name" in source:
+                print(f"    Project: {source['project_name']}")
+            if "workspace_name" in source:
+                print(f"    Workspace: {source['workspace_name']}")
+
+        # Test list_config_files for each source
+        print("\nConfiguration Files per Source:")
+        for source in sources:
+            source_name = source.get("project_name") or ("workspace" if source["context"] == "workspace" else None)
+            if not source_name:
+                continue
+
+            print(f"\n  Testing source: '{source_name}'")
+            files = config_manager.list_config_files(source_name)
+            print(f"    Found {len(files)} files:")
+            for file_path in files[:5]:  # Show first 5 files
+                print(f"      - {file_path}")
+            if len(files) > 5:
+                print(f"      ... and {len(files) - 5} more.")
+
+            # Test getting content for the first file
+            if files:
+                first_file = files[0]
+                print(f"\n    Getting content for: {first_file}")
+                content = config_manager.get_file_content(source_name, first_file)
+                if content:
+                    print("      ✅ Success! First 50 chars:")
+                    print(f"      '{content[:50].strip()}...'")
+                else:
+                    print("      ❌ Failed to get content.")
+
+        print("\n✅ Phase 3 & 4 tests completed successfully!")
+
+        # Phase 5: File creation
+        print_section("Phase 5: File Creation")
+        test_file_path = "new_agents.json"
+        test_content = '[{"name": "new_test_agent", "type": "agent"}]'
+        print(f"Attempting to create file '{test_file_path}' in source 'project_bravo'...")
+        success = config_manager.create_config_file("project_bravo", test_file_path, test_content)
+        if success:
+            print("  ✅ File created successfully.")
+            # Verify file exists
+            new_file = Path(workspace_dir) / "project_bravo" / "config" / test_file_path
+            if new_file.exists():
+                print("  ✅ File verified on disk.")
+                # Clean up the created file
+                new_file.unlink()
+                print("  ✅ Cleaned up test file.")
+            else:
+                print("  ❌ File not found on disk after creation.")
+        else:
+            print("  ❌ File creation failed.")
+
+        # Phase 6: File update and delete
+        print_section("Phase 6: File Update and Delete")
+        update_file_path = "update_test.json"
+
+        # Create a file to update and then delete
+        print(f"Attempting to create file '{update_file_path}' for update/delete test...")
+        create_success = config_manager.create_config_file("project_bravo", update_file_path, "initial content")
+
+        if create_success:
+            print("  ✅ File created for update/delete test.")
+
+            # Update the file
+            print(f"Attempting to update file '{update_file_path}'...")
+            update_success = config_manager.update_config_file("project_bravo", update_file_path, "updated content")
+            if update_success:
+                print("  ✅ File updated successfully.")
+                # Verify content
+                content = config_manager.get_file_content("project_bravo", update_file_path)
+                if content == "updated content":
+                    print("  ✅ File content verified.")
+                else:
+                    print("  ❌ File content verification failed.")
+            else:
+                print("  ❌ File update failed.")
+
+            # Delete the file
+            print(f"Attempting to delete file '{update_file_path}'...")
+            delete_success = config_manager.delete_config_file("project_bravo", update_file_path)
+            if delete_success:
+                print("  ✅ File deleted successfully.")
+                # Verify deletion
+                if not (Path(workspace_dir) / "project_bravo" / "config" / update_file_path).exists():
+                    print("  ✅ File deletion verified.")
+                else:
+                    print("  ❌ File still exists after deletion.")
+            else:
+                print("  ❌ File deletion failed.")
+        else:
+            print("  ❌ Could not create file for update/delete test.")
+
+        # Phase 7: Intelligent component creation
+        print_section("Phase 7: Intelligent Component Creation")
+
+        # Test case 1: Create a new agent in a new file in the project
+        print("Attempting to create a new agent in a new file...")
+        new_agent_config = {
+            "name": "super_agent_9000",
+            "type": "agent",
+            "description": "A super agent",
+            "system_prompt": "You are a super agent.",
+            "llm_config_id": "my_openai_gpt4_turbo",
+        }
+        result = config_manager.create_component(
+            "agent", new_agent_config, project="project_bravo", file_path="super_agents.json"
+        )
+        if result:
+            print("  ✅ Component created successfully.")
+            print(f"  Response: {result}")
+            # Clean up
+            file_to_delete = Path(workspace_dir) / "project_bravo" / "config" / "agents" / "super_agents.json"
+            if file_to_delete.exists():
+                file_to_delete.unlink()
+                print("  ✅ Cleaned up super_agents.json")
+        else:
+            print("  ❌ Component creation failed.")
+
+    except Exception as e:
+        print(f"Error in test script: {e}")
+        import traceback
+
+        traceback.print_exc()
+    finally:
+        os.chdir(original_cwd)
+
     return 0
 
 

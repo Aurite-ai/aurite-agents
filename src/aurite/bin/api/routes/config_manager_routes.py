@@ -119,11 +119,21 @@ async def create_component(
     full_config["type"] = singular_type
     full_config["name"] = component_data.name
 
-    # For now, we'll need to implement a create method in ConfigManager
-    # Since upsert_component requires an existing component, we'll need to handle this differently
-    logger.warning(f"Create component not fully implemented yet for {component_data.name}")
+    result = config_manager.create_component(
+        singular_type,
+        full_config,
+        project=component_data.config.get("project"),
+        workspace=component_data.config.get("workspace", False),
+        file_path=component_data.config.get("file_path"),
+    )
 
-    return MessageResponse(message=f"Component '{component_data.name}' created successfully.")
+    if not result:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create component '{component_data.name}'.",
+        )
+
+    return result
 
 
 @router.put("/components/{component_type}/{component_id}", response_model=MessageResponse)
@@ -152,8 +162,8 @@ async def update_component(
     full_config = component_data.config.copy()
     full_config["name"] = component_id
 
-    # Use the existing upsert_component method
-    success = config_manager.upsert_component(singular_type, component_id, full_config)
+    # Use the existing update_component method
+    success = config_manager.update_component(singular_type, component_id, full_config)
 
     if not success:
         raise HTTPException(
@@ -241,6 +251,135 @@ async def validate_component(
         )
 
     return MessageResponse(message=f"Component '{component_id}' is valid.")
+
+
+# File Operations
+@router.get("/sources", response_model=List[Dict[str, Any]])
+async def list_config_sources(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    List all configuration source directories with context information.
+
+    Returns a list of configuration source directories in priority order,
+    including their context (project/workspace/user) and associated names.
+    """
+    return config_manager.list_config_sources()
+
+
+@router.get("/files/{source_name}", response_model=List[str])
+async def list_config_files_by_source(
+    source_name: str,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    List all configuration files for a specific source.
+
+    Returns a list of relative file paths for the given source.
+    """
+    files = config_manager.list_config_files(source_name)
+    if not files and source_name not in [
+        s["project_name"] or s.get("workspace_name", "") for s in config_manager.list_config_sources()
+    ]:
+        # Check if the source itself exists to differentiate empty source from invalid source
+        sources = config_manager.list_config_sources()
+        source_names = [
+            s.get("project_name") or ("workspace" if s["context"] == "workspace" else None) for s in sources
+        ]
+        if source_name not in source_names:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Source '{source_name}' not found.",
+            )
+    return files
+
+
+@router.get("/files/{source_name}/{file_path:path}", response_model=str)
+async def get_file_content(
+    source_name: str,
+    file_path: str,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Get the content of a specific configuration file.
+    """
+    content = config_manager.get_file_content(source_name, file_path)
+    if content is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File '{file_path}' not found in source '{source_name}'.",
+        )
+    return content
+
+
+class FileCreateRequest(BaseModel):
+    source_name: str
+    relative_path: str
+    content: str
+
+
+@router.post("/files", response_model=MessageResponse)
+async def create_config_file(
+    request: FileCreateRequest,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Create a new configuration file.
+    """
+    success = config_manager.create_config_file(request.source_name, request.relative_path, request.content)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to create file '{request.relative_path}' in source '{request.source_name}'.",
+        )
+    return MessageResponse(message="File created successfully.")
+
+
+class FileUpdateRequest(BaseModel):
+    content: str
+
+
+@router.put("/files/{source_name}/{file_path:path}", response_model=MessageResponse)
+async def update_config_file(
+    source_name: str,
+    file_path: str,
+    request: FileUpdateRequest,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Update an existing configuration file.
+    """
+    success = config_manager.update_config_file(source_name, file_path, request.content)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to update file '{file_path}' in source '{source_name}'.",
+        )
+    return MessageResponse(message="File updated successfully.")
+
+
+@router.delete("/files/{source_name}/{file_path:path}", response_model=MessageResponse)
+async def delete_config_file(
+    source_name: str,
+    file_path: str,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Delete an existing configuration file.
+    """
+    success = config_manager.delete_config_file(source_name, file_path)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to delete file '{file_path}' in source '{source_name}'.",
+        )
+    return MessageResponse(message="File deleted successfully.")
 
 
 # Configuration Management Operations
