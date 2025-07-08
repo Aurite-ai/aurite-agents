@@ -1,0 +1,90 @@
+[
+    {
+        "name": "Weather Agent A",
+        "description": "Test weather agent.",
+        "type": "agent",
+        "mcp_servers": ["weather_server_a"],
+        "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Weather Agent B",
+        "description": "Test weather agent.",
+        "type": "agent",
+        "mcp_servers": ["weather_server_b"],
+        "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Weather Agent C",
+        "description": "Test weather agent.",
+        "type": "agent",
+        "mcp_servers": ["weather_server_c"],
+        "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent A",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_a"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent B",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_b"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent C",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_c"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent D",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_d"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent E",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_e"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent F",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_f"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent G",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_g"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Search Agent H",
+        "description": "Test search agent.",
+        "type": "agent",
+        "mcp_servers": ["duckduckgo_mcp_h"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    }
+]

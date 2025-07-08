@@ -1,0 +1,154 @@
+[
+  {
+    "name": "weather_server_a",
+    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": "15.0",
+    "type": "mcp_server"
+  },
+  {
+    "name": "weather_server_b",
+    "server_path": "../../../src/aurite/init_templates/mcp_servers/weathersdfsdfsdfsdfsdfs_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": "15.0",
+    "type": "mcp_server"
+  },
+  {
+    "name": "weather_server_c",
+    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": "15.0",
+    "type": "mcp_server"
+  },
+  {
+    "name": "weather_server_c",
+    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": "15.0",
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_a",
+    "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key={SMITHERY_API_KEY}&profile={SMITHERY_PROFILE_ID}",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_b",
+    "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=asdf&profile={SMITHERY_PROFILE_ID}",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_c",
+    "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key={SMITHERY_API_KEY}&profile=asdf",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_d",
+    "http_endpoint": "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=asdf&profile=asdf",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_e",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@nickclyde/duckduckgo-mcp-server",
+      "--key",
+      "{SMITHERY_API_KEY}",
+      "--profile",
+      "{SMITHERY_PROFILE_ID}"
+    ],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_f",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@nickclyde/duckduckgo-mcp-server",
+      "--key",
+      "asdf",
+      "--profile",
+      "{SMITHERY_PROFILE_ID}"
+    ],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_g",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@nickclyde/duckduckgo-mcp-server",
+      "--key",
+      "{SMITHERY_API_KEY}",
+      "--profile",
+      "asdf"
+    ],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "duckduckgo_mcp_h",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@nickclyde/duckduckgo-mcp-server",
+      "--key",
+      "asdf",
+      "--profile",
+      "asdf"
+    ],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  }
+]
