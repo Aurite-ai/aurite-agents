@@ -281,6 +281,17 @@ async function runIntegrationTests() {
     }
     console.log('');
 
+    // Test 14: Global Validation
+    console.log('1️⃣4️⃣ Testing Global Validation...');
+    try {
+      console.log("   - Running global validation...");
+      await client.config.validateAllConfigs();
+      console.log(`   ✅ Global validation passed.`);
+    } catch (e) {
+      console.error("   ❌ FAILED global validation:", e);
+    }
+    console.log('');
+
 
     console.log('✅ All integration tests completed successfully!');
 

@@ -348,4 +348,14 @@ export class ConfigManagerClient extends BaseClient {
   async deleteConfigFile(sourceName: string, relativePath: string): Promise<{ message: string }> {
     return this.request('DELETE', `/config/files/${sourceName}/${relativePath}`);
   }
+
+  /**
+   * Validate all components in the system.
+   *
+   * @returns A list of validation errors, or an empty list if all are valid.
+   * @throws Error if the validation fails.
+   */
+  async validateAllConfigs(): Promise<any[]> {
+    return this.request('POST', '/config/validate');
+  }
 }
