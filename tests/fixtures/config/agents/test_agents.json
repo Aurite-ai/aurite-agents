@@ -86,5 +86,21 @@
         "mcp_servers": ["duckduckgo_mcp_h"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. You should first use the search tool to find a list of websites, then use the fetch_content tool on the best one. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up information if you cannot use the tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Yahoo Agent HTTP A",
+        "description": "Test yahoo finance agent. Http. Control",
+        "type": "agent",
+        "mcp_servers": ["yahoo_finance_http_a"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. If you are not able to use a tool, clearly specify this in your response. DO NOT make up information if you cannot use a tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Yahoo Agent Local A",
+        "description": "Test yahoo finance agent. Local. Control",
+        "type": "agent",
+        "mcp_servers": ["yahoo_finance_local_a"],
+        "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. If you are not able to use a tool, clearly specify this in your response. DO NOT make up information if you cannot use a tool.",
+        "llm_config_id": "anthropic_claude_3_haiku"
     }
 ]

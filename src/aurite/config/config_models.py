@@ -49,6 +49,7 @@ class ClientConfig(BaseComponentConfig):
     roots: List[RootConfig] = Field(default_factory=list, description="List of root configurations for this client.")
     capabilities: List[str] = Field(description="List of capabilities this client provides (e.g., 'tools', 'prompts').")
     timeout: float = Field(default=10.0, description="Default timeout in seconds for client operations.")
+    registration_timeout: float = Field(default=30.0, description="Timeout for registering the mcp client")
     routing_weight: float = Field(default=1.0, description="Weight for server selection during routing.")
     exclude: Optional[List[str]] = Field(
         default=None,

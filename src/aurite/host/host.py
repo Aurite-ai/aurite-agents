@@ -101,72 +101,82 @@ class MCPHost:
             return
 
         session_stack = AsyncExitStack()
-        try:
-            client_env = os.environ.copy()
 
-            def _resolve_placeholders(value: str) -> str:
-                placeholders = re.findall(r"\{([^}]+)\}", value)
-                for placeholder in placeholders:
-                    env_value = client_env.get(placeholder)
-                    if env_value:
-                        value = value.replace(f"{{{placeholder}}}", env_value)
-                return value
-
-            if config.transport_type in ["stdio", "local"]:
-                if config.transport_type == "stdio":
-                    if not config.server_path:
-                        raise ValueError("'server_path' is required for stdio transport")
-                    params = StdioServerParameters(command="python", args=[str(config.server_path)], env=client_env)
-                else:  # local
-                    if not config.command:
-                        raise ValueError("'command' is required for local transport")
-                    resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
-                    params = StdioServerParameters(command=config.command, args=resolved_args, env=client_env)
-                client = stdio_client(params, errlog=open(os.devnull, "w"))
-                read, write = await session_stack.enter_async_context(client)
-
-            elif config.transport_type == "http_stream":
-                if not config.http_endpoint:
-                    raise ValueError("URL is required for http_stream transport")
-                endpoint_url = _resolve_placeholders(config.http_endpoint)
-                params = StreamableHttpParameters(
-                    url=endpoint_url,
-                    headers=config.headers,
-                    timeout=timedelta(seconds=config.timeout or 30.0),
-                )
-                client = streamablehttp_client(
-                    url=params.url,
-                    headers=params.headers,
-                    timeout=params.timeout,
-                    sse_read_timeout=params.sse_read_timeout,
-                    terminate_on_close=True,
-                )
-                read, write, _ = await session_stack.enter_async_context(client)
-            else:
-                raise ValueError(f"Unsupported transport type: {config.transport_type}")
-
-            session = await session_stack.enter_async_context(mcp.ClientSession(read, write))
-            await session.initialize()
-
-            # Aggregate components
+        async def _registration_process():
             try:
-                tools_response = await session.list_tools()
-                for tool in tools_response.tools:
-                    self._tools[tool.name] = tool
-                    self._tool_to_session[tool.name] = session
+                client_env = os.environ.copy()
+
+                def _resolve_placeholders(value: str) -> str:
+                    placeholders = re.findall(r"\{([^}]+)\}", value)
+                    for placeholder in placeholders:
+                        env_value = client_env.get(placeholder)
+                        if env_value:
+                            value = value.replace(f"{{{placeholder}}}", env_value)
+                    return value
+
+                if config.transport_type in ["stdio", "local"]:
+                    if config.transport_type == "stdio":
+                        if not config.server_path:
+                            raise ValueError("'server_path' is required for stdio transport")
+                        params = StdioServerParameters(command="python", args=[str(config.server_path)], env=client_env)
+                    else:  # local
+                        if not config.command:
+                            raise ValueError("'command' is required for local transport")
+                        resolved_args = [_resolve_placeholders(arg) for arg in (config.args or [])]
+                        params = StdioServerParameters(command=config.command, args=resolved_args, env=client_env)
+                    client = stdio_client(params, errlog=open(os.devnull, "w"))
+                    read, write = await session_stack.enter_async_context(client)
+
+                elif config.transport_type == "http_stream":
+                    if not config.http_endpoint:
+                        raise ValueError("URL is required for http_stream transport")
+                    endpoint_url = _resolve_placeholders(config.http_endpoint)
+                    params = StreamableHttpParameters(
+                        url=endpoint_url,
+                        headers=config.headers,
+                        timeout=timedelta(seconds=config.timeout or 30.0),
+                    )
+                    client = streamablehttp_client(
+                        url=params.url,
+                        headers=params.headers,
+                        timeout=params.timeout,
+                        sse_read_timeout=params.sse_read_timeout,
+                        terminate_on_close=True,
+                    )
+                    read, write, _ = await session_stack.enter_async_context(client)
+                else:
+                    raise ValueError(f"Unsupported transport type: {config.transport_type}")
+
+                session = await session_stack.enter_async_context(mcp.ClientSession(read, write))
+
+                await session.initialize()
+
+                # Aggregate components
+                try:
+                    tools_response = await session.list_tools()
+                    for tool in tools_response.tools:
+                        self._tools[tool.name] = tool
+                        self._tool_to_session[tool.name] = session
+                except Exception as e:
+                    logger.warning(f"Could not fetch tools from '{config.name}': {e}")
+
+                self._sessions[config.name] = session
+                self._session_exit_stacks[config.name] = session_stack
+
+                logger.info(f"Client '{config.name}' dynamically registered successfully.")
+
             except Exception as e:
-                logger.warning(f"Could not fetch tools from '{config.name}': {e}")
+                logger.error(
+                    f"Failed to dynamically register client '{config.name}': {e}",
+                    exc_info=True,
+                )
+                await session_stack.aclose()
+                raise
 
-            self._sessions[config.name] = session
-            self._session_exit_stacks[config.name] = session_stack
-
-            logger.info(f"Client '{config.name}' dynamically registered successfully.")
-
-        except Exception as e:
-            logger.error(
-                f"Failed to dynamically register client '{config.name}': {e}",
-                exc_info=True,
-            )
+        try:
+            await asyncio.wait_for(_registration_process(), timeout=config.registration_timeout)
+        except asyncio.TimeoutError:
+            logger.error(f"Registration of client '{config.name}' timed out after {config.registration_timeout} seconds")
             await session_stack.aclose()
             raise
 

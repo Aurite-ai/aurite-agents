@@ -150,5 +150,33 @@
       "prompts"
     ],
     "type": "mcp_server"
+  },
+  {
+    "name": "yahoo_finance_http_a",
+    "http_endpoint": "https://server.smithery.ai/@hwangwoohyun-nav/yahoo-finance-mcp/mcp?api_key={SMITHERY_API_KEY}&profile={SMITHERY_PROFILE_ID}",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
+  },
+  {
+    "name": "yahoo_finance_local_a",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@hwangwoohyun-nav/yahoo-finance-mcp",
+      "--key",
+      "{SMITHERY_API_KEY}",
+      "--profile",
+      "{SMITHERY_PROFILE_ID}"
+    ],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
   }
 ]
