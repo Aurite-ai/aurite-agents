@@ -1,3 +1,3 @@
 [aurite]
 type = "workspace"
-projects = ["./src/aurite/init_templates"]
+projects = ["./src/aurite/init_templates", "./demo-config"]
