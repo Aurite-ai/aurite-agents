@@ -146,7 +146,7 @@ follow_imports = "silent"
 [tool.deptry]
 known_first_party = ["aurite"]
 extend_exclude = ["tests", "docs"]
-per_rule_ignores = { DEP003 = ["google", "httpx"], DEP004 = ["pandas", "redis", "mem0", "psycopg2", "sentence_transformers"] }
+per_rule_ignores = { DEP003 = ["google", "httpx", "psutil"], DEP004 = ["pandas", "redis", "mem0", "psycopg2", "sentence_transformers"] }
 
 [tool.deptry.package_module_name_map]
 "psycopg2-binary" = "psycopg2"
