@@ -361,7 +361,8 @@ async def update_environment_variables(
             os.environ[name] = value
             updated.append(name)
         except Exception as e:
-            errors.append(f"Failed to update {name}: {str(e)}")
+            logger.error(f"Failed to update {name}: {e}", exc_info=True)
+            errors.append(f"Failed to update {name}: An internal error occurred.")
 
     return {
         "updated": updated,
