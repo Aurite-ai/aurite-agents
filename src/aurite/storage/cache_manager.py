@@ -4,7 +4,7 @@ Provides a file-based cache for conversation history with in-memory caching.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -198,3 +198,44 @@ class CacheManager:
         """
         self._history_cache.clear()
         self._metadata_cache.clear()
+
+    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
+        """
+        Clean up old sessions based on retention policy.
+        Deletes sessions older than specified days and keeps only the most recent max_sessions.
+        """
+        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
+
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+        # Get all sessions sorted by last_updated
+        all_sessions = []
+        for session_id, metadata in self._metadata_cache.items():
+            try:
+                last_updated_str = metadata.get("last_updated", "")
+                if last_updated_str:
+                    last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00"))
+                    all_sessions.append((session_id, last_updated))
+            except Exception as e:
+                logger.warning(f"Failed to parse date for session {session_id}: {e}")
+
+        all_sessions.sort(key=lambda x: x[1])
+
+        # Delete old sessions
+        deleted_count = 0
+        for session_id, last_updated in all_sessions:
+            if last_updated < cutoff_date:
+                if self.delete_session(session_id):
+                    deleted_count += 1
+
+        if deleted_count > 0:
+            logger.info(f"Deleted {deleted_count} sessions older than {days} days")
+
+        # Delete excess sessions
+        remaining = [s for s in all_sessions if s[0] in self._metadata_cache]
+        excess_count = len(remaining) - max_sessions
+        if excess_count > 0:
+            for i in range(excess_count):
+                session_id = remaining[i][0]
+                if self.delete_session(session_id):
+                    logger.info(f"Deleted session {session_id} to maintain {max_sessions} session limit")

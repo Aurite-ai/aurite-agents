@@ -222,6 +222,155 @@ Returns the current status of the Execution Facade.
 - Verify the execution facade is operational
 - Future: Could include additional metrics
 
+## History Management Endpoints
+
+### List All Sessions
+`GET /execution/history`
+
+Lists all conversation sessions with optional filtering and pagination.
+
+**Query Parameters:**
+- `agent_name` (optional): Filter sessions by agent name
+- `limit` (optional, default=50): Maximum number of sessions to return (1-100)
+- `offset` (optional, default=0): Number of sessions to skip for pagination
+
+**Response:**
+```json
+{
+  "sessions": [
+    {
+      "session_id": "user123-chat-001",
+      "agent_name": "assistant",
+      "created_at": "2024-01-15T10:30:00Z",
+      "last_updated": "2024-01-15T11:45:00Z",
+      "message_count": 12
+    }
+  ],
+  "total": 25,
+  "offset": 0,
+  "limit": 50
+}
+```
+
+### Get Session History
+`GET /execution/history/{session_id}`
+
+Retrieves the full conversation history for a specific session.
+
+**Parameters:**
+- `session_id` (path): The session identifier
+
+**Query Parameters:**
+- `raw_format` (optional, default=false): Return raw Anthropic format instead of simplified view
+
+**Response (Simplified Format):**
+```json
+{
+  "session_id": "user123-chat-001",
+  "agent_name": "assistant",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, how are you?",
+      "timestamp": null
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm doing well, thank you for asking. How can I help you today?",
+      "timestamp": null
+    }
+  ],
+  "metadata": {
+    "session_id": "user123-chat-001",
+    "agent_name": "assistant",
+    "created_at": "2024-01-15T10:30:00Z",
+    "last_updated": "2024-01-15T11:45:00Z",
+    "message_count": 2
+  }
+}
+```
+
+**Response (Raw Format with `raw_format=true`):**
+```json
+{
+  "session_id": "user123-chat-001",
+  "agent_name": "assistant",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hello, how are you?"
+        }
+      ],
+      "timestamp": null
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hello! I'm doing well, thank you for asking. How can I help you today?"
+        }
+      ],
+      "timestamp": null
+    }
+  ],
+  "metadata": {
+    "session_id": "user123-chat-001",
+    "agent_name": "assistant",
+    "created_at": "2024-01-15T10:30:00Z",
+    "last_updated": "2024-01-15T11:45:00Z",
+    "message_count": 2
+  }
+}
+```
+
+### Delete Session
+`DELETE /execution/history/{session_id}`
+
+Deletes a specific session and all its conversation history.
+
+**Parameters:**
+- `session_id` (path): The session identifier to delete
+
+**Response:**
+- **204 No Content**: Session successfully deleted
+- **404 Not Found**: Session does not exist
+
+### Get Agent History
+`GET /execution/agents/{agent_name}/history`
+
+Retrieves all sessions for a specific agent.
+
+**Parameters:**
+- `agent_name` (path): The name of the agent
+
+**Query Parameters:**
+- `limit` (optional, default=50): Maximum number of sessions to return (1-100)
+
+**Response:**
+Same format as `GET /execution/history` but filtered to only show sessions for the specified agent.
+
+### Clean Up History
+`POST /execution/history/cleanup`
+
+Manually triggers cleanup of old sessions based on retention policy.
+
+**Query Parameters:**
+- `days` (optional, default=30): Delete sessions older than this many days (1-365)
+- `max_sessions` (optional, default=50): Maximum number of sessions to keep (1-1000)
+
+**Response:**
+```json
+{
+  "message": "Cleanup completed. Removed sessions older than 30 days, keeping maximum 50 sessions."
+}
+```
+
+**Note:** Cleanup is automatically triggered when listing sessions, but this endpoint allows manual cleanup with custom parameters.
+
 ## Session Management
 
 When using agents with session support, the framework automatically handles conversation history:

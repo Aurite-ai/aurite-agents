@@ -159,12 +159,11 @@ Handles agent and workflow execution, execution history, and monitoring.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/execution/history` | List all executions (paginated) |
-| GET | `/execution/history/{execution_id}` | Get execution details |
-| DELETE | `/execution/history/{execution_id}` | Delete execution record |
-| POST | `/execution/history/cleanup` | Clean up old execution records |
-| GET | `/execution/active` | List active executions |
-| POST | `/execution/{execution_id}/cancel` | Cancel running execution |
+| GET | `/execution/history` | List all sessions (paginated) |
+| GET | `/execution/history/{session_id}` | Get session conversation history |
+| DELETE | `/execution/history/{session_id}` | Delete session |
+| POST | `/execution/history/cleanup` | Clean up old sessions (30 days/50 sessions) |
+| GET | `/execution/agents/{agent_name}/history` | Get agent-specific sessions |
 
 ### Facade Status
 

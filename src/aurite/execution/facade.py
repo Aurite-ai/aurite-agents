@@ -367,3 +367,89 @@ class ExecutionFacade:
             error_msg = f"Unexpected error getting output type for Custom Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
+
+    # --- History Management Methods ---
+
+    def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get history for a specific session regardless of agent.
+        Delegates to StorageManager if available, otherwise CacheManager.
+        """
+        if self._storage_manager:
+            return self._storage_manager.get_session_history(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.get_history(session_id)
+        else:
+            logger.warning("No storage backend available for session history")
+            return None
+
+    def get_sessions_list(self, agent_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """
+        Get list of sessions with optional filtering by agent.
+        Returns paginated results.
+        """
+
+        if agent_name:
+            # Get sessions for specific agent
+            if self._storage_manager:
+                sessions = self._storage_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
+            elif self._cache_manager:
+                sessions = self._cache_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
+            else:
+                sessions = []
+        else:
+            # Get all sessions - need to aggregate from all agents
+            if self._storage_manager:
+                # For StorageManager, we'd need a new method to get all sessions
+                # For now, return empty as this is not implemented
+                logger.warning("Getting all sessions not yet implemented for StorageManager")
+                sessions = []
+            elif self._cache_manager:
+                # For CacheManager, get all sessions from metadata
+                sessions = []
+                for session_id, metadata in self._cache_manager._metadata_cache.items():
+                    sessions.append({"session_id": session_id, **metadata})
+                # Sort by last_updated descending
+                sessions.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
+            else:
+                sessions = []
+
+        # Apply pagination
+        total = len(sessions)
+        paginated_sessions = sessions[offset : offset + limit] if sessions else []
+
+        return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+
+    def delete_session(self, session_id: str) -> bool:
+        """
+        Delete a specific session's history.
+        Returns True if deleted, False if not found.
+        """
+        if self._storage_manager:
+            return self._storage_manager.delete_session(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.delete_session(session_id)
+        else:
+            logger.warning("No storage backend available for session deletion")
+            return False
+
+    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metadata about a session.
+        """
+        if self._storage_manager:
+            return self._storage_manager.get_session_metadata(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.get_session_metadata(session_id)
+        else:
+            logger.warning("No storage backend available for session metadata")
+            return None
+
+    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
+        """
+        Clean up old sessions based on retention policy.
+        """
+        if self._storage_manager:
+            self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        if self._cache_manager:
+            self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
