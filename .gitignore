@@ -158,6 +158,7 @@ copilot_memory/
 .idea/ # Keep this active rule
 package-lock.json
 __package_previews__
+docs/internal/
 .store
 .cursor
 privatePackages/store

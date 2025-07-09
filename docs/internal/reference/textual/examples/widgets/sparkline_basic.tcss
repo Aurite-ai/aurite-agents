@@ -1,8 +1,0 @@
-Screen {
-    align: center middle;
-}
-
-Sparkline {
-    width: 3;  /* (1)! */
-    margin: 2;
-}

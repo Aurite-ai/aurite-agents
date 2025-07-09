@@ -76,8 +76,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `layers/2_orchestration.md` - Core orchestration layer
 - `layers/3_host.md` - MCP host infrastructure
 - `design/` - Design documents and architectural decisions
-- `config/` - Configuration system architecture
   - `index_building_flow.md` - How the configuration index is built with priority resolution
+  - `execution_facade.md` - ExecutionFacade architecture, JIT server registration, session management
 
 ### 6. Testing
 **Purpose:** Guide for running tests and understanding test strategies

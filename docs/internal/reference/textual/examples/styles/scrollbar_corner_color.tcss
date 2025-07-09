@@ -1,4 +1,0 @@
-Screen {
-    overflow: auto auto;
-    scrollbar-corner-color: white;
-}

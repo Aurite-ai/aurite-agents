@@ -71,7 +71,7 @@ def host_config() -> HostConfig:
     """
     Provides a default HostConfig object for tests.
     """
-    return HostConfig(mcp_servers=[])
+    return HostConfig(name="test_host", mcp_servers=[])
 
 
 @pytest.fixture

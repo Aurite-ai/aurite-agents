@@ -224,7 +224,7 @@ class StorageManager:
                     self._sync_config(db, LLMConfigDB, config, pk_field="llm_id")
                 except Exception as e:
                     logger.error(
-                        f"Failed to sync LLMConfig '{config.llm_id}': {e}",
+                        f"Failed to sync LLMConfig '{config.name}': {e}",
                         exc_info=True,
                     )
 
