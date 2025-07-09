@@ -83,14 +83,6 @@ Handles all configuration file operations, component CRUD operations, and projec
 | POST | `/config/refresh` | Force refresh config cache |
 | POST | `/config/validate` | Validate all configurations |
 
-### Configuration Templates
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/config/templates` | List all component templates |
-| GET | `/config/templates/{component_type}` | Get template for component type |
-| POST | `/config/templates/{component_type}` | Create component from template |
-
 ---
 
 ## 2. Tool Management APIs (`/tools`)
