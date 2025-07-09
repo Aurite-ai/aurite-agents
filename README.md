@@ -150,17 +150,40 @@ The framework follows a layered architecture, illustrated below:
 
 ```mermaid
 graph TD
-    A["Layer 1: Entrypoints <br/> (API, CLI, Worker)"] --> B{"Layer 2: Orchestration <br/> (HostManager, ExecutionFacade)"};
-    B --> C["Layer 3: Host Infrastructure <br/> (MCPHost)"];
-    C --> D["Layer 4: External Capabilities <br/> (MCP Servers)"];
+    subgraph Layer 0
+        L0[Frontends]
+    end
+    subgraph Layer 1
+        L1[Entrypoints]
+    end
+    subgraph Layer 2
+        L2[Orchestration & Config]
+    end
+    subgraph Layer 2.5
+        L2_5[Execution]
+    end
+    subgraph Layer 3
+        L3[Host Infrastructure]
+    end
+    subgraph Layer 4
+        L4[External Capabilities]
+    end
 
-    style A fill:#D1E8FF,stroke:#3670B3,stroke-width:2px,color:#333333
-    style B fill:#C2F0C2,stroke:#408040,stroke-width:2px,color:#333333
-    style C fill:#FFE0B3,stroke:#B37700,stroke-width:2px,color:#333333
-    style D fill:#FFD1D1,stroke:#B33636,stroke-width:2px,color:#333333
+    L0 --> L1
+    L1 --> L2
+    L2 --> L2_5
+    L2_5 --> L3
+    L3 --> L4
+
+    style L0 fill:#E6E6FA,stroke:#483D8B,stroke-width:2px
+    style L1 fill:#D1E8FF,stroke:#3670B3,stroke-width:2px
+    style L2 fill:#C2F0C2,stroke:#408040,stroke-width:2px
+    style L2_5 fill:#FFFACD,stroke:#B8860B,stroke-width:2px
+    style L3 fill:#FFE0B3,stroke:#B37700,stroke-width:2px
+    style L4 fill:#FFD1D1,stroke:#B33636,stroke-width:2px
 ```
 
-For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md). Detailed information on each specific layer can also be found in the `docs/layers/` directory.
+For a comprehensive understanding of the architecture, component interactions, and design principles, please see [`docs/architecture/overview.md`](docs/architecture/overview.md). Detailed information on each specific layer can also be found in the `docs/architecture/layers/` directory.
 
 ## Entrypoints
 
@@ -216,12 +239,14 @@ Ensure the `API_KEY` environment variable is set within the container's environm
 
 ## Further Documentation
 
-*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/layers/framework_overview.md`](docs/layers/framework_overview.md).
+*   **Framework Architecture:** For a detailed understanding of the internal architecture, component interactions, and design principles, please see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 *   **Layer-Specific Details:**
-    *   [`docs/layers/1_entrypoints.md`](docs/layers/1_entrypoints.md) (API, CLI, Worker)
-    *   [`docs/layers/2_orchestration.md`](docs/layers/2_orchestration.md) (HostManager, ExecutionFacade)
-    *   [`docs/layers/3_host.md`](docs/layers/3_host.md) (MCPHost System)
-*   **Testing:** Information on running tests can be found in `tests/README.md`. Testing strategies for each layer are also detailed within their respective documentation in `docs/layers/`.
+    *   [`docs/architecture/layers/0_frontends.md`](docs/architecture/layers/0_frontends.md)
+    *   [`docs/architecture/layers/1_entrypoints.md`](docs/architecture/layers/1_entrypoints.md)
+    *   [`docs/architecture/layers/2_orchestration.md`](docs/architecture/layers/2_orchestration.md)
+    *   [`docs/architecture/layers/2.5_execution.md`](docs/architecture/layers/2.5_execution.md)
+    *   [`docs/architecture/layers/3_host.md`](docs/architecture/layers/3_host.md)
+*   **Testing:** Information on running tests can be found in `tests/README.md`. Testing strategies for each layer are also detailed within their respective documentation in `docs/architecture/layers/`.
 
 ## Contributing
 
