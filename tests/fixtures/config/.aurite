@@ -1,0 +1,3 @@
+[aurite]
+type = "project"
+include_configs = ["./"]
