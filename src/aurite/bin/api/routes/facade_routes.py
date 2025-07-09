@@ -161,7 +161,7 @@ async def stream_agent(
         # The error will be logged, and the client will see a dropped connection.
         # A more robust solution could involve yielding a final error event.
         return StreamingResponse(
-            iter([f"data: {json.dumps({'type': 'error', 'data': {'message': str(e)}})}\n\n"]),
+            iter([f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"]),
             media_type="text/event-stream",
             status_code=500,
         )
