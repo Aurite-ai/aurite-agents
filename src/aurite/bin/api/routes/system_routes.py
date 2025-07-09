@@ -247,7 +247,7 @@ async def get_system_capabilities(api_key: str = Security(get_api_key)):
 
     # Check for ML dependencies
     try:
-        import pandas  # noqa: F401
+        import pandas  # type: ignore # noqa: F401
 
         optional_features["pandas"] = True
     except ImportError:
