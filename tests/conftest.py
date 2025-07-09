@@ -91,3 +91,43 @@ def mock_client_session_group() -> MagicMock:
     mock_group.tools = {}
     mock_group.sessions = {}
     return mock_group
+
+@pytest.fixture
+def with_test_config():
+    try:
+        with open(".aurite", "r+") as f:
+            original_content = f.read()
+
+            content = original_content
+            import re
+
+            # Find the projects list
+            match = re.search(r"projects\s*=\s*(\[.*\])", content)
+            if match:
+                projects_list_str = match.group(1)
+                # Remove brackets and whitespace
+                projects_str = projects_list_str.strip()[1:-1].strip()
+
+                if not projects_str:
+                    # The list is empty
+                    new_projects_list = '["././tests/fixtures/config"]'
+                else:
+                    # The list has existing projects
+                    new_projects_list = f'[{projects_str}, "./tests/fixtures/config"]'
+
+                content = content.replace(
+                    f"projects = {projects_list_str}",
+                    f"projects = {new_projects_list}",
+                )
+
+            f.seek(0)
+            f.write(content)
+            f.truncate()
+
+        yield
+
+        with open(".aurite", "w") as f:
+            f.write(original_content)
+
+    except Exception as e:
+        logger.warning(f"Test fixtures config could not be loaded: {e}")
