@@ -8,8 +8,7 @@ from aurite.host_manager import Aurite
 @pytest.mark.asyncio
 async def test_weather_server_working(with_test_config):
     """
-    Tests that a custom workflow can successfully call the refactored run_agent method
-    and handle the AgentRunResult, using the packaged example project.
+    Tests that a simple stdio mcp server can be called successfully
     """
     # Arrange
     example_project_path = Path(".aurite").resolve()
