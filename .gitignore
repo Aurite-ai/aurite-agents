@@ -190,3 +190,5 @@ notebook-venv/
 docs/guides/
 docs/reports/newman/*
 !src/aurite/init_templates/.env.example
+src/aurite/init_templates/mcp_servers/plans/
+.aurite_cache/

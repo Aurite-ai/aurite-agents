@@ -134,7 +134,7 @@ class ExecutionFacade:
             existing_history = self._cache_manager.get_history(session_id) or []
             # Add only the current user message to the existing history
             updated_history = existing_history + [current_user_message]
-            self._cache_manager.save_history(session_id, updated_history)
+            self._cache_manager.save_history(session_id, updated_history, agent_name)
 
         if system_prompt_override:
             if agent_config_for_run.llm is None:
@@ -195,9 +195,9 @@ class ExecutionFacade:
                             exc_info=True,
                         )
                 elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, agent_instance.conversation_history)
+                    self._cache_manager.save_history(session_id, agent_instance.conversation_history, agent_name)
                     logger.info(
-                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to in-memory cache."
+                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
 
             # Don't unregister servers - keep them available for future use
@@ -238,20 +238,26 @@ class ExecutionFacade:
             )
 
             # Save history regardless of the outcome, as it's valuable for debugging.
-            if agent_instance and agent_instance.config.include_history and self._storage_manager and session_id:
-                try:
-                    self._storage_manager.save_full_history(
-                        agent_name=agent_name,
-                        session_id=session_id,
-                        conversation=run_result.conversation_history,
-                    )
+            if agent_instance and agent_instance.config.include_history and session_id:
+                if self._storage_manager:
+                    try:
+                        self._storage_manager.save_full_history(
+                            agent_name=agent_name,
+                            session_id=session_id,
+                            conversation=run_result.conversation_history,
+                        )
+                        logger.info(
+                            f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
+                            exc_info=True,
+                        )
+                elif self._cache_manager:
+                    self._cache_manager.save_history(session_id, run_result.conversation_history, agent_name)
                     logger.info(
-                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
+                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
 
             return run_result

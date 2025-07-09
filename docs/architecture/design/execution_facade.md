@@ -130,22 +130,14 @@ Session management enables agents to maintain conversation context across multip
          ▼                 ▼                 │
 ┌─────────────────┐ ┌─────────────┐          │
 │ StorageManager  │ │ CacheManager│          │
-│ (Database)      │ │ (In-Memory) │          │
+│ (Database)      │ │ (File-Based)│          │
 └────────┬────────┘ └──────┬──────┘          │
          │                  │                │
          ▼                  ▼                │
 ┌─────────────────┐ ┌─────────────┐          │
-│ PostgreSQL/     │ │ Dictionary  │          │
-│ SQLite          │ │ Storage     │          │
+│ PostgreSQL/     │ │ JSON Files  │          │
+│ SQLite          │ │ + Memory    │          │
 └─────────────────┘ └─────────────┘          │
-                                             │
-         Future Enhancement                  │
-         ├───────────────────────────────────┘
-         ▼
-┌─────────────────┐
-│ File-Based      │
-│ Cache           │
-└─────────────────┘
 ```
 
 ### Storage Manager (Database Backend)
@@ -170,21 +162,47 @@ AgentHistoryDB:
   - created_at: DateTime
 ```
 
-### Cache Manager (In-Memory Backend)
+### Cache Manager (File-Based Backend)
 
-**Purpose**: Lightweight storage for development and testing.
+**Purpose**: Lightweight persistent storage for development and testing.
 
 **Current Implementation**:
 ```python
 class CacheManager:
-    def __init__(self):
+    def __init__(self, cache_dir: Optional[Path] = None):
+        self._cache_dir = cache_dir or Path(".aurite_cache")
+        self._cache_dir.mkdir(exist_ok=True)
         self._history_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._metadata_cache: Dict[str, Dict[str, Any]] = {}
+        self._load_cache()
 ```
 
-**Limitations**:
-- Data lost on application restart
-- No persistence between sessions
-- Limited to available memory
+**Features**:
+- File-based persistence with JSON storage
+- In-memory caching for performance
+- Session metadata tracking (timestamps, agent name, message count)
+- Automatic cache directory creation
+- Safe session ID sanitization
+
+**File Structure**:
+```
+.aurite_cache/
+├── session-id-1.json
+├── session-id-2.json
+└── ...
+```
+
+**Session File Format**:
+```json
+{
+  "session_id": "test-session-123",
+  "conversation": [...],
+  "created_at": "2025-01-09T19:08:48.959750",
+  "last_updated": "2025-01-09T19:08:52.329089",
+  "agent_name": "Weather Agent",
+  "message_count": 4
+}
+```
 
 ### Session Flow
 
@@ -280,24 +298,7 @@ The streaming implementation maintains state across turns:
 
 ### Enhanced Session Management
 
-1. **File-Based Cache Persistence**
-   ```python
-   class CacheManager:
-       def __init__(self, cache_dir: Path = Path(".aurite_cache")):
-           self._cache_dir = cache_dir
-           self._history_cache = self._load_from_disk()
-
-       def _persist_to_disk(self, session_id: str):
-           # Save individual session to disk
-   ```
-
-2. **Session Metadata Tracking**
-   - Creation timestamp
-   - Last accessed time
-   - Message count
-   - Associated agent
-
-3. **Session Query APIs**
+1. **Session Query APIs**
    - List sessions by agent
    - Search within conversations
    - Session analytics

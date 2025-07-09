@@ -102,7 +102,13 @@ class AuriteKernel:
         self.project_root = self.config_manager.project_root
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
-        self.cache_manager = CacheManager()
+        # Initialize CacheManager with project-specific cache directory
+        if self.project_root:
+            cache_dir = self.project_root / ".aurite_cache"
+            self.cache_manager = CacheManager(cache_dir=cache_dir)
+        else:
+            # Fallback to current directory if no project root
+            self.cache_manager = CacheManager(cache_dir=Path(".aurite_cache"))
         self._db_engine = None
         self._is_shut_down = False
 
