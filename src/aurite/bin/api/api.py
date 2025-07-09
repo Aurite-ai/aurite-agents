@@ -96,7 +96,7 @@ async def health_check():
 
 
 # Include the new routers
-app.include_router(mcp_host_routes.router, prefix="/host", tags=["MCP Host"])
+app.include_router(mcp_host_routes.router, prefix="/tools", tags=["MCP Host"])
 app.include_router(config_manager_routes.router, prefix="/config", tags=["Configuration Manager"])
 app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
 

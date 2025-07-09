@@ -95,21 +95,9 @@ Handles all configuration file operations, component CRUD operations, and projec
 
 ## 2. Tool Management APIs (`/tools`)
 
-Manages MCP servers, tool discovery, and direct host operations. These endpoints are primarily for testing and manual server management, bypassing the JIT configuration registration system.
+Manages runtime operations for MCP servers, tool discovery, and execution. These endpoints work with servers that are actively registered with the MCPHost instance.
 
-### MCP Server Management
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/tools/servers` | List all MCP server configs |
-| POST | `/tools/servers` | Create new MCP server config |
-| GET | `/tools/servers/{server_id}` | Get server config details |
-| PUT | `/tools/servers/{server_id}` | Update server config |
-| DELETE | `/tools/servers/{server_id}` | Delete server config |
-| POST | `/tools/servers/{server_id}/register` | Register server with host |
-| DELETE | `/tools/servers/{server_id}/unregister` | Unregister server from host |
-| POST | `/tools/servers/{server_id}/test` | Test server connection |
-| GET | `/tools/servers/{server_id}/status` | Get server runtime status |
+**Note:** For MCP server configuration management (create, update, delete configs), use `/config/components/mcp_servers/*` endpoints.
 
 ### Tool Discovery & Execution
 
@@ -118,16 +106,29 @@ Manages MCP servers, tool discovery, and direct host operations. These endpoints
 | GET | `/tools` | List all available tools from registered servers |
 | GET | `/tools/{tool_name}` | Get tool details |
 | POST | `/tools/{tool_name}/call` | Execute specific tool |
-| GET | `/tools/servers/{server_id}/tools` | List tools from specific server |
 
-### Host Management
+### Runtime Server Management
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/tools/host/status` | Get MCPHost status |
-| GET | `/tools/host/registered` | List currently registered servers |
-| POST | `/tools/host/register/config` | Register server by config object |
-| POST | `/tools/host/register/{server_name}` | Register server by name from config |
+| GET | `/tools/servers` | List currently registered servers (runtime) |
+| GET | `/tools/servers/{server_name}` | Get runtime status of registered server |
+| GET | `/tools/servers/{server_name}/tools` | List tools from specific server |
+| POST | `/tools/servers/{server_name}/test` | Test server connection |
+
+### Server Registration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/tools/register/config` | Register server by config object |
+| POST | `/tools/register/{server_name}` | Register server by name from config |
+| DELETE | `/tools/servers/{server_name}` | Unregister server from host |
+
+### Host Status
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tools/status` | Get MCPHost status |
 
 ---
 

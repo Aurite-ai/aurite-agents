@@ -29,7 +29,7 @@ async def get_host_status(api_key: str = Security(get_api_key), host: MCPHost = 
     return {"status": "active", "tool_count": len(host.tools)}
 
 
-@router.get("/tools", response_model=List[Dict[str, Any]])
+@router.get("/", response_model=List[Dict[str, Any]])
 async def list_tools(api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)):
     """
     List all available tools from the MCPHost.
@@ -97,7 +97,7 @@ async def unregister_server(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/tools/{tool_name}/call")
+@router.post("/{tool_name}/call")
 async def call_tool(
     tool_name: str,
     tool_call_args: ToolCallArgs,
