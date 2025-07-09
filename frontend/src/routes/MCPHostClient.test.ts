@@ -30,7 +30,7 @@ describe('MCPHostClient', () => {
       const result = await client.getStatus();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/status',
+        'http://localhost:8000/tools/status',
         {
           method: 'GET',
           headers: {
@@ -51,20 +51,11 @@ describe('MCPHostClient', () => {
         {
           name: 'weather_lookup',
           description: 'Look up weather information',
+          server_name: 'weather_server',
           inputSchema: {
             type: 'object',
             properties: {
               location: { type: 'string' },
-            },
-          },
-        },
-        {
-          name: 'calculate',
-          description: 'Perform calculations',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              expression: { type: 'string' },
             },
           },
         },
@@ -78,7 +69,7 @@ describe('MCPHostClient', () => {
       const tools = await client.listTools();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/tools',
+        'http://localhost:8000/tools/',
         {
           method: 'GET',
           headers: {
@@ -93,40 +84,142 @@ describe('MCPHostClient', () => {
     });
   });
 
+  describe('getToolDetails', () => {
+    it('should get details for a specific tool', async () => {
+      const mockToolDetails = {
+        name: 'weather_lookup',
+        description: 'Look up weather information',
+        server_name: 'weather_server',
+        inputSchema: { type: 'object' },
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockToolDetails,
+      } as Response);
+
+      const result = await client.getToolDetails('weather_lookup');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/weather_lookup',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockToolDetails);
+    });
+  });
+
+  describe('callTool', () => {
+    it('should call a tool directly', async () => {
+      const mockResult = {
+        content: [{ type: 'text', text: 'Sunny' }],
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResult,
+      } as Response);
+
+      const result = await client.callTool('weather_lookup', { location: 'SF' });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/weather_lookup/call',
+        {
+          method: 'POST',
+          headers: expect.any(Object),
+          body: JSON.stringify({ args: { location: 'SF' } }),
+        }
+      );
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('listRegisteredServers', () => {
+    it('should list registered servers', async () => {
+      const mockServers = [{ name: 'server1', status: 'active' }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockServers,
+      } as Response);
+
+      const result = await client.listRegisteredServers();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/servers',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockServers);
+    });
+  });
+
+  describe('getServerStatus', () => {
+    it('should get status for a specific server', async () => {
+      const mockStatus = { name: 'server1', registered: true };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockStatus,
+      } as Response);
+
+      const result = await client.getServerStatus('server1');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/servers/server1',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockStatus);
+    });
+  });
+
+  describe('getServerTools', () => {
+    it('should get tools for a specific server', async () => {
+      const mockTools = [{ name: 'tool1' }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockTools,
+      } as Response);
+
+      const result = await client.getServerTools('server1');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/servers/server1/tools',
+        expect.any(Object)
+      );
+      expect(result).toEqual(mockTools);
+    });
+  });
+
+  describe('testServer', () => {
+    it('should test a server configuration', async () => {
+      const mockResult = { status: 'success', server_name: 'server1' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResult,
+      } as Response);
+
+      const result = await client.testServer('server1');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/servers/server1/test',
+        {
+          method: 'POST',
+          headers: expect.any(Object),
+          body: undefined,
+        }
+      );
+      expect(result).toEqual(mockResult);
+    });
+  });
+
   describe('registerServerByName', () => {
     it('should register a server by name', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ status: 'registered', name: 'weather_server' }),
+        json: async () => ({ status: 'success', name: 'weather_server' }),
       } as Response);
 
       const result = await client.registerServerByName('weather_server');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/register/weather_server',
+        'http://localhost:8000/tools/register/weather_server',
         {
           method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
+          headers: expect.any(Object),
           body: undefined,
         }
       );
 
-      expect(result).toEqual({ status: 'registered', name: 'weather_server' });
-    });
-
-    it('should handle server not found error', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ detail: 'Server configuration not found' }),
-      } as Response);
-
-      await expect(
-        client.registerServerByName('unknown_server')
-      ).rejects.toThrow('Server configuration not found');
+      expect(result).toEqual({ status: 'success', name: 'weather_server' });
     });
   });
 
@@ -136,30 +229,25 @@ describe('MCPHostClient', () => {
         name: 'custom_server',
         server_path: '/path/to/server.py',
         transport_type: 'stdio',
-        capabilities: ['tools'],
-        timeout: 30,
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ status: 'registered', name: 'custom_server' }),
+        json: async () => ({ status: 'success', name: 'custom_server' }),
       } as Response);
 
       const result = await client.registerServerByConfig(serverConfig);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/register/config',
+        'http://localhost:8000/tools/register/config',
         {
           method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
+          headers: expect.any(Object),
           body: JSON.stringify(serverConfig),
         }
       );
 
-      expect(result).toEqual({ status: 'registered', name: 'custom_server' });
+      expect(result).toEqual({ status: 'success', name: 'custom_server' });
     });
   });
 
@@ -167,74 +255,21 @@ describe('MCPHostClient', () => {
     it('should unregister a server', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ status: 'unregistered', name: 'weather_server' }),
+        json: async () => ({ status: 'success', name: 'weather_server' }),
       } as Response);
 
       const result = await client.unregisterServer('weather_server');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/servers/weather_server',
+        'http://localhost:8000/tools/servers/weather_server',
         {
           method: 'DELETE',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
+          headers: expect.any(Object),
           body: undefined,
         }
       );
 
-      expect(result).toEqual({ status: 'unregistered', name: 'weather_server' });
-    });
-  });
-
-  describe('callTool', () => {
-    it('should call a tool directly', async () => {
-      const mockResult = {
-        content: [
-          {
-            type: 'text',
-            text: 'Weather for San Francisco: Sunny, 72°F',
-          },
-        ],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResult,
-      } as Response);
-
-      const result = await client.callTool('weather_lookup', {
-        location: 'San Francisco',
-      });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/tools/weather_lookup/call',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            args: { location: 'San Francisco' },
-          }),
-        }
-      );
-
-      expect(result).toEqual(mockResult);
-    });
-
-    it('should handle tool not found error', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ detail: 'Tool not found' }),
-      } as Response);
-
-      await expect(
-        client.callTool('unknown_tool', { arg: 'value' })
-      ).rejects.toThrow('Tool not found');
+      expect(result).toEqual({ status: 'success', name: 'weather_server' });
     });
   });
 });

@@ -40,6 +40,15 @@ async function runIntegrationTests() {
     });
     console.log('');
 
+    // Test 3a: List Registered Servers
+    console.log('3️⃣a Testing List Registered Servers...');
+    const servers = await client.host.listRegisteredServers();
+    console.log(`✅ Registered Servers: ${servers.length}`);
+    servers.forEach(server => {
+      console.log(`   - ${server.name} (${server.status})`);
+    });
+    console.log('');
+
     // Test 4: List Configurations
     console.log('4️⃣  Testing List Agent Configurations...');
     const agents = await client.config.listConfigs('agent');
@@ -92,6 +101,37 @@ async function runIntegrationTests() {
         console.log(`   - ${tool.name}: ${tool.description || 'No description'}`);
       });
       console.log('');
+
+      // Test 6a: List registered servers and their tools
+      console.log('6️⃣a Testing List Registered Servers and their tools (after running agent)...');
+      const serversAfter = await client.host.listRegisteredServers();
+      console.log(`✅ Registered Servers: ${serversAfter.length}`);
+      for (const server of serversAfter) {
+        console.log(`   - Server: ${server.name} (${server.status})`);
+        const serverTools = await client.host.getServerTools(server.name);
+        console.log(`     Tools: ${serverTools.length}`);
+        serverTools.forEach(tool => {
+          console.log(`       - ${tool.name}`);
+        });
+        // Test server status
+        const serverStatus = await client.host.getServerStatus(server.name);
+        console.log(`     Status: ${serverStatus.status}, Session: ${serverStatus.session_active}`);
+      }
+      console.log('');
+
+      // Test 6b: Test a server
+      if (serversAfter.length > 0) {
+        const serverToTest = serversAfter[0].name;
+        console.log(`6️⃣b Testing server: ${serverToTest}...`);
+        const testResult = await client.host.testServer(serverToTest);
+        console.log(`   ✅ Test result: ${testResult.status}`);
+        if (testResult.error) {
+          console.log(`      Error: ${testResult.error}`);
+        } else {
+          console.log(`      Tools discovered: ${testResult.tools_discovered?.join(', ')}`);
+        }
+        console.log('');
+      }
     }
 
     // Test 7: Get Weather Agent config if it exists
