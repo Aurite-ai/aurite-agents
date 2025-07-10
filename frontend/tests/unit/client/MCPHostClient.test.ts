@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MCPHostClient } from './MCPHostClient';
-import type { ApiConfig, ServerConfig } from '../types';
+import { MCPHostClient } from '../../../src/routes/MCPHostClient';
+import type { ApiConfig, ServerConfig } from '../../../src/types';
 
 describe('MCPHostClient', () => {
   let client: MCPHostClient;

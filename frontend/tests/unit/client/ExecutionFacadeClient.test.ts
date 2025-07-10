@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ExecutionFacadeClient } from './ExecutionFacadeClient';
-import type { ApiConfig, StreamEvent } from '../types';
+import { ExecutionFacadeClient } from '../../../src/routes/ExecutionFacadeClient';
+import type { ApiConfig, StreamEvent } from '../../../src/types';
 
 describe('ExecutionFacadeClient', () => {
   let client: ExecutionFacadeClient;

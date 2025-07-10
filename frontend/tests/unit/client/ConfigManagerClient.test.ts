@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConfigManagerClient } from './ConfigManagerClient';
-import type { ApiConfig } from '../types';
+import { ConfigManagerClient } from '../../../src/routes/ConfigManagerClient';
+import type { ApiConfig } from '../../../src/types';
 
 describe('ConfigManagerClient', () => {
   let client: ConfigManagerClient;
@@ -31,14 +31,16 @@ describe('ConfigManagerClient', () => {
 
       const agents = await client.listConfigs('agent');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
-        method: 'GET',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: undefined,
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/components/agent',
+        expect.objectContaining({
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
 
       expect(agents).toEqual(mockAgents);
     });
@@ -74,14 +76,13 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/components/agent/Weather%20Agent',
-        {
+        expect.objectContaining({
           method: 'GET',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(config).toEqual(mockAgentConfig);
@@ -118,33 +119,40 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.createConfig('agent', newAgent);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'Translation Agent',
-          config: {
-            description: 'Translates text between languages',
-            system_prompt: 'You are a professional translator...',
-            llm_config_id: 'anthropic_claude',
-            mcp_servers: ['translation_server'],
-            max_iterations: 3,
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/components/agent',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
           },
-        }),
-      });
+          body: JSON.stringify({
+            name: 'Translation Agent',
+            config: {
+              description: 'Translates text between languages',
+              system_prompt: 'You are a professional translator...',
+              llm_config_id: 'anthropic_claude',
+              mcp_servers: ['translation_server'],
+              max_iterations: 3,
+            },
+          }),
+        })
+      );
 
       expect(result).toEqual({ message: 'Configuration created successfully' });
     });
 
     it('should handle duplicate name error', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Need to mock the fetch call that happens during retry attempts
+      const errorResponse = {
         ok: false,
         status: 409,
         json: async () => ({ detail: 'Configuration with this name already exists' }),
-      } as Response);
+      } as Response;
+
+      // Mock all retry attempts
+      mockFetch.mockResolvedValue(errorResponse);
 
       await expect(client.createConfig('agent', { name: 'Existing Agent' })).rejects.toThrow(
         'Configuration with this name already exists'
@@ -163,22 +171,25 @@ describe('ConfigManagerClient', () => {
         { project: 'project_bravo', filePath: 'new_agents.json' }
       );
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'My New Agent',
-          config: {
-            description: 'A test agent',
-            project: 'project_bravo',
-            workspace: undefined,
-            file_path: 'new_agents.json',
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/components/agent',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
           },
-        }),
-      });
+          body: JSON.stringify({
+            name: 'My New Agent',
+            config: {
+              description: 'A test agent',
+              project: 'project_bravo',
+              workspace: undefined,
+              file_path: 'new_agents.json',
+            },
+          }),
+        })
+      );
 
       expect(result).toEqual({ message: 'Component created successfully' });
     });
@@ -204,7 +215,7 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/components/agent/Weather%20Agent',
-        {
+        expect.objectContaining({
           method: 'PUT',
           headers: {
             'X-API-Key': 'test-api-key',
@@ -219,7 +230,7 @@ describe('ConfigManagerClient', () => {
               max_iterations: 10,
             },
           }),
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configuration updated successfully' });
@@ -237,14 +248,13 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/components/agent/Old%20Agent',
-        {
+        expect.objectContaining({
           method: 'DELETE',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configuration deleted successfully' });
@@ -272,14 +282,16 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.reloadConfigs();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/refresh', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: undefined,
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/refresh',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
 
       expect(result).toEqual({ message: 'Configurations reloaded successfully' });
     });
@@ -296,14 +308,13 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/components/agent/Weather%20Agent/validate',
-        {
+        expect.objectContaining({
           method: 'POST',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ message: "Component 'Weather Agent' is valid." });
@@ -324,16 +335,18 @@ describe('ConfigManagerClient', () => {
 
   describe('listConfigSources', () => {
     it('should list all configuration sources', async () => {
-      const mockSources = {
-        project_bravo: {
+      const mockSources = [
+        {
           path: '/home/wilcoxr/workspace/aurite/framework/project_bravo',
-          source_type: 'project',
+          context: 'project',
+          project_name: 'project_bravo',
         },
-        workspace: {
+        {
           path: '/home/wilcoxr/workspace/aurite/framework',
-          source_type: 'workspace',
+          context: 'workspace',
+          workspace_name: 'aurite_framework',
         },
-      };
+      ];
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -342,14 +355,16 @@ describe('ConfigManagerClient', () => {
 
       const sources = await client.listConfigSources();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/sources', {
-        method: 'GET',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: undefined,
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/sources',
+        expect.objectContaining({
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
 
       expect(sources).toEqual(mockSources);
     });
@@ -373,14 +388,16 @@ describe('ConfigManagerClient', () => {
 
       const files = await client.listConfigFiles('project_bravo');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/files/project_bravo', {
-        method: 'GET',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: undefined,
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files/project_bravo',
+        expect.objectContaining({
+          method: 'GET',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
 
       expect(files).toEqual(mockFiles);
     });
@@ -403,21 +420,20 @@ describe('ConfigManagerClient', () => {
       const mockContent = '{"key": "value"}';
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        text: async () => mockContent,
+        json: async () => mockContent,
       } as Response);
 
       const content = await client.getFileContent('workspace', 'agents.json');
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/files/workspace/agents.json',
-        {
+        expect.objectContaining({
           method: 'GET',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(content).toEqual(mockContent);
@@ -449,18 +465,21 @@ describe('ConfigManagerClient', () => {
         '[{"name": "new_llm", "type": "llm"}]'
       );
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/files', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          source_name: 'project_bravo',
-          relative_path: 'new_llms.json',
-          content: '[{"name": "new_llm", "type": "llm"}]',
-        }),
-      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/files',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            source_name: 'project_bravo',
+            relative_path: 'new_llms.json',
+            content: '[{"name": "new_llm", "type": "llm"}]',
+          }),
+        })
+      );
 
       expect(result).toEqual({ message: 'File created successfully' });
     });
@@ -493,7 +512,7 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/files/project_bravo/llms.json',
-        {
+        expect.objectContaining({
           method: 'PUT',
           headers: {
             'X-API-Key': 'test-api-key',
@@ -502,7 +521,7 @@ describe('ConfigManagerClient', () => {
           body: JSON.stringify({
             content: '[{"name": "updated_llm", "type": "llm"}]',
           }),
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'File updated successfully' });
@@ -520,17 +539,58 @@ describe('ConfigManagerClient', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:8000/config/files/project_bravo/old_agents.json',
-        {
+        expect.objectContaining({
           method: 'DELETE',
           headers: {
             'X-API-Key': 'test-api-key',
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'File deleted successfully' });
+    });
+  });
+
+  describe('validateAllConfigs', () => {
+    it('should validate all configurations successfully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      } as Response);
+
+      const result = await client.validateAllConfigs();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/validate',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return validation errors', async () => {
+      const mockErrors = [
+        {
+          component_type: 'agent',
+          component_name: 'Invalid Agent',
+          error: 'Missing required field: system_prompt',
+        },
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockErrors,
+      } as Response);
+
+      const result = await client.validateAllConfigs();
+      expect(result).toEqual(mockErrors);
     });
   });
 });
