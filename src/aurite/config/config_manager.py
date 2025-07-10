@@ -15,6 +15,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+import toml
 
 logger = logging.getLogger(__name__)
 
@@ -678,3 +679,321 @@ class ConfigManager:
                     }
                 )
         return errors
+
+    # Project and Workspace Management Methods
+
+    def list_projects(self) -> List[Dict[str, Any]]:
+        """
+        List all projects in the current workspace.
+
+        Returns:
+            List of project information dictionaries
+        """
+        if not self.workspace_root:
+            return []
+
+        projects = []
+        workspace_anchor = self.workspace_root / ".aurite"
+
+        try:
+            with open(workspace_anchor, "rb") as f:
+                settings = tomllib.load(f).get("aurite", {})
+
+            for project_name in settings.get("projects", []):
+                project_path = self.workspace_root / project_name
+                if project_path.is_dir() and (project_path / ".aurite").is_file():
+                    project_info = self.get_project_info(project_name)
+                    if project_info:
+                        projects.append(project_info)
+
+        except (tomllib.TOMLDecodeError, IOError) as e:
+            logger.error(f"Could not parse workspace .aurite: {e}")
+
+        return projects
+
+    def get_project_info(self, project_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a specific project.
+
+        Args:
+            project_name: Name of the project
+
+        Returns:
+            Project information dictionary or None if not found
+        """
+        if not self.workspace_root:
+            return None
+
+        project_path = self.workspace_root / project_name
+        project_anchor = project_path / ".aurite"
+
+        if not project_anchor.is_file():
+            return None
+
+        try:
+            with open(project_anchor, "rb") as f:
+                settings = tomllib.load(f).get("aurite", {})
+
+            return {
+                "name": project_name,
+                "path": str(project_path),
+                "is_active": self.project_name == project_name,
+                "include_configs": settings.get("include_configs", []),
+                "description": settings.get("description"),
+                "created_at": project_anchor.stat().st_ctime,
+            }
+        except (tomllib.TOMLDecodeError, IOError) as e:
+            logger.error(f"Could not parse project {project_name} .aurite: {e}")
+            return None
+
+    def create_project(self, name: str, description: Optional[str] = None) -> bool:
+        """
+        Create a new project from the template.
+
+        Args:
+            name: Name of the new project
+            description: Optional project description
+
+            project_path.mkdir(parents=True, exist_ok=True)
+
+        """
+        import re
+        import shutil
+
+        # Validate project name
+        if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+            logger.error(f"Invalid project name '{name}'. Use only letters, numbers, hyphens, and underscores.")
+            return False
+
+        if not self.workspace_root:
+            logger.error("Cannot create project: not in a workspace context")
+            return False
+
+        project_path = self.workspace_root / name
+
+        # Check if project already exists
+        if project_path.exists():
+            logger.error(f"Project '{name}' already exists")
+            return False
+
+        try:
+            # Copy template directory
+            template_path = Path(__file__).parent.parent / "init_templates"
+            if not template_path.exists():
+                logger.error(f"Template directory not found at {template_path}")
+                return False
+
+            shutil.copytree(template_path, project_path)
+
+            # Update project .aurite file if description provided
+            if description:
+                project_anchor = project_path / ".aurite"
+                with open(project_anchor, "rb") as f:
+                    settings = tomllib.load(f)
+
+                settings["aurite"]["description"] = description
+
+                # Write back as TOML
+                with open(project_anchor, "w") as f:
+                    toml.dump(settings, f)
+
+            # Update workspace .aurite to include new project
+            workspace_anchor = self.workspace_root / ".aurite"
+            with open(workspace_anchor, "rb") as f:
+                workspace_settings = tomllib.load(f)
+
+            projects = workspace_settings.get("aurite", {}).get("projects", [])
+            if name not in projects:
+                projects.append(name)
+                workspace_settings["aurite"]["projects"] = sorted(projects)
+
+                with open(workspace_anchor, "w") as f:
+                    toml.dump(workspace_settings, f)
+
+            logger.info(f"Successfully created project '{name}'")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to create project '{name}': {e}")
+            # Try to clean up on failure
+            if project_path.exists():
+                try:
+                    shutil.rmtree(project_path)
+                except Exception:
+                    pass
+            return False
+
+    def delete_project(self, name: str) -> Tuple[bool, Optional[str]]:
+        """
+        Delete a project.
+
+        Args:
+            name: Name of the project to delete
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        import shutil
+
+        if not self.workspace_root:
+            msg = "Cannot delete project: not in a workspace context"
+            logger.error(msg)
+            return False, msg
+
+        # Cannot delete the currently active project
+        if self.project_name == name:
+            msg = f"Cannot delete currently active project '{name}'"
+            logger.error(msg)
+            return False, msg
+
+        project_path = self.workspace_root / name
+
+        if not project_path.exists():
+            msg = f"Project '{name}' does not exist"
+            logger.error(msg)
+            return False, msg
+
+        try:
+            # Remove project directory
+            shutil.rmtree(project_path)
+
+            # Update workspace .aurite to remove project
+            workspace_anchor = self.workspace_root / ".aurite"
+            with open(workspace_anchor, "rb") as f:
+                workspace_settings = tomllib.load(f)
+
+            projects = workspace_settings.get("aurite", {}).get("projects", [])
+            if name in projects:
+                projects.remove(name)
+                workspace_settings["aurite"]["projects"] = projects
+
+                with open(workspace_anchor, "w") as f:
+                    toml.dump(workspace_settings, f)
+
+            logger.info(f"Successfully deleted project '{name}'")
+            return True, None
+
+        except Exception as e:
+            msg = f"Failed to delete project '{name}': {e}"
+            logger.error(msg)
+            return False, msg
+
+    def update_project(self, name: str, updates: Dict[str, Any]) -> bool:
+        """
+        Update project configuration.
+
+        Args:
+            name: Name of the project to update
+            updates: Dictionary of updates (description, include_configs, new_name)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        import shutil
+
+        if not self.workspace_root:
+            logger.error("Cannot update project: not in a workspace context")
+            return False
+
+        project_path = self.workspace_root / name
+        project_anchor = project_path / ".aurite"
+
+        if not project_anchor.is_file():
+            logger.error(f"Project '{name}' does not exist")
+            return False
+
+        try:
+            # Read current settings
+            with open(project_anchor, "rb") as f:
+                settings = tomllib.load(f)
+
+            # Apply updates
+            if "description" in updates:
+                settings["aurite"]["description"] = updates["description"]
+
+            if "include_configs" in updates:
+                settings["aurite"]["include_configs"] = updates["include_configs"]
+
+            # Handle rename
+            new_name = updates.get("new_name")
+            if new_name and new_name != name:
+                import re
+
+                # Validate new name
+                if not re.match(r"^[a-zA-Z0-9_-]+$", new_name):
+                    logger.error(f"Invalid project name '{new_name}'")
+                    return False
+
+                new_path = self.workspace_root / new_name
+                if new_path.exists():
+                    logger.error(f"Project '{new_name}' already exists")
+                    return False
+
+                # Move project directory
+                shutil.move(str(project_path), str(new_path))
+
+                # Update workspace .aurite
+                workspace_anchor = self.workspace_root / ".aurite"
+                with open(workspace_anchor, "rb") as f:
+                    workspace_settings = tomllib.load(f)
+
+                projects = workspace_settings.get("aurite", {}).get("projects", [])
+                if name in projects:
+                    projects[projects.index(name)] = new_name
+                    workspace_settings["aurite"]["projects"] = sorted(projects)
+
+                with open(workspace_anchor, "w") as f:
+                    toml.dump(workspace_settings, f)
+
+                # Update anchor path for writing
+                project_anchor = new_path / ".aurite"
+
+            # Write updated settings
+            with open(project_anchor, "w") as f:
+                toml.dump(settings, f)
+
+            logger.info(f"Successfully updated project '{name}'")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to update project '{name}': {e}")
+            return False
+
+    def get_workspace_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get information about the current workspace.
+
+        Returns:
+            Workspace information dictionary or None if not in a workspace
+        """
+        if not self.workspace_root:
+            return None
+
+        workspace_anchor = self.workspace_root / ".aurite"
+
+        try:
+            with open(workspace_anchor, "rb") as f:
+                settings = tomllib.load(f).get("aurite", {})
+
+            return {
+                "name": self.workspace_name,
+                "path": str(self.workspace_root),
+                "projects": settings.get("projects", []),
+                "include_configs": settings.get("include_configs", []),
+                "is_active": True,  # Always true if we found it
+                "description": settings.get("description"),
+            }
+        except (tomllib.TOMLDecodeError, IOError) as e:
+            logger.error(f"Could not parse workspace .aurite: {e}")
+            return None
+
+    def get_active_project(self) -> Optional[Dict[str, Any]]:
+        """
+        Get information about the currently active project.
+
+        Returns:
+            Project information dictionary or None if not in a project
+        """
+        if self.project_name:
+            return self.get_project_info(self.project_name)
+        return None

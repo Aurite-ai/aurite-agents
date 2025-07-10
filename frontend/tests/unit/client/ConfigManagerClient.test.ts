@@ -593,4 +593,149 @@ describe('ConfigManagerClient', () => {
       expect(result).toEqual(mockErrors);
     });
   });
+
+  // =================================================================
+  // Project and Workspace Management Tests
+  // =================================================================
+
+  describe('Project Management', () => {
+    it('should list all projects', async () => {
+      const mockProjects = [
+        { name: 'project-a', path: '/path/to/project-a', is_active: true, include_configs: [] },
+        { name: 'project-b', path: '/path/to/project-b', is_active: false, include_configs: [] },
+      ];
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockProjects } as Response);
+
+      const projects = await client.listProjects();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects',
+        expect.any(Object)
+      );
+      expect(projects).toEqual(mockProjects);
+    });
+
+    it('should create a new project', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Project created' }),
+      } as Response);
+
+      const result = await client.createProject('new-project', 'A new project');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ name: 'new-project', description: 'A new project' }),
+        })
+      );
+      expect(result).toEqual({ message: 'Project created' });
+    });
+
+    it('should get the active project', async () => {
+      const mockProject = {
+        name: 'active-project',
+        path: '/path/to/active',
+        is_active: true,
+        include_configs: [],
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockProject } as Response);
+
+      const project = await client.getActiveProject();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects/active',
+        expect.any(Object)
+      );
+      expect(project).toEqual(mockProject);
+    });
+
+    it('should get a specific project', async () => {
+      const mockProject = {
+        name: 'my-project',
+        path: '/path/to/my-project',
+        is_active: false,
+        include_configs: [],
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockProject } as Response);
+
+      const project = await client.getProject('my-project');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects/my-project',
+        expect.any(Object)
+      );
+      expect(project).toEqual(mockProject);
+    });
+
+    it('should update a project', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Project updated' }),
+      } as Response);
+
+      const updates = { description: 'New description', new_name: 'renamed-project' };
+      const result = await client.updateProject('my-project', updates);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects/my-project',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify(updates),
+        })
+      );
+      expect(result).toEqual({ message: 'Project updated' });
+    });
+
+    it('should delete a project', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Project deleted' }),
+      } as Response);
+
+      const result = await client.deleteProject('my-project');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/projects/my-project',
+        expect.objectContaining({ method: 'DELETE' })
+      );
+      expect(result).toEqual({ message: 'Project deleted' });
+    });
+  });
+
+  describe('Workspace Management', () => {
+    it('should list workspaces', async () => {
+      const mockWorkspaces = [
+        {
+          name: 'my-workspace',
+          path: '/path/to/workspace',
+          projects: ['project-a'],
+          include_configs: [],
+          is_active: true,
+        },
+      ];
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockWorkspaces } as Response);
+
+      const workspaces = await client.listWorkspaces();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/workspaces',
+        expect.any(Object)
+      );
+      expect(workspaces).toEqual(mockWorkspaces);
+    });
+
+    it('should get the active workspace', async () => {
+      const mockWorkspace = {
+        name: 'my-workspace',
+        path: '/path/to/workspace',
+        projects: ['project-a'],
+        include_configs: [],
+        is_active: true,
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockWorkspace } as Response);
+
+      const workspace = await client.getActiveWorkspace();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/config/workspaces/active',
+        expect.any(Object)
+      );
+      expect(workspace).toEqual(mockWorkspace);
+    });
+  });
 });

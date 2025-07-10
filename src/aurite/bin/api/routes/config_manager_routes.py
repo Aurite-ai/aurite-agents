@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import BaseModel, Field
@@ -42,6 +42,44 @@ class MessageResponse(BaseModel):
     """Standard message response"""
 
     message: str
+
+
+# Project/Workspace Models
+class ProjectCreate(BaseModel):
+    """Request model for creating a new project"""
+
+    name: str = Field(..., pattern="^[a-zA-Z0-9_-]+$", description="Project name")
+    description: Optional[str] = Field(None, description="Project description")
+
+
+class ProjectUpdate(BaseModel):
+    """Request model for updating a project"""
+
+    description: Optional[str] = Field(None, description="Project description")
+    include_configs: Optional[List[str]] = Field(None, description="Configuration directories")
+    new_name: Optional[str] = Field(None, pattern="^[a-zA-Z0-9_-]+$", description="New project name for renaming")
+
+
+class ProjectInfo(BaseModel):
+    """Response model for project information"""
+
+    name: str
+    path: str
+    is_active: bool
+    include_configs: List[str]
+    description: Optional[str] = None
+    created_at: Optional[float] = None
+
+
+class WorkspaceInfo(BaseModel):
+    """Response model for workspace information"""
+
+    name: str
+    path: str
+    projects: List[str]
+    include_configs: List[str]
+    is_active: bool
+    description: Optional[str] = None
 
 
 # Component CRUD Operations
@@ -404,3 +442,153 @@ async def refresh_configs(
             status_code=500,
             detail=f"Failed to refresh configurations: {str(e)}",
         ) from e
+
+
+# Project Management Operations
+@router.get("/projects", response_model=List[ProjectInfo])
+async def list_projects(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    List all projects in the current workspace.
+    """
+    projects = config_manager.list_projects()
+    return [ProjectInfo(**project) for project in projects]
+
+
+@router.post("/projects", response_model=MessageResponse)
+async def create_project(
+    project_data: ProjectCreate,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Create a new project in the current workspace.
+    """
+    success = config_manager.create_project(project_data.name, project_data.description)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create project '{project_data.name}'.",
+        )
+
+    # Refresh to include the new project
+    config_manager.refresh()
+
+    return MessageResponse(message=f"Project '{project_data.name}' created successfully.")
+
+
+@router.get("/projects/active", response_model=Optional[ProjectInfo])
+async def get_active_project(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Get information about the currently active project.
+    """
+    project = config_manager.get_active_project()
+    if project:
+        return ProjectInfo(**project)
+    return None
+
+
+@router.get("/projects/{name}", response_model=ProjectInfo)
+async def get_project(
+    name: str,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Get information about a specific project.
+    """
+    project = config_manager.get_project_info(name)
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project '{name}' not found.",
+        )
+    return ProjectInfo(**project)
+
+
+@router.put("/projects/{name}", response_model=MessageResponse)
+async def update_project(
+    name: str,
+    project_data: ProjectUpdate,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Update a project's configuration.
+    """
+    updates = {}
+    if project_data.description is not None:
+        updates["description"] = project_data.description
+    if project_data.include_configs is not None:
+        updates["include_configs"] = project_data.include_configs
+    if project_data.new_name is not None:
+        updates["new_name"] = project_data.new_name
+
+    success = config_manager.update_project(name, updates)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update project '{name}'.",
+        )
+
+    # Refresh if renamed
+    if project_data.new_name:
+        config_manager.refresh()
+
+    return MessageResponse(message=f"Project '{name}' updated successfully.")
+
+
+@router.delete("/projects/{name}", response_model=MessageResponse)
+async def delete_project(
+    name: str,
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Delete a project from the workspace.
+    """
+    success, error_message = config_manager.delete_project(name)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail=error_message or f"Failed to delete project '{name}'.",
+        )
+
+    # Refresh to remove the project from index
+    config_manager.refresh()
+
+    return MessageResponse(message=f"Project '{name}' deleted successfully.")
+
+
+# Workspace Management Operations
+@router.get("/workspaces", response_model=List[WorkspaceInfo])
+async def list_workspaces(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    List workspace information (currently supports single workspace).
+    """
+    workspace = config_manager.get_workspace_info()
+    if workspace:
+        return [WorkspaceInfo(**workspace)]
+    return []
+
+
+@router.get("/workspaces/active", response_model=Optional[WorkspaceInfo])
+async def get_active_workspace(
+    api_key: str = Security(get_api_key),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Get information about the currently active workspace.
+    """
+    workspace = config_manager.get_workspace_info()
+    if workspace:
+        return WorkspaceInfo(**workspace)
+    return None

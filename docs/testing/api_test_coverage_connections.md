@@ -10,7 +10,7 @@ This document maps the connections between API components, test files, documenta
 
 | Component | Router File | Route Docs | Postman Collection | TS Client | TS Tests | Coverage |
 |-----------|-------------|------------|-------------------|-----------|----------|----------|
-| Config Manager | `src/aurite/bin/api/routes/config_manager_routes.py` | `docs/usage/routes/config_manager_routes.md` | `tests/e2e/api/config_manager_routes.json` | `frontend/src/routes/ConfigManagerClient.ts` | `frontend/tests/unit/client/ConfigManagerClient.test.ts` | 47% |
+| Config Manager | `src/aurite/bin/api/routes/config_manager_routes.py` | `docs/usage/routes/config_manager_routes.md` | `tests/e2e/api/config_manager_components.json`, `config_manager_files.json`, & `config_manager_projects.json` | `frontend/src/routes/ConfigManagerClient.ts` | `frontend/tests/unit/client/ConfigManagerClient.test.ts` | 71% |
 
 **Key Connections:**
 - Router imports: `ConfigManager` from `aurite.config.config_manager`
@@ -190,13 +190,12 @@ tests/
 - Avoid hardcoded test data
 
 ### 4. Coverage Tracking
-- Update `api_test_coverage.md` when adding tests
+- Update `api_test_coverage_visual.md` when adding tests
 - Track both positive and negative test cases
 - Include edge cases and error scenarios
 
 ## Quick Links
 
-- [Main Test Coverage Document](./api_test_coverage.md)
 - [Visual Coverage Overview](./api_test_coverage_visual.md)
 - [API Reference](../usage/api_reference.md)
 - [Frontend Testing README](../../frontend/tests/README.md)

@@ -12,6 +12,7 @@
  */
 
 import { BaseClient } from '../client/BaseClient';
+import { ProjectInfo, WorkspaceInfo, ConfigSource } from '../types/responses';
 
 export class ConfigManagerClient extends BaseClient {
   /**
@@ -371,5 +372,168 @@ export class ConfigManagerClient extends BaseClient {
    */
   async validateAllConfigs(): Promise<any[]> {
     return this.request('POST', '/config/validate');
+  }
+
+  // Project Management Methods
+
+  /**
+   * List all projects in the current workspace
+   *
+   * @returns Array of project information
+   * @throws Error if not in a workspace context
+   *
+   * @example
+   * ```typescript
+   * const projects = await client.config.listProjects();
+   * projects.forEach(project => {
+   *   console.log(`${project.name}: ${project.is_active ? 'ACTIVE' : 'inactive'}`);
+   * });
+   * ```
+   */
+  async listProjects(): Promise<ProjectInfo[]> {
+    return this.request('GET', '/config/projects');
+  }
+
+  /**
+   * Create a new project in the current workspace
+   *
+   * @param name - Project name (letters, numbers, hyphens, underscores only)
+   * @param description - Optional project description
+   * @returns Success message
+   * @throws Error if project already exists or invalid name
+   *
+   * @example
+   * ```typescript
+   * await client.config.createProject('my-new-project', 'A test project');
+   * console.log('Project created successfully');
+   * ```
+   */
+  async createProject(name: string, description?: string): Promise<{ message: string }> {
+    return this.request('POST', '/config/projects', { name, description });
+  }
+
+  /**
+   * Get information about the currently active project
+   *
+   * @returns Project information or null if not in a project
+   *
+   * @example
+   * ```typescript
+   * const activeProject = await client.config.getActiveProject();
+   * if (activeProject) {
+   *   console.log(`Working in project: ${activeProject.name}`);
+   * }
+   * ```
+   */
+  async getActiveProject(): Promise<ProjectInfo | null> {
+    return this.request('GET', '/config/projects/active');
+  }
+
+  /**
+   * Get information about a specific project
+   *
+   * @param name - Project name
+   * @returns Project information
+   * @throws Error if project not found
+   *
+   * @example
+   * ```typescript
+   * const project = await client.config.getProject('my-project');
+   * console.log(`Project path: ${project.path}`);
+   * ```
+   */
+  async getProject(name: string): Promise<ProjectInfo> {
+    return this.request('GET', `/config/projects/${encodeURIComponent(name)}`);
+  }
+
+  /**
+   * Update a project's configuration
+   *
+   * @param name - Current project name
+   * @param updates - Updates to apply (description, include_configs, new_name)
+   * @returns Success message
+   * @throws Error if project not found or update fails
+   *
+   * @example
+   * ```typescript
+   * // Update description
+   * await client.config.updateProject('my-project', {
+   *   description: 'Updated project description'
+   * });
+   *
+   * // Rename project
+   * await client.config.updateProject('old-name', {
+   *   new_name: 'new-name'
+   * });
+   * ```
+   */
+  async updateProject(
+    name: string,
+    updates: {
+      description?: string;
+      include_configs?: string[];
+      new_name?: string;
+    }
+  ): Promise<{ message: string }> {
+    return this.request('PUT', `/config/projects/${encodeURIComponent(name)}`, updates);
+  }
+
+  /**
+   * Delete a project from the workspace
+   *
+   * Warning: This permanently removes the project and all its files.
+   * Cannot delete the currently active project.
+   *
+   * @param name - Project name to delete
+   * @returns Success message
+   * @throws Error if project is active or deletion fails
+   *
+   * @example
+   * ```typescript
+   * await client.config.deleteProject('old-project');
+   * console.log('Project deleted successfully');
+   * ```
+   */
+  async deleteProject(name: string): Promise<{ message: string }> {
+    return this.request('DELETE', `/config/projects/${encodeURIComponent(name)}`);
+  }
+
+  // Workspace Management Methods
+
+  /**
+   * List workspace information
+   *
+   * Currently supports single workspace only.
+   *
+   * @returns Array with workspace information (single element)
+   *
+   * @example
+   * ```typescript
+   * const workspaces = await client.config.listWorkspaces();
+   * const workspace = workspaces[0];
+   * console.log(`Workspace: ${workspace.name}`);
+   * console.log(`Projects: ${workspace.projects.join(', ')}`);
+   * ```
+   */
+  async listWorkspaces(): Promise<WorkspaceInfo[]> {
+    return this.request('GET', '/config/workspaces');
+  }
+
+  /**
+   * Get information about the currently active workspace
+   *
+   * @returns Workspace information or null if not in a workspace
+   *
+   * @example
+   * ```typescript
+   * const workspace = await client.config.getActiveWorkspace();
+   * if (workspace) {
+   *   console.log(`Working in workspace: ${workspace.name}`);
+   *   console.log(`Contains ${workspace.projects.length} projects`);
+   * }
+   * ```
+   */
+  async getActiveWorkspace(): Promise<WorkspaceInfo | null> {
+    return this.request('GET', '/config/workspaces/active');
   }
 }

@@ -129,3 +129,37 @@ export interface ServerTestResult {
   test_tool_result?: Record<string, any>;
   error?: string;
 }
+
+/**
+ * Project information from the Configuration Manager
+ */
+export interface ProjectInfo {
+  name: string;
+  path: string;
+  is_active: boolean;
+  include_configs: string[];
+  description?: string;
+  created_at?: number;
+}
+
+/**
+ * Workspace information from the Configuration Manager
+ */
+export interface WorkspaceInfo {
+  name: string;
+  path: string;
+  projects: string[];
+  include_configs: string[];
+  is_active: boolean;
+  description?: string;
+}
+
+/**
+ * Configuration source information
+ */
+export interface ConfigSource {
+  path: string;
+  context: 'project' | 'workspace' | 'user';
+  project_name?: string;
+  workspace_name?: string;
+}

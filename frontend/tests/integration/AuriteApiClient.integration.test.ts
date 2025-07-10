@@ -314,6 +314,66 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     });
   });
 
+  describe('Project and Workspace Management', () => {
+    const testProjectName = `test-project-${Date.now()}`;
+
+    it('should list workspaces', async () => {
+      const workspaces = await client.config.listWorkspaces();
+      expect(Array.isArray(workspaces)).toBe(true);
+      expect(workspaces.length).toBeGreaterThan(0);
+      expect(workspaces[0].name).toBeTruthy();
+    });
+
+    it('should get the active workspace', async () => {
+      const workspace = await client.config.getActiveWorkspace();
+      expect(workspace).toBeDefined();
+      expect(workspace?.is_active).toBe(true);
+    });
+
+    it('should list projects', async () => {
+      const projects = await client.config.listProjects();
+      expect(Array.isArray(projects)).toBe(true);
+    });
+
+    it('should create a new project', async () => {
+      const response = await client.config.createProject(testProjectName, 'A test project');
+      expect(response.message).toContain('created successfully');
+
+      const projects = await client.config.listProjects();
+      const newProject = projects.find(p => p.name === testProjectName);
+      expect(newProject).toBeDefined();
+    });
+
+    it('should get the new project', async () => {
+      const project = await client.config.getProject(testProjectName);
+      expect(project).toBeDefined();
+      expect(project.name).toBe(testProjectName);
+      expect(project.description).toBe('A test project');
+    });
+
+    it('should update the project', async () => {
+      const updates = { description: 'Updated description' };
+      await client.config.updateProject(testProjectName, updates);
+
+      const updatedProject = await client.config.getProject(testProjectName);
+      expect(updatedProject.description).toBe('Updated description');
+    });
+
+    it('should delete the project', async () => {
+      await client.config.deleteProject(testProjectName);
+
+      await expect(client.config.getProject(testProjectName)).rejects.toThrow(/not found/);
+    });
+
+    it('should get the active project', async () => {
+      const project = await client.config.getActiveProject();
+      // This can be null if not running inside a project context, which is fine
+      if (project) {
+        expect(project.is_active).toBe(true);
+      }
+    });
+  });
+
   describe('Validation', () => {
     it('should validate all configurations', async () => {
       // This might throw if there are invalid configs, which is okay for the test

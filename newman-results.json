@@ -1,0 +1,4422 @@
+{
+  "collection": {
+    "_": {
+      "postman_id": "config-manager-projects-collection"
+    },
+    "item": [
+      {
+        "id": "ecf0e2c9-f6aa-484c-9d30-9a6f182d2b5b",
+        "name": "Workspace Operations",
+        "item": [
+          {
+            "id": "8696f9b8-142f-47b9-9e55-39b04c67d472",
+            "name": "List Workspaces",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "workspaces"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "d1f63180-d6a8-486f-8616-725fc2a95ebb",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response is an array\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.be.an('array');",
+                    "});",
+                    "",
+                    "pm.test(\"Workspace has required fields\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    if (jsonData.length > 0) {",
+                    "        const workspace = jsonData[0];",
+                    "        pm.expect(workspace).to.have.property('name');",
+                    "        pm.expect(workspace).to.have.property('path');",
+                    "        pm.expect(workspace).to.have.property('projects');",
+                    "        pm.expect(workspace).to.have.property('include_configs');",
+                    "        pm.expect(workspace).to.have.property('is_active');",
+                    "    }",
+                    "});"
+                  ],
+                  "_lastExecutionId": "9faf781c-9644-47fe-9fda-ffa7570dc084"
+                }
+              }
+            ]
+          },
+          {
+            "id": "e21537bf-8284-4ac6-bf0c-73300e63a950",
+            "name": "Get Active Workspace",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "workspaces",
+                  "active"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "464d035e-fedf-4697-a11a-01297de1e0a8",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response is workspace object or null\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    if (jsonData !== null) {",
+                    "        pm.expect(jsonData).to.have.property('name');",
+                    "        pm.expect(jsonData).to.have.property('path');",
+                    "        pm.expect(jsonData).to.have.property('is_active', true);",
+                    "    }",
+                    "});"
+                  ],
+                  "_lastExecutionId": "6b6a2a45-4817-4f85-9c44-30d439ff20ff"
+                }
+              }
+            ]
+          }
+        ],
+        "event": []
+      },
+      {
+        "id": "64a4fc7d-7b60-42c9-a6c9-4e4b8152a0a8",
+        "name": "Project Operations",
+        "item": [
+          {
+            "id": "31535298-33c8-417e-a28b-dfb9bd46d49a",
+            "name": "List Projects",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "b9a6cce8-1f3b-4db8-be60-52892942ae55",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response is an array\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.be.an('array');",
+                    "});",
+                    "",
+                    "pm.test(\"Projects have required fields\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    jsonData.forEach(project => {",
+                    "        pm.expect(project).to.have.property('name');",
+                    "        pm.expect(project).to.have.property('path');",
+                    "        pm.expect(project).to.have.property('is_active');",
+                    "        pm.expect(project).to.have.property('include_configs');",
+                    "    });",
+                    "});"
+                  ],
+                  "_lastExecutionId": "d8751942-ed3e-4ea6-a69d-01629fa6d4dc"
+                }
+              }
+            ]
+          },
+          {
+            "id": "6bec3eb5-2efa-4a06-804a-0c4592675893",
+            "name": "Create Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "method": "POST",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"name\": \"{{test_project_name}}\",\n    \"description\": \"Test project created by Postman\"\n}"
+              }
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "prerequest",
+                "script": {
+                  "id": "0053631d-8a3d-414f-b8ee-001972c6cc62",
+                  "type": "text/javascript",
+                  "exec": [
+                    "// Generate a unique project name",
+                    "const timestamp = new Date().getTime();",
+                    "pm.environment.set(\"test_project_name\", `test-project-${timestamp}`);"
+                  ],
+                  "_lastExecutionId": "2a95d881-76e1-4247-a6ec-aade31b4a139"
+                }
+              },
+              {
+                "listen": "test",
+                "script": {
+                  "id": "1fb6e181-c91a-4dbc-b7c8-886e30784c1a",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response has success message\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('message');",
+                    "    pm.expect(jsonData.message).to.include('created successfully');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "9fc73e69-63e7-406d-98b8-8ce04f1ee2f9"
+                }
+              }
+            ]
+          },
+          {
+            "id": "a32b402e-3e3c-4255-b43e-54382e7e4d8c",
+            "name": "Get Active Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "active"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "e18b1807-08d9-4baf-b599-d1d4cd2bb431",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response is project object or null\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    if (jsonData !== null) {",
+                    "        pm.expect(jsonData).to.have.property('name');",
+                    "        pm.expect(jsonData).to.have.property('path');",
+                    "        pm.expect(jsonData).to.have.property('is_active', true);",
+                    "    }",
+                    "});"
+                  ],
+                  "_lastExecutionId": "3a6ece8f-26b9-4720-a867-18bc58433ed6"
+                }
+              }
+            ]
+          },
+          {
+            "id": "bee2571c-c6f1-472f-b21c-81b163ef7bf6",
+            "name": "Get Specific Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "{{test_project_name}}"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "59cbe4c6-ddf8-444a-a4a3-d5cf96a9b30b",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Project has all required fields\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('name', pm.environment.get('test_project_name'));",
+                    "    pm.expect(jsonData).to.have.property('path');",
+                    "    pm.expect(jsonData).to.have.property('is_active');",
+                    "    pm.expect(jsonData).to.have.property('include_configs');",
+                    "    pm.expect(jsonData).to.have.property('description', 'Test project created by Postman');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "19ffc8a4-aff6-4a18-8cb6-394a045ae55d"
+                }
+              }
+            ]
+          },
+          {
+            "id": "4f025e23-63a7-4597-abc8-d75451cd5be3",
+            "name": "Update Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "{{test_project_name}}"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "method": "PUT",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"description\": \"Updated test project description\",\n    \"include_configs\": [\"config\", \"additional_config\"]\n}"
+              }
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "8a496bc6-e4b0-4264-a1fc-6b81fd0b56c6",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response has success message\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('message');",
+                    "    pm.expect(jsonData.message).to.include('updated successfully');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "5d5825f6-25b1-456f-985a-3118b3ffacf3"
+                }
+              }
+            ]
+          },
+          {
+            "id": "2f75dedb-ec9d-40f9-ba85-bb49cb09c6e8",
+            "name": "Delete Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "{{test_project_name}}"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "DELETE"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "0f2c2e93-882c-4519-bffc-d002a0a192b0",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response has success message\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('message');",
+                    "    pm.expect(jsonData.message).to.include('deleted successfully');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "dd8ee09d-30c1-469f-b983-ba61fe4f2320"
+                }
+              }
+            ]
+          }
+        ],
+        "event": []
+      },
+      {
+        "id": "0cb69446-c979-44fb-865d-ff6a1268368f",
+        "name": "Error Cases",
+        "item": [
+          {
+            "id": "777e64ea-34b5-46c0-9b07-c42c00e473ed",
+            "name": "Create Project - Invalid Name",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "method": "POST",
+              "body": {
+                "mode": "raw",
+                "raw": "{\n    \"name\": \"invalid project name!\",\n    \"description\": \"This should fail\"\n}"
+              }
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "c72560e6-26e2-49f8-b731-190008312d4b",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 422\", function () {",
+                    "    pm.response.to.have.status(422);",
+                    "});",
+                    "",
+                    "pm.test(\"Error message about invalid name\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('detail');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "0393e586-72ba-4659-8d5e-c4bfecd99faa"
+                }
+              }
+            ]
+          },
+          {
+            "id": "25875a48-591b-47d9-bbe1-5d35e450b786",
+            "name": "Get Non-existent Project",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "non-existent-project"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "GET"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "id": "d6d011ba-986b-4db7-9f9c-baee00362dc1",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 404\", function () {",
+                    "    pm.response.to.have.status(404);",
+                    "});",
+                    "",
+                    "pm.test(\"Error message about project not found\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('detail');",
+                    "    pm.expect(jsonData.detail).to.include('not found');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "14781544-843b-40a9-8927-d239d5686c18"
+                }
+              }
+            ]
+          },
+          {
+            "id": "17f821f5-26c4-4620-8283-33439acbb064",
+            "name": "Attempt to delete project with same name as workspace",
+            "request": {
+              "url": {
+                "path": [
+                  "config",
+                  "projects",
+                  "{{workspace_name_as_project}}"
+                ],
+                "host": [
+                  "{{base_url}}"
+                ],
+                "query": [],
+                "variable": []
+              },
+              "method": "DELETE"
+            },
+            "response": [],
+            "event": [
+              {
+                "listen": "prerequest",
+                "script": {
+                  "id": "31f114ea-ffae-4f0c-86a7-df0d1f5d1a73",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.environment.set(\"workspace_name_as_project\", \"framework\");"
+                  ],
+                  "_lastExecutionId": "59d7ac2f-42f9-46f4-af61-fe9385c1e139"
+                }
+              },
+              {
+                "listen": "test",
+                "script": {
+                  "id": "afd1b594-f9bc-48c0-af5b-613c148977a7",
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test(\"Status code is 500\", function () {",
+                    "    pm.response.to.have.status(500);",
+                    "});",
+                    "",
+                    "pm.test(\"Error message about project not existing\", function () {",
+                    "    const jsonData = pm.response.json();",
+                    "    pm.expect(jsonData).to.have.property('detail');",
+                    "    pm.expect(jsonData.detail.toLowerCase()).to.include('does not exist');",
+                    "});"
+                  ],
+                  "_lastExecutionId": "71c26bfb-ac01-4b39-86bd-491f4b61d9ed"
+                }
+              }
+            ]
+          }
+        ],
+        "event": []
+      }
+    ],
+    "auth": {
+      "type": "apikey",
+      "apikey": [
+        {
+          "type": "string",
+          "value": "{{api_key}}",
+          "key": "value"
+        },
+        {
+          "type": "string",
+          "value": "X-API-Key",
+          "key": "key"
+        },
+        {
+          "type": "string",
+          "value": "header",
+          "key": "in"
+        }
+      ]
+    },
+    "event": [],
+    "variable": [
+      {
+        "type": "string",
+        "value": "http://localhost:8000",
+        "key": "base_url"
+      },
+      {
+        "type": "string",
+        "value": "test-api-key",
+        "key": "api_key"
+      }
+    ],
+    "info": {
+      "_postman_id": "config-manager-projects-collection",
+      "name": "Config Manager - Projects & Workspaces",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      "description": {
+        "content": "Tests for project and workspace management endpoints",
+        "type": "text/plain"
+      }
+    }
+  },
+  "environment": {
+    "id": "59feec97-0f82-4785-8a08-d58e6aa59da1",
+    "values": [
+      {
+        "type": "any",
+        "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+        "key": "api_key"
+      },
+      {
+        "type": "any",
+        "value": "http://localhost:8000",
+        "key": "base_url"
+      },
+      {
+        "type": "any",
+        "value": "test-project-1752173352307",
+        "key": "test_project_name"
+      },
+      {
+        "type": "any",
+        "value": "framework",
+        "key": "workspace_name_as_project"
+      }
+    ]
+  },
+  "globals": {
+    "id": "0000618a-4802-419f-8dc3-a1c79af6c1d8",
+    "values": []
+  },
+  "run": {
+    "stats": {
+      "iterations": {
+        "total": 1,
+        "pending": 0,
+        "failed": 0
+      },
+      "items": {
+        "total": 11,
+        "pending": 0,
+        "failed": 0
+      },
+      "scripts": {
+        "total": 13,
+        "pending": 0,
+        "failed": 0
+      },
+      "prerequests": {
+        "total": 11,
+        "pending": 0,
+        "failed": 0
+      },
+      "requests": {
+        "total": 11,
+        "pending": 0,
+        "failed": 0
+      },
+      "tests": {
+        "total": 11,
+        "pending": 0,
+        "failed": 0
+      },
+      "assertions": {
+        "total": 24,
+        "pending": 0,
+        "failed": 0
+      },
+      "testScripts": {
+        "total": 11,
+        "pending": 0,
+        "failed": 0
+      },
+      "prerequestScripts": {
+        "total": 2,
+        "pending": 0,
+        "failed": 0
+      }
+    },
+    "timings": {
+      "responseAverage": 46.90909090909091,
+      "responseMin": 21,
+      "responseMax": 67,
+      "responseSd": 10.59549257042434,
+      "dnsAverage": 0,
+      "dnsMin": 0,
+      "dnsMax": 0,
+      "dnsSd": 0,
+      "firstByteAverage": 0,
+      "firstByteMin": 0,
+      "firstByteMax": 0,
+      "firstByteSd": 0,
+      "started": 1752173352125,
+      "completed": 1752173352843
+    },
+    "executions": [
+      {
+        "cursor": {
+          "position": 0,
+          "iteration": 0,
+          "length": 11,
+          "cycles": 1,
+          "empty": false,
+          "eof": false,
+          "bof": true,
+          "cr": false,
+          "ref": "a66f1850-c131-49ef-9ba7-061e997fb5c9",
+          "httpRequestId": "fb6da214-cdee-409a-8f68-0c21ed08fb6f"
+        },
+        "item": {
+          "id": "8696f9b8-142f-47b9-9e55-39b04c67d472",
+          "name": "List Workspaces",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "workspaces"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "d1f63180-d6a8-486f-8616-725fc2a95ebb",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Workspace has required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.length > 0) {",
+                  "        const workspace = jsonData[0];",
+                  "        pm.expect(workspace).to.have.property('name');",
+                  "        pm.expect(workspace).to.have.property('path');",
+                  "        pm.expect(workspace).to.have.property('projects');",
+                  "        pm.expect(workspace).to.have.property('include_configs');",
+                  "        pm.expect(workspace).to.have.property('is_active');",
+                  "    }",
+                  "});"
+                ],
+                "_lastExecutionId": "9faf781c-9644-47fe-9fda-ffa7570dc084"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "workspaces"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "d7991bda-b030-494d-8399-835f614e5a87",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "73575d9d-90a0-4fee-aadb-dc971977f3ce",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "249"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              91,
+              123,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              58,
+              34,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              34,
+              44,
+              34,
+              112,
+              97,
+              116,
+              104,
+              34,
+              58,
+              34,
+              47,
+              104,
+              111,
+              109,
+              101,
+              47,
+              119,
+              105,
+              108,
+              99,
+              111,
+              120,
+              114,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              34,
+              44,
+              34,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              115,
+              34,
+              58,
+              91,
+              34,
+              46,
+              47,
+              100,
+              101,
+              109,
+              111,
+              45,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              34,
+              44,
+              34,
+              46,
+              47,
+              115,
+              114,
+              99,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              105,
+              110,
+              105,
+              116,
+              95,
+              116,
+              101,
+              109,
+              112,
+              108,
+              97,
+              116,
+              101,
+              115,
+              34,
+              44,
+              34,
+              46,
+              47,
+              116,
+              101,
+              115,
+              116,
+              115,
+              47,
+              102,
+              105,
+              120,
+              116,
+              117,
+              114,
+              101,
+              115,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              95,
+              98,
+              114,
+              97,
+              118,
+              111,
+              34,
+              93,
+              44,
+              34,
+              105,
+              110,
+              99,
+              108,
+              117,
+              100,
+              101,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              58,
+              91,
+              34,
+              46,
+              47,
+              115,
+              104,
+              97,
+              114,
+              101,
+              100,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              93,
+              44,
+              34,
+              105,
+              115,
+              95,
+              97,
+              99,
+              116,
+              105,
+              118,
+              101,
+              34,
+              58,
+              116,
+              114,
+              117,
+              101,
+              44,
+              34,
+              100,
+              101,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              110,
+              117,
+              108,
+              108,
+              125,
+              93
+            ]
+          },
+          "cookie": [],
+          "responseTime": 21,
+          "responseSize": 249
+        },
+        "id": "8696f9b8-142f-47b9-9e55-39b04c67d472",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response is an array",
+            "skipped": false
+          },
+          {
+            "assertion": "Workspace has required fields",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "e27989a4-1816-42ea-ae29-842399ad380a",
+          "length": 11,
+          "cycles": 1,
+          "position": 1,
+          "iteration": 0,
+          "httpRequestId": "3c4aee0a-8957-41f6-b6d6-6f0f0b75d449"
+        },
+        "item": {
+          "id": "e21537bf-8284-4ac6-bf0c-73300e63a950",
+          "name": "Get Active Workspace",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "workspaces",
+                "active"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "464d035e-fedf-4697-a11a-01297de1e0a8",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is workspace object or null\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData !== null) {",
+                  "        pm.expect(jsonData).to.have.property('name');",
+                  "        pm.expect(jsonData).to.have.property('path');",
+                  "        pm.expect(jsonData).to.have.property('is_active', true);",
+                  "    }",
+                  "});"
+                ],
+                "_lastExecutionId": "6b6a2a45-4817-4f85-9c44-30d439ff20ff"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "workspaces",
+              "active"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "16b0d163-47e4-489d-b09d-0ab6fe52e13a",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "8ee14313-edc8-45ec-ac68-00de69844264",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "247"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              58,
+              34,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              34,
+              44,
+              34,
+              112,
+              97,
+              116,
+              104,
+              34,
+              58,
+              34,
+              47,
+              104,
+              111,
+              109,
+              101,
+              47,
+              119,
+              105,
+              108,
+              99,
+              111,
+              120,
+              114,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              34,
+              44,
+              34,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              115,
+              34,
+              58,
+              91,
+              34,
+              46,
+              47,
+              100,
+              101,
+              109,
+              111,
+              45,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              34,
+              44,
+              34,
+              46,
+              47,
+              115,
+              114,
+              99,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              105,
+              110,
+              105,
+              116,
+              95,
+              116,
+              101,
+              109,
+              112,
+              108,
+              97,
+              116,
+              101,
+              115,
+              34,
+              44,
+              34,
+              46,
+              47,
+              116,
+              101,
+              115,
+              116,
+              115,
+              47,
+              102,
+              105,
+              120,
+              116,
+              117,
+              114,
+              101,
+              115,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              95,
+              98,
+              114,
+              97,
+              118,
+              111,
+              34,
+              93,
+              44,
+              34,
+              105,
+              110,
+              99,
+              108,
+              117,
+              100,
+              101,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              58,
+              91,
+              34,
+              46,
+              47,
+              115,
+              104,
+              97,
+              114,
+              101,
+              100,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              93,
+              44,
+              34,
+              105,
+              115,
+              95,
+              97,
+              99,
+              116,
+              105,
+              118,
+              101,
+              34,
+              58,
+              116,
+              114,
+              117,
+              101,
+              44,
+              34,
+              100,
+              101,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              110,
+              117,
+              108,
+              108,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 46,
+          "responseSize": 247
+        },
+        "id": "e21537bf-8284-4ac6-bf0c-73300e63a950",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response is workspace object or null",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "b6c5d6d5-7b01-46c5-9ec6-686a2621dc60",
+          "length": 11,
+          "cycles": 1,
+          "position": 2,
+          "iteration": 0,
+          "httpRequestId": "d5b78827-0362-4a55-98c0-aebb5fb633b9"
+        },
+        "item": {
+          "id": "31535298-33c8-417e-a28b-dfb9bd46d49a",
+          "name": "List Projects",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b9a6cce8-1f3b-4db8-be60-52892942ae55",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Projects have required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    jsonData.forEach(project => {",
+                  "        pm.expect(project).to.have.property('name');",
+                  "        pm.expect(project).to.have.property('path');",
+                  "        pm.expect(project).to.have.property('is_active');",
+                  "        pm.expect(project).to.have.property('include_configs');",
+                  "    });",
+                  "});"
+                ],
+                "_lastExecutionId": "d8751942-ed3e-4ea6-a69d-01629fa6d4dc"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "c9148359-2311-497f-aea3-42c0244bd882",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "da2e1176-f1ea-4248-a0ea-27433c02d9cd",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "452"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              91,
+              123,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              58,
+              34,
+              46,
+              47,
+              115,
+              114,
+              99,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              105,
+              110,
+              105,
+              116,
+              95,
+              116,
+              101,
+              109,
+              112,
+              108,
+              97,
+              116,
+              101,
+              115,
+              34,
+              44,
+              34,
+              112,
+              97,
+              116,
+              104,
+              34,
+              58,
+              34,
+              47,
+              104,
+              111,
+              109,
+              101,
+              47,
+              119,
+              105,
+              108,
+              99,
+              111,
+              120,
+              114,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              47,
+              115,
+              114,
+              99,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              105,
+              110,
+              105,
+              116,
+              95,
+              116,
+              101,
+              109,
+              112,
+              108,
+              97,
+              116,
+              101,
+              115,
+              34,
+              44,
+              34,
+              105,
+              115,
+              95,
+              97,
+              99,
+              116,
+              105,
+              118,
+              101,
+              34,
+              58,
+              102,
+              97,
+              108,
+              115,
+              101,
+              44,
+              34,
+              105,
+              110,
+              99,
+              108,
+              117,
+              100,
+              101,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              58,
+              91,
+              34,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              34,
+              93,
+              44,
+              34,
+              100,
+              101,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              110,
+              117,
+              108,
+              108,
+              44,
+              34,
+              99,
+              114,
+              101,
+              97,
+              116,
+              101,
+              100,
+              95,
+              97,
+              116,
+              34,
+              58,
+              49,
+              55,
+              53,
+              49,
+              57,
+              49,
+              56,
+              56,
+              57,
+              52,
+              46,
+              55,
+              53,
+              54,
+              55,
+              48,
+              57,
+              125,
+              44,
+              123,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              58,
+              34,
+              46,
+              47,
+              116,
+              101,
+              115,
+              116,
+              115,
+              47,
+              102,
+              105,
+              120,
+              116,
+              117,
+              114,
+              101,
+              115,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              95,
+              98,
+              114,
+              97,
+              118,
+              111,
+              34,
+              44,
+              34,
+              112,
+              97,
+              116,
+              104,
+              34,
+              58,
+              34,
+              47,
+              104,
+              111,
+              109,
+              101,
+              47,
+              119,
+              105,
+              108,
+              99,
+              111,
+              120,
+              114,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              47,
+              116,
+              101,
+              115,
+              116,
+              115,
+              47,
+              102,
+              105,
+              120,
+              116,
+              117,
+              114,
+              101,
+              115,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              95,
+              98,
+              114,
+              97,
+              118,
+              111,
+              34,
+              44,
+              34,
+              105,
+              115,
+              95,
+              97,
+              99,
+              116,
+              105,
+              118,
+              101,
+              34,
+              58,
+              102,
+              97,
+              108,
+              115,
+              101,
+              44,
+              34,
+              105,
+              110,
+              99,
+              108,
+              117,
+              100,
+              101,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              58,
+              91,
+              34,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              34,
+              93,
+              44,
+              34,
+              100,
+              101,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              110,
+              117,
+              108,
+              108,
+              44,
+              34,
+              99,
+              114,
+              101,
+              97,
+              116,
+              101,
+              100,
+              95,
+              97,
+              116,
+              34,
+              58,
+              49,
+              55,
+              53,
+              50,
+              48,
+              48,
+              55,
+              56,
+              52,
+              49,
+              46,
+              52,
+              57,
+              48,
+              48,
+              56,
+              52,
+              52,
+              125,
+              93
+            ]
+          },
+          "cookie": [],
+          "responseTime": 47,
+          "responseSize": 452
+        },
+        "id": "31535298-33c8-417e-a28b-dfb9bd46d49a",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response is an array",
+            "skipped": false
+          },
+          {
+            "assertion": "Projects have required fields",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "301bca3a-657c-4f0a-a644-f3fce6fa0ec3",
+          "length": 11,
+          "cycles": 1,
+          "position": 3,
+          "iteration": 0,
+          "httpRequestId": "530c5d1b-9e0f-47f8-a57b-ab5d0fa7ef5e"
+        },
+        "item": {
+          "id": "6bec3eb5-2efa-4a06-804a-0c4592675893",
+          "name": "Create Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"{{test_project_name}}\",\n    \"description\": \"Test project created by Postman\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "0053631d-8a3d-414f-b8ee-001972c6cc62",
+                "type": "text/javascript",
+                "exec": [
+                  "// Generate a unique project name",
+                  "const timestamp = new Date().getTime();",
+                  "pm.environment.set(\"test_project_name\", `test-project-${timestamp}`);"
+                ],
+                "_lastExecutionId": "2a95d881-76e1-4247-a6ec-aade31b4a139"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "1fb6e181-c91a-4dbc-b7c8-886e30784c1a",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('created successfully');",
+                  "});"
+                ],
+                "_lastExecutionId": "9fc73e69-63e7-406d-98b8-8ce04f1ee2f9"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "a7b4eb3b-f029-4ed8-a275-97b987f055d8",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            },
+            {
+              "key": "Content-Length",
+              "value": "98",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"name\": \"test-project-1752173352307\",\n    \"description\": \"Test project created by Postman\"\n}"
+          },
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "7b42f0a3-451d-4b80-986f-457aaf0dbda9",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "72"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              34,
+              58,
+              34,
+              80,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              39,
+              116,
+              101,
+              115,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              45,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              51,
+              48,
+              55,
+              39,
+              32,
+              99,
+              114,
+              101,
+              97,
+              116,
+              101,
+              100,
+              32,
+              115,
+              117,
+              99,
+              99,
+              101,
+              115,
+              115,
+              102,
+              117,
+              108,
+              108,
+              121,
+              46,
+              34,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 67,
+          "responseSize": 72
+        },
+        "id": "6bec3eb5-2efa-4a06-804a-0c4592675893",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response has success message",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "781337cb-e05f-4185-9658-fc99fd920be4",
+          "length": 11,
+          "cycles": 1,
+          "position": 4,
+          "iteration": 0,
+          "httpRequestId": "90ee27c2-49f4-432a-af7a-93dec8a78b86"
+        },
+        "item": {
+          "id": "a32b402e-3e3c-4255-b43e-54382e7e4d8c",
+          "name": "Get Active Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "active"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "e18b1807-08d9-4baf-b599-d1d4cd2bb431",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is project object or null\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData !== null) {",
+                  "        pm.expect(jsonData).to.have.property('name');",
+                  "        pm.expect(jsonData).to.have.property('path');",
+                  "        pm.expect(jsonData).to.have.property('is_active', true);",
+                  "    }",
+                  "});"
+                ],
+                "_lastExecutionId": "3a6ece8f-26b9-4720-a867-18bc58433ed6"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "active"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "1d914486-5a3c-443e-8412-03f91663dc4b",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "79afc014-6403-43b3-95a5-5110b2f7a0c9",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "4"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              110,
+              117,
+              108,
+              108
+            ]
+          },
+          "cookie": [],
+          "responseTime": 46,
+          "responseSize": 4
+        },
+        "id": "a32b402e-3e3c-4255-b43e-54382e7e4d8c",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response is project object or null",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "d87ce209-8db9-4a4e-ba10-5cef801af7d6",
+          "length": 11,
+          "cycles": 1,
+          "position": 5,
+          "iteration": 0,
+          "httpRequestId": "022712bb-8fc0-4dc0-a9b3-00f385cf3374"
+        },
+        "item": {
+          "id": "bee2571c-c6f1-472f-b21c-81b163ef7bf6",
+          "name": "Get Specific Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "{{test_project_name}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "59cbe4c6-ddf8-444a-a4a3-d5cf96a9b30b",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Project has all required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name', pm.environment.get('test_project_name'));",
+                  "    pm.expect(jsonData).to.have.property('path');",
+                  "    pm.expect(jsonData).to.have.property('is_active');",
+                  "    pm.expect(jsonData).to.have.property('include_configs');",
+                  "    pm.expect(jsonData).to.have.property('description', 'Test project created by Postman');",
+                  "});"
+                ],
+                "_lastExecutionId": "19ffc8a4-aff6-4a18-8cb6-394a045ae55d"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "test-project-1752173352307"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "13dcbd71-fc8e-42a2-ad23-360ec30cca1c",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "8ab50cfe-4150-4f1f-8499-35eaf6a5bdfa",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "241"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              58,
+              34,
+              116,
+              101,
+              115,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              45,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              51,
+              48,
+              55,
+              34,
+              44,
+              34,
+              112,
+              97,
+              116,
+              104,
+              34,
+              58,
+              34,
+              47,
+              104,
+              111,
+              109,
+              101,
+              47,
+              119,
+              105,
+              108,
+              99,
+              111,
+              120,
+              114,
+              47,
+              119,
+              111,
+              114,
+              107,
+              115,
+              112,
+              97,
+              99,
+              101,
+              47,
+              97,
+              117,
+              114,
+              105,
+              116,
+              101,
+              47,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              47,
+              116,
+              101,
+              115,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              45,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              51,
+              48,
+              55,
+              34,
+              44,
+              34,
+              105,
+              115,
+              95,
+              97,
+              99,
+              116,
+              105,
+              118,
+              101,
+              34,
+              58,
+              102,
+              97,
+              108,
+              115,
+              101,
+              44,
+              34,
+              105,
+              110,
+              99,
+              108,
+              117,
+              100,
+              101,
+              95,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              115,
+              34,
+              58,
+              91,
+              34,
+              99,
+              111,
+              110,
+              102,
+              105,
+              103,
+              34,
+              93,
+              44,
+              34,
+              100,
+              101,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              105,
+              111,
+              110,
+              34,
+              58,
+              34,
+              84,
+              101,
+              115,
+              116,
+              32,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              99,
+              114,
+              101,
+              97,
+              116,
+              101,
+              100,
+              32,
+              98,
+              121,
+              32,
+              80,
+              111,
+              115,
+              116,
+              109,
+              97,
+              110,
+              34,
+              44,
+              34,
+              99,
+              114,
+              101,
+              97,
+              116,
+              101,
+              100,
+              95,
+              97,
+              116,
+              34,
+              58,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              46,
+              51,
+              50,
+              50,
+              50,
+              51,
+              48,
+              54,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 48,
+          "responseSize": 241
+        },
+        "id": "bee2571c-c6f1-472f-b21c-81b163ef7bf6",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Project has all required fields",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "8ef21e35-e613-46b0-a215-7a2a40cf9e95",
+          "length": 11,
+          "cycles": 1,
+          "position": 6,
+          "iteration": 0,
+          "httpRequestId": "119328c5-430a-4577-98fd-d3f40e9b0fbd"
+        },
+        "item": {
+          "id": "4f025e23-63a7-4597-abc8-d75451cd5be3",
+          "name": "Update Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "{{test_project_name}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "PUT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Updated test project description\",\n    \"include_configs\": [\"config\", \"additional_config\"]\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "8a496bc6-e4b0-4264-a1fc-6b81fd0b56c6",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('updated successfully');",
+                  "});"
+                ],
+                "_lastExecutionId": "5d5825f6-25b1-456f-985a-3118b3ffacf3"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "test-project-1752173352307"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "5bf4fe4e-622b-44d6-bf7e-99953cab40cb",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            },
+            {
+              "key": "Content-Length",
+              "value": "113",
+              "system": true
+            }
+          ],
+          "method": "PUT",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"description\": \"Updated test project description\",\n    \"include_configs\": [\"config\", \"additional_config\"]\n}"
+          },
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "c7d99513-320a-4cf8-a339-8d911b861811",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "72"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              34,
+              58,
+              34,
+              80,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              39,
+              116,
+              101,
+              115,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              45,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              51,
+              48,
+              55,
+              39,
+              32,
+              117,
+              112,
+              100,
+              97,
+              116,
+              101,
+              100,
+              32,
+              115,
+              117,
+              99,
+              99,
+              101,
+              115,
+              115,
+              102,
+              117,
+              108,
+              108,
+              121,
+              46,
+              34,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 46,
+          "responseSize": 72
+        },
+        "id": "4f025e23-63a7-4597-abc8-d75451cd5be3",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response has success message",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "f6052dea-22fa-499f-b0e1-b7558def76db",
+          "length": 11,
+          "cycles": 1,
+          "position": 7,
+          "iteration": 0,
+          "httpRequestId": "f60c3f85-3806-49bf-9d2c-0f2651271a5d"
+        },
+        "item": {
+          "id": "2f75dedb-ec9d-40f9-ba85-bb49cb09c6e8",
+          "name": "Delete Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "{{test_project_name}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "0f2c2e93-882c-4519-bffc-d002a0a192b0",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('deleted successfully');",
+                  "});"
+                ],
+                "_lastExecutionId": "dd8ee09d-30c1-469f-b983-ba61fe4f2320"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "test-project-1752173352307"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "b5f6d195-1318-4b29-ac2b-4d6405471fc9",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "DELETE",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "4afb03a9-3798-4817-a869-2f277ecdf543",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:11 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "72"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              34,
+              58,
+              34,
+              80,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              39,
+              116,
+              101,
+              115,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              45,
+              49,
+              55,
+              53,
+              50,
+              49,
+              55,
+              51,
+              51,
+              53,
+              50,
+              51,
+              48,
+              55,
+              39,
+              32,
+              100,
+              101,
+              108,
+              101,
+              116,
+              101,
+              100,
+              32,
+              115,
+              117,
+              99,
+              99,
+              101,
+              115,
+              115,
+              102,
+              117,
+              108,
+              108,
+              121,
+              46,
+              34,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 59,
+          "responseSize": 72
+        },
+        "id": "2f75dedb-ec9d-40f9-ba85-bb49cb09c6e8",
+        "assertions": [
+          {
+            "assertion": "Status code is 200",
+            "skipped": false
+          },
+          {
+            "assertion": "Response has success message",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "75c844cc-3983-4585-8eaf-f58d03bd1178",
+          "length": 11,
+          "cycles": 1,
+          "position": 8,
+          "iteration": 0,
+          "httpRequestId": "18f16153-c81e-41eb-8dca-5d30ca32e05f"
+        },
+        "item": {
+          "id": "777e64ea-34b5-46c0-9b07-c42c00e473ed",
+          "name": "Create Project - Invalid Name",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"invalid project name!\",\n    \"description\": \"This should fail\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "c72560e6-26e2-49f8-b731-190008312d4b",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about invalid name\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "});"
+                ],
+                "_lastExecutionId": "0393e586-72ba-4659-8d5e-c4bfecd99faa"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "23061881-7435-4507-be6b-b9564b273d2d",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            },
+            {
+              "key": "Content-Length",
+              "value": "78",
+              "system": true
+            }
+          ],
+          "method": "POST",
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"name\": \"invalid project name!\",\n    \"description\": \"This should fail\"\n}"
+          },
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "d21ef838-4bfe-4572-afff-dfd695821d68",
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:12 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "193"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              100,
+              101,
+              116,
+              97,
+              105,
+              108,
+              34,
+              58,
+              91,
+              123,
+              34,
+              116,
+              121,
+              112,
+              101,
+              34,
+              58,
+              34,
+              115,
+              116,
+              114,
+              105,
+              110,
+              103,
+              95,
+              112,
+              97,
+              116,
+              116,
+              101,
+              114,
+              110,
+              95,
+              109,
+              105,
+              115,
+              109,
+              97,
+              116,
+              99,
+              104,
+              34,
+              44,
+              34,
+              108,
+              111,
+              99,
+              34,
+              58,
+              91,
+              34,
+              98,
+              111,
+              100,
+              121,
+              34,
+              44,
+              34,
+              110,
+              97,
+              109,
+              101,
+              34,
+              93,
+              44,
+              34,
+              109,
+              115,
+              103,
+              34,
+              58,
+              34,
+              83,
+              116,
+              114,
+              105,
+              110,
+              103,
+              32,
+              115,
+              104,
+              111,
+              117,
+              108,
+              100,
+              32,
+              109,
+              97,
+              116,
+              99,
+              104,
+              32,
+              112,
+              97,
+              116,
+              116,
+              101,
+              114,
+              110,
+              32,
+              39,
+              94,
+              91,
+              97,
+              45,
+              122,
+              65,
+              45,
+              90,
+              48,
+              45,
+              57,
+              95,
+              45,
+              93,
+              43,
+              36,
+              39,
+              34,
+              44,
+              34,
+              105,
+              110,
+              112,
+              117,
+              116,
+              34,
+              58,
+              34,
+              105,
+              110,
+              118,
+              97,
+              108,
+              105,
+              100,
+              32,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              110,
+              97,
+              109,
+              101,
+              33,
+              34,
+              44,
+              34,
+              99,
+              116,
+              120,
+              34,
+              58,
+              123,
+              34,
+              112,
+              97,
+              116,
+              116,
+              101,
+              114,
+              110,
+              34,
+              58,
+              34,
+              94,
+              91,
+              97,
+              45,
+              122,
+              65,
+              45,
+              90,
+              48,
+              45,
+              57,
+              95,
+              45,
+              93,
+              43,
+              36,
+              34,
+              125,
+              125,
+              93,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 46,
+          "responseSize": 193
+        },
+        "id": "777e64ea-34b5-46c0-9b07-c42c00e473ed",
+        "assertions": [
+          {
+            "assertion": "Status code is 422",
+            "skipped": false
+          },
+          {
+            "assertion": "Error message about invalid name",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "daae87c7-bf1d-4f7e-91a5-087ad8208b3b",
+          "length": 11,
+          "cycles": 1,
+          "position": 9,
+          "iteration": 0,
+          "httpRequestId": "8b6cc9c3-76bd-4c0b-b9d9-e9723d9f184d"
+        },
+        "item": {
+          "id": "25875a48-591b-47d9-bbe1-5d35e450b786",
+          "name": "Get Non-existent Project",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "non-existent-project"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "d6d011ba-986b-4db7-9f9c-baee00362dc1",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about project not found\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "    pm.expect(jsonData.detail).to.include('not found');",
+                  "});"
+                ],
+                "_lastExecutionId": "14781544-843b-40a9-8927-d239d5686c18"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "non-existent-project"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "bed149bb-8d6a-4b6e-b2ad-a750948619b8",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "GET",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "79733ae4-85f1-40b6-890a-78b363b50aa5",
+          "status": "Not Found",
+          "code": 404,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:12 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "54"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              100,
+              101,
+              116,
+              97,
+              105,
+              108,
+              34,
+              58,
+              34,
+              80,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              39,
+              110,
+              111,
+              110,
+              45,
+              101,
+              120,
+              105,
+              115,
+              116,
+              101,
+              110,
+              116,
+              45,
+              112,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              39,
+              32,
+              110,
+              111,
+              116,
+              32,
+              102,
+              111,
+              117,
+              110,
+              100,
+              46,
+              34,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 44,
+          "responseSize": 54
+        },
+        "id": "25875a48-591b-47d9-bbe1-5d35e450b786",
+        "assertions": [
+          {
+            "assertion": "Status code is 404",
+            "skipped": false
+          },
+          {
+            "assertion": "Error message about project not found",
+            "skipped": false
+          }
+        ]
+      },
+      {
+        "cursor": {
+          "ref": "064fe2cb-f7fd-4b16-bf86-f635261aa5fa",
+          "length": 11,
+          "cycles": 1,
+          "position": 10,
+          "iteration": 0,
+          "httpRequestId": "508bf423-c1fc-4534-884c-5d6886416326"
+        },
+        "item": {
+          "id": "17f821f5-26c4-4620-8283-33439acbb064",
+          "name": "Attempt to delete project with same name as workspace",
+          "request": {
+            "url": {
+              "path": [
+                "config",
+                "projects",
+                "{{workspace_name_as_project}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "31f114ea-ffae-4f0c-86a7-df0d1f5d1a73",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"workspace_name_as_project\", \"framework\");"
+                ],
+                "_lastExecutionId": "59d7ac2f-42f9-46f4-af61-fe9385c1e139"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "afd1b594-f9bc-48c0-af5b-613c148977a7",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 500\", function () {",
+                  "    pm.response.to.have.status(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about project not existing\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "    pm.expect(jsonData.detail.toLowerCase()).to.include('does not exist');",
+                  "});"
+                ],
+                "_lastExecutionId": "71c26bfb-ac01-4b39-86bd-491f4b61d9ed"
+              }
+            }
+          ]
+        },
+        "request": {
+          "url": {
+            "protocol": "http",
+            "port": "8000",
+            "path": [
+              "config",
+              "projects",
+              "framework"
+            ],
+            "host": [
+              "localhost"
+            ],
+            "query": [],
+            "variable": []
+          },
+          "header": [
+            {
+              "key": "X-API-Key",
+              "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+              "system": true
+            },
+            {
+              "key": "User-Agent",
+              "value": "PostmanRuntime/7.39.1",
+              "system": true
+            },
+            {
+              "key": "Accept",
+              "value": "*/*",
+              "system": true
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache",
+              "system": true
+            },
+            {
+              "key": "Postman-Token",
+              "value": "f51d0dd3-4905-44ee-9543-d7ad591d3e19",
+              "system": true
+            },
+            {
+              "key": "Host",
+              "value": "localhost:8000",
+              "system": true
+            },
+            {
+              "key": "Accept-Encoding",
+              "value": "gzip, deflate, br",
+              "system": true
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive",
+              "system": true
+            }
+          ],
+          "method": "DELETE",
+          "auth": {
+            "type": "apikey",
+            "apikey": [
+              {
+                "type": "string",
+                "value": "87a06b293bcbb24573867851dea4820cd819ec1dfb1d4b984393ff783675a515",
+                "key": "value"
+              },
+              {
+                "type": "string",
+                "value": "X-API-Key",
+                "key": "key"
+              },
+              {
+                "type": "string",
+                "value": "header",
+                "key": "in"
+              }
+            ]
+          }
+        },
+        "response": {
+          "id": "a635d790-83ce-4033-85d6-b6581ef624a0",
+          "status": "Internal Server Error",
+          "code": 500,
+          "header": [
+            {
+              "key": "date",
+              "value": "Thu, 10 Jul 2025 18:49:12 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "47"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "stream": {
+            "type": "Buffer",
+            "data": [
+              123,
+              34,
+              100,
+              101,
+              116,
+              97,
+              105,
+              108,
+              34,
+              58,
+              34,
+              80,
+              114,
+              111,
+              106,
+              101,
+              99,
+              116,
+              32,
+              39,
+              102,
+              114,
+              97,
+              109,
+              101,
+              119,
+              111,
+              114,
+              107,
+              39,
+              32,
+              100,
+              111,
+              101,
+              115,
+              32,
+              110,
+              111,
+              116,
+              32,
+              101,
+              120,
+              105,
+              115,
+              116,
+              34,
+              125
+            ]
+          },
+          "cookie": [],
+          "responseTime": 46,
+          "responseSize": 47
+        },
+        "id": "17f821f5-26c4-4620-8283-33439acbb064",
+        "assertions": [
+          {
+            "assertion": "Status code is 500",
+            "skipped": false
+          },
+          {
+            "assertion": "Error message about project not existing",
+            "skipped": false
+          }
+        ]
+      }
+    ],
+    "transfers": {
+      "responseTotal": 1703
+    },
+    "failures": [],
+    "error": null
+  }
+}
