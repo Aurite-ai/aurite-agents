@@ -10,10 +10,10 @@
  * - config: Manage configurations
  */
 
-import type { ApiConfig } from './types';
-import { ExecutionFacadeClient } from './routes/ExecutionFacadeClient';
-import { MCPHostClient } from './routes/MCPHostClient';
-import { ConfigManagerClient } from './routes/ConfigManagerClient';
+import type { ApiConfig } from '../types';
+import { ExecutionFacadeClient } from '../routes/ExecutionFacadeClient';
+import { MCPHostClient } from '../routes/MCPHostClient';
+import { ConfigManagerClient } from '../routes/ConfigManagerClient';
 
 export class AuriteApiClient {
   /**
@@ -80,8 +80,38 @@ export function createAuriteClient(baseUrl: string, apiKey: string): AuriteApiCl
   return new AuriteApiClient({ baseUrl, apiKey });
 }
 
+/**
+ * Create a new Aurite API client instance using environment configuration
+ *
+ * This convenience function automatically loads configuration from environment
+ * variables and .env files. It's the easiest way to create a client for
+ * development and testing.
+ *
+ * @param overrides - Optional configuration overrides
+ * @returns Configured AuriteApiClient instance
+ *
+ * @example
+ * ```typescript
+ * import { createAuriteClientFromEnv } from '@aurite/api-client';
+ *
+ * // Uses AURITE_API_BASE_URL and AURITE_API_KEY from environment
+ * const client = createAuriteClientFromEnv();
+ *
+ * // Or with overrides
+ * const client = createAuriteClientFromEnv({
+ *   baseUrl: 'http://custom-server:8000'
+ * });
+ * ```
+ */
+export async function createAuriteClientFromEnv(overrides?: Partial<ApiConfig>): Promise<AuriteApiClient> {
+  // Import here to avoid circular dependencies and ensure environment is loaded
+  const { getApiClientConfig } = await import('../config/environment.js');
+  const config = getApiClientConfig(overrides);
+  return new AuriteApiClient(config);
+}
+
 // Re-export types for convenience
-export * from './types';
-export { ExecutionFacadeClient } from './routes/ExecutionFacadeClient';
-export { MCPHostClient } from './routes/MCPHostClient';
-export { ConfigManagerClient } from './routes/ConfigManagerClient';
+export * from '../types';
+export { ExecutionFacadeClient } from '../routes/ExecutionFacadeClient';
+export { MCPHostClient } from '../routes/MCPHostClient';
+export { ConfigManagerClient } from '../routes/ConfigManagerClient';

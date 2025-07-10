@@ -34,7 +34,10 @@ src/
 ```typescript
 import { createAuriteClient } from 'aurite-api-client';
 
-const client = createAuriteClient('http://localhost:8000', 'your-api-key');
+const client = createAuriteClient(
+  process.env.AURITE_API_BASE_URL || 'http://localhost:8000',
+  process.env.AURITE_API_KEY || 'your-api-key'
+);
 
 // The client provides three sub-clients:
 // - client.execution - for running agents and workflows

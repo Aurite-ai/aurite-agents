@@ -3,15 +3,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ExecutionFacadeClient } from './ExecutionFacadeClient';
-import type { ApiConfig, StreamEvent } from '../types';
+import { ExecutionFacadeClient } from '../../../src/routes/ExecutionFacadeClient';
+import type { ApiConfig, StreamEvent } from '../../../src/types';
 
 describe('ExecutionFacadeClient', () => {
   let client: ExecutionFacadeClient;
   const mockFetch = vi.fn();
   const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
+    baseUrl: process.env.AURITE_API_BASE_URL || 'http://localhost:8000',
+    apiKey: process.env.AURITE_API_KEY || 'test-api-key',
   };
 
   beforeEach(() => {
@@ -30,15 +30,14 @@ describe('ExecutionFacadeClient', () => {
       const result = await client.getStatus();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/status',
-        {
+        `${config.baseUrl}/execution/status`,
+        expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ status: 'active' });
@@ -66,17 +65,17 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/agents/Weather%20Agent/run',
-        {
+        `${config.baseUrl}/execution/agents/Weather%20Agent/run`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             user_message: 'What is the weather in San Francisco?',
           }),
-        }
+        })
       );
 
       expect(result).toEqual(mockResponse);
@@ -120,13 +119,9 @@ describe('ExecutionFacadeClient', () => {
         body: mockStream,
       } as Response);
 
-      await client.streamAgent(
-        'Weather Agent',
-        { user_message: 'Hello' },
-        (event) => {
-          events.push(event);
-        }
-      );
+      await client.streamAgent('Weather Agent', { user_message: 'Hello' }, event => {
+        events.push(event);
+      });
 
       expect(events).toHaveLength(3);
       expect(events[0].type).toBe('llm_response_start');
@@ -157,17 +152,17 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/workflows/simple/Weather%20Planning%20Workflow/run',
-        {
+        `${config.baseUrl}/execution/workflows/simple/Weather%20Planning%20Workflow/run`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             initial_input: 'What should I wear today?',
           }),
-        }
+        })
       );
 
       expect(result).toEqual(mockResponse);
@@ -191,17 +186,17 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/workflows/custom/DataProcessingWorkflow/run',
-        {
+        `${config.baseUrl}/execution/workflows/custom/DataProcessingWorkflow/run`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             initial_input: { data: [1, 2, 3] },
           }),
-        }
+        })
       );
 
       expect(result).toEqual(mockResponse);

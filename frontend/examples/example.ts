@@ -2,11 +2,27 @@
  * Example usage of the Aurite API Client
  */
 
-import type { StreamEvent } from './src';
-import { createAuriteClient } from './src/AuriteApiClient';
+import type { StreamEvent } from '../src/types';
+import { createAuriteClient } from '../src/client/AuriteApiClient';
+import { getAuriteConfig, getApiClientConfig } from '../src/config/environment';
 
-// Initialize the client
-const client = createAuriteClient('http://localhost:8000', 'your-api-key-here');
+// Debug: Check environment configuration
+const config = getAuriteConfig();
+console.log('Environment configuration:');
+console.log('Environment:', config.environment);
+console.log('Base URL:', config.baseUrl);
+console.log('API Key:', config.apiKey ? '[SET]' : '[NOT SET]');
+console.log('Raw env vars:');
+console.log('AURITE_API_BASE_URL:', process.env.AURITE_API_BASE_URL || '[NOT SET]');
+console.log('AURITE_API_KEY:', process.env.AURITE_API_KEY ? '[SET]' : '[NOT SET]');
+
+// Initialize the client using the new environment configuration
+const clientConfig = getApiClientConfig();
+const client = createAuriteClient(clientConfig.baseUrl, clientConfig.apiKey);
+
+console.log('Client initialized with:');
+console.log('Base URL:', clientConfig.baseUrl);
+console.log('API Key:', clientConfig.apiKey.substring(0, 8) + '...');
 
 // Example 1: Run an agent and get the result
 async function runWeatherAgent() {
@@ -66,9 +82,16 @@ async function runWeatherWorkflow() {
     });
 
     console.log('Workflow Status:', result.status);
-    result.steps.forEach((step) => {
-      console.log(`Step ${step.step_name}: ${step.status}`);
-    });
+    console.log('Final Output:', result.final_output);
+    
+    // Check if steps exist before trying to iterate
+    if (result.steps && Array.isArray(result.steps)) {
+      result.steps.forEach((step) => {
+        console.log(`Step ${step.step_name}: ${step.status}`);
+      });
+    } else {
+      console.log('No steps information available in workflow response');
+    }
   } catch (error) {
     console.error('Error running workflow:', error);
   }

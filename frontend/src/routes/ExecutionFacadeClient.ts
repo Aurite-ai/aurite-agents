@@ -9,7 +9,7 @@
  * All execution happens server-side, with results returned to the client.
  */
 
-import { BaseClient } from '../BaseClient';
+import { BaseClient } from '../client/BaseClient';
 import type {
   AgentRunRequest,
   AgentRunResult,
@@ -127,7 +127,9 @@ export class ExecutionFacadeClient extends BaseClient {
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -212,10 +214,7 @@ export class ExecutionFacadeClient extends BaseClient {
    * );
    * ```
    */
-  async runCustomWorkflow(
-    workflowName: string,
-    request: WorkflowRunRequest
-  ): Promise<any> {
+  async runCustomWorkflow(workflowName: string, request: WorkflowRunRequest): Promise<any> {
     return this.request(
       'POST',
       `/execution/workflows/custom/${encodeURIComponent(workflowName)}/run`,

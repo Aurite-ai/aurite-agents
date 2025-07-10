@@ -9,7 +9,7 @@
  * MCP servers can be local Python scripts or remote HTTP services.
  */
 
-import { BaseClient } from '../BaseClient';
+import { BaseClient } from '../client/BaseClient';
 import type { ServerConfig, ToolCallResult } from '../types';
 
 export class MCPHostClient extends BaseClient {
@@ -48,11 +48,13 @@ export class MCPHostClient extends BaseClient {
    * });
    * ```
    */
-  async listTools(): Promise<Array<{
-    name: string;
-    description?: string;
-    inputSchema: any;
-  }>> {
+  async listTools(): Promise<
+    Array<{
+      name: string;
+      description?: string;
+      inputSchema: any;
+    }>
+  > {
     return this.request('GET', '/host/tools');
   }
 

@@ -5,11 +5,11 @@
  * Usage: npx tsx test-integration.ts
  */
 
-import { createAuriteClient } from './src';
+import { createAuriteClient } from '../../src';
 
 // Configuration - update these values as needed
-const API_URL = 'http://localhost:8000';
-const API_KEY = process.env.API_KEY || 'your-api-key-here';
+const API_URL = process.env.AURITE_API_BASE_URL || 'http://localhost:8000';
+const API_KEY = process.env.AURITE_API_KEY || 'your_test_key';
 
 async function runIntegrationTests() {
   console.log('🚀 Starting Aurite API Client Integration Tests');
@@ -130,7 +130,7 @@ async function runIntegrationTests() {
       await client.execution.streamAgent(
         'Weather Agent',
         { user_message: 'Tell me about the weather in Tokyo' },
-        (event) => {
+        event => {
           if (event.type === 'llm_response') {
             process.stdout.write(event.data.content);
           } else if (event.type === 'llm_response_stop') {
@@ -143,7 +143,6 @@ async function runIntegrationTests() {
     }
 
     console.log('✅ All integration tests completed successfully!');
-
   } catch (error) {
     console.error('❌ Integration test failed:', error);
     if (error instanceof Error) {

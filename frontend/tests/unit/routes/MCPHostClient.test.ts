@@ -3,15 +3,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MCPHostClient } from './MCPHostClient';
-import type { ApiConfig, ServerConfig } from '../types';
+import { MCPHostClient } from '../../../src/routes/MCPHostClient';
+import type { ApiConfig, ServerConfig } from '../../../src/types';
 
 describe('MCPHostClient', () => {
   let client: MCPHostClient;
   const mockFetch = vi.fn();
   const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
+    baseUrl: process.env.AURITE_API_BASE_URL || 'http://localhost:8000',
+    apiKey: process.env.AURITE_API_KEY || 'test-api-key',
   };
 
   beforeEach(() => {
@@ -30,15 +30,14 @@ describe('MCPHostClient', () => {
       const result = await client.getStatus();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/status',
-        {
+        `${config.baseUrl}/host/status`,
+        expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ status: 'active', tool_count: 5 });
@@ -78,15 +77,14 @@ describe('MCPHostClient', () => {
       const tools = await client.listTools();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/tools',
-        {
+        `${config.baseUrl}/host/tools`,
+        expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(tools).toEqual(mockTools);
@@ -103,15 +101,14 @@ describe('MCPHostClient', () => {
       const result = await client.registerServerByName('weather_server');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/register/weather_server',
-        {
+        `${config.baseUrl}/host/register/weather_server`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ status: 'registered', name: 'weather_server' });
@@ -124,9 +121,9 @@ describe('MCPHostClient', () => {
         json: async () => ({ detail: 'Server configuration not found' }),
       } as Response);
 
-      await expect(
-        client.registerServerByName('unknown_server')
-      ).rejects.toThrow('Server configuration not found');
+      await expect(client.registerServerByName('unknown_server')).rejects.toThrow(
+        'Server configuration not found'
+      );
     });
   });
 
@@ -148,15 +145,15 @@ describe('MCPHostClient', () => {
       const result = await client.registerServerByConfig(serverConfig);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/register/config',
-        {
+        `${config.baseUrl}/host/register/config`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(serverConfig),
-        }
+        })
       );
 
       expect(result).toEqual({ status: 'registered', name: 'custom_server' });
@@ -173,15 +170,14 @@ describe('MCPHostClient', () => {
       const result = await client.unregisterServer('weather_server');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/servers/weather_server',
-        {
+        `${config.baseUrl}/host/servers/weather_server`,
+        expect.objectContaining({
           method: 'DELETE',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ status: 'unregistered', name: 'weather_server' });
@@ -209,17 +205,17 @@ describe('MCPHostClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/host/tools/weather_lookup/call',
-        {
+        `${config.baseUrl}/host/tools/weather_lookup/call`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             args: { location: 'San Francisco' },
           }),
-        }
+        })
       );
 
       expect(result).toEqual(mockResult);
@@ -232,9 +228,9 @@ describe('MCPHostClient', () => {
         json: async () => ({ detail: 'Tool not found' }),
       } as Response);
 
-      await expect(
-        client.callTool('unknown_tool', { arg: 'value' })
-      ).rejects.toThrow('Tool not found');
+      await expect(client.callTool('unknown_tool', { arg: 'value' })).rejects.toThrow(
+        'Tool not found'
+      );
     });
   });
 });

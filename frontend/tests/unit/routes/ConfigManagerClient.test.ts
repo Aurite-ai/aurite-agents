@@ -3,15 +3,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConfigManagerClient } from './ConfigManagerClient';
-import type { ApiConfig } from '../types';
+import { ConfigManagerClient } from '../../../src/routes/ConfigManagerClient';
+import type { ApiConfig } from '../../../src/types';
 
 describe('ConfigManagerClient', () => {
   let client: ConfigManagerClient;
   const mockFetch = vi.fn();
   const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
+    baseUrl: process.env.AURITE_API_BASE_URL || 'http://localhost:8000',
+    apiKey: process.env.AURITE_API_KEY || 'test-api-key',
   };
 
   beforeEach(() => {
@@ -32,15 +32,14 @@ describe('ConfigManagerClient', () => {
       const agents = await client.listConfigs('agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent',
-        {
+        `${config.baseUrl}/config/agent`,
+        expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(agents).toEqual(mockAgents);
@@ -53,9 +52,7 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Invalid config type' }),
       } as Response);
 
-      await expect(
-        client.listConfigs('invalid_type')
-      ).rejects.toThrow('Invalid config type');
+      await expect(client.listConfigs('invalid_type')).rejects.toThrow('Invalid config type');
     });
   });
 
@@ -75,21 +72,20 @@ describe('ConfigManagerClient', () => {
         json: async () => mockAgentConfig,
       } as Response);
 
-      const config = await client.getConfig('agent', 'Weather Agent');
+      const result = await client.getConfig('agent', 'Weather Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Weather%20Agent',
-        {
+        `${config.baseUrl}/config/agent/Weather%20Agent`,
+        expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
-      expect(config).toEqual(mockAgentConfig);
+      expect(result).toEqual(mockAgentConfig);
     });
 
     it('should handle config not found', async () => {
@@ -99,9 +95,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration not found' }),
       } as Response);
 
-      await expect(
-        client.getConfig('agent', 'NonExistent Agent')
-      ).rejects.toThrow('Configuration not found');
+      await expect(client.getConfig('agent', 'NonExistent Agent')).rejects.toThrow(
+        'Configuration not found'
+      );
     });
   });
 
@@ -124,15 +120,15 @@ describe('ConfigManagerClient', () => {
       const result = await client.createConfig('agent', newAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent',
-        {
+        `${config.baseUrl}/config/agent`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(newAgent),
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configuration created successfully' });
@@ -145,9 +141,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration with this name already exists' }),
       } as Response);
 
-      await expect(
-        client.createConfig('agent', { name: 'Existing Agent' })
-      ).rejects.toThrow('Configuration with this name already exists');
+      await expect(client.createConfig('agent', { name: 'Existing Agent' })).rejects.toThrow(
+        'Configuration with this name already exists'
+      );
     });
   });
 
@@ -170,15 +166,15 @@ describe('ConfigManagerClient', () => {
       const result = await client.updateConfig('agent', 'Weather Agent', updatedAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Weather%20Agent',
-        {
+        `${config.baseUrl}/config/agent/Weather%20Agent`,
+        expect.objectContaining({
           method: 'PUT',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(updatedAgent),
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configuration updated successfully' });
@@ -195,15 +191,14 @@ describe('ConfigManagerClient', () => {
       const result = await client.deleteConfig('agent', 'Old Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/agent/Old%20Agent',
-        {
+        `${config.baseUrl}/config/agent/Old%20Agent`,
+        expect.objectContaining({
           method: 'DELETE',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configuration deleted successfully' });
@@ -216,9 +211,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration not found' }),
       } as Response);
 
-      await expect(
-        client.deleteConfig('agent', 'NonExistent Agent')
-      ).rejects.toThrow('Configuration not found');
+      await expect(client.deleteConfig('agent', 'NonExistent Agent')).rejects.toThrow(
+        'Configuration not found'
+      );
     });
   });
 
@@ -232,15 +227,14 @@ describe('ConfigManagerClient', () => {
       const result = await client.reloadConfigs();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/reload',
-        {
+        `${config.baseUrl}/config/reload`,
+        expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
-          body: undefined,
-        }
+        })
       );
 
       expect(result).toEqual({ message: 'Configurations reloaded successfully' });
