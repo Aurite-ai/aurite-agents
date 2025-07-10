@@ -57,6 +57,10 @@ class ExecutionFacade:
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
+    def set_config_manager(self, config_manager: "ConfigManager"):
+        """Updates the ConfigManager instance used by the facade."""
+        self._config_manager = config_manager
+
     # --- Private Helper Methods ---
 
     async def _prepare_agent_for_run(
@@ -134,7 +138,7 @@ class ExecutionFacade:
             existing_history = self._cache_manager.get_history(session_id) or []
             # Add only the current user message to the existing history
             updated_history = existing_history + [current_user_message]
-            self._cache_manager.save_history(session_id, updated_history)
+            self._cache_manager.save_history(session_id, updated_history, agent_name)
 
         if system_prompt_override:
             if agent_config_for_run.llm is None:
@@ -195,9 +199,9 @@ class ExecutionFacade:
                             exc_info=True,
                         )
                 elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, agent_instance.conversation_history)
+                    self._cache_manager.save_history(session_id, agent_instance.conversation_history, agent_name)
                     logger.info(
-                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to in-memory cache."
+                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
 
             # Don't unregister servers - keep them available for future use
@@ -238,20 +242,26 @@ class ExecutionFacade:
             )
 
             # Save history regardless of the outcome, as it's valuable for debugging.
-            if agent_instance and agent_instance.config.include_history and self._storage_manager and session_id:
-                try:
-                    self._storage_manager.save_full_history(
-                        agent_name=agent_name,
-                        session_id=session_id,
-                        conversation=run_result.conversation_history,
-                    )
+            if agent_instance and agent_instance.config.include_history and session_id:
+                if self._storage_manager:
+                    try:
+                        self._storage_manager.save_full_history(
+                            agent_name=agent_name,
+                            session_id=session_id,
+                            conversation=run_result.conversation_history,
+                        )
+                        logger.info(
+                            f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
+                            exc_info=True,
+                        )
+                elif self._cache_manager:
+                    self._cache_manager.save_history(session_id, run_result.conversation_history, agent_name)
                     logger.info(
-                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
+                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
 
             return run_result
@@ -361,3 +371,89 @@ class ExecutionFacade:
             error_msg = f"Unexpected error getting output type for Custom Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
+
+    # --- History Management Methods ---
+
+    def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get history for a specific session regardless of agent.
+        Delegates to StorageManager if available, otherwise CacheManager.
+        """
+        if self._storage_manager:
+            return self._storage_manager.get_session_history(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.get_history(session_id)
+        else:
+            logger.warning("No storage backend available for session history")
+            return None
+
+    def get_sessions_list(self, agent_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """
+        Get list of sessions with optional filtering by agent.
+        Returns paginated results.
+        """
+
+        if agent_name:
+            # Get sessions for specific agent
+            if self._storage_manager:
+                sessions = self._storage_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
+            elif self._cache_manager:
+                sessions = self._cache_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
+            else:
+                sessions = []
+        else:
+            # Get all sessions - need to aggregate from all agents
+            if self._storage_manager:
+                # For StorageManager, we'd need a new method to get all sessions
+                # For now, return empty as this is not implemented
+                logger.warning("Getting all sessions not yet implemented for StorageManager")
+                sessions = []
+            elif self._cache_manager:
+                # For CacheManager, get all sessions from metadata
+                sessions = []
+                for session_id, metadata in self._cache_manager._metadata_cache.items():
+                    sessions.append({"session_id": session_id, **metadata})
+                # Sort by last_updated descending
+                sessions.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
+            else:
+                sessions = []
+
+        # Apply pagination
+        total = len(sessions)
+        paginated_sessions = sessions[offset : offset + limit] if sessions else []
+
+        return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+
+    def delete_session(self, session_id: str) -> bool:
+        """
+        Delete a specific session's history.
+        Returns True if deleted, False if not found.
+        """
+        if self._storage_manager:
+            return self._storage_manager.delete_session(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.delete_session(session_id)
+        else:
+            logger.warning("No storage backend available for session deletion")
+            return False
+
+    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metadata about a session.
+        """
+        if self._storage_manager:
+            return self._storage_manager.get_session_metadata(session_id)
+        elif self._cache_manager:
+            return self._cache_manager.get_session_metadata(session_id)
+        else:
+            logger.warning("No storage backend available for session metadata")
+            return None
+
+    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
+        """
+        Clean up old sessions based on retention policy.
+        """
+        if self._storage_manager:
+            self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        if self._cache_manager:
+            self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)

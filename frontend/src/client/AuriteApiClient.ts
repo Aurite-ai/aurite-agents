@@ -14,6 +14,7 @@ import type { ApiConfig } from '../types';
 import { ExecutionFacadeClient } from '../routes/ExecutionFacadeClient';
 import { MCPHostClient } from '../routes/MCPHostClient';
 import { ConfigManagerClient } from '../routes/ConfigManagerClient';
+import { SystemClient } from '../routes/SystemClient';
 
 export class AuriteApiClient {
   /**
@@ -46,10 +47,21 @@ export class AuriteApiClient {
    */
   public readonly config: ConfigManagerClient;
 
+  /**
+   * Client for system management
+   *
+   * Use this to:
+   * - Get system information
+   * - Get framework version
+   * - Get system capabilities
+   */
+  public readonly system: SystemClient;
+
   constructor(config: ApiConfig) {
     this.execution = new ExecutionFacadeClient(config);
     this.host = new MCPHostClient(config);
     this.config = new ConfigManagerClient(config);
+    this.system = new SystemClient(config);
   }
 }
 
@@ -94,7 +106,7 @@ export function createAuriteClient(baseUrl: string, apiKey: string): AuriteApiCl
  * ```typescript
  * import { createAuriteClientFromEnv } from '@aurite/api-client';
  *
- * // Uses AURITE_API_BASE_URL and AURITE_API_KEY from environment
+ * // Uses AURITE_API_BASE_URL and API_KEY from environment
  * const client = createAuriteClientFromEnv();
  *
  * // Or with overrides
@@ -103,7 +115,9 @@ export function createAuriteClient(baseUrl: string, apiKey: string): AuriteApiCl
  * });
  * ```
  */
-export async function createAuriteClientFromEnv(overrides?: Partial<ApiConfig>): Promise<AuriteApiClient> {
+export async function createAuriteClientFromEnv(
+  overrides?: Partial<ApiConfig>
+): Promise<AuriteApiClient> {
   // Import here to avoid circular dependencies and ensure environment is loaded
   const { getApiClientConfig } = await import('../config/environment.js');
   const config = getApiClientConfig(overrides);

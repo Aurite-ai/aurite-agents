@@ -1,0 +1,883 @@
+{
+	"info": {
+		"_postman_id": "f8e5f2e8-e2a1-4f5d-b0f2-2e1b1f3b3b2e",
+		"name": "Aurite Config Manager - Files API",
+		"description": "Tests for Configuration Manager file operations and configuration management endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Configuration Sources",
+			"item": [
+				{
+					"name": "List Config Sources",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body is an array\", function () {",
+									"    pm.response.to.be.withBody;",
+									"    pm.response.to.be.json;",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"pm.test(\"Each source has required properties\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.forEach(function(source) {",
+									"        pm.expect(source).to.have.property('path');",
+									"        pm.expect(source).to.have.property('context');",
+									"        pm.expect(['project', 'workspace', 'user']).to.include(source.context);",
+									"    });",
+									"});",
+									"// Store first source name for subsequent tests",
+									"if (pm.response.json().length > 0) {",
+									"    var firstSource = pm.response.json()[0];",
+									"    var sourceName = firstSource.project_name || firstSource.workspace_name || 'user';",
+									"    pm.collectionVariables.set('test_source_name', sourceName);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/sources",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"sources"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "File Operations",
+			"item": [
+				{
+					"name": "List Config Files by Source",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body is an array\", function () {",
+									"    pm.response.to.be.withBody;",
+									"    pm.response.to.be.json;",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"// Store first file path if available",
+									"if (pm.response.json().length > 0) {",
+									"    pm.collectionVariables.set('test_file_path', pm.response.json()[0]);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Config Files (Non-existent Source)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent source\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/non_existent_source",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"non_existent_source"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Content",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response is a string\", function () {",
+									"    var response = pm.response.text();",
+									"    pm.expect(response).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Skip this test if no test file path is available",
+									"if (!pm.collectionVariables.get('test_file_path')) {",
+									"    pm.execution.skipRequest();",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/{{test_file_path}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"{{test_file_path}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Content (Non-existent File)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent file\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/non_existent_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"non_existent_file.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Config File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('created successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"source_name\": \"{{test_source_name}}\",\n    \"relative_path\": \"test_configs/test_file.json\",\n    \"content\": \"{\\n  \\\"name\\\": \\\"Test Config\\\",\\n  \\\"type\\\": \\\"test\\\",\\n  \\\"value\\\": 42\\n}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Config File (Invalid Source)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 for invalid source\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('Failed to create file');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"source_name\": \"invalid_source\",\n    \"relative_path\": \"test.json\",\n    \"content\": \"{}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Config File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('updated successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"{\\n  \\\"name\\\": \\\"Updated Test Config\\\",\\n  \\\"type\\\": \\\"test\\\",\\n  \\\"value\\\": 100,\\n  \\\"updated\\\": true\\n}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/test_configs/test_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"test_configs",
+								"test_file.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Config File (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 for non-existent file\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('Failed to update file');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"{}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/non_existent.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"non_existent.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Updated File Content",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"File content was updated\", function () {",
+									"    var content = pm.response.text();",
+									"    pm.expect(content).to.include('Updated Test Config');",
+									"    pm.expect(content).to.include('updated');",
+									"    pm.expect(content).to.include('true');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/test_configs/test_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"test_configs",
+								"test_file.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Config File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/test_configs/test_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"test_configs",
+								"test_file.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Config File (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 for non-existent file\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('Failed to delete file');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/already_deleted.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"already_deleted.json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify File Deletion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for deleted file\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"File was successfully deleted\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/test_configs/test_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"test_configs",
+								"test_file.json"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Validation",
+			"item": [
+				{
+					"name": "Validate All Components",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 422\", function () {",
+									"    pm.expect([200, 422]).to.include(pm.response.code);",
+									"});",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"All components are valid\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.be.an('array');",
+									"        pm.expect(jsonData).to.have.lengthOf(0);",
+									"    });",
+									"} else if (pm.response.code === 422) {",
+									"    pm.test(\"Validation errors are returned\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.detail).to.be.an('array');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"validate"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Edge Cases",
+			"item": [
+				{
+					"name": "File Path with Special Characters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('created successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"source_name\": \"{{test_source_name}}\",\n    \"relative_path\": \"test-configs/file_with-special.chars (2).json\",\n    \"content\": \"{\\\"test\\\": true}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete File with Special Characters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/test-configs/file_with-special.chars%20(2).json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"test-configs",
+								"file_with-special.chars%20(2).json"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Empty File Content",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Empty file can be created\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('created successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"source_name\": \"{{test_source_name}}\",\n    \"relative_path\": \"empty_file.json\",\n    \"content\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/files",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Empty File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/files/{{test_source_name}}/empty_file.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"files",
+								"{{test_source_name}}",
+								"empty_file.json"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000"
+		},
+		{
+			"key": "api_key",
+			"value": "your-api-key-here"
+		},
+		{
+			"key": "test_source_name",
+			"value": ""
+		},
+		{
+			"key": "test_file_path",
+			"value": ""
+		}
+	]
+}

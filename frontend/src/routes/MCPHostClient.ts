@@ -10,8 +10,14 @@
  */
 
 import { BaseClient } from '../client/BaseClient';
-import type { ServerConfig, ToolCallResult } from '../types';
-
+import type {
+  ServerConfig,
+  ToolCallResult,
+  ServerDetailedStatus,
+  ServerRuntimeInfo,
+  ToolDetails,
+  ServerTestResult,
+} from '../types';
 export class MCPHostClient extends BaseClient {
   /**
    * Get the status of the MCP Host
@@ -27,19 +33,15 @@ export class MCPHostClient extends BaseClient {
    * ```
    */
   async getStatus(): Promise<{ status: string; tool_count: number }> {
-    return this.request('GET', '/host/status');
+    return this.request('GET', '/tools/status');
   }
 
   /**
-   * List all available tools from registered MCP servers
+   * List all available tools from registered MCP servers.
    *
    * Tools are functions that agents can call during conversations.
-   * Each tool has:
-   * - A unique name
-   * - A description of what it does
-   * - An input schema defining required parameters
    *
-   * @returns Array of tool definitions
+   * @returns Array of tool definitions.
    * @example
    * ```typescript
    * const tools = await client.host.listTools();
@@ -48,131 +50,119 @@ export class MCPHostClient extends BaseClient {
    * });
    * ```
    */
-  async listTools(): Promise<
-    Array<{
-      name: string;
-      description?: string;
-      inputSchema: any;
-    }>
-  > {
-    return this.request('GET', '/host/tools');
+  async listTools(): Promise<ToolDetails[]> {
+    return this.request('GET', '/tools/');
   }
 
   /**
-   * Register an MCP server by its configured name
+   * Get detailed information about a specific tool.
    *
-   * This method looks up the server configuration by name and registers it.
-   * The server must be pre-configured in the Aurite configuration files.
-   *
-   * Once registered, the server's tools become available for agents to use.
-   *
-   * @param serverName - Name of the pre-configured server
-   * @returns Registration result with server name
-   * @throws Error if the server configuration is not found
-   *
-   * @example
-   * ```typescript
-   * // Register a weather server (must be configured in Aurite)
-   * await client.host.registerServerByName('weather_server');
-   *
-   * // Now agents can use weather tools
-   * const tools = await client.host.listTools();
-   * // tools now includes weather_lookup, etc.
-   * ```
+   * @param toolName - The name of the tool.
+   * @returns Detailed information about the tool.
    */
-  async registerServerByName(serverName: string): Promise<{ status: string; name: string }> {
-    return this.request('POST', `/host/register/${encodeURIComponent(serverName)}`);
+  async getToolDetails(toolName: string): Promise<ToolDetails> {
+    return this.request('GET', `/tools/${encodeURIComponent(toolName)}`);
   }
 
   /**
-   * Register an MCP server with a custom configuration
+   * Call a tool directly (without going through an agent).
    *
-   * This method allows dynamic server registration without pre-configuration.
-   * Useful for:
-   * - Temporary servers
-   * - Testing new servers
-   * - Dynamic server discovery
+   * This is useful for testing tools, building custom integrations, or debugging.
+   * The tool's server must be registered.
    *
-   * @param config - Complete server configuration
-   * @returns Registration result with server name
-   * @throws Error if registration fails
-   *
-   * @example
-   * ```typescript
-   * // Register a custom local server
-   * await client.host.registerServerByConfig({
-   *   name: 'my_custom_server',
-   *   server_path: '/path/to/server.py',
-   *   transport_type: 'stdio',
-   *   capabilities: ['tools'],
-   *   timeout: 30
-   * });
-   *
-   * // Register an HTTP streaming server
-   * await client.host.registerServerByConfig({
-   *   name: 'remote_server',
-   *   http_endpoint: 'https://api.example.com/mcp',
-   *   transport_type: 'http_stream',
-   *   headers: { 'Authorization': 'Bearer token' }
-   * });
-   * ```
-   */
-  async registerServerByConfig(config: ServerConfig): Promise<{ status: string; name: string }> {
-    return this.request('POST', '/host/register/config', config);
-  }
-
-  /**
-   * Unregister an MCP server
-   *
-   * Removes a server and all its tools from the host.
-   * Any agents currently using the server's tools will receive errors.
-   *
-   * @param serverName - Name of the server to unregister
-   * @returns Unregistration result
-   * @throws Error if the server is not found
-   *
-   * @example
-   * ```typescript
-   * // Clean up when done
-   * await client.host.unregisterServer('weather_server');
-   * ```
-   */
-  async unregisterServer(serverName: string): Promise<{ status: string; name: string }> {
-    return this.request('DELETE', `/host/servers/${encodeURIComponent(serverName)}`);
-  }
-
-  /**
-   * Call a tool directly (without going through an agent)
-   *
-   * This is useful for:
-   * - Testing tools before using them in agents
-   * - Building custom integrations
-   * - Debugging tool behavior
-   *
-   * Note: The tool must be available (its server must be registered).
-   *
-   * @param toolName - Name of the tool to call
-   * @param args - Arguments to pass to the tool
-   * @returns Tool execution result
-   * @throws Error if the tool is not found or execution fails
-   *
-   * @example
-   * ```typescript
-   * // Call a weather lookup tool directly
-   * const result = await client.host.callTool('weather_lookup', {
-   *   location: 'San Francisco'
-   * });
-   *
-   * console.log(result.content[0].text);
-   * // "Weather for San Francisco: Sunny, 72°F..."
-   *
-   * // Call a calculation tool
-   * const calcResult = await client.host.callTool('calculate', {
-   *   expression: '2 + 2'
-   * });
-   * ```
+   * @param toolName - Name of the tool to call.
+   * @param args - Arguments to pass to the tool.
+   * @returns The result of the tool execution.
+   * @throws Error if the tool is not found or execution fails.
    */
   async callTool(toolName: string, args: Record<string, any>): Promise<ToolCallResult> {
-    return this.request('POST', `/host/tools/${encodeURIComponent(toolName)}/call`, { args });
+    return this.request('POST', `/tools/${encodeURIComponent(toolName)}/call`, { args });
+  }
+
+  /**
+   * List all currently registered MCP servers with runtime information.
+   *
+   * @returns An array of server runtime information objects.
+   */
+  async listRegisteredServers(): Promise<ServerRuntimeInfo[]> {
+    return this.request('GET', '/tools/servers');
+  }
+
+  /**
+   * Get detailed runtime status for a specific MCP server.
+   *
+   * @param serverName - The name of the server.
+   * @returns Detailed status information for the server.
+   */
+  async getServerStatus(serverName: string): Promise<ServerDetailedStatus> {
+    return this.request('GET', `/tools/servers/${encodeURIComponent(serverName)}`);
+  }
+
+  /**
+   * List all tools provided by a specific registered server.
+   *
+   * @param serverName - The name of the server.
+   * @returns A list of tools with their full details.
+   */
+  async getServerTools(serverName: string): Promise<ToolDetails[]> {
+    return this.request('GET', `/tools/servers/${encodeURIComponent(serverName)}/tools`);
+  }
+
+  /**
+   * Test an MCP server configuration by temporarily registering it.
+   *
+   * @param serverName - The name of the server configuration to test.
+   * @returns The result of the server test.
+   */
+  async testServer(serverName: string): Promise<ServerTestResult> {
+    return this.request('POST', `/tools/servers/${encodeURIComponent(serverName)}/test`);
+  }
+
+  /**
+   * Register an MCP server by its configured name.
+   *
+   * The server must be pre-configured in the Aurite configuration files.
+   *
+   * @param serverName - Name of the pre-configured server.
+   * @returns Registration result with server name.
+   */
+  async registerServerByName(serverName: string): Promise<{ status: string; name: string }> {
+    return this.request('POST', `/tools/register/${encodeURIComponent(serverName)}`);
+  }
+
+  /**
+   * Register an MCP server with a custom configuration.
+   *
+   * This method allows dynamic server registration without pre-configuration.
+   *
+   * @param config - Complete server configuration.
+   * @returns Registration result with server name.
+   */
+  async registerServerByConfig(config: ServerConfig): Promise<{ status: string; name: string }> {
+    return this.request('POST', '/tools/register/config', config);
+  }
+
+  /**
+   * Unregister an MCP server.
+   *
+   * Removes a server and all its tools from the host.
+   *
+   * @param serverName - Name of the server to unregister.
+   * @returns Unregistration result.
+   */
+  async unregisterServer(serverName: string): Promise<{ status: string; name: string }> {
+    return this.request('DELETE', `/tools/servers/${encodeURIComponent(serverName)}`);
+  }
+
+  /**
+   * Restart a registered MCP server.
+   *
+   * This is a convenience method that unregisters and then re-registers the server.
+   *
+   * @param serverName - The name of the server to restart.
+   * @returns Restart result.
+   */
+  async restartServer(serverName: string): Promise<{ status: string; name: string }> {
+    return this.request('POST', `/tools/servers/${encodeURIComponent(serverName)}/restart`);
   }
 }

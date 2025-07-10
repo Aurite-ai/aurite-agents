@@ -7,7 +7,11 @@
  */
 
 // Main exports
-export { AuriteApiClient, createAuriteClient, createAuriteClientFromEnv } from './client/AuriteApiClient';
+export {
+  AuriteApiClient,
+  createAuriteClient,
+  createAuriteClientFromEnv,
+} from './client/AuriteApiClient';
 
 // Sub-client exports (for advanced usage)
 export { ExecutionFacadeClient } from './routes/ExecutionFacadeClient';

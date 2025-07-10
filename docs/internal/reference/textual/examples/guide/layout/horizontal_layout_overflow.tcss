@@ -1,9 +1,0 @@
-Screen {
-    layout: horizontal;
-    overflow-x: auto;
-}
-
-.box {
-    height: 100%;
-    border: solid green;
-}

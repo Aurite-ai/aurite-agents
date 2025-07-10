@@ -1,0 +1,11 @@
+Given the current weather conditions in San Francisco:
+- Temperature: 18°C
+- Conditions: Foggy
+- Humidity: 85%
+
+Recommended outfit:
+- Wear layers to stay warm, such as a long-sleeved shirt, sweater, and light jacket or windbreaker.
+- Wear closed-toe shoes or boots to keep your feet dry.
+- Bring an umbrella or rain jacket in case the fog turns into light rain.
+- Wear fabrics that wick moisture to stay comfortable in the humid conditions.
+- Avoid wearing shorts or lightweight, breathable fabrics that won't provide enough warmth.

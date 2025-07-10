@@ -41,14 +41,13 @@
     "timeout": 15.0
   },
   {
-    "name": "Weather Agent",
+    "description": "Updated weather agent",
+    "system_prompt": "You are an updated weather assistant",
+    "llm_config_id": "anthropic_claude_3_haiku",
     "mcp_servers": [
       "weather_server"
     ],
-    "description": "An agent that retrieves mock weather data using the weather MCP server. ONLY supports New York, San Francisco, Tokyo, and London.",
-    "system_prompt": "Your job is to use the tool at your disposal to learn the weather forecast needed to answer the user's query. If you are not able to use the tool at your disposal, clearly specify this in your response. DO NOT make up a weather forecast if you cannot use the tool.",
-    "include_history": true,
-    "llm_config_id": "anthropic_claude_3_haiku",
+    "name": "Weather Agent",
     "type": "agent"
   },
   {
@@ -57,7 +56,7 @@
     "mcp_servers": [
       "planning_server"
     ],
-    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
+    "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the provided weather data.",
     "llm_config_id": "anthropic_claude_3_haiku",
     "description": "An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan."
   },

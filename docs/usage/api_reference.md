@@ -38,6 +38,8 @@ The API is structured around four main paths, each corresponding to a core manag
 
 Handles all configuration file operations, component CRUD operations, and project/workspace management.
 
+**📖 For detailed documentation including decision trees and error handling, see [Configuration Manager Routes](./routes/config_manager_routes.md)**
+
 ### Component CRUD Operations (Wildcard Approach)
 
 | Method | Endpoint | Description |
@@ -58,56 +60,33 @@ Handles all configuration file operations, component CRUD operations, and projec
 |--------|----------|-------------|
 | GET | `/config/projects` | List all projects in workspace |
 | POST | `/config/projects` | Create new project |
-| GET | `/config/projects/{project_id}` | Get project details |
-| PUT | `/config/projects/{project_id}` | Update project |
-| DELETE | `/config/projects/{project_id}` | Delete project |
-| POST | `/config/projects/{project_id}/activate` | Set as active project |
+| GET | `/config/projects/{name}` | Get project details |
+| PUT | `/config/projects/{name}` | Update project |
+| DELETE | `/config/projects/{name}` | Delete project |
 | GET | `/config/projects/active` | Get currently active project |
 | GET | `/config/workspaces` | List workspaces |
-| POST | `/config/workspaces` | Create new workspace |
-| GET | `/config/workspaces/{workspace_id}` | Get workspace details |
-| PUT | `/config/workspaces/{workspace_id}` | Update workspace |
+| GET | `/config/workspaces/active` | Get the active workspace |
 
 ### Configuration File Operations
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/config/sources` | List all config sources (project, user, packaged) |
-| GET | `/config/files` | List all config files |
 | POST | `/config/files` | Create new config file |
-| GET | `/config/files/{file_path}` | Get config file content |
-| PUT | `/config/files/{file_path}` | Update config file |
-| DELETE | `/config/files/{file_path}` | Delete config file |
+| GET | `/config/files/{source_name}` | List config files by source |
+| GET | `/config/files/{source_name}/{file_path}` | Get config file content |
+| PUT | `/config/files/{source_name}/{file_path}` | Update config file |
+| DELETE | `/config/files/{source_name}/{file_path}` | Delete config file |
 | POST | `/config/refresh` | Force refresh config cache |
 | POST | `/config/validate` | Validate all configurations |
-
-### Configuration Templates
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/config/templates` | List all component templates |
-| GET | `/config/templates/{component_type}` | Get template for component type |
-| POST | `/config/templates/{component_type}` | Create component from template |
 
 ---
 
 ## 2. Tool Management APIs (`/tools`)
 
-Manages MCP servers, tool discovery, and direct host operations. These endpoints are primarily for testing and manual server management, bypassing the JIT configuration registration system.
+Manages runtime operations for MCP servers, tool discovery, and execution. These endpoints work with servers that are actively registered with the MCPHost instance.
 
-### MCP Server Management
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/tools/servers` | List all MCP server configs |
-| POST | `/tools/servers` | Create new MCP server config |
-| GET | `/tools/servers/{server_id}` | Get server config details |
-| PUT | `/tools/servers/{server_id}` | Update server config |
-| DELETE | `/tools/servers/{server_id}` | Delete server config |
-| POST | `/tools/servers/{server_id}/register` | Register server with host |
-| DELETE | `/tools/servers/{server_id}/unregister` | Unregister server from host |
-| POST | `/tools/servers/{server_id}/test` | Test server connection |
-| GET | `/tools/servers/{server_id}/status` | Get server runtime status |
+**Note:** For MCP server configuration management (create, update, delete configs), use `/config/components/mcp_servers/*` endpoints.
 
 ### Tool Discovery & Execution
 
@@ -116,16 +95,30 @@ Manages MCP servers, tool discovery, and direct host operations. These endpoints
 | GET | `/tools` | List all available tools from registered servers |
 | GET | `/tools/{tool_name}` | Get tool details |
 | POST | `/tools/{tool_name}/call` | Execute specific tool |
-| GET | `/tools/servers/{server_id}/tools` | List tools from specific server |
 
-### Host Management
+### Runtime Server Management
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/tools/host/status` | Get MCPHost status |
-| GET | `/tools/host/registered` | List currently registered servers |
-| POST | `/tools/host/register/config` | Register server by config object |
-| POST | `/tools/host/register/{server_name}` | Register server by name from config |
+| GET | `/tools/servers` | List currently registered servers (runtime) |
+| GET | `/tools/servers/{server_name}` | Get runtime status of registered server |
+| POST | `/tools/servers/{server_name}/restart` | Restart a registered server |
+| GET | `/tools/servers/{server_name}/tools` | List tools from specific server |
+| POST | `/tools/servers/{server_name}/test` | Test server connection |
+
+### Server Registration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/tools/register/config` | Register server by config object |
+| POST | `/tools/register/{server_name}` | Register server by name from config |
+| DELETE | `/tools/servers/{server_name}` | Unregister server from host |
+
+### Host Status
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tools/status` | Get MCPHost status |
 
 ---
 
@@ -157,12 +150,11 @@ Handles agent and workflow execution, execution history, and monitoring.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/execution/history` | List all executions (paginated) |
-| GET | `/execution/history/{execution_id}` | Get execution details |
-| DELETE | `/execution/history/{execution_id}` | Delete execution record |
-| POST | `/execution/history/cleanup` | Clean up old execution records |
-| GET | `/execution/active` | List active executions |
-| POST | `/execution/{execution_id}/cancel` | Cancel running execution |
+| GET | `/execution/history` | List all sessions (paginated) |
+| GET | `/execution/history/{session_id}` | Get session conversation history |
+| DELETE | `/execution/history/{session_id}` | Delete session |
+| POST | `/execution/history/cleanup` | Clean up old sessions (30 days/50 sessions) |
+| GET | `/execution/agents/{agent_name}/history` | Get agent-specific sessions |
 
 ### Facade Status
 

@@ -6,12 +6,13 @@ for persisting configurations and agent history.
 
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Type, TypeVar
 
 # Assuming models are accessible from here
 from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
-from sqlalchemy import delete  # Import delete
+from sqlalchemy import delete, func  # Import delete and func
 from sqlalchemy.engine import Engine  # Import Engine for type hint
 
 from ..config.config_models import (
@@ -224,7 +225,7 @@ class StorageManager:
                     self._sync_config(db, LLMConfigDB, config, pk_field="llm_id")
                 except Exception as e:
                     logger.error(
-                        f"Failed to sync LLMConfig '{config.llm_id}': {e}",
+                        f"Failed to sync LLMConfig '{config.name}': {e}",
                         exc_info=True,
                     )
 
@@ -458,3 +459,240 @@ class StorageManager:
                     # Rollback happens automatically via context manager
             else:
                 logger.error("Failed to get DB session for saving history.")
+
+    def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get history for a specific session regardless of agent.
+        Returns history in the format expected by Anthropic API messages.
+        """
+        if not self._engine:
+            return None
+
+        logger.debug(f"Getting history for session '{session_id}'")
+        history_params: List[Dict[str, Any]] = []
+
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    # Query by session_id only, ordered by timestamp
+                    history_records = (
+                        db.query(AgentHistoryDB)
+                        .filter(AgentHistoryDB.session_id == session_id)
+                        .order_by(AgentHistoryDB.timestamp.asc())
+                        .all()
+                    )
+
+                    # Convert to Anthropic format
+                    for record in history_records:
+                        content_data = record.content_json
+                        parsed_content = None
+
+                        if isinstance(content_data, str):
+                            try:
+                                parsed_content = json.loads(content_data)
+                            except json.JSONDecodeError:
+                                parsed_content = [{"type": "text", "text": content_data}]
+                        elif content_data is None:
+                            parsed_content = [{"type": "text", "text": "[Missing content]"}]
+                        else:
+                            parsed_content = content_data
+
+                        history_params.append(
+                            {
+                                "role": record.role,
+                                "content": parsed_content,
+                            }
+                        )
+
+                    return history_params if history_params else None
+
+                except Exception as e:
+                    logger.error(f"Failed to get session history for '{session_id}': {e}", exc_info=True)
+                    return None
+            else:
+                logger.error("Failed to get DB session for session history.")
+                return None
+
+    def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        List all sessions for a specific agent with metadata.
+        Applies retention policy during retrieval.
+        """
+        if not self._engine:
+            return []
+
+        logger.debug(f"Getting sessions for agent '{agent_name}' (limit: {limit})")
+        sessions = []
+
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    # First, apply retention policy
+                    self.cleanup_old_sessions()
+
+                    # Get distinct sessions with metadata
+                    session_data = (
+                        db.query(
+                            AgentHistoryDB.session_id,
+                            func.min(AgentHistoryDB.timestamp).label("created_at"),
+                            func.max(AgentHistoryDB.timestamp).label("last_updated"),
+                            func.count(AgentHistoryDB.id).label("message_count"),
+                        )
+                        .filter(AgentHistoryDB.agent_name == agent_name)
+                        .group_by(AgentHistoryDB.session_id)
+                        .order_by(func.max(AgentHistoryDB.timestamp).desc())
+                        .limit(limit)
+                        .all()
+                    )
+
+                    for row in session_data:
+                        sessions.append(
+                            {
+                                "session_id": row.session_id,
+                                "agent_name": agent_name,
+                                "created_at": row.created_at.isoformat() if row.created_at else None,
+                                "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+                                "message_count": row.message_count,
+                            }
+                        )
+
+                    return sessions
+
+                except Exception as e:
+                    logger.error(f"Failed to get sessions for agent '{agent_name}': {e}", exc_info=True)
+                    return []
+            else:
+                logger.error("Failed to get DB session for agent sessions.")
+                return []
+
+    def delete_session(self, session_id: str) -> bool:
+        """
+        Delete a specific session's history.
+        Returns True if any records were deleted, False otherwise.
+        """
+        if not self._engine:
+            return False
+
+        logger.debug(f"Deleting session '{session_id}'")
+
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    # Delete all history records for this session
+                    delete_stmt = delete(AgentHistoryDB).where(AgentHistoryDB.session_id == session_id)
+                    result = db.execute(delete_stmt)
+                    deleted_count = result.rowcount
+
+                    if deleted_count > 0:
+                        logger.info(f"Deleted {deleted_count} history records for session '{session_id}'")
+                        return True
+                    else:
+                        logger.debug(f"No records found for session '{session_id}'")
+                        return False
+
+                except Exception as e:
+                    logger.error(f"Failed to delete session '{session_id}': {e}", exc_info=True)
+                    return False
+            else:
+                logger.error("Failed to get DB session for session deletion.")
+                return False
+
+    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metadata about a session including timestamps and message count.
+        """
+        if not self._engine:
+            return None
+
+        logger.debug(f"Getting metadata for session '{session_id}'")
+
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    # Get session metadata
+                    metadata = (
+                        db.query(
+                            AgentHistoryDB.agent_name,
+                            func.min(AgentHistoryDB.timestamp).label("created_at"),
+                            func.max(AgentHistoryDB.timestamp).label("last_updated"),
+                            func.count(AgentHistoryDB.id).label("message_count"),
+                        )
+                        .filter(AgentHistoryDB.session_id == session_id)
+                        .group_by(AgentHistoryDB.agent_name)
+                        .first()
+                    )
+
+                    if metadata:
+                        return {
+                            "session_id": session_id,
+                            "agent_name": metadata.agent_name,
+                            "created_at": metadata.created_at.isoformat() if metadata.created_at else None,
+                            "last_updated": metadata.last_updated.isoformat() if metadata.last_updated else None,
+                            "message_count": metadata.message_count,
+                        }
+                    else:
+                        return None
+
+                except Exception as e:
+                    logger.error(f"Failed to get metadata for session '{session_id}': {e}", exc_info=True)
+                    return None
+            else:
+                logger.error("Failed to get DB session for session metadata.")
+                return None
+
+    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
+        """
+        Clean up old sessions based on retention policy.
+        Deletes sessions older than specified days and keeps only the most recent max_sessions.
+        """
+        if not self._engine:
+            return
+
+        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
+
+        with get_db_session(engine=self._engine) as db:
+            if db:
+                try:
+                    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+                    # First, delete sessions older than cutoff date
+                    old_sessions = (
+                        db.query(AgentHistoryDB.session_id)
+                        .filter(AgentHistoryDB.timestamp < cutoff_date)
+                        .distinct()
+                        .all()
+                    )
+
+                    for session in old_sessions:
+                        delete_stmt = delete(AgentHistoryDB).where(AgentHistoryDB.session_id == session.session_id)
+                        db.execute(delete_stmt)
+
+                    if old_sessions:
+                        logger.info(f"Deleted {len(old_sessions)} sessions older than {days} days")
+
+                    # Then, check if we have too many sessions
+                    session_count = db.query(func.count(func.distinct(AgentHistoryDB.session_id))).scalar()
+
+                    if session_count > max_sessions:
+                        # Get sessions to keep (most recent)
+                        sessions_to_keep = (
+                            db.query(
+                                AgentHistoryDB.session_id, func.max(AgentHistoryDB.timestamp).label("last_updated")
+                            )
+                            .group_by(AgentHistoryDB.session_id)
+                            .order_by(func.max(AgentHistoryDB.timestamp).desc())
+                            .limit(max_sessions)
+                            .subquery()
+                        )
+
+                        # Delete sessions not in the keep list
+                        delete_stmt = delete(AgentHistoryDB).where(
+                            ~AgentHistoryDB.session_id.in_(db.query(sessions_to_keep.c.session_id))
+                        )
+                        result = db.execute(delete_stmt)
+
+                        if result.rowcount > 0:
+                            logger.info(f"Deleted {result.rowcount} records to maintain {max_sessions} session limit")
+
+                except Exception as e:
+                    logger.error(f"Failed to cleanup old sessions: {e}", exc_info=True)

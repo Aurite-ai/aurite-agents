@@ -1,0 +1,4 @@
+[aurite]
+type = "workspace"
+projects = ["./project_alpha", "./project_bravo"]
+include_configs=["./shared_configs"]

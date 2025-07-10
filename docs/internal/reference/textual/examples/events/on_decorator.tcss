@@ -1,8 +1,0 @@
-Screen {
-    align: center middle;
-    layout: horizontal;
-}
-
-Button {
-    margin: 2 4;
-}

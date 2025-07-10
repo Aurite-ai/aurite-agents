@@ -37,7 +37,7 @@
   },
   "include": [
     "src/**/*.ts"
-  ],
+, "tests/unit/client/ConfigManagerClient.test.ts", "tests/unit/client/ExecutionFacadeClient.test.ts", "tests/unit/client/MCPHostClient.test.ts"  ],
   "exclude": [
     "node_modules",
     "dist",

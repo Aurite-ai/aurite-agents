@@ -1,0 +1,473 @@
+{
+  "info": {
+    "_postman_id": "config-manager-projects-collection",
+    "name": "Config Manager - Projects & Workspaces",
+    "description": "Tests for project and workspace management endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Workspace Operations",
+      "item": [
+        {
+          "name": "List Workspaces",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Workspace has required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.length > 0) {",
+                  "        const workspace = jsonData[0];",
+                  "        pm.expect(workspace).to.have.property('name');",
+                  "        pm.expect(workspace).to.have.property('path');",
+                  "        pm.expect(workspace).to.have.property('projects');",
+                  "        pm.expect(workspace).to.have.property('include_configs');",
+                  "        pm.expect(workspace).to.have.property('is_active');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/workspaces",
+              "host": ["{{base_url}}"],
+              "path": ["config", "workspaces"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Workspace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is workspace object or null\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData !== null) {",
+                  "        pm.expect(jsonData).to.have.property('name');",
+                  "        pm.expect(jsonData).to.have.property('path');",
+                  "        pm.expect(jsonData).to.have.property('is_active', true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/workspaces/active",
+              "host": ["{{base_url}}"],
+              "path": ["config", "workspaces", "active"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Project Operations",
+      "item": [
+        {
+          "name": "List Projects",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Projects have required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    jsonData.forEach(project => {",
+                  "        pm.expect(project).to.have.property('name');",
+                  "        pm.expect(project).to.have.property('path');",
+                  "        pm.expect(project).to.have.property('is_active');",
+                  "        pm.expect(project).to.have.property('include_configs');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects"]
+            }
+          }
+        },
+        {
+          "name": "Create Project",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate a unique project name",
+                  "const timestamp = new Date().getTime();",
+                  "pm.environment.set(\"test_project_name\", `test-project-${timestamp}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('created successfully');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"{{test_project_name}}\",\n    \"description\": \"Test project created by Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/config/projects",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is project object or null\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData !== null) {",
+                  "        pm.expect(jsonData).to.have.property('name');",
+                  "        pm.expect(jsonData).to.have.property('path');",
+                  "        pm.expect(jsonData).to.have.property('is_active', true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects/active",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "active"]
+            }
+          }
+        },
+        {
+          "name": "Get Specific Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Project has all required fields\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name', pm.environment.get('test_project_name'));",
+                  "    pm.expect(jsonData).to.have.property('path');",
+                  "    pm.expect(jsonData).to.have.property('is_active');",
+                  "    pm.expect(jsonData).to.have.property('include_configs');",
+                  "    pm.expect(jsonData).to.have.property('description', 'Test project created by Postman');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects/{{test_project_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "{{test_project_name}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('updated successfully');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Updated test project description\",\n    \"include_configs\": [\"config\", \"additional_config\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/config/projects/{{test_project_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "{{test_project_name}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('deleted successfully');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects/{{test_project_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "{{test_project_name}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Create Project - Invalid Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about invalid name\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"invalid project name!\",\n    \"description\": \"This should fail\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/config/projects",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects"]
+            }
+          }
+        },
+        {
+          "name": "Get Non-existent Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about project not found\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "    pm.expect(jsonData.detail).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects/non-existent-project",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "non-existent-project"]
+            }
+          }
+        },
+        {
+          "name": "Attempt to delete project with same name as workspace",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\"workspace_name_as_project\", \"framework\");"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 500\", function () {",
+                  "    pm.response.to.have.status(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message about project not existing\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('detail');",
+                  "    pm.expect(jsonData.detail.toLowerCase()).to.include('does not exist');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/config/projects/{{workspace_name_as_project}}",
+              "host": ["{{base_url}}"],
+              "path": ["config", "projects", "{{workspace_name_as_project}}"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "test-api-key",
+      "type": "string"
+    }
+  ]
+}

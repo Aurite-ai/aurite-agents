@@ -16,8 +16,10 @@ frontend/examples/
 ├── mcp-host/                   # MCP server and tool management
 │   ├── server-management.ts   # Register/unregister servers
 │   └── tool-execution.ts      # Direct tool calls and analysis
-└── config/                     # Configuration management
-    └── config-listing.ts      # List and explore configurations
+├── config/                     # Configuration management
+│   └── config-listing.ts      # List and explore configurations
+└── system/                     # System and environment examples
+    └── environment-demo.ts    # Environment configuration demo
 ```
 
 ## 🚀 Quick Start
@@ -46,6 +48,7 @@ npx tsx examples/execution/agent-basic.ts
 npx tsx examples/execution/agent-streaming.ts
 npx tsx examples/mcp-host/server-management.ts
 npx tsx examples/config/config-listing.ts
+npx tsx examples/system/environment-demo.ts
 ```
 
 ## 📚 Example Categories
@@ -148,6 +151,21 @@ These examples demonstrate configuration management:
 - ✅ Statistical summaries
 - ✅ Comprehensive error handling
 
+### 🔬 System Examples (`system/`)
+
+These examples demonstrate system-level interactions and environment configuration:
+
+#### **environment-demo.ts** - Environment Configuration
+- Demonstrates how to load and access environment variables
+- Shows how to create clients with default and overridden configurations
+- Provides a clear pattern for managing environment-specific settings
+
+**Key Features:**
+- ✅ Automatic `.env` file loading
+- ✅ Type-safe configuration access
+- ✅ Environment-aware defaults
+- ✅ Easy configuration overrides
+
 ## 🛠️ Shared Utilities (`shared/`)
 
 ### **client-setup.ts** - Common Setup
@@ -168,13 +186,13 @@ import { createExampleClient, runExample, handleExampleError } from '../shared/c
 
 async function myExample() {
   const client = createExampleClient();
-  
+
   try {
     // Your API calls here
     const result = await client.execution.runAgent('Weather Agent', {
       user_message: 'What is the weather?'
     });
-    
+
     console.log('Result:', result);
   } catch (error) {
     handleExampleError(error, 'My Example');

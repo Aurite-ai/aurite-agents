@@ -25,12 +25,13 @@ An in-depth look at the features each component offers through json configuratio
 *   **[[components/custom_workflow.md|Custom Workflow Configs]]**
 
 ### 3. Framework Architecture
-*   **[[layers/framework_overview.md|Framework Overview]]**: A diagram of the overall architecture, design principles, and how different parts of the framework interact.
+*   **[[architecture/overview.md|Framework Overview]]**: A diagram of the overall architecture, design principles, and how different parts of the framework interact.
 *   **Framework Layers**: Understand the specific responsibilities of each architectural layer.
-    *   **[[layers/0_frontends.md|Layer 0: Frontend Developer UI]]** Developer UI extension built off the API.
-    *   **[[layers/1_entrypoints.md|Layer 1: Entrypoints]]**: Covers the API, CLI, and Worker entrypoints.
-    *   **[[layers/2_orchestration.md|Layer 2: Orchestration]]**: Details the `Aurite` (HostManager) and `ExecutionFacade`.
-    *   **[[layers/3_host.md|Layer 3: Host Infrastructure]]**: Explains the `MCPHost` system for managing MCP server connections.
+    *   **[[architecture/layers/0_frontends.md|Layer 0: Frontend Developer UI]]**
+    *   **[[architecture/layers/1_entrypoints.md|Layer 1: Entrypoints]]**
+    *   **[[architecture/layers/2_orchestration.md|Layer 2: Orchestration & Configuration]]**
+    *   **[[architecture/layers/2.5_execution.md|Layer 2.5: Execution]]**
+    *   **[[architecture/layers/3_host.md|Layer 3: Host Infrastructure]]**
 
 
 ---

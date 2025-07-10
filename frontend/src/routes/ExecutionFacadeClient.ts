@@ -101,6 +101,7 @@ export class ExecutionFacadeClient extends BaseClient {
   async streamAgent(
     agentName: string,
     request: AgentRunRequest,
+    // eslint-disable-next-line no-unused-vars
     onEvent: (event: StreamEvent) => void
   ): Promise<void> {
     const url = `${this.config.baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`;
@@ -125,6 +126,7 @@ export class ExecutionFacadeClient extends BaseClient {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
@@ -220,5 +222,54 @@ export class ExecutionFacadeClient extends BaseClient {
       `/execution/workflows/custom/${encodeURIComponent(workflowName)}/run`,
       request
     );
+  }
+
+  async testAgent(agentName: string): Promise<{ status: string }> {
+    return this.request('POST', `/execution/agents/${encodeURIComponent(agentName)}/test`);
+  }
+
+  async testSimpleWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/simple/${encodeURIComponent(workflowName)}/test`
+    );
+  }
+
+  async testCustomWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/custom/${encodeURIComponent(workflowName)}/test`
+    );
+  }
+
+  async validateCustomWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/custom/${encodeURIComponent(workflowName)}/validate`
+    );
+  }
+
+  async getAgentHistory(agentName: string): Promise<any> {
+    return this.request('GET', `/execution/agents/${encodeURIComponent(agentName)}/history`);
+  }
+
+  async getWorkflowHistory(workflowName: string): Promise<any> {
+    return this.request('GET', `/execution/workflows/${encodeURIComponent(workflowName)}/history`);
+  }
+
+  async getAllHistory(): Promise<any> {
+    return this.request('GET', '/execution/history');
+  }
+
+  async getHistoryBySessionId(sessionId: string): Promise<any> {
+    return this.request('GET', `/execution/history/${sessionId}`);
+  }
+
+  async deleteHistoryBySessionId(sessionId: string): Promise<any> {
+    return this.request('DELETE', `/execution/history/${sessionId}`);
+  }
+
+  async cleanupHistory(): Promise<any> {
+    return this.request('POST', '/execution/history/cleanup');
   }
 }

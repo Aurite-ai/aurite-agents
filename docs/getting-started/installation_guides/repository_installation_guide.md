@@ -6,12 +6,11 @@ For installing Aurite as a Python package to use in your own projects, please se
 
 ## Prerequisites
 
-*   Python >= 3.12 (if running locally without Docker for all services)
-*   `pip` (Python package installer)
-*   Node.js (LTS version recommended, for frontend development if run locally without Docker)
-*   Yarn (Package manager for frontend, if run locally without Docker)
+*   Python >= 3.12
+*   [Poetry](https://python-poetry.org/docs/#installation) (Python package and dependency manager)
+*   Node.js (LTS version recommended, for frontend development)
 *   Docker & Docker Compose (for the quickstart script and containerized setup)
-*   `redis-server` (Required if you plan to use the asynchronous task worker, whether locally or if you add it to Docker Compose)
+*   `redis-server` (Required if you plan to use the asynchronous task worker)
 
 ### Installation
 
@@ -51,7 +50,7 @@ The fastest way to get the entire Aurite Agents environment (Backend API, Fronte
 
 If you prefer to manage your `.env` file manually or if the setup scripts encounter issues, you can still use Docker Compose:
 
-1.  **Create/Configure `.env` File:** Ensure you have a valid `.env` file in the project root. You can copy `.env.example` to `.env` and fill in the necessary values (especially `ANTHROPIC_API_KEY`, `API_KEY`, and `PROJECT_CONFIG_PATH`).
+1.  **Create/Configure `.env` File:** Ensure you have a valid `.env` file in the project root. You can copy `.env.example` to `.env` and fill in the necessary values (especially `ANTHROPIC_API_KEY` and `API_KEY`).
 2.  **Run Docker Compose:**
     ```bash
     docker compose up --build
@@ -62,18 +61,21 @@ If you prefer to manage your `.env` file manually or if the setup scripts encoun
 
 If you prefer to set up and run components manually or without Docker for all services:
 
-1.  **Create and Activate a Virtual Environment (Recommended):**
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-    ```
+1.  **Install Python Dependencies:**
+    This project uses [Poetry](https://python-poetry.org/) for dependency management. First, ensure you have Poetry installed.
 
-2.  **Install Dependencies:**
-    The project uses `pyproject.toml` for dependency management. Install the framework and its dependencies (the `[dev]` is for dev dependencies like pytest) in editable mode:
+    From the project root, run the following command to install all required dependencies, including those for development:
     ```bash
-    pip install -e .[dev]
+    poetry install --with dev
     ```
-    This command allows you to make changes to the source code and have them immediately reflected without needing to reinstall.
+    This command reads the `pyproject.toml` file, resolves the dependencies, and installs them into a dedicated virtual environment managed by Poetry.
+
+2.  **Activate the Virtual Environment:**
+    To activate the virtual environment and use the installed packages, run:
+    ```bash
+    poetry shell
+    ```
+    All subsequent commands in this guide should be run inside this Poetry shell.
 
 3.  **Environment Variables Setup:**
     Before running the system, you need to set up your environment variables.
@@ -92,10 +94,8 @@ If you prefer to set up and run components manually or without Docker for all se
         *   `OPENAI_API_KEY=your_openai_api_key`
         *   *(Add other provider keys as needed, e.g., `GEMINI_API_KEY`)*
         Only one key is strictly necessary to get started, depending on which LLM you configure your agents to use.
-    *   `PROJECT_CONFIG_PATH` (Optional): Specifies the path to your main project configuration JSON file.
-        *   If not set, the system defaults to looking for `aurite_config.json` in the root of the repository.
-        *   You can set this to an absolute path or a path relative to the repository root (e.g., `config/projects/default.json`).
     *   `API_KEY` (Optional, for API server): A secret key to secure the FastAPI endpoints if you run the API server. Generate a strong random key if you use this. This is pre-configured if you use the `setup.sh` or `setup.bat` scripts.
+    *   **Configuration Context:** The framework automatically detects your project and workspace context by looking for `.aurite` files. You do not need to set a path manually. Use the `aurite init` command to create and manage these contexts.
 
     Other variables in the `.env` file (e.g., for Redis, database persistence like `AURITE_ENABLE_DB`, `AURITE_DB_URL`) are optional and only needed if you intend to use those specific features. Review all entries, especially those marked with `#REPLACE`, and configure them according to your needs.
 
@@ -108,23 +108,35 @@ If you prefer to set up and run components manually or without Docker for all se
         *   Please refer to `SECURITY.md` (to be created) for detailed information on generating, managing, and understanding the importance of this key. You can find `AURITE_MCP_ENCRYPTION_KEY` commented out in your `.env.example` file as a reminder.
 
 4.  **Running the Backend API Server:**
-    The primary way to interact with the framework is through its FastAPI server:
+    The primary way to interact with the framework is through its FastAPI server, which can be started with a simple command:
     ```bash
-    python -m aurite.bin.api.api
+    aurite api
     ```
-    or use the `pyproject.toml` script:
-    ```bash
-    start-api
-    ```
-    (This script is available after running `pip install -e .[dev]` as described in the Manual Installation section. If using Docker, the API starts automatically within its container.)
+    This command is available after installing the dependencies (Step 2). By default, the server starts on `http://0.0.0.0:8000`.
 
-    By default, it starts on `http://0.0.0.0:8000`. You can then send requests to its various endpoints to execute agents, register components, etc. (e.g., using Postman or `curl`).
+5.  **Using the CLI:**
+    With the framework installed, you can now use the `aurite` command-line interface to interact with your project.
 
-### Frontend UI Setup
+    *   **List components:**
+        ```bash
+        aurite list agents
+        ```
+    *   **Run an agent interactively:**
+        ```bash
+        aurite run your_agent_name
+        ```
+    *   **Edit configurations in a TUI:**
+        ```bash
+        aurite edit
+        ```
+
+    For a complete guide to all commands, see the [CLI Reference](../../usage/cli_reference.md).
+
+### 6. Frontend UI Setup
 
 To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
 
-**Note:** Ensure the backend API server (Step 4 in Manual Setup above) is running before starting the frontend if you are not using the Docker quickstart.
+**Note:** Ensure the backend API server (Step 5 above) is running before starting the frontend if you are not using the Docker quickstart.
 
 1.  **Navigate to the Frontend Directory:**
     Open a new terminal or use your existing one to change into the `frontend` directory:
@@ -133,16 +145,14 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
     ```
 
 2.  **Install Frontend Dependencies:**
-    If you don't have Yarn installed, you can install it by following the instructions on the [official Yarn website](https://classic.yarnpkg.com/en/docs/install).
-
-    Inside the `frontend` directory, install the necessary Node.js packages using Yarn:
+    Inside the `frontend` directory, install the necessary Node.js packages using `npm`:
     ```bash
-    yarn install
+    npm install
     ```
 
 3.  **Start the Frontend Development Server:**
     Once dependencies are installed, start the Vite development server:
     ```bash
-    yarn dev
+    npm run dev
     ```
     The frontend UI will typically be available in your web browser at `http://localhost:5173`.

@@ -33,4 +33,8 @@ export type {
   StreamingOptions,
   WorkflowStatus,
   StepStatus,
+  ServerDetailedStatus,
+  ServerRuntimeInfo,
+  ServerTestResult,
+  ToolDetails,
 } from './responses';

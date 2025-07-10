@@ -62,7 +62,8 @@
 							"    // Check that the response contains weather information for San Francisco",
 							"    pm.expect(jsonData.final_response.content.toLowerCase()).to.include('san francisco');",
 							"    pm.expect(jsonData.final_response.content.toLowerCase()).to.match(/weather|temperature|forecast/);",
-							"});"
+                            "    pm.collectionVariables.set(\"session_id\", jsonData.session_id);"
+							,"});"
 						],
 						"type": "text/javascript"
 					}
@@ -95,6 +96,44 @@
 						"agents",
 						"Weather Agent",
 						"run"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Test Weather Agent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/agents/Weather Agent/test",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"agents",
+						"Weather Agent",
+						"test"
 					]
 				}
 			},
@@ -148,6 +187,45 @@
 			},
 			"response": []
 		},
+        {
+			"name": "Test Simple Workflow",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/simple/Weather Planning Workflow/test",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"simple",
+						"Weather Planning Workflow",
+						"test"
+					]
+				}
+			},
+			"response": []
+		},
 		{
 			"name": "Run Custom Workflow",
 			"event": [
@@ -196,6 +274,84 @@
 			},
 			"response": []
 		},
+        {
+			"name": "Test Custom Workflow",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/custom/ExampleCustomWorkflow/test",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"custom",
+						"ExampleCustomWorkflow",
+						"test"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Validate Custom Workflow",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/custom/ExampleCustomWorkflow/validate",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"custom",
+						"ExampleCustomWorkflow",
+						"validate"
+					]
+				}
+			},
+			"response": []
+		},
 		{
 			"name": "Stream Weather Agent",
 			"event": [
@@ -238,6 +394,241 @@
 						"agents",
 						"Weather Agent",
 						"stream"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Get Agent History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/agents/Weather Agent/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"agents",
+						"Weather Agent",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Get Workflow History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/workflows/Weather Planning Workflow/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"workflows",
+						"Weather Planning Workflow",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Get All History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Get History By Session ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.collectionVariables.get(\"session_id\")) {",
+							"    pm.test(\"Status code is 200\", function () {",
+							"        pm.response.to.have.status(200);",
+							"    });",
+							"} else {",
+							"    pm.test(\"Status code is 404\", function () {",
+							"        pm.response.to.have.status(404);",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/history/{{session_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"history",
+						"{{session_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Delete History By Session ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.collectionVariables.get(\"session_id\")) {",
+							"    pm.test(\"Status code is 204\", function () {",
+							"        pm.response.to.have.status(204);",
+							"    });",
+							"} else {",
+							"    pm.test(\"Status code is 404\", function () {",
+							"        pm.response.to.have.status(404);",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/history/{{session_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"history",
+						"{{session_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+        {
+			"name": "Cleanup History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/history/cleanup",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"history",
+						"cleanup"
 					]
 				}
 			},

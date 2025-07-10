@@ -91,7 +91,7 @@ class RunPresenter:
     async def _handle_llm_response_stop(self, data: Dict[str, Any]):
         response_text = Text(self._full_response, "bright_white")
         response_text.no_wrap = False
-        
+
         console.print(
             Panel(
                 response_text,
@@ -145,7 +145,7 @@ class RunPresenter:
         error_message = data.get("message", "An unknown error occurred.")
         error_text = Text(error_message, "bold red")
         error_text.no_wrap = False
-        
+
         panel = Panel(
             error_text,
             title="[bold red]:x: Error[/bold red]",

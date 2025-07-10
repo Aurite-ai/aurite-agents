@@ -31,7 +31,7 @@ from ..dependencies import (
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import config_manager_routes, facade_routes, mcp_host_routes
+from .routes import config_manager_routes, facade_routes, mcp_host_routes, system_routes
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -96,9 +96,12 @@ async def health_check():
 
 
 # Include the new routers
-app.include_router(mcp_host_routes.router, prefix="/host", tags=["MCP Host"])
+app.include_router(mcp_host_routes.router, prefix="/tools", tags=["MCP Host"])
 app.include_router(config_manager_routes.router, prefix="/config", tags=["Configuration Manager"])
 app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
+
+if os.getenv("INCLUDE_SYSTEM_ROUTER", "false").lower() == "true":
+    app.include_router(system_routes.router, prefix="/system", tags=["System Management"])
 
 
 # Custom OpenAPI schema

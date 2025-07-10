@@ -1,43 +1,42 @@
 # Layer 3: MCP Host System
 
-**Version:** 1.0
-**Date:** 2025-05-04
+**Version:** 1.1
+**Date:** 2025-07-09
 
 ## 1. Overview
 
-The MCP Host System (Layer 3) serves as the foundational infrastructure layer within the Aurite MCP framework. Its primary purpose is to manage connections with external Model Context Protocol (MCP) servers (referred to as "clients" from the host's perspective) and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level Orchestration Layer (Layer 2) and the individual MCP servers.
+The MCP Host System (Layer 3) is the foundational service layer of the Aurite framework. Its primary responsibility is to manage connections with external Model Context Protocol (MCP) servers and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level Orchestration Layer (Layer 2) and the individual MCP servers.
 
-`MCPHost` is now a lightweight async context manager that delegates all client lifecycle management to an instance of `mcp.client.ClientSessionGroup`. This aligns the framework with the `mcp` library's intended design, simplifying the architecture and improving testability.
+The lifecycle of the `MCPHost` is managed by the `AuriteKernel` (in `host_manager.py`), which ensures that the host is initialized on-demand and shut down gracefully. During runtime, the primary consumer of the Host's services is the `ExecutionFacade`, which brokers requests from agents and workflows.
 
 Key responsibilities include:
-*   Delegating all client connection and session management to `mcp.client.ClientSessionGroup`.
-*   Discovering and registering components (tools, prompts, resources) offered by connected clients.
+*   Managing the lifecycle of client connections via the `mcp.client.ClientSessionGroup`.
+*   Discovering and registering components (tools, prompts, resources) offered by connected MCP servers.
 *   Providing dedicated managers (`ToolManager`, `PromptManager`, `ResourceManager`) for interacting with specific component types.
-*   Implementing filtering mechanisms based on `ClientConfig` (global exclusions) and `AgentConfig` (agent-specific client access and component exclusions).
-*   Managing security aspects like credential encryption (`SecurityManager`).
-*   Routing requests to the appropriate client based on component availability, agent permissions, and routing weights (`MessageRouter`).
+*   Implementing filtering mechanisms based on `ClientConfig` (global exclusions) and `AgentConfig` (agent-specific access).
+*   Handling credential management and security via the `SecurityManager`.
+*   Routing requests to the appropriate MCP server based on component availability and configuration (`MessageRouter`).
 *   Enforcing access control based on defined MCP roots (`RootManager`).
-*   Utilizing `AgentConfig` instances (passed by Layer 2) for applying filtering rules during runtime requests.
 
 The Host System is structured internally into two sub-layers:
 *   **Foundation Layer:** Provides core services like security, routing, and root management.
-*   **Resource Layer:** Builds upon the foundation to manage specific MCP component types (prompts, resources, tools).
+*   **Resource Layer:** Builds upon the foundation to manage specific MCP component types.
 
 ## 2. Relevant Files
 
-| File Path                          | Primary Class(es)        | Core Responsibility                                                                 |
-| :--------------------------------- | :----------------------- | :---------------------------------------------------------------------------------- |
-| `src/host/host.py`                 | `MCPHost`                | Main entrypoint, orchestrates managers, client connections, stores AgentConfigs     |
-| `src/config/config_models.py`      | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
-| `src/host/filtering.py`            | `FilteringManager`       | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules     |
-| **Foundation Layer**               |                          |                                                                                     |
-| `src/host/foundation/security.py`  | `SecurityManager`        | Encryption, credential storage                                                      |
-| `src/host/foundation/routing.py`   | `MessageRouter`          | Routes requests to appropriate clients based on capabilities and configuration      |
-| `src/host/foundation/roots.py`     | `RootManager`            | Manages MCP root definitions for client access control                              |
-| **Resource Layer**                 |                          |                                                                                     |
-| `src/host/resources/prompts.py`    | `PromptManager`          | Manages prompt definitions discovered from clients                                  |
-| `src/host/resources/resources.py`  | `ResourceManager`        | Manages resource definitions discovered from clients                                |
-| `src/host/resources/tools.py`      | `ToolManager`            | Manages tool definitions, formats tools for LLMs, handles tool execution requests   |
+| File Path                                   | Primary Class(es)        | Core Responsibility                                                                 |
+| :------------------------------------------ | :----------------------- | :---------------------------------------------------------------------------------- |
+| `src/aurite/host/host.py`                   | `MCPHost`                | Main entrypoint, orchestrates managers, and manages client sessions.                |
+| `src/aurite/config/config_models.py`        | Config Models            | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
+| `src/aurite/host/filtering.py`              | `FilteringManager`       | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules.    |
+| **Foundation Layer**                        |                          |                                                                                     |
+| `src/aurite/host/foundation/security.py`    | `SecurityManager`        | Manages encryption and credential resolution (e.g., from environment or GCP).       |
+| `src/aurite/host/foundation/routing.py`     | `MessageRouter`          | Maps components to clients and routes requests accordingly.                         |
+| `src/aurite/host/foundation/roots.py`       | `RootManager`            | Manages MCP root definitions for client access control.                             |
+| **Resource Layer**                          |                          |                                                                                     |
+| `src/aurite/host/resources/prompts.py`      | `PromptManager`          | Manages prompt definitions discovered from clients.                                 |
+| `src/aurite/host/resources/resources.py`    | `ResourceManager`        | Manages resource definitions discovered from clients.                               |
+| `src/aurite/host/resources/tools.py`        | `ToolManager`            | Manages tool definitions, formats them for LLMs, and handles execution.             |
 
 ## 3. Functionality
 
@@ -46,73 +45,49 @@ This layer provides the core infrastructure for interacting with MCP servers.
 **3.1. Multi-File Interactions & Core Flows:**
 
 *   **Initialization (`MCPHost.__aenter__`):**
-    *   Triggered by `HostManager` (Layer 2) using an `async with` block.
-    *   Initializes all managers.
-    *   Enters the `ClientSessionGroup` context.
-    *   Iterates through `ClientConfig` entries in the `HostConfig`.
-    *   For each client, calls `_get_server_params` to prepare the connection parameters, including handling environment variables.
-    *   Calls `self._session_group.connect_to_server(params)` to delegate the connection process.
-*   **Component Registration (Dynamic - `MCPHost.register_client`):**
-    *   Allows adding new clients after initial host startup.
-    *   Called by `HostManager.register_client` (Layer 2).
-    *   Re-uses the internal `_get_server_params` logic and delegates to `ClientSessionGroup.connect_to_server`.
-*   **Filtering & Discovery (Runtime):**
-    *   **Client Exclusion (`ClientConfig.exclude`):** Applied by `FilteringManager.is_registration_allowed` during client initialization/registration within Resource Managers. Prevents globally excluded components from being registered for a specific client.
-    *   **Agent Client Filtering (`AgentConfig.client_ids`):** Applied by `FilteringManager.filter_clients_for_request` within `MCPHost` methods (`get_prompt`, `execute_tool`, `read_resource`, `get_formatted_tools`). Restricts which clients an agent can interact with. The `MessageRouter` is first queried to find *all* clients providing a component, then this list is filtered based on the agent's allowed `client_ids`.
-    *   **Agent Component Exclusion (`AgentConfig.exclude_components`):** Applied by `FilteringManager.is_component_allowed_for_agent` (for single requests) or `FilteringManager.filter_component_list` (for lists like tools) within `MCPHost` methods. Prevents an agent from using specific components, even if provided by an allowed client.
-*   **Execution Requests (e.g., `MCPHost.execute_tool`):**
-    *   Called by Layer 2 components (e.g., `Agent` via `ExecutionFacade`).
-    *   Receives component name, arguments, and optionally a specific `client_name` and the requesting `AgentConfig`.
-    *   Uses `MessageRouter` to find potential clients providing the component.
-    *   Applies agent filtering (`client_ids`) via `FilteringManager` to narrow down potential clients.
-    *   Determines the target client (handles ambiguity if `client_name` not provided).
-    *   Applies agent component filtering (`exclude_components`) via `FilteringManager`.
-    *   Delegates the actual execution to the appropriate Resource Manager (`ToolManager`, `PromptManager`, `ResourceManager`), passing the determined `client_id`.
-    *   Resource Managers use the stored `ClientSession` to send the request to the target MCP server.
-*   **Tool Formatting (`MCPHost.get_formatted_tools`):**
-    *   Called by `Agent` (Layer 2.5) to prepare tools for the LLM.
-    *   Delegates to `ToolManager.format_tools_for_llm`.
-    *   Passes `FilteringManager` and `AgentConfig` to the `ToolManager` method to ensure the returned list respects both `client_ids` and `exclude_components` filters.
+    *   Triggered by `AuriteKernel` (in `host_manager.py`) when the framework is first used.
+    *   Initializes all managers (`SecurityManager`, `MessageRouter`, etc.).
+    *   Enters the `ClientSessionGroup` context, preparing for client connections.
+    *   Connects to all servers defined in the `HostConfig`.
+*   **Just-in-Time (JIT) Server Registration (`ExecutionFacade` -> `MCPHost.register_client`):**
+    *   When an agent run begins, the `ExecutionFacade` inspects the `AgentConfig`.
+    *   If the `AgentConfig` specifies `mcp_servers` that are not yet active, the `ExecutionFacade` retrieves their configurations.
+    *   It then calls `MCPHost.register_client` for each required server, making them available for the agent's use.
+*   **Tool Formatting (`Agent` -> `MCPHost.get_formatted_tools`):**
+    *   Before an agent turn, the `Agent` class calls `MCPHost.get_formatted_tools`, passing its `AgentConfig`.
+    *   The `MCPHost` delegates to the `ToolManager`, which uses the `FilteringManager` to produce a list of tools that respects the agent's specific permissions (`client_ids` and `exclude_components`).
+    *   This filtered list is then provided to the LLM.
+*   **Tool Execution (`AgentTurnProcessor` -> `MCPHost.call_tool`):**
+    *   After the LLM indicates a tool call, the `AgentTurnProcessor` is responsible for fulfilling the request.
+    *   It calls `MCPHost.call_tool` with the tool name and arguments.
+    *   The `MCPHost` uses the `MessageRouter` to find which client provides the tool.
+    *   It applies filtering based on the agent's configuration to ensure access is permitted.
+    *   Finally, it delegates the execution to the `ToolManager`, which sends the request to the correct MCP server via its `ClientSession`.
 
 **3.2. Individual File Functionality:**
 
 *   **`host/host.py` (`MCPHost`):**
-    *   Acts as a lightweight async context manager.
-    *   Orchestrates the initialization and shutdown sequence for all managers.
-    *   Delegates all client lifecycle management to `ClientSessionGroup`.
-    *   Provides public methods (`get_formatted_tools`, `call_tool`, `register_client`) that act as the primary interface for Layer 2.
-*   **`host/models.py` moved to `src/config/config_models.py`:**
-    *   Defines core Pydantic models used by Layer 3: `HostConfig`, `ClientConfig`, `RootConfig`.
-    *   Also defines `AgentConfig`, which is stored and used for filtering here, but primarily acted upon by Layer 2/2.5.
+    *   Acts as the central facade for the Host layer, managed by `AuriteKernel`.
+    *   Orchestrates the initialization and shutdown of all managers.
+    *   Delegates client lifecycle management to `ClientSessionGroup`.
+    *   Provides the public API (`get_formatted_tools`, `call_tool`, `register_client`) for Layer 2 components.
 *   **`host/filtering.py` (`FilteringManager`):**
-    *   Contains stateless methods for applying filtering logic based on `ClientConfig` and `AgentConfig`.
-    *   `is_registration_allowed`: Checks `ClientConfig.exclude` during component registration.
-    *   `filter_clients_for_request`: Filters client lists based on `AgentConfig.client_ids`.
-    *   `is_component_allowed_for_agent`: Checks `AgentConfig.exclude_components` for single requests.
-    *   `filter_component_list`: Filters lists of components based on `AgentConfig.exclude_components`.
+    *   Contains stateless methods for applying filtering logic based on `ClientConfig` (global rules) and `AgentConfig` (agent-specific rules).
 *   **`host/foundation/security.py` (`SecurityManager`):**
-    *   Manages encryption key (`AURITE_MCP_ENCRYPTION_KEY` or generated). It is crucial for production environments to explicitly set the `AURITE_MCP_ENCRYPTION_KEY` environment variable to ensure persistent and secure encryption, rather than relying on an auto-generated key.
-    *   Provides methods for encrypting/decrypting credentials. The credential storage mechanism is currently an in-memory store suitable for development/testing.
+    *   Manages the encryption key (`AURITE_MCP_ENCRYPTION_KEY`). It is crucial for production to set this environment variable for persistent, secure encryption.
+    *   Resolves and decrypts credentials from various sources.
 *   **`host/foundation/routing.py` (`MessageRouter`):**
-    *   Maintains mappings of components (tools, prompts, resources) to the client IDs that provide them.
-    *   Stores client capabilities and routing weights.
-    *   Provides methods (`get_clients_for_tool`, etc.) to find suitable clients for a given request.
+    *   Maintains a mapping of components (tools, prompts, resources) to the client IDs that provide them.
+    *   Used by `MCPHost` to determine where to send execution requests.
 *   **`host/foundation/roots.py` (`RootManager`):**
-    *   Stores `RootConfig` definitions associated with each client.
-    *   Provides methods (`register_roots`, `get_client_roots`, `validate_access`) used by `MCPHost` and Resource Managers to enforce access control based on resource URIs.
+    *   Stores `RootConfig` definitions to enforce access control for resources based on their URIs.
 *   **`host/resources/prompts.py` (`PromptManager`):**
-    *   Stores discovered `mcp.types.Prompt` definitions per client.
-    *   Handles registration (`register_client_prompts`) and retrieval (`get_prompt`) of prompt *definitions*. (Actual prompt execution happens in Layer 2.5/`Agent`).
+    *   Stores and manages discovered `mcp.types.Prompt` definitions from each client.
 *   **`host/resources/resources.py` (`ResourceManager`):**
-    *   Stores discovered `mcp.types.Resource` definitions per client.
-    *   Handles registration (`register_client_resources`) and retrieval (`get_resource`) of resource *definitions*.
-    *   Includes logic (`validate_resource_access`) to check resource URIs against client roots via `RootManager`.
+    *   Stores and manages discovered `mcp.types.Resource` definitions, checking access against the `RootManager`.
 *   **`host/resources/tools.py` (`ToolManager`):**
     *   Stores discovered `mcp.types.Tool` definitions.
-    *   Handles registration (`register_tool`), discovery (`discover_client_tools`), and execution (`execute_tool`) requests.
-    *   Formats tool definitions for LLM consumption (`format_tools_for_llm`), incorporating filtering logic by accepting `FilteringManager` and `AgentConfig`.
-    *   Uses `RootManager` to validate access before execution.
-    *   Uses the `ClientSession` to send `call_tool` requests to the target MCP server.
+    *   Handles tool registration, execution requests, and formatting tools for LLM consumption, applying filtering logic as needed.
 
 ## 4. Testing
 
@@ -162,5 +137,3 @@ This layer provides the core infrastructure for interacting with MCP servers.
 | **PromptManager: Logic**                           | `prompts.py`                                  | `tests/host/resources/test_prompt_manager.py` (Unit tests - registration, retrieval, listing, shutdown). **Coverage: Excellent.**                                                                                                                                               |
 | **ResourceManager: Logic**                         | `resources.py`                                | `tests/host/resources/test_resource_manager.py` (Unit tests - registration, retrieval, listing, validation, shutdown). **Coverage: Excellent.**                                                                                                                                  |
 | **ToolManager: Logic**                             | `tools.py`                                    | `tests/host/resources/test_tool_manager.py` (Unit tests - registration, discovery, execution, formatting, shutdown). `tests/host/filtering/test_filtering.py` (Partial integration). `tests/host/test_host_basic_e2e.py` (Partial E2E). **Coverage: Excellent (Unit).** |
-
-**(Section 4.D removed)**

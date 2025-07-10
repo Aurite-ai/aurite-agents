@@ -1,8 +1,0 @@
-Screen {
-    layout: vertical;
-}
-
-.box {
-    height: 14;
-    border: solid green;
-}

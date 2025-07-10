@@ -37,7 +37,7 @@ Not every task requires a formal plan. Use this guide to determine the appropria
 **Examples:** Implement a new feature, refactor a module, fix a complex bug
 - **Plan Required:** Yes - Implementation Plan
 - **Approach:** Follow full workflow: Discovery → Planning → Implementation
-- **Documentation:** Implementation plan in `docs/plans/[project]/`
+- **Documentation:** Implementation plan in `docs/internal/plans/[project]/`
 
 ### Level 5: Complex Task with Design
 **Examples:** New architecture component, significant refactoring, API redesign
@@ -119,7 +119,7 @@ These rules apply to ALL development tasks, regardless of type:
 ### 3.7 Collaboration Practices
 - Follow the established plan/act workflow phases
 - Create implementation plans for complex tasks (Level 4+)
-- Store plans in `docs/plans/[project]/MM-DD_[name].md`
+- Store plans in `docs/internal/plans/[project]/MM-DD_[name].md`
 - Use changelogs within plans to track modifications
 
 ---

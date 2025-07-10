@@ -43,7 +43,8 @@ dependencies = [
     "pydub (>=0.25.1,<0.26.0)",
     "rich (>=14.0.0,<15.0.0)",
     "tomli (>=2.2.1,<3.0.0)",
-    "textual[syntax] (>=3.5.0,<4.0.0)"
+    "textual[syntax] (>=3.5.0,<4.0.0)",
+    "toml (>=0.10.2,<0.11.0)"
 ]
 
 [project.urls]
@@ -146,7 +147,7 @@ follow_imports = "silent"
 [tool.deptry]
 known_first_party = ["aurite"]
 extend_exclude = ["tests", "docs"]
-per_rule_ignores = { DEP003 = ["google"], DEP004 = ["pandas", "redis", "mem0", "psycopg2", "sentence_transformers"] }
+per_rule_ignores = { DEP003 = ["google", "httpx", "psutil"], DEP004 = ["pandas", "redis", "mem0", "psycopg2", "sentence_transformers"] }
 
 [tool.deptry.package_module_name_map]
 "psycopg2-binary" = "psycopg2"

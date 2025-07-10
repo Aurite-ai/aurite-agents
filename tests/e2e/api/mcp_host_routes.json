@@ -14,14 +14,6 @@
 						"exec": [
 							"pm.test(\"Status code is 200\", function () {",
 							"    pm.response.to.have.status(200);",
-							"});",
-							"pm.test(\"Response body has correct status\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.status).to.eql('active');",
-							"});",
-							"pm.test(\"Response body has tool_count\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.tool_count).to.be.a('number');",
 							"});"
 						],
 						"type": "text/javascript"
@@ -37,12 +29,12 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/host/status",
+					"raw": "{{base_url}}/tools/status",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
+						"tools",
 						"status"
 					]
 				}
@@ -79,13 +71,13 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/host/tools",
+					"raw": "{{base_url}}/tools/",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
-						"tools"
+						"tools",
+						""
 					]
 				}
 			},
@@ -120,12 +112,12 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/host/register/weather_server",
+					"raw": "{{base_url}}/tools/register/weather_server",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
+						"tools",
 						"register",
 						"weather_server"
 					]
@@ -170,15 +162,100 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/host/tools/weather_lookup/call",
+					"raw": "{{base_url}}/tools/weather_lookup/call",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
 						"tools",
 						"weather_lookup",
 						"call"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Restart Weather Server",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct status\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('success');",
+							"    pm.expect(jsonData.name).to.eql('weather_server');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/tools/servers/weather_server/restart",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"tools",
+						"servers",
+						"weather_server",
+						"restart"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Test Weather Server",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body has correct status\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('success');",
+							"    pm.expect(jsonData.server_name).to.eql('weather_server');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/tools/servers/weather_server/test",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"tools",
+						"servers",
+						"weather_server",
+						"test"
 					]
 				}
 			},
@@ -213,12 +290,12 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/host/servers/weather_server",
+					"raw": "{{base_url}}/tools/servers/weather_server",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
+						"tools",
 						"servers",
 						"weather_server"
 					]
@@ -259,12 +336,11 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/host/tools/weather_lookup/call",
+					"raw": "{{base_url}}/tools/weather_lookup/call",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"host",
 						"tools",
 						"weather_lookup",
 						"call"
@@ -277,7 +353,7 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://0.0.0.0:8000"
+			"value": "http://127.0.0.1:8000"
 		}
 	]
 }

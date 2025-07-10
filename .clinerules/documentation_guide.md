@@ -12,7 +12,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 4. **Interfaces & Usage** - How to interact with the framework (API, CLI, TUI)
 5. **Architecture & Design** - Technical architecture and design decisions
 6. **Testing** - Test strategies and execution
-7. **Internal Resources** - Implementation plans and external references
+7. **Frontend** - Frontend client, examples, and usage
+8. **Internal Resources** - Implementation plans and external references
 
 ### 1. Getting Started
 **Purpose:** Help new users install, configure, and learn the framework
@@ -62,6 +63,11 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `tui_guide.md` - Terminal UI interface guide
 - `openapi.yaml` - OpenAPI specification
 - API endpoints: `/api-docs`, `/redoc`, `/openapi.json` (when server is running)
+- `routes/` - Detailed API route documentation
+  - `config_manager_routes.md` - Configuration Manager API details, decision trees, and error handling
+  - `facade_routes.md` - Execution Facade API details
+  - `mcp_host_routes.md` - MCP Host API details
+  - `system_routes.md` - System API details
 
 ### 5. Architecture & Design
 **Purpose:** Explain the framework's technical architecture and design decisions
@@ -74,6 +80,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `layers/2_orchestration.md` - Core orchestration layer
 - `layers/3_host.md` - MCP host infrastructure
 - `design/` - Design documents and architectural decisions
+  - `index_building_flow.md` - How the configuration index is built with priority resolution
+  - `execution_facade.md` - ExecutionFacade architecture, JIT server registration, session management
 
 ### 6. Testing
 **Purpose:** Guide for running tests and understanding test strategies
@@ -82,7 +90,15 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 **Documents:**
 - `tests/README.md` - Test execution guide and strategies
 
-### 7. Internal Resources
+### 7. Frontend
+**Purpose:** Documentation for the TypeScript/JavaScript frontend client and examples
+**Audience:** Frontend developers, users of the API client
+**Location:** `frontend/`
+**Documents:**
+- `frontend/README.md` - Overview of the frontend client, setup, and architecture
+- `frontend/examples/README.md` - Detailed guide to running and understanding the API client examples
+
+### 8. Internal Resources
 **Purpose:** Internal references and implementation details
 **Audience:** Framework maintainers
 **Location:** `docs/internal/`
@@ -121,6 +137,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 | Update documentation        | `.clinerules/documentation_rules.md`                 |
 | Use the CLI                 | `docs/usage/cli_reference.md`                        |
 | Use the API                 | `docs/usage/api_reference.md`                        |
+| Use the frontend client     | `frontend/README.md`                                 |
+| Run frontend examples       | `frontend/examples/README.md`                        |
 | Choose an interface         | `docs/usage/overview.md`                             |
 | Understand projects/workspaces | `docs/config/projects_and_workspaces.md`         |
 

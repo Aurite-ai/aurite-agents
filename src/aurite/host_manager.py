@@ -24,6 +24,13 @@ from termcolor import colored
 from .components.agents.agent_models import AgentRunResult
 from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from .config.config_manager import ConfigManager
+from .config.config_models import (
+    AgentConfig,
+    ClientConfig,
+    CustomWorkflowConfig,
+    LLMConfig,
+    WorkflowConfig,
+)
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
 from .storage.cache_manager import CacheManager
@@ -102,7 +109,13 @@ class AuriteKernel:
         self.project_root = self.config_manager.project_root
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
-        self.cache_manager = CacheManager()
+        # Initialize CacheManager with project-specific cache directory
+        if self.project_root:
+            cache_dir = self.project_root / ".aurite_cache"
+            self.cache_manager = CacheManager(cache_dir=cache_dir)
+        else:
+            # Fallback to current directory if no project root
+            self.cache_manager = CacheManager(cache_dir=Path(".aurite_cache"))
         self._db_engine = None
         self._is_shut_down = False
 
@@ -136,6 +149,29 @@ class AuriteKernel:
         if self._is_shut_down:
             return
         logger.debug("Shutting down Aurite Kernel...")
+
+        # Clean up litellm's global module-level clients
+        try:
+            import litellm
+
+            # Check if litellm has module_level_aclient (async client)
+            if hasattr(litellm, "module_level_aclient") and litellm.module_level_aclient:
+                logger.debug("Closing litellm module-level async client...")
+                try:
+                    await litellm.module_level_aclient.close()
+                except Exception as e:
+                    logger.debug(f"Error closing litellm async client: {e}")
+
+            # Check if litellm has module_level_client (sync client)
+            if hasattr(litellm, "module_level_client") and litellm.module_level_client:
+                logger.debug("Closing litellm module-level sync client...")
+                try:
+                    litellm.module_level_client.close()
+                except Exception as e:
+                    logger.debug(f"Error closing litellm sync client: {e}")
+        except Exception as e:
+            logger.debug(f"Error during litellm cleanup: {e}")
+
         if self.host:
             await self.host.__aexit__(None, None, None)
             self.host = None
@@ -180,7 +216,39 @@ class Aurite:
             self._initialized = True
 
     def get_config_manager(self) -> ConfigManager:
+        # This method is now primarily for external use; internal access
+        # should be through the kernel.
         return self.kernel.config_manager
+
+    async def register_agent(self, config: AgentConfig):
+        """Programmatically register an agent configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("agent", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_llm(self, config: LLMConfig):
+        """Programmatically register an LLM configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("llm", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_mcp_server(self, config: ClientConfig):
+        """Programmatically register an MCP server configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("mcp_server", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_simple_workflow(self, config: WorkflowConfig):
+        """Programmatically register a simple workflow configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("simple_workflow", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_custom_workflow(self, config: CustomWorkflowConfig):
+        """Programmatically register a custom workflow configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("custom_workflow", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
 
     async def unregister_server(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""

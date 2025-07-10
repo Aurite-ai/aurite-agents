@@ -158,6 +158,7 @@ copilot_memory/
 .idea/ # Keep this active rule
 package-lock.json
 __package_previews__
+docs/internal/
 .store
 .cursor
 privatePackages/store
@@ -190,4 +191,7 @@ notebook-venv/
 docs/guides/
 docs/reports/newman/*
 !src/aurite/init_templates/.env.example
+src/aurite/init_templates/mcp_servers/plans/
+.aurite_cache/
 demo-config/*
+!frontend/.env.example

@@ -9,9 +9,7 @@
  * - Base URL configuration
  */
 
-import type { ApiConfig, RequestOptions } from '../types';
-import { ApiError, TimeoutError, CancellationError } from '../types';
-
+import { ApiConfig, TimeoutError, CancellationError, ApiError, RequestOptions } from '../types';
 export class BaseClient {
   protected config: ApiConfig;
 
@@ -44,6 +42,7 @@ export class BaseClient {
     for (let attempt = 0; attempt <= retries; attempt++) {
       let controller: AbortController | undefined;
       let timeoutId: NodeJS.Timeout | undefined;
+      let fetchPromise: Promise<Response> | undefined;
 
       try {
         // Create abort controller for this attempt
@@ -70,8 +69,17 @@ export class BaseClient {
           fetchOptions.body = JSON.stringify(body);
         }
 
-        // Make the request
-        const response = await fetch(url, fetchOptions);
+        // Make the request and store the promise
+        // Wrap fetch to handle abort errors gracefully
+        fetchPromise = fetch(url, fetchOptions).catch(error => {
+          // If it's an abort error, we'll handle it in the outer catch
+          if (error.name === 'AbortError') {
+            throw error;
+          }
+          // For other errors, re-throw
+          throw error;
+        });
+        const response = await fetchPromise;
 
         // Clear timeout on successful response
         if (timeoutId) {
@@ -130,6 +138,13 @@ export class BaseClient {
           clearTimeout(timeoutId);
         }
 
+        // Ensure fetch promise doesn't create unhandled rejection
+        if (fetchPromise) {
+          fetchPromise.catch(() => {
+            // Silently catch any rejection to prevent unhandled promise rejection
+          });
+        }
+
         // Handle different error types
         if (error instanceof ApiError) {
           // If this is the last attempt or error is not retryable, throw it
@@ -154,7 +169,10 @@ export class BaseClient {
         }
 
         // Handle network errors
-        if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        if (
+          error instanceof TypeError &&
+          (error.message.includes('fetch') || error.message.includes('Failed to fetch'))
+        ) {
           const networkError = new ApiError(
             'Network error: Unable to connect to server',
             0,
@@ -189,6 +207,8 @@ export class BaseClient {
     }
 
     // If we've exhausted all retries, throw the last error
-    throw lastError || new ApiError('Maximum retries exceeded', 0, 'MAX_RETRIES', {}, requestContext);
+    throw (
+      lastError || new ApiError('Maximum retries exceeded', 0, 'MAX_RETRIES', {}, requestContext)
+    );
   }
 }
