@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ...dependencies import get_api_key, get_host_manager
@@ -548,60 +547,6 @@ async def get_system_metrics(api_key: str = Security(get_api_key)):
     except Exception as e:
         logger.error(f"Error getting system metrics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}") from e
-
-
-async def log_generator():
-    """Generate log entries as Server-Sent Events."""
-    # Create a custom handler to capture logs
-    import queue
-
-    log_queue = queue.Queue(maxsize=100)
-
-    class QueueHandler(logging.Handler):
-        def emit(self, record):
-            try:
-                log_queue.put_nowait(self.format(record))
-            except queue.Full:
-                pass
-
-    # Add handler to root logger
-    handler = QueueHandler()
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
-
-    try:
-        # Send initial message
-        yield "data: {'type': 'connected', 'message': 'Log stream connected'}\n\n"
-
-        while True:
-            try:
-                # Get log with timeout
-                log_entry = log_queue.get(timeout=1.0)
-                yield f"data: {{'type': 'log', 'message': {repr(log_entry)}}}\n\n"
-            except queue.Empty:
-                # Send heartbeat
-                yield f"data: {{'type': 'heartbeat', 'timestamp': '{datetime.now().isoformat()}'}}\n\n"
-
-    finally:
-        # Remove handler when done
-        root_logger.removeHandler(handler)
-
-
-@router.get("/monitoring/logs")
-async def stream_logs(api_key: str = Security(get_api_key)):
-    """
-    Stream recent logs via Server-Sent Events (SSE).
-    """
-    return StreamingResponse(
-        log_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
 
 
 @router.get("/monitoring/active", response_model=List[ActiveProcess])

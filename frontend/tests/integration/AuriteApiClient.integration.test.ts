@@ -385,6 +385,26 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     });
   });
 
+  describe('System', () => {
+    it('should get system info', async () => {
+      const info = await client.system.getSystemInfo();
+      expect(info).toBeDefined();
+      expect(info.platform).toBeTruthy();
+    });
+
+    it('should get framework version', async () => {
+      const version = await client.system.getFrameworkVersion();
+      expect(version).toBeDefined();
+      expect(version.version).toBeTruthy();
+    });
+
+    it('should get system capabilities', async () => {
+      const capabilities = await client.system.getSystemCapabilities();
+      expect(capabilities).toBeDefined();
+      expect(capabilities.mcp_support).toBe(true);
+    });
+  });
+
   describe('Validation', () => {
     it('should validate all configurations', async () => {
       // This might throw if there are invalid configs, which is okay for the test

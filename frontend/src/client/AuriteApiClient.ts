@@ -14,6 +14,7 @@ import type { ApiConfig } from '../types';
 import { ExecutionFacadeClient } from '../routes/ExecutionFacadeClient';
 import { MCPHostClient } from '../routes/MCPHostClient';
 import { ConfigManagerClient } from '../routes/ConfigManagerClient';
+import { SystemClient } from '../routes/SystemClient';
 
 export class AuriteApiClient {
   /**
@@ -46,10 +47,21 @@ export class AuriteApiClient {
    */
   public readonly config: ConfigManagerClient;
 
+  /**
+   * Client for system management
+   *
+   * Use this to:
+   * - Get system information
+   * - Get framework version
+   * - Get system capabilities
+   */
+  public readonly system: SystemClient;
+
   constructor(config: ApiConfig) {
     this.execution = new ExecutionFacadeClient(config);
     this.host = new MCPHostClient(config);
     this.config = new ConfigManagerClient(config);
+    this.system = new SystemClient(config);
   }
 }
 

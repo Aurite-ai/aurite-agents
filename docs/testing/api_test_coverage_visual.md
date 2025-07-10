@@ -9,7 +9,7 @@ This document provides a visual representation of the API test coverage for each
 | **Configuration Manager** | `██████████` (100%) | 38 | 38 |
 | **MCP Host Manager** | `██████████` (100%) | 13 | 13 |
 | **Execution Facade** | `██████████` (100%) | 13 | 13 |
-| **System Management** | `...` (0%) | 0 | 4 |
+| **System Management** | `██████████` (100%) | 10 | 10 |
 | **Main API** | `█████...` (50%) | 1 | 2 |
 | **Total** | | **38** | **69** |
 
@@ -36,13 +36,12 @@ This document provides a visual representation of the API test coverage for each
 -   **Workflow Execution:** ✅✅✅ (3/3)
 -   **Session History:** ✅✅✅✅✅✅ (6/6)
 
-### System Management (0% - 0/4 tested)
+### System Management (100% - 10/10 tested)
 
--   **Untested:**
-    -   `GET /system/status`
-    -   `GET /system/processes`
-    -   `GET /system/logs`
-    -   `POST /system/shutdown`
+-   **System Info:** ✅✅✅ (3/3)
+-   **Environment:** ✅✅ (2/2)
+-   **Dependencies:** ✅✅ (2/2)
+-   **Monitoring:** ✅✅✅ (3/3)
 
 ### Main API (50% - 1/2 tested)
 

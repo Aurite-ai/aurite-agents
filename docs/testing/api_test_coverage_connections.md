@@ -46,7 +46,7 @@ This document maps the connections between API components, test files, documenta
 
 | Component | Router File | Route Docs | Postman Collection | TS Client | TS Tests | Coverage |
 |-----------|-------------|------------|-------------------|-----------|----------|----------|
-| System | `src/aurite/bin/api/routes/system_routes.py` | `docs/usage/routes/system_routes.md` ❌ | `tests/e2e/api/system_routes.json` ❌ | `frontend/src/routes/SystemClient.ts` ❌ | `frontend/tests/unit/client/SystemClient.test.ts` ❌ | 0% |
+| System | `src/aurite/bin/api/routes/system_routes.py` | `docs/usage/routes/system_routes.md` | `tests/e2e/api/system_routes.json` | `frontend/src/routes/SystemClient.ts` | `frontend/tests/unit/routes/SystemClient.test.ts` | 100% |
 
 **Key Connections:**
 - Router imports: System utilities, psutil (optional)
@@ -110,16 +110,16 @@ The TypeScript integration test (`frontend/tests/integration/test-integration.ts
 ## Missing Components
 
 ### Documentation
-- [ ] `docs/usage/routes/system_routes.md` - System routes documentation
+- [x] `docs/usage/routes/system_routes.md` - System routes documentation
 
 ### Postman Collections
-- [ ] `tests/e2e/api/system_routes.json` - System routes tests
+- [x] `tests/e2e/api/system_routes.json` - System routes tests
 
 ### TypeScript Client
-- [ ] `frontend/src/routes/SystemClient.ts` - System management client
+- [x] `frontend/src/routes/SystemClient.ts` - System management client
 
 ### TypeScript Tests
-- [ ] `frontend/tests/unit/client/SystemClient.test.ts` - System client tests
+- [x] `frontend/tests/unit/client/SystemClient.test.ts` - System client tests
 
 ## Test Data Dependencies
 

@@ -64,6 +64,9 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - API endpoints: `/api-docs`, `/redoc`, `/openapi.json` (when server is running)
 - `routes/` - Detailed API route documentation
   - `config_manager_routes.md` - Configuration Manager API details, decision trees, and error handling
+  - `facade_routes.md` - Execution Facade API details
+  - `mcp_host_routes.md` - MCP Host API details
+  - `system_routes.md` - System API details
 
 ### 5. Architecture & Design
 **Purpose:** Explain the framework's technical architecture and design decisions
