@@ -25,7 +25,33 @@ DEFAULT_LOG_COLORS = {
 # LAYER_SPECIFIC_INFO_COLORS and LayerSpecificInfoFormatter are removed for simplification.
 
 
-def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter):
+class SafeColoredFormatter(colorlog.ColoredFormatter):
+    """
+    A wrapper around ColoredFormatter that handles shutdown scenarios gracefully.
+
+    During Python interpreter shutdown, modules can be garbage collected and become None,
+    which can cause AttributeErrors. This formatter catches those errors and falls back
+    to basic formatting.
+    """
+
+    def format(self, record):
+        try:
+            # Try to use the colorlog formatter normally
+            return super().format(record)
+        except (AttributeError, ImportError):
+            # During shutdown, colorlog or its attributes might be None
+            # Fall back to basic formatting without colors
+            try:
+                # Try basic formatting
+                basic_format = "%(levelname)-8s [%(name)s] %(message)s"
+                formatter = logging.Formatter(basic_format)
+                return formatter.format(record)
+            except Exception:
+                # If even basic formatting fails, return the raw message
+                return f"{record.levelname} [{record.name}] {record.getMessage()}"
+
+
+def setup_logging(level=logging.INFO, formatter_class=None):
     """
     Sets up colored logging for the application.
 
@@ -35,8 +61,11 @@ def setup_logging(level=logging.INFO, formatter_class=colorlog.ColoredFormatter)
 
     Args:
         level: The logging level to set for the root logger (e.g., logging.INFO).
-        formatter_class: The formatter class to use. Defaults to colorlog.ColoredFormatter.
+        formatter_class: The formatter class to use. Defaults to SafeColoredFormatter.
     """
+    # Use SafeColoredFormatter by default to handle shutdown scenarios
+    if formatter_class is None:
+        formatter_class = SafeColoredFormatter
     handler = colorlog.StreamHandler()
 
     # Instantiate the formatter

@@ -142,6 +142,29 @@ class AuriteKernel:
         if self._is_shut_down:
             return
         logger.debug("Shutting down Aurite Kernel...")
+
+        # Clean up litellm's global module-level clients
+        try:
+            import litellm
+
+            # Check if litellm has module_level_aclient (async client)
+            if hasattr(litellm, "module_level_aclient") and litellm.module_level_aclient:
+                logger.debug("Closing litellm module-level async client...")
+                try:
+                    await litellm.module_level_aclient.close()
+                except Exception as e:
+                    logger.debug(f"Error closing litellm async client: {e}")
+
+            # Check if litellm has module_level_client (sync client)
+            if hasattr(litellm, "module_level_client") and litellm.module_level_client:
+                logger.debug("Closing litellm module-level sync client...")
+                try:
+                    litellm.module_level_client.close()
+                except Exception as e:
+                    logger.debug(f"Error closing litellm sync client: {e}")
+        except Exception as e:
+            logger.debug(f"Error during litellm cleanup: {e}")
+
         if self.host:
             await self.host.__aexit__(None, None, None)
             self.host = None
