@@ -153,4 +153,16 @@ export class MCPHostClient extends BaseClient {
   async unregisterServer(serverName: string): Promise<{ status: string; name: string }> {
     return this.request('DELETE', `/tools/servers/${encodeURIComponent(serverName)}`);
   }
+
+  /**
+   * Restart a registered MCP server.
+   *
+   * This is a convenience method that unregisters and then re-registers the server.
+   *
+   * @param serverName - The name of the server to restart.
+   * @returns Restart result.
+   */
+  async restartServer(serverName: string): Promise<{ status: string; name: string }> {
+    return this.request('POST', `/tools/servers/${encodeURIComponent(serverName)}/restart`);
+  }
 }

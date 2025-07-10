@@ -10,7 +10,7 @@ This document maps the connections between API components, test files, documenta
 
 | Component | Router File | Route Docs | Postman Collection | TS Client | TS Tests | Coverage |
 |-----------|-------------|------------|-------------------|-----------|----------|----------|
-| Config Manager | `src/aurite/bin/api/routes/config_manager_routes.py` | `docs/usage/routes/config_manager_routes.md` | `tests/e2e/api/config_manager_components.json`, `config_manager_files.json`, & `config_manager_projects.json` | `frontend/src/routes/ConfigManagerClient.ts` | `frontend/tests/unit/client/ConfigManagerClient.test.ts` | 71% |
+| Config Manager | `src/aurite/bin/api/routes/config_manager_routes.py` | `docs/usage/routes/config_manager_routes.md` | `tests/e2e/api/config_manager_components.json`, `config_manager_files.json`, & `config_manager_projects.json` | `frontend/src/routes/ConfigManagerClient.ts` | `frontend/tests/unit/client/ConfigManagerClient.test.ts` | 100% |
 
 **Key Connections:**
 - Router imports: `ConfigManager` from `aurite.config.config_manager`
@@ -21,7 +21,7 @@ This document maps the connections between API components, test files, documenta
 
 | Component | Router File | Route Docs | Postman Collection | TS Client | TS Tests | Coverage |
 |-----------|-------------|------------|-------------------|-----------|----------|----------|
-| MCP Host | `src/aurite/bin/api/routes/mcp_host_routes.py` | `docs/usage/routes/mcp_host_routes.md` | `tests/e2e/api/mcp_host_routes.json` | `frontend/src/routes/MCPHostClient.ts` | `frontend/tests/unit/client/MCPHostClient.test.ts` | 42% |
+| MCP Host | `src/aurite/bin/api/routes/mcp_host_routes.py` | `docs/usage/routes/mcp_host_routes.md` | `tests/e2e/api/mcp_host_routes.json` | `frontend/src/routes/MCPHostClient.ts` | `frontend/tests/unit/client/MCPHostClient.test.ts` | 100% |
 
 **Key Connections:**
 - Router imports: `MCPHost` from `aurite.host.host`

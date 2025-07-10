@@ -408,4 +408,38 @@ describe('MCPHostClient', () => {
       );
     });
   });
+
+  describe('restartServer', () => {
+    it('should restart a server', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'success', name: 'weather_server' }),
+      } as Response);
+
+      const result = await client.restartServer('weather_server');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/tools/servers/weather_server/restart',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'X-API-Key': 'test-api-key',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      expect(result).toEqual({ status: 'success', name: 'weather_server' });
+    });
+
+    it('should handle restart failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: 'Server not found' }),
+      } as Response);
+
+      await expect(client.restartServer('non_existent_server')).rejects.toThrow('Server not found');
+    });
+  });
 });

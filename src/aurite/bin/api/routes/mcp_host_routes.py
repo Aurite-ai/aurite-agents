@@ -242,6 +242,47 @@ async def unregister_server(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/servers/{server_name}/restart")
+async def restart_server(
+    server_name: str,
+    api_key: str = Security(get_api_key),
+    host: MCPHost = Depends(get_host),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    """
+    Restart a registered MCP server.
+    This is a convenience endpoint that unregisters and then re-registers the server.
+    """
+    logger.info(f"Attempting to restart server: {server_name}")
+    try:
+        # Unregister
+        await host.unregister_client(server_name)
+        _server_registration_times.pop(server_name, None)
+        logger.info(f"Server '{server_name}' unregistered, proceeding to re-register.")
+
+        # Re-register
+        server_config_dict = config_manager.get_config("mcp_server", server_name)
+        if not server_config_dict:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Server '{server_name}' not found in configuration for re-registration.",
+            )
+
+        server_config = ClientConfig(**server_config_dict)
+        await host.register_client(server_config)
+        _server_registration_times[server_config.name] = datetime.now()
+        logger.info(f"Server '{server_name}' re-registered successfully.")
+
+        return {"status": "success", "name": server_name}
+    except HTTPException as e:
+        # Re-raise HTTP exceptions directly
+        raise e
+    except Exception as e:
+        logger.error(f"Failed to restart server '{server_name}': {e}", exc_info=True)
+        # Provide a detailed error message for failures during the restart process
+        raise HTTPException(status_code=500, detail=f"Failed to restart server '{server_name}': {e}") from e
+
+
 @router.get("/{tool_name}", response_model=ToolDetails)
 async def get_tool_details(tool_name: str, api_key: str = Security(get_api_key), host: MCPHost = Depends(get_host)):
     """
