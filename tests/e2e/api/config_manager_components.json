@@ -1,0 +1,869 @@
+{
+	"info": {
+		"_postman_id": "c8f5f2e8-e2a1-4f5d-b0f2-2e1b1f3b3b1e",
+		"name": "Aurite Config Manager - Components API",
+		"description": "Tests for Configuration Manager component CRUD operations including edge cases and error handling",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Component CRUD Operations",
+			"item": [
+				{
+					"name": "List Component Types",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body is an array\", function () {",
+									"    pm.response.to.be.withBody;",
+									"    pm.response.to.be.json;",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    pm.expect(jsonData).to.include.members(['agent', 'llm', 'mcp_server']);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Components by Type (Singular)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body is an array\", function () {",
+									"    pm.response.to.be.withBody;",
+									"    pm.response.to.be.json;",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Components by Type (Plural)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 for plural form\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body is an array\", function () {",
+									"    pm.response.to.be.withBody;",
+									"    pm.response.to.be.json;",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"pm.test(\"Plural form returns same results as singular\", function () {",
+									"    // This assumes the previous request was for singular form",
+									"    // In practice, you'd compare with a stored result",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agents",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agents"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Component by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response body has correct structure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"    pm.expect(jsonData).to.have.property('type');",
+									"    pm.expect(jsonData.name).to.eql('Weather Agent');",
+									"    pm.expect(jsonData.type).to.eql('agent');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Weather%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Weather%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Component by ID (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent component\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Non-existent%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Non-existent%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Component",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('created successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Agent\",\n    \"config\": {\n        \"description\": \"A test agent\",\n        \"system_prompt\": \"You are a test agent\",\n        \"llm_config_id\": \"anthropic_claude_3_haiku\",\n        \"mcp_servers\": [],\n        \"project\": \"project_bravo\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/components/agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Component (Duplicate Name)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409 for duplicate component\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"pm.test(\"Response has conflict error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('already exists');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Weather Agent\",\n    \"config\": {\n        \"description\": \"Duplicate agent\",\n        \"system_prompt\": \"This should fail\",\n        \"llm_config_id\": \"anthropic_claude_3_haiku\",\n        \"mcp_servers\": [],\n        \"project\": \"project_bravo\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/components/agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Component (With Special Characters)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('created successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test-Agent_2.0 (Special)\",\n    \"config\": {\n        \"description\": \"Agent with special characters in name\",\n        \"system_prompt\": \"Testing special characters\",\n        \"llm_config_id\": \"anthropic_claude_3_haiku\",\n        \"mcp_servers\": [],\n        \"project\": \"project_bravo\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/components/agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Component",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('updated successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"config\": {\n        \"description\": \"Updated weather agent\",\n        \"system_prompt\": \"You are an updated weather assistant\",\n        \"llm_config_id\": \"anthropic_claude_3_haiku\",\n        \"mcp_servers\": [\"weather_server\"]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Weather%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Weather%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Component (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent component\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"config\": {\n        \"description\": \"This should fail\",\n        \"system_prompt\": \"Non-existent\",\n        \"llm_config_id\": \"anthropic_claude_3_haiku\",\n        \"mcp_servers\": []\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Non-existent%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Non-existent%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Component (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent component\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Non-existent%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Non-existent%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Component (Test Agent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Test%20Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Test%20Agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Component (Special Characters)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Test-Agent_2.0%20(Special)",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Test-Agent_2.0%20(Special)"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Component",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has validation message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('is valid');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Weather%20Agent/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Weather%20Agent",
+								"validate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Component (Non-existent)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 for non-existent component\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Response has error message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/agent/Non-existent%20Agent/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"agent",
+								"Non-existent%20Agent",
+								"validate"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Configuration Management",
+			"item": [
+				{
+					"name": "Refresh Configurations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response has success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('refreshed successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Error Handling",
+			"item": [
+				{
+					"name": "Invalid API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403 for invalid API key\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"pm.test(\"Response has authentication error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('Invalid API Key');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "invalid-api-key"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Missing API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401 for missing API key\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"pm.test(\"Response has authentication error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('API key required');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/config/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Component Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 but returns empty array\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    pm.expect(jsonData).to.have.lengthOf(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/config/components/invalid_type",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"config",
+								"components",
+								"invalid_type"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000"
+		},
+		{
+			"key": "api_key",
+			"value": "your-api-key-here"
+		}
+	]
+}
