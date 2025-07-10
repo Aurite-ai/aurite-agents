@@ -7,27 +7,18 @@
  * - Prompts: Pre-defined prompt templates
  *
  * MCP servers can be local Python scripts or remote HTTP services.
- * These endpoints are prefixed with `/tools`.
  */
 
-import { BaseClient } from '../BaseClient';
-import type {
-  ServerConfig,
-  ToolCallResult,
-  ServerRuntimeInfo,
-  ServerDetailedStatus,
-  ToolDetails,
-  ServerTestResult,
-} from '../types';
-
+import { BaseClient } from '../client/BaseClient';
+import type { ServerConfig, ToolCallResult, ServerDetailedStatus, ServerRuntimeInfo, ToolDetails, ServerTestResult } from '../types';
 export class MCPHostClient extends BaseClient {
   /**
-   * Get the status of the MCP Host.
+   * Get the status of the MCP Host
    *
    * Returns information about the host's current state, including
    * the number of tools currently available from all registered servers.
    *
-   * @returns Host status and tool count.
+   * @returns Host status and tool count
    * @example
    * ```typescript
    * const status = await client.host.getStatus();

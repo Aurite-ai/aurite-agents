@@ -10,7 +10,7 @@
  * Configurations are stored as JSON files and can be managed programmatically.
  */
 
-import { BaseClient } from '../BaseClient';
+import { BaseClient } from '../client/BaseClient';
 
 export class ConfigManagerClient extends BaseClient {
   /**
