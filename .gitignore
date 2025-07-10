@@ -178,6 +178,7 @@ playwright/.cache/
 **/**environment.json
 docs/plans/completed/**
 src/packaged_servers/plans/*
+**/mcp_server_logs/
 config/testing/*_output.json
 docs/notebooks/01_Introducing_txtai.ipynb
 .env*
@@ -189,3 +190,4 @@ notebook-venv/
 docs/guides/
 docs/reports/newman/*
 !src/aurite/init_templates/.env.example
+demo-config/*

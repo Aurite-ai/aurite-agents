@@ -23,8 +23,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-PLANS_DIR = Path(__file__).parent / "plans"
-PLANS_DIR.mkdir(exist_ok=True)
+PLANS_DIR = Path(__file__).parent / "mcp_server_logs" / "planning_server_logs"
+PLANS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create the MCP server
 mcp = FastMCP("Planning Assistant")
