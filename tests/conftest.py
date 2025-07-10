@@ -110,7 +110,7 @@ def with_test_config():
 
                 if not projects_str:
                     # The list is empty
-                    new_projects_list = '["././tests/fixtures/config"]'
+                    new_projects_list = '["./tests/fixtures/config"]'
                 else:
                     # The list has existing projects
                     new_projects_list = f'[{projects_str}, "./tests/fixtures/config"]'
