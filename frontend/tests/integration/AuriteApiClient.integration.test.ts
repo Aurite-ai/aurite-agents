@@ -13,7 +13,7 @@ import { createAuriteClient, type AuriteApiClient } from '../../src';
 
 // Configuration - these can be overridden with environment variables
 const API_URL = process.env.AURITE_API_URL || 'http://localhost:8000';
-const API_KEY = process.env.AURITE_API_KEY || 'test-api-key';
+const API_KEY = process.env.API_KEY || 'test-api-key';
 
 // Skip these tests if not explicitly enabled
 const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION_TESTS !== 'false';
@@ -94,16 +94,37 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
       expect(Array.isArray(agents)).toBe(true);
       expect(agents.length).toBeGreaterThan(0);
 
-      // Agents should be strings
+      // Handle both string and object responses
+      const agentNames: string[] = [];
       agents.forEach(agent => {
-        expect(typeof agent).toBe('string');
+        if (typeof agent === 'string') {
+          agentNames.push(agent);
+          expect(typeof agent).toBe('string');
+        } else if (agent && typeof agent === 'object') {
+          const agentObj = agent as any;
+          expect(agentObj.name).toBeTruthy();
+          agentNames.push(agentObj.name);
+        }
       });
+
+      // Store for use in other tests
+      registeredServers = agentNames;
     });
 
     it('should get a specific agent configuration', async () => {
       const agents = await client.config.listConfigs('agent');
       if (agents.length > 0) {
-        const agentName = agents[0];
+        // Extract agent name from either string or object
+        let agentName: string;
+        const firstAgent = agents[0];
+        if (typeof firstAgent === 'string') {
+          agentName = firstAgent;
+        } else if (firstAgent && typeof firstAgent === 'object') {
+          agentName = (firstAgent as any).name;
+        } else {
+          throw new Error('Unexpected agent format');
+        }
+
         const config = await client.config.getConfig('agent', agentName);
         expect(config).toBeDefined();
         expect(config.name).toBe(agentName);
@@ -206,11 +227,20 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     it('should prevent duplicate component creation', async () => {
       const agents = await client.config.listConfigs('agent');
       if (agents.length > 0) {
-        const existingAgent = agents[0];
+        // Extract agent name from either string or object
+        let existingAgentName: string;
+        const firstAgent = agents[0];
+        if (typeof firstAgent === 'string') {
+          existingAgentName = firstAgent;
+        } else if (firstAgent && typeof firstAgent === 'object') {
+          existingAgentName = (firstAgent as any).name;
+        } else {
+          throw new Error('Unexpected agent format');
+        }
 
         await expect(
           client.config.createConfig('agent', {
-            name: existingAgent,
+            name: existingAgentName,
             description: 'A duplicate agent',
             system_prompt: 'Duplicate',
             llm_config_id: 'my_openai_gpt4_turbo',
@@ -253,7 +283,16 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     it('should run an agent', async () => {
       const agents = await client.config.listConfigs('agent');
       if (agents.length > 0) {
-        const agentName = agents[0];
+        // Extract agent name from either string or object
+        let agentName: string;
+        const firstAgent = agents[0];
+        if (typeof firstAgent === 'string') {
+          agentName = firstAgent;
+        } else if (firstAgent && typeof firstAgent === 'object') {
+          agentName = (firstAgent as any).name;
+        } else {
+          throw new Error('Unexpected agent format');
+        }
 
         const result = await client.execution.runAgent(agentName, {
           user_message: 'Hello, please introduce yourself briefly.',

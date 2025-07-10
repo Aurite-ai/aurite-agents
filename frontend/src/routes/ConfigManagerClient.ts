@@ -25,7 +25,7 @@ export class ConfigManagerClient extends BaseClient {
    * - 'custom_workflow': Python-based workflows
    *
    * @param configType - Type of configuration to list
-   * @returns Array of configuration names
+   * @returns Array of configuration objects (or strings for backward compatibility)
    * @throws Error if the config type is invalid
    *
    * @example
@@ -33,14 +33,14 @@ export class ConfigManagerClient extends BaseClient {
    * // List all configured agents
    * const agents = await client.config.listConfigs('agent');
    * console.log('Available agents:', agents);
-   * // ['Weather Agent', 'Code Assistant', 'Research Agent']
+   * // [{ name: 'Weather Agent', ... }, { name: 'Code Assistant', ... }]
    *
-   * // List all LLM configurations
-   * const llms = await client.config.listConfigs('llm');
-   * // ['openai_gpt4', 'anthropic_claude', 'local_llama']
+   * // Extract just the names
+   * const agentNames = agents.map(a => typeof a === 'string' ? a : a.name);
+   * // ['Weather Agent', 'Code Assistant', 'Research Agent']
    * ```
    */
-  async listConfigs(configType: string): Promise<string[]> {
+  async listConfigs(configType: string): Promise<Array<any>> {
     return this.request('GET', `/config/components/${configType}`);
   }
 
