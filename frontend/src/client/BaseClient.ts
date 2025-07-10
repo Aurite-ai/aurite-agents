@@ -42,6 +42,7 @@ export class BaseClient {
     for (let attempt = 0; attempt <= retries; attempt++) {
       let controller: AbortController | undefined;
       let timeoutId: NodeJS.Timeout | undefined;
+      let fetchPromise: Promise<Response> | undefined;
 
       try {
         // Create abort controller for this attempt
@@ -68,8 +69,17 @@ export class BaseClient {
           fetchOptions.body = JSON.stringify(body);
         }
 
-        // Make the request
-        const response = await fetch(url, fetchOptions);
+        // Make the request and store the promise
+        // Wrap fetch to handle abort errors gracefully
+        fetchPromise = fetch(url, fetchOptions).catch(error => {
+          // If it's an abort error, we'll handle it in the outer catch
+          if (error.name === 'AbortError') {
+            throw error;
+          }
+          // For other errors, re-throw
+          throw error;
+        });
+        const response = await fetchPromise;
 
         // Clear timeout on successful response
         if (timeoutId) {
@@ -126,6 +136,13 @@ export class BaseClient {
         // Clean up timeout
         if (timeoutId) {
           clearTimeout(timeoutId);
+        }
+
+        // Ensure fetch promise doesn't create unhandled rejection
+        if (fetchPromise) {
+          fetchPromise.catch(() => {
+            // Silently catch any rejection to prevent unhandled promise rejection
+          });
         }
 
         // Handle different error types

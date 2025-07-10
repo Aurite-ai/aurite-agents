@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SystemClient } from '../../../src/routes/SystemClient';
+import { getApiClientConfig } from '../../../src/config/environment';
 import type { ApiConfig } from '../../../src/types';
 
 describe('SystemClient', () => {
   let client: SystemClient;
   const mockFetch = vi.fn();
-  const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
-  };
+  let config: ApiConfig;
 
   beforeEach(() => {
+    // Get config from environment with test overrides
+    config = getApiClientConfig({
+      baseUrl: 'http://localhost:8000',
+      apiKey: 'test-api-key',
+    });
+
     client = new SystemClient(config);
     mockFetch.mockClear();
     (globalThis as any).fetch = mockFetch;
@@ -23,7 +27,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.getSystemInfo();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/info',
+      `${config.baseUrl}/system/info`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ status: 'ok' });
@@ -36,7 +40,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.getFrameworkVersion();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/version',
+      `${config.baseUrl}/system/version`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ version: '1.0.0' });
@@ -49,7 +53,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.getSystemCapabilities();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/capabilities',
+      `${config.baseUrl}/system/capabilities`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ capabilities: [] });
@@ -62,7 +66,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.getEnvironmentVariables();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/environment',
+      `${config.baseUrl}/system/environment`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ variables: [] });
@@ -75,7 +79,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.updateEnvironmentVariables({ TEST: 'test' });
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/environment',
+      `${config.baseUrl}/system/environment`,
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({ variables: { TEST: 'test' } }),
@@ -91,7 +95,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.listDependencies();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/dependencies',
+      `${config.baseUrl}/system/dependencies`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ dependencies: [] });
@@ -104,7 +108,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.checkDependencyHealth();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/dependencies/check',
+      `${config.baseUrl}/system/dependencies/check`,
       expect.objectContaining({ method: 'POST' })
     );
     expect(result).toEqual({ status: 'ok' });
@@ -117,7 +121,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.getSystemMetrics();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/monitoring/metrics',
+      `${config.baseUrl}/system/monitoring/metrics`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ metrics: {} });
@@ -130,7 +134,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.listActiveProcesses();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/monitoring/active',
+      `${config.baseUrl}/system/monitoring/active`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ processes: [] });
@@ -143,7 +147,7 @@ describe('SystemClient', () => {
     } as Response);
     const result = await client.comprehensiveHealthCheck();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/system/health',
+      `${config.baseUrl}/system/health`,
       expect.objectContaining({ method: 'GET' })
     );
     expect(result).toEqual({ status: 'ok' });

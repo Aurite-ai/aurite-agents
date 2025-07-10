@@ -4,17 +4,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExecutionFacadeClient } from '../../../src/routes/ExecutionFacadeClient';
+import { getApiClientConfig } from '../../../src/config/environment';
 import type { ApiConfig, StreamEvent } from '../../../src/types';
 
 describe('ExecutionFacadeClient', () => {
   let client: ExecutionFacadeClient;
   const mockFetch = vi.fn();
-  const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
-  };
+  let config: ApiConfig;
 
   beforeEach(() => {
+    // Get config from environment with test overrides
+    config = getApiClientConfig({
+      baseUrl: 'http://localhost:8000',
+      apiKey: 'test-api-key',
+    });
+
     client = new ExecutionFacadeClient(config);
     mockFetch.mockClear();
     (globalThis as any).fetch = mockFetch;
@@ -30,11 +34,11 @@ describe('ExecutionFacadeClient', () => {
       const result = await client.getStatus();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/status',
+        `${config.baseUrl}/execution/status`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -78,11 +82,11 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/agents/Weather%20Agent/run',
+        `${config.baseUrl}/execution/agents/Weather%20Agent/run`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -132,11 +136,11 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/agents/Memory%20Agent/run',
+        `${config.baseUrl}/execution/agents/Memory%20Agent/run`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -250,11 +254,11 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/workflows/simple/Weather%20Planning%20Workflow/run',
+        `${config.baseUrl}/execution/workflows/simple/Weather%20Planning%20Workflow/run`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -319,11 +323,11 @@ describe('ExecutionFacadeClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/workflows/custom/DataProcessingWorkflow/run',
+        `${config.baseUrl}/execution/workflows/custom/DataProcessingWorkflow/run`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

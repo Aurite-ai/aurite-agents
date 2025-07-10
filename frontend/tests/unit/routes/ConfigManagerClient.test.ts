@@ -4,17 +4,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfigManagerClient } from '../../../src/routes/ConfigManagerClient';
+import { getApiClientConfig } from '../../../src/config/environment';
 import type { ApiConfig } from '../../../src/types';
 
 describe('ConfigManagerClient', () => {
   let client: ConfigManagerClient;
   const mockFetch = vi.fn();
-  const config: ApiConfig = {
-    baseUrl: 'http://localhost:8000',
-    apiKey: 'test-api-key',
-  };
+  let config: ApiConfig;
 
   beforeEach(() => {
+    // Get config from environment with test overrides
+    config = getApiClientConfig({
+      baseUrl: 'http://localhost:8000',
+      apiKey: 'test-api-key',
+    });
+
     client = new ConfigManagerClient(config);
     mockFetch.mockClear();
     (globalThis as any).fetch = mockFetch;
@@ -32,11 +36,11 @@ describe('ConfigManagerClient', () => {
       const agents = await client.listConfigs('agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
+        `${config.baseUrl}/config/components/agent`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -72,20 +76,20 @@ describe('ConfigManagerClient', () => {
         json: async () => mockAgentConfig,
       } as Response);
 
-      const config = await client.getConfig('agent', 'Weather Agent');
+      const agentConfig = await client.getConfig('agent', 'Weather Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent/Weather%20Agent',
+        `${config.baseUrl}/config/components/agent/Weather%20Agent`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
       );
 
-      expect(config).toEqual(mockAgentConfig);
+      expect(agentConfig).toEqual(mockAgentConfig);
     });
 
     it('should handle config not found', async () => {
@@ -120,11 +124,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.createConfig('agent', newAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
+        `${config.baseUrl}/config/components/agent`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -172,11 +176,11 @@ describe('ConfigManagerClient', () => {
       );
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
+        `${config.baseUrl}/config/components/agent`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -214,11 +218,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.updateConfig('agent', 'Weather Agent', updatedAgent);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent/Weather%20Agent',
+        `${config.baseUrl}/config/components/agent/Weather%20Agent`,
         expect.objectContaining({
           method: 'PUT',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -247,11 +251,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.deleteConfig('agent', 'Old Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent/Old%20Agent',
+        `${config.baseUrl}/config/components/agent/Old%20Agent`,
         expect.objectContaining({
           method: 'DELETE',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -283,11 +287,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.reloadConfigs();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/refresh',
+        `${config.baseUrl}/config/refresh`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -307,11 +311,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.validateConfig('agent', 'Weather Agent');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent/Weather%20Agent/validate',
+        `${config.baseUrl}/config/components/agent/Weather%20Agent/validate`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -356,11 +360,11 @@ describe('ConfigManagerClient', () => {
       const sources = await client.listConfigSources();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/sources',
+        `${config.baseUrl}/config/sources`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -389,11 +393,11 @@ describe('ConfigManagerClient', () => {
       const files = await client.listConfigFiles('project_bravo');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files/project_bravo',
+        `${config.baseUrl}/config/files/project_bravo`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -426,11 +430,11 @@ describe('ConfigManagerClient', () => {
       const content = await client.getFileContent('workspace', 'agents.json');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files/workspace/agents.json',
+        `${config.baseUrl}/config/files/workspace/agents.json`,
         expect.objectContaining({
           method: 'GET',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -466,11 +470,11 @@ describe('ConfigManagerClient', () => {
       );
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files',
+        `${config.baseUrl}/config/files`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -511,11 +515,11 @@ describe('ConfigManagerClient', () => {
       );
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files/project_bravo/llms.json',
+        `${config.baseUrl}/config/files/project_bravo/llms.json`,
         expect.objectContaining({
           method: 'PUT',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -538,11 +542,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.deleteConfigFile('project_bravo', 'old_agents.json');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files/project_bravo/old_agents.json',
+        `${config.baseUrl}/config/files/project_bravo/old_agents.json`,
         expect.objectContaining({
           method: 'DELETE',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -562,11 +566,11 @@ describe('ConfigManagerClient', () => {
       const result = await client.validateAllConfigs();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/validate',
+        `${config.baseUrl}/config/validate`,
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'X-API-Key': 'test-api-key',
+            'X-API-Key': config.apiKey,
             'Content-Type': 'application/json',
           },
         })
@@ -608,7 +612,7 @@ describe('ConfigManagerClient', () => {
 
       const projects = await client.listProjects();
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects',
+        `${config.baseUrl}/config/projects`,
         expect.any(Object)
       );
       expect(projects).toEqual(mockProjects);
@@ -622,7 +626,7 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.createProject('new-project', 'A new project');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects',
+        `${config.baseUrl}/config/projects`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ name: 'new-project', description: 'A new project' }),
@@ -642,7 +646,7 @@ describe('ConfigManagerClient', () => {
 
       const project = await client.getActiveProject();
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects/active',
+        `${config.baseUrl}/config/projects/active`,
         expect.any(Object)
       );
       expect(project).toEqual(mockProject);
@@ -659,7 +663,7 @@ describe('ConfigManagerClient', () => {
 
       const project = await client.getProject('my-project');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects/my-project',
+        `${config.baseUrl}/config/projects/my-project`,
         expect.any(Object)
       );
       expect(project).toEqual(mockProject);
@@ -675,7 +679,7 @@ describe('ConfigManagerClient', () => {
       const result = await client.updateProject('my-project', updates);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects/my-project',
+        `${config.baseUrl}/config/projects/my-project`,
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify(updates),
@@ -692,7 +696,7 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.deleteProject('my-project');
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/projects/my-project',
+        `${config.baseUrl}/config/projects/my-project`,
         expect.objectContaining({ method: 'DELETE' })
       );
       expect(result).toEqual({ message: 'Project deleted' });
@@ -714,7 +718,7 @@ describe('ConfigManagerClient', () => {
 
       const workspaces = await client.listWorkspaces();
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/workspaces',
+        `${config.baseUrl}/config/workspaces`,
         expect.any(Object)
       );
       expect(workspaces).toEqual(mockWorkspaces);
@@ -732,7 +736,7 @@ describe('ConfigManagerClient', () => {
 
       const workspace = await client.getActiveWorkspace();
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/workspaces/active',
+        `${config.baseUrl}/config/workspaces/active`,
         expect.any(Object)
       );
       expect(workspace).toEqual(mockWorkspace);
