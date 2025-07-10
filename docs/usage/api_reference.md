@@ -60,26 +60,23 @@ Handles all configuration file operations, component CRUD operations, and projec
 |--------|----------|-------------|
 | GET | `/config/projects` | List all projects in workspace |
 | POST | `/config/projects` | Create new project |
-| GET | `/config/projects/{project_id}` | Get project details |
-| PUT | `/config/projects/{project_id}` | Update project |
-| DELETE | `/config/projects/{project_id}` | Delete project |
-| POST | `/config/projects/{project_id}/activate` | Set as active project |
+| GET | `/config/projects/{name}` | Get project details |
+| PUT | `/config/projects/{name}` | Update project |
+| DELETE | `/config/projects/{name}` | Delete project |
 | GET | `/config/projects/active` | Get currently active project |
 | GET | `/config/workspaces` | List workspaces |
-| POST | `/config/workspaces` | Create new workspace |
-| GET | `/config/workspaces/{workspace_id}` | Get workspace details |
-| PUT | `/config/workspaces/{workspace_id}` | Update workspace |
+| GET | `/config/workspaces/active` | Get the active workspace |
 
 ### Configuration File Operations
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/config/sources` | List all config sources (project, user, packaged) |
-| GET | `/config/files` | List all config files |
 | POST | `/config/files` | Create new config file |
-| GET | `/config/files/{file_path}` | Get config file content |
-| PUT | `/config/files/{file_path}` | Update config file |
-| DELETE | `/config/files/{file_path}` | Delete config file |
+| GET | `/config/files/{source_name}` | List config files by source |
+| GET | `/config/files/{source_name}/{file_path}` | Get config file content |
+| PUT | `/config/files/{source_name}/{file_path}` | Update config file |
+| DELETE | `/config/files/{source_name}/{file_path}` | Delete config file |
 | POST | `/config/refresh` | Force refresh config cache |
 | POST | `/config/validate` | Validate all configurations |
 
@@ -105,6 +102,7 @@ Manages runtime operations for MCP servers, tool discovery, and execution. These
 |--------|----------|-------------|
 | GET | `/tools/servers` | List currently registered servers (runtime) |
 | GET | `/tools/servers/{server_name}` | Get runtime status of registered server |
+| POST | `/tools/servers/{server_name}/restart` | Restart a registered server |
 | GET | `/tools/servers/{server_name}/tools` | List tools from specific server |
 | POST | `/tools/servers/{server_name}/test` | Test server connection |
 

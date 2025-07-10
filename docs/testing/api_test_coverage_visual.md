@@ -7,8 +7,8 @@ This document provides a visual representation of the API test coverage for each
 | Component | Coverage | Tested | Total |
 | :--- | :--- | :--- | :--- |
 | **Configuration Manager** | `██████████` (100%) | 38 | 38 |
-| **MCP Host Manager** | `██████████` (100%) | 12 | 12 |
-| **Execution Facade** | `███...` (38%) | 5 | 13 |
+| **MCP Host Manager** | `██████████` (100%) | 13 | 13 |
+| **Execution Facade** | `██████████` (100%) | 13 | 13 |
 | **System Management** | `...` (0%) | 0 | 4 |
 | **Main API** | `█████...` (50%) | 1 | 2 |
 | **Total** | | **38** | **69** |
@@ -24,26 +24,17 @@ This document provides a visual representation of the API test coverage for each
 -   **Project & Workspace:** ✅✅✅✅✅✅✅✅✅✅✅ (11/11)
 -   **Validation & Refresh:** ✅✅ (2/2)
 
-### MCP Host Manager (100% - 12/12 tested)
+### MCP Host Manager (100% - 13/13 tested)
 
 -   **Server Management:** ✅✅✅✅✅✅✅✅ (8/8)
 -   **Tool Execution:** ✅✅✅✅ (4/4)
+-   **Host Status:** ✅ (1/1)
 
-### Execution Facade (38% - 5/13 tested)
+### Execution Facade (100% - 13/13 tested)
 
--   **Agent Execution:** ✅✅ (2/4)
--   **Workflow Execution:** ✅ (1/3)
--   **Session History:** ✅✅ (2/6)
--   **Untested:**
-    -   `POST /execution/agent/stream`
-    -   `POST /execution/agent/invoke`
-    -   `POST /execution/workflow/stream`
-    -   `GET /execution/workflow/status/{run_id}`
-    -   `GET /execution/history`
-    -   `GET /execution/history/{session_id}`
-    -   `DELETE /execution/history/{session_id}`
-    -   `GET /execution/cache`
-    -   `DELETE /execution/cache`
+-   **Agent Execution:** ✅✅✅✅ (4/4)
+-   **Workflow Execution:** ✅✅✅ (3/3)
+-   **Session History:** ✅✅✅✅✅✅ (6/6)
 
 ### System Management (0% - 0/4 tested)
 

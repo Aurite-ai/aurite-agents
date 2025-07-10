@@ -223,4 +223,53 @@ export class ExecutionFacadeClient extends BaseClient {
       request
     );
   }
+
+  async testAgent(agentName: string): Promise<{ status: string }> {
+    return this.request('POST', `/execution/agents/${encodeURIComponent(agentName)}/test`);
+  }
+
+  async testSimpleWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/simple/${encodeURIComponent(workflowName)}/test`
+    );
+  }
+
+  async testCustomWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/custom/${encodeURIComponent(workflowName)}/test`
+    );
+  }
+
+  async validateCustomWorkflow(workflowName: string): Promise<{ status: string }> {
+    return this.request(
+      'POST',
+      `/execution/workflows/custom/${encodeURIComponent(workflowName)}/validate`
+    );
+  }
+
+  async getAgentHistory(agentName: string): Promise<any> {
+    return this.request('GET', `/execution/agents/${encodeURIComponent(agentName)}/history`);
+  }
+
+  async getWorkflowHistory(workflowName: string): Promise<any> {
+    return this.request('GET', `/execution/workflows/${encodeURIComponent(workflowName)}/history`);
+  }
+
+  async getAllHistory(): Promise<any> {
+    return this.request('GET', '/execution/history');
+  }
+
+  async getHistoryBySessionId(sessionId: string): Promise<any> {
+    return this.request('GET', `/execution/history/${sessionId}`);
+  }
+
+  async deleteHistoryBySessionId(sessionId: string): Promise<any> {
+    return this.request('DELETE', `/execution/history/${sessionId}`);
+  }
+
+  async cleanupHistory(): Promise<any> {
+    return this.request('POST', '/execution/history/cleanup');
+  }
 }

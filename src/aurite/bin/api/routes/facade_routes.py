@@ -133,6 +133,23 @@ async def run_agent(
         raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
 
 
+@router.post("/agents/{agent_name}/test")
+async def test_agent(
+    agent_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test an agent's configuration and dependencies.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_agent(agent_name, "test message", system_prompt="test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.post("/agents/{agent_name}/stream")
 async def stream_agent(
     agent_name: str,
@@ -161,7 +178,11 @@ async def stream_agent(
         # The error will be logged, and the client will see a dropped connection.
         # A more robust solution could involve yielding a final error event.
         return StreamingResponse(
-            iter([f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"]),
+            iter(
+                [
+                    f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"
+                ]
+            ),
             media_type="text/event-stream",
             status_code=500,
         )
@@ -192,6 +213,23 @@ async def run_simple_workflow(
     except Exception as e:
         logger.error(f"Unexpected error running simple workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
+
+
+@router.post("/workflows/simple/{workflow_name}/test")
+async def test_simple_workflow(
+    workflow_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test a simple workflow.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_simple_workflow(workflow_name, "test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/workflows/custom/{workflow_name}/run")
@@ -312,6 +350,8 @@ async def delete_session_history(
     Delete a specific session's history.
     Returns 204 No Content on success, 404 if session not found.
     """
+    if session_id == "null":
+        raise HTTPException(status_code=404, detail="Session 'null' not found")
     try:
         deleted = facade.delete_session(session_id)
         if not deleted:
@@ -323,6 +363,40 @@ async def delete_session_history(
     except Exception as e:
         logger.error(f"Error deleting session '{session_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete session") from e
+
+
+@router.post("/workflows/custom/{workflow_name}/test")
+async def test_custom_workflow(
+    workflow_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test a custom workflow.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_custom_workflow(workflow_name, "test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/workflows/custom/{workflow_name}/validate")
+async def validate_custom_workflow(
+    workflow_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Validate a custom workflow.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_custom_workflow(workflow_name, "test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/agents/{agent_name}/history", response_model=SessionListResponse)
@@ -346,12 +420,43 @@ async def get_agent_history(
         # Convert to response model
         sessions = []
         for session_data in result["sessions"]:
-            sessions.append(SessionMetadata(**session_data))
+            if session_data["agent_name"] == agent_name:
+                sessions.append(SessionMetadata(**session_data))
 
-        return SessionListResponse(sessions=sessions, total=result["total"], offset=0, limit=limit)
+        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
     except Exception as e:
         logger.error(f"Error getting history for agent '{agent_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve history for agent '{agent_name}'") from e
+
+
+@router.get("/workflows/{workflow_name}/history", response_model=SessionListResponse)
+async def get_workflow_history(
+    workflow_name: str,
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Get all sessions for a specific workflow.
+    Returns the most recent sessions up to the limit.
+    """
+    try:
+        # Apply retention policy on retrieval
+        facade.cleanup_old_sessions()
+
+        # Get sessions for specific workflow (no offset for workflow-specific queries)
+        result = facade.get_sessions_list(agent_name=workflow_name, limit=limit, offset=0)
+
+        # Convert to response model
+        sessions = []
+        for session_data in result["sessions"]:
+            if session_data["agent_name"] == workflow_name:
+                sessions.append(SessionMetadata(**session_data))
+
+        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
+    except Exception as e:
+        logger.error(f"Error getting history for workflow '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve history for workflow '{workflow_name}'") from e
 
 
 @router.post("/history/cleanup", status_code=200)

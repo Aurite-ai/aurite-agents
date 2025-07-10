@@ -374,6 +374,17 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     });
   });
 
+  describe('History', () => {
+    it('should get agent history', async () => {
+      const agents = await client.config.listConfigs('agent');
+      if (agents.length > 0) {
+        const agentName = typeof agents[0] === 'string' ? agents[0] : (agents[0] as any).name;
+        const history = await client.execution.getAgentHistory(agentName);
+        expect(Array.isArray(history.sessions)).toBe(true);
+      }
+    });
+  });
+
   describe('Validation', () => {
     it('should validate all configurations', async () => {
       // This might throw if there are invalid configs, which is okay for the test

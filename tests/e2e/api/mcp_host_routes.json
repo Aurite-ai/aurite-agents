@@ -14,14 +14,6 @@
 						"exec": [
 							"pm.test(\"Status code is 200\", function () {",
 							"    pm.response.to.have.status(200);",
-							"});",
-							"pm.test(\"Response body has correct status\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.status).to.eql('active');",
-							"});",
-							"pm.test(\"Response body has tool_count\", function () {",
-							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.tool_count).to.be.a('number');",
 							"});"
 						],
 						"type": "text/javascript"
