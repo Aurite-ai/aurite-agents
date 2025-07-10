@@ -31,17 +31,14 @@ describe('ConfigManagerClient', () => {
 
       const agents = await client.listConfigs('agent');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(agents).toEqual(mockAgents);
     });
@@ -53,9 +50,7 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Invalid config type' }),
       } as Response);
 
-      await expect(
-        client.listConfigs('invalid_type')
-      ).rejects.toThrow('Invalid config type');
+      await expect(client.listConfigs('invalid_type')).rejects.toThrow('Invalid config type');
     });
   });
 
@@ -99,9 +94,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration not found' }),
       } as Response);
 
-      await expect(
-        client.getConfig('agent', 'NonExistent Agent')
-      ).rejects.toThrow('Configuration not found');
+      await expect(client.getConfig('agent', 'NonExistent Agent')).rejects.toThrow(
+        'Configuration not found'
+      );
     });
   });
 
@@ -123,26 +118,23 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.createConfig('agent', newAgent);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Translation Agent',
+          config: {
+            description: 'Translates text between languages',
+            system_prompt: 'You are a professional translator...',
+            llm_config_id: 'anthropic_claude',
+            mcp_servers: ['translation_server'],
+            max_iterations: 3,
           },
-          body: JSON.stringify({
-            name: 'Translation Agent',
-            config: {
-              description: 'Translates text between languages',
-              system_prompt: 'You are a professional translator...',
-              llm_config_id: 'anthropic_claude',
-              mcp_servers: ['translation_server'],
-              max_iterations: 3,
-            }
-          }),
-        }
-      );
+        }),
+      });
 
       expect(result).toEqual({ message: 'Configuration created successfully' });
     });
@@ -154,9 +146,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration with this name already exists' }),
       } as Response);
 
-      await expect(
-        client.createConfig('agent', { name: 'Existing Agent' })
-      ).rejects.toThrow('Configuration with this name already exists');
+      await expect(client.createConfig('agent', { name: 'Existing Agent' })).rejects.toThrow(
+        'Configuration with this name already exists'
+      );
     });
 
     it('should create a new component with options', async () => {
@@ -171,25 +163,22 @@ describe('ConfigManagerClient', () => {
         { project: 'project_bravo', filePath: 'new_agents.json' }
       );
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/components/agent',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/components/agent', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'My New Agent',
+          config: {
+            description: 'A test agent',
+            project: 'project_bravo',
+            workspace: undefined,
+            file_path: 'new_agents.json',
           },
-          body: JSON.stringify({
-            name: 'My New Agent',
-            config: {
-              description: 'A test agent',
-              project: 'project_bravo',
-              workspace: undefined,
-              file_path: 'new_agents.json',
-            },
-          }),
-        }
-      );
+        }),
+      });
 
       expect(result).toEqual({ message: 'Component created successfully' });
     });
@@ -228,7 +217,7 @@ describe('ConfigManagerClient', () => {
               llm_config_id: 'anthropic_claude',
               mcp_servers: ['weather_server', 'news_server'],
               max_iterations: 10,
-            }
+            },
           }),
         }
       );
@@ -268,9 +257,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Configuration not found' }),
       } as Response);
 
-      await expect(
-        client.deleteConfig('agent', 'NonExistent Agent')
-      ).rejects.toThrow('Configuration not found');
+      await expect(client.deleteConfig('agent', 'NonExistent Agent')).rejects.toThrow(
+        'Configuration not found'
+      );
     });
   });
 
@@ -283,17 +272,14 @@ describe('ConfigManagerClient', () => {
 
       const result = await client.reloadConfigs();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/refresh',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/refresh', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(result).toEqual({ message: 'Configurations reloaded successfully' });
     });
@@ -330,23 +316,23 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Validation failed: Missing required field: system_prompt' }),
       } as Response);
 
-      await expect(
-        client.validateConfig('agent', 'Invalid Agent')
-      ).rejects.toThrow('Validation failed: Missing required field: system_prompt');
+      await expect(client.validateConfig('agent', 'Invalid Agent')).rejects.toThrow(
+        'Validation failed: Missing required field: system_prompt'
+      );
     });
   });
 
   describe('listConfigSources', () => {
     it('should list all configuration sources', async () => {
       const mockSources = {
-        "project_bravo": {
-          "path": "/home/wilcoxr/workspace/aurite/framework/project_bravo",
-          "source_type": "project"
+        project_bravo: {
+          path: '/home/wilcoxr/workspace/aurite/framework/project_bravo',
+          source_type: 'project',
         },
-        "workspace": {
-          "path": "/home/wilcoxr/workspace/aurite/framework",
-          "source_type": "workspace"
-        }
+        workspace: {
+          path: '/home/wilcoxr/workspace/aurite/framework',
+          source_type: 'workspace',
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -356,17 +342,14 @@ describe('ConfigManagerClient', () => {
 
       const sources = await client.listConfigSources();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/sources',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/sources', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(sources).toEqual(mockSources);
     });
@@ -375,12 +358,12 @@ describe('ConfigManagerClient', () => {
   describe('listConfigFiles', () => {
     it('should list configuration files for a specific source', async () => {
       const mockFiles = [
-        "config/agents/example_agents.json",
-        "config/custom_workflows/example_custom_workflows.json",
-        "config/example_multi_component.json",
-        "config/linear_workflows/example_linear_workflow.json",
-        "config/llms/example_llms.json",
-        "config/mcp_servers/example_mcp_servers.json"
+        'config/agents/example_agents.json',
+        'config/custom_workflows/example_custom_workflows.json',
+        'config/example_multi_component.json',
+        'config/linear_workflows/example_linear_workflow.json',
+        'config/llms/example_llms.json',
+        'config/mcp_servers/example_mcp_servers.json',
       ];
 
       mockFetch.mockResolvedValueOnce({
@@ -390,17 +373,14 @@ describe('ConfigManagerClient', () => {
 
       const files = await client.listConfigFiles('project_bravo');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files/project_bravo',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/files/project_bravo', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(files).toEqual(mockFiles);
     });
@@ -412,9 +392,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Source not found' }),
       } as Response);
 
-      await expect(
-        client.listConfigFiles('non_existent_source')
-      ).rejects.toThrow('Source not found');
+      await expect(client.listConfigFiles('non_existent_source')).rejects.toThrow(
+        'Source not found'
+      );
     });
   });
 
@@ -450,9 +430,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'File not found' }),
       } as Response);
 
-      await expect(
-        client.getFileContent('workspace', 'non_existent_file.json')
-      ).rejects.toThrow('File not found');
+      await expect(client.getFileContent('workspace', 'non_existent_file.json')).rejects.toThrow(
+        'File not found'
+      );
     });
   });
 
@@ -469,21 +449,18 @@ describe('ConfigManagerClient', () => {
         '[{"name": "new_llm", "type": "llm"}]'
       );
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/config/files',
-        {
-          method: 'POST',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            source_name: 'project_bravo',
-            relative_path: 'new_llms.json',
-            content: '[{"name": "new_llm", "type": "llm"}]',
-          }),
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/config/files', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source_name: 'project_bravo',
+          relative_path: 'new_llms.json',
+          content: '[{"name": "new_llm", "type": "llm"}]',
+        }),
+      });
 
       expect(result).toEqual({ message: 'File created successfully' });
     });
@@ -495,9 +472,9 @@ describe('ConfigManagerClient', () => {
         json: async () => ({ detail: 'Failed to create file' }),
       } as Response);
 
-      await expect(
-        client.createConfigFile('workspace', 'existing.json', '{}')
-      ).rejects.toThrow('Failed to create file');
+      await expect(client.createConfigFile('workspace', 'existing.json', '{}')).rejects.toThrow(
+        'Failed to create file'
+      );
     });
   });
 

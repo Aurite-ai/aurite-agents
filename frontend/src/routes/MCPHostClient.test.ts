@@ -29,17 +29,14 @@ describe('MCPHostClient', () => {
 
       const result = await client.getStatus();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/status',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/status', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(result).toEqual({ status: 'active', tool_count: 5 });
     });
@@ -68,17 +65,14 @@ describe('MCPHostClient', () => {
 
       const tools = await client.listTools();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(tools).toEqual(mockTools);
     });
@@ -117,14 +111,11 @@ describe('MCPHostClient', () => {
       } as Response);
 
       const result = await client.callTool('weather_lookup', { location: 'SF' });
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/weather_lookup/call',
-        {
-          method: 'POST',
-          headers: expect.any(Object),
-          body: JSON.stringify({ args: { location: 'SF' } }),
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/weather_lookup/call', {
+        method: 'POST',
+        headers: expect.any(Object),
+        body: JSON.stringify({ args: { location: 'SF' } }),
+      });
       expect(result).toEqual(mockResult);
     });
   });
@@ -189,14 +180,11 @@ describe('MCPHostClient', () => {
       } as Response);
 
       const result = await client.testServer('server1');
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/servers/server1/test',
-        {
-          method: 'POST',
-          headers: expect.any(Object),
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/servers/server1/test', {
+        method: 'POST',
+        headers: expect.any(Object),
+        body: undefined,
+      });
       expect(result).toEqual(mockResult);
     });
   });
@@ -238,14 +226,11 @@ describe('MCPHostClient', () => {
 
       const result = await client.registerServerByConfig(serverConfig);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/register/config',
-        {
-          method: 'POST',
-          headers: expect.any(Object),
-          body: JSON.stringify(serverConfig),
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/register/config', {
+        method: 'POST',
+        headers: expect.any(Object),
+        body: JSON.stringify(serverConfig),
+      });
 
       expect(result).toEqual({ status: 'success', name: 'custom_server' });
     });
@@ -260,14 +245,11 @@ describe('MCPHostClient', () => {
 
       const result = await client.unregisterServer('weather_server');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/tools/servers/weather_server',
-        {
-          method: 'DELETE',
-          headers: expect.any(Object),
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/tools/servers/weather_server', {
+        method: 'DELETE',
+        headers: expect.any(Object),
+        body: undefined,
+      });
 
       expect(result).toEqual({ status: 'success', name: 'weather_server' });
     });

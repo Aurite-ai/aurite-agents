@@ -103,7 +103,9 @@ export function createAuriteClient(baseUrl: string, apiKey: string): AuriteApiCl
  * });
  * ```
  */
-export async function createAuriteClientFromEnv(overrides?: Partial<ApiConfig>): Promise<AuriteApiClient> {
+export async function createAuriteClientFromEnv(
+  overrides?: Partial<ApiConfig>
+): Promise<AuriteApiClient> {
   // Import here to avoid circular dependencies and ensure environment is loaded
   const { getApiClientConfig } = await import('../config/environment.js');
   const config = getApiClientConfig(overrides);

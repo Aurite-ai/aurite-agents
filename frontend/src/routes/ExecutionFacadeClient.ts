@@ -101,6 +101,7 @@ export class ExecutionFacadeClient extends BaseClient {
   async streamAgent(
     agentName: string,
     request: AgentRunRequest,
+    // eslint-disable-next-line no-unused-vars
     onEvent: (event: StreamEvent) => void
   ): Promise<void> {
     const url = `${this.config.baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`;
@@ -125,6 +126,7 @@ export class ExecutionFacadeClient extends BaseClient {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
@@ -214,10 +216,7 @@ export class ExecutionFacadeClient extends BaseClient {
    * );
    * ```
    */
-  async runCustomWorkflow(
-    workflowName: string,
-    request: WorkflowRunRequest
-  ): Promise<any> {
+  async runCustomWorkflow(workflowName: string, request: WorkflowRunRequest): Promise<any> {
     return this.request(
       'POST',
       `/execution/workflows/custom/${encodeURIComponent(workflowName)}/run`,

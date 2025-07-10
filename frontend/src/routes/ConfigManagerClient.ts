@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * Client for the Configuration Manager API endpoints
  *
@@ -157,7 +158,7 @@ export class ConfigManagerClient extends BaseClient {
     // Remove name from config since it's in the URL
     const { name: _, ...configData } = config;
     return this.request('PUT', `/config/components/${configType}/${encodeURIComponent(name)}`, {
-      config: configData
+      config: configData,
     });
   }
 
@@ -229,7 +230,10 @@ export class ConfigManagerClient extends BaseClient {
    * ```
    */
   async validateConfig(configType: string, name: string): Promise<{ message: string }> {
-    return this.request('POST', `/config/components/${configType}/${encodeURIComponent(name)}/validate`);
+    return this.request(
+      'POST',
+      `/config/components/${configType}/${encodeURIComponent(name)}/validate`
+    );
   }
 
   /**
@@ -252,12 +256,14 @@ export class ConfigManagerClient extends BaseClient {
    * });
    * ```
    */
-  async listConfigSources(): Promise<Array<{
-    path: string;
-    context: 'project' | 'workspace' | 'user';
-    project_name?: string;
-    workspace_name?: string;
-  }>> {
+  async listConfigSources(): Promise<
+    Array<{
+      path: string;
+      context: 'project' | 'workspace' | 'user';
+      project_name?: string;
+      workspace_name?: string;
+    }>
+  > {
     return this.request('GET', '/config/sources');
   }
 
@@ -316,11 +322,15 @@ export class ConfigManagerClient extends BaseClient {
    * @returns A success message.
    * @throws Error if the file creation fails.
    */
-  async createConfigFile(sourceName: string, relativePath: string, content: string): Promise<{ message: string }> {
+  async createConfigFile(
+    sourceName: string,
+    relativePath: string,
+    content: string
+  ): Promise<{ message: string }> {
     return this.request('POST', '/config/files', {
       source_name: sourceName,
       relative_path: relativePath,
-      content: content,
+      content,
     });
   }
 
@@ -333,7 +343,11 @@ export class ConfigManagerClient extends BaseClient {
    * @returns A success message.
    * @throws Error if the file update fails.
    */
-  async updateConfigFile(sourceName: string, relativePath: string, content: string): Promise<{ message: string }> {
+  async updateConfigFile(
+    sourceName: string,
+    relativePath: string,
+    content: string
+  ): Promise<{ message: string }> {
     return this.request('PUT', `/config/files/${sourceName}/${relativePath}`, { content });
   }
 

@@ -29,17 +29,14 @@ describe('ExecutionFacadeClient', () => {
 
       const result = await client.getStatus();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/execution/status',
-        {
-          method: 'GET',
-          headers: {
-            'X-API-Key': 'test-api-key',
-            'Content-Type': 'application/json',
-          },
-          body: undefined,
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/execution/status', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': 'test-api-key',
+          'Content-Type': 'application/json',
+        },
+        body: undefined,
+      });
 
       expect(result).toEqual({ status: 'active' });
     });
@@ -120,13 +117,9 @@ describe('ExecutionFacadeClient', () => {
         body: mockStream,
       } as Response);
 
-      await client.streamAgent(
-        'Weather Agent',
-        { user_message: 'Hello' },
-        (event) => {
-          events.push(event);
-        }
-      );
+      await client.streamAgent('Weather Agent', { user_message: 'Hello' }, event => {
+        events.push(event);
+      });
 
       expect(events).toHaveLength(3);
       expect(events[0].type).toBe('llm_response_start');

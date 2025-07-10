@@ -9,9 +9,7 @@
  * - Base URL configuration
  */
 
-import type { ApiConfig, RequestOptions } from '../types';
-import { ApiError, TimeoutError, CancellationError } from '../types';
-
+import { ApiConfig, TimeoutError, CancellationError, ApiError, RequestOptions } from '../types';
 export class BaseClient {
   protected config: ApiConfig;
 
@@ -154,7 +152,10 @@ export class BaseClient {
         }
 
         // Handle network errors
-        if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        if (
+          error instanceof TypeError &&
+          (error.message.includes('fetch') || error.message.includes('Failed to fetch'))
+        ) {
           const networkError = new ApiError(
             'Network error: Unable to connect to server',
             0,
@@ -189,6 +190,8 @@ export class BaseClient {
     }
 
     // If we've exhausted all retries, throw the last error
-    throw lastError || new ApiError('Maximum retries exceeded', 0, 'MAX_RETRIES', {}, requestContext);
+    throw (
+      lastError || new ApiError('Maximum retries exceeded', 0, 'MAX_RETRIES', {}, requestContext)
+    );
   }
 }

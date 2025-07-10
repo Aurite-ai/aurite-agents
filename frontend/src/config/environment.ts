@@ -1,6 +1,5 @@
 /**
  * Centralized environment configuration for the Aurite API Client
- * 
  * This module handles:
  * - Loading environment variables from .env files
  * - Providing typed configuration objects
@@ -43,7 +42,7 @@ export interface AuriteConfig {
  */
 function getEnvironment(): Environment {
   const env = process.env.NODE_ENV?.toLowerCase();
-  
+
   switch (env) {
     case 'test':
       return 'test';
@@ -60,11 +59,11 @@ function getEnvironment(): Environment {
  */
 function getEnvVar(name: string, defaultValue?: string, required: boolean = false): string {
   const value = process.env[name] || defaultValue;
-  
+
   if (required && !value) {
     throw new Error(`Required environment variable ${name} is not set`);
   }
-  
+
   return value || '';
 }
 
@@ -99,20 +98,20 @@ function getDefaultConfig(environment: Environment): Partial<AuriteConfig> {
 function createConfig(): AuriteConfig {
   const environment = getEnvironment();
   const defaults = getDefaultConfig(environment);
-  
+
   // Get configuration from environment variables with fallbacks
   const baseUrl = getEnvVar('AURITE_API_BASE_URL', defaults.baseUrl);
   const apiKey = getEnvVar('AURITE_API_KEY', defaults.apiKey, environment === 'production');
-  
+
   // Validate required fields
   if (!baseUrl) {
     throw new Error('AURITE_API_BASE_URL must be provided');
   }
-  
+
   if (environment === 'production' && !apiKey) {
     throw new Error('AURITE_API_KEY must be provided in production environment');
   }
-  
+
   return {
     baseUrl,
     apiKey,
@@ -156,11 +155,11 @@ export function validateConfig(config: AuriteConfig = auriteConfig): void {
   if (!config.baseUrl) {
     throw new Error('Base URL is required');
   }
-  
+
   if (!config.baseUrl.startsWith('http://') && !config.baseUrl.startsWith('https://')) {
     throw new Error('Base URL must start with http:// or https://');
   }
-  
+
   if (config.isProduction && !config.apiKey) {
     throw new Error('API key is required in production');
   }
@@ -170,9 +169,11 @@ export function validateConfig(config: AuriteConfig = auriteConfig): void {
  * Get configuration for API client
  * Returns the format expected by the BaseClient
  */
-export function getApiClientConfig(overrides: Partial<Pick<AuriteConfig, 'baseUrl' | 'apiKey'>> = {}) {
+export function getApiClientConfig(
+  overrides: Partial<Pick<AuriteConfig, 'baseUrl' | 'apiKey'>> = {}
+) {
   const config = getAuriteConfig();
-  
+
   return {
     baseUrl: overrides.baseUrl || config.baseUrl,
     apiKey: overrides.apiKey || config.apiKey,

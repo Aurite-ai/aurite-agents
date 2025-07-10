@@ -169,7 +169,7 @@ async function runIntegrationTests() {
       await client.execution.streamAgent(
         'Weather Agent',
         { user_message: 'Tell me about the weather in Tokyo' },
-        (event) => {
+        event => {
           if (event.type === 'llm_response') {
             process.stdout.write(event.data.content);
           } else if (event.type === 'llm_response_stop') {
@@ -186,7 +186,8 @@ async function runIntegrationTests() {
     const sources = await client.config.listConfigSources();
     console.log(`✅ Found ${sources.length} configuration sources:`);
     for (const source of sources) {
-      const sourceName = source.project_name || (source.context === 'workspace' ? 'workspace' : 'user');
+      const sourceName =
+        source.project_name || (source.context === 'workspace' ? 'workspace' : 'user');
       console.log(`\n   - Source: ${sourceName} (context: ${source.context})`);
       console.log(`     Path: ${source.path}`);
 
@@ -209,7 +210,9 @@ async function runIntegrationTests() {
     console.log('1️⃣1️⃣ Testing File-level CRUD Operations...');
     const testFileName = 'integration_test_file.json';
     const testFileContent = JSON.stringify([{ name: 'test-component', type: 'agent' }]);
-    const updatedTestFileContent = JSON.stringify([{ name: 'updated-test-component', type: 'agent' }]);
+    const updatedTestFileContent = JSON.stringify([
+      { name: 'updated-test-component', type: 'agent' },
+    ]);
 
     try {
       // Create
@@ -233,7 +236,6 @@ async function runIntegrationTests() {
         throw new Error('File content mismatch after update!');
       }
       console.log('   ✅ File updated and verified.');
-
     } finally {
       // Delete
       console.log(`   - Deleting file '${testFileName}'...`);
@@ -255,7 +257,10 @@ async function runIntegrationTests() {
     try {
       // Create
       console.log(`   - Creating agent '${newAgentName}'...`);
-      await client.config.createConfig('agent', newAgentConfig, { project: 'project_bravo', filePath: 'integration_test_agent.json' });
+      await client.config.createConfig('agent', newAgentConfig, {
+        project: 'project_bravo',
+        filePath: 'integration_test_agent.json',
+      });
       console.log('   ✅ Agent created.');
 
       // Get to verify
@@ -282,9 +287,8 @@ async function runIntegrationTests() {
         throw new Error('Component content mismatch after update!');
       }
       console.log('   ✅ Agent updated and verified.');
-
     } catch (e) {
-      console.error("   ❌ ERROR in component CRUD test:", e);
+      console.error('   ❌ ERROR in component CRUD test:', e);
       throw e; // re-throw to fail the main test
     } finally {
       // Delete
@@ -309,14 +313,14 @@ async function runIntegrationTests() {
     }
 
     try {
-      console.log("   - Validating non-existent agent...");
+      console.log('   - Validating non-existent agent...');
       await client.config.validateConfig('agent', 'non-existent-agent');
-      console.error("   ❌ FAILED: Validation of non-existent agent should have thrown an error.");
+      console.error('   ❌ FAILED: Validation of non-existent agent should have thrown an error.');
     } catch (e) {
       if (e.message.includes('not found')) {
         console.log(`   ✅ Successfully caught expected error: ${e.message}`);
       } else {
-        console.error("   ❌ FAILED: Unexpected error during validation of non-existent agent:", e);
+        console.error('   ❌ FAILED: Unexpected error during validation of non-existent agent:', e);
       }
     }
     console.log('');
@@ -324,11 +328,11 @@ async function runIntegrationTests() {
     // Test 14: Global Validation
     console.log('1️⃣4️⃣ Testing Global Validation...');
     try {
-      console.log("   - Running global validation...");
+      console.log('   - Running global validation...');
       await client.config.validateAllConfigs();
       console.log(`   ✅ Global validation passed.`);
     } catch (e) {
-      console.error("   ❌ FAILED global validation:", e);
+      console.error('   ❌ FAILED global validation:', e);
     }
     console.log('');
 
@@ -342,19 +346,17 @@ async function runIntegrationTests() {
         system_prompt: 'You are a duplicate weather agent.',
         llm_config_id: 'my_openai_gpt4_turbo',
       });
-      console.error("   ❌ FAILED: Duplicate component creation should have thrown an error.");
+      console.error('   ❌ FAILED: Duplicate component creation should have thrown an error.');
     } catch (e) {
       if (e.message.includes('already exists')) {
         console.log(`   ✅ Successfully caught expected error: ${e.message}`);
       } else {
-        console.error("   ❌ FAILED: Unexpected error during duplicate component creation:", e);
+        console.error('   ❌ FAILED: Unexpected error during duplicate component creation:', e);
       }
     }
     console.log('');
 
-
     console.log('✅ All integration tests completed successfully!');
-
   } catch (error) {
     console.error('❌ Integration test failed:', error);
     if (error instanceof Error) {

@@ -10,7 +10,14 @@
  */
 
 import { BaseClient } from '../client/BaseClient';
-import type { ServerConfig, ToolCallResult, ServerDetailedStatus, ServerRuntimeInfo, ToolDetails, ServerTestResult } from '../types';
+import type {
+  ServerConfig,
+  ToolCallResult,
+  ServerDetailedStatus,
+  ServerRuntimeInfo,
+  ToolDetails,
+  ServerTestResult,
+} from '../types';
 export class MCPHostClient extends BaseClient {
   /**
    * Get the status of the MCP Host
