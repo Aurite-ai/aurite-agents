@@ -106,7 +106,7 @@ export function createAuriteClient(baseUrl: string, apiKey: string): AuriteApiCl
  * ```typescript
  * import { createAuriteClientFromEnv } from '@aurite/api-client';
  *
- * // Uses AURITE_API_BASE_URL and AURITE_API_KEY from environment
+ * // Uses AURITE_API_BASE_URL and API_KEY from environment
  * const client = createAuriteClientFromEnv();
  *
  * // Or with overrides

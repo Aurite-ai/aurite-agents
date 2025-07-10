@@ -1,6 +1,6 @@
 /**
  * Basic Agent Execution Example
- * 
+ *
  * This example demonstrates how to run agents and get complete responses.
  * Agents are AI assistants that can use tools and maintain conversation history.
  */
@@ -8,7 +8,7 @@
 import { createExampleClient, runExample, handleExampleError } from '../shared/client-setup';
 
 async function basicAgentExecution() {
-  const client = createExampleClient();
+  const client = await createExampleClient();
 
   // Example 1: Simple agent execution
   console.log('\n📋 Example 1: Basic Agent Execution');
@@ -19,7 +19,7 @@ async function basicAgentExecution() {
 
     console.log('✅ Agent Status:', result.status);
     console.log('📝 Response:', result.final_response?.content);
-    
+
     // Show conversation history
     if (result.conversation_history && result.conversation_history.length > 0) {
       console.log('\n💬 Conversation History:');
@@ -35,7 +35,7 @@ async function basicAgentExecution() {
   console.log('\n📋 Example 2: Agent with Session History');
   try {
     const sessionId = 'user-session-123';
-    
+
     // First message
     const result1 = await client.execution.runAgent('Weather Agent', {
       user_message: 'What is the weather in Tokyo?',
@@ -49,7 +49,6 @@ async function basicAgentExecution() {
       session_id: sessionId,
     });
     console.log('✅ Follow-up Response:', result2.final_response?.content);
-    
   } catch (error) {
     handleExampleError(error, 'Session Agent');
   }
@@ -62,17 +61,16 @@ async function basicAgentExecution() {
       user_message: 'Get weather for New York',
     });
     console.log('✅ Structured Agent Response:', structuredResult.final_response?.content);
-    
   } catch (error) {
     handleExampleError(error, 'Structured Agent');
   }
 }
 
 async function agentErrorHandling() {
-  const client = createExampleClient();
+  const client = await createExampleClient();
 
   console.log('\n📋 Example 4: Error Handling');
-  
+
   // Try to run a non-existent agent
   try {
     await client.execution.runAgent('Non-Existent Agent', {
@@ -93,7 +91,7 @@ async function agentErrorHandling() {
 }
 
 async function agentStatus() {
-  const client = createExampleClient();
+  const client = await createExampleClient();
 
   console.log('\n📋 Example 5: Execution Status');
   try {

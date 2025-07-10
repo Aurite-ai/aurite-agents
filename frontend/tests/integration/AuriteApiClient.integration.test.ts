@@ -430,6 +430,6 @@ console.log(`
 📝 Integration Test Notes:
 - These tests require a running Aurite API at ${API_URL}
 - Set SKIP_INTEGRATION_TESTS=false to run these tests
-- Set AURITE_API_URL and AURITE_API_KEY environment variables to override defaults
+- Set AURITE_API_URL and API_KEY environment variables to override defaults
 - Example: SKIP_INTEGRATION_TESTS=false npm test -- tests/integration/
 `);

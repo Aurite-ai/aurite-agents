@@ -46,7 +46,7 @@ import { createAuriteClient } from '@aurite/api-client';
 
 const client = createAuriteClient(
   process.env.AURITE_API_BASE_URL || 'http://localhost:8000',
-  process.env.AURITE_API_KEY || 'your-api-key'
+  process.env.API_KEY || 'your-api-key'
 );
 
 // The client provides four sub-clients:

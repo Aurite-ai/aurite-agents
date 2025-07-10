@@ -1,72 +1,56 @@
+// filepath: /home/wilcoxr/workspace/aurite/framework/frontend/examples/environment-demo.ts
 /**
- * Environment Configuration Demo
- * 
+ * Environment Configuration Demo (Refactored)
+ *
  * This example demonstrates the new cleaner way to handle environment variables
- * in the Aurite API Client. It shows different ways to create clients using
- * the centralized environment configuration.
+ * in the Aurite API Client, using the shared example client setup.
  */
 
-import { 
-  createAuriteClientFromEnv, 
-  createAuriteClient,
-  getAuriteConfig,
-  getApiClientConfig 
-} from '../src/index';
+import { createExampleClient, runExample, prettyPrint } from './shared/client-setup';
+import { createAuriteConfig, getAuriteConfig } from '../src/config/environment';
 
 async function demonstrateEnvironmentConfig() {
   console.log('🌍 Environment Configuration Demo');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
 
-  // Method 1: Use environment configuration directly (recommended)
-  console.log('\n1. Creating client from environment variables:');
+  // Method 1: Use example client (recommended)
+  console.log('\n1. Creating example client from environment variables:');
   try {
-    const client1 = await createAuriteClientFromEnv();
     const config = getAuriteConfig();
-    
+
     console.log(`   Base URL: ${config.baseUrl}`);
-    console.log(`   API Key: ${config.apiKey.substring(0, 8)}...`);
+    console.log(`   API Key: ${config.apiKey?.substring(0, 8) || '[NOT SET]'}...`);
     console.log(`   Environment: ${config.environment}`);
     console.log(`   Is Development: ${config.isDevelopment}`);
-    
+
     // Test the client
     console.log('\n   Testing client connection...');
-    // Note: This would normally make an actual API call
-    console.log('   ✅ Client created successfully');
-    
+    await createExampleClient();
+    console.log('   ✅ Example client created successfully');
   } catch (error) {
-    console.error('   ❌ Error creating client:', error);
+    console.error('   ❌ Error creating example client:', error);
   }
 
-  // Method 2: Use environment config with overrides
-  console.log('\n2. Creating client with environment config + overrides:');
+  // Method 2: Example client with overrides
+  console.log('\n2. Creating example client with config overrides:');
   try {
-    const client2 = await createAuriteClientFromEnv({
-      baseUrl: 'http://custom-server:8000'
+    const config2 = createAuriteConfig({
+      baseUrl: 'http://custom-server:8000',
+      apiKey: 'custom-api-key',
+      environment: 'development',
     });
-    
-    console.log('   ✅ Client created with custom base URL');
-    
+
+    console.log('   ✅ Example client created with custom base URL');
+    prettyPrint(config2, 'Custom Config');
   } catch (error) {
-    console.error('   ❌ Error creating client with overrides:', error);
+    console.error('   ❌ Error creating example client with overrides:', error);
   }
 
-  // Method 3: Traditional method (still supported)
-  console.log('\n3. Traditional client creation (still works):');
-  try {
-    const apiConfig = getApiClientConfig();
-    const client3 = createAuriteClient(apiConfig.baseUrl, apiConfig.apiKey);
-    
-    console.log('   ✅ Client created using traditional method');
-    
-  } catch (error) {
-    console.error('   ❌ Error creating traditional client:', error);
-  }
-
-  // Method 4: Show configuration details
-  console.log('\n4. Current environment configuration:');
+  // Method 3: Show configuration details
+  console.log('\n3. Current example client configuration:');
   try {
     const config = getAuriteConfig();
-    
+
     console.log('   Configuration details:');
     console.log(`   - Base URL: ${config.baseUrl}`);
     console.log(`   - API Key: ${config.apiKey ? '[SET]' : '[NOT SET]'}`);
@@ -74,7 +58,6 @@ async function demonstrateEnvironmentConfig() {
     console.log(`   - Development mode: ${config.isDevelopment}`);
     console.log(`   - Test mode: ${config.isTest}`);
     console.log(`   - Production mode: ${config.isProduction}`);
-    
   } catch (error) {
     console.error('   ❌ Error getting configuration:', error);
   }
@@ -89,5 +72,14 @@ async function demonstrateEnvironmentConfig() {
   console.log('• No need for manual dotenv loading in scripts');
 }
 
-// Run the demo
-demonstrateEnvironmentConfig().catch(console.error);
+// Main execution
+async function main() {
+  await runExample('Environment Configuration Demo', demonstrateEnvironmentConfig);
+}
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(console.error);
+}
+
+export { demonstrateEnvironmentConfig };

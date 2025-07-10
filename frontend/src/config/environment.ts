@@ -8,11 +8,23 @@
  */
 
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 
-// Load environment variables from .env file
-// This will automatically load from the frontend/.env file
-config({ path: resolve(process.cwd(), '.env') });
+// Get __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Define potential .env file paths
+const frontendEnvPath = resolve(__dirname, '..', '..', '.env');
+const rootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
+
+// Check for frontend-specific .env, otherwise use root .env
+const envPath = existsSync(frontendEnvPath) ? frontendEnvPath : rootEnvPath;
+
+// Load environment variables
+config({ path: envPath });
 
 /**
  * Environment types
@@ -101,7 +113,7 @@ function createConfig(): AuriteConfig {
 
   // Get configuration from environment variables with fallbacks
   const baseUrl = getEnvVar('AURITE_API_BASE_URL', defaults.baseUrl);
-  const apiKey = getEnvVar('AURITE_API_KEY', defaults.apiKey, environment === 'production');
+  const apiKey = getEnvVar('API_KEY', defaults.apiKey, environment === 'production');
 
   // Validate required fields
   if (!baseUrl) {
@@ -109,7 +121,7 @@ function createConfig(): AuriteConfig {
   }
 
   if (environment === 'production' && !apiKey) {
-    throw new Error('AURITE_API_KEY must be provided in production environment');
+    throw new Error('API_KEY must be provided in production environment');
   }
 
   return {
