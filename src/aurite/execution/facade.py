@@ -57,6 +57,10 @@ class ExecutionFacade:
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
+    def set_config_manager(self, config_manager: "ConfigManager"):
+        """Updates the ConfigManager instance used by the facade."""
+        self._config_manager = config_manager
+
     # --- Private Helper Methods ---
 
     async def _prepare_agent_for_run(

@@ -311,6 +311,27 @@ class ConfigManager:
         logger.debug("Refreshing configuration index...")
         self.__init__()
 
+    def register_component_in_memory(self, component_type: str, config: Dict[str, Any]):
+        """
+        Registers a component configuration directly into the in-memory index.
+        This is useful for testing or programmatic registration in notebooks.
+        These components have the highest priority.
+        """
+        component_id = config.get("name")
+        if not component_id:
+            logger.error("Cannot register component in memory: 'name' is missing.")
+            return
+
+        # Ensure the component type exists in the index
+        self._component_index.setdefault(component_type, {})
+
+        # Add or overwrite the component in the index
+        # We can add a special marker to indicate it's an in-memory registration
+        config["_source_file"] = "in-memory"
+        config["_context_level"] = "programmatic"
+        self._component_index[component_type][component_id] = config
+        logger.debug(f"Programmatically registered '{component_id}' ({component_type}).")
+
     def list_config_sources(self) -> List[Dict[str, Any]]:
         """
         List all configuration source directories with context information.

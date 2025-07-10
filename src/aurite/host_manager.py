@@ -24,6 +24,13 @@ from termcolor import colored
 from .components.agents.agent_models import AgentRunResult
 from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
 from .config.config_manager import ConfigManager
+from .config.config_models import (
+    AgentConfig,
+    ClientConfig,
+    CustomWorkflowConfig,
+    LLMConfig,
+    WorkflowConfig,
+)
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
 from .storage.cache_manager import CacheManager
@@ -209,7 +216,39 @@ class Aurite:
             self._initialized = True
 
     def get_config_manager(self) -> ConfigManager:
+        # This method is now primarily for external use; internal access
+        # should be through the kernel.
         return self.kernel.config_manager
+
+    async def register_agent(self, config: AgentConfig):
+        """Programmatically register an agent configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("agent", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_llm(self, config: LLMConfig):
+        """Programmatically register an LLM configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("llm", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_mcp_server(self, config: ClientConfig):
+        """Programmatically register an MCP server configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("mcp_server", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_simple_workflow(self, config: WorkflowConfig):
+        """Programmatically register a simple workflow configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("simple_workflow", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
+
+    async def register_custom_workflow(self, config: CustomWorkflowConfig):
+        """Programmatically register a custom workflow configuration."""
+        await self._ensure_initialized()
+        self.kernel.config_manager.register_component_in_memory("custom_workflow", config.model_dump())
+        self.kernel.execution.set_config_manager(self.kernel.config_manager)
 
     async def unregister_server(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""
