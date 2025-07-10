@@ -103,6 +103,11 @@ This transport is for running any executable command as a server.
 **Default:** `10.0`
 **Description:** The default timeout in seconds for operations (like tool calls) sent to this server.
 
+### `registration_timeout`
+**Type:** `float` (Optional)
+**Default:** `30.0`
+**Description:** The default timeout in seconds for registering this server.
+
 ### `exclude`
 **Type:** `list[string]` (Optional)
 **Description:** A list of component names (tools, prompts, or resources) to exclude from this server's offerings. This is useful if a server script provides many tools, but you only want to expose a subset of them in this particular configuration.
