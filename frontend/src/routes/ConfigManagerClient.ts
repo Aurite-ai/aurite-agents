@@ -12,7 +12,7 @@
  */
 
 import { BaseClient } from '../client/BaseClient';
-import { ProjectInfo, WorkspaceInfo, ConfigSource } from '../types/responses';
+import { ProjectInfo, WorkspaceInfo } from '../types/responses';
 
 export class ConfigManagerClient extends BaseClient {
   /**
