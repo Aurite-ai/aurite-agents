@@ -34,28 +34,20 @@
     "timeout": 15.0
   },
   {
-    "description": "Updated weather agent",
-    "system_prompt": "You are an updated weather assistant",
+    "name": "Weather Agent",
+    "description": "Weather Agent for testing",
+    "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
     "llm_config_id": "anthropic_claude_3_haiku",
     "mcp_servers": ["weather_server"],
-    "name": "Weather Agent",
     "type": "agent"
   },
   {
-    "description": "Updated weather agent",
-    "system_prompt": "You are an updated weather assistant",
-    "llm_config_id": "anthropic_claude_3_haiku",
-    "mcp_servers": ["weather_server"],
-    "name": "Weather Agent",
-    "type": "agent"
-  },
-  {
-    "description": "Conversation History Testing Agent",
-    "system_prompt": "You are an updated weather assistant",
+    "name": "Persistent Weather Agent",
+    "description": "Persistent Weather Agent for testing session management",
+    "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
     "llm_config_id": "anthropic_claude_3_haiku",
     "mcp_servers": ["weather_server"],
     "include_history": true,
-    "name": "Conversation History Weather Agent",
     "type": "agent"
   },
   {
