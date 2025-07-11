@@ -4,7 +4,7 @@ Helper class for processing a single turn in an Agent's conversation loop.
 
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate
@@ -13,6 +13,9 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
 )
+
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
 
 from ...config.config_models import AgentConfig
 from ...host.host import MCPHost
@@ -36,6 +39,7 @@ class AgentTurnProcessor:
         current_messages: List[Dict[str, Any]],
         tools_data: Optional[List[Dict[str, Any]]],
         effective_system_prompt: Optional[str],
+        trace: Optional["StatefulTraceClient"] = None,
     ):
         self.config = config
         self.llm = llm_client
@@ -45,6 +49,7 @@ class AgentTurnProcessor:
         self.system_prompt = effective_system_prompt
         self._last_llm_response: Optional[ChatCompletionMessage] = None
         self._tool_uses_this_turn: List[ChatCompletionMessageToolCall] = []
+        self.trace = trace
         logger.debug("AgentTurnProcessor initialized.")
 
     def get_last_llm_response(self) -> Optional[ChatCompletionMessage]:
@@ -64,6 +69,7 @@ class AgentTurnProcessor:
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,
+                trace=self.trace,
             )
         except Exception as e:
             logger.error(f"LLM call failed within turn processor: {e}")
@@ -103,6 +109,7 @@ class AgentTurnProcessor:
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
+                trace=self.trace,
             ):
                 logger.debug(f"ATP: Received LLM chunk from stream: {llm_chunk}")
                 yield llm_chunk.model_dump(exclude_none=True)

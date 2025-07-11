@@ -5,7 +5,7 @@ LLM Client for interacting with models via the LiteLLM library.
 import json
 import logging
 import os
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 import litellm
 from openai import OpenAIError
@@ -15,6 +15,9 @@ from openai.types.chat import (
 )
 
 from ....config.config_models import LLMConfig
+
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
 
 logger = logging.getLogger(__name__)
 
@@ -125,13 +128,22 @@ class LiteLLMClient:
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
+        trace: Optional["StatefulTraceClient"] = None,
     ) -> ChatCompletionMessage:
         request_params = self._build_request_params(messages, tools, system_prompt_override, schema)
+
+        # If we have a trace, use Langfuse callback
+        if trace and os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
+            request_params["success_callback"] = ["langfuse"]
+            # Set the trace context for litellm to use
+            import litellm
+
+            litellm.langfuse_default_tags = [f"trace_id:{trace.id}"] if hasattr(trace, "id") else None
 
         logger.debug(f"Making LiteLLM call with params: {request_params}")
 
         try:
-            completion: Any = litellm.completion(**request_params)
+            completion: Any = await litellm.acompletion(**request_params)
             return completion.choices[0].message
         except OpenAIError as e:
             logger.error(f"LiteLLM API call failed with specific error: {type(e).__name__}: {e}")
@@ -146,9 +158,18 @@ class LiteLLMClient:
         tools: Optional[List[Dict[str, Any]]],
         system_prompt_override: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
+        trace: Optional["StatefulTraceClient"] = None,
     ) -> AsyncGenerator[ChatCompletionChunk, None]:
         request_params = self._build_request_params(messages, tools, system_prompt_override, schema)
         request_params["stream"] = True
+
+        # If we have a trace, use Langfuse callback
+        if trace and os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
+            request_params["success_callback"] = ["langfuse"]
+            # Set the trace context for litellm to use
+            import litellm
+
+            litellm.langfuse_default_tags = [f"trace_id:{trace.id}"] if hasattr(trace, "id") else None
 
         logger.debug(f"Making LiteLLM streaming call with params: {request_params}")
 

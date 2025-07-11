@@ -3,8 +3,9 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
+from langfuse import Langfuse
 from termcolor import colored
 
 from ..components.agents.agent import Agent
@@ -29,6 +30,9 @@ from ..host.host import MCPHost
 from ..storage.cache_manager import CacheManager
 from ..storage.db_manager import StorageManager
 
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +48,7 @@ class ExecutionFacade:
         host_instance: "MCPHost",
         storage_manager: Optional["StorageManager"] = None,
         cache_manager: Optional["CacheManager"] = None,
+        langfuse: Optional["Langfuse"] = None,
     ):
         if not config_manager:
             raise ValueError("ConfigManager instance is required for ExecutionFacade.")
@@ -55,6 +60,7 @@ class ExecutionFacade:
         self._storage_manager = storage_manager
         self._cache_manager = cache_manager
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
+        self.langfuse = langfuse
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     def set_config_manager(self, config_manager: "ConfigManager"):
@@ -165,10 +171,28 @@ class ExecutionFacade:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                trace = self.langfuse.trace(
+                    name=f"agent-run-{agent_name}",
+                    session_id=session_id,
+                    user_id=session_id or "anonymous",
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, session_id
             )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
+
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
             async for event in agent_instance.stream_conversation():
                 yield event
@@ -211,6 +235,10 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
+            # Flush Langfuse trace if enabled
+            if self.langfuse and trace:
+                self.langfuse.flush()
+
     async def run_agent(
         self,
         agent_name: str,
@@ -220,10 +248,27 @@ class ExecutionFacade:
     ) -> AgentRunResult:
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                trace = self.langfuse.trace(
+                    name=f"agent-run-{agent_name}",
+                    session_id=session_id,
+                    user_id=session_id or "anonymous",
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, session_id
             )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
 
             logger.info(
                 colored(
@@ -278,6 +323,10 @@ class ExecutionFacade:
                 logger.debug(
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
+
+            # Flush Langfuse trace if enabled
+            if self.langfuse and trace:
+                self.langfuse.flush()
 
     async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}'")
