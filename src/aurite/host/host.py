@@ -161,7 +161,7 @@ class MCPHost:
                     for tool in tools_response.tools:
                         # include the mcp server name
                         tool.title = tool.name
-                        tool.name = f"{config.name}_{tool.name}"
+                        tool.name = f"{config.name}-{tool.name}"
                         self._tools[tool.name] = tool
                         self._tool_to_session[tool.name] = session
                 except Exception as e:
