@@ -8,7 +8,8 @@ from aurite.host_manager import Aurite
 
 
 @pytest.mark.asyncio
-async def test_http_server_working(with_test_config):
+@pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
+async def test_http_server_working(with_test_config, start_http_server):
     """
     Tests that an stdio server can be called successfully
     """
@@ -23,7 +24,6 @@ async def test_http_server_working(with_test_config):
 
         await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "math_http_control")))
 
-        #TODO: Update once tool distinction PR is merged
         tool_result = await host.call_tool("math_http_control-add_numbers", {"a": 1, "b": 2})
 
         assert tool_result is not None
