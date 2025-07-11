@@ -186,7 +186,7 @@ class ExecutionFacade:
                     user_id = session_id or "anonymous"
 
                 trace = self.langfuse.trace(
-                    name=f"agent-run-{agent_name}",
+                    name=f"Agent: {agent_name} (streaming) - Aurite Runtime",
                     session_id=session_id,  # This groups traces into sessions
                     user_id=user_id,
                     input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
@@ -276,7 +276,7 @@ class ExecutionFacade:
             # Create trace if Langfuse is enabled
             if self.langfuse:
                 trace = self.langfuse.trace(
-                    name=f"agent-run-{agent_name}",
+                    name=f"Agent: {agent_name} - Aurite Runtime",
                     session_id=session_id,  # This groups traces into sessions
                     user_id=session_id or "anonymous",
                     input={"user_message": user_message, "system_prompt": system_prompt},

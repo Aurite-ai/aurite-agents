@@ -260,6 +260,7 @@ class LiteLLMClient:
             current_tool_call = None
             finish_reason = None
             model_name_from_response = None
+            has_tool_calls_in_stream = False  # Track if this stream actually contains tool calls
 
             async for chunk in response_stream:
                 collected_chunks.append(chunk)
@@ -285,6 +286,7 @@ class LiteLLMClient:
 
                     # Handle tool calls
                     if delta and delta.tool_calls:
+                        has_tool_calls_in_stream = True  # Mark that we have tool calls
                         for tool_call_delta in delta.tool_calls:
                             if tool_call_delta.id:
                                 # New tool call
@@ -309,12 +311,20 @@ class LiteLLMClient:
             if current_tool_call:
                 tool_calls.append(current_tool_call)
 
-            # Update generation with collected output if available
+        except OpenAIError as e:
+            logger.error(f"LiteLLM streaming call failed with specific error: {type(e).__name__}: {e}")
+            raise  # Re-raise the specific, informative exception
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during LiteLLM streaming call: {type(e).__name__}: {e}")
+            raise
+        finally:
+            # Always update and end the generation if it was created
             if generation:
                 try:
                     # Determine the output based on what was generated
                     output_data = {}
-                    if tool_calls:
+                    # Only include tool_calls if we actually had tool calls in this stream
+                    if has_tool_calls_in_stream and tool_calls:
                         output_data = {"tool_calls": tool_calls}
                     elif full_content:
                         output_data = {"content": full_content}
@@ -341,23 +351,7 @@ class LiteLLMClient:
                     else:
                         generation.update(output=output_data, metadata=metadata)
 
+                    # End the generation with appropriate status
                     generation.end()
-                except Exception as e:
-                    logger.warning(f"Failed to update Langfuse generation for streaming: {e}")
-
-        except OpenAIError as e:
-            if generation:
-                try:
-                    generation.end(level="ERROR", status_message=str(e))
-                except:
-                    pass
-            logger.error(f"LiteLLM streaming call failed with specific error: {type(e).__name__}: {e}")
-            raise  # Re-raise the specific, informative exception
-        except Exception as e:
-            if generation:
-                try:
-                    generation.end(level="ERROR", status_message=str(e))
-                except:
-                    pass
-            logger.error(f"An unexpected error occurred during LiteLLM streaming call: {type(e).__name__}: {e}")
-            raise
+                except Exception as gen_error:
+                    logger.warning(f"Failed to update/end Langfuse generation for streaming: {gen_error}")

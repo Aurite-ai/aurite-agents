@@ -91,11 +91,40 @@ class AgentTurnProcessor:
             if not tool_name:
                 tool_name = "unknown"
 
+            # Format tool name for display (handle server-prefixed names)
+            display_tool_name = tool_name
+            if "-" in tool_name:
+                # Split server-tool format (e.g., "weather_server-weather_lookup")
+                parts = tool_name.split("-", 1)
+                if len(parts) == 2:
+                    server_name, actual_tool_name = parts
+                    display_tool_name = actual_tool_name  # Just show the tool name without server prefix
+
             content = last_message.get("content", "")
+
+            # Try to parse and format MCP tool results
+            try:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict) and "content" in parsed:
+                    # Extract text content from MCP format
+                    text_parts = []
+                    for item in parsed.get("content", []):
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            text_parts.append(item.get("text", ""))
+                    if text_parts:
+                        formatted_content = " ".join(text_parts)
+                        # Truncate if needed
+                        if len(formatted_content) > 200:
+                            formatted_content = formatted_content[:200] + "..."
+                        return f"Tool result ({display_tool_name}): {formatted_content}"
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # Fallback to raw content if parsing fails
             # Truncate long tool outputs
             if len(content) > 200:
                 content = content[:200] + "..."
-            return f"Tool result ({tool_name}): {content}"
+            return f"Tool result ({display_tool_name}): {content}"
         elif role == "assistant":
             # This shouldn't typically be the last message when starting a new turn
             return f"Assistant: {last_message.get('content', '')}"
@@ -153,11 +182,23 @@ class AgentTurnProcessor:
                     # Format tool calls for output
                     tool_outputs = []
                     for tc in llm_response.tool_calls:
+                        tool_name = tc.function.name
+                        # Format tool name for display (handle server-prefixed names)
+                        if "-" in tool_name:
+                            parts = tool_name.split("-", 1)
+                            if len(parts) == 2:
+                                server_name, actual_tool_name = parts
+                                display_name = actual_tool_name  # Just show the tool name without server prefix
+                            else:
+                                display_name = tool_name
+                        else:
+                            display_name = tool_name
+
                         try:
                             args = json.loads(tc.function.arguments)
-                            tool_outputs.append(f"{tc.function.name}({json.dumps(args, separators=(',', ':'))})")
+                            tool_outputs.append(f"{display_name}({json.dumps(args, separators=(',', ':'))})")
                         except:
-                            tool_outputs.append(f"{tc.function.name}(...)")
+                            tool_outputs.append(f"{display_name}(...)")
 
                     self.span.update(
                         output=f"Tool calls: {', '.join(tool_outputs)}",
@@ -364,7 +405,18 @@ class AgentTurnProcessor:
                         # Format tool calls for output
                         tool_outputs = []
                         for tc in self._tool_uses_this_turn:
-                            tool_outputs.append(tc.function.name)
+                            tool_name = tc.function.name
+                            # Format tool name for display (handle server-prefixed names)
+                            if "-" in tool_name:
+                                parts = tool_name.split("-", 1)
+                                if len(parts) == 2:
+                                    server_name, actual_tool_name = parts
+                                    display_name = actual_tool_name  # Just show the tool name without server prefix
+                                else:
+                                    display_name = tool_name
+                            else:
+                                display_name = tool_name
+                            tool_outputs.append(display_name)
                         output = f"Tool calls: {', '.join(tool_outputs)}"
                     elif current_text_buffer:
                         # Format the assistant's response
