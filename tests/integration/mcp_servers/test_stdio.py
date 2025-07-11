@@ -23,8 +23,7 @@ async def test_stdio_server_working(with_test_config):
 
         await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
 
-        #TODO: Update once tool distinction PR is merged
-        tool_result = await host.call_tool("weather_lookup", {"location": "London"})
+        tool_result = await host.call_tool("weather_server_control-weather_lookup", {"location": "London"})
 
         assert tool_result is not None
         assert type(tool_result) is types.CallToolResult
