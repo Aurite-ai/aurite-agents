@@ -88,7 +88,11 @@ class MCPHost:
         if name not in self._tool_to_session:
             raise KeyError(f"Tool '{name}' not found or its server is not registered.")
         session = self._tool_to_session[name]
-        return await session.call_tool(name, args)
+
+        # get the actual tool name without prepended server name
+        actual_name = self._tools[name].title
+
+        return await session.call_tool(actual_name, args)
 
     async def register_client(self, config: ClientConfig):
         """
@@ -155,6 +159,9 @@ class MCPHost:
                 try:
                     tools_response = await session.list_tools()
                     for tool in tools_response.tools:
+                        # include the mcp server name
+                        tool.title = tool.name
+                        tool.name = f"{config.name}-{tool.name}"
                         self._tools[tool.name] = tool
                         self._tool_to_session[tool.name] = session
                 except Exception as e:
