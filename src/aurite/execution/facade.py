@@ -3,6 +3,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
+import os
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from langfuse import Langfuse
@@ -173,21 +174,27 @@ class ExecutionFacade:
         servers_to_unregister: List[str] = []
         trace: Optional["StatefulTraceClient"] = None
         try:
+            # Prepare the agent instance and dynamically register any required servers
+            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
+                agent_name, user_message, system_prompt, session_id
+            )
             # Create trace if Langfuse is enabled
             if self.langfuse:
+                if os.getenv("LANGFUSE_USER_ID"):
+                    user_id = os.getenv("LANGFUSE_USER_ID")
+                else:
+                    user_id = session_id or "anonymous"
+
                 trace = self.langfuse.trace(
                     name=f"agent-run-{agent_name}",
-                    session_id=session_id,
-                    user_id=session_id or "anonymous",
+                    session_id=session_id,  # This groups traces into sessions
+                    user_id=user_id,
+                    input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
                     metadata={
                         "agent_name": agent_name,
                         "source": "execution-facade",
                     },
                 )
-
-            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
-            )
 
             # Pass trace to agent if available
             if trace:
@@ -235,6 +242,22 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
+            # Update trace with output if available
+            if self.langfuse and trace and agent_instance:
+                # Get the final response from the agent
+                final_output = None
+                if hasattr(agent_instance, "final_response") and agent_instance.final_response:
+                    final_output = agent_instance.final_response.content
+                elif hasattr(agent_instance, "conversation_history") and agent_instance.conversation_history:
+                    # Get the last assistant message
+                    for msg in reversed(agent_instance.conversation_history):
+                        if msg.get("role") == "assistant" and msg.get("content"):
+                            final_output = msg.get("content")
+                            break
+
+                if final_output:
+                    trace.update(output={"response": final_output})
+
             # Flush Langfuse trace if enabled
             if self.langfuse and trace:
                 self.langfuse.flush()
@@ -254,8 +277,9 @@ class ExecutionFacade:
             if self.langfuse:
                 trace = self.langfuse.trace(
                     name=f"agent-run-{agent_name}",
-                    session_id=session_id,
+                    session_id=session_id,  # This groups traces into sessions
                     user_id=session_id or "anonymous",
+                    input={"user_message": user_message, "system_prompt": system_prompt},
                     metadata={
                         "agent_name": agent_name,
                         "source": "execution-facade",

@@ -4,6 +4,7 @@ Helper class for processing a single turn in an Agent's conversation loop.
 
 import json
 import logging
+import os
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -50,6 +51,7 @@ class AgentTurnProcessor:
         self._last_llm_response: Optional[ChatCompletionMessage] = None
         self._tool_uses_this_turn: List[ChatCompletionMessageToolCall] = []
         self.trace = trace
+        self.span = None  # Will hold the span for this turn
         logger.debug("AgentTurnProcessor initialized.")
 
     def get_last_llm_response(self) -> Optional[ChatCompletionMessage]:
@@ -58,20 +60,86 @@ class AgentTurnProcessor:
     def get_tool_uses_this_turn(self) -> List[ChatCompletionMessageToolCall]:
         return self._tool_uses_this_turn
 
+    def _get_turn_input(self) -> str:
+        """Extract the most relevant input for this turn from the conversation history."""
+        if not self.messages:
+            return "No input"
+
+        # Get the last message that triggered this turn
+        last_message = self.messages[-1]
+        role = last_message.get("role", "")
+
+        if role == "user":
+            return f"User: {last_message.get('content', '')}"
+        elif role == "tool":
+            # For tool results, show the tool name and a summary
+            # Try to get tool name from different possible locations
+            tool_name = last_message.get("name")
+            if not tool_name:
+                # Check if there's a tool_call_id we can match to previous messages
+                tool_call_id = last_message.get("tool_call_id")
+                if tool_call_id and len(self.messages) > 1:
+                    # Look for the assistant message with this tool call
+                    for msg in reversed(self.messages[:-1]):
+                        if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                            for tc in msg.get("tool_calls", []):
+                                if tc.get("id") == tool_call_id:
+                                    tool_name = tc.get("function", {}).get("name", "unknown")
+                                    break
+                            if tool_name:
+                                break
+            if not tool_name:
+                tool_name = "unknown"
+
+            content = last_message.get("content", "")
+            # Truncate long tool outputs
+            if len(content) > 200:
+                content = content[:200] + "..."
+            return f"Tool result ({tool_name}): {content}"
+        elif role == "assistant":
+            # This shouldn't typically be the last message when starting a new turn
+            return f"Assistant: {last_message.get('content', '')}"
+        else:
+            return f"{role}: {last_message.get('content', '')}"
+
     async def process_turn(
         self,
     ) -> Tuple[Optional[ChatCompletionMessage], Optional[List[Dict[str, Any]]], bool]:
         logger.debug("Processing conversation turn...")
 
+        # Create a span for this turn if we have a trace
+        if self.trace and os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
+            try:
+                turn_number = len([msg for msg in self.messages if msg.get("role") == "assistant"]) + 1
+                turn_input = self._get_turn_input()
+                self.span = self.trace.span(
+                    name=f"Agent Turn {turn_number}",
+                    input=turn_input,
+                    metadata={
+                        "has_tools": bool(self.tools),
+                        "has_schema": bool(self.config.config_validation_schema),
+                        "message_count": len(self.messages),
+                    },
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create Langfuse span for turn: {e}")
+                self.span = None
+
         try:
+            # Pass the span (or trace if no span) to the LLM
             llm_response = await self.llm.create_message(
                 messages=self.messages,
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,
-                trace=self.trace,
+                trace=self.span or self.trace,
             )
         except Exception as e:
+            if self.span:
+                try:
+                    self.span.end(level="ERROR", status_message=str(e))
+                except:
+                    pass
             logger.error(f"LLM call failed within turn processor: {e}")
             raise
 
@@ -80,11 +148,44 @@ class AgentTurnProcessor:
 
         if llm_response.tool_calls:
             tool_results_for_next_turn = await self._process_tool_calls(llm_response.tool_calls)
+            if self.span:
+                try:
+                    # Format tool calls for output
+                    tool_outputs = []
+                    for tc in llm_response.tool_calls:
+                        try:
+                            args = json.loads(tc.function.arguments)
+                            tool_outputs.append(f"{tc.function.name}({json.dumps(args, separators=(',', ':'))})")
+                        except:
+                            tool_outputs.append(f"{tc.function.name}(...)")
+
+                    self.span.update(
+                        output=f"Tool calls: {', '.join(tool_outputs)}",
+                        metadata={"tool_count": len(llm_response.tool_calls)},
+                    )
+                    self.span.end()
+                except:
+                    pass
             return None, tool_results_for_next_turn, is_final_turn
         else:
             validated_response = self._handle_final_response(llm_response)
             if validated_response:
                 is_final_turn = True
+            if self.span:
+                try:
+                    # Format the assistant's response
+                    output_text = llm_response.content if llm_response.content else "No content"
+                    # Truncate very long responses for readability in Langfuse
+                    if len(output_text) > 500:
+                        output_text = output_text[:500] + "..."
+
+                    self.span.update(
+                        output=f"Assistant: {output_text}",
+                        metadata={"is_final": is_final_turn, "validated": validated_response is not None},
+                    )
+                    self.span.end()
+                except:
+                    pass
             return validated_response, None, is_final_turn
 
     async def stream_turn_response(self) -> AsyncGenerator[Dict[str, Any], None]:
@@ -102,6 +203,25 @@ class AgentTurnProcessor:
         current_text_buffer = ""
         current_message_id = None
 
+        # Create a span for this streaming turn if we have a trace
+        if self.trace and os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
+            try:
+                turn_number = len([msg for msg in self.messages if msg.get("role") == "assistant"]) + 1
+                turn_input = self._get_turn_input()
+                self.span = self.trace.span(
+                    name=f"Agent Turn {turn_number} (streaming)",
+                    input=turn_input,
+                    metadata={
+                        "has_tools": bool(self.tools),
+                        "has_schema": bool(self.config.config_validation_schema),
+                        "message_count": len(self.messages),
+                        "streaming": True,
+                    },
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create Langfuse span for streaming turn: {e}")
+                self.span = None
+
         try:
             logger.debug("ATP: About to enter LLM stream message loop")  # ADDED
             async for llm_chunk in self.llm.stream_message(
@@ -109,7 +229,7 @@ class AgentTurnProcessor:
                 tools=self.tools,
                 system_prompt_override=self.system_prompt,
                 schema=self.config.config_validation_schema,  # Though schema less used in streaming
-                trace=self.trace,
+                trace=self.span or self.trace,
             ):
                 logger.debug(f"ATP: Received LLM chunk from stream: {llm_chunk}")
                 yield llm_chunk.model_dump(exclude_none=True)
@@ -229,8 +349,43 @@ class AgentTurnProcessor:
                     break
 
         except Exception as e:
+            if self.span:
+                try:
+                    self.span.end(level="ERROR", status_message=str(e))
+                except:
+                    pass
             yield {"type": "error", "error": str(e)}
         finally:
+            # End the span if it was created
+            if self.span:
+                try:
+                    # Determine the output based on what happened in this turn
+                    if self._tool_uses_this_turn:
+                        # Format tool calls for output
+                        tool_outputs = []
+                        for tc in self._tool_uses_this_turn:
+                            tool_outputs.append(tc.function.name)
+                        output = f"Tool calls: {', '.join(tool_outputs)}"
+                    elif current_text_buffer:
+                        # Format the assistant's response
+                        output_text = current_text_buffer
+                        if len(output_text) > 500:
+                            output_text = output_text[:500] + "..."
+                        output = f"Assistant: {output_text}"
+                    else:
+                        output = "No output generated"
+
+                    self.span.update(
+                        output=output,
+                        metadata={
+                            "final_content_length": len(current_text_buffer),
+                            "had_tool_calls": len(self._tool_uses_this_turn) > 0,
+                            "tool_count": len(self._tool_uses_this_turn),
+                        },
+                    )
+                    self.span.end()
+                except:
+                    pass
             logger.debug("Finished streaming conversation turn.")
 
     async def _process_tool_calls(
