@@ -10,13 +10,11 @@ async def test_weather_server_working(with_test_config):
     """
     Tests that a simple stdio mcp server can be called successfully
     """
-    # Arrange
     example_project_path = Path(".aurite").resolve()
 
     async with Aurite(start_dir=example_project_path) as aurite:
         execution_facade = aurite.kernel.execution
 
-        # Use the custom workflow from the example project
         result = await execution_facade.run_agent(
             agent_name="Weather Agent Control",
             user_message="What is the weather in London?",
@@ -39,3 +37,23 @@ async def test_weather_server_working(with_test_config):
 
         assert tool_call_found
         assert tool_result_found
+
+@pytest.mark.asyncio
+async def test_weather_server_invalid_path(with_test_config):
+    """
+    Tests that a stdio mcp server will error with an invalid server_path
+    """
+    example_project_path = Path(".aurite").resolve()
+
+    async with Aurite(start_dir=example_project_path) as aurite:
+        execution_facade = aurite.kernel.execution
+
+        result = None
+
+        with pytest.raises(Exception) as e:
+            result = await execution_facade.run_agent(
+                agent_name="Weather Agent Invalid Server Path",
+                user_message="What is the weather in London?",
+            )
+
+        assert result is None
