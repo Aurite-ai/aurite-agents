@@ -1,4 +1,4 @@
 [aurite]
 type = "workspace"
-projects = [ "./demo-config", "./src/aurite/init_templates", "./tests/fixtures/workspace/project_bravo",]
+projects = [ "./demo-config", "./src/aurite/init_templates", "./tests/fixtures/workspace/project_bravo"]
 include_configs = [ "./shared_configs",]
