@@ -29,3 +29,45 @@ async def test_stdio_server_working(with_test_config):
         assert type(tool_result) is types.CallToolResult
         assert not tool_result.isError
         assert len(tool_result.content) > 0
+
+
+@pytest.mark.asyncio
+async def test_stdio_server_wrong_args(with_test_config):
+    """
+    Tests that an stdio server handles incorrect arguments
+    """
+    example_project_path = Path(".aurite").resolve()
+
+    async with Aurite(start_dir=example_project_path) as aurite:
+        host = aurite.kernel.execution._host
+
+        config_manager = aurite.get_config_manager()
+
+        config_manager.refresh()
+
+        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
+
+        tool_result = await host.call_tool("weather_server_control-weather_lookup", {"sdfsdf": "sdffsdfsdf"})
+
+        assert tool_result is not None
+        assert type(tool_result) is types.CallToolResult
+        assert tool_result.isError
+
+@pytest.mark.asyncio
+async def test_stdio_server_tool_dne(with_test_config):
+    """
+    Tests that a error is raised if a nonexistant tool is called
+    """
+    example_project_path = Path(".aurite").resolve()
+
+    async with Aurite(start_dir=example_project_path) as aurite:
+        host = aurite.kernel.execution._host
+
+        config_manager = aurite.get_config_manager()
+
+        config_manager.refresh()
+
+        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
+
+        with pytest.raises(Exception) as e:
+            tool_result = await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
