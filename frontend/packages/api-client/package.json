@@ -1,0 +1,114 @@
+{
+  "name": "@aurite/api-client",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Production-ready TypeScript client for the Aurite Framework API with comprehensive error handling and retry logic",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/errorHandling.d.ts",
+      "import": "./dist/utils/errorHandling.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run build:types",
+    "build:types": "tsc -b",
+    "clean": "rimraf dist",
+    "dev": "tsc -b --watch",
+    "example": "tsx examples/environment-demo.ts",
+    "example:integration": "tsx tests/integration/test-integration.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "lint:fix": "eslint src tests --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\" \"tests/**/*.{ts,tsx,json,md}\" \"*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\" \"tests/**/*.{ts,tsx,json,md}\" \"*.{json,md}\"",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint && npm run format:check && npm run test:run",
+    "prepublishOnly": "npm run validate && npm run build"
+  },
+  "keywords": [
+    "aurite",
+    "api",
+    "client",
+    "typescript",
+    "mcp",
+    "agents",
+    "ai",
+    "framework",
+    "error-handling",
+    "retry-logic",
+    "production-ready"
+  ],
+  "author": {
+    "name": "Aurite Team",
+    "email": "team@aurite.dev",
+    "url": "https://aurite.dev"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aurite/aurite-agents.git",
+    "directory": "frontend/packages/api-client"
+  },
+  "bugs": {
+    "url": "https://github.com/aurite/aurite-agents/issues"
+  },
+  "homepage": "https://aurite.dev",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "@vitest/ui": "^1.2.0",
+    "dotenv": "^17.2.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.2",
+    "prettier": "^3.1.1",
+    "rimraf": "^5.0.5",
+    "tslib": "^2.8.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.3.3",
+    "undici": "^7.11.0",
+    "vitest": "^1.2.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  }
+}

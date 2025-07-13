@@ -5,21 +5,26 @@ This directory contains comprehensive examples demonstrating how to use the Auri
 ## 📁 Directory Structure
 
 ```
-frontend/examples/
-├── README.md                    # This overview document
-├── shared/                      # Shared utilities and setup
-│   └── client-setup.ts         # Common client initialization
-├── execution/                   # Agent and workflow execution
-│   ├── agent-basic.ts          # Basic agent execution
-│   ├── agent-streaming.ts      # Real-time streaming responses
-│   └── workflow-simple.ts      # Simple workflow execution
-├── mcp-host/                   # MCP server and tool management
-│   ├── server-management.ts   # Register/unregister servers
-│   └── tool-execution.ts      # Direct tool calls and analysis
-├── config/                     # Configuration management
-│   └── config-listing.ts      # List and explore configurations
-└── system/                     # System and environment examples
-    └── environment-demo.ts    # Environment configuration demo
+frontend/packages/api-client/examples/
+├── README.md                           # This overview document
+├── shared/                             # Shared utilities and setup
+│   └── client-setup.ts                # Common client initialization
+├── execution/                          # Agent and workflow execution
+│   ├── agent-basic.ts                 # Basic agent execution
+│   ├── agent-streaming.ts             # Real-time streaming responses
+│   ├── workflow-simple.ts             # Simple workflow execution
+│   └── debug-planning-agent.ts        # Debug specific planning agent
+├── mcp-host/                          # MCP server and tool management
+│   ├── server-management.ts           # Register/unregister servers
+│   └── tool-execution.ts              # Direct tool calls and analysis
+├── config/                            # Configuration management
+│   ├── config-listing.ts              # List and explore configurations
+│   └── reload-configs.ts              # Reload configuration files
+├── system/                            # System monitoring and health
+│   └── health-check.ts                # System-level health monitoring
+├── analyze-http-requests.ts           # HTTP request analysis and reporting
+├── health-check.ts                    # API health checks and diagnostics
+└── test-env.ts                        # Environment setup validation
 ```
 
 ## 🚀 Quick Start
@@ -41,17 +46,73 @@ npm run build
 Each example can be run independently:
 
 ```bash
-# Run a specific example
-npx tsx examples/execution/agent-basic.ts
+# Development and Testing Tools
+npx tsx examples/test-env.ts                    # Test environment setup
+npx tsx examples/health-check.ts                # API health diagnostics
+npx tsx examples/analyze-http-requests.ts       # HTTP request analysis
 
-# Run all examples in a category
-npx tsx examples/execution/agent-streaming.ts
-npx tsx examples/mcp-host/server-management.ts
-npx tsx examples/config/config-listing.ts
-npx tsx examples/system/environment-demo.ts
+# Configuration Management
+npx tsx examples/config/config-listing.ts       # List configurations
+npx tsx examples/config/reload-configs.ts       # Reload configurations
+
+# Agent and Workflow Execution
+npx tsx examples/execution/agent-basic.ts       # Basic agent execution
+npx tsx examples/execution/agent-streaming.ts   # Real-time streaming
+npx tsx examples/execution/workflow-simple.ts   # Simple workflow
+npx tsx examples/execution/debug-planning-agent.ts  # Debug specific agent
+
+# MCP Host Management
+npx tsx examples/mcp-host/server-management.ts  # Server management
+npx tsx examples/mcp-host/tool-execution.ts     # Tool execution
+
+# System Monitoring
+npx tsx examples/system/health-check.ts         # System health check
 ```
 
 ## 📚 Example Categories
+
+### 🛠️ Development & Testing Tools
+
+Essential utilities for development, debugging, and testing:
+
+#### **test-env.ts** - Environment Setup Validation
+- Tests environment variable loading from multiple locations
+- Validates API connectivity and authentication
+- Provides clear diagnostics for setup issues
+- Helps troubleshoot connection problems
+
+**Key Features:**
+- ✅ Multi-location .env file detection
+- ✅ Environment variable validation
+- ✅ API connectivity testing
+- ✅ Authentication verification
+- ✅ Clear error diagnostics
+
+#### **health-check.ts** - API Health Diagnostics
+- Comprehensive API health monitoring
+- Tests all major API endpoints
+- Validates service availability
+- Provides system status overview
+
+**Key Features:**
+- ✅ Multi-endpoint health checks
+- ✅ Service status monitoring
+- ✅ Configuration availability testing
+- ✅ Tool discovery validation
+- ✅ Comprehensive error reporting
+
+#### **analyze-http-requests.ts** - HTTP Request Analysis
+- Intercepts and analyzes all HTTP requests from examples
+- Generates detailed request/response reports
+- Provides performance metrics and statistics
+- Creates comprehensive analysis documentation
+
+**Key Features:**
+- ✅ Request/response interception
+- ✅ Performance metrics tracking
+- ✅ Endpoint usage statistics
+- ✅ Detailed transaction logging
+- ✅ Markdown report generation
 
 ### 🤖 Execution Examples (`execution/`)
 
@@ -98,6 +159,18 @@ These examples demonstrate how to run agents and workflows:
 - ✅ Step-by-step result tracking
 - ✅ Workflow comparison analysis
 - ✅ Complex input processing
+
+#### **debug-planning-agent.ts** - Debug Specific Agent
+- Targeted debugging for specific agents
+- Detailed conversation history analysis
+- Step-by-step execution tracking
+- Error diagnosis and troubleshooting
+
+**Key Features:**
+- ✅ Specific agent debugging
+- ✅ Detailed conversation analysis
+- ✅ Execution step tracking
+- ✅ Error diagnosis tools
 
 ### 🔧 MCP Host Examples (`mcp-host/`)
 
@@ -151,20 +224,33 @@ These examples demonstrate configuration management:
 - ✅ Statistical summaries
 - ✅ Comprehensive error handling
 
-### 🔬 System Examples (`system/`)
-
-These examples demonstrate system-level interactions and environment configuration:
-
-#### **environment-demo.ts** - Environment Configuration
-- Demonstrates how to load and access environment variables
-- Shows how to create clients with default and overridden configurations
-- Provides a clear pattern for managing environment-specific settings
+#### **reload-configs.ts** - Configuration Reloading
+- Reload configuration files from disk
+- Refresh configuration cache
+- Handle configuration updates
+- Validate configuration changes
 
 **Key Features:**
-- ✅ Automatic `.env` file loading
-- ✅ Type-safe configuration access
-- ✅ Environment-aware defaults
-- ✅ Easy configuration overrides
+- ✅ Configuration file reloading
+- ✅ Cache refresh functionality
+- ✅ Update validation
+- ✅ Error handling for invalid configs
+
+### 🔬 System Examples (`system/`)
+
+These examples demonstrate system-level monitoring and health checks:
+
+#### **health-check.ts** - System Health Monitoring
+- System-level health checks
+- Service availability monitoring
+- Resource status validation
+- Performance metrics collection
+
+**Key Features:**
+- ✅ System health monitoring
+- ✅ Service availability checks
+- ✅ Resource validation
+- ✅ Performance metrics
 
 ## 🛠️ Shared Utilities (`shared/`)
 
@@ -261,7 +347,13 @@ await client.execution.streamAgent(
 - Complete configuration exploration
 - Search and filtering capabilities
 - Statistical analysis and summaries
-- Error handling for edge cases
+- Configuration reloading and validation
+
+### ✅ **Development Tools**
+- Environment setup validation
+- HTTP request analysis and reporting
+- Health monitoring and diagnostics
+- Comprehensive error handling
 
 ### ✅ **Error Handling**
 - Comprehensive error categorization
@@ -283,8 +375,8 @@ The examples use a shared configuration in `shared/client-setup.ts`:
 
 ```typescript
 export const DEFAULT_CONFIG = {
-  baseUrl: process.env.EXAMPLE_API_BASE_URL || 'http://localhost:8000',
-  apiKey: process.env.EXAMPLE_API_KEY || 'your_test_key', // Example API key
+  baseUrl: process.env.AURITE_API_URL || 'http://localhost:8000',
+  apiKey: process.env.API_KEY || 'your_test_key', // Example API key
 };
 ```
 
@@ -292,6 +384,19 @@ export const DEFAULT_CONFIG = {
 - Use environment variables for API keys
 - Configure appropriate base URLs
 - Implement proper authentication
+
+### Environment Variables
+
+Create a `.env` file in the frontend directory:
+
+```bash
+# API Configuration
+AURITE_API_URL=http://localhost:8000
+API_KEY=your_actual_api_key_here
+
+# Optional: Development settings
+NODE_ENV=development
+```
 
 ### Server Requirements
 
@@ -304,22 +409,62 @@ The examples expect the following to be available:
 
 ## 📖 Learning Path
 
-### 1. **Start with Basics**
-   - `execution/agent-basic.ts` - Learn basic agent execution
+### 1. **Start with Setup and Validation**
+   - `test-env.ts` - Validate your environment setup
+   - `health-check.ts` - Check API connectivity and health
    - `config/config-listing.ts` - Explore available configurations
 
-### 2. **Explore Advanced Features**
+### 2. **Learn Basic Operations**
+   - `execution/agent-basic.ts` - Learn basic agent execution
+   - `config/reload-configs.ts` - Understand configuration management
+   - `mcp-host/server-management.ts` - Basic MCP server operations
+
+### 3. **Explore Advanced Features**
    - `execution/agent-streaming.ts` - Real-time streaming
-   - `mcp-host/server-management.ts` - MCP server management
-
-### 3. **Master Complex Operations**
-   - `execution/workflow-simple.ts` - Workflow execution
    - `mcp-host/tool-execution.ts` - Direct tool operations
+   - `execution/workflow-simple.ts` - Workflow execution
 
-### 4. **Build Applications**
+### 4. **Master Development Tools**
+   - `analyze-http-requests.ts` - HTTP request analysis
+   - `execution/debug-planning-agent.ts` - Debugging techniques
+   - `system/health-check.ts` - System monitoring
+
+### 5. **Build Applications**
    - Combine patterns from multiple examples
    - Implement error handling and user feedback
    - Add performance monitoring and optimization
+
+## 🔍 Development Workflow
+
+### Testing Your Setup
+```bash
+# 1. Test environment
+npx tsx examples/test-env.ts
+
+# 2. Check API health
+npx tsx examples/health-check.ts
+
+# 3. List available configurations
+npx tsx examples/config/config-listing.ts
+```
+
+### Debugging Issues
+```bash
+# 1. Run HTTP analysis to see all requests
+npx tsx examples/analyze-http-requests.ts
+
+# 2. Debug specific agents
+npx tsx examples/execution/debug-planning-agent.ts
+
+# 3. Check system health
+npx tsx examples/system/health-check.ts
+```
+
+### Performance Analysis
+```bash
+# Run HTTP analysis for detailed performance metrics
+npx tsx examples/analyze-http-requests.ts
+```
 
 ## 🤝 Contributing
 
@@ -331,15 +476,41 @@ When adding new examples:
 4. **Add detailed comments** explaining the functionality
 5. **Test with the live server** to ensure accuracy
 6. **Update this README** with new example descriptions
+7. **Consider adding to the HTTP analysis script** if it's a new category
 
 ## 📞 Support
 
 For questions about the examples or API client:
 
 1. **Check the main documentation** in `frontend/README.md`
-2. **Review the API client source** in `frontend/src/`
+2. **Review the API client source** in `frontend/packages/api-client/src/`
 3. **Run the examples** against a live server for testing
-4. **Examine error messages** for debugging information
+4. **Use the development tools** (`test-env.ts`, `health-check.ts`) for diagnostics
+5. **Examine error messages** for debugging information
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**Environment Setup:**
+- Run `npx tsx examples/test-env.ts` to validate setup
+- Check `.env` file location and format
+- Verify API key and URL configuration
+
+**API Connectivity:**
+- Run `npx tsx examples/health-check.ts` for diagnostics
+- Ensure Aurite server is running on the correct port
+- Check firewall and network settings
+
+**Configuration Issues:**
+- Run `npx tsx examples/config/config-listing.ts` to see available configs
+- Use `npx tsx examples/config/reload-configs.ts` to refresh configurations
+- Check configuration file syntax and location
+
+**Performance Issues:**
+- Run `npx tsx examples/analyze-http-requests.ts` for detailed analysis
+- Check network latency and server response times
+- Monitor resource usage during execution
 
 ---
 

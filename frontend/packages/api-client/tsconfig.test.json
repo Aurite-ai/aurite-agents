@@ -1,7 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    /* Test-specific overrides */
     "noEmit": true,
     "types": ["vitest/globals", "node"],
     "allowImportingTsExtensions": true,
@@ -10,10 +9,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "tests/**/*.ts",
-    "examples/**/*.ts",
-    "vitest.config.ts",
-    "vitest.setup.ts"
+    "tests/**/*.ts"
   ],
   "exclude": [
     "node_modules",
