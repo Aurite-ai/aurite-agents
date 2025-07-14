@@ -39,8 +39,15 @@ describe('BaseClient', () => {
     vi.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clear all pending timers
+    vi.clearAllTimers();
+    // Run any pending timers to completion
+    await vi.runAllTimersAsync();
+    // Reset to real timers
     vi.useRealTimers();
+    // Clear mock to prevent any lingering promises
+    mockFetch.mockClear();
   });
 
   describe('constructor', () => {
@@ -200,25 +207,31 @@ describe('BaseClient', () => {
 
     describe('timeout handling', () => {
       it('should timeout after default 30 seconds', async () => {
-        // Mock fetch to simulate a timeout by throwing AbortError when aborted
-        let abortHandler: (() => void) | null = null;
-        mockFetch.mockImplementationOnce(
-          (url, options) =>
-            new Promise((resolve, reject) => {
-              abortHandler = () => {
-                const error = new Error('The operation was aborted');
-                error.name = 'AbortError';
-                reject(error);
-              };
-              options.signal.addEventListener('abort', abortHandler);
-            })
-        );
+        // Create a promise that will be properly handled
+        let rejectFn: ((error: Error) => void) | null = null;
+        const fetchPromise = new Promise((_, reject) => {
+          rejectFn = reject;
+        });
+
+        // Mock fetch to return our controlled promise
+        mockFetch.mockImplementationOnce((url, options) => {
+          // Listen for abort signal
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const error = new Error('The operation was aborted');
+              error.name = 'AbortError';
+              if (rejectFn) rejectFn(error);
+            });
+          }
+          return fetchPromise;
+        });
 
         const requestPromise = client.testRequest('GET', '/test');
 
         // Fast-forward time to trigger timeout
         await vi.advanceTimersByTimeAsync(30000);
 
+        // Ensure the promise rejection is handled
         await expect(requestPromise).rejects.toThrow(TimeoutError);
         await expect(requestPromise).rejects.toMatchObject({
           status: 0,
@@ -227,22 +240,32 @@ describe('BaseClient', () => {
             url: 'http://localhost:8000/test',
           },
         });
+
+        // Ensure the fetch promise is also handled to prevent unhandled rejection
+        fetchPromise.catch(() => {
+          // Silently catch to prevent unhandled rejection
+        });
       });
 
       it('should respect custom timeout option', async () => {
-        // Mock fetch to simulate a timeout by throwing AbortError when aborted
-        let abortHandler: (() => void) | null = null;
-        mockFetch.mockImplementationOnce(
-          (url, options) =>
-            new Promise((resolve, reject) => {
-              abortHandler = () => {
-                const error = new Error('The operation was aborted');
-                error.name = 'AbortError';
-                reject(error);
-              };
-              options.signal.addEventListener('abort', abortHandler);
-            })
-        );
+        // Create a promise that will be properly handled
+        let rejectFn: ((error: Error) => void) | null = null;
+        const fetchPromise = new Promise((_, reject) => {
+          rejectFn = reject;
+        });
+
+        // Mock fetch to return our controlled promise
+        mockFetch.mockImplementationOnce((url, options) => {
+          // Listen for abort signal
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const error = new Error('The operation was aborted');
+              error.name = 'AbortError';
+              if (rejectFn) rejectFn(error);
+            });
+          }
+          return fetchPromise;
+        });
 
         const requestPromise = client.testRequest('GET', '/test', undefined, {
           timeout: 5000,
@@ -250,9 +273,15 @@ describe('BaseClient', () => {
 
         await vi.advanceTimersByTimeAsync(5000);
 
+        // Ensure the promise rejection is handled
         await expect(requestPromise).rejects.toThrow(TimeoutError);
         await expect(requestPromise).rejects.toMatchObject({
           status: 0,
+        });
+
+        // Ensure the fetch promise is also handled to prevent unhandled rejection
+        fetchPromise.catch(() => {
+          // Silently catch to prevent unhandled rejection
         });
       });
 
@@ -431,6 +460,7 @@ describe('BaseClient', () => {
         // Advance timer for the single retry
         await vi.advanceTimersByTimeAsync(100);
 
+        // Catch the promise to ensure it's handled
         await expect(requestPromise).rejects.toThrow(ApiError);
 
         // Initial attempt + 1 retry = 2 calls
@@ -505,18 +535,13 @@ describe('BaseClient', () => {
         // Advance timer for second retry (exponential backoff)
         await vi.advanceTimersByTimeAsync(200);
 
-        try {
-          await requestPromise;
-          // Should not reach here
-          expect(true).toBe(false);
-        } catch (error) {
-          expect(error).toBeInstanceOf(ApiError);
-          expect(error).toMatchObject({
-            message: 'Persistent server error',
-            status: 500,
-            code: 'SERVER_ERROR',
-          });
-        }
+        // Catch the promise to ensure it's handled
+        await expect(requestPromise).rejects.toThrow(ApiError);
+        await expect(requestPromise).rejects.toMatchObject({
+          message: 'Persistent server error',
+          status: 500,
+          code: 'SERVER_ERROR',
+        });
 
         // Initial attempt + 2 retries = 3 calls
         expect(mockFetch).toHaveBeenCalledTimes(3);
