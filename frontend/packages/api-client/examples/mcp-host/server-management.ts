@@ -134,9 +134,9 @@ async function serverLifecycleDemo() {
     console.log(`   Available tools: ${tools.map(t => t.name).join(', ')}`);
 
     // Step 4: Use a tool (if available)
-    if (tools.some(t => t.name === 'weather_lookup')) {
+    if (tools.some(t => t.name === 'weather_server-weather_lookup')) {
       console.log('\n🔄 Step 4: Test tool functionality');
-      const toolResult = await client.host.callTool('weather_lookup', {
+      const toolResult = await client.host.callTool('weather_server-weather_lookup', {
         location: 'San Francisco',
       });
       console.log('   Tool result:', `${JSON.stringify(toolResult).substring(0, 100)}...`);

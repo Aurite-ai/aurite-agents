@@ -66,7 +66,7 @@ async function basicToolCalls() {
       try {
         console.log(`\n🌤️  Getting weather for ${location}...`);
 
-        const result = await client.host.callTool('weather_lookup', {
+        const result = await client.host.callTool('weather_server-weather_lookup', {
           location,
         });
 
@@ -120,7 +120,7 @@ async function planningToolCalls() {
 ## Notes
 Remember to check weather forecast before packing
       `;
-      const saveResult = await client.host.callTool('save_plan', {
+      const saveResult = await client.host.callTool('planning_server-save_plan', {
         plan_name: 'weekend-trip-to-paris',
         plan_content: planContent,
         tags: ['paris', 'weekend', 'travel'],
@@ -135,7 +135,7 @@ Remember to check weather forecast before packing
     // Test listing plans
     console.log('\n📋 Listing saved plans...');
     try {
-      const listResult = await client.host.callTool('list_plans', {});
+      const listResult = await client.host.callTool('planning_server-list_plans', {});
 
       console.log('✅ Plans retrieved:');
       prettyPrint(listResult, 'List Plans Result');
@@ -170,7 +170,7 @@ async function toolErrorHandling() {
 
     // Test 2: Call tool with invalid arguments
     try {
-      await client.host.callTool('weather_lookup', { invalid_arg: 'value' });
+      await client.host.callTool('weather_server-weather_lookup', { invalid_arg: 'value' });
     } catch (error) {
       console.log('\n✅ Expected error for invalid arguments:');
       handleExampleError(error, 'Invalid Arguments');
@@ -178,7 +178,7 @@ async function toolErrorHandling() {
 
     // Test 3: Call tool with missing required arguments
     try {
-      await client.host.callTool('weather_lookup', {});
+      await client.host.callTool('weather_server-weather_lookup', {});
     } catch (error) {
       console.log('\n✅ Expected error for missing arguments:');
       handleExampleError(error, 'Missing Arguments');
@@ -186,7 +186,7 @@ async function toolErrorHandling() {
 
     // Test 4: Call tool with unsupported location (should handle gracefully)
     try {
-      const result = await client.host.callTool('weather_lookup', {
+      const result = await client.host.callTool('weather_server-weather_lookup', {
         location: 'Atlantis',
       });
 
@@ -221,7 +221,7 @@ async function concurrentToolCalls() {
 
     const promises = locations.map(location =>
       client.host
-        .callTool('weather_lookup', { location })
+        .callTool('weather_server-weather_lookup', { location })
         .then(result => ({ location, result, success: true }))
         .catch(error => ({ location, error, success: false }))
     );
@@ -267,17 +267,17 @@ async function toolResponseAnalysis() {
     const toolTests = [
       {
         name: 'Weather Tool',
-        tool: 'weather_lookup',
+        tool: 'weather_server-weather_lookup',
         args: { location: 'San Francisco' },
       },
       {
         name: 'Current Time Tool',
-        tool: 'current_time',
+        tool: 'weather_server-current_time',
         args: {},
       },
       {
         name: 'List Plans Tool',
-        tool: 'list_plans',
+        tool: 'planning_server-list_plans',
         args: {},
       },
     ];
@@ -336,7 +336,7 @@ async function toolPerformanceTest() {
       const startTime = Date.now();
 
       try {
-        await client.host.callTool('weather_lookup', { location });
+        await client.host.callTool('weather_server-weather_lookup', { location });
         const duration = Date.now() - startTime;
         times.push(duration);
         console.log(`   Run ${i + 1}: ${duration}ms`);
