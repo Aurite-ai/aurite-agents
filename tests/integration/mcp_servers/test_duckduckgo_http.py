@@ -29,10 +29,10 @@ async def test_http_agent_working(with_test_config):
         tool_result_found = False
         for message in result.conversation_history:
             if "tool_calls" in message and message["tool_calls"] is not None:
-                if message["tool_calls"][0]["function"]["name"] == 'search':
+                if message["tool_calls"][0]["function"]["name"] == 'duckduckgo_http_control-search':
                     tool_call_found = True
 
-            if "role" in message and "name" in message and message["role"] == "tool" and message["name"] == "search":
+            if "role" in message and "name" in message and message["role"] == "tool" and message["name"] == "duckduckgo_http_control-search":
                 tool_result_found = True
 
         assert tool_call_found
