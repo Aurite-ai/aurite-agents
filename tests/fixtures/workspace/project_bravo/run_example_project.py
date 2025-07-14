@@ -25,8 +25,6 @@ async def main():
     aurite = Aurite()
 
     try:
-        await aurite.initialize()
-
         # --- Dynamic Registration Example ---
         # The following section demonstrates how to dynamically register components
         # with Aurite. This is useful for adding or modifying configurations at
@@ -39,7 +37,7 @@ async def main():
             model="gpt-4-turbo-preview",
         )
 
-        await aurite.register_llm_config(llm_config)
+        await aurite.register_llm(llm_config)
 
         # # 2. Define and register an MCP server configuration
         # mcp_server_config = ClientConfig(
@@ -74,8 +72,6 @@ async def main():
 
     except Exception as e:
         logger.error(f"An error occurred during agent execution: {e}", exc_info=True)
-        await aurite.shutdown()
-        logger.info("Aurite shutdown complete.")
 
 
 if __name__ == "__main__":
