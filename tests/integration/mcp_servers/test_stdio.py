@@ -71,3 +71,20 @@ async def test_stdio_server_tool_dne(with_test_config):
 
         with pytest.raises(Exception) as e:
             tool_result = await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
+
+@pytest.mark.asyncio
+async def test_stdio_server_incorrect_path(with_test_config):
+    """
+    Tests that a error is raised if a server is registered with an incorrect path
+    """
+    example_project_path = Path(".aurite").resolve()
+
+    async with Aurite(start_dir=example_project_path) as aurite:
+        host = aurite.kernel.execution._host
+
+        config_manager = aurite.get_config_manager()
+
+        config_manager.refresh()
+
+        with pytest.raises(Exception) as e:
+            await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_invalid_server_path")))
