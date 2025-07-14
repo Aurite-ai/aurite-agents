@@ -1,3 +1,6 @@
+# Simple HTTP server example using FastMCP v2 (https://github.com/jlowin/fastmcp)
+# Note that you will need to run this file directly to start the server before it can be used by agents
+
 from fastmcp import FastMCP
 
 mcp = FastMCP("Math HTTP")
