@@ -152,17 +152,28 @@ async def create_component(
             detail=f"Component '{component_data.name}' of type '{component_type}' already exists.",
         )
 
-    # Prepare the full config with type and name
-    full_config = component_data.config.copy()
-    full_config["type"] = singular_type
-    full_config["name"] = component_data.name
+    # Extract API routing parameters (these should not be saved in the component config)
+    project = component_data.config.get("project")
+    workspace = component_data.config.get("workspace", False)
+    file_path = component_data.config.get("file_path")
+
+    # Prepare the component config without API routing parameters
+    component_config = component_data.config.copy()
+    # Remove API routing parameters from the component config
+    component_config.pop("project", None)
+    component_config.pop("workspace", None)
+    component_config.pop("file_path", None)
+
+    # Add required fields
+    component_config["type"] = singular_type
+    component_config["name"] = component_data.name
 
     result = config_manager.create_component(
         singular_type,
-        full_config,
-        project=component_data.config.get("project"),
-        workspace=component_data.config.get("workspace", False),
-        file_path=component_data.config.get("file_path"),
+        component_config,
+        project=project,
+        workspace=workspace,
+        file_path=file_path,
     )
 
     if not result:

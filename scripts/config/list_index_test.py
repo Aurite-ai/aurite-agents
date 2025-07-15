@@ -59,7 +59,7 @@ def test_from_directory(test_name: str, directory: Path):
                 # If not relative to original cwd, show absolute
                 rel_source = source_path
                 rel_context = context_root
-            print(f"  {i+1}. Source: {rel_source}")
+            print(f"  {i + 1}. Source: {rel_source}")
             print(f"     Context: {rel_context}")
 
         # Display first few components to show priority

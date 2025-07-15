@@ -120,9 +120,9 @@ def _format_simple_workflow_details(component: dict, level: str) -> str:
         content += "[bold blue]Steps:[/bold blue]\n"
         for i, step in enumerate(steps):
             if isinstance(step, dict):
-                content += f"  {i+1}. {step.get('name')} ({step.get('type')})\n"
+                content += f"  {i + 1}. {step.get('name')} ({step.get('type')})\n"
             else:
-                content += f"  {i+1}. {step}\n"
+                content += f"  {i + 1}. {step}\n"
     return content.strip()
 
 
