@@ -77,7 +77,14 @@ export interface ExecuteCustomWorkflowResponse {
   error?: string | null;
 }
 
-// Client types
+// Root configuration interface
+export interface RootConfig {
+  uri: string;
+  name: string;
+  capabilities: string[];
+}
+
+// Legacy client config (deprecated - use MCPServerConfig instead)
 export interface ClientConfig {
   name: string;
   server_path?: string;
@@ -87,6 +94,99 @@ export interface ClientConfig {
   routing_weight?: number;
   exclude?: string[];
   gcp_secrets?: Record<string, any>;
+}
+
+// Complete MCP Server Configuration Interface (API-compliant)
+export interface MCPServerConfig {
+  // Required fields
+  name: string;
+  type: "mcp_server";
+  capabilities: string[];
+
+  // Optional common fields
+  description?: string;
+  transport_type?: "stdio" | "http_stream" | "local";
+  timeout?: number;
+  registration_timeout?: number;
+  routing_weight?: number;
+  exclude?: string[];
+  roots?: RootConfig[];
+
+  // Stdio transport fields
+  server_path?: string;
+
+  // HTTP stream transport fields
+  http_endpoint?: string;
+  headers?: Record<string, string>;
+
+  // Local transport fields
+  command?: string;
+  args?: string[];
+}
+
+// Transport-specific interfaces for type safety
+export interface MCPServerStdioConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "stdio";
+  server_path: string;
+  // Explicitly exclude other transport fields
+  http_endpoint?: never;
+  headers?: never;
+  command?: never;
+  args?: never;
+}
+
+export interface MCPServerHttpConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "http_stream";
+  http_endpoint: string;
+  headers?: Record<string, string>;
+  // Explicitly exclude other transport fields
+  server_path?: never;
+  command?: never;
+  args?: never;
+}
+
+export interface MCPServerLocalConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "local";
+  command: string;
+  args?: string[];
+  // Explicitly exclude other transport fields
+  server_path?: never;
+  http_endpoint?: never;
+  headers?: never;
+}
+
+// Union type for type-safe transport handling
+export type MCPServerTransportConfig = 
+  | MCPServerStdioConfig 
+  | MCPServerHttpConfig 
+  | MCPServerLocalConfig;
+
+// Form fields interface for React components
+export interface MCPServerFormFields {
+  // Basic fields
+  name: string;
+  description: string;
+  capabilities: string[];
+  
+  // Transport selection
+  transport_type: "stdio" | "http_stream" | "local";
+  
+  // Stdio fields
+  server_path: string;
+  
+  // HTTP fields
+  http_endpoint: string;
+  headers: Array<{key: string; value: string}>;
+  
+  // Local fields
+  command: string;
+  args: string[];
+  
+  // Advanced fields
+  timeout: number;
+  registration_timeout: number;
+  routing_weight: number;
+  exclude: string[];
 }
 
 // LLM types
