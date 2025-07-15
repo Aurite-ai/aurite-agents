@@ -191,13 +191,18 @@ export interface MCPServerFormFields {
 
 // LLM types
 export interface LLMConfig {
-  llm_id: string;
+  name: string;
+  type: 'llm';
   provider: string;
   model: string;
-  api_key_env_var?: string;
-  default_system_prompt?: string;
-  max_tokens?: number;
+  description?: string;
   temperature?: number;
+  max_tokens?: number;
+  default_system_prompt?: string;
+  api_base?: string;
+  api_key?: string;
+  api_version?: string;
+  api_key_env_var?: string;
 }
 
 // Request types

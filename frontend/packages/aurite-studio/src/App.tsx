@@ -17,8 +17,8 @@ import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent } from '@/hooks/useAgents';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs } from '@/hooks/useWorkflows';
-import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete } from '@/hooks/useClients';
-import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM } from '@/hooks/useLLMs';
+import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
+import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
 import { MCPClientCard } from '@/components/MCPClientCard';
 
 const sidebarItems = [
@@ -112,6 +112,8 @@ function App() {
   const [llmApiKeyEnvVar, setLlmApiKeyEnvVar] = useState('');
   const [showLLMEditForm, setShowLLMEditForm] = useState(false);
   const [editingLLM, setEditingLLM] = useState<any>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showMCPDeleteConfirmation, setShowMCPDeleteConfirmation] = useState(false);
   const [isCreatingLLM, setIsCreatingLLM] = useState(false);
   const [showAgentForm, setShowAgentForm] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
@@ -154,6 +156,9 @@ function App() {
   
   // Hook for creating LLM configuration
   const createLLM = useCreateLLM();
+  
+  // Hook for deleting LLM configuration
+  const deleteLLM = useDeleteLLM();
 
   // Hook for fetching MCP client config - only enabled when we have a server name
   const { data: mcpClientConfig, isLoading: mcpClientConfigLoading } = useClientConfig(
@@ -170,6 +175,9 @@ function App() {
   // Hooks for register/unregister MCP servers
   const registerMCPServer = useRegisterMCPServer();
   const unregisterMCPServer = useUnregisterMCPServer();
+  
+  // Hook for deleting MCP client configuration
+  const deleteMCPClient = useDeleteClient();
 
   // Show advanced options when user starts typing description
   React.useEffect(() => {
@@ -434,7 +442,7 @@ function App() {
   // Effect to populate LLM form when LLM config is loaded
   React.useEffect(() => {
     if (llmConfig && editingLLM) {
-      setLlmId(llmConfig.llm_id || '');
+      setLlmId(llmConfig.name || '');
       setLlmProvider(llmConfig.provider || '');
       setLlmModelName(llmConfig.model || '');
       setLlmTemperature(llmConfig.temperature?.toString() || '');
@@ -1414,13 +1422,35 @@ function App() {
         </div>
       </motion.div>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="flex justify-end"
+        className="flex justify-between"
       >
+        {/* Delete Button - Only show in edit mode */}
+        {editingMCPClient && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowMCPDeleteConfirmation(true)}
+            disabled={deleteMCPClient.isPending}
+          >
+            {deleteMCPClient.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete MCP Server'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingMCPClient && <div />}
+        
         <Button 
           className="px-8"
           onClick={() => {
@@ -1659,11 +1689,11 @@ function App() {
         transition={{ delay: 0.1 }}
         className="bg-card border border-border rounded-lg p-6 space-y-6"
       >
-        {/* LLM ID */}
+        {/* LLM Name */}
         <div className="space-y-2">
-          <Label htmlFor="llm-id" className="text-sm font-medium text-foreground">LLM ID</Label>
+          <Label htmlFor="llm-name" className="text-sm font-medium text-foreground">LLM Name</Label>
           <Input
-            id="llm-id"
+            id="llm-name"
             placeholder="e.g., my_claude_opus_config"
             value={llmId}
             onChange={(e) => setLlmId(e.target.value)}
@@ -1749,20 +1779,43 @@ function App() {
         </div>
       </motion.div>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="flex justify-end"
+        className="flex justify-between"
       >
+        {/* Delete Button - Only show in edit mode */}
+        {editingLLM && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowDeleteConfirmation(true)}
+            disabled={deleteLLM.isPending}
+          >
+            {deleteLLM.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete LLM Config'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingLLM && <div />}
+        
         <Button 
           className="px-8"
           onClick={() => {
             if (editingLLM && editingLLM.id) {
               // Edit mode - update existing LLM configuration
               const llmConfig: any = {
-                llm_id: llmId,
+                name: llmId,
+                type: 'llm',
               };
 
               // Only include fields that have values
@@ -1795,7 +1848,8 @@ function App() {
             } else {
               // Create mode - create new LLM configuration
               const llmConfig: any = {
-                llm_id: llmId,
+                name: llmId,
+                type: 'llm',
               };
 
               // Only include fields that have values
@@ -1915,7 +1969,7 @@ function App() {
         {!llmsLoading && llms.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {llms.map((llm, index) => {
-              const llmId = typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'Unknown LLM';
+              const llmId = typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'unknown_llm';
               return (
                 <motion.div
                   key={llmId}
@@ -2139,6 +2193,150 @@ function App() {
           {renderContent()}
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowDeleteConfirmation(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete LLM Configuration
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete the LLM configuration "{llmId}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirmation(false)}
+                  disabled={deleteLLM.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (editingLLM && editingLLM.id) {
+                      deleteLLM.mutate(editingLLM.id, {
+                        onSuccess: () => {
+                          setShowDeleteConfirmation(false);
+                          setShowLLMForm(false);
+                          setShowLLMEditForm(false);
+                          setEditingLLM(null);
+                          // Reset form fields
+                          setLlmId('');
+                          setLlmProvider('');
+                          setLlmModelName('');
+                          setLlmTemperature('');
+                          setLlmMaxTokens('');
+                          setLlmSystemPrompt('');
+                          setLlmApiKeyEnvVar('');
+                        }
+                      });
+                    }
+                  }}
+                  disabled={deleteLLM.isPending}
+                >
+                  {deleteLLM.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MCP Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showMCPDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowMCPDeleteConfirmation(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete MCP Server
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete the MCP server "{mcpClientId}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMCPDeleteConfirmation(false)}
+                  disabled={deleteMCPClient.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (editingMCPClient && editingMCPClient.configFile) {
+                      deleteMCPClient.mutate(editingMCPClient.configFile, {
+                        onSuccess: () => {
+                          setShowMCPDeleteConfirmation(false);
+                          setShowMCPForm(false);
+                          setEditingMCPClient(null);
+                          // Reset form fields
+                          setMcpClientId('');
+                          setMcpDescription('');
+                          setMcpTransportType('stdio');
+                          setMcpCapabilities('');
+                          setMcpTimeout('');
+                          setMcpRegistrationTimeout('');
+                          setMcpRoutingWeight('');
+                          setMcpServerPath('');
+                          setMcpHttpEndpoint('');
+                          setMcpHeaders([]);
+                          setMcpCommand('');
+                          setMcpArgs([]);
+                        }
+                      });
+                    }
+                  }}
+                  disabled={deleteMCPClient.isPending}
+                >
+                  {deleteMCPClient.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
