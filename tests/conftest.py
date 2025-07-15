@@ -95,6 +95,7 @@ def mock_client_session_group() -> MagicMock:
     mock_group.sessions = {}
     return mock_group
 
+
 @pytest.fixture
 def with_test_config():
     try:
