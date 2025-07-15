@@ -166,9 +166,24 @@ async def create_component(
     )
 
     if not result:
+        # Provide more helpful error messages based on context
+        try:
+            sources = config_manager.list_config_sources()
+            [s for s in sources if s["context"] == "project"]
+
+            if len(sources) == 0:
+                detail = "No configuration sources found. Please ensure you're in a valid Aurite workspace or project."
+            elif not config_manager.workspace_name and not config_manager.project_name:
+                detail = "Not in a valid Aurite context. Please run 'aurite init' to set up a workspace or project."
+            else:
+                detail = f"Failed to create component '{component_data.name}'. Check logs for details."
+
+        except Exception:
+            detail = f"Failed to create component '{component_data.name}'."
+
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create component '{component_data.name}'.",
+            detail=detail,
         )
 
     return result
