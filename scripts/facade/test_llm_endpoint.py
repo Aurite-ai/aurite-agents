@@ -1,12 +1,14 @@
 import requests
 import json
 import time
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 def test_llm_endpoint():
     """Test the new LLM test endpoint."""
     base_url = "http://localhost:8000"
-    api_key = "RwkWJFhApciiUSyH3B/Ad6T46kIxbu9gtAU"
-    
+    api_key = os.getenv("API_KEY")
+
     headers = {
         "Content-Type": "application/json",
         "X-API-Key": api_key
