@@ -63,6 +63,11 @@ class WorkflowRunRequest(BaseModel):
     session_id: Optional[str] = None
 
 
+class LLMTestRequest(BaseModel):
+    user_message: str
+    system_prompt: Optional[str] = "You are a helpful assistant."
+
+
 # History-related models
 class SessionMetadata(BaseModel):
     session_id: str
@@ -131,6 +136,106 @@ async def run_agent(
     except Exception as e:
         logger.error(f"Unexpected error running agent '{agent_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
+
+
+@router.post("/llms/{llm_config_id}/test")
+async def test_llm(
+    llm_config_id: str,
+    request: LLMTestRequest,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test an LLM configuration by creating a temporary agent and running a message.
+    This allows you to quickly test LLM configurations without creating a full agent.
+    """
+    try:
+        # Check if the LLM configuration exists
+        llm_config = facade._config_manager.get_config("llm", llm_config_id)
+        if not llm_config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"LLM configuration '{llm_config_id}' not found."
+            )
+        
+        # Create a temporary agent configuration
+        temp_agent_config = {
+            "name": f"temp_llm_test_{llm_config_id}",
+            "type": "agent",
+            "description": f"Temporary agent for testing LLM '{llm_config_id}'",
+            "llm_config_id": llm_config_id,
+            "system_prompt": request.system_prompt,
+            "max_iterations": 1,  # Single interaction for testing
+            "mcp_servers": [],  # No MCP servers needed for basic LLM test
+            "include_history": False,  # No history needed for test
+        }
+        
+        # Temporarily disable force refresh to preserve in-memory registration
+        original_force_refresh = facade._config_manager._force_refresh
+        facade._config_manager._force_refresh = False
+        
+        # Register the temporary agent configuration in memory
+        facade._config_manager.register_component_in_memory("agent", temp_agent_config)
+        
+        try:
+            # Run the temporary agent
+            result = await facade.run_agent(
+                agent_name=temp_agent_config["name"],
+                user_message=request.user_message,
+                system_prompt=request.system_prompt,
+            )
+            
+            # Extract the assistant's response from the result
+            assistant_response = ""
+            if result.conversation_history:
+                # Find the last assistant message
+                for message in reversed(result.conversation_history):
+                    if message.get("role") == "assistant":
+                        content = message.get("content", "")
+                        if isinstance(content, list):
+                            # Handle structured content (like Anthropic format)
+                            for block in content:
+                                if block.get("type") == "text":
+                                    assistant_response = block.get("text", "")
+                                    break
+                        else:
+                            assistant_response = str(content)
+                        break
+            
+            return {
+                "status": "success",
+                "llm_config_id": llm_config_id,
+                "user_message": request.user_message,
+                "system_prompt": request.system_prompt,
+                "assistant_response": assistant_response,
+                "execution_status": result.status,
+                "metadata": {
+                    "provider": llm_config.get("provider"),
+                    "model": llm_config.get("model"),
+                    "temperature": llm_config.get("temperature"),
+                    "max_tokens": llm_config.get("max_tokens"),
+                }
+            }
+            
+        finally:
+            # Restore original force refresh setting
+            facade._config_manager._force_refresh = original_force_refresh
+            
+            # Clean up: remove the temporary agent from memory
+            if temp_agent_config["name"] in facade._config_manager._component_index.get("agent", {}):
+                del facade._config_manager._component_index["agent"][temp_agent_config["name"]]
+                
+    except HTTPException:
+        raise
+    except ConfigurationError as e:
+        logger.error(f"Configuration error testing LLM '{llm_config_id}': {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except AgentExecutionError as e:
+        logger.error(f"LLM test execution error for '{llm_config_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"LLM test failed: {clean_error_message(e)}") from e
+    except Exception as e:
+        logger.error(f"Unexpected error testing LLM '{llm_config_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during LLM testing") from e
 
 
 @router.post("/agents/{agent_name}/test")
