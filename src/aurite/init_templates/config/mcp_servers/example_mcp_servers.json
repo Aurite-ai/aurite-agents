@@ -7,5 +7,15 @@
     "transport_type": "stdio",
     "capabilities": ["tools", "prompts", "resources"],
     "timeout": 15.0
+  },
+  {
+    "name": "math_server",
+    "description": "A server for performing simple math operations.",
+    "http_endpoint": "http://127.0.0.1:8088/mcp",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
   }
 ]
