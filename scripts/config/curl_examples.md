@@ -102,6 +102,72 @@ All successful requests return:
 }
 ```
 
+## Error Responses
+
+### Invalid Component Type (400 Bad Request)
+
+If you try to create a component with an invalid type:
+
+```bash
+curl -X POST "http://localhost:8000/config/components/invalid_type" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "test-component",
+    "config": {
+      "type": "invalid_type",
+      "description": "This will fail"
+    }
+  }'
+```
+
+Response:
+```json
+{
+  "detail": "Invalid component type 'invalid_type'. Valid types are: agent, llm, mcp_server, simple_workflow, custom_workflow"
+}
+```
+
+### Component Already Exists (409 Conflict)
+
+If you try to create a component that already exists:
+
+```json
+{
+  "detail": "Component 'my-agent' of type 'agents' already exists."
+}
+```
+
+### Configuration Validation Error (422 Unprocessable Entity)
+
+If the component configuration doesn't match the required schema:
+
+```bash
+curl -X POST "http://localhost:8000/config/components/agents" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "invalid-agent",
+    "config": {
+      "type": "agent",
+      "description": "Missing required fields"
+    }
+  }'
+```
+
+Response:
+```json
+{
+  "detail": "Component configuration validation failed: Field 'system_prompt': Field required"
+}
+```
+
+### Other Common Errors
+
+- **401 Unauthorized**: Missing or invalid API key
+- **422 Unprocessable Entity**: Configuration validation failed (see above)
+- **500 Internal Server Error**: Configuration context issues or file system errors
+
 ## Custom File Path Specification
 
 You can specify exactly where the component should be stored using the `file_path` parameter:

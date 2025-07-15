@@ -143,6 +143,14 @@ async def create_component(
     """
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
+    
+    # Validate component type
+    valid_types = list(config_manager.get_all_configs().keys())
+    if singular_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(valid_types)}",
+        )
 
     # Check if component already exists
     existing = config_manager.get_config(singular_type, component_data.name)
@@ -167,6 +175,14 @@ async def create_component(
     # Add required fields
     component_config["type"] = singular_type
     component_config["name"] = component_data.name
+
+    # Validate the component configuration before creating it
+    is_valid, validation_errors = config_manager._validate_component_config(singular_type, component_config)
+    if not is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Component configuration validation failed: {'; '.join(validation_errors)}",
+        )
 
     result = config_manager.create_component(
         singular_type,
