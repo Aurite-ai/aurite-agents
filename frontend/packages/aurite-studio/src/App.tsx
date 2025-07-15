@@ -14,10 +14,12 @@ import {
 } from '@/components/ui/select';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
+import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent } from '@/hooks/useAgents';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs } from '@/hooks/useWorkflows';
-import { useClientsWithStatus } from '@/hooks/useClients';
-import { useLLMsWithConfigs } from '@/hooks/useLLMs';
+import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete } from '@/hooks/useClients';
+import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM } from '@/hooks/useLLMs';
+import { MCPClientCard } from '@/components/MCPClientCard';
 
 const sidebarItems = [
   { icon: Home, label: 'Home', id: 'home' },
@@ -81,11 +83,25 @@ function App() {
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowSteps, setWorkflowSteps] = useState<Array<{id: number, agent: string}>>([]);
   const [showMCPForm, setShowMCPForm] = useState(false);
+  // Enhanced MCP form state for full schema support
   const [mcpClientId, setMcpClientId] = useState('');
-  const [mcpServerPath, setMcpServerPath] = useState('');
+  const [mcpDescription, setMcpDescription] = useState('');
+  const [mcpTransportType, setMcpTransportType] = useState<'stdio' | 'http_stream' | 'local'>('stdio');
   const [mcpCapabilities, setMcpCapabilities] = useState('');
   const [mcpTimeout, setMcpTimeout] = useState('');
+  const [mcpRegistrationTimeout, setMcpRegistrationTimeout] = useState('');
   const [mcpRoutingWeight, setMcpRoutingWeight] = useState('');
+  
+  // Stdio transport fields
+  const [mcpServerPath, setMcpServerPath] = useState('');
+  
+  // HTTP stream transport fields
+  const [mcpHttpEndpoint, setMcpHttpEndpoint] = useState('');
+  const [mcpHeaders, setMcpHeaders] = useState<Array<{key: string; value: string}>>([]);
+  
+  // Local transport fields
+  const [mcpCommand, setMcpCommand] = useState('');
+  const [mcpArgs, setMcpArgs] = useState<string[]>([]);
   const [showLLMForm, setShowLLMForm] = useState(false);
   const [llmId, setLlmId] = useState('');
   const [llmProvider, setLlmProvider] = useState('');
@@ -93,8 +109,13 @@ function App() {
   const [llmTemperature, setLlmTemperature] = useState('');
   const [llmMaxTokens, setLlmMaxTokens] = useState('');
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('');
+  const [llmApiKeyEnvVar, setLlmApiKeyEnvVar] = useState('');
+  const [showLLMEditForm, setShowLLMEditForm] = useState(false);
+  const [editingLLM, setEditingLLM] = useState<any>(null);
+  const [isCreatingLLM, setIsCreatingLLM] = useState(false);
   const [showAgentForm, setShowAgentForm] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
+  const [editingMCPClient, setEditingMCPClient] = useState<any>(null);
   const [agentFormName, setAgentFormName] = useState('');
   const [agentSystemPrompt, setAgentSystemPrompt] = useState('');
   const [llmConfigOption, setLlmConfigOption] = useState('existing');
@@ -121,6 +142,34 @@ function App() {
     editingAgent?.configFile || '',
     !!editingAgent?.configFile && showAgentForm
   );
+
+  // Hook for fetching LLM config - only enabled when we have an LLM ID and are in edit mode
+  const { data: llmConfig, isLoading: llmConfigLoading } = useLLMConfig(
+    editingLLM?.id || '',
+    !!editingLLM?.id && (showLLMEditForm || showLLMForm)
+  );
+
+  // Hook for updating LLM configuration
+  const updateLLM = useUpdateLLM();
+  
+  // Hook for creating LLM configuration
+  const createLLM = useCreateLLM();
+
+  // Hook for fetching MCP client config - only enabled when we have a server name
+  const { data: mcpClientConfig, isLoading: mcpClientConfigLoading } = useClientConfig(
+    editingMCPClient?.name || '',
+    !!editingMCPClient?.name && showMCPForm
+  );
+
+  // Hook for updating MCP client configuration
+  const updateMCPClient = useUpdateClient();
+  
+  // Hook for creating new MCP server configuration
+  const createMCPServer = useCreateMCPServer();
+  
+  // Hooks for register/unregister MCP servers
+  const registerMCPServer = useRegisterMCPServer();
+  const unregisterMCPServer = useUnregisterMCPServer();
 
   // Show advanced options when user starts typing description
   React.useEffect(() => {
@@ -381,6 +430,87 @@ function App() {
       }
     }
   }, [agentConfig, editingAgent, llms]);
+
+  // Effect to populate LLM form when LLM config is loaded
+  React.useEffect(() => {
+    if (llmConfig && editingLLM) {
+      setLlmId(llmConfig.llm_id || '');
+      setLlmProvider(llmConfig.provider || '');
+      setLlmModelName(llmConfig.model || '');
+      setLlmTemperature(llmConfig.temperature?.toString() || '');
+      setLlmMaxTokens(llmConfig.max_tokens?.toString() || '');
+      setLlmSystemPrompt(llmConfig.default_system_prompt || '');
+      setLlmApiKeyEnvVar(llmConfig.api_key_env_var || '');
+    }
+  }, [llmConfig, editingLLM]);
+
+  // Effect to populate MCP form when MCP client config is loaded
+  React.useEffect(() => {
+    console.log('🔍 MCP Form Population Effect Triggered');
+    console.log('mcpClientConfig:', mcpClientConfig);
+    console.log('editingMCPClient:', editingMCPClient);
+    
+    if (mcpClientConfig && editingMCPClient) {
+      console.log('✅ Both mcpClientConfig and editingMCPClient exist');
+      
+      // Access the nested config object - API returns { config: { ... }, name: ..., ... }
+      const config = (mcpClientConfig as any).config || mcpClientConfig;
+      console.log('📋 Config object to use:', config);
+      console.log('📋 Full config structure:', JSON.stringify(config, null, 2));
+      
+      // Log each field being set with more detail
+      console.log('Setting form fields:');
+      console.log('- name:', config.name);
+      console.log('- description:', config.description);
+      console.log('- transport_type:', config.transport_type);
+      console.log('- capabilities:', config.capabilities);
+      console.log('- timeout:', config.timeout);
+      console.log('- server_path:', config.server_path);
+      
+      // Try different possible field names based on the API response structure
+      const name = config.name || (mcpClientConfig as any).name;
+      const description = config.description;
+      const transportType = config.transport_type;
+      const capabilities = config.capabilities;
+      const timeout = config.timeout;
+      const serverPath = config.server_path;
+      const httpEndpoint = config.http_endpoint;
+      const command = config.command;
+      const args = config.args;
+      const headers = config.headers;
+      const registrationTimeout = config.registration_timeout;
+      const routingWeight = config.routing_weight;
+      
+      console.log('🔧 Processed values:');
+      console.log('- processed name:', name);
+      console.log('- processed description:', description);
+      console.log('- processed transportType:', transportType);
+      console.log('- processed capabilities:', capabilities);
+      console.log('- processed timeout:', timeout);
+      console.log('- processed serverPath:', serverPath);
+      
+      setMcpClientId(name || '');
+      setMcpDescription(description || '');
+      setMcpTransportType(transportType || 'stdio');
+      setMcpCapabilities(Array.isArray(capabilities) ? capabilities.join(', ') : (capabilities || ''));
+      setMcpTimeout(timeout?.toString() || '');
+      setMcpRegistrationTimeout(registrationTimeout?.toString() || '');
+      setMcpRoutingWeight(routingWeight?.toString() || '');
+      
+      // Transport-specific fields
+      setMcpServerPath(serverPath || '');
+      setMcpHttpEndpoint(httpEndpoint || '');
+      setMcpHeaders(headers ? Object.entries(headers).map(([key, value]) => ({ key, value: String(value) })) : []);
+      setMcpCommand(command || '');
+      setMcpArgs(Array.isArray(args) ? args : []);
+      
+      console.log('✅ Form fields have been set');
+    } else {
+      console.log('❌ Missing required data for form population');
+      console.log('- mcpClientConfig exists:', !!mcpClientConfig);
+      console.log('- editingMCPClient exists:', !!editingMCPClient);
+    }
+  }, [mcpClientConfig, editingMCPClient]);
 
   const renderAgentForm = () => (
     <motion.div
@@ -1007,77 +1137,280 @@ function App() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold text-primary">Build New Client</h1>
+        <h1 className="text-3xl font-bold text-primary">
+          {editingMCPClient ? 'Edit MCP Server' : 'Build New MCP Server'}
+        </h1>
       </div>
 
-      {/* MCP Client Configuration Card */}
+      {/* Basic Configuration Card */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
         className="bg-card border border-border rounded-lg p-6 space-y-6"
       >
-        {/* Client ID */}
+        <h2 className="text-lg font-semibold text-primary">Basic Configuration</h2>
+        
+        {/* Server Name */}
         <div className="space-y-2">
-          <Label htmlFor="client-id" className="text-sm font-medium text-foreground">Client ID</Label>
+          <Label htmlFor="server-name" className="text-sm font-medium text-foreground">Server Name *</Label>
           <Input
-            id="client-id"
-            placeholder="e.g., my_custom_client"
+            id="server-name"
+            placeholder="e.g., weather_server"
             value={mcpClientId}
             onChange={(e) => setMcpClientId(e.target.value)}
             className="text-base"
           />
         </div>
 
-        {/* Server Path */}
+        {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="server-path" className="text-sm font-medium text-foreground">Server Path</Label>
-          <Input
-            id="server-path"
-            placeholder="e.g., src/packaged_servers/my_server.py"
-            value={mcpServerPath}
-            onChange={(e) => setMcpServerPath(e.target.value)}
-            className="text-base"
+          <Label htmlFor="description" className="text-sm font-medium text-foreground">Description</Label>
+          <Textarea
+            id="description"
+            placeholder="Brief description of what this server provides"
+            value={mcpDescription}
+            onChange={(e) => setMcpDescription(e.target.value)}
+            className="min-h-[80px] resize-none"
           />
         </div>
 
         {/* Capabilities */}
         <div className="space-y-2">
-          <Label htmlFor="capabilities" className="text-sm font-medium text-foreground">Capabilities (comma-separated)</Label>
+          <Label htmlFor="capabilities" className="text-sm font-medium text-foreground">Capabilities *</Label>
           <Input
             id="capabilities"
-            placeholder="e.g., tools, prompts, resources"
+            placeholder="tools, prompts, resources (comma-separated)"
             value={mcpCapabilities}
             onChange={(e) => setMcpCapabilities(e.target.value)}
             className="text-base"
           />
+          <p className="text-xs text-muted-foreground">Valid options: tools, prompts, resources</p>
+        </div>
+      </motion.div>
+
+      {/* Transport Configuration Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Transport Configuration</h2>
+        
+        {/* Transport Type */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-foreground">Transport Type *</Label>
+          <Select value={mcpTransportType} onValueChange={(value: 'stdio' | 'http_stream' | 'local') => setMcpTransportType(value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select transport type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="stdio">Stdio (Python script)</SelectItem>
+              <SelectItem value="http_stream">HTTP Stream (Web endpoint)</SelectItem>
+              <SelectItem value="local">Local (Command execution)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Timeout */}
-        <div className="space-y-2">
-          <Label htmlFor="timeout" className="text-sm font-medium text-foreground">Timeout (seconds, optional)</Label>
-          <Input
-            id="timeout"
-            placeholder="e.g., 15"
-            value={mcpTimeout}
-            onChange={(e) => setMcpTimeout(e.target.value)}
-            className="text-base"
-            type="number"
-          />
-        </div>
+        {/* Stdio Transport Fields */}
+        {mcpTransportType === 'stdio' && (
+          <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+            <h3 className="text-sm font-medium text-foreground">Stdio Configuration</h3>
+            <div className="space-y-2">
+              <Label htmlFor="server-path" className="text-sm font-medium text-foreground">Server Path *</Label>
+              <Input
+                id="server-path"
+                placeholder="e.g., src/packaged_servers/weather_server.py"
+                value={mcpServerPath}
+                onChange={(e) => setMcpServerPath(e.target.value)}
+                className="text-base"
+              />
+            </div>
+          </div>
+        )}
 
-        {/* Routing Weight */}
-        <div className="space-y-2">
-          <Label htmlFor="routing-weight" className="text-sm font-medium text-foreground">Routing Weight (optional)</Label>
-          <Input
-            id="routing-weight"
-            placeholder="e.g., 1.0"
-            value={mcpRoutingWeight}
-            onChange={(e) => setMcpRoutingWeight(e.target.value)}
-            className="text-base"
-            type="number"
-            step="0.1"
-          />
+        {/* HTTP Stream Transport Fields */}
+        {mcpTransportType === 'http_stream' && (
+          <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+            <h3 className="text-sm font-medium text-foreground">HTTP Stream Configuration</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="http-endpoint" className="text-sm font-medium text-foreground">HTTP Endpoint *</Label>
+                <Input
+                  id="http-endpoint"
+                  placeholder="e.g., https://api.example.com/mcp"
+                  value={mcpHttpEndpoint}
+                  onChange={(e) => setMcpHttpEndpoint(e.target.value)}
+                  className="text-base"
+                  type="url"
+                />
+              </div>
+              
+              {/* Headers */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Headers</Label>
+                {mcpHeaders.map((header, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Header name"
+                      value={header.key}
+                      onChange={(e) => {
+                        const newHeaders = [...mcpHeaders];
+                        newHeaders[index] = { ...header, key: e.target.value };
+                        setMcpHeaders(newHeaders);
+                      }}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Header value"
+                      value={header.value}
+                      onChange={(e) => {
+                        const newHeaders = [...mcpHeaders];
+                        newHeaders[index] = { ...header, value: e.target.value };
+                        setMcpHeaders(newHeaders);
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newHeaders = mcpHeaders.filter((_, i) => i !== index);
+                        setMcpHeaders(newHeaders);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMcpHeaders([...mcpHeaders, { key: '', value: '' }]);
+                  }}
+                >
+                  Add Header
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Local Transport Fields */}
+        {mcpTransportType === 'local' && (
+          <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
+            <h3 className="text-sm font-medium text-foreground">Local Command Configuration</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="command" className="text-sm font-medium text-foreground">Command *</Label>
+                <Input
+                  id="command"
+                  placeholder="e.g., ./my-server"
+                  value={mcpCommand}
+                  onChange={(e) => setMcpCommand(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+              
+              {/* Arguments */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Arguments</Label>
+                {mcpArgs.map((arg, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Argument"
+                      value={arg}
+                      onChange={(e) => {
+                        const newArgs = [...mcpArgs];
+                        newArgs[index] = e.target.value;
+                        setMcpArgs(newArgs);
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newArgs = mcpArgs.filter((_, i) => i !== index);
+                        setMcpArgs(newArgs);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMcpArgs([...mcpArgs, '']);
+                  }}
+                >
+                  Add Argument
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Advanced Settings Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Advanced Settings</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Timeout */}
+          <div className="space-y-2">
+            <Label htmlFor="timeout" className="text-sm font-medium text-foreground">Timeout (seconds)</Label>
+            <Input
+              id="timeout"
+              placeholder="10.0"
+              value={mcpTimeout}
+              onChange={(e) => setMcpTimeout(e.target.value)}
+              className="text-base"
+              type="number"
+              step="0.1"
+            />
+          </div>
+
+          {/* Registration Timeout */}
+          <div className="space-y-2">
+            <Label htmlFor="registration-timeout" className="text-sm font-medium text-foreground">Registration Timeout (seconds)</Label>
+            <Input
+              id="registration-timeout"
+              placeholder="30.0"
+              value={mcpRegistrationTimeout}
+              onChange={(e) => setMcpRegistrationTimeout(e.target.value)}
+              className="text-base"
+              type="number"
+              step="0.1"
+            />
+          </div>
+
+          {/* Routing Weight */}
+          <div className="space-y-2">
+            <Label htmlFor="routing-weight" className="text-sm font-medium text-foreground">Routing Weight</Label>
+            <Input
+              id="routing-weight"
+              placeholder="1.0"
+              value={mcpRoutingWeight}
+              onChange={(e) => setMcpRoutingWeight(e.target.value)}
+              className="text-base"
+              type="number"
+              step="0.1"
+            />
+          </div>
         </div>
       </motion.div>
 
@@ -1085,11 +1418,110 @@ function App() {
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.4 }}
         className="flex justify-end"
       >
-        <Button className="px-8">
-          Save Client Config
+        <Button 
+          className="px-8"
+          onClick={() => {
+            // Build the complete MCP server configuration
+            const validCapabilities = mcpCapabilities
+              .split(',')
+              .map(c => c.trim())
+              .filter(c => c && ['tools', 'prompts', 'resources'].includes(c));
+
+            const mcpServerConfig: any = {
+              name: mcpClientId,
+              type: "mcp_server",
+              capabilities: validCapabilities,
+              transport_type: mcpTransportType,
+            };
+
+            // Add optional fields
+            if (mcpDescription) mcpServerConfig.description = mcpDescription;
+            if (mcpTimeout) mcpServerConfig.timeout = parseFloat(mcpTimeout);
+            if (mcpRegistrationTimeout) mcpServerConfig.registration_timeout = parseFloat(mcpRegistrationTimeout);
+            if (mcpRoutingWeight) mcpServerConfig.routing_weight = parseFloat(mcpRoutingWeight);
+
+            // Add transport-specific fields
+            if (mcpTransportType === 'stdio' && mcpServerPath) {
+              mcpServerConfig.server_path = mcpServerPath;
+            } else if (mcpTransportType === 'http_stream' && mcpHttpEndpoint) {
+              mcpServerConfig.http_endpoint = mcpHttpEndpoint;
+              if (mcpHeaders.length > 0) {
+                const headersObj: Record<string, string> = {};
+                mcpHeaders.forEach(header => {
+                  if (header.key && header.value) {
+                    headersObj[header.key] = header.value;
+                  }
+                });
+                if (Object.keys(headersObj).length > 0) {
+                  mcpServerConfig.headers = headersObj;
+                }
+              }
+            } else if (mcpTransportType === 'local' && mcpCommand) {
+              mcpServerConfig.command = mcpCommand;
+              if (mcpArgs.length > 0 && mcpArgs.some(arg => arg.trim())) {
+                mcpServerConfig.args = mcpArgs.filter(arg => arg.trim());
+              }
+            }
+
+            // Reset form fields function
+            const resetFormFields = () => {
+              setMcpClientId('');
+              setMcpDescription('');
+              setMcpTransportType('stdio');
+              setMcpCapabilities('');
+              setMcpTimeout('');
+              setMcpRegistrationTimeout('');
+              setMcpRoutingWeight('');
+              setMcpServerPath('');
+              setMcpHttpEndpoint('');
+              setMcpHeaders([]);
+              setMcpCommand('');
+              setMcpArgs([]);
+            };
+
+            if (editingMCPClient && editingMCPClient.configFile) {
+              // Edit mode - update existing MCP server
+              updateMCPClient.mutate({
+                filename: editingMCPClient.configFile,
+                config: mcpServerConfig
+              }, {
+                onSuccess: () => {
+                  setShowMCPForm(false);
+                  setEditingMCPClient(null);
+                  resetFormFields();
+                }
+              });
+            } else {
+              // Create mode - create new MCP server
+              createMCPServer.mutate({
+                name: mcpClientId,
+                config: mcpServerConfig
+              }, {
+                onSuccess: () => {
+                  setShowMCPForm(false);
+                  setEditingMCPClient(null);
+                  resetFormFields();
+                }
+              });
+            }
+          }}
+          disabled={(updateMCPClient.isPending || createMCPServer.isPending) || !mcpClientId || !mcpCapabilities || 
+            (mcpTransportType === 'stdio' && !mcpServerPath) ||
+            (mcpTransportType === 'http_stream' && !mcpHttpEndpoint) ||
+            (mcpTransportType === 'local' && !mcpCommand)
+          }
+        >
+          {(updateMCPClient.isPending || createMCPServer.isPending) ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {editingMCPClient ? 'Updating...' : 'Creating...'}
+            </>
+          ) : (
+            editingMCPClient ? 'Update MCP Server' : 'Save MCP Server'
+          )}
         </Button>
       </motion.div>
     </motion.div>
@@ -1113,7 +1545,20 @@ function App() {
             <h1 className="text-3xl font-bold text-foreground">MCP Clients</h1>
             <p className="text-muted-foreground mt-1">Manage and configure your MCP client connections</p>
           </div>
-          <Button className="gap-2" onClick={() => setShowMCPForm(true)}>
+          <Button className="gap-2" onClick={() => {
+            // Reset form state for create mode
+            setMcpClientId('');
+            setMcpServerPath('');
+            setMcpCapabilities('');
+            setMcpTimeout('');
+            setMcpRoutingWeight('');
+            
+            // Clear editing state to ensure we're in create mode
+            setEditingMCPClient(null);
+            
+            // Show form
+            setShowMCPForm(true);
+          }}>
             <Plus className="h-4 w-4" />
             New MCP Client
           </Button>
@@ -1153,48 +1598,32 @@ function App() {
         {/* MCP Clients Grid */}
         {!clientsLoading && clients.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clients.map((client, index) => {
-              const clientName = typeof client.name === 'string' ? client.name : (client.name as any)?.name || 'Unknown Client';
-              return (
-                <motion.div
-                  key={clientName}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="gradient-card rounded-lg p-4 space-y-3 hover:shadow-md transition-all duration-200 gradient-glow"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground">{clientName}</h3>
-                      <div className={`w-2 h-2 rounded-full ${client.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {client.configFile ? 'Configured' : 'Configuration pending'}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">Status: {client.status}</p>
-                  </div>
+            {clients.map((client, index) => (
+              <MCPClientCard
+                key={client.name}
+                client={client}
+                index={index}
+                onConfigure={(clientName) => {
+                  // Reset ALL MCP form state first
+                  setMcpClientId('');
+                  setMcpDescription('');
+                  setMcpTransportType('stdio');
+                  setMcpCapabilities('');
+                  setMcpTimeout('');
+                  setMcpRegistrationTimeout('');
+                  setMcpRoutingWeight('');
+                  setMcpServerPath('');
+                  setMcpHttpEndpoint('');
+                  setMcpHeaders([]);
+                  setMcpCommand('');
+                  setMcpArgs([]);
                   
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1.5" 
-                      onClick={() => {
-                        setEditingAgent({ name: clientName, configFile: client.configFile });
-                        setShowMCPForm(true);
-                      }}
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      Configure
-                    </Button>
-                    <Button size="sm" className="gap-1.5">
-                      <Play className="h-3.5 w-3.5" />
-                      {client.status === 'connected' ? 'Disconnect' : 'Connect'}
-                    </Button>
-                  </div>
-                </motion.div>
-              );
-            })}
+                  // Set editing MCP client and show form
+                  setEditingMCPClient({ name: clientName, configFile: clientName });
+                  setShowMCPForm(true);
+                }}
+              />
+            ))}
           </div>
         )}
       </motion.div>
@@ -1218,7 +1647,9 @@ function App() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold text-primary">Build New LLM Configuration</h1>
+        <h1 className="text-3xl font-bold text-primary">
+          {editingLLM ? 'Edit LLM Configuration' : 'Build New LLM Configuration'}
+        </h1>
       </div>
 
       {/* LLM Configuration Card */}
@@ -1293,6 +1724,18 @@ function App() {
           />
         </div>
 
+        {/* API Key Environment Variable */}
+        <div className="space-y-2">
+          <Label htmlFor="api-key-env-var" className="text-sm font-medium text-foreground">API Key Environment Variable (Optional)</Label>
+          <Input
+            id="api-key-env-var"
+            placeholder="e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY"
+            value={llmApiKeyEnvVar}
+            onChange={(e) => setLlmApiKeyEnvVar(e.target.value)}
+            className="text-base"
+          />
+        </div>
+
         {/* Default System Prompt */}
         <div className="space-y-2">
           <Label htmlFor="system-prompt" className="text-sm font-medium text-foreground">Default System Prompt (Optional)</Label>
@@ -1313,8 +1756,84 @@ function App() {
         transition={{ delay: 0.2 }}
         className="flex justify-end"
       >
-        <Button className="px-8">
-          Save LLM Config
+        <Button 
+          className="px-8"
+          onClick={() => {
+            if (editingLLM && editingLLM.id) {
+              // Edit mode - update existing LLM configuration
+              const llmConfig: any = {
+                llm_id: llmId,
+              };
+
+              // Only include fields that have values
+              if (llmProvider) llmConfig.provider = llmProvider;
+              if (llmModelName) llmConfig.model = llmModelName;
+              if (llmTemperature) llmConfig.temperature = parseFloat(llmTemperature);
+              if (llmMaxTokens) llmConfig.max_tokens = parseInt(llmMaxTokens);
+              if (llmSystemPrompt) llmConfig.default_system_prompt = llmSystemPrompt;
+              if (llmApiKeyEnvVar) llmConfig.api_key_env_var = llmApiKeyEnvVar;
+
+              updateLLM.mutate({
+                filename: editingLLM.id, // Using ID as filename
+                config: llmConfig
+              }, {
+                onSuccess: () => {
+                  setShowLLMForm(false);
+                  setShowLLMEditForm(false);
+                  setEditingLLM(null);
+                  setIsCreatingLLM(false);
+                  // Reset form fields
+                  setLlmId('');
+                  setLlmProvider('');
+                  setLlmModelName('');
+                  setLlmTemperature('');
+                  setLlmMaxTokens('');
+                  setLlmSystemPrompt('');
+                  setLlmApiKeyEnvVar('');
+                }
+              });
+            } else {
+              // Create mode - create new LLM configuration
+              const llmConfig: any = {
+                llm_id: llmId,
+              };
+
+              // Only include fields that have values
+              if (llmProvider) llmConfig.provider = llmProvider;
+              if (llmModelName) llmConfig.model = llmModelName;
+              if (llmTemperature) llmConfig.temperature = parseFloat(llmTemperature);
+              if (llmMaxTokens) llmConfig.max_tokens = parseInt(llmMaxTokens);
+              if (llmSystemPrompt) llmConfig.default_system_prompt = llmSystemPrompt;
+              if (llmApiKeyEnvVar) llmConfig.api_key_env_var = llmApiKeyEnvVar;
+
+              createLLM.mutate(llmConfig, {
+                onSuccess: () => {
+                  setShowLLMForm(false);
+                  setShowLLMEditForm(false);
+                  setEditingLLM(null);
+                  setIsCreatingLLM(false);
+                  // Reset form fields
+                  setLlmId('');
+                  setLlmProvider('');
+                  setLlmModelName('');
+                  setLlmTemperature('');
+                  setLlmMaxTokens('');
+                  setLlmSystemPrompt('');
+                  setLlmApiKeyEnvVar('');
+                }
+              });
+            }
+          }}
+          disabled={(updateLLM.isPending || createLLM.isPending) || !llmId}
+        >
+          {(updateLLM.isPending || createLLM.isPending) ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {editingLLM ? 'Updating...' : 'Creating...'}
+            </>
+          ) : (
+            editingLLM ? 'Update LLM Config' : 'Create LLM Config'
+          )}
         </Button>
       </motion.div>
     </motion.div>
@@ -1338,7 +1857,24 @@ function App() {
             <h1 className="text-3xl font-bold text-foreground">LLM Configs</h1>
             <p className="text-muted-foreground mt-1">Manage and configure your language model settings</p>
           </div>
-          <Button className="gap-2" onClick={() => setShowLLMForm(true)}>
+          <Button className="gap-2" onClick={() => {
+            // Reset form state for create mode
+            setLlmId('');
+            setLlmProvider('');
+            setLlmModelName('');
+            setLlmTemperature('');
+            setLlmMaxTokens('');
+            setLlmSystemPrompt('');
+            setLlmApiKeyEnvVar('');
+            
+            // Clear editing state
+            setEditingLLM(null);
+            setShowLLMEditForm(false);
+            setIsCreatingLLM(true);
+            
+            // Show form
+            setShowLLMForm(true);
+          }}>
             <Plus className="h-4 w-4" />
             New LLM Config
           </Button>
@@ -1407,7 +1943,18 @@ function App() {
                       size="sm" 
                       className="gap-1.5" 
                       onClick={() => {
-                        setEditingAgent({ id: llmId, configFile: llm.configFile });
+                        // Reset LLM form state
+                        setLlmId('');
+                        setLlmProvider('');
+                        setLlmModelName('');
+                        setLlmTemperature('');
+                        setLlmMaxTokens('');
+                        setLlmSystemPrompt('');
+                        setLlmApiKeyEnvVar('');
+                        
+                        // Set editing LLM and show edit form
+                        setEditingLLM({ id: llmId, configFile: llm.configFile });
+                        setShowLLMEditForm(true);
                         setShowLLMForm(true);
                       }}
                     >
@@ -1561,6 +2108,18 @@ function App() {
             </motion.div>
           ))}
         </nav>
+
+        {/* Connection Status - Fixed at bottom */}
+        <div className={`mt-auto ${sidebarHovered ? 'px-4' : 'flex justify-center'} pb-2`}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="w-full justify-center flex"
+          >
+            <ConnectionStatus isExpanded={sidebarHovered} />
+          </motion.div>
+        </div>
       </motion.div>
 
       {/* Main Content */}

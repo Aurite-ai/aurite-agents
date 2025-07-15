@@ -1,6 +1,7 @@
 import apiClient from './apiClient';
 import { 
   ClientConfig as LocalClientConfig,
+  MCPServerConfig,
   SuccessResponse
 } from '../types';
 import {
@@ -10,6 +11,10 @@ import {
   ServerConfig,
   ToolDetails,
 } from '@aurite/api-client';
+import { 
+  validateMCPServerConfig, 
+  migrateClientConfig 
+} from '../utils/mcpValidation';
 
 class ClientsService {
   // List all registered MCP clients/servers
@@ -26,6 +31,17 @@ class ClientsService {
   async listActiveClients(): Promise<string[]> {
     try {
       const servers = await apiClient.host.listRegisteredServers();
+      
+      if (!servers) {
+        console.warn('listRegisteredServers() returned undefined/null');
+        return [];
+      }
+      
+      if (!Array.isArray(servers)) {
+        console.warn('listRegisteredServers() returned non-array:', typeof servers, servers);
+        return [];
+      }
+      
       return servers.map(server => server.name);
     } catch (error) {
       this.handleError(error, 'Failed to list active clients');
@@ -226,6 +242,128 @@ class ClientsService {
     }
   }
 
+  // NEW MCP SERVER METHODS (API-compliant)
+
+  // List all MCP server configurations
+  async listMCPServers(): Promise<string[]> {
+    try {
+      return await apiClient.config.listConfigs('mcp_server');
+    } catch (error) {
+      this.handleError(error, 'Failed to list MCP servers');
+      throw error;
+    }
+  }
+
+  // Get MCP server configuration by ID using proper API client
+  async getMCPServer(id: string): Promise<MCPServerConfig> {
+    try {
+      const config = await apiClient.config.getConfig('mcp_server', id);
+      return this.mapToMCPServerConfig(config);
+    } catch (error) {
+      this.handleError(error, `Failed to get MCP server configuration for ${id}`);
+      throw error;
+    }
+  }
+
+  // Create new MCP server configuration
+  async createMCPServer(name: string, config: MCPServerConfig): Promise<{message: string}> {
+    try {
+      // Store config in flat format that FastAPI expects (not nested)
+      return await apiClient.config.createConfig('mcp_server', config);
+    } catch (error) {
+      this.handleError(error, `Failed to create MCP server ${name}`);
+      throw error;
+    }
+  }
+
+  // Update MCP server configuration
+  async updateMCPServer(id: string, config: MCPServerConfig): Promise<{message: string}> {
+    try {
+      // Store config in flat format that FastAPI expects (not nested)
+      return await apiClient.config.updateConfig('mcp_server', id, config);
+    } catch (error) {
+      this.handleError(error, `Failed to update MCP server ${id}`);
+      throw error;
+    }
+  }
+
+  // Delete MCP server configuration
+  async deleteMCPServer(id: string): Promise<{message: string}> {
+    try {
+      return await apiClient.config.deleteConfig('mcp_server', id);
+    } catch (error) {
+      this.handleError(error, `Failed to delete MCP server ${id}`);
+      throw error;
+    }
+  }
+
+  // Validate MCP server configuration
+  async validateMCPServer(id: string): Promise<any> {
+    try {
+      return await apiClient.config.validateConfig('mcp_server', id);
+    } catch (error) {
+      this.handleError(error, `Failed to validate MCP server ${id}`);
+      throw error;
+    }
+  }
+
+  // Create with validation
+  async createMCPServerWithValidation(name: string, config: MCPServerConfig): Promise<{message: string}> {
+    const errors = validateMCPServerConfig(config);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${errors.join(', ')}`);
+    }
+    return await this.createMCPServer(name, config);
+  }
+
+  // Update with validation
+  async updateMCPServerWithValidation(id: string, config: MCPServerConfig): Promise<{message: string}> {
+    const errors = validateMCPServerConfig(config);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${errors.join(', ')}`);
+    }
+    return await this.updateMCPServer(id, config);
+  }
+
+  // Register MCP server by name
+  async registerMCPServer(serverName: string): Promise<SuccessResponse> {
+    try {
+      await apiClient.host.registerServerByName(serverName);
+      
+      return {
+        status: 'success',
+        message: `MCP server ${serverName} registered successfully`
+      };
+    } catch (error) {
+      this.handleError(error, `Failed to register MCP server ${serverName}`);
+      throw error;
+    }
+  }
+
+  // Unregister MCP server
+  async unregisterMCPServer(serverName: string): Promise<SuccessResponse> {
+    try {
+      await apiClient.host.unregisterServer(serverName);
+      return {
+        status: 'success',
+        message: `MCP server ${serverName} unregistered successfully`
+      };
+    } catch (error) {
+      this.handleError(error, `Failed to unregister MCP server ${serverName}`);
+      throw error;
+    }
+  }
+
+  // Test MCP server connection
+  async testMCPServer(serverName: string): Promise<any> {
+    try {
+      return await apiClient.host.testServer(serverName);
+    } catch (error) {
+      this.handleError(error, `Failed to test MCP server ${serverName}`);
+      throw error;
+    }
+  }
+
   // Helper method to handle errors with user-friendly messages
   private handleError(error: unknown, context: string): void {
     if (error instanceof ApiError) {
@@ -264,6 +402,41 @@ class ClientsService {
       routing_weight: localConfig.routing_weight,
       exclude: localConfig.exclude,
       gcp_secrets: localConfig.gcp_secrets,
+    };
+  }
+
+  // Map API response to MCPServerConfig
+  private mapToMCPServerConfig(apiConfig: any): MCPServerConfig {
+    // Handle both flat and nested config structures during transition
+    // Prioritize flat format (new) over nested format (old)
+    let config;
+    
+    if (apiConfig.config && typeof apiConfig.config === 'object') {
+      // Legacy nested format: { config: { ... }, name: ..., ... }
+      config = apiConfig.config;
+      console.log('📋 Using nested config format (legacy)');
+    } else {
+      // New flat format: { name: ..., type: ..., transport_type: ..., ... }
+      config = apiConfig;
+      console.log('📋 Using flat config format (current)');
+    }
+    
+    return {
+      name: config.name || apiConfig.name,
+      type: "mcp_server",
+      capabilities: config.capabilities || [],
+      description: config.description,
+      transport_type: config.transport_type,
+      server_path: config.server_path,
+      http_endpoint: config.http_endpoint,
+      headers: config.headers,
+      command: config.command,
+      args: config.args,
+      timeout: config.timeout,
+      registration_timeout: config.registration_timeout,
+      routing_weight: config.routing_weight,
+      exclude: config.exclude,
+      roots: config.roots,
     };
   }
 }

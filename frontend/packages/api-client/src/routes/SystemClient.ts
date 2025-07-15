@@ -1,6 +1,10 @@
 import { BaseClient } from '../client/BaseClient';
 
 export class SystemClient extends BaseClient {
+  async getStatus(): Promise<string> {
+    return this.request('GET', '/health');
+  }
+
   async getSystemInfo(): Promise<any> {
     return this.request('GET', '/system/info');
   }

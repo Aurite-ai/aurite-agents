@@ -57,7 +57,12 @@ class LLMsService {
   async createLLMConfig(filename: string, config: LocalLLMConfig): Promise<LocalLLMConfig> {
     try {
       const apiConfig = this.mapToApiLLMConfig(config);
-      const result = await apiClient.config.createConfig('llm', apiConfig);
+      // The API client will wrap this in { name, config } structure
+      const requestBody = {
+        name: config.llm_id, // Use llm_id as the name
+        ...apiConfig         // Let API client wrap this in 'config' key
+      };
+      const result = await apiClient.config.createConfig('llm', requestBody);
       return this.mapToLocalLLMConfig(result);
     } catch (error) {
       this.handleError(error, `Failed to create LLM configuration ${filename}`);
