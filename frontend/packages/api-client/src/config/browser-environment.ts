@@ -1,28 +1,7 @@
 /**
- * Centralized environment configuration for the Aurite API Client
- * This module handles:
- * - Loading environment variables from .env files
- * - Providing typed configuration objects
- * - Environment validation and defaults
- * - Different environment handling (dev, test, prod)
+ * Browser-compatible environment configuration for the Aurite API Client
+ * This module provides configuration without Node.js dependencies
  */
-
-import { config } from 'dotenv';
-import { resolve, dirname } from 'path';
-import { existsSync } from 'fs';
-
-// Get __dirname in CommonJS
-const __dirname = dirname(__filename);
-
-// Define potential .env file paths
-const frontendEnvPath = resolve(__dirname, '..', '..', '.env');
-const rootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
-
-// Check for frontend-specific .env, otherwise use root .env
-const envPath = existsSync(frontendEnvPath) ? frontendEnvPath : rootEnvPath;
-
-// Load environment variables
-config({ path: envPath });
 
 /**
  * Environment types
@@ -51,6 +30,8 @@ export interface AuriteConfig {
  * Get the current environment
  */
 function getEnvironment(): Environment {
+  // In browser environments, we can't access process.env directly
+  // This will be handled by the build system (webpack, vite, etc.)
   const env = process.env.NODE_ENV?.toLowerCase();
 
   switch (env) {
@@ -133,56 +114,13 @@ function createConfig(): AuriteConfig {
 }
 
 /**
- * Global configuration instance
- * This is created once when the module is imported
- */
-export const auriteConfig: AuriteConfig = createConfig();
-
-/**
- * Get the current configuration
- * This is the recommended way to access configuration in your code
- */
-export function getAuriteConfig(): AuriteConfig {
-  return auriteConfig;
-}
-
-/**
- * Create a new configuration with overrides
- * Useful for testing or when you need to override specific values
- */
-export function createAuriteConfig(overrides: Partial<AuriteConfig> = {}): AuriteConfig {
-  return {
-    ...auriteConfig,
-    ...overrides,
-  };
-}
-
-/**
- * Validate that the current configuration is valid
- * Throws an error if configuration is invalid
- */
-export function validateConfig(config: AuriteConfig = auriteConfig): void {
-  if (!config.baseUrl) {
-    throw new Error('Base URL is required');
-  }
-
-  if (!config.baseUrl.startsWith('http://') && !config.baseUrl.startsWith('https://')) {
-    throw new Error('Base URL must start with http:// or https://');
-  }
-
-  if (config.isProduction && !config.apiKey) {
-    throw new Error('API key is required in production');
-  }
-}
-
-/**
  * Get configuration for API client
  * Returns the format expected by the BaseClient
  */
 export function getApiClientConfig(
   overrides: Partial<Pick<AuriteConfig, 'baseUrl' | 'apiKey'>> = {}
 ) {
-  const config = getAuriteConfig();
+  const config = createConfig();
 
   return {
     baseUrl: overrides.baseUrl || config.baseUrl,
@@ -190,5 +128,14 @@ export function getApiClientConfig(
   };
 }
 
-// Validate configuration on module load
-validateConfig();
+/**
+ * Create a new configuration with overrides
+ * Useful for testing or when you need to override specific values
+ */
+export function createAuriteConfig(overrides: Partial<AuriteConfig> = {}): AuriteConfig {
+  const config = createConfig();
+  return {
+    ...config,
+    ...overrides,
+  };
+}

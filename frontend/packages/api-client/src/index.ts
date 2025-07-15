@@ -23,4 +23,4 @@ export { BaseClient } from './client/BaseClient';
 export * from './types';
 
 // Environment configuration exports
-export * from './config/environment';
+export * from './config/browser-environment';
