@@ -60,18 +60,28 @@ export interface AgentConfig {
 export interface LLMConfig {
   /** Unique name for the LLM config */
   name: string;
-  /** LLM provider */
-  provider: 'openai' | 'anthropic' | 'local' | 'azure';
+  /** Component type (automatically set to "llm") */
+  type: 'llm';
+  /** LLM provider (e.g., "anthropic", "openai", "gemini") */
+  provider: string;
   /** Model name/identifier */
   model: string;
-  /** Temperature setting */
+  /** Brief description of the LLM config */
+  description?: string;
+  /** Temperature setting (0.0-2.0) */
   temperature?: number;
-  /** Maximum tokens */
+  /** Maximum tokens to generate */
   max_tokens?: number;
+  /** Default system prompt for this LLM */
+  default_system_prompt?: string;
+  /** Base URL for the LLM API */
+  api_base?: string;
+  /** API key for the LLM */
+  api_key?: string;
+  /** API version for the LLM */
+  api_version?: string;
   /** Environment variable name for API key */
   api_key_env_var?: string;
-  /** Base URL for the API */
-  base_url?: string;
 }
 
 /**
