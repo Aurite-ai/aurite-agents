@@ -185,6 +185,24 @@ async def test_llm(
                 system_prompt=request.system_prompt,
             )
             
+            # Check if the agent execution actually succeeded
+            if result.status != "completed":
+                # If the agent didn't complete successfully, this indicates an LLM issue
+                error_details = []
+                if hasattr(result, 'error_message') and result.error_message:
+                    error_details.append(f"Execution error: {result.error_message}")
+                if hasattr(result, 'conversation_history') and result.conversation_history:
+                    # Look for error messages in the conversation history
+                    for message in result.conversation_history:
+                        if message.get("role") == "error" or "error" in str(message.get("content", "")).lower():
+                            error_details.append(f"LLM error: {message.get('content', 'Unknown error')}")
+                
+                error_message = "; ".join(error_details) if error_details else f"LLM test failed with status: {result.status}"
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"LLM test failed: {error_message}. This could indicate issues with API key, model name, or provider configuration."
+                )
+            
             # Extract the assistant's response from the result
             assistant_response = ""
             if result.conversation_history:
@@ -201,6 +219,13 @@ async def test_llm(
                         else:
                             assistant_response = str(content)
                         break
+            
+            # If we got no assistant response, that's also a problem
+            if not assistant_response.strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail="LLM test failed: No response received from LLM. This could indicate issues with API key, model name, or provider configuration."
+                )
             
             return {
                 "status": "success",
