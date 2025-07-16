@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
@@ -126,6 +127,7 @@ function App() {
   const [selectedLLMConfig, setSelectedLLMConfig] = useState('');
   const [maxIterations, setMaxIterations] = useState('10');
   const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>([]);
+  const [selectedLandingMCPServers, setSelectedLandingMCPServers] = useState<string[]>([]);
   const [agentConfigLoading, setAgentConfigLoading] = useState(false);
   const [inlineTemperature, setInlineTemperature] = useState('');
   const [inlineMaxTokens, setInlineMaxTokens] = useState('');
@@ -351,10 +353,33 @@ function App() {
                         <SelectValue placeholder="Select model..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="gpt-4">GPT-4</SelectItem>
-                        <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                        <SelectItem value="claude-3">Claude 3</SelectItem>
-                        <SelectItem value="llama-2">Llama 2</SelectItem>
+                        {llmsLoading ? (
+                          <SelectItem value="" disabled>
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Loading configurations...
+                            </div>
+                          </SelectItem>
+                        ) : llms.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            No LLM configurations available
+                          </SelectItem>
+                        ) : (
+                          llms.map((config) => {
+                            // Safely extract LLM config ID
+                            const configId = typeof config.id === 'string' 
+                              ? config.id 
+                              : (config.id && typeof config.id === 'object' && 'name' in config.id)
+                                ? String((config.id as any).name)
+                                : String(config.id || 'unknown_config');
+                            
+                            return (
+                              <SelectItem key={configId} value={configId}>
+                                {configId}
+                              </SelectItem>
+                            );
+                          })
+                        )}
                       </SelectContent>
                     </Select>
                   </motion.div>
@@ -367,12 +392,53 @@ function App() {
                     className="space-y-1.5"
                   >
                     <Label className="text-xs font-medium text-muted-foreground">MCP Clients</Label>
-                    <div className="p-2.5 border border-border rounded-md bg-muted/20 h-9 flex items-center">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-1 h-1 bg-primary rounded-full"></div>
-                        <span>{mcpClients.length} clients</span>
-                      </div>
-                    </div>
+                    <Select>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder={
+                          selectedLandingMCPServers.length > 0 
+                            ? `${selectedLandingMCPServers.length} servers selected`
+                            : "Select servers..."
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientsLoading ? (
+                          <div className="flex items-center gap-2 p-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading servers...
+                          </div>
+                        ) : clients.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No MCP servers available
+                          </div>
+                        ) : (
+                          <div className="p-2 space-y-2">
+                            {clients.map((client) => (
+                              <div key={client.name} className="flex items-center gap-2">
+                                <Checkbox 
+                                  checked={selectedLandingMCPServers.includes(client.name)}
+                                  disabled={client.status !== 'connected'}
+                                  onCheckedChange={(checked: boolean) => {
+                                    if (checked) {
+                                      setSelectedLandingMCPServers([...selectedLandingMCPServers, client.name]);
+                                    } else {
+                                      setSelectedLandingMCPServers(selectedLandingMCPServers.filter(s => s !== client.name));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{client.name}</span>
+                                <span className={`text-xs px-1 py-0.5 rounded ${
+                                  client.status === 'connected' 
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                  {client.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </motion.div>
                 </div>
 
@@ -385,10 +451,52 @@ function App() {
                 >
                   <Button 
                     className="px-6 py-2 text-sm font-medium transition-all duration-200 hover:scale-105"
-                    disabled={!description.trim()}
+                    disabled={!description.trim() || createAgent.isPending}
+                    onClick={() => {
+                      // Build the agent config object from landing page form data
+                      const agentConfig = {
+                        name: agentName.trim() || 'Untitled Agent',
+                        system_prompt: description.trim(),
+                        description: description.trim(),
+                        llm_config_id: selectedModel || undefined,
+                        mcp_servers: selectedLandingMCPServers,
+                        max_iterations: 10,
+                        type: 'agent' as const
+                      };
+
+                      console.log('🚀 Creating agent from landing page:', agentConfig);
+
+                      createAgent.mutate(agentConfig, {
+                        onSuccess: (data) => {
+                          console.log('✅ Agent created successfully:', data);
+                          
+                          // Reset form fields
+                          setDescription('');
+                          setAgentName('');
+                          setSelectedModel('');
+                          setSelectedLandingMCPServers([]);
+                          setShowAdvancedOptions(false);
+                          
+                          // Navigate to agents page to show the newly created agent
+                          setActiveTab('agents');
+                        },
+                        onError: (error) => {
+                          console.error('❌ Failed to create agent:', error);
+                        }
+                      });
+                    }}
                   >
-                    <Sparkles className="h-3.5 w-3.5 mr-2" />
-                    Create Agent
+                    {createAgent.isPending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 mr-2" />
+                        Create Agent
+                      </>
+                    )}
                   </Button>
                 </motion.div>
               </motion.div>
