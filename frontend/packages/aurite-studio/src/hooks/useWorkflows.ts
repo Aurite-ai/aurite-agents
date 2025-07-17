@@ -144,6 +144,7 @@ export const useWorkflowsWithConfigs = () => {
       name: workflowName,
       configFile,
       status: 'active' as const,
+      type: 'simple_workflow' as const,
     };
   });
 
@@ -172,6 +173,7 @@ export const useCustomWorkflowsWithConfigs = () => {
       name: workflowName,
       configFile,
       status: 'active' as const,
+      type: 'custom_workflow' as const,
     };
   });
 

@@ -1390,6 +1390,9 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allWorkflows.map((workflow, index) => {
               const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
+              const badgeText = workflow.type === 'simple_workflow' ? 'Simple' : 'Custom';
+              const badgeColor = workflow.type === 'simple_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+              
               return (
                 <motion.div
                   key={workflowName}
@@ -1399,7 +1402,12 @@ function App() {
                   className="gradient-card rounded-lg p-4 space-y-3 hover:shadow-md transition-all duration-200 gradient-glow"
                 >
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">{workflowName}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">{workflowName}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${badgeColor}`}>
+                        {badgeText}
+                      </span>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {workflow.configFile ? 'Configured and ready' : 'Configuration pending'}
                     </p>
