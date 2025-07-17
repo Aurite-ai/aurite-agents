@@ -120,6 +120,7 @@ class SimpleWorkflowExecutor:
                                 user_message=str(current_message),
                                 session_id=agent_session_id,
                                 force_include_history=force_include_history,
+                                workflow_name=self.config.name,  # Pass workflow context
                             )
 
                             # Check the status of the agent run

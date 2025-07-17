@@ -70,6 +70,8 @@ class SessionMetadata(BaseModel):
     created_at: Optional[str] = None
     last_updated: Optional[str] = None
     message_count: int
+    workflow_name: Optional[str] = None
+    agents_involved: Optional[List[str]] = None
 
 
 class SessionListResponse(BaseModel):
@@ -317,7 +319,10 @@ async def get_session_history(
         metadata = facade.get_session_metadata(session_id)
         if metadata is None:
             # Create minimal metadata if not available
-            metadata = {"session_id": session_id, "agent_name": "unknown", "message_count": len(history)}
+            metadata = {"agent_name": "unknown", "message_count": len(history)}
+
+        # Add the session_id to the metadata dict before validation
+        metadata["session_id"] = session_id
 
         # Format messages based on raw_format flag
         messages = []
@@ -329,7 +334,7 @@ async def get_session_history(
                 messages.append(ConversationMessage(**simplified))
 
         return SessionHistoryResponse(
-            session_id=session_id,
+            session_id=metadata.get("session_id"),
             agent_name=metadata.get("agent_name", "unknown"),
             messages=messages,
             metadata=SessionMetadata(**metadata),
@@ -408,23 +413,20 @@ async def get_agent_history(
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
     """
-    Get all sessions for a specific agent.
-    Returns the most recent sessions up to the limit.
+    Get all sessions for a specific agent, including those where the agent
+    was part of a workflow. Returns the most recent sessions up to the limit.
     """
     try:
         # Apply retention policy on retrieval
         facade.cleanup_old_sessions()
 
-        # Get sessions for specific agent (no offset for agent-specific queries)
+        # The facade and cache manager already handle finding agents within workflows
         result = facade.get_sessions_list(agent_name=agent_name, limit=limit, offset=0)
 
         # Convert to response model
-        sessions = []
-        for session_data in result["sessions"]:
-            if session_data["agent_name"] == agent_name:
-                sessions.append(SessionMetadata(**session_data))
+        sessions = [SessionMetadata(**session_data) for session_data in result["sessions"]]
 
-        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
+        return SessionListResponse(sessions=sessions, total=result["total"], offset=0, limit=limit)
     except Exception as e:
         logger.error(f"Error getting history for agent '{agent_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve history for agent '{agent_name}'") from e
@@ -445,16 +447,15 @@ async def get_workflow_history(
         # Apply retention policy on retrieval
         facade.cleanup_old_sessions()
 
-        # Get sessions for specific workflow (no offset for workflow-specific queries)
-        result = facade.get_sessions_list(agent_name=workflow_name, limit=limit, offset=0)
+        # Get sessions for specific workflow using the new workflow_name parameter
+        result = facade.get_sessions_list(workflow_name=workflow_name, limit=limit, offset=0)
 
         # Convert to response model
         sessions = []
         for session_data in result["sessions"]:
-            if session_data["agent_name"] == workflow_name:
-                sessions.append(SessionMetadata(**session_data))
+            sessions.append(SessionMetadata(**session_data))
 
-        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
+        return SessionListResponse(sessions=sessions, total=result["total"], offset=0, limit=limit)
     except Exception as e:
         logger.error(f"Error getting history for workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve history for workflow '{workflow_name}'") from e

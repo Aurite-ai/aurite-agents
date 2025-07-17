@@ -238,6 +238,7 @@ class ExecutionFacade:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
+        workflow_name: Optional[str] = None,
     ) -> AgentRunResult:
         # Auto-generate session_id if agent wants history but none provided
         if not session_id:
@@ -291,7 +292,7 @@ class ExecutionFacade:
                             exc_info=True,
                         )
                 elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, run_result.conversation_history, agent_name)
+                    self._cache_manager.save_history(session_id, run_result.conversation_history, agent_name, workflow_name)
                     logger.info(
                         f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
@@ -419,13 +420,23 @@ class ExecutionFacade:
             logger.warning("No storage backend available for session history")
             return None
 
-    def get_sessions_list(self, agent_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    def get_sessions_list(self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
         """
-        Get list of sessions with optional filtering by agent.
+        Get list of sessions with optional filtering by agent or workflow.
         Returns paginated results.
         """
 
-        if agent_name:
+        if workflow_name:
+            # Get sessions for specific workflow
+            if self._storage_manager:
+                # For StorageManager, we'd need a new method to get sessions by workflow
+                logger.warning("Getting sessions by workflow not yet implemented for StorageManager")
+                sessions = []
+            elif self._cache_manager:
+                sessions = self._cache_manager.get_sessions_by_workflow(workflow_name, limit=limit + offset)
+            else:
+                sessions = []
+        elif agent_name:
             # Get sessions for specific agent
             if self._storage_manager:
                 sessions = self._storage_manager.get_sessions_by_agent(agent_name, limit=limit + offset)

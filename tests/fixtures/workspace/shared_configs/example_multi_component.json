@@ -42,23 +42,13 @@
   },
   {
     "description": "Updated weather agent",
-    "system_prompt": "You are an updated weather assistant",
+    "system_prompt": "You are a weather assistant",
     "llm_config_id": "anthropic_claude_3_haiku",
     "mcp_servers": [
       "weather_server"
     ],
-    "name": "Weather Agent",
-    "type": "agent"
-  },
-  {
-    "description": "Updated weather agent",
-    "system_prompt": "You are an updated weather assistant",
-    "llm_config_id": "anthropic_claude_3_haiku",
-    "mcp_servers": [
-      "weather_server"
-    ],
-    "name": "Weather Agent",
     "include_history": true,
+    "name": "Weather Agent",
     "type": "agent"
   },
   {
@@ -90,7 +80,8 @@
     "steps": [
       "Weather Agent",
       "Weather Planning Workflow Step 2"
-    ]
+    ],
+    "include_history": true
   },
   {
     "name": "ExampleCustomWorkflow",
