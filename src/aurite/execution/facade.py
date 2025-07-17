@@ -3,6 +3,7 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
+import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from termcolor import colored
@@ -171,6 +172,17 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
+        
+        # Auto-generate session_id if agent wants history but none provided
+        if not session_id:
+            # Check if agent has include_history=true
+            agent_config_dict = self._config_manager.get_config("agent", agent_name)
+            if agent_config_dict:
+                agent_config = AgentConfig(**agent_config_dict)
+                if agent_config.include_history:
+                    session_id = f"agent-{agent_name}-{uuid.uuid4().hex[:8]}"
+                    logger.info(f"Auto-generated session_id for streaming agent with include_history=true: {session_id}")
+        
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:
@@ -227,6 +239,17 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
     ) -> AgentRunResult:
+        # Auto-generate session_id if agent wants history but none provided
+        if not session_id:
+            # Check if agent has include_history=true (either from config or forced)
+            agent_config_dict = self._config_manager.get_config("agent", agent_name)
+            if agent_config_dict:
+                agent_config = AgentConfig(**agent_config_dict)
+                effective_include_history = force_include_history if force_include_history is not None else agent_config.include_history
+                if effective_include_history:
+                    session_id = f"agent-{agent_name}-{uuid.uuid4().hex[:8]}"
+                    logger.info(f"Auto-generated session_id for agent with include_history=true: {session_id}")
+        
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:

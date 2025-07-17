@@ -4,6 +4,7 @@ Executor for Simple Sequential Workflows.
 
 import json
 import logging
+import uuid
 from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
@@ -67,6 +68,12 @@ class SimpleWorkflowExecutor:
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
+        
+        # Auto-generate session_id if workflow wants history but none provided
+        if self.config.include_history and not session_id:
+            session_id = f"workflow-{workflow_name}-{uuid.uuid4().hex[:8]}"
+            logger.info(f"Auto-generated session_id for workflow with include_history=true: {session_id}")
+        
         logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
