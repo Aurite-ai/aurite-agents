@@ -105,32 +105,40 @@ export const useDeleteAgent = () => {
 
 // Hook to execute agent
 export const useExecuteAgent = () => {
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [executingAgents, setExecutingAgents] = useState<Set<string>>(new Set());
 
   const executeMutation = useMutation({
     mutationFn: ({ agentName, request }: { agentName: string; request: ExecuteAgentRequest }) =>
       agentsService.executeAgent(agentName, request),
-    onMutate: () => {
-      setIsExecuting(true);
+    onMutate: ({ agentName }) => {
+      setExecutingAgents(prev => new Set(prev).add(agentName));
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { agentName }) => {
       if (data.error) {
         toast.error(`Execution failed: ${data.error}`);
       } else {
         toast.success('Agent executed successfully');
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, { agentName }) => {
       toast.error(error.response?.data?.detail || 'Failed to execute agent');
     },
-    onSettled: () => {
-      setIsExecuting(false);
+    onSettled: (data, error, { agentName }) => {
+      setExecutingAgents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(agentName);
+        return newSet;
+      });
     },
   });
 
+  const isAgentExecuting = (agentName: string) => executingAgents.has(agentName);
+
   return {
     ...executeMutation,
-    isExecuting,
+    isAgentExecuting,
+    // Keep backward compatibility
+    isExecuting: executingAgents.size > 0,
   };
 };
 

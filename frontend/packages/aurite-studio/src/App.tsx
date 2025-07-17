@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2 } from 'lucide-react';
+import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
-import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent } from '@/hooks/useAgents';
+import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs } from '@/hooks/useWorkflows';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
@@ -114,6 +114,8 @@ function App() {
   const [editingLLM, setEditingLLM] = useState<any>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showMCPDeleteConfirmation, setShowMCPDeleteConfirmation] = useState(false);
+  const [showAgentDeleteConfirmation, setShowAgentDeleteConfirmation] = useState(false);
+  const [deletingAgent, setDeletingAgent] = useState<any>(null);
   const [isCreatingLLM, setIsCreatingLLM] = useState(false);
   const [showAgentForm, setShowAgentForm] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
@@ -128,21 +130,24 @@ function App() {
   const [inlineTemperature, setInlineTemperature] = useState('');
   const [inlineMaxTokens, setInlineMaxTokens] = useState('');
   const [inlineModel, setInlineModel] = useState('');
+  const [formPopulated, setFormPopulated] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   // API Hooks - must be at component level
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
   const executeAgent = useExecuteAgent();
   const updateAgent = useUpdateAgent();
+  const createAgent = useCreateAgent();
+  const deleteAgent = useDeleteAgent();
   const { data: clients = [], isLoading: clientsLoading } = useClientsWithStatus();
   const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflowsWithConfigs();
   const { data: customWorkflows = [], isLoading: customWorkflowsLoading } = useCustomWorkflowsWithConfigs();
   
-  // Hook for fetching agent config - only enabled when we have a configFile
+  // Hook for fetching agent config - use agent name directly
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
-    editingAgent?.configFile || '',
-    !!editingAgent?.configFile && showAgentForm
+    editingAgent?.name || '',
+    !!editingAgent?.name && showAgentForm
   );
 
   // Hook for fetching LLM config - only enabled when we have an LLM ID and are in edit mode
@@ -409,35 +414,103 @@ function App() {
     setInlineMaxTokens('');
     setInlineModel('');
     
+    // Reset form population flag to allow re-population
+    setFormPopulated(false);
+    
     // Set editing agent and show form
     setEditingAgent(agent);
     setShowAgentForm(true);
   };
 
+  const handleNewAgent = () => {
+    // Reset ALL form fields to empty/default values for new agent creation
+    setAgentFormName('');
+    setAgentSystemPrompt('');
+    setSelectedMCPServers([]);
+    setLlmConfigOption('existing');
+    setSelectedLLMConfig('');
+    setMaxIterations('10');
+    setInlineTemperature('');
+    setInlineMaxTokens('');
+    setInlineModel('');
+    
+    // Clear editing state - this is create mode, not edit mode
+    setEditingAgent(null);
+    
+    // Mark form as populated to prevent the useEffect from trying to load config
+    setFormPopulated(true);
+    
+    // Show the form
+    setShowAgentForm(true);
+  };
+
   // Effect to populate form when agent config is loaded
   React.useEffect(() => {
-    if (agentConfig && editingAgent) {
-      setAgentFormName(agentConfig.name);
+    if (agentConfig && editingAgent && !formPopulated) {
+      console.log('🔄 Populating agent form with config:', agentConfig);
+      
+      // Safely extract agent name according to canonical AgentConfig model
+      const safeName = typeof agentConfig.name === 'string' 
+        ? agentConfig.name 
+        : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
+          ? String((agentConfig.name as any).name)
+          : String(agentConfig.name || 'Unknown Agent');
+      
+      console.log('📝 Setting form fields:', {
+        name: safeName,
+        system_prompt: agentConfig.system_prompt,
+        mcp_servers: agentConfig.mcp_servers,
+        max_iterations: agentConfig.max_iterations,
+        llm_config_id: agentConfig.llm_config_id,
+        model: agentConfig.model,
+        temperature: agentConfig.temperature,
+        max_tokens: agentConfig.max_tokens
+      });
+      
+      // Populate basic form fields
+      setAgentFormName(safeName);
       setAgentSystemPrompt(agentConfig.system_prompt || '');
       setSelectedMCPServers(agentConfig.mcp_servers || []);
       setMaxIterations(agentConfig.max_iterations?.toString() || '10');
       
-      // Check if agent has inline LLM config or uses existing
-      if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens !== undefined) {
+      // Handle LLM configuration with improved logic
+      if (agentConfig.llm_config_id) {
+        // Agent uses existing LLM configuration
+        console.log('✅ Using existing LLM config:', agentConfig.llm_config_id);
+        setLlmConfigOption('existing');
+        setSelectedLLMConfig(agentConfig.llm_config_id);
+        
+        // Clear inline fields
+        setInlineModel('');
+        setInlineTemperature('');
+        setInlineMaxTokens('');
+      } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens !== undefined) {
+        // Agent uses inline LLM parameters
+        console.log('✅ Using inline LLM parameters');
         setLlmConfigOption('inline');
         setInlineModel(agentConfig.model || '');
         setInlineTemperature(agentConfig.temperature?.toString() || '');
         setInlineMaxTokens(agentConfig.max_tokens?.toString() || '');
+        
+        // Clear existing config selection
+        setSelectedLLMConfig('');
       } else {
+        // No LLM configuration found - default to existing mode
+        console.log('⚠️ No LLM configuration found, defaulting to existing mode');
         setLlmConfigOption('existing');
-        // Try to find matching LLM config
-        const matchingLLM = llms.find(llm => llm.id === agentConfig.model);
-        if (matchingLLM) {
-          setSelectedLLMConfig(matchingLLM.id);
-        }
+        setSelectedLLMConfig('');
+        setInlineModel('');
+        setInlineTemperature('');
+        setInlineMaxTokens('');
       }
+      
+      // Mark form as populated to prevent re-population
+      setFormPopulated(true);
+      console.log('✅ Agent form populated successfully');
+    } else if (editingAgent && !agentConfig && !configLoading) {
+      console.log('❌ Failed to load agent config for:', editingAgent);
     }
-  }, [agentConfig, editingAgent, llms]);
+  }, [agentConfig, editingAgent, llms, configLoading, formPopulated]);
 
   // Effect to populate LLM form when LLM config is loaded
   React.useEffect(() => {
@@ -549,6 +622,14 @@ function App() {
         transition={{ delay: 0.1 }}
         className="bg-card border border-border rounded-lg p-6 space-y-6"
       >
+        {/* Loading State for Agent Config */}
+        {configLoading && editingAgent && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading agent configuration...
+          </div>
+        )}
+
         {/* Agent Name */}
         <div className="space-y-2">
           <Label htmlFor="agent-form-name" className="text-sm font-medium text-foreground">Agent Name</Label>
@@ -588,46 +669,101 @@ function App() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading configuration...
           </div>
-        ) : selectedMCPServers.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Selected servers:</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedMCPServers.map((server) => (
-                <span key={server} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-                  {server}
-                </span>
-              ))}
+        ) : (
+          <div className="space-y-4">
+            {/* Selected Servers Pills */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">
+                Selected MCP Servers ({selectedMCPServers.length})
+              </Label>
+              {selectedMCPServers.length > 0 ? (
+                <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border rounded-lg min-h-[44px]">
+                  {selectedMCPServers.map((server) => (
+                    <div
+                      key={server}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium"
+                    >
+                      <span>{server}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMCPServers(selectedMCPServers.filter(s => s !== server));
+                        }}
+                        className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
+                        aria-label={`Remove ${server}`}
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 bg-muted/20 border border-border rounded-lg min-h-[44px] flex items-center">
+                  <span className="text-sm text-muted-foreground">No servers selected</span>
+                </div>
+              )}
+            </div>
+
+            {/* Available Servers */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Available MCP Servers</Label>
+              <div className="space-y-2">
+                {clients.map((client) => {
+                  const isSelected = selectedMCPServers.includes(client.name);
+                  const isConnected = client.status === 'connected';
+                  
+                  return (
+                    <button
+                      key={client.name}
+                      type="button"
+                      onClick={() => {
+                        if (isConnected) {
+                          if (isSelected) {
+                            setSelectedMCPServers(selectedMCPServers.filter(s => s !== client.name));
+                          } else {
+                            setSelectedMCPServers([...selectedMCPServers, client.name]);
+                          }
+                        }
+                      }}
+                      disabled={!isConnected}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 text-left ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary text-primary'
+                          : isConnected
+                          ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
+                          : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-primary border-primary'
+                            : 'border-muted-foreground'
+                        }`}>
+                          {isSelected && (
+                            <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">{client.name}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        isConnected
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {client.status}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">None selected.</p>
         )}
-        
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground">Available MCP Servers</Label>
-          <div className="space-y-2">
-            {clients.map((client) => (
-              <label key={client.name} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={selectedMCPServers.includes(client.name)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedMCPServers([...selectedMCPServers, client.name]);
-                    } else {
-                      setSelectedMCPServers(selectedMCPServers.filter(s => s !== client.name));
-                    }
-                  }}
-                  className="w-4 h-4 text-primary"
-                />
-                <span className="text-sm">{client.name}</span>
-                <span className={`text-xs ${client.status === 'connected' ? 'text-green-500' : 'text-red-500'}`}>
-                  ({client.status})
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
       </motion.div>
 
       {/* LLM Configuration Card */}
@@ -640,34 +776,28 @@ function App() {
         <h2 className="text-lg font-semibold text-primary">LLM Configuration</h2>
         
         <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="existing-config"
-              name="llm-config"
-              value="existing"
-              checked={llmConfigOption === 'existing'}
-              onChange={(e) => setLlmConfigOption(e.target.value)}
-              className="w-4 h-4 text-primary"
-            />
-            <Label htmlFor="existing-config" className="text-sm font-medium text-foreground">
-              Use Existing LLM Config
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <input
-              type="radio"
-              id="inline-config"
-              name="llm-config"
-              value="inline"
-              checked={llmConfigOption === 'inline'}
-              onChange={(e) => setLlmConfigOption(e.target.value)}
-              className="w-4 h-4 text-primary"
-            />
-            <Label htmlFor="inline-config" className="text-sm font-medium text-foreground">
-              Define Inline LLM Parameters
-            </Label>
+          {/* Toggle Button Group */}
+          <div className="p-1 bg-muted/20 border border-border rounded-lg">
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant={llmConfigOption === 'existing' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setLlmConfigOption('existing')}
+                className="flex-1 transition-all duration-200 text-sm"
+              >
+                Use Existing LLM Config
+              </Button>
+              <Button
+                type="button"
+                variant={llmConfigOption === 'inline' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setLlmConfigOption('inline')}
+                className="flex-1 transition-all duration-200 text-sm"
+              >
+                Define Inline LLM Parameters
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -679,11 +809,20 @@ function App() {
                 <SelectValue placeholder="-- Select LLM Config --" />
               </SelectTrigger>
               <SelectContent>
-                {llms.map((config) => (
-                  <SelectItem key={config.id} value={config.id}>
-                    {config.id}
-                  </SelectItem>
-                ))}
+                {llms.map((config) => {
+                  // Safely extract LLM config ID
+                  const configId = typeof config.id === 'string' 
+                    ? config.id 
+                    : (config.id && typeof config.id === 'object' && 'name' in config.id)
+                      ? String((config.id as any).name)
+                      : String(config.id || 'unknown_config');
+                  
+                  return (
+                    <SelectItem key={configId} value={configId}>
+                      {configId}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -747,51 +886,97 @@ function App() {
         </div>
       </motion.div>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="flex justify-end"
+        className="flex justify-between"
       >
+        {/* Delete Button - Only show in edit mode */}
+        {editingAgent && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => {
+              setDeletingAgent({ name: editingAgent.name, configFile: editingAgent.configFile });
+              setShowAgentDeleteConfirmation(true);
+            }}
+            disabled={deleteAgent.isPending}
+          >
+            {deleteAgent.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Agent'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingAgent && <div />}
+        
         <Button 
           className="px-8"
           onClick={() => {
-            if (editingAgent && editingAgent.configFile) {
-              // Build the agent config object
-              const agentConfig = {
-                name: agentFormName,
-                system_prompt: agentSystemPrompt,
-                mcp_servers: selectedMCPServers,
-                max_iterations: parseInt(maxIterations) || 10,
-                ...(llmConfigOption === 'inline' ? {
-                  model: inlineModel,
-                  temperature: inlineTemperature ? parseFloat(inlineTemperature) : undefined,
-                  max_tokens: inlineMaxTokens ? parseInt(inlineMaxTokens) : undefined,
-                } : {})
-              };
+            // Build the agent config object
+            const agentConfig = {
+              name: agentFormName,
+              system_prompt: agentSystemPrompt,
+              mcp_servers: selectedMCPServers,
+              max_iterations: parseInt(maxIterations) || 10,
+              ...(llmConfigOption === 'existing' && selectedLLMConfig ? {
+                llm_config_id: selectedLLMConfig,
+              } : {}),
+              ...(llmConfigOption === 'inline' ? {
+                model: inlineModel,
+                temperature: inlineTemperature ? parseFloat(inlineTemperature) : undefined,
+                max_tokens: inlineMaxTokens ? parseInt(inlineMaxTokens) : undefined,
+              } : {})
+            };
 
-              // Update the agent configuration
+            console.log('💾 Saving agent config:', agentConfig);
+
+            if (editingAgent && editingAgent.name) {
+              // Edit mode - update existing agent using PUT method
               updateAgent.mutate({
-                filename: editingAgent.configFile,
+                filename: editingAgent.name,
                 config: agentConfig
               }, {
                 onSuccess: () => {
+                  console.log('✅ Agent config updated successfully');
                   setShowAgentForm(false);
                   setEditingAgent(null);
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to update agent config:', error);
+                }
+              });
+            } else {
+              // Create mode - create new agent using POST method
+              createAgent.mutate(agentConfig, {
+                onSuccess: () => {
+                  console.log('✅ New agent config created successfully');
+                  setShowAgentForm(false);
+                  setEditingAgent(null);
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to create agent config:', error);
                 }
               });
             }
           }}
-          disabled={updateAgent.isPending || !agentFormName || !editingAgent?.configFile}
+          disabled={(updateAgent.isPending || createAgent.isPending) || !agentFormName}
         >
-          {updateAgent.isPending ? (
+          {(updateAgent.isPending || createAgent.isPending) ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Saving...
+              {editingAgent ? 'Updating...' : 'Creating...'}
             </>
           ) : (
-            'Save Agent Config'
+            editingAgent ? 'Update Agent Config' : 'Create Agent Config'
           )}
         </Button>
       </motion.div>
@@ -816,7 +1001,7 @@ function App() {
             <h1 className="text-3xl font-bold text-foreground">All Agents</h1>
             <p className="text-muted-foreground mt-1">Manage and execute your existing agents</p>
           </div>
-          <Button className="gap-2" onClick={() => setShowAgentForm(true)}>
+          <Button className="gap-2" onClick={handleNewAgent}>
             <Plus className="h-4 w-4" />
             New Agent
           </Button>
@@ -857,10 +1042,21 @@ function App() {
         {!agentsLoading && agents.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {agents.map((agent, index) => {
-              const agentName = typeof agent.name === 'string' ? agent.name : (agent.name as any)?.name || 'Unknown Agent';
+              // Safely extract agent name from potentially complex object
+              let agentName: string;
+              if (typeof agent.name === 'string') {
+                agentName = agent.name;
+              } else if (agent.name && typeof agent.name === 'object' && 'name' in agent.name) {
+                agentName = String((agent.name as any).name);
+              } else if (agent.name) {
+                agentName = String(agent.name);
+              } else {
+                agentName = 'Unknown Agent';
+              }
+
               return (
                 <motion.div
-                  key={agentName}
+                  key={`${agentName}-${index}`}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: index * 0.1 }}
@@ -880,7 +1076,7 @@ function App() {
                       variant="outline" 
                       size="sm" 
                       className="gap-1.5" 
-                      onClick={() => handleEditAgent({ name: agentName, configFile: agent.configFile })}
+                      onClick={() => handleEditAgent({ name: agentName, configFile: agent.configFile, fullConfig: agent })}
                     >
                       <Edit className="h-3.5 w-3.5" />
                       Edit
@@ -897,9 +1093,9 @@ function App() {
                           });
                         }
                       }}
-                      disabled={executeAgent.isExecuting}
+                      disabled={executeAgent.isAgentExecuting(agentName)}
                     >
-                      {executeAgent.isExecuting ? (
+                      {executeAgent.isAgentExecuting(agentName) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Play className="h-3.5 w-3.5" />
@@ -2324,6 +2520,72 @@ function App() {
                   disabled={deleteMCPClient.isPending}
                 >
                   {deleteMCPClient.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Agent Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showAgentDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowAgentDeleteConfirmation(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete Agent
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete the agent "{deletingAgent?.name}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAgentDeleteConfirmation(false);
+                    setDeletingAgent(null);
+                  }}
+                  disabled={deleteAgent.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (deletingAgent && deletingAgent.name) {
+                      deleteAgent.mutate(deletingAgent.name, {
+                        onSuccess: () => {
+                          setShowAgentDeleteConfirmation(false);
+                          setDeletingAgent(null);
+                          setShowAgentForm(false);
+                          setEditingAgent(null);
+                          setActiveTab('agents');
+                        }
+                      });
+                    }
+                  }}
+                  disabled={deleteAgent.isPending}
+                >
+                  {deleteAgent.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Deleting...

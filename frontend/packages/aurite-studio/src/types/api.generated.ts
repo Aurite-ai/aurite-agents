@@ -29,15 +29,35 @@ export interface LoadComponentsResponse {
 
 // Agent types
 export interface AgentConfig {
+  // Core Identity
+  type?: 'agent';
   name: string;
-  mcp_servers?: string[];
-  system_prompt?: string;
+  description?: string;
+
+  // LLM Configuration
+  llm_config_id?: string;
+  
+  // LLM Override Parameters (optional, overrides llm_config_id settings)
   model?: string;
   temperature?: number;
   max_tokens?: number;
+
+  // Behavior Control
+  system_prompt?: string;
   max_iterations?: number;
   include_history?: boolean;
+  auto?: boolean;
+
+  // Capability Management
+  mcp_servers?: string[];
   exclude_components?: string[];
+
+  // Framework Metadata (read-only, added by system)
+  _source_file?: string;
+  _context_path?: string;
+  _context_level?: string;
+  _project_name?: string;
+  _workspace_name?: string;
 }
 
 export interface AgentExecutionResult {
