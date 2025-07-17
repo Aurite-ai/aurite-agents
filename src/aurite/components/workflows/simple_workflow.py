@@ -4,7 +4,7 @@ Executor for Simple Sequential Workflows.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
 
@@ -54,19 +54,20 @@ class SimpleWorkflowExecutor:
         self.facade = facade
         logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
 
-    async def execute(self, initial_input: str) -> SimpleWorkflowExecutionResult:
+    async def execute(self, initial_input: str, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
         """
         Executes the configured simple workflow sequentially.
 
         Args:
             initial_input: The initial input message for the first agent in the sequence.
+            session_id: Optional session ID to use for conversation history tracking.
 
         Returns:
             A SimpleWorkflowExecutionResult object containing the final status,
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
-        logger.info(f"Executing simple workflow: {workflow_name}")
+        logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
 
@@ -95,10 +96,23 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
+                            # Check if we need to override the agent's include_history setting
+                            agent_session_id = session_id
+                            force_include_history = None
+                            
+                            if self.config.include_history is not None:
+                                # Workflow has an include_history setting that overrides agent settings
+                                force_include_history = self.config.include_history
+                                if not self.config.include_history:
+                                    # If workflow says don't include history, don't pass session_id
+                                    agent_session_id = None
+
                             # The facade's run_agent now returns a structured AgentRunResult
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
+                                session_id=agent_session_id,
+                                force_include_history=force_include_history,
                             )
 
                             # Check the status of the agent run
@@ -123,6 +137,7 @@ class SimpleWorkflowExecutor:
                             workflow_result = await self.facade.run_simple_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
+                                session_id=session_id,
                             )
                             if workflow_result.error:
                                 raise Exception(f"Nested workflow '{component.name}' failed: {workflow_result.error}")
@@ -140,6 +155,7 @@ class SimpleWorkflowExecutor:
                             custom_workflow_output = await self.facade.run_custom_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
+                                session_id=session_id,
                             )
                             component_output = custom_workflow_output
                             current_message = custom_workflow_output

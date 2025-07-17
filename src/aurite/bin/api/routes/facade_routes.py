@@ -202,6 +202,7 @@ async def run_simple_workflow(
         result = await facade.run_simple_workflow(
             workflow_name=workflow_name,
             initial_input=request.initial_input,
+            session_id=request.session_id,
         )
         return result.model_dump()
     except ConfigurationError as e:

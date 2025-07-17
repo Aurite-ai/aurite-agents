@@ -69,6 +69,7 @@ class ExecutionFacade:
         user_message: str,
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
+        force_include_history: Optional[bool] = None,
     ) -> Tuple[Agent, List[str]]:
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
@@ -116,8 +117,15 @@ class ExecutionFacade:
         if not base_llm_config:
             raise ConfigurationError(f"Could not determine LLM configuration for Agent '{agent_name}'.")
 
+        # Handle force_include_history override from workflow
+        effective_include_history = agent_config_for_run.include_history
+        if force_include_history is not None:
+            effective_include_history = force_include_history
+            # Also update the agent config to reflect this override
+            agent_config_for_run.include_history = force_include_history
+
         initial_messages: List[Dict[str, Any]] = []
-        if agent_config_for_run.include_history and session_id:
+        if effective_include_history and session_id:
             history = None
             if self._storage_manager:
                 history = self._storage_manager.load_history(agent_name, session_id)
@@ -133,7 +141,7 @@ class ExecutionFacade:
 
         # Immediately update the cache with the current user message
         # so the agent can reference it as part of the conversation history
-        if agent_config_for_run.include_history and session_id and self._cache_manager:
+        if effective_include_history and session_id and self._cache_manager:
             # Get the existing history again to make sure we have the latest
             existing_history = self._cache_manager.get_history(session_id) or []
             # Add only the current user message to the existing history
@@ -217,12 +225,13 @@ class ExecutionFacade:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
+        force_include_history: Optional[bool] = None,
     ) -> AgentRunResult:
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
+                agent_name, user_message, system_prompt, session_id, force_include_history
             )
 
             logger.info(
@@ -279,8 +288,8 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
-    async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
-        logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}'")
+    async def run_simple_workflow(self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
+        logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
         try:
             workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
             if not workflow_config_dict:
@@ -295,7 +304,7 @@ class ExecutionFacade:
                 facade=self,
             )
 
-            result = await workflow_executor.execute(initial_input=initial_input)
+            result = await workflow_executor.execute(initial_input=initial_input, session_id=session_id)
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
             return result
         except ConfigurationError as e:
