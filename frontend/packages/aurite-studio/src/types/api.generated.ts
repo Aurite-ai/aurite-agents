@@ -29,15 +29,35 @@ export interface LoadComponentsResponse {
 
 // Agent types
 export interface AgentConfig {
+  // Core Identity
+  type?: 'agent';
   name: string;
-  mcp_servers?: string[];
-  system_prompt?: string;
+  description?: string;
+
+  // LLM Configuration
+  llm_config_id?: string;
+  
+  // LLM Override Parameters (optional, overrides llm_config_id settings)
   model?: string;
   temperature?: number;
   max_tokens?: number;
+
+  // Behavior Control
+  system_prompt?: string;
   max_iterations?: number;
   include_history?: boolean;
+  auto?: boolean;
+
+  // Capability Management
+  mcp_servers?: string[];
   exclude_components?: string[];
+
+  // Framework Metadata (read-only, added by system)
+  _source_file?: string;
+  _context_path?: string;
+  _context_level?: string;
+  _project_name?: string;
+  _workspace_name?: string;
 }
 
 export interface AgentExecutionResult {
@@ -77,7 +97,14 @@ export interface ExecuteCustomWorkflowResponse {
   error?: string | null;
 }
 
-// Client types
+// Root configuration interface
+export interface RootConfig {
+  uri: string;
+  name: string;
+  capabilities: string[];
+}
+
+// Legacy client config (deprecated - use MCPServerConfig instead)
 export interface ClientConfig {
   name: string;
   server_path?: string;
@@ -89,15 +116,113 @@ export interface ClientConfig {
   gcp_secrets?: Record<string, any>;
 }
 
+// Complete MCP Server Configuration Interface (API-compliant)
+export interface MCPServerConfig {
+  // Required fields
+  name: string;
+  type: "mcp_server";
+  capabilities: string[];
+
+  // Optional common fields
+  description?: string;
+  transport_type?: "stdio" | "http_stream" | "local";
+  timeout?: number;
+  registration_timeout?: number;
+  routing_weight?: number;
+  exclude?: string[];
+  roots?: RootConfig[];
+
+  // Stdio transport fields
+  server_path?: string;
+
+  // HTTP stream transport fields
+  http_endpoint?: string;
+  headers?: Record<string, string>;
+
+  // Local transport fields
+  command?: string;
+  args?: string[];
+}
+
+// Transport-specific interfaces for type safety
+export interface MCPServerStdioConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "stdio";
+  server_path: string;
+  // Explicitly exclude other transport fields
+  http_endpoint?: never;
+  headers?: never;
+  command?: never;
+  args?: never;
+}
+
+export interface MCPServerHttpConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "http_stream";
+  http_endpoint: string;
+  headers?: Record<string, string>;
+  // Explicitly exclude other transport fields
+  server_path?: never;
+  command?: never;
+  args?: never;
+}
+
+export interface MCPServerLocalConfig extends Omit<MCPServerConfig, 'transport_type'> {
+  transport_type: "local";
+  command: string;
+  args?: string[];
+  // Explicitly exclude other transport fields
+  server_path?: never;
+  http_endpoint?: never;
+  headers?: never;
+}
+
+// Union type for type-safe transport handling
+export type MCPServerTransportConfig = 
+  | MCPServerStdioConfig 
+  | MCPServerHttpConfig 
+  | MCPServerLocalConfig;
+
+// Form fields interface for React components
+export interface MCPServerFormFields {
+  // Basic fields
+  name: string;
+  description: string;
+  capabilities: string[];
+  
+  // Transport selection
+  transport_type: "stdio" | "http_stream" | "local";
+  
+  // Stdio fields
+  server_path: string;
+  
+  // HTTP fields
+  http_endpoint: string;
+  headers: Array<{key: string; value: string}>;
+  
+  // Local fields
+  command: string;
+  args: string[];
+  
+  // Advanced fields
+  timeout: number;
+  registration_timeout: number;
+  routing_weight: number;
+  exclude: string[];
+}
+
 // LLM types
 export interface LLMConfig {
-  llm_id: string;
+  name: string;
+  type: 'llm';
   provider: string;
   model: string;
-  api_key_env_var?: string;
-  default_system_prompt?: string;
-  max_tokens?: number;
+  description?: string;
   temperature?: number;
+  max_tokens?: number;
+  default_system_prompt?: string;
+  api_base?: string;
+  api_key?: string;
+  api_version?: string;
+  api_key_env_var?: string;
 }
 
 // Request types

@@ -36,22 +36,53 @@ export interface ToolCallArgs {
  * Agent configuration interface
  */
 export interface AgentConfig {
+  // Core Identity
+  /** Component type (automatically set to "agent") */
+  type?: 'agent';
   /** Unique name for the agent */
   name: string;
   /** Optional description */
   description?: string;
-  /** System prompt for the agent */
-  system_prompt: string;
+
+  // LLM Configuration
   /** LLM configuration ID to use */
-  llm_config_id: string;
-  /** Optional MCP servers to connect */
-  mcp_servers?: string[];
+  llm_config_id?: string;
+  
+  // LLM Override Parameters (optional, overrides llm_config_id settings)
+  /** Model name/identifier override */
+  model?: string;
+  /** Temperature setting (0.0-2.0) override */
+  temperature?: number;
+  /** Maximum tokens to generate override */
+  max_tokens?: number;
+
+  // Behavior Control
+  /** System prompt for the agent */
+  system_prompt?: string;
   /** Maximum iterations for agent execution */
   max_iterations?: number;
   /** Whether to include conversation history */
   include_history?: boolean;
-  /** Temperature override for this agent */
-  temperature_override?: number;
+  /** Whether the agent runs automatically */
+  auto?: boolean;
+
+  // Capability Management
+  /** Optional MCP servers to connect */
+  mcp_servers?: string[];
+  /** Components to exclude from agent */
+  exclude_components?: string[];
+
+  // Framework Metadata (read-only, added by system)
+  /** Source file path */
+  _source_file?: string;
+  /** Context path */
+  _context_path?: string;
+  /** Context level */
+  _context_level?: string;
+  /** Project name */
+  _project_name?: string;
+  /** Workspace name */
+  _workspace_name?: string;
 }
 
 /**
@@ -60,18 +91,28 @@ export interface AgentConfig {
 export interface LLMConfig {
   /** Unique name for the LLM config */
   name: string;
-  /** LLM provider */
-  provider: 'openai' | 'anthropic' | 'local' | 'azure';
+  /** Component type (automatically set to "llm") */
+  type: 'llm';
+  /** LLM provider (e.g., "anthropic", "openai", "gemini") */
+  provider: string;
   /** Model name/identifier */
   model: string;
-  /** Temperature setting */
+  /** Brief description of the LLM config */
+  description?: string;
+  /** Temperature setting (0.0-2.0) */
   temperature?: number;
-  /** Maximum tokens */
+  /** Maximum tokens to generate */
   max_tokens?: number;
+  /** Default system prompt for this LLM */
+  default_system_prompt?: string;
+  /** Base URL for the LLM API */
+  api_base?: string;
+  /** API key for the LLM */
+  api_key?: string;
+  /** API version for the LLM */
+  api_version?: string;
   /** Environment variable name for API key */
   api_key_env_var?: string;
-  /** Base URL for the API */
-  base_url?: string;
 }
 
 /**

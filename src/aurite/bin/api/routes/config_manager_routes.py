@@ -143,6 +143,14 @@ async def create_component(
     """
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
+    
+    # Validate component type
+    valid_types = list(config_manager.get_all_configs().keys())
+    if singular_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(valid_types)}",
+        )
 
     # Check if component already exists
     existing = config_manager.get_config(singular_type, component_data.name)
@@ -152,17 +160,36 @@ async def create_component(
             detail=f"Component '{component_data.name}' of type '{component_type}' already exists.",
         )
 
-    # Prepare the full config with type and name
-    full_config = component_data.config.copy()
-    full_config["type"] = singular_type
-    full_config["name"] = component_data.name
+    # Extract API routing parameters (these should not be saved in the component config)
+    project = component_data.config.get("project")
+    workspace = component_data.config.get("workspace", False)
+    file_path = component_data.config.get("file_path")
+
+    # Prepare the component config without API routing parameters
+    component_config = component_data.config.copy()
+    # Remove API routing parameters from the component config
+    component_config.pop("project", None)
+    component_config.pop("workspace", None)
+    component_config.pop("file_path", None)
+
+    # Add required fields
+    component_config["type"] = singular_type
+    component_config["name"] = component_data.name
+
+    # Validate the component configuration before creating it
+    is_valid, validation_errors = config_manager._validate_component_config(singular_type, component_config)
+    if not is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Component configuration validation failed: {'; '.join(validation_errors)}",
+        )
 
     result = config_manager.create_component(
         singular_type,
-        full_config,
-        project=component_data.config.get("project"),
-        workspace=component_data.config.get("workspace", False),
-        file_path=component_data.config.get("file_path"),
+        component_config,
+        project=project,
+        workspace=workspace,
+        file_path=file_path,
     )
 
     if not result:

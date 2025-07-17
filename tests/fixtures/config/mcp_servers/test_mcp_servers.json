@@ -178,5 +178,14 @@
       "prompts"
     ],
     "type": "mcp_server"
+  },
+  {
+    "name": "math_http_control",
+    "http_endpoint": "http://127.0.0.1:8088/mcp",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "type": "mcp_server"
   }
 ]
