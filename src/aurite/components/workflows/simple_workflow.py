@@ -75,6 +75,15 @@ class SimpleWorkflowExecutor:
             logger.info(f"Auto-generated session_id for workflow with include_history=true: {session_id}")
         
         logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
+        
+        # Save a parent session for the workflow itself
+        if self.config.include_history and session_id and self.facade._cache_manager:
+            self.facade._cache_manager.save_history(
+                session_id=session_id,
+                conversation=[],  # No conversation, just metadata
+                workflow_name=workflow_name,
+            )
+
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
 
@@ -103,24 +112,22 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # Check if we need to override the agent's include_history setting
-                            agent_session_id = session_id
-                            force_include_history = None
-                            
-                            if self.config.include_history is not None:
-                                # Workflow has an include_history setting that overrides agent settings
-                                force_include_history = self.config.include_history
-                                if not self.config.include_history:
-                                    # If workflow says don't include history, don't pass session_id
-                                    agent_session_id = None
+                            # Generate a unique session ID for each agent step, linked to the workflow session
+                            agent_session_id = None
+                            force_include_history = self.config.include_history
 
+                            if self.config.include_history and session_id:
+                                # Create a unique, traceable session ID for this specific agent run
+                                agent_session_id = f"{session_id}-{len(step_results)}-{component.name.replace(' ', '')}"
+                            
                             # The facade's run_agent now returns a structured AgentRunResult
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
                                 session_id=agent_session_id,
                                 force_include_history=force_include_history,
-                                workflow_name=self.config.name,  # Pass workflow context
+                                workflow_name=workflow_name,
+                                workflow_session_id=session_id,  # Pass the parent workflow session ID
                             )
 
                             # Check the status of the agent run

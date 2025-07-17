@@ -1,7 +1,7 @@
 """
 Provides a unified facade for executing Agents, Simple Workflows, and Custom Workflows.
 """
-
+import json
 import logging
 import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
@@ -239,6 +239,7 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
         workflow_name: Optional[str] = None,
+        workflow_session_id: Optional[str] = None,
     ) -> AgentRunResult:
         # Auto-generate session_id if agent wants history but none provided
         if not session_id:
@@ -292,7 +293,13 @@ class ExecutionFacade:
                             exc_info=True,
                         )
                 elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, run_result.conversation_history, agent_name, workflow_name)
+                    self._cache_manager.save_history(
+                        session_id=session_id,
+                        conversation=run_result.conversation_history,
+                        agent_name=agent_name,
+                        workflow_name=workflow_name,
+                        workflow_session_id=workflow_session_id,
+                    )
                     logger.info(
                         f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
                     )
@@ -419,6 +426,52 @@ class ExecutionFacade:
         else:
             logger.warning("No storage backend available for session history")
             return None
+
+    def get_full_workflow_history(self, workflow_session_id: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get the full, combined conversation history for a workflow session
+        by directly parsing the cache directory.
+        """
+        if not self._cache_manager or not self._cache_manager._cache_dir:
+            logger.warning("No cache manager or cache directory available for workflow history")
+            return None
+
+        # Sanitize the workflow_session_id to match the file naming convention
+        safe_base_id = "".join(c for c in workflow_session_id if c.isalnum() or c in "-_")
+        
+        related_files = []
+        try:
+            # Find all files starting with the sanitized workflow session ID
+            for session_file in self._cache_manager._cache_dir.glob(f"{safe_base_id}*.json"):
+                related_files.append(session_file)
+        except Exception as e:
+            logger.error(f"Error scanning cache directory for workflow '{workflow_session_id}': {e}")
+            return None
+
+        if not related_files:
+            return None
+
+        # Read and sort all conversations by their creation time
+        session_data = []
+        for file_path in related_files:
+            try:
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+                    # Use a default timestamp if 'created_at' is missing
+                    created_at = data.get("created_at", "1970-01-01T00:00:00Z")
+                    session_data.append({"created_at": created_at, "conversation": data.get("conversation", [])})
+            except Exception as e:
+                logger.warning(f"Could not read or parse session file {file_path}: {e}")
+
+        # Sort sessions chronologically
+        session_data.sort(key=lambda x: x["created_at"])
+
+        # Combine conversations into a single list
+        full_conversation = []
+        for session in session_data:
+            full_conversation.extend(session["conversation"])
+
+        return full_conversation if full_conversation else None
 
     def get_sessions_list(self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
         """
