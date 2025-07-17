@@ -17,7 +17,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
-import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs } from '@/hooks/useWorkflows';
+import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow } from '@/hooks/useWorkflows';
+import { useQueryClient } from '@tanstack/react-query';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
 import { MCPClientCard } from '@/components/MCPClientCard';
@@ -83,6 +84,7 @@ function App() {
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowSteps, setWorkflowSteps] = useState<Array<{id: number, agent: string}>>([]);
+  const [selectedAgentToAdd, setSelectedAgentToAdd] = useState('');
   const [showMCPForm, setShowMCPForm] = useState(false);
   // Enhanced MCP form state for full schema support
   const [mcpClientId, setMcpClientId] = useState('');
@@ -133,6 +135,12 @@ function App() {
   const [inlineMaxTokens, setInlineMaxTokens] = useState('');
   const [inlineModel, setInlineModel] = useState('');
   const [formPopulated, setFormPopulated] = useState(false);
+  
+  // Workflow edit state - similar to LLM edit pattern
+  const [editingWorkflow, setEditingWorkflow] = useState<any>(null);
+  const [showWorkflowDeleteConfirmation, setShowWorkflowDeleteConfirmation] = useState(false);
+  const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
+  
   const { theme, toggleTheme } = useTheme();
 
   // API Hooks - must be at component level
@@ -173,6 +181,12 @@ function App() {
     !!editingMCPClient?.name && showMCPForm
   );
 
+  // Hook for fetching workflow config - only enabled when we have a workflow name and are in edit mode
+  const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
+    editingWorkflow?.name || '',
+    !!editingWorkflow?.name && showWorkflowForm
+  );
+
   // Hook for updating MCP client configuration
   const updateMCPClient = useUpdateClient();
   
@@ -186,6 +200,14 @@ function App() {
   // Hook for deleting MCP client configuration
   const deleteMCPClient = useDeleteClient();
 
+  // Workflow mutation hooks
+  const createWorkflow = useCreateWorkflow();
+  const updateWorkflow = useUpdateWorkflow();
+  const deleteWorkflow = useDeleteWorkflow();
+  
+  // Query client for cache invalidation
+  const queryClient = useQueryClient();
+
   // Show advanced options when user starts typing description
   React.useEffect(() => {
     if (description.trim().length > 10 && !showAdvancedOptions) {
@@ -194,7 +216,27 @@ function App() {
   }, [description, showAdvancedOptions]);
 
   const addWorkflowStep = () => {
-    setWorkflowSteps([...workflowSteps, { id: Date.now(), agent: 'Filtering Test Agent' }]);
+    if (selectedAgentToAdd) {
+      setWorkflowSteps([...workflowSteps, { id: Date.now(), agent: selectedAgentToAdd }]);
+      setSelectedAgentToAdd(''); // Reset selection after adding
+    }
+  };
+
+  // Helper function to extract agent name from complex agent object
+  const extractAgentName = (agent: any): string => {
+    if (typeof agent.name === 'string') {
+      return agent.name;
+    } else if (agent.name && typeof agent.name === 'object' && 'name' in agent.name) {
+      return String((agent.name as any).name);
+    } else if (agent.name) {
+      return String(agent.name);
+    } else {
+      return 'Unknown Agent';
+    }
+  };
+
+  const removeWorkflowStep = (stepId: number) => {
+    setWorkflowSteps(workflowSteps.filter(step => step.id !== stepId));
   };
 
   const renderHomeContent = () => (
@@ -552,6 +594,23 @@ function App() {
     setShowAgentForm(true);
   };
 
+  const handleNewWorkflow = () => {
+    // Reset ALL workflow form fields to empty/default values for new workflow creation
+    setWorkflowName('');
+    setWorkflowDescription('');
+    setWorkflowSteps([]);
+    setSelectedAgentToAdd('');
+    
+    // Clear editing state - this is create mode, not edit mode
+    setEditingWorkflow(null);
+    
+    // Mark form as populated to prevent the useEffect from trying to load config
+    setWorkflowFormPopulated(true);
+    
+    // Show the form
+    setShowWorkflowForm(true);
+  };
+
   // Effect to populate form when agent config is loaded
   React.useEffect(() => {
     if (agentConfig && editingAgent && !formPopulated) {
@@ -700,6 +759,35 @@ function App() {
       console.log('- editingMCPClient exists:', !!editingMCPClient);
     }
   }, [mcpClientConfig, editingMCPClient]);
+
+
+  // Effect to populate workflow form when workflow config is loaded
+  React.useEffect(() => {
+    if (workflowConfig && editingWorkflow && !workflowFormPopulated) {
+      console.log('🔄 Populating workflow form with config:', workflowConfig);
+      
+      // Populate workflow form fields
+      setWorkflowName(workflowConfig.name || '');
+      setWorkflowDescription(workflowConfig.description || '');
+      
+      // Convert steps array to UI format
+      if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
+        const stepsWithIds = workflowConfig.steps.map((step, index) => ({
+          id: Date.now() + index,
+          agent: step
+        }));
+        setWorkflowSteps(stepsWithIds);
+      } else {
+        setWorkflowSteps([]);
+      }
+      
+      // Mark form as populated to prevent re-population
+      setWorkflowFormPopulated(true);
+      console.log('✅ Workflow form populated successfully');
+    } else if (editingWorkflow && !workflowConfig && !workflowConfigLoading) {
+      console.log('❌ Failed to load workflow config for:', editingWorkflow);
+    }
+  }, [workflowConfig, editingWorkflow, workflowConfigLoading, workflowFormPopulated]);
 
   const renderAgentForm = () => (
     <motion.div
@@ -1237,7 +1325,9 @@ function App() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold text-primary">Build New Simple Workflow</h1>
+        <h1 className="text-3xl font-bold text-primary">
+          {editingWorkflow ? 'Edit Simple Workflow' : 'Build New Simple Workflow'}
+        </h1>
       </div>
 
       {/* Workflow Details Card */}
@@ -1288,40 +1378,166 @@ function App() {
         ) : (
           <div className="space-y-2">
             {workflowSteps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                <span className="text-sm">{index + 1}. {step.agent}</span>
+              <div key={step.id} className="flex items-center justify-between gap-2 p-3 bg-muted/20 rounded-md border border-border hover:bg-muted/30 transition-colors">
+                <span className="text-sm font-medium">{index + 1}. {step.agent}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeWorkflowStep(step.id)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label={`Remove step ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
         )}
 
         <div className="flex gap-2">
-          <Select>
+          <Select value={selectedAgentToAdd} onValueChange={setSelectedAgentToAdd}>
             <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Filtering Test Agent" />
+              <SelectValue placeholder="Select an agent to add..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="filtering-test">Filtering Test Agent</SelectItem>
-              <SelectItem value="weather-assistant">Weather Assistant</SelectItem>
-              <SelectItem value="research-agent">Research Agent</SelectItem>
-              <SelectItem value="data-analyst">Data Analyst</SelectItem>
+              {agentsLoading ? (
+                <SelectItem value="" disabled>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading agents...
+                  </div>
+                </SelectItem>
+              ) : agents.length === 0 ? (
+                <SelectItem value="" disabled>
+                  No agents available
+                </SelectItem>
+              ) : (
+                agents.map((agent, index) => {
+                  const agentName = extractAgentName(agent);
+                  return (
+                    <SelectItem key={`${agentName}-${index}`} value={agentName}>
+                      {agentName}
+                    </SelectItem>
+                  );
+                })
+              )}
             </SelectContent>
           </Select>
-          <Button onClick={addWorkflowStep} variant="outline">
+          <Button 
+            onClick={addWorkflowStep} 
+            variant="outline"
+            disabled={!selectedAgentToAdd}
+          >
             Add Step
           </Button>
         </div>
       </motion.div>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex justify-end"
+        className="flex justify-between"
       >
-        <Button className="px-8">
-          Save Simple Workflow
+        {/* Delete Button - Only show in edit mode */}
+        {editingWorkflow && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowWorkflowDeleteConfirmation(true)}
+            disabled={deleteWorkflow.isPending}
+          >
+            {deleteWorkflow.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Workflow'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingWorkflow && <div />}
+        
+        <Button 
+          className="px-8"
+          onClick={() => {
+            // Build the workflow config object from form state
+            const workflowConfig = {
+              name: workflowName,
+              type: "simple_workflow" as const,
+              steps: workflowSteps.map(step => step.agent), // Convert UI format to API format
+              description: workflowDescription || undefined
+            };
+
+            console.log('💾 Saving workflow config:', workflowConfig);
+
+            if (editingWorkflow && editingWorkflow.name) {
+              // Edit mode - update existing workflow using PUT method
+              updateWorkflow.mutate({
+                filename: editingWorkflow.name,
+                config: workflowConfig
+              }, {
+                onSuccess: () => {
+                  console.log('✅ Workflow updated successfully');
+                  
+                  // Invalidate workflow config cache to force fresh data load
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['workflow-config-by-name', editingWorkflow.name] 
+                  });
+                  
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setWorkflowSteps([]);
+                  setSelectedAgentToAdd('');
+                  setWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to update workflow:', error);
+                }
+              });
+            } else {
+              // Create mode - create new workflow using POST method
+              createWorkflow.mutate(workflowConfig, {
+                onSuccess: () => {
+                  console.log('✅ New workflow created successfully');
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setWorkflowSteps([]);
+                  setSelectedAgentToAdd('');
+                  setWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to create workflow:', error);
+                }
+              });
+            }
+          }}
+          disabled={(updateWorkflow.isPending || createWorkflow.isPending) || !workflowName.trim() || workflowSteps.length === 0}
+        >
+          {(updateWorkflow.isPending || createWorkflow.isPending) ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {editingWorkflow ? 'Updating...' : 'Creating...'}
+            </>
+          ) : (
+            editingWorkflow ? 'Update Simple Workflow' : 'Save Simple Workflow'
+          )}
         </Button>
       </motion.div>
     </motion.div>
@@ -1348,7 +1564,7 @@ function App() {
             <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
             <p className="text-muted-foreground mt-1">Design and manage agent workflows</p>
           </div>
-          <Button className="gap-2" onClick={() => setShowWorkflowForm(true)}>
+          <Button className="gap-2" onClick={handleNewWorkflow}>
             <Plus className="h-4 w-4" />
             New Workflow
           </Button>
@@ -1408,9 +1624,11 @@ function App() {
                         {badgeText}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {workflow.configFile ? 'Configured and ready' : 'Configuration pending'}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        {'description' in workflow ? workflow.description || (workflow.configFile ? 'Configured and ready' : 'Configuration pending') : (workflow.configFile ? 'Configured and ready' : 'Configuration pending')}
+                      </p>
+                    </div>
                   </div>
                   
                   <div className="flex gap-2">
@@ -1419,7 +1637,14 @@ function App() {
                       size="sm" 
                       className="gap-1.5" 
                       onClick={() => {
-                        setEditingAgent({ name: workflowName, configFile: workflow.configFile });
+                        // Reset workflow form state
+                        setWorkflowName('');
+                        setWorkflowDescription('');
+                        setWorkflowSteps([]);
+                        setWorkflowFormPopulated(false);
+                        
+                        // Set editing workflow and show form
+                        setEditingWorkflow({ name: workflowName, configFile: workflow.configFile });
                         setShowWorkflowForm(true);
                       }}
                     >
@@ -2702,6 +2927,74 @@ function App() {
                   disabled={deleteAgent.isPending}
                 >
                   {deleteAgent.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Workflow Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showWorkflowDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowWorkflowDeleteConfirmation(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete Workflow
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete the workflow "{workflowName}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowWorkflowDeleteConfirmation(false)}
+                  disabled={deleteWorkflow.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (editingWorkflow && editingWorkflow.name) {
+                      deleteWorkflow.mutate(editingWorkflow.name, {
+                        onSuccess: () => {
+                          setShowWorkflowDeleteConfirmation(false);
+                          setShowWorkflowForm(false);
+                          setEditingWorkflow(null);
+                          setActiveTab('workflows');
+                          // Reset form state
+                          setWorkflowName('');
+                          setWorkflowDescription('');
+                          setWorkflowSteps([]);
+                          setSelectedAgentToAdd('');
+                          setWorkflowFormPopulated(false);
+                        }
+                      });
+                    }
+                  }}
+                  disabled={deleteWorkflow.isPending}
+                >
+                  {deleteWorkflow.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Deleting...
