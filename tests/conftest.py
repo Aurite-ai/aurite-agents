@@ -7,6 +7,9 @@ framework.
 
 import json
 import logging
+import time
+from http.client import HTTPConnection
+from subprocess import Popen
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -92,6 +95,7 @@ def mock_client_session_group() -> MagicMock:
     mock_group.sessions = {}
     return mock_group
 
+
 @pytest.fixture
 def with_test_config():
     try:
@@ -131,3 +135,26 @@ def with_test_config():
 
     except Exception as e:
         logger.warning(f"Test fixtures config could not be loaded: {e}")
+
+@pytest.fixture
+def start_http_server(request):
+    process = Popen(["python", request.param])
+
+    retries = 5
+    while retries > 0:
+        conn = HTTPConnection("localhost:8088")
+        try:
+            conn.request("HEAD", "/")
+            response = conn.getresponse()
+            if response is not None:
+                yield process
+                break
+        except ConnectionRefusedError:
+            time.sleep(1)
+            retries -= 1
+
+    if not retries:
+        raise RuntimeError("Failed to start http server")
+    else:
+        process.terminate()
+        process.wait()

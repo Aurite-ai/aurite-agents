@@ -1,6 +1,6 @@
 {
-  "name": "agent-studio",
-  "version": "0.1.0",
+  "name": "@aurite/aurite-studio",
+  "version": "0.2.0",
   "private": true,
   "dependencies": {
     "@aurite/api-client": "file:../api-client",

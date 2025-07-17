@@ -102,12 +102,137 @@ All successful requests return:
 }
 ```
 
+## Error Responses
+
+### Invalid Component Type (400 Bad Request)
+
+If you try to create a component with an invalid type:
+
+```bash
+curl -X POST "http://localhost:8000/config/components/invalid_type" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "test-component",
+    "config": {
+      "type": "invalid_type",
+      "description": "This will fail"
+    }
+  }'
+```
+
+Response:
+```json
+{
+  "detail": "Invalid component type 'invalid_type'. Valid types are: agent, llm, mcp_server, simple_workflow, custom_workflow"
+}
+```
+
+### Component Already Exists (409 Conflict)
+
+If you try to create a component that already exists:
+
+```json
+{
+  "detail": "Component 'my-agent' of type 'agents' already exists."
+}
+```
+
+### Configuration Validation Error (422 Unprocessable Entity)
+
+If the component configuration doesn't match the required schema:
+
+```bash
+curl -X POST "http://localhost:8000/config/components/agents" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "invalid-agent",
+    "config": {
+      "type": "agent",
+      "description": "Missing required fields"
+    }
+  }'
+```
+
+Response:
+```json
+{
+  "detail": "Component configuration validation failed: Field 'system_prompt': Field required"
+}
+```
+
+### Other Common Errors
+
+- **401 Unauthorized**: Missing or invalid API key
+- **422 Unprocessable Entity**: Configuration validation failed (see above)
+- **500 Internal Server Error**: Configuration context issues or file system errors
+
+## Custom File Path Specification
+
+You can specify exactly where the component should be stored using the `file_path` parameter:
+
+### Specify a Custom File Path
+
+```bash
+curl -X POST "http://localhost:8000/config/components/agents" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "custom-path-agent",
+    "config": {
+      "type": "agent",
+      "description": "Agent stored in custom location",
+      "system_prompt": "You are a helpful assistant",
+      "file_path": "custom/my_agents.json",
+      "max_iterations": 10
+    }
+  }'
+```
+
+### Specify Just a Filename
+
+If you only provide a filename (no path separators), it will be placed in the default component directory:
+
+```bash
+curl -X POST "http://localhost:8000/config/components/agents" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "custom-file-agent",
+    "config": {
+      "type": "agent",
+      "description": "Agent in custom file",
+      "system_prompt": "You are a helpful assistant",
+      "file_path": "my_custom_agents.yaml",
+      "max_iterations": 10
+    }
+  }'
+```
+
+### File Path Behavior
+
+- **Relative paths** (e.g., `"custom/agents.json"`) are relative to the configuration source directory
+- **Filename only** (e.g., `"my_agents.json"`) gets placed in the default `{component_type}s/` subdirectory
+- **Existing files**: If the file already exists, the component will be added to it
+- **New files**: If the file doesn't exist, it will be created (including any necessary parent directories)
+- **Supported formats**: `.json`, `.yaml`, and `.yml` files are supported
+
+### Default File Paths (when no file_path is specified)
+
+- **Agents**: `agents/agents.json`
+- **LLMs**: `llms/llms.json`
+- **MCP Servers**: `mcp_servers/mcp_servers.json`
+- **Simple Workflows**: `simple_workflows/simple_workflows.json`
+- **Custom Workflows**: `custom_workflows/custom_workflows.json`
+
 ## Key Improvements
 
 1. **Smart Auto-Detection**: When no `project` or `workspace` is specified, the system automatically uses the highest priority configuration source
 2. **Better Error Messages**: More helpful error messages when context cannot be determined
 3. **Flexible Context Specification**: Support for both explicit project names and workspace-level creation
-4. **Consistent Behavior**: Works the same way across all component types (agents, llms, mcp_servers, etc.)
+4. **Custom File Paths**: Specify exactly where components should be stored with the `file_path` parameter
+5. **Consistent Behavior**: Works the same way across all component types (agents, llms, mcp_servers, etc.)
 
 ## Priority Order
 

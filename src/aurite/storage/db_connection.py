@@ -55,7 +55,8 @@ def create_db_engine() -> Optional[Engine]:
         logger.info(f"SQLAlchemy engine created for {engine.url}.")
         return engine
     except Exception as e:
-        logger.error(f"Failed to create SQLAlchemy engine for URL {db_url}: {e}", exc_info=True)
+        sanitized_url = db_url.replace(f":{os.getenv('AURITE_DB_PASSWORD')}@", ":***@") if db_url else "N/A"
+        logger.error(f"Failed to create SQLAlchemy engine for URL {sanitized_url}: {e}", exc_info=True)
         return None
 
 

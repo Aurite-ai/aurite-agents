@@ -172,29 +172,61 @@ class AgentsService {
   // Map API client AgentConfig to local AgentConfig
   private mapToLocalAgentConfig(apiConfig: any): LocalAgentConfig {
     return {
+      // Core Identity
       name: apiConfig.name,
-      mcp_servers: apiConfig.mcp_servers,
-      system_prompt: apiConfig.system_prompt,
+      description: apiConfig.description,
+      
+      // LLM Configuration - CRITICAL: Include llm_config_id
+      llm_config_id: apiConfig.llm_config_id,
+      
+      // LLM Override Parameters
       model: apiConfig.model,
       temperature: apiConfig.temperature,
       max_tokens: apiConfig.max_tokens,
+      
+      // Behavior Control
+      system_prompt: apiConfig.system_prompt,
       max_iterations: apiConfig.max_iterations,
       include_history: apiConfig.include_history,
+      auto: apiConfig.auto,
+      
+      // Capability Management
+      mcp_servers: apiConfig.mcp_servers,
       exclude_components: apiConfig.exclude_components,
+      
+      // Framework Metadata (preserve if present)
+      _source_file: apiConfig._source_file,
+      _context_path: apiConfig._context_path,
+      _context_level: apiConfig._context_level,
+      _project_name: apiConfig._project_name,
+      _workspace_name: apiConfig._workspace_name,
     };
   }
 
   // Map local AgentConfig to API client AgentConfig
   private mapToApiAgentConfig(localConfig: LocalAgentConfig): any {
     return {
+      // Core Identity
+      type: 'agent',
       name: localConfig.name,
-      mcp_servers: localConfig.mcp_servers,
-      system_prompt: localConfig.system_prompt,
+      description: localConfig.description,
+      
+      // LLM Configuration - CRITICAL: Include llm_config_id
+      llm_config_id: localConfig.llm_config_id,
+      
+      // LLM Override Parameters
       model: localConfig.model,
       temperature: localConfig.temperature,
       max_tokens: localConfig.max_tokens,
+      
+      // Behavior Control
+      system_prompt: localConfig.system_prompt,
       max_iterations: localConfig.max_iterations,
       include_history: localConfig.include_history,
+      auto: localConfig.auto,
+      
+      // Capability Management
+      mcp_servers: localConfig.mcp_servers,
       exclude_components: localConfig.exclude_components,
     };
   }
