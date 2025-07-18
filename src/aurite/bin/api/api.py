@@ -37,7 +37,7 @@ from .routes import config_manager_routes, facade_routes, mcp_host_routes, syste
 # Hello
 # Configure logging
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=os.getenv("LOG_LEVEL", "DEBUG").upper(),
     format="%(asctime)s | %(levelname)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s",
 )
 logger = logging.getLogger(__name__)
