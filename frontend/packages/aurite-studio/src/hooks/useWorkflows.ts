@@ -57,6 +57,15 @@ export const useWorkflowConfig = (filename: string, enabled = true) => {
   });
 };
 
+// Hook to get workflow config by name (for editing) - similar to useLLMConfig
+export const useWorkflowConfigByName = (workflowName: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['workflow-config-by-name', workflowName],
+    queryFn: () => workflowsService.getWorkflowConfigByName(workflowName),
+    enabled: enabled && !!workflowName,
+  });
+};
+
 // Hook to create and register workflow
 export const useCreateWorkflow = () => {
   const queryClient = useQueryClient();
@@ -129,7 +138,7 @@ export const useExecuteWorkflow = () => {
   });
 };
 
-// Hook to get workflows with their configurations
+// Hook to get workflows with their configurations (following LLM pattern)
 export const useWorkflowsWithConfigs = () => {
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
   const { data: configs = [], isLoading: configsLoading } = useWorkflowConfigs();
@@ -142,8 +151,12 @@ export const useWorkflowsWithConfigs = () => {
     
     return {
       name: workflowName,
-      configFile,
+      description: undefined,
+      stepCount: 0,
+      stepPreview: configFile ? 'Configured and ready' : 'Configuration pending',
+      type: 'simple_workflow' as const,
       status: 'active' as const,
+      configFile,
     };
   });
 
@@ -152,6 +165,9 @@ export const useWorkflowsWithConfigs = () => {
     isLoading: workflowsLoading || configsLoading,
   };
 };
+
+// Alias for backward compatibility - now uses the simple pattern
+export const useWorkflowsWithFullConfigs = useWorkflowsWithConfigs;
 
 // Hook to get custom workflows with their configurations
 export const useCustomWorkflowsWithConfigs = () => {
@@ -172,6 +188,7 @@ export const useCustomWorkflowsWithConfigs = () => {
       name: workflowName,
       configFile,
       status: 'active' as const,
+      type: 'custom_workflow' as const,
     };
   });
 

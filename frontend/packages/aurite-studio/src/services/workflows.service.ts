@@ -1,6 +1,7 @@
 import apiClient from './apiClient';
 import { 
   WorkflowConfig,
+  WorkflowDisplayModel,
   CustomWorkflowConfig,
   ExecuteWorkflowRequest,
   ExecuteCustomWorkflowRequest,
@@ -75,6 +76,17 @@ class WorkflowsService {
       return this.mapToLocalWorkflowConfig(config);
     } catch (error) {
       this.handleError(error, `Failed to get workflow configuration ${filename}`);
+      throw error;
+    }
+  }
+
+  // Get workflow configuration by name (for editing) - similar to LLM config pattern
+  async getWorkflowConfigByName(workflowName: string): Promise<WorkflowConfig> {
+    try {
+      const config = await apiClient.config.getConfig('simple_workflow', workflowName);
+      return this.mapToLocalWorkflowConfig(config);
+    } catch (error) {
+      this.handleError(error, `Failed to get workflow configuration for ${workflowName}`);
       throw error;
     }
   }
@@ -237,7 +249,8 @@ class WorkflowsService {
   private mapToLocalWorkflowConfig(apiConfig: any): WorkflowConfig {
     return {
       name: apiConfig.name,
-      steps: apiConfig.steps,
+      type: "simple_workflow",
+      steps: apiConfig.steps || [],
       description: apiConfig.description,
     };
   }
@@ -246,8 +259,27 @@ class WorkflowsService {
   private mapToApiWorkflowConfig(localConfig: WorkflowConfig): any {
     return {
       name: localConfig.name,
-      steps: localConfig.steps,
+      type: "simple_workflow",
+      steps: localConfig.steps || [],
       description: localConfig.description,
+    };
+  }
+
+  // Helper to create WorkflowDisplayModel from WorkflowConfig
+  private createDisplayModel(config: WorkflowConfig, configFile?: string): WorkflowDisplayModel {
+    const stepCount = config.steps?.length || 0;
+    const stepPreview = stepCount > 0 
+      ? config.steps.slice(0, 3).join(' → ') + (stepCount > 3 ? ' ...' : '')
+      : 'No steps configured';
+
+    return {
+      name: config.name,
+      description: config.description,
+      stepCount,
+      stepPreview,
+      type: 'simple_workflow',
+      status: 'active',
+      configFile,
     };
   }
 

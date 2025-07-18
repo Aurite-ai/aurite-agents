@@ -72,8 +72,20 @@ export interface AgentExecutionResult {
 // Workflow types
 export interface WorkflowConfig {
   name: string;
+  type: "simple_workflow";
   steps: string[];
   description?: string;
+}
+
+// Runtime information for UI display
+export interface WorkflowDisplayModel {
+  name: string;
+  description?: string;
+  stepCount: number;
+  stepPreview: string; // "Agent A → Agent B → Agent C"
+  type: 'simple_workflow' | 'custom_workflow';
+  status: 'active' | 'inactive' | 'error';
+  configFile?: string;
 }
 
 export interface CustomWorkflowConfig {
