@@ -17,7 +17,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
-import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow } from '@/hooks/useWorkflows';
+import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow, useExecuteWorkflow } from '@/hooks/useWorkflows';
 import { useQueryClient } from '@tanstack/react-query';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
@@ -204,6 +204,7 @@ function App() {
   const createWorkflow = useCreateWorkflow();
   const updateWorkflow = useUpdateWorkflow();
   const deleteWorkflow = useDeleteWorkflow();
+  const executeWorkflow = useExecuteWorkflow();
   
   // Query client for cache invalidation
   const queryClient = useQueryClient();
@@ -1651,8 +1652,25 @@ function App() {
                       <Edit className="h-3.5 w-3.5" />
                       Edit
                     </Button>
-                    <Button size="sm" className="gap-1.5">
-                      <Play className="h-3.5 w-3.5" />
+                    <Button 
+                      size="sm" 
+                      className="gap-1.5"
+                      onClick={() => {
+                        const initialInput = prompt(`Enter initial input for workflow "${workflowName}":`);
+                        if (initialInput) {
+                          executeWorkflow.mutate({
+                            workflowName: workflowName,
+                            request: { initial_user_message: initialInput }
+                          });
+                        }
+                      }}
+                      disabled={executeWorkflow.isPending}
+                    >
+                      {executeWorkflow.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
                       Run
                     </Button>
                   </div>
