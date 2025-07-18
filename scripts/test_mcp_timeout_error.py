@@ -76,6 +76,8 @@ async def test_timeout_error():
 
 async def test_api_endpoint():
     """Test the actual API endpoint if the server is running."""
+    import os
+
     import httpx
 
     # Check if API server is running
@@ -94,14 +96,15 @@ async def test_api_endpoint():
             # Create test config with timeout
             test_config = {
                 "name": "test-timeout-server",
-                "transport_type": "stdio",
-                "server_path": "/nonexistent/path/to/server.py",
+                "transport_type": "local",
+                "command": "sleep",  # This will hang indefinitely
+                "args": ["60"],  # Sleep for 60 seconds
                 "capabilities": ["tools"],  # Required field
                 "registration_timeout": 0.1,
             }
-
-            # Assuming API key is "test" for local testing
-            headers = {"X-API-Key": "test"}
+            # Get API key from environment or use "test" as default for local testing
+            api_key = os.environ.get("API_KEY", "test")
+            headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
 
             try:
                 response = await client.post(f"{api_url}/tools/register/config", json=test_config, headers=headers)
