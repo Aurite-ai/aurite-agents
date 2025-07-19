@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import workflowsService from '../services/workflows.service';
 import { WorkflowConfig, ExecuteWorkflowRequest } from '../types';
@@ -122,20 +123,41 @@ export const useDeleteWorkflow = () => {
 
 // Hook to execute workflow
 export const useExecuteWorkflow = () => {
-  return useMutation({
+  const [executingWorkflows, setExecutingWorkflows] = useState<Set<string>>(new Set());
+
+  const executeMutation = useMutation({
     mutationFn: ({ workflowName, request }: { workflowName: string; request: ExecuteWorkflowRequest }) =>
       workflowsService.executeWorkflow(workflowName, request),
-    onSuccess: (data) => {
+    onMutate: ({ workflowName }) => {
+      setExecutingWorkflows(prev => new Set(prev).add(workflowName));
+    },
+    onSuccess: (data, { workflowName }) => {
       if (data.status === 'failed') {
         toast.error(`Workflow failed: ${data.error || 'Unknown error'}`);
       } else {
         toast.success('Workflow executed successfully');
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, { workflowName }) => {
       toast.error(error.response?.data?.detail || 'Failed to execute workflow');
     },
+    onSettled: (data, error, { workflowName }) => {
+      setExecutingWorkflows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(workflowName);
+        return newSet;
+      });
+    },
   });
+
+  const isWorkflowExecuting = (workflowName: string) => executingWorkflows.has(workflowName);
+
+  return {
+    ...executeMutation,
+    isWorkflowExecuting,
+    // Keep backward compatibility
+    isExecuting: executingWorkflows.size > 0,
+  };
 };
 
 // Hook to get workflows with their configurations (following LLM pattern)

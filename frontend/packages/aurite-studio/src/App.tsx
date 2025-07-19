@@ -1664,9 +1664,9 @@ function App() {
                           });
                         }
                       }}
-                      disabled={executeWorkflow.isPending}
+                      disabled={executeWorkflow.isWorkflowExecuting(workflowName)}
                     >
-                      {executeWorkflow.isPending ? (
+                      {executeWorkflow.isWorkflowExecuting(workflowName) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Play className="h-3.5 w-3.5" />
