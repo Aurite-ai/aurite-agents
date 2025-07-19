@@ -174,7 +174,7 @@ class WorkflowsService {
         initial_input: request.initial_user_message,
       };
       
-      const result: WorkflowExecutionResult = await apiClient.execution.runSimpleWorkflow(workflowName, apiRequest);
+      const result = await apiClient.execution.runSimpleWorkflow(workflowName, apiRequest);
       
       return this.mapToLocalWorkflowResponse(workflowName, result);
     } catch (error) {
@@ -193,7 +193,7 @@ class WorkflowsService {
         initial_input: request.initial_input,
       };
       
-      const result: WorkflowExecutionResult = await apiClient.execution.runCustomWorkflow(workflowName, apiRequest);
+      const result = await apiClient.execution.runCustomWorkflow(workflowName, apiRequest);
       
       return this.mapToLocalCustomWorkflowResponse(workflowName, result);
     } catch (error) {
@@ -294,22 +294,22 @@ class WorkflowsService {
   }
 
   // Map API client WorkflowExecutionResult to local ExecuteWorkflowResponse
-  private mapToLocalWorkflowResponse(workflowName: string, apiResult: WorkflowExecutionResult): ExecuteWorkflowResponse {
+  private mapToLocalWorkflowResponse(workflowName: string, apiResult: any): ExecuteWorkflowResponse {
     return {
       workflow_name: workflowName,
-      status: apiResult.status === 'success' ? 'completed' : 'failed',
+      status: apiResult.status === 'completed' ? 'completed' : 'failed',
       final_message: apiResult.final_output?.toString(),
-      error: apiResult.error_message || null,
+      error: apiResult.error || null,
     };
   }
 
   // Map API client WorkflowExecutionResult to local ExecuteCustomWorkflowResponse
-  private mapToLocalCustomWorkflowResponse(workflowName: string, apiResult: WorkflowExecutionResult): ExecuteCustomWorkflowResponse {
+  private mapToLocalCustomWorkflowResponse(workflowName: string, apiResult: any): ExecuteCustomWorkflowResponse {
     return {
       workflow_name: workflowName,
-      status: apiResult.status === 'success' ? 'completed' : 'failed',
+      status: apiResult.status === 'completed' ? 'completed' : 'failed',
       result: apiResult.final_output,
-      error: apiResult.error_message || null,
+      error: apiResult.error || null,
     };
   }
 }
