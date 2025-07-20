@@ -38,30 +38,19 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
 
   // Extract tool calls from conversation history for non-streaming executions
   const extractToolCallsFromConversationHistory = (history: any[]): ToolCall[] => {
-    console.log('🔍 DEBUG: Starting tool call extraction from history:', history);
-    
     const toolCalls: ToolCall[] = [];
     const toolCallMap = new Map<string, Partial<ToolCall>>();
 
     history.forEach((message, index) => {
-      console.log(`🔍 DEBUG: Processing message ${index}:`, message);
-      
       // Find assistant messages with tool calls
       if (message.role === 'assistant' && message.tool_calls) {
-        console.log('🔍 DEBUG: Found assistant message with tool calls:', message.tool_calls);
-        
         message.tool_calls.forEach((toolCall: any) => {
-          console.log('🔍 DEBUG: Processing tool call:', toolCall);
-          
           const id = toolCall.id;
           const name = toolCall.function?.name || 'unknown_tool';
           let parameters = {};
           
-          console.log(`🔍 DEBUG: Tool call - id: ${id}, name: ${name}`);
-          
           try {
             parameters = JSON.parse(toolCall.function?.arguments || '{}');
-            console.log('🔍 DEBUG: Parsed parameters:', parameters);
           } catch (e) {
             console.warn('Failed to parse tool call arguments:', toolCall.function?.arguments);
             parameters = { raw_arguments: toolCall.function?.arguments };
@@ -75,17 +64,13 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
             start_time: new Date(Date.now() - (history.length - index) * 1000) // Estimate timing
           };
           
-          console.log('🔍 DEBUG: Adding tool call to map:', toolCallData);
           toolCallMap.set(id, toolCallData);
         });
       }
 
       // Find tool response messages
       if (message.role === 'tool' && message.tool_call_id) {
-        console.log('🔍 DEBUG: Found tool response message:', message);
-        
         const toolCall = toolCallMap.get(message.tool_call_id);
-        console.log('🔍 DEBUG: Found matching tool call:', toolCall);
         
         if (toolCall) {
           let result = message.content;
@@ -93,10 +78,8 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
           // Try to parse JSON content
           try {
             result = JSON.parse(message.content);
-            console.log('🔍 DEBUG: Parsed tool result:', result);
           } catch (e) {
             // Keep as string if not valid JSON
-            console.log('🔍 DEBUG: Keeping tool result as string:', result);
             result = message.content;
           }
 
@@ -107,18 +90,13 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
             result
           };
           
-          console.log('🔍 DEBUG: Updating tool call with result:', updatedToolCall);
           toolCallMap.set(message.tool_call_id, updatedToolCall);
         }
       }
     });
 
-    console.log('🔍 DEBUG: Final tool call map:', toolCallMap);
-
     // Convert map to array and calculate durations
     toolCallMap.forEach((toolCall) => {
-      console.log('🔍 DEBUG: Processing tool call for final array:', toolCall);
-      
       if (toolCall.id && toolCall.name && toolCall.parameters !== undefined) {
         const duration_ms = toolCall.start_time && toolCall.end_time 
           ? toolCall.end_time.getTime() - toolCall.start_time.getTime()
@@ -135,14 +113,10 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
           result: toolCall.result
         };
         
-        console.log('🔍 DEBUG: Adding final tool call:', finalToolCall);
         toolCalls.push(finalToolCall);
-      } else {
-        console.log('🔍 DEBUG: Skipping incomplete tool call:', toolCall);
       }
     });
 
-    console.log('🔍 DEBUG: Final extracted tool calls:', toolCalls);
     return toolCalls;
   };
 
