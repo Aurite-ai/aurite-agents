@@ -22,6 +22,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
 import { MCPClientCard } from '@/components/MCPClientCard';
+import { UnifiedExecutionInterface } from '@/components/execution/UnifiedExecutionInterface';
+import { AgentConfig } from '@/types/execution';
 
 const sidebarItems = [
   { icon: Home, label: 'Home', id: 'home' },
@@ -140,6 +142,12 @@ function App() {
   const [editingWorkflow, setEditingWorkflow] = useState<any>(null);
   const [showWorkflowDeleteConfirmation, setShowWorkflowDeleteConfirmation] = useState(false);
   const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
+  
+  // Execution Interface State
+  const [executionInterface, setExecutionInterface] = useState<{
+    isOpen: boolean;
+    agentName: string | null;
+  }>({ isOpen: false, agentName: null });
   
   const { theme, toggleTheme } = useTheme();
 
@@ -1282,13 +1290,32 @@ function App() {
                       size="sm" 
                       className="gap-1.5"
                       onClick={() => {
-                        const userMessage = prompt(`Enter message for ${agentName}:`);
-                        if (userMessage) {
-                          executeAgent.mutate({
-                            agentName: agentName,
-                            request: { user_message: userMessage }
-                          });
-                        }
+                        // Convert agent to AgentConfig format for the execution interface
+                        const agentConfig: AgentConfig = {
+                          type: 'agent',
+                          name: agentName,
+                          description: (agent as any).fullConfig?.description || 'Agent configuration',
+                          llm_config_id: (agent as any).fullConfig?.llm_config_id,
+                          model: (agent as any).fullConfig?.model,
+                          temperature: (agent as any).fullConfig?.temperature,
+                          max_tokens: (agent as any).fullConfig?.max_tokens,
+                          system_prompt: (agent as any).fullConfig?.system_prompt,
+                          max_iterations: (agent as any).fullConfig?.max_iterations,
+                          include_history: (agent as any).fullConfig?.include_history,
+                          auto: (agent as any).fullConfig?.auto,
+                          mcp_servers: (agent as any).fullConfig?.mcp_servers,
+                          exclude_components: (agent as any).fullConfig?.exclude_components,
+                          _source_file: agent.configFile,
+                          _context_path: (agent as any).fullConfig?._context_path,
+                          _context_level: (agent as any).fullConfig?._context_level,
+                          _project_name: (agent as any).fullConfig?._project_name,
+                          _workspace_name: (agent as any).fullConfig?._workspace_name
+                        };
+                        
+                        setExecutionInterface({
+                          isOpen: true,
+                          agentName: agentName
+                        });
                       }}
                       disabled={executeAgent.isAgentExecuting(agentName)}
                     >
@@ -3026,6 +3053,13 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Unified Execution Interface */}
+      <UnifiedExecutionInterface
+        agentName={executionInterface.agentName}
+        isOpen={executionInterface.isOpen}
+        onClose={() => setExecutionInterface({ isOpen: false, agentName: null })}
+      />
     </div>
   );
 }
