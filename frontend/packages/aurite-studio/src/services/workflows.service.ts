@@ -102,6 +102,17 @@ class WorkflowsService {
     }
   }
 
+  // Get custom workflow configuration by name (for editing)
+  async getCustomWorkflowConfigByName(workflowName: string): Promise<CustomWorkflowConfig> {
+    try {
+      const config = await apiClient.config.getConfig('custom_workflow', workflowName);
+      return this.mapToLocalCustomWorkflowConfig(config);
+    } catch (error) {
+      this.handleError(error, `Failed to get custom workflow configuration for ${workflowName}`);
+      throw error;
+    }
+  }
+
   // Create new workflow configuration
   async createWorkflowConfig(filename: string, config: WorkflowConfig): Promise<WorkflowConfig> {
     try {
@@ -126,12 +137,34 @@ class WorkflowsService {
     }
   }
 
+  // Update custom workflow configuration
+  async updateCustomWorkflowConfig(filename: string, config: CustomWorkflowConfig): Promise<CustomWorkflowConfig> {
+    try {
+      const apiConfig = this.mapToApiCustomWorkflowConfig(config);
+      const result = await apiClient.config.updateConfig('custom_workflow', filename, apiConfig);
+      return this.mapToLocalCustomWorkflowConfig(result);
+    } catch (error) {
+      this.handleError(error, `Failed to update custom workflow configuration ${filename}`);
+      throw error;
+    }
+  }
+
   // Delete workflow configuration
   async deleteWorkflowConfig(filename: string): Promise<void> {
     try {
       await apiClient.config.deleteConfig('simple_workflow', filename);
     } catch (error) {
       this.handleError(error, `Failed to delete workflow configuration ${filename}`);
+      throw error;
+    }
+  }
+
+  // Delete custom workflow configuration
+  async deleteCustomWorkflowConfig(filename: string): Promise<void> {
+    try {
+      await apiClient.config.deleteConfig('custom_workflow', filename);
+    } catch (error) {
+      this.handleError(error, `Failed to delete custom workflow configuration ${filename}`);
       throw error;
     }
   }
@@ -293,6 +326,17 @@ class WorkflowsService {
     };
   }
 
+  // Map local CustomWorkflowConfig to API client CustomWorkflowConfig
+  private mapToApiCustomWorkflowConfig(localConfig: CustomWorkflowConfig): any {
+    return {
+      name: localConfig.name,
+      type: "custom_workflow",
+      class_name: localConfig.class_name,
+      module_path: localConfig.module_path,
+      description: localConfig.description,
+    };
+  }
+
   // Map API client WorkflowExecutionResult to local ExecuteWorkflowResponse
   private mapToLocalWorkflowResponse(workflowName: string, apiResult: any): ExecuteWorkflowResponse {
     return {
@@ -305,10 +349,16 @@ class WorkflowsService {
 
   // Map API client WorkflowExecutionResult to local ExecuteCustomWorkflowResponse
   private mapToLocalCustomWorkflowResponse(workflowName: string, apiResult: any): ExecuteCustomWorkflowResponse {
+    // Handle the actual API response format from custom workflow execution
+    // Backend returns: { status: "ok", response: "..." } for success
+    // Backend returns: { status: "error", error: "..." } for failure
+    
+    const isSuccess = apiResult.status === 'ok' || apiResult.status === 'completed';
+    
     return {
       workflow_name: workflowName,
-      status: apiResult.status === 'completed' ? 'completed' : 'failed',
-      result: apiResult.final_output,
+      status: isSuccess ? 'completed' : 'failed',
+      result: apiResult.response || apiResult.final_output || apiResult.result,
       error: apiResult.error || null,
     };
   }

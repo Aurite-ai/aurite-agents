@@ -17,7 +17,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
-import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow, useExecuteWorkflow } from '@/hooks/useWorkflows';
+import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow, useExecuteWorkflow, useExecuteCustomWorkflow, useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow } from '@/hooks/useWorkflows';
 import { useQueryClient } from '@tanstack/react-query';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
@@ -148,6 +148,11 @@ function App() {
     isOpen: boolean;
     agentName: string | null;
   }>({ isOpen: false, agentName: null });
+  // Custom workflow edit state
+  const [showCustomWorkflowForm, setShowCustomWorkflowForm] = useState(false);
+  const [customWorkflowModulePath, setCustomWorkflowModulePath] = useState('');
+  const [customWorkflowClassName, setCustomWorkflowClassName] = useState('');
+  const [customWorkflowFormPopulated, setCustomWorkflowFormPopulated] = useState(false);
   
   const { theme, toggleTheme } = useTheme();
 
@@ -192,7 +197,7 @@ function App() {
   // Hook for fetching workflow config - only enabled when we have a workflow name and are in edit mode
   const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
     editingWorkflow?.name || '',
-    !!editingWorkflow?.name && showWorkflowForm
+    !!editingWorkflow?.name && showWorkflowForm && editingWorkflow?.type !== 'custom_workflow'
   );
 
   // Hook for updating MCP client configuration
@@ -213,6 +218,15 @@ function App() {
   const updateWorkflow = useUpdateWorkflow();
   const deleteWorkflow = useDeleteWorkflow();
   const executeWorkflow = useExecuteWorkflow();
+  const executeCustomWorkflow = useExecuteCustomWorkflow();
+  
+  // Custom workflow hooks
+  const { data: customWorkflowConfig, isLoading: customWorkflowConfigLoading } = useCustomWorkflowConfigByName(
+    editingWorkflow?.name || '',
+    !!editingWorkflow?.name && showCustomWorkflowForm && editingWorkflow?.type === 'custom_workflow'
+  );
+  const updateCustomWorkflow = useUpdateCustomWorkflow();
+  const deleteCustomWorkflow = useDeleteCustomWorkflow();
   
   // Query client for cache invalidation
   const queryClient = useQueryClient();
@@ -793,10 +807,29 @@ function App() {
       // Mark form as populated to prevent re-population
       setWorkflowFormPopulated(true);
       console.log('✅ Workflow form populated successfully');
-    } else if (editingWorkflow && !workflowConfig && !workflowConfigLoading) {
+    } else if (editingWorkflow && editingWorkflow.type !== 'custom_workflow' && !workflowConfig && !workflowConfigLoading) {
       console.log('❌ Failed to load workflow config for:', editingWorkflow);
     }
   }, [workflowConfig, editingWorkflow, workflowConfigLoading, workflowFormPopulated]);
+
+  // Effect to populate custom workflow form when custom workflow config is loaded
+  React.useEffect(() => {
+    if (customWorkflowConfig && editingWorkflow && !customWorkflowFormPopulated && editingWorkflow.type === 'custom_workflow') {
+      console.log('🔄 Populating custom workflow form with config:', customWorkflowConfig);
+      
+      // Populate custom workflow form fields
+      setWorkflowName(customWorkflowConfig.name || '');
+      setWorkflowDescription(customWorkflowConfig.description || '');
+      setCustomWorkflowModulePath(customWorkflowConfig.module_path || '');
+      setCustomWorkflowClassName(customWorkflowConfig.class_name || '');
+      
+      // Mark form as populated to prevent re-population
+      setCustomWorkflowFormPopulated(true);
+      console.log('✅ Custom workflow form populated successfully');
+    } else if (editingWorkflow && editingWorkflow.type === 'custom_workflow' && !customWorkflowConfig && !customWorkflowConfigLoading) {
+      console.log('❌ Failed to load custom workflow config for:', editingWorkflow);
+    }
+  }, [customWorkflowConfig, editingWorkflow, customWorkflowConfigLoading, customWorkflowFormPopulated]);
 
   const renderAgentForm = () => (
     <motion.div
@@ -1336,6 +1369,212 @@ function App() {
     );
   };
 
+  const renderCustomWorkflowForm = () => (
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-4xl mx-auto space-y-8"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowCustomWorkflowForm(false)}
+          className="w-9 h-9"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-3xl font-bold text-primary">
+          Edit Custom Workflow
+        </h1>
+      </div>
+
+      {/* Loading State for Custom Workflow Config */}
+      {customWorkflowConfigLoading && editingWorkflow && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading custom workflow configuration...
+        </div>
+      )}
+
+      {/* Basic Details Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Basic Details</h2>
+        
+        {/* Workflow Name */}
+        <div className="space-y-2">
+          <Label htmlFor="custom-workflow-name" className="text-sm font-medium text-foreground">Workflow Name</Label>
+          <Input
+            id="custom-workflow-name"
+            placeholder="e.g., Data Processing Workflow"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            className="text-base"
+          />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="custom-workflow-description" className="text-sm font-medium text-foreground">Description (Optional)</Label>
+          <Textarea
+            id="custom-workflow-description"
+            placeholder="Brief description of what this workflow does"
+            value={workflowDescription}
+            onChange={(e) => setWorkflowDescription(e.target.value)}
+            className="min-h-[80px] resize-none"
+          />
+        </div>
+      </motion.div>
+
+      {/* Python Implementation Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Python Implementation</h2>
+        
+        <div className="space-y-4">
+          {/* Module Path */}
+          <div className="space-y-2">
+            <Label htmlFor="module-path" className="text-sm font-medium text-foreground">Module Path *</Label>
+            <Input
+              id="module-path"
+              placeholder="e.g., custom_workflows.data_processing"
+              value={customWorkflowModulePath}
+              onChange={(e) => setCustomWorkflowModulePath(e.target.value)}
+              className="text-base"
+            />
+            <p className="text-xs text-muted-foreground">
+              Python module path containing your workflow class
+            </p>
+          </div>
+
+          {/* Class Name */}
+          <div className="space-y-2">
+            <Label htmlFor="class-name" className="text-sm font-medium text-foreground">Class Name *</Label>
+            <Input
+              id="class-name"
+              placeholder="e.g., DataProcessingWorkflow"
+              value={customWorkflowClassName}
+              onChange={(e) => setCustomWorkflowClassName(e.target.value)}
+              className="text-base"
+            />
+            <p className="text-xs text-muted-foreground">
+              Name of the class implementing the workflow interface
+            </p>
+          </div>
+
+          {/* Requirements Help Text */}
+          <div className="p-4 bg-muted/20 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">Requirements:</h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Class must inherit from BaseCustomWorkflow</li>
+              <li>• Implement the execute() method</li>
+              <li>• Module must be importable from the Python path</li>
+            </ul>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Action Buttons */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="flex justify-between"
+      >
+        {/* Delete Button - Only show in edit mode */}
+        {editingWorkflow && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowWorkflowDeleteConfirmation(true)}
+            disabled={deleteCustomWorkflow.isPending}
+          >
+            {deleteCustomWorkflow.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Workflow'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingWorkflow && <div />}
+        
+        <Button 
+          className="px-8"
+          onClick={() => {
+            // Build the custom workflow config object from form state
+            const customWorkflowConfig = {
+              name: workflowName,
+              type: "custom_workflow" as const,
+              module_path: customWorkflowModulePath,
+              class_name: customWorkflowClassName,
+              description: workflowDescription || undefined
+            };
+
+            console.log('💾 Saving custom workflow config:', customWorkflowConfig);
+
+            if (editingWorkflow && editingWorkflow.name) {
+              // Edit mode - update existing custom workflow using PUT method
+              updateCustomWorkflow.mutate({
+                filename: editingWorkflow.name,
+                config: customWorkflowConfig
+              }, {
+                onSuccess: () => {
+                  console.log('✅ Custom workflow updated successfully');
+                  
+                  // Invalidate custom workflow config cache to force fresh data load
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['custom-workflow-config-by-name', editingWorkflow.name] 
+                  });
+                  
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setCustomWorkflowModulePath('');
+                  setCustomWorkflowClassName('');
+                  setCustomWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowCustomWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to update custom workflow:', error);
+                }
+              });
+            }
+          }}
+          disabled={updateCustomWorkflow.isPending || !workflowName.trim() || !customWorkflowModulePath.trim() || !customWorkflowClassName.trim()}
+        >
+          {updateCustomWorkflow.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Updating...
+            </>
+          ) : (
+            'Update Custom Workflow'
+          )}
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+
   const renderWorkflowForm = () => (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
@@ -1576,6 +1815,10 @@ function App() {
       return renderWorkflowForm();
     }
 
+    if (showCustomWorkflowForm) {
+      return renderCustomWorkflowForm();
+    }
+
     const isLoading = workflowsLoading || customWorkflowsLoading;
     const allWorkflows = [...workflows, ...customWorkflows];
 
@@ -1665,15 +1908,29 @@ function App() {
                       size="sm" 
                       className="gap-1.5" 
                       onClick={() => {
-                        // Reset workflow form state
-                        setWorkflowName('');
-                        setWorkflowDescription('');
-                        setWorkflowSteps([]);
-                        setWorkflowFormPopulated(false);
-                        
-                        // Set editing workflow and show form
-                        setEditingWorkflow({ name: workflowName, configFile: workflow.configFile });
-                        setShowWorkflowForm(true);
+                        if (workflow.type === 'custom_workflow') {
+                          // Reset custom workflow form state
+                          setWorkflowName('');
+                          setWorkflowDescription('');
+                          setCustomWorkflowModulePath('');
+                          setCustomWorkflowClassName('');
+                          setCustomWorkflowFormPopulated(false);
+                          
+                          // Set editing workflow and show custom form
+                          // For custom workflows, use the workflow name as the identifier since the API expects the component name
+                          setEditingWorkflow({ name: workflowName, configFile: workflowName, type: 'custom_workflow' });
+                          setShowCustomWorkflowForm(true);
+                        } else {
+                          // Reset simple workflow form state
+                          setWorkflowName('');
+                          setWorkflowDescription('');
+                          setWorkflowSteps([]);
+                          setWorkflowFormPopulated(false);
+                          
+                          // Set editing workflow and show simple form
+                          setEditingWorkflow({ name: workflowName, configFile: workflow.configFile, type: 'simple_workflow' });
+                          setShowWorkflowForm(true);
+                        }
                       }}
                     >
                       <Edit className="h-3.5 w-3.5" />
@@ -1685,15 +1942,29 @@ function App() {
                       onClick={() => {
                         const initialInput = prompt(`Enter initial input for workflow "${workflowName}":`);
                         if (initialInput) {
-                          executeWorkflow.mutate({
-                            workflowName: workflowName,
-                            request: { initial_user_message: initialInput }
-                          });
+                          if (workflow.type === 'custom_workflow') {
+                            executeCustomWorkflow.mutate({
+                              workflowName: workflowName,
+                              request: { initial_input: initialInput }
+                            });
+                          } else {
+                            executeWorkflow.mutate({
+                              workflowName: workflowName,
+                              request: { initial_user_message: initialInput }
+                            });
+                          }
                         }
                       }}
-                      disabled={executeWorkflow.isWorkflowExecuting(workflowName)}
+                      disabled={
+                        workflow.type === 'custom_workflow' 
+                          ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
+                          : executeWorkflow.isWorkflowExecuting(workflowName)
+                      }
                     >
-                      {executeWorkflow.isWorkflowExecuting(workflowName) ? (
+                      {(workflow.type === 'custom_workflow' 
+                        ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
+                        : executeWorkflow.isWorkflowExecuting(workflowName)
+                      ) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Play className="h-3.5 w-3.5" />
@@ -3021,25 +3292,43 @@ function App() {
                   variant="destructive"
                   onClick={() => {
                     if (editingWorkflow && editingWorkflow.name) {
-                      deleteWorkflow.mutate(editingWorkflow.name, {
-                        onSuccess: () => {
-                          setShowWorkflowDeleteConfirmation(false);
-                          setShowWorkflowForm(false);
-                          setEditingWorkflow(null);
-                          setActiveTab('workflows');
-                          // Reset form state
-                          setWorkflowName('');
-                          setWorkflowDescription('');
-                          setWorkflowSteps([]);
-                          setSelectedAgentToAdd('');
-                          setWorkflowFormPopulated(false);
-                        }
-                      });
+                      // Use the correct delete hook based on workflow type
+                      if (editingWorkflow.type === 'custom_workflow') {
+                        deleteCustomWorkflow.mutate(editingWorkflow.name, {
+                          onSuccess: () => {
+                            setShowWorkflowDeleteConfirmation(false);
+                            setShowCustomWorkflowForm(false);
+                            setEditingWorkflow(null);
+                            setActiveTab('workflows');
+                            // Reset custom workflow form state
+                            setWorkflowName('');
+                            setWorkflowDescription('');
+                            setCustomWorkflowModulePath('');
+                            setCustomWorkflowClassName('');
+                            setCustomWorkflowFormPopulated(false);
+                          }
+                        });
+                      } else {
+                        deleteWorkflow.mutate(editingWorkflow.name, {
+                          onSuccess: () => {
+                            setShowWorkflowDeleteConfirmation(false);
+                            setShowWorkflowForm(false);
+                            setEditingWorkflow(null);
+                            setActiveTab('workflows');
+                            // Reset simple workflow form state
+                            setWorkflowName('');
+                            setWorkflowDescription('');
+                            setWorkflowSteps([]);
+                            setSelectedAgentToAdd('');
+                            setWorkflowFormPopulated(false);
+                          }
+                        });
+                      }
                     }
                   }}
-                  disabled={deleteWorkflow.isPending}
+                  disabled={deleteWorkflow.isPending || deleteCustomWorkflow.isPending}
                 >
-                  {deleteWorkflow.isPending ? (
+                  {(deleteWorkflow.isPending || deleteCustomWorkflow.isPending) ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Deleting...
