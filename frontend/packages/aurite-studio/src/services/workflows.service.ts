@@ -204,7 +204,8 @@ class WorkflowsService {
   ): Promise<ExecuteWorkflowResponse> {
     try {
       const apiRequest: WorkflowRunRequest = {
-        initial_input: request.initial_user_message,
+        initial_input: request.initial_input,
+        session_id: request.session_id,
       };
       
       const result = await apiClient.execution.runSimpleWorkflow(workflowName, apiRequest);

@@ -19,11 +19,14 @@ import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow, useExecuteWorkflow, useExecuteCustomWorkflow, useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow } from '@/hooks/useWorkflows';
 import { useQueryClient } from '@tanstack/react-query';
+import workflowsService from '@/services/workflows.service';
+import toast from 'react-hot-toast';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
 import { MCPClientCard } from '@/components/MCPClientCard';
 import { UnifiedExecutionInterface } from '@/components/execution/UnifiedExecutionInterface';
-import { AgentConfig } from '@/types/execution';
+import { UnifiedWorkflowExecutionInterface } from '@/components/execution/UnifiedWorkflowExecutionInterface';
+import { AgentConfig, WorkflowConfig } from '@/types/execution';
 
 const sidebarItems = [
   { icon: Home, label: 'Home', id: 'home' },
@@ -148,6 +151,12 @@ function App() {
     isOpen: boolean;
     agentName: string | null;
   }>({ isOpen: false, agentName: null });
+  
+  // Workflow Execution Interface State
+  const [workflowExecutionInterface, setWorkflowExecutionInterface] = useState<{
+    isOpen: boolean;
+    workflow: WorkflowConfig | null;
+  }>({ isOpen: false, workflow: null });
   // Custom workflow edit state
   const [showCustomWorkflowForm, setShowCustomWorkflowForm] = useState(false);
   const [customWorkflowModulePath, setCustomWorkflowModulePath] = useState('');
@@ -1939,20 +1948,39 @@ function App() {
                     <Button 
                       size="sm" 
                       className="gap-1.5"
-                      onClick={() => {
-                        const initialInput = prompt(`Enter initial input for workflow "${workflowName}":`);
-                        if (initialInput) {
+                      onClick={async () => {
+                        try {
+                          // Fetch the actual workflow configuration to get the steps
+                          let workflowConfig: WorkflowConfig;
+                          
                           if (workflow.type === 'custom_workflow') {
-                            executeCustomWorkflow.mutate({
-                              workflowName: workflowName,
-                              request: { initial_input: initialInput }
-                            });
+                            const config = await workflowsService.getCustomWorkflowConfigByName(workflowName);
+                            workflowConfig = {
+                              type: 'custom_workflow',
+                              name: workflowName,
+                              description: config.description,
+                              module_path: config.module_path,
+                              class_name: config.class_name,
+                              _source_file: workflow.configFile,
+                            };
                           } else {
-                            executeWorkflow.mutate({
-                              workflowName: workflowName,
-                              request: { initial_user_message: initialInput }
-                            });
+                            const config = await workflowsService.getWorkflowConfigByName(workflowName);
+                            workflowConfig = {
+                              type: 'simple_workflow',
+                              name: workflowName,
+                              description: config.description,
+                              steps: config.steps || [],
+                              _source_file: workflow.configFile,
+                            };
                           }
+                          
+                          setWorkflowExecutionInterface({
+                            isOpen: true,
+                            workflow: workflowConfig
+                          });
+                        } catch (error) {
+                          console.error('Failed to load workflow configuration:', error);
+                          toast.error('Failed to load workflow configuration');
                         }
                       }}
                       disabled={
@@ -3348,6 +3376,13 @@ function App() {
         agentName={executionInterface.agentName}
         isOpen={executionInterface.isOpen}
         onClose={() => setExecutionInterface({ isOpen: false, agentName: null })}
+      />
+
+      {/* Unified Workflow Execution Interface */}
+      <UnifiedWorkflowExecutionInterface
+        workflow={workflowExecutionInterface.workflow}
+        isOpen={workflowExecutionInterface.isOpen}
+        onClose={() => setWorkflowExecutionInterface({ isOpen: false, workflow: null })}
       />
     </div>
   );
