@@ -159,6 +159,7 @@ class ExecutionFacade:
             base_llm_config=base_llm_config,
             host_instance=self._host,
             initial_messages=initial_messages,
+            session_id=session_id,
         )
         return agent_instance, dynamically_registered_servers
 
@@ -190,6 +191,11 @@ class ExecutionFacade:
                 agent_name, user_message, system_prompt, session_id
             )
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
+            
+            # Yield session_id as the first event
+            if session_id:
+                yield {"type": "session_info", "data": {"session_id": session_id}}
+            
             async for event in agent_instance.stream_conversation():
                 yield event
         except Exception as e:

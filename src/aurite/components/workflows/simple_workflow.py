@@ -197,6 +197,7 @@ class SimpleWorkflowExecutor:
                         step_results=step_results,
                         final_output=current_message,
                         error=f"Error processing component '{component.name}': {str(e)}",
+                        session_id=session_id,
                     )
 
             return SimpleWorkflowExecutionResult(
@@ -205,6 +206,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=None,
+                session_id=session_id,
             )
 
         except Exception as e:
@@ -215,6 +217,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=f"Workflow setup error: {str(e)}",
+                session_id=session_id,
             )
 
     def _infer_component_type(self, component_name: str):

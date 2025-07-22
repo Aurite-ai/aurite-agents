@@ -159,6 +159,25 @@ class CacheManager:
         # Link to parent workflow session
         if workflow_session_id:
             self._metadata_cache[session_id]["workflow_session_id"] = workflow_session_id
+            
+            # Update the parent workflow's agents_involved list with this session ID
+            if workflow_session_id in self._metadata_cache:
+                parent_agents_involved = self._metadata_cache[workflow_session_id].get("agents_involved", [])
+                if session_id not in parent_agents_involved:
+                    parent_agents_involved.append(session_id)
+                    self._metadata_cache[workflow_session_id]["agents_involved"] = parent_agents_involved
+                    # Also update the parent workflow file on disk
+                    parent_file = self._get_session_file(workflow_session_id)
+                    if parent_file.exists():
+                        try:
+                            with open(parent_file, "r") as f:
+                                parent_data = json.load(f)
+                            parent_data["agents_involved"] = parent_agents_involved
+                            parent_data["last_updated"] = now
+                            with open(parent_file, "w") as f:
+                                json.dump(parent_data, f, indent=2)
+                        except Exception as e:
+                            logger.warning(f"Failed to update parent workflow file: {e}")
 
         # Save to disk
         session_file = self._get_session_file(session_id)

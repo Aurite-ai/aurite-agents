@@ -330,6 +330,7 @@ class AgentsService {
       } : undefined,
       error: apiResult.error_message || null,
       history: apiResult.conversation_history || [],
+      session_id: apiResult.session_id,
     };
   }
 }

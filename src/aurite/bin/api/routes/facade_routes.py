@@ -307,22 +307,58 @@ async def get_session_history(
 ):
     """
     Get the full conversation history for a specific session.
+    For workflow sessions, returns the combined history from all agents.
     By default returns a simplified view, but can return raw format with raw_format=true.
     """
     try:
-        # Get history from facade
-        history = facade.get_session_history(session_id)
-        if history is None:
-            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-
-        # Get metadata
+        # Get metadata first to check if this is a workflow
         metadata = facade.get_session_metadata(session_id)
+        
+        # Check if this is a workflow session
+        is_workflow = metadata and metadata.get("workflow_name") and not metadata.get("agent_name")
+        
+        if is_workflow:
+            # For workflows, get the full combined history
+            history = facade.get_full_workflow_history(session_id)
+            if not history:
+                # Workflow exists but has no agent executions yet
+                history = []
+        else:
+            # For regular agent sessions, get the normal history
+            history = facade.get_session_history(session_id)
+            if history is None:
+                raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+
         if metadata is None:
             # Create minimal metadata if not available
             metadata = {"agent_name": "unknown", "message_count": len(history)}
 
         # Add the session_id to the metadata dict before validation
         metadata["session_id"] = session_id
+        
+        # Fix the agent_name field for workflows
+        if is_workflow:
+            # Don't use agent_name for workflows, it's misleading
+            entity_name = metadata.get("workflow_name", "Unknown Workflow")
+            metadata["agent_name"] = entity_name  # Required field, but we'll clarify it's a workflow
+            
+            # Ensure agents_involved is populated
+            if not metadata.get("agents_involved"):
+                # Extract unique agent session IDs from the full history
+                agents_involved = []
+                if facade._cache_manager and facade._cache_manager._cache_dir:
+                    safe_base_id = "".join(c for c in session_id if c.isalnum() or c in "-_")
+                    try:
+                        for session_file in facade._cache_manager._cache_dir.glob(f"{safe_base_id}-*-*.json"):
+                            # Extract the session ID from the filename
+                            agent_session_id = session_file.stem
+                            agents_involved.append(agent_session_id)
+                    except Exception as e:
+                        logger.warning(f"Could not extract agents_involved: {e}")
+                metadata["agents_involved"] = agents_involved
+        
+        # Update message count to reflect actual messages
+        metadata["message_count"] = len(history)
 
         # Format messages based on raw_format flag
         messages = []

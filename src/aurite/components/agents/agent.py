@@ -38,12 +38,14 @@ class Agent:
         base_llm_config: LLMConfig,
         host_instance: MCPHost,
         initial_messages: List[Dict[str, Any]],
+        session_id: Optional[str] = None,
     ):
         self.config = agent_config
         self.host = host_instance
         self.conversation_history: List[Dict[str, Any]] = initial_messages
         self.final_response: Optional[ChatCompletionMessage] = None
         self.tool_uses_in_last_turn: List[ChatCompletionMessageToolCall] = []
+        self.session_id = session_id
 
         # --- Configuration Resolution ---
         # The Agent is responsible for resolving its final LLM configuration.
@@ -119,6 +121,7 @@ class Agent:
                         final_response=self.final_response,
                         conversation_history=self.conversation_history,
                         error_message=None,
+                        session_id=self.session_id,
                     )
 
             except Exception as e:
@@ -129,6 +132,7 @@ class Agent:
                     final_response=None,
                     conversation_history=self.conversation_history,
                     error_message=error_message,
+                    session_id=self.session_id,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
@@ -137,6 +141,7 @@ class Agent:
             final_response=self.final_response,  # Could be None if no response was ever generated
             conversation_history=self.conversation_history,
             error_message=f"Agent stopped after reaching the maximum of {max_iterations} iterations.",
+            session_id=self.session_id,
         )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
