@@ -462,6 +462,8 @@ async def call_tool(
     except KeyError as e:
         # This handles the case where the tool was removed between check and call
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.") from e
+    except MCPServerTimeoutError as e:
+        raise HTTPException(status_code=504, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error calling tool '{tool_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
