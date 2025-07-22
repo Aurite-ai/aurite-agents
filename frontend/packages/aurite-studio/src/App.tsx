@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { Home, Users, Workflow, Database, Cloud, Sparkles, Link, Wand2, Sun, Moon, Plus, Edit, Play, ArrowLeft, Loader2, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,14 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Logo } from '@/components/Logo';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useAgentsWithConfigs, useExecuteAgent, useAgentConfig, useUpdateAgent, useCreateAgent, useDeleteAgent } from '@/hooks/useAgents';
-import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs } from '@/hooks/useWorkflows';
+import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useWorkflowConfigByName, useUpdateWorkflow, useDeleteWorkflow, useCreateWorkflow, useExecuteWorkflow, useExecuteCustomWorkflow, useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow } from '@/hooks/useWorkflows';
+import { useQueryClient } from '@tanstack/react-query';
 import { useClientsWithStatus, useClientConfig, useUpdateClient, useCreateMCPServer, useRegisterMCPServer, useUnregisterMCPServer, useClientConfigComplete, useDeleteClient } from '@/hooks/useClients';
 import { useLLMsWithConfigs, useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/useLLMs';
 import { MCPClientCard } from '@/components/MCPClientCard';
+import { UnifiedExecutionInterface } from '@/components/execution/UnifiedExecutionInterface';
+import { AgentConfig } from '@/types/execution';
 
 const sidebarItems = [
   { icon: Home, label: 'Home', id: 'home' },
@@ -82,6 +86,7 @@ function App() {
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowSteps, setWorkflowSteps] = useState<Array<{id: number, agent: string}>>([]);
+  const [selectedAgentToAdd, setSelectedAgentToAdd] = useState('');
   const [showMCPForm, setShowMCPForm] = useState(false);
   // Enhanced MCP form state for full schema support
   const [mcpClientId, setMcpClientId] = useState('');
@@ -126,11 +131,29 @@ function App() {
   const [selectedLLMConfig, setSelectedLLMConfig] = useState('');
   const [maxIterations, setMaxIterations] = useState('10');
   const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>([]);
+  const [selectedLandingMCPServers, setSelectedLandingMCPServers] = useState<string[]>([]);
   const [agentConfigLoading, setAgentConfigLoading] = useState(false);
   const [inlineTemperature, setInlineTemperature] = useState('');
   const [inlineMaxTokens, setInlineMaxTokens] = useState('');
   const [inlineModel, setInlineModel] = useState('');
   const [formPopulated, setFormPopulated] = useState(false);
+  
+  // Workflow edit state - similar to LLM edit pattern
+  const [editingWorkflow, setEditingWorkflow] = useState<any>(null);
+  const [showWorkflowDeleteConfirmation, setShowWorkflowDeleteConfirmation] = useState(false);
+  const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
+  
+  // Execution Interface State
+  const [executionInterface, setExecutionInterface] = useState<{
+    isOpen: boolean;
+    agentName: string | null;
+  }>({ isOpen: false, agentName: null });
+  // Custom workflow edit state
+  const [showCustomWorkflowForm, setShowCustomWorkflowForm] = useState(false);
+  const [customWorkflowModulePath, setCustomWorkflowModulePath] = useState('');
+  const [customWorkflowClassName, setCustomWorkflowClassName] = useState('');
+  const [customWorkflowFormPopulated, setCustomWorkflowFormPopulated] = useState(false);
+  
   const { theme, toggleTheme } = useTheme();
 
   // API Hooks - must be at component level
@@ -171,6 +194,12 @@ function App() {
     !!editingMCPClient?.name && showMCPForm
   );
 
+  // Hook for fetching workflow config - only enabled when we have a workflow name and are in edit mode
+  const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
+    editingWorkflow?.name || '',
+    !!editingWorkflow?.name && showWorkflowForm && editingWorkflow?.type !== 'custom_workflow'
+  );
+
   // Hook for updating MCP client configuration
   const updateMCPClient = useUpdateClient();
   
@@ -184,6 +213,24 @@ function App() {
   // Hook for deleting MCP client configuration
   const deleteMCPClient = useDeleteClient();
 
+  // Workflow mutation hooks
+  const createWorkflow = useCreateWorkflow();
+  const updateWorkflow = useUpdateWorkflow();
+  const deleteWorkflow = useDeleteWorkflow();
+  const executeWorkflow = useExecuteWorkflow();
+  const executeCustomWorkflow = useExecuteCustomWorkflow();
+  
+  // Custom workflow hooks
+  const { data: customWorkflowConfig, isLoading: customWorkflowConfigLoading } = useCustomWorkflowConfigByName(
+    editingWorkflow?.name || '',
+    !!editingWorkflow?.name && showCustomWorkflowForm && editingWorkflow?.type === 'custom_workflow'
+  );
+  const updateCustomWorkflow = useUpdateCustomWorkflow();
+  const deleteCustomWorkflow = useDeleteCustomWorkflow();
+  
+  // Query client for cache invalidation
+  const queryClient = useQueryClient();
+
   // Show advanced options when user starts typing description
   React.useEffect(() => {
     if (description.trim().length > 10 && !showAdvancedOptions) {
@@ -192,7 +239,27 @@ function App() {
   }, [description, showAdvancedOptions]);
 
   const addWorkflowStep = () => {
-    setWorkflowSteps([...workflowSteps, { id: Date.now(), agent: 'Filtering Test Agent' }]);
+    if (selectedAgentToAdd) {
+      setWorkflowSteps([...workflowSteps, { id: Date.now(), agent: selectedAgentToAdd }]);
+      setSelectedAgentToAdd(''); // Reset selection after adding
+    }
+  };
+
+  // Helper function to extract agent name from complex agent object
+  const extractAgentName = (agent: any): string => {
+    if (typeof agent.name === 'string') {
+      return agent.name;
+    } else if (agent.name && typeof agent.name === 'object' && 'name' in agent.name) {
+      return String((agent.name as any).name);
+    } else if (agent.name) {
+      return String(agent.name);
+    } else {
+      return 'Unknown Agent';
+    }
+  };
+
+  const removeWorkflowStep = (stepId: number) => {
+    setWorkflowSteps(workflowSteps.filter(step => step.id !== stepId));
   };
 
   const renderHomeContent = () => (
@@ -351,10 +418,33 @@ function App() {
                         <SelectValue placeholder="Select model..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="gpt-4">GPT-4</SelectItem>
-                        <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                        <SelectItem value="claude-3">Claude 3</SelectItem>
-                        <SelectItem value="llama-2">Llama 2</SelectItem>
+                        {llmsLoading ? (
+                          <SelectItem value="" disabled>
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Loading configurations...
+                            </div>
+                          </SelectItem>
+                        ) : llms.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            No LLM configurations available
+                          </SelectItem>
+                        ) : (
+                          llms.map((config) => {
+                            // Safely extract LLM config ID
+                            const configId = typeof config.id === 'string' 
+                              ? config.id 
+                              : (config.id && typeof config.id === 'object' && 'name' in config.id)
+                                ? String((config.id as any).name)
+                                : String(config.id || 'unknown_config');
+                            
+                            return (
+                              <SelectItem key={configId} value={configId}>
+                                {configId}
+                              </SelectItem>
+                            );
+                          })
+                        )}
                       </SelectContent>
                     </Select>
                   </motion.div>
@@ -367,12 +457,53 @@ function App() {
                     className="space-y-1.5"
                   >
                     <Label className="text-xs font-medium text-muted-foreground">MCP Clients</Label>
-                    <div className="p-2.5 border border-border rounded-md bg-muted/20 h-9 flex items-center">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-1 h-1 bg-primary rounded-full"></div>
-                        <span>{mcpClients.length} clients</span>
-                      </div>
-                    </div>
+                    <Select>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder={
+                          selectedLandingMCPServers.length > 0 
+                            ? `${selectedLandingMCPServers.length} servers selected`
+                            : "Select servers..."
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientsLoading ? (
+                          <div className="flex items-center gap-2 p-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading servers...
+                          </div>
+                        ) : clients.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No MCP servers available
+                          </div>
+                        ) : (
+                          <div className="p-2 space-y-2">
+                            {clients.map((client) => (
+                              <div key={client.name} className="flex items-center gap-2">
+                                <Checkbox 
+                                  checked={selectedLandingMCPServers.includes(client.name)}
+                                  disabled={client.status !== 'connected'}
+                                  onCheckedChange={(checked: boolean) => {
+                                    if (checked) {
+                                      setSelectedLandingMCPServers([...selectedLandingMCPServers, client.name]);
+                                    } else {
+                                      setSelectedLandingMCPServers(selectedLandingMCPServers.filter(s => s !== client.name));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{client.name}</span>
+                                <span className={`text-xs px-1 py-0.5 rounded ${
+                                  client.status === 'connected' 
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                  {client.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </motion.div>
                 </div>
 
@@ -385,10 +516,52 @@ function App() {
                 >
                   <Button 
                     className="px-6 py-2 text-sm font-medium transition-all duration-200 hover:scale-105"
-                    disabled={!description.trim()}
+                    disabled={!description.trim() || createAgent.isPending}
+                    onClick={() => {
+                      // Build the agent config object from landing page form data
+                      const agentConfig = {
+                        name: agentName.trim() || 'Untitled Agent',
+                        system_prompt: description.trim(),
+                        description: description.trim(),
+                        llm_config_id: selectedModel || undefined,
+                        mcp_servers: selectedLandingMCPServers,
+                        max_iterations: 10,
+                        type: 'agent' as const
+                      };
+
+                      console.log('🚀 Creating agent from landing page:', agentConfig);
+
+                      createAgent.mutate(agentConfig, {
+                        onSuccess: (data) => {
+                          console.log('✅ Agent created successfully:', data);
+                          
+                          // Reset form fields
+                          setDescription('');
+                          setAgentName('');
+                          setSelectedModel('');
+                          setSelectedLandingMCPServers([]);
+                          setShowAdvancedOptions(false);
+                          
+                          // Navigate to agents page to show the newly created agent
+                          setActiveTab('agents');
+                        },
+                        onError: (error) => {
+                          console.error('❌ Failed to create agent:', error);
+                        }
+                      });
+                    }}
                   >
-                    <Sparkles className="h-3.5 w-3.5 mr-2" />
-                    Create Agent
+                    {createAgent.isPending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 mr-2" />
+                        Create Agent
+                      </>
+                    )}
                   </Button>
                 </motion.div>
               </motion.div>
@@ -442,6 +615,23 @@ function App() {
     
     // Show the form
     setShowAgentForm(true);
+  };
+
+  const handleNewWorkflow = () => {
+    // Reset ALL workflow form fields to empty/default values for new workflow creation
+    setWorkflowName('');
+    setWorkflowDescription('');
+    setWorkflowSteps([]);
+    setSelectedAgentToAdd('');
+    
+    // Clear editing state - this is create mode, not edit mode
+    setEditingWorkflow(null);
+    
+    // Mark form as populated to prevent the useEffect from trying to load config
+    setWorkflowFormPopulated(true);
+    
+    // Show the form
+    setShowWorkflowForm(true);
   };
 
   // Effect to populate form when agent config is loaded
@@ -592,6 +782,54 @@ function App() {
       console.log('- editingMCPClient exists:', !!editingMCPClient);
     }
   }, [mcpClientConfig, editingMCPClient]);
+
+
+  // Effect to populate workflow form when workflow config is loaded
+  React.useEffect(() => {
+    if (workflowConfig && editingWorkflow && !workflowFormPopulated) {
+      console.log('🔄 Populating workflow form with config:', workflowConfig);
+      
+      // Populate workflow form fields
+      setWorkflowName(workflowConfig.name || '');
+      setWorkflowDescription(workflowConfig.description || '');
+      
+      // Convert steps array to UI format
+      if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
+        const stepsWithIds = workflowConfig.steps.map((step, index) => ({
+          id: Date.now() + index,
+          agent: step
+        }));
+        setWorkflowSteps(stepsWithIds);
+      } else {
+        setWorkflowSteps([]);
+      }
+      
+      // Mark form as populated to prevent re-population
+      setWorkflowFormPopulated(true);
+      console.log('✅ Workflow form populated successfully');
+    } else if (editingWorkflow && editingWorkflow.type !== 'custom_workflow' && !workflowConfig && !workflowConfigLoading) {
+      console.log('❌ Failed to load workflow config for:', editingWorkflow);
+    }
+  }, [workflowConfig, editingWorkflow, workflowConfigLoading, workflowFormPopulated]);
+
+  // Effect to populate custom workflow form when custom workflow config is loaded
+  React.useEffect(() => {
+    if (customWorkflowConfig && editingWorkflow && !customWorkflowFormPopulated && editingWorkflow.type === 'custom_workflow') {
+      console.log('🔄 Populating custom workflow form with config:', customWorkflowConfig);
+      
+      // Populate custom workflow form fields
+      setWorkflowName(customWorkflowConfig.name || '');
+      setWorkflowDescription(customWorkflowConfig.description || '');
+      setCustomWorkflowModulePath(customWorkflowConfig.module_path || '');
+      setCustomWorkflowClassName(customWorkflowConfig.class_name || '');
+      
+      // Mark form as populated to prevent re-population
+      setCustomWorkflowFormPopulated(true);
+      console.log('✅ Custom workflow form populated successfully');
+    } else if (editingWorkflow && editingWorkflow.type === 'custom_workflow' && !customWorkflowConfig && !customWorkflowConfigLoading) {
+      console.log('❌ Failed to load custom workflow config for:', editingWorkflow);
+    }
+  }, [customWorkflowConfig, editingWorkflow, customWorkflowConfigLoading, customWorkflowFormPopulated]);
 
   const renderAgentForm = () => (
     <motion.div
@@ -1085,13 +1323,32 @@ function App() {
                       size="sm" 
                       className="gap-1.5"
                       onClick={() => {
-                        const userMessage = prompt(`Enter message for ${agentName}:`);
-                        if (userMessage) {
-                          executeAgent.mutate({
-                            agentName: agentName,
-                            request: { user_message: userMessage }
-                          });
-                        }
+                        // Convert agent to AgentConfig format for the execution interface
+                        const agentConfig: AgentConfig = {
+                          type: 'agent',
+                          name: agentName,
+                          description: (agent as any).fullConfig?.description || 'Agent configuration',
+                          llm_config_id: (agent as any).fullConfig?.llm_config_id,
+                          model: (agent as any).fullConfig?.model,
+                          temperature: (agent as any).fullConfig?.temperature,
+                          max_tokens: (agent as any).fullConfig?.max_tokens,
+                          system_prompt: (agent as any).fullConfig?.system_prompt,
+                          max_iterations: (agent as any).fullConfig?.max_iterations,
+                          include_history: (agent as any).fullConfig?.include_history,
+                          auto: (agent as any).fullConfig?.auto,
+                          mcp_servers: (agent as any).fullConfig?.mcp_servers,
+                          exclude_components: (agent as any).fullConfig?.exclude_components,
+                          _source_file: agent.configFile,
+                          _context_path: (agent as any).fullConfig?._context_path,
+                          _context_level: (agent as any).fullConfig?._context_level,
+                          _project_name: (agent as any).fullConfig?._project_name,
+                          _workspace_name: (agent as any).fullConfig?._workspace_name
+                        };
+                        
+                        setExecutionInterface({
+                          isOpen: true,
+                          agentName: agentName
+                        });
                       }}
                       disabled={executeAgent.isAgentExecuting(agentName)}
                     >
@@ -1112,6 +1369,212 @@ function App() {
     );
   };
 
+  const renderCustomWorkflowForm = () => (
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-4xl mx-auto space-y-8"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowCustomWorkflowForm(false)}
+          className="w-9 h-9"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-3xl font-bold text-primary">
+          Edit Custom Workflow
+        </h1>
+      </div>
+
+      {/* Loading State for Custom Workflow Config */}
+      {customWorkflowConfigLoading && editingWorkflow && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading custom workflow configuration...
+        </div>
+      )}
+
+      {/* Basic Details Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Basic Details</h2>
+        
+        {/* Workflow Name */}
+        <div className="space-y-2">
+          <Label htmlFor="custom-workflow-name" className="text-sm font-medium text-foreground">Workflow Name</Label>
+          <Input
+            id="custom-workflow-name"
+            placeholder="e.g., Data Processing Workflow"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            className="text-base"
+          />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="custom-workflow-description" className="text-sm font-medium text-foreground">Description (Optional)</Label>
+          <Textarea
+            id="custom-workflow-description"
+            placeholder="Brief description of what this workflow does"
+            value={workflowDescription}
+            onChange={(e) => setWorkflowDescription(e.target.value)}
+            className="min-h-[80px] resize-none"
+          />
+        </div>
+      </motion.div>
+
+      {/* Python Implementation Card */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="bg-card border border-border rounded-lg p-6 space-y-6"
+      >
+        <h2 className="text-lg font-semibold text-primary">Python Implementation</h2>
+        
+        <div className="space-y-4">
+          {/* Module Path */}
+          <div className="space-y-2">
+            <Label htmlFor="module-path" className="text-sm font-medium text-foreground">Module Path *</Label>
+            <Input
+              id="module-path"
+              placeholder="e.g., custom_workflows.data_processing"
+              value={customWorkflowModulePath}
+              onChange={(e) => setCustomWorkflowModulePath(e.target.value)}
+              className="text-base"
+            />
+            <p className="text-xs text-muted-foreground">
+              Python module path containing your workflow class
+            </p>
+          </div>
+
+          {/* Class Name */}
+          <div className="space-y-2">
+            <Label htmlFor="class-name" className="text-sm font-medium text-foreground">Class Name *</Label>
+            <Input
+              id="class-name"
+              placeholder="e.g., DataProcessingWorkflow"
+              value={customWorkflowClassName}
+              onChange={(e) => setCustomWorkflowClassName(e.target.value)}
+              className="text-base"
+            />
+            <p className="text-xs text-muted-foreground">
+              Name of the class implementing the workflow interface
+            </p>
+          </div>
+
+          {/* Requirements Help Text */}
+          <div className="p-4 bg-muted/20 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">Requirements:</h4>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li>• Class must inherit from BaseCustomWorkflow</li>
+              <li>• Implement the execute() method</li>
+              <li>• Module must be importable from the Python path</li>
+            </ul>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Action Buttons */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="flex justify-between"
+      >
+        {/* Delete Button - Only show in edit mode */}
+        {editingWorkflow && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowWorkflowDeleteConfirmation(true)}
+            disabled={deleteCustomWorkflow.isPending}
+          >
+            {deleteCustomWorkflow.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Workflow'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingWorkflow && <div />}
+        
+        <Button 
+          className="px-8"
+          onClick={() => {
+            // Build the custom workflow config object from form state
+            const customWorkflowConfig = {
+              name: workflowName,
+              type: "custom_workflow" as const,
+              module_path: customWorkflowModulePath,
+              class_name: customWorkflowClassName,
+              description: workflowDescription || undefined
+            };
+
+            console.log('💾 Saving custom workflow config:', customWorkflowConfig);
+
+            if (editingWorkflow && editingWorkflow.name) {
+              // Edit mode - update existing custom workflow using PUT method
+              updateCustomWorkflow.mutate({
+                filename: editingWorkflow.name,
+                config: customWorkflowConfig
+              }, {
+                onSuccess: () => {
+                  console.log('✅ Custom workflow updated successfully');
+                  
+                  // Invalidate custom workflow config cache to force fresh data load
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['custom-workflow-config-by-name', editingWorkflow.name] 
+                  });
+                  
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setCustomWorkflowModulePath('');
+                  setCustomWorkflowClassName('');
+                  setCustomWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowCustomWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to update custom workflow:', error);
+                }
+              });
+            }
+          }}
+          disabled={updateCustomWorkflow.isPending || !workflowName.trim() || !customWorkflowModulePath.trim() || !customWorkflowClassName.trim()}
+        >
+          {updateCustomWorkflow.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Updating...
+            </>
+          ) : (
+            'Update Custom Workflow'
+          )}
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+
   const renderWorkflowForm = () => (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
@@ -1129,7 +1592,9 @@ function App() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold text-primary">Build New Simple Workflow</h1>
+        <h1 className="text-3xl font-bold text-primary">
+          {editingWorkflow ? 'Edit Simple Workflow' : 'Build New Simple Workflow'}
+        </h1>
       </div>
 
       {/* Workflow Details Card */}
@@ -1180,40 +1645,166 @@ function App() {
         ) : (
           <div className="space-y-2">
             {workflowSteps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                <span className="text-sm">{index + 1}. {step.agent}</span>
+              <div key={step.id} className="flex items-center justify-between gap-2 p-3 bg-muted/20 rounded-md border border-border hover:bg-muted/30 transition-colors">
+                <span className="text-sm font-medium">{index + 1}. {step.agent}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeWorkflowStep(step.id)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label={`Remove step ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
         )}
 
         <div className="flex gap-2">
-          <Select>
+          <Select value={selectedAgentToAdd} onValueChange={setSelectedAgentToAdd}>
             <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Filtering Test Agent" />
+              <SelectValue placeholder="Select an agent to add..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="filtering-test">Filtering Test Agent</SelectItem>
-              <SelectItem value="weather-assistant">Weather Assistant</SelectItem>
-              <SelectItem value="research-agent">Research Agent</SelectItem>
-              <SelectItem value="data-analyst">Data Analyst</SelectItem>
+              {agentsLoading ? (
+                <SelectItem value="" disabled>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading agents...
+                  </div>
+                </SelectItem>
+              ) : agents.length === 0 ? (
+                <SelectItem value="" disabled>
+                  No agents available
+                </SelectItem>
+              ) : (
+                agents.map((agent, index) => {
+                  const agentName = extractAgentName(agent);
+                  return (
+                    <SelectItem key={`${agentName}-${index}`} value={agentName}>
+                      {agentName}
+                    </SelectItem>
+                  );
+                })
+              )}
             </SelectContent>
           </Select>
-          <Button onClick={addWorkflowStep} variant="outline">
+          <Button 
+            onClick={addWorkflowStep} 
+            variant="outline"
+            disabled={!selectedAgentToAdd}
+          >
             Add Step
           </Button>
         </div>
       </motion.div>
 
-      {/* Save Button */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex justify-end"
+        className="flex justify-between"
       >
-        <Button className="px-8">
-          Save Simple Workflow
+        {/* Delete Button - Only show in edit mode */}
+        {editingWorkflow && (
+          <Button 
+            variant="destructive"
+            className="px-6"
+            onClick={() => setShowWorkflowDeleteConfirmation(true)}
+            disabled={deleteWorkflow.isPending}
+          >
+            {deleteWorkflow.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Workflow'
+            )}
+          </Button>
+        )}
+        
+        {/* Spacer for alignment when no delete button */}
+        {!editingWorkflow && <div />}
+        
+        <Button 
+          className="px-8"
+          onClick={() => {
+            // Build the workflow config object from form state
+            const workflowConfig = {
+              name: workflowName,
+              type: "simple_workflow" as const,
+              steps: workflowSteps.map(step => step.agent), // Convert UI format to API format
+              description: workflowDescription || undefined
+            };
+
+            console.log('💾 Saving workflow config:', workflowConfig);
+
+            if (editingWorkflow && editingWorkflow.name) {
+              // Edit mode - update existing workflow using PUT method
+              updateWorkflow.mutate({
+                filename: editingWorkflow.name,
+                config: workflowConfig
+              }, {
+                onSuccess: () => {
+                  console.log('✅ Workflow updated successfully');
+                  
+                  // Invalidate workflow config cache to force fresh data load
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['workflow-config-by-name', editingWorkflow.name] 
+                  });
+                  
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setWorkflowSteps([]);
+                  setSelectedAgentToAdd('');
+                  setWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to update workflow:', error);
+                }
+              });
+            } else {
+              // Create mode - create new workflow using POST method
+              createWorkflow.mutate(workflowConfig, {
+                onSuccess: () => {
+                  console.log('✅ New workflow created successfully');
+                  // Reset form state
+                  setWorkflowName('');
+                  setWorkflowDescription('');
+                  setWorkflowSteps([]);
+                  setSelectedAgentToAdd('');
+                  setWorkflowFormPopulated(false);
+                  
+                  // Close form and redirect to workflows page
+                  setShowWorkflowForm(false);
+                  setEditingWorkflow(null);
+                  setActiveTab('workflows');
+                },
+                onError: (error) => {
+                  console.error('❌ Failed to create workflow:', error);
+                }
+              });
+            }
+          }}
+          disabled={(updateWorkflow.isPending || createWorkflow.isPending) || !workflowName.trim() || workflowSteps.length === 0}
+        >
+          {(updateWorkflow.isPending || createWorkflow.isPending) ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {editingWorkflow ? 'Updating...' : 'Creating...'}
+            </>
+          ) : (
+            editingWorkflow ? 'Update Simple Workflow' : 'Save Simple Workflow'
+          )}
         </Button>
       </motion.div>
     </motion.div>
@@ -1222,6 +1813,10 @@ function App() {
   const renderWorkflowsContent = () => {
     if (showWorkflowForm) {
       return renderWorkflowForm();
+    }
+
+    if (showCustomWorkflowForm) {
+      return renderCustomWorkflowForm();
     }
 
     const isLoading = workflowsLoading || customWorkflowsLoading;
@@ -1240,7 +1835,7 @@ function App() {
             <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
             <p className="text-muted-foreground mt-1">Design and manage agent workflows</p>
           </div>
-          <Button className="gap-2" onClick={() => setShowWorkflowForm(true)}>
+          <Button className="gap-2" onClick={handleNewWorkflow}>
             <Plus className="h-4 w-4" />
             New Workflow
           </Button>
@@ -1282,6 +1877,9 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allWorkflows.map((workflow, index) => {
               const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
+              const badgeText = workflow.type === 'simple_workflow' ? 'Simple' : 'Custom';
+              const badgeColor = workflow.type === 'simple_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+              
               return (
                 <motion.div
                   key={workflowName}
@@ -1291,10 +1889,17 @@ function App() {
                   className="gradient-card rounded-lg p-4 space-y-3 hover:shadow-md transition-all duration-200 gradient-glow"
                 >
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">{workflowName}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {workflow.configFile ? 'Configured and ready' : 'Configuration pending'}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">{workflowName}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${badgeColor}`}>
+                        {badgeText}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">
+                        {'description' in workflow ? workflow.description || (workflow.configFile ? 'Configured and ready' : 'Configuration pending') : (workflow.configFile ? 'Configured and ready' : 'Configuration pending')}
+                      </p>
+                    </div>
                   </div>
                   
                   <div className="flex gap-2">
@@ -1303,15 +1908,67 @@ function App() {
                       size="sm" 
                       className="gap-1.5" 
                       onClick={() => {
-                        setEditingAgent({ name: workflowName, configFile: workflow.configFile });
-                        setShowWorkflowForm(true);
+                        if (workflow.type === 'custom_workflow') {
+                          // Reset custom workflow form state
+                          setWorkflowName('');
+                          setWorkflowDescription('');
+                          setCustomWorkflowModulePath('');
+                          setCustomWorkflowClassName('');
+                          setCustomWorkflowFormPopulated(false);
+                          
+                          // Set editing workflow and show custom form
+                          // For custom workflows, use the workflow name as the identifier since the API expects the component name
+                          setEditingWorkflow({ name: workflowName, configFile: workflowName, type: 'custom_workflow' });
+                          setShowCustomWorkflowForm(true);
+                        } else {
+                          // Reset simple workflow form state
+                          setWorkflowName('');
+                          setWorkflowDescription('');
+                          setWorkflowSteps([]);
+                          setWorkflowFormPopulated(false);
+                          
+                          // Set editing workflow and show simple form
+                          setEditingWorkflow({ name: workflowName, configFile: workflow.configFile, type: 'simple_workflow' });
+                          setShowWorkflowForm(true);
+                        }
                       }}
                     >
                       <Edit className="h-3.5 w-3.5" />
                       Edit
                     </Button>
-                    <Button size="sm" className="gap-1.5">
-                      <Play className="h-3.5 w-3.5" />
+                    <Button 
+                      size="sm" 
+                      className="gap-1.5"
+                      onClick={() => {
+                        const initialInput = prompt(`Enter initial input for workflow "${workflowName}":`);
+                        if (initialInput) {
+                          if (workflow.type === 'custom_workflow') {
+                            executeCustomWorkflow.mutate({
+                              workflowName: workflowName,
+                              request: { initial_input: initialInput }
+                            });
+                          } else {
+                            executeWorkflow.mutate({
+                              workflowName: workflowName,
+                              request: { initial_user_message: initialInput }
+                            });
+                          }
+                        }
+                      }}
+                      disabled={
+                        workflow.type === 'custom_workflow' 
+                          ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
+                          : executeWorkflow.isWorkflowExecuting(workflowName)
+                      }
+                    >
+                      {(workflow.type === 'custom_workflow' 
+                        ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
+                        : executeWorkflow.isWorkflowExecuting(workflowName)
+                      ) ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
                       Run
                     </Button>
                   </div>
@@ -2599,6 +3256,99 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Workflow Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showWorkflowDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowWorkflowDeleteConfirmation(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-foreground">
+                Delete Workflow
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete the workflow "{workflowName}"? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowWorkflowDeleteConfirmation(false)}
+                  disabled={deleteWorkflow.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (editingWorkflow && editingWorkflow.name) {
+                      // Use the correct delete hook based on workflow type
+                      if (editingWorkflow.type === 'custom_workflow') {
+                        deleteCustomWorkflow.mutate(editingWorkflow.name, {
+                          onSuccess: () => {
+                            setShowWorkflowDeleteConfirmation(false);
+                            setShowCustomWorkflowForm(false);
+                            setEditingWorkflow(null);
+                            setActiveTab('workflows');
+                            // Reset custom workflow form state
+                            setWorkflowName('');
+                            setWorkflowDescription('');
+                            setCustomWorkflowModulePath('');
+                            setCustomWorkflowClassName('');
+                            setCustomWorkflowFormPopulated(false);
+                          }
+                        });
+                      } else {
+                        deleteWorkflow.mutate(editingWorkflow.name, {
+                          onSuccess: () => {
+                            setShowWorkflowDeleteConfirmation(false);
+                            setShowWorkflowForm(false);
+                            setEditingWorkflow(null);
+                            setActiveTab('workflows');
+                            // Reset simple workflow form state
+                            setWorkflowName('');
+                            setWorkflowDescription('');
+                            setWorkflowSteps([]);
+                            setSelectedAgentToAdd('');
+                            setWorkflowFormPopulated(false);
+                          }
+                        });
+                      }
+                    }
+                  }}
+                  disabled={deleteWorkflow.isPending || deleteCustomWorkflow.isPending}
+                >
+                  {(deleteWorkflow.isPending || deleteCustomWorkflow.isPending) ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Unified Execution Interface */}
+      <UnifiedExecutionInterface
+        agentName={executionInterface.agentName}
+        isOpen={executionInterface.isOpen}
+        onClose={() => setExecutionInterface({ isOpen: false, agentName: null })}
+      />
     </div>
   );
 }
