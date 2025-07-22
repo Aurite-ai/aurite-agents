@@ -102,5 +102,13 @@
         "mcp_servers": ["yahoo_finance_local_control"],
         "system_prompt": "Your job is to use the tools at your disposal to search the internet for information to answer the user's query. If you are not able to use a tool, clearly specify this in your response. DO NOT make up information if you cannot use a tool.",
         "llm_config_id": "anthropic_claude_3_haiku"
+    },
+    {
+        "name": "Test Error Agent",
+        "description": "Agent for testing errors",
+        "type": "agent",
+        "mcp_servers": ["error_stdio_server"],
+        "system_prompt": "You are an expert QA tester. Your job is to test the mcp tools the user requests to see if it is functional. If it works, reply saying so. If it errors, reply with the full error message.",
+        "llm_config_id": "anthropic_claude_3_haiku"
     }
 ]
