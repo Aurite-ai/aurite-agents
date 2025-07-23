@@ -8,14 +8,11 @@ import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import litellm
-import litellm.litellm_core_utils.get_llm_provider_logic
 from openai import OpenAIError
 from openai.types.chat import (
     ChatCompletionChunk,
     ChatCompletionMessage,
 )
-
-import litellm.litellm_core_utils
 
 from ....config.config_models import LLMConfig
 

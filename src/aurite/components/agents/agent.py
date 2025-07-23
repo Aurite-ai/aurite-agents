@@ -246,12 +246,3 @@ class Agent:
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")
 
-    def validate(self):
-        """
-        Check that an agent is valid to run. Current checks:
-        - Valid API key for the model
-
-        Returns:
-            (bool): True if valid to run, otherwise raises error
-        """
-        return self.llm.validate()

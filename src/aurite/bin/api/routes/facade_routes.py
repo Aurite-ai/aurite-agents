@@ -8,13 +8,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from ....components.llm.providers.litellm_client import LiteLLMClient
+from ....config.config_manager import ConfigManager
+from ....config.config_models import AgentConfig, LLMConfig
 from ....errors import (
     AgentExecutionError,
     ConfigurationError,
     WorkflowExecutionError,
 )
 from ....execution.facade import ExecutionFacade
-from ...dependencies import get_api_key, get_execution_facade
+from ...dependencies import get_api_key, get_config_manager, get_execution_facade
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -149,6 +152,33 @@ async def test_agent(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+def _validate_agent(agent_name: str, config_manager: ConfigManager):
+    agent_config = config_manager.get_config("agent", agent_name)
+
+    if not agent_config:
+        raise KeyError(f"Agent Config for {agent_name} not found")
+
+    agent_config: AgentConfig = AgentConfig(**agent_config)
+
+    llm_config = None
+    if agent_config.llm_config_id:
+        llm_config = config_manager.get_config("llm", agent_config.llm_config_id)
+
+    if not llm_config:
+        raise KeyError(f"No llm config found for agent {agent_name} (llm_config_id not set or no llm with that name found)")
+
+    resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
+
+    if agent_config.llm:
+        overrides = agent_config.llm.model_dump(exclude_unset=True)
+        resolved_config = resolved_config.model_copy(update=overrides)
+
+    if agent_config.system_prompt:
+        resolved_config.default_system_prompt = agent_config.system_prompt
+
+    llm = LiteLLMClient(config=resolved_config)
+
+    llm.validate()
 
 @router.post("/agents/{agent_name}/stream")
 async def stream_agent(
@@ -156,13 +186,14 @@ async def stream_agent(
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name and stream the response.
     """
     try:
-        # Run validate, which will raise an error if invalid
-        await facade.validate_agent(agent_name=agent_name)
+        # first, validate the agent
+        _validate_agent(agent_name, config_manager)
 
         async def event_generator():
             async for event in facade.stream_agent_run(
@@ -182,7 +213,7 @@ async def stream_agent(
         return StreamingResponse(
             iter(
                 [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': f'An internal error occurred during agent execution: {e}'}})}\n\n"
+                    f"data: {json.dumps({'type': 'error', 'data': {'message': f'An error occurred during agent execution: {e}'}})}\n\n"
                 ]
             ),
             media_type="text/event-stream",
