@@ -457,4 +457,3 @@ class ExecutionFacade:
             self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
         if self._cache_manager:
             self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
-

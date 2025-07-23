@@ -245,4 +245,3 @@ class Agent:
                 return
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")
-
