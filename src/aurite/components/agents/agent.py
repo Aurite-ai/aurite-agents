@@ -240,7 +240,7 @@ class Agent:
                         self.conversation_history.append(dict(tool_message))
 
             except Exception as e:
-                logger.error(f"Error in conversation turn {current_iteration}: {e}", exc_info=True)
+                logger.error(f"Error in conversation turn {current_iteration}: {e}")
                 yield {"type": "error", "data": {"message": str(e)}}
                 return
 

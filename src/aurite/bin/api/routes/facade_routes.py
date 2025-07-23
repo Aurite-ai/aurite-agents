@@ -173,7 +173,7 @@ async def stream_agent(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
-        logger.error(f"Error streaming agent '{agent_name}': {e}", exc_info=True)
+        logger.error(f"Error streaming agent '{agent_name}': {e}")
         # Cannot raise HTTPException for a streaming response.
         # The error will be logged, and the client will see a dropped connection.
         # A more robust solution could involve yielding a final error event.
