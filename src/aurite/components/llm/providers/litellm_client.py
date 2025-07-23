@@ -8,11 +8,14 @@ import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import litellm
+import litellm.litellm_core_utils.get_llm_provider_logic
 from openai import OpenAIError
 from openai.types.chat import (
     ChatCompletionChunk,
     ChatCompletionMessage,
 )
+
+import litellm.litellm_core_utils
 
 from ....config.config_models import LLMConfig
 
@@ -162,4 +165,20 @@ class LiteLLMClient:
         except Exception as e:
             logger.error(f"An unexpected error occurred during LiteLLM streaming call: {type(e).__name__}: {e}")
             # In case of an error, we might want to yield a specific error chunk or just raise
+            raise
+
+    def validate(self) -> bool:
+        """
+        Check that the LiteLLM client is valid to run.
+
+        Returns:
+            (bool): True if valid to run, otherwise raises error
+        """
+        messages = [{"role": "user", "content": "Hey, how's it going?"}]
+        try:
+            litellm.completion(
+                model=f"{self.config.provider}/{self.config.model}", messages=messages, max_tokens=10
+            )
+            return True
+        except Exception:
             raise

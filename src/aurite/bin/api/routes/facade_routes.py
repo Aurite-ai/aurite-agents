@@ -161,6 +161,8 @@ async def stream_agent(
     Execute an agent by name and stream the response.
     """
     try:
+        # Run validate, which will raise an error if invalid
+        await facade.validate_agent(agent_name=agent_name)
 
         async def event_generator():
             async for event in facade.stream_agent_run(
@@ -180,7 +182,7 @@ async def stream_agent(
         return StreamingResponse(
             iter(
                 [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"
+                    f"data: {json.dumps({'type': 'error', 'data': {'message': f'An internal error occurred during agent execution: {e}'}})}\n\n"
                 ]
             ),
             media_type="text/event-stream",

@@ -457,3 +457,15 @@ class ExecutionFacade:
             self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
         if self._cache_manager:
             self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+
+    async def validate_agent(self, agent_name: str) -> bool:
+        """
+        Check that an agent is valid to run. Current checks:
+        - Valid API key for the model
+
+        Returns:
+            (bool): True if valid to run, otherwise raises error
+        """
+        agent_instance, _ = await self._prepare_agent_for_run(agent_name=agent_name, user_message="")
+
+        return agent_instance.validate()
