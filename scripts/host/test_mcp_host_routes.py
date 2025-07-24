@@ -34,7 +34,7 @@ class MCPHostRouteTester:
     ):
         """Test a single endpoint and record the result."""
         url = f"{self.base_url}{path}"
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Testing: {description}")
         print(f"Method: {method} {path}")
 

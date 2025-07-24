@@ -1,0 +1,441 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Cross-browser normalization */
+  * {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 400;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Button normalization */
+  button {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Input normalization */
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border-radius: 0;
+  }
+
+  /* Remove Safari input shadows */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: 0;
+  }
+
+  /* Remove Chrome autofill yellow background */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--background)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  }
+
+  /* Fix Safari button styling */
+  button,
+  input[type="button"],
+  input[type="reset"],
+  input[type="submit"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* Fix Safari select styling */
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+  }
+
+  /* Fix Safari textarea resize */
+  textarea {
+    resize: vertical;
+    overflow: auto;
+  }
+
+  /* Fix Safari font rendering */
+  input,
+  textarea,
+  select,
+  button {
+    font-synthesis: none;
+    -webkit-font-feature-settings: normal;
+    font-feature-settings: normal;
+    -webkit-font-variant-ligatures: normal;
+    font-variant-ligatures: normal;
+  }
+
+  /* Ensure consistent line heights */
+  input,
+  textarea,
+  select,
+  button {
+    line-height: 1.5;
+  }
+
+  /* Fix Safari zoom on input focus */
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  /* Fix Chrome/Safari outline differences */
+  *:focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Additional cross-browser fixes */
+  
+  /* Fix Safari button padding */
+  button {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  /* Fix Safari input height calculation */
+  input,
+  textarea,
+  select {
+    box-sizing: border-box;
+    vertical-align: top;
+  }
+
+  /* Ensure consistent font metrics */
+  * {
+    font-kerning: auto;
+    font-optical-sizing: auto;
+    font-variant-numeric: normal;
+  }
+
+  /* Fix Safari text rendering */
+  body,
+  input,
+  textarea,
+  select,
+  button {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-smooth: always;
+  }
+
+  /* Fix Safari flexbox issues */
+  .flex {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+  }
+
+  /* Fix Safari grid issues */
+  .grid {
+    display: -ms-grid;
+    display: grid;
+  }
+
+  /* Ensure consistent border-box */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+  }
+
+  /* Fix Safari transform issues */
+  .transform {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Fix Safari backdrop-filter */
+  .backdrop-blur {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  /* SVG normalization */
+  svg {
+    display: block;
+    vertical-align: middle;
+  }
+
+  /* Link normalization */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* List normalization */
+  ul,
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Heading normalization */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    font-weight: inherit;
+    font-size: inherit;
+  }
+
+  /* Paragraph normalization */
+  p {
+    margin: 0;
+  }
+
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 270 85% 75%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 270 90% 97%;
+    --accent-foreground: 270 85% 75%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 270 85% 75%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 270 85% 75%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 270 40% 20%;
+    --accent-foreground: 270 85% 75%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 270 85% 75%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    background: linear-gradient(135deg, 
+      hsl(var(--background)) 0%, 
+      hsl(288, 33%, 97%) 25%,
+      hsl(280 25% 96%) 50%,
+      hsl(270 20% 98%) 75%,
+      hsl(var(--background)) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  
+  .dark body {
+    background: linear-gradient(135deg, 
+      hsl(var(--background)) 0%, 
+      hsl(270 25% 6%) 25%,
+      hsl(280 20% 8%) 50%,
+      hsl(270 15% 10%) 75%,
+      hsl(var(--background)) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Main gradient background */
+  .gradient-bg {
+    background: linear-gradient(135deg, 
+      hsl(var(--background)) 0%, 
+      hsl(270 30% 97%) 25%,
+      hsl(280 25% 96%) 50%,
+      hsl(270 20% 98%) 75%,
+      hsl(var(--background)) 100%);
+  }
+  
+  .dark .gradient-bg {
+    background: linear-gradient(135deg, 
+      hsl(var(--background)) 0%, 
+      hsl(270 25% 6%) 25%,
+      hsl(280 20% 8%) 50%,
+      hsl(270 15% 10%) 75%,
+      hsl(var(--background)) 100%);
+  }
+
+  /* Subtle card gradient */
+  .gradient-card {
+    background: linear-gradient(145deg, 
+      hsl(var(--card)) 0%, 
+      hsl(270 15% 99%) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(270 20% 90%);
+  }
+  
+  .dark .gradient-card {
+    background: linear-gradient(145deg, 
+      hsl(var(--card)) 0%, 
+      hsl(270 20% 6%) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(270 15% 15%);
+  }
+
+  /* Primary gradient for buttons and accents */
+  .gradient-primary {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(280 85% 70%) 50%,
+      hsl(260 85% 80%) 100%);
+  }
+  
+  .dark .gradient-primary {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(280 85% 70%) 50%,
+      hsl(260 85% 80%) 100%);
+  }
+
+  /* Sidebar gradient */
+  .gradient-sidebar {
+    background: linear-gradient(180deg, 
+      hsl(var(--card)) 0%, 
+      hsl(270 25% 98%) 50%,
+      hsl(var(--card)) 100%);
+    backdrop-filter: blur(20px);
+  }
+  
+  .dark .gradient-sidebar {
+    background: linear-gradient(180deg, 
+      hsl(var(--card)) 0%, 
+      hsl(270 20% 6%) 50%,
+      hsl(var(--card)) 100%);
+    backdrop-filter: blur(20px);
+  }
+
+  /* Animated gradient for special elements */
+  .gradient-animated {
+    background: linear-gradient(45deg, 
+      hsl(var(--primary)) 0%, 
+      hsl(280 85% 70%) 25%,
+      hsl(260 85% 80%) 50%,
+      hsl(280 85% 70%) 75%,
+      hsl(var(--primary)) 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Subtle glow effect */
+  .gradient-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.1),
+                0 0 40px hsl(var(--primary) / 0.05);
+  }
+  
+  .dark .gradient-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2),
+                0 0 40px hsl(var(--primary) / 0.1);
+  }
+}

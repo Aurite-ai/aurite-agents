@@ -183,7 +183,9 @@ class MCPHost:
         try:
             await asyncio.wait_for(_registration_process(), timeout=config.registration_timeout)
         except asyncio.TimeoutError:
-            logger.error(f"Registration of client '{config.name}' timed out after {config.registration_timeout} seconds")
+            logger.error(
+                f"Registration of client '{config.name}' timed out after {config.registration_timeout} seconds"
+            )
             await session_stack.aclose()
             raise
 

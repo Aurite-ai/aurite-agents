@@ -474,6 +474,38 @@ class ConfigManager:
 
         return self.update_config_file(source_name, str(relative_path), updated_content)
 
+    def _determine_default_context(self) -> Optional[str]:
+        """
+        Determine the default context for component creation with clear logging.
+        Uses the highest priority configuration source available.
+        Returns:
+            The context name to use, or None if no valid context found
+        """
+        if self.project_name:
+            logger.info(f"Using current project context: {self.project_name}")
+            return self.project_name
+
+        if self.workspace_name:
+            sources = self._file_manager.list_config_sources()
+            project_sources = [s for s in sources if s["context"] == "project"]
+
+            if len(project_sources) == 0:
+                logger.info(f"Using workspace context: {self.workspace_name}")
+                return self.workspace_name
+            elif len(project_sources) == 1:
+                project_name = project_sources[0].get("project_name")
+                logger.info(f"Using single available project: {project_name}")
+                return project_name
+            else:
+                # Multiple projects - use highest priority (first in list)
+                project_name = project_sources[0].get("project_name")
+                available_projects = [s.get("project_name") for s in project_sources]
+                logger.info(f"Multiple projects available. Using highest priority: {project_name}")
+                logger.debug(f"Available projects in priority order: {available_projects}")
+                return project_name
+
+        return None
+
     def create_component(
         self,
         component_type: str,
@@ -486,20 +518,13 @@ class ConfigManager:
         context_name = None
         if workspace:
             context_name = self.workspace_name
+            logger.info(f"Using explicitly specified workspace context: {context_name}")
         elif project:
             context_name = project
+            logger.info(f"Using explicitly specified project context: {context_name}")
         else:
-            # Auto-detect context
-            if self.project_name:
-                context_name = self.project_name
-            elif self.workspace_name:
-                # Check for multiple projects
-                sources = self._file_manager.list_config_sources()
-                project_sources = [s for s in sources if s["context"] == "project"]
-                if len(project_sources) > 1:
-                    logger.error("Multiple projects found. Specify 'project' or 'workspace'.")
-                    return None
-                context_name = self.workspace_name
+            # Auto-detect context using enhanced logic
+            context_name = self._determine_default_context()
 
         if not context_name:
             logger.error("Could not determine a valid context for component creation.")
@@ -633,7 +658,7 @@ class ConfigManager:
 
     def validate_component(self, component_type: str, component_id: str) -> Tuple[bool, List[str]]:
         """
-        Validates a component's configuration.
+        Validates a component's configuration using Pydantic models.
 
         Args:
             component_type: The type of component to validate.
@@ -647,19 +672,55 @@ class ConfigManager:
         if not config:
             return False, [f"Component '{component_id}' of type '{component_type}' not found."]
 
-        errors = []
-        if component_type == "agent":
-            required_fields = ["name", "system_prompt", "llm_config_id"]
-            for field in required_fields:
-                if field not in config:
-                    errors.append(f"Missing required field: {field}")
-        elif component_type == "llm":
-            required_fields = ["name", "provider", "model"]
-            for field in required_fields:
-                if field not in config:
-                    errors.append(f"Missing required field: {field}")
+        return self._validate_component_config(component_type, config)
 
-        return not errors, errors
+    def _validate_component_config(self, component_type: str, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """
+        Validates a component configuration against its Pydantic model.
+
+        Args:
+            component_type: The type of component to validate.
+            config: The component configuration to validate.
+
+        Returns:
+            A tuple containing a boolean indicating if the component is valid,
+            and a list of validation error messages.
+        """
+        from .config_models import AgentConfig, LLMConfig, ClientConfig, WorkflowConfig, CustomWorkflowConfig
+        
+        # Map component types to their Pydantic models
+        model_map = {
+            "agent": AgentConfig,
+            "llm": LLMConfig,
+            "mcp_server": ClientConfig,
+            "simple_workflow": WorkflowConfig,
+            "custom_workflow": CustomWorkflowConfig,
+        }
+        
+        model_class = model_map.get(component_type)
+        if not model_class:
+            return False, [f"No validation model found for component type '{component_type}'"]
+        
+        try:
+            # Remove internal fields that shouldn't be validated
+            clean_config = {k: v for k, v in config.items() if not k.startswith("_")}
+            
+            # Validate using Pydantic model
+            model_class(**clean_config)
+            return True, []
+            
+        except Exception as e:
+            # Parse Pydantic validation errors into readable messages
+            errors = []
+            if hasattr(e, 'errors'):
+                for error in e.errors():
+                    field_path = " -> ".join(str(loc) for loc in error['loc'])
+                    error_msg = error['msg']
+                    errors.append(f"Field '{field_path}': {error_msg}")
+            else:
+                errors.append(f"Validation error: {str(e)}")
+            
+            return False, errors
 
     def validate_all_components(self) -> List[Dict[str, Any]]:
         """

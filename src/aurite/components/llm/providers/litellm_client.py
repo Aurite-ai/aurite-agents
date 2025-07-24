@@ -355,3 +355,17 @@ class LiteLLMClient:
                     generation.end()
                 except Exception as gen_error:
                     logger.warning(f"Failed to update/end Langfuse generation for streaming: {gen_error}")
+
+    def validate(self) -> bool:
+        """
+        Check that the LiteLLM client is valid to run.
+
+        Returns:
+            (bool): True if valid to run, otherwise raises error
+        """
+        messages = [{"role": "user", "content": "Hello"}]
+        try:
+            litellm.completion(model=f"{self.config.provider}/{self.config.model}", messages=messages, max_tokens=10)
+            return True
+        except Exception:
+            raise

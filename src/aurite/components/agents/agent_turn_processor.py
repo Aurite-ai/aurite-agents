@@ -395,7 +395,7 @@ class AgentTurnProcessor:
                     self.span.end(level="ERROR", status_message=str(e))
                 except:
                     pass
-            yield {"type": "error", "error": str(e)}
+            raise
         finally:
             # End the span if it was created
             if self.span:

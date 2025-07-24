@@ -160,12 +160,18 @@ class FileManager:
         Returns:
             A list of relative file paths.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if source_name not in source_map:
             logger.warning(f"Source '{source_name}' not found.")
@@ -204,12 +210,18 @@ class FileManager:
         Returns:
             The file content as a string, or None if not found or invalid.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if source_name not in source_map:
             logger.warning(f"Source '{source_name}' not found for getting file content.")
@@ -247,12 +259,18 @@ class FileManager:
         Returns:
             True if the file was created successfully, False otherwise.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if source_name not in source_map:
             logger.warning(f"Source '{source_name}' not found for creating file.")
@@ -294,12 +312,18 @@ class FileManager:
         Returns:
             True if the file was updated successfully, False otherwise.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if source_name not in source_map:
             logger.warning(f"Source '{source_name}' not found for updating file.")
@@ -333,12 +357,18 @@ class FileManager:
         Returns:
             True if the file was deleted successfully, False otherwise.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if source_name not in source_map:
             logger.warning(f"Source '{source_name}' not found for deleting file.")
@@ -377,15 +407,21 @@ class FileManager:
         Returns:
             The absolute path to the target file, or None on error.
         """
-        source_map = {s.get("project_name") or s.get("workspace_name"): s for s in self.list_config_sources()}
-        if self.workspace_name and "workspace" not in source_map:
-            for s in self.list_config_sources():
-                if s["context"] == "workspace":
-                    source_map["workspace"] = s
-                    break
+        # Build source mapping with better workspace handling
+        source_map = {}
+        for s in self.list_config_sources():
+            # Map by project name if it's a project
+            if s.get("project_name"):
+                source_map[s["project_name"]] = s
+
+            # Map by workspace name if it's a workspace context
+            if s["context"] == "workspace" and s.get("workspace_name"):
+                source_map[s["workspace_name"]] = s
+                # Also map "workspace" as an alias
+                source_map["workspace"] = s
 
         if context_name not in source_map:
-            logger.error(f"Context '{context_name}' not found.")
+            logger.error(f"Context '{context_name}' not found. Available contexts: {list(source_map.keys())}")
             return None
 
         source_info = source_map[context_name]

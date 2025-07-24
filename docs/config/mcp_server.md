@@ -8,7 +8,7 @@ An MCP server configuration is a JSON or YAML object with a `type` field set to 
 
 ### `name`
 **Type:** `string` (Required)
-**Description:** A unique identifier for the MCP server. This name is used in an agent's `mcp_servers` list to grant it access to this server.
+**Description:** A unique identifier for the MCP server. This name is used in an agent's `mcp_servers` list to grant it access to this server. This name will used as a prefix for tools when shown to agents (e.g. `calculator_server-add`)
 
 ```json
 {
