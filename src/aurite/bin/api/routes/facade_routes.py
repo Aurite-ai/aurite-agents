@@ -387,60 +387,6 @@ async def get_session_history(
         logger.error(f"Error getting session history for '{session_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve session history") from e
 
-
-@router.get("/workflows/{workflow_session_id}/full-history", response_model=SessionHistoryResponse)
-async def get_full_workflow_history(
-    workflow_session_id: str,
-    raw_format: bool = Query(False, description="Return raw Anthropic format instead of simplified view"),
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Get the full, combined conversation history for a workflow session.
-    """
-    try:
-        history = facade.get_full_workflow_history(workflow_session_id)
-        if not history:
-            raise HTTPException(
-                status_code=404, detail=f"Workflow session '{workflow_session_id}' not found or has no history."
-            )
-
-        parent_metadata_dict = facade.get_session_metadata(workflow_session_id)
-        if not parent_metadata_dict:
-            # If parent metadata is missing, create a fallback
-            parent_metadata_dict = {
-                "session_id": workflow_session_id,
-                "agent_name": "Unknown Workflow",
-                "workflow_name": "Unknown Workflow",
-                "message_count": 0,  # Parent has no messages itself
-                "agents_involved": [],
-            }
-
-        # Ensure required fields are present for SessionMetadata model
-        if not parent_metadata_dict.get("agent_name"):
-            parent_metadata_dict["agent_name"] = parent_metadata_dict.get("workflow_name", "Unknown Workflow")
-        parent_metadata_dict.setdefault("message_count", 0)
-        parent_metadata_dict["session_id"] = workflow_session_id
-
-        # Format messages
-        messages = [ConversationMessage(**(simplify_message(msg) if not raw_format else msg)) for msg in history]
-
-        # Create the final response
-        response = SessionHistoryResponse(
-            session_id=workflow_session_id,
-            agent_name=parent_metadata_dict.get("workflow_name", "Unknown Workflow"),
-            messages=messages,
-            metadata=SessionMetadata(**parent_metadata_dict),
-        )
-        return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting full history for workflow '{workflow_session_id}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve full workflow history") from e
-
-
 @router.delete("/history/{session_id}", status_code=204)
 async def delete_session_history(
     session_id: str,
@@ -558,7 +504,7 @@ async def get_workflow_history(
 
 @router.post("/history/cleanup", status_code=200)
 async def cleanup_history(
-    days: int = Query(30, ge=1, le=365, description="Delete sessions older than this many days"),
+    days: int = Query(30, ge=0, le=365, description="Delete sessions older than this many days"),
     max_sessions: int = Query(50, ge=1, le=1000, description="Maximum number of sessions to keep"),
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
@@ -566,6 +512,7 @@ async def cleanup_history(
     """
     Clean up old sessions based on retention policy.
     Deletes sessions older than specified days and keeps only the most recent max_sessions.
+    Set days=0 to delete all sessions older than today.
     """
     try:
         facade.cleanup_old_sessions(days=days, max_sessions=max_sessions)
