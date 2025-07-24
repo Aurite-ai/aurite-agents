@@ -170,8 +170,6 @@ async def test_llm(
                 "max_tokens": resolved_config.max_tokens,
             }
         }
-    except HTTPException as e:
-        raise
     except Exception as e:
         error_response = {
             "status": "error",
@@ -182,8 +180,13 @@ async def test_llm(
             }
         }
 
+        if type(e) is HTTPException:
+            status_code = e.status_code
+        else:
+            status_code = 500
+
         return JSONResponse(
-            status_code=500,
+            status_code=status_code,
             content=error_response,
         )
 
