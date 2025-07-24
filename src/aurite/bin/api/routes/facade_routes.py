@@ -262,6 +262,39 @@ async def run_custom_workflow(
         logger.error(f"Unexpected error running custom workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
 
+@router.post("/workflows/custom/{workflow_name}/test")
+async def test_custom_workflow(
+    workflow_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test a custom workflow.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_custom_workflow(workflow_name, "test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/workflows/custom/{workflow_name}/validate")
+async def validate_custom_workflow(
+    workflow_name: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Validate a custom workflow.
+    """
+    try:
+        # This can be expanded to a more thorough test
+        await facade.run_custom_workflow(workflow_name, "test")
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # --- History Endpoints ---
 
@@ -277,28 +310,60 @@ async def list_execution_history(
 ):
     """
     List execution history sessions with optional filtering by agent or workflow.
+    When filtering by workflow, returns only parent workflow sessions (not individual agent sessions).
     Supports pagination with offset/limit.
     """
     try:
         # Apply retention policy on retrieval
         facade.cleanup_old_sessions()
 
-        # Get sessions from facade
-        result = facade.get_sessions_list(
-            agent_name=agent_name, 
-            workflow_name=workflow_name, 
-            limit=limit, 
-            offset=offset
-        )
+        # If filtering by workflow, we need to get more sessions and filter
+        if workflow_name:
+            # Get more sessions to ensure we have enough after filtering
+            result = facade.get_sessions_list(
+                agent_name=agent_name, 
+                workflow_name=workflow_name, 
+                limit=(limit + offset) * 10,  # Get more to account for filtering
+                offset=0
+            )
+            
+            # Filter to only include parent workflow sessions (those without agent_name)
+            filtered_sessions = []
+            for session_data in result["sessions"]:
+                # Only include sessions where agent_name is None (parent workflow sessions)
+                if session_data.get("agent_name") is None:
+                    filtered_sessions.append(session_data)
+            
+            # Apply pagination to filtered results
+            total_filtered = len(filtered_sessions)
+            paginated_sessions = filtered_sessions[offset:offset + limit]
+            
+            # Convert to response model
+            sessions = [SessionMetadata(**session_data) for session_data in paginated_sessions]
+            
+            return SessionListResponse(
+                sessions=sessions, 
+                total=total_filtered, 
+                offset=offset, 
+                limit=limit
+            )
+        else:
+            # Normal behavior for agent filtering or no filtering
+            result = facade.get_sessions_list(
+                agent_name=agent_name, 
+                workflow_name=workflow_name, 
+                limit=limit, 
+                offset=offset
+            )
 
-        # Convert to response model
-        sessions = []
-        for session_data in result["sessions"]:
-            sessions.append(SessionMetadata(**session_data))
+            # Convert to response model
+            sessions = []
+            for session_data in result["sessions"]:
+                sessions.append(SessionMetadata(**session_data))
 
-        return SessionListResponse(
-            sessions=sessions, total=result["total"], offset=result["offset"], limit=result["limit"]
-        )
+            return SessionListResponse(
+                sessions=sessions, total=result["total"], offset=result["offset"], limit=result["limit"]
+            )
     except Exception as e:
         logger.error(f"Error listing execution history: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve execution history") from e
@@ -410,106 +475,6 @@ async def delete_session_history(
     except Exception as e:
         logger.error(f"Error deleting session '{session_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete session") from e
-
-
-@router.post("/workflows/custom/{workflow_name}/test")
-async def test_custom_workflow(
-    workflow_name: str,
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Test a custom workflow.
-    """
-    try:
-        # This can be expanded to a more thorough test
-        await facade.run_custom_workflow(workflow_name, "test")
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/workflows/custom/{workflow_name}/validate")
-async def validate_custom_workflow(
-    workflow_name: str,
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Validate a custom workflow.
-    """
-    try:
-        # This can be expanded to a more thorough test
-        await facade.run_custom_workflow(workflow_name, "test")
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/agents/{agent_name}/history", response_model=SessionListResponse)
-async def get_agent_history(
-    agent_name: str,
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Get all sessions for a specific agent, including those where the agent
-    was part of a workflow. Returns the most recent sessions up to the limit.
-    """
-    try:
-        # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
-
-        # The facade and cache manager already handle finding agents within workflows
-        result = facade.get_sessions_list(agent_name=agent_name, limit=limit, offset=0)
-
-        # Convert to response model
-        sessions = [SessionMetadata(**session_data) for session_data in result["sessions"]]
-
-        return SessionListResponse(sessions=sessions, total=result["total"], offset=0, limit=limit)
-    except Exception as e:
-        logger.error(f"Error getting history for agent '{agent_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve history for agent '{agent_name}'") from e
-
-
-@router.get("/workflows/{workflow_name}/history", response_model=SessionListResponse)
-async def get_workflow_history(
-    workflow_name: str,
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Get all sessions for a specific workflow.
-    Returns only the parent workflow sessions, not individual agent sessions.
-    """
-    try:
-        # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
-
-        # Get sessions for specific workflow using the new workflow_name parameter
-        result = facade.get_sessions_list(workflow_name=workflow_name, limit=limit * 10, offset=0)  # Get more to filter
-
-        # Filter to only include parent workflow sessions (those without agent_name)
-        filtered_sessions = []
-        for session_data in result["sessions"]:
-            # Only include sessions where agent_name is None (parent workflow sessions)
-            if session_data.get("agent_name") is None:
-                filtered_sessions.append(SessionMetadata(**session_data))
-
-        # Apply the limit after filtering
-        filtered_sessions = filtered_sessions[:limit]
-
-        return SessionListResponse(
-            sessions=filtered_sessions, 
-            total=len(filtered_sessions), 
-            offset=0, 
-            limit=limit
-        )
-    except Exception as e:
-        logger.error(f"Error getting history for workflow '{workflow_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve history for workflow '{workflow_name}'") from e
 
 
 @router.post("/history/cleanup", status_code=200)
