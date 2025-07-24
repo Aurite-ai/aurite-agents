@@ -171,6 +171,8 @@ async def test_llm(
             }
         }
     except Exception as e:
+        logger.error(f"Error testing llm '{llm_config_id}': {e}")
+
         error_response = {
             "status": "error",
             "llm_config_id": llm_config_id,
