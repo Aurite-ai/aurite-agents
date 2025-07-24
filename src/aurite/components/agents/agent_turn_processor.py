@@ -222,7 +222,7 @@ class AgentTurnProcessor:
                     break
 
         except Exception as e:
-            yield {"type": "error", "error": str(e)}
+            raise
         finally:
             logger.debug("Finished streaming conversation turn.")
 

@@ -57,7 +57,12 @@ class LLMsService {
   async createLLMConfig(filename: string, config: LocalLLMConfig): Promise<LocalLLMConfig> {
     try {
       const apiConfig = this.mapToApiLLMConfig(config);
-      const result = await apiClient.config.createConfig('llm', apiConfig);
+      // The API client will wrap this in { name, config } structure
+      const requestBody = {
+        name: config.name, // Use name as the identifier
+        ...apiConfig       // Let API client wrap this in 'config' key
+      };
+      const result = await apiClient.config.createConfig('llm', requestBody);
       return this.mapToLocalLLMConfig(result);
     } catch (error) {
       this.handleError(error, `Failed to create LLM configuration ${filename}`);
@@ -93,10 +98,10 @@ class LLMsService {
       await apiClient.config.reloadConfigs();
       return {
         status: 'success',
-        message: `LLM ${config.llm_id} registered successfully`
+        message: `LLM ${config.name} registered successfully`
       };
     } catch (error) {
-      this.handleError(error, `Failed to register LLM ${config.llm_id}`);
+      this.handleError(error, `Failed to register LLM ${config.name}`);
       throw error;
     }
   }
@@ -112,7 +117,7 @@ class LLMsService {
     configFile: string;
     registration: SuccessResponse;
   }> {
-    const filename = this.generateConfigFilename(config.llm_id);
+    const filename = this.generateConfigFilename(config.name);
     
     try {
       // First create the config file
@@ -126,7 +131,7 @@ class LLMsService {
         registration
       };
     } catch (error) {
-      this.handleError(error, `Failed to create and register LLM ${config.llm_id}`);
+      this.handleError(error, `Failed to create and register LLM ${config.name}`);
       throw error;
     }
   }
@@ -135,32 +140,42 @@ class LLMsService {
   getCommonPresets(): Partial<LocalLLMConfig>[] {
     return [
       {
+        type: 'llm',
         provider: 'openai',
         model: 'gpt-4',
+        description: 'OpenAI GPT-4 model for general use',
         temperature: 0.7,
         max_tokens: 2048
       },
       {
+        type: 'llm',
         provider: 'openai',
         model: 'gpt-3.5-turbo',
+        description: 'OpenAI GPT-3.5 Turbo model for faster responses',
         temperature: 0.7,
         max_tokens: 2048
       },
       {
+        type: 'llm',
         provider: 'anthropic',
         model: 'claude-3-opus-20240229',
+        description: 'Anthropic Claude 3 Opus model for complex tasks',
         temperature: 0.7,
         max_tokens: 4096
       },
       {
+        type: 'llm',
         provider: 'anthropic',
         model: 'claude-3-sonnet-20240229',
+        description: 'Anthropic Claude 3 Sonnet model for balanced performance',
         temperature: 0.7,
         max_tokens: 4096
       },
       {
+        type: 'llm',
         provider: 'google',
         model: 'gemini-pro',
+        description: 'Google Gemini Pro model for multimodal tasks',
         temperature: 0.7,
         max_tokens: 2048
       }
@@ -171,8 +186,8 @@ class LLMsService {
   validateConfig(config: Partial<LocalLLMConfig>): string[] {
     const errors: string[] = [];
 
-    if (!config.llm_id) {
-      errors.push('LLM ID is required');
+    if (!config.name) {
+      errors.push('Name is required');
     }
 
     if (!config.provider) {
@@ -201,39 +216,49 @@ class LLMsService {
   // Helper method to handle errors with user-friendly messages
   private handleError(error: unknown, context: string): void {
     if (error instanceof ApiError) {
-      console.error(`${context}: ${error.getDisplayMessage()}`, error.toJSON());
+      console.error('%s: %s', context, String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error(`${context}: Request timed out`, error);
+      console.error('%s: Request timed out', context, error);
     } else if (error instanceof CancellationError) {
-      console.error(`${context}: Request was cancelled`, error);
+      console.error('%s: Request was cancelled', context, error);
     } else {
-      console.error(`${context}: Unknown error`, error);
+      console.error('%s: Unknown error', context, error);
     }
   }
 
   // Map API client LLMConfig to local LLMConfig
   private mapToLocalLLMConfig(apiConfig: any): LocalLLMConfig {
     return {
-      llm_id: apiConfig.llm_id,
+      name: apiConfig.name,
+      type: 'llm',
       provider: apiConfig.provider,
       model: apiConfig.model,
-      api_key_env_var: apiConfig.api_key_env_var,
-      default_system_prompt: apiConfig.default_system_prompt,
-      max_tokens: apiConfig.max_tokens,
+      description: apiConfig.description,
       temperature: apiConfig.temperature,
+      max_tokens: apiConfig.max_tokens,
+      default_system_prompt: apiConfig.default_system_prompt,
+      api_base: apiConfig.api_base,
+      api_key: apiConfig.api_key,
+      api_version: apiConfig.api_version,
+      api_key_env_var: apiConfig.api_key_env_var,
     };
   }
 
   // Map local LLMConfig to API client LLMConfig
   private mapToApiLLMConfig(localConfig: LocalLLMConfig): any {
     return {
-      llm_id: localConfig.llm_id,
+      name: localConfig.name,
+      type: 'llm',
       provider: localConfig.provider,
       model: localConfig.model,
-      api_key_env_var: localConfig.api_key_env_var,
-      default_system_prompt: localConfig.default_system_prompt,
-      max_tokens: localConfig.max_tokens,
+      description: localConfig.description,
       temperature: localConfig.temperature,
+      max_tokens: localConfig.max_tokens,
+      default_system_prompt: localConfig.default_system_prompt,
+      api_base: localConfig.api_base,
+      api_key: localConfig.api_key,
+      api_version: localConfig.api_version,
+      api_key_env_var: localConfig.api_key_env_var,
     };
   }
 }

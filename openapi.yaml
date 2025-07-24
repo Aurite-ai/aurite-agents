@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Aurite Agents API
   description: |
@@ -20,13 +20,13 @@ servers:
     description: Local development server
 
 security:
-  - ApiKeyAuth: []
+  - APIKeyHeader: []
 
 paths:
   /health:
     get:
       summary: Health Check
-      description: Check if the server is running and responsive
+      description: Simple health check endpoint.
       tags:
         - System
       security: []
@@ -42,466 +42,430 @@ paths:
                     type: string
                     example: "ok"
 
-  /status:
+  # MCP Host Endpoints
+  /tools/status:
+    get:
+      summary: Get Host Status
+      description: Get the status of the MCPHost.
+      tags:
+        - MCP Host
+      responses:
+        '200':
+          description: Host status information
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tools/:
+    get:
+      summary: List Tools
+      description: List all available tools from the MCPHost.
+      tags:
+        - MCP Host
+      responses:
+        '200':
+          description: List of available tools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tools/servers:
+    get:
+      summary: List Registered Servers
+      description: |
+        List all currently registered MCP servers with runtime information.
+
+        Returns runtime information about each registered server including:
+        - Server name
+        - Transport type
+        - Number of tools provided
+        - Registration time
+      tags:
+        - MCP Host
+      responses:
+        '200':
+          description: List of registered servers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServerRuntimeInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tools/servers/{server_name}:
     get:
       summary: Get Server Status
-      description: Get the initialization status of the MCP Host
-      tags:
-        - System
-      responses:
-        '200':
-          description: Server status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "initialized"
-                  manager_status:
-                    type: string
-                    example: "active"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+      description: |
+        Get detailed runtime status for a specific MCP server.
 
-  # Project Management Endpoints
-  /projects/list_files:
-    get:
-      summary: List Project Files
-      description: List all available project configuration files
+        Returns detailed information including:
+        - Registration status
+        - Transport type
+        - List of tool names provided by this server
+        - Session status
       tags:
-        - Projects
-      responses:
-        '200':
-          description: List of project files
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "default.json"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /projects/create_file:
-    post:
-      summary: Create Project File
-      description: Create a new project configuration file
-      tags:
-        - Projects
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - filename
-                - project_name
-              properties:
-                filename:
-                  type: string
-                  description: Name of the project file (must end with .json)
-                  example: "my_project.json"
-                project_name:
-                  type: string
-                  description: Display name of the project
-                  example: "My AI Project"
-                project_description:
-                  type: string
-                  description: Optional description of the project
-                  example: "A project for weather analysis"
-      responses:
-        '201':
-          description: Project created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProjectConfig'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          description: Project file already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /projects/file/{filename}:
-    get:
-      summary: Get Project File Content
-      description: Get the content of a specific project file
-      tags:
-        - Projects
+        - MCP Host
       parameters:
-        - name: filename
+        - name: server_name
           in: path
           required: true
           schema:
             type: string
-          description: Name of the project file
+          description: Name of the MCP server
       responses:
         '200':
-          description: Project file content
+          description: Server status information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProjectConfig'
+                $ref: '#/components/schemas/ServerDetailedStatus'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          description: Invalid JSON in file
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    put:
-      summary: Update Project File Content
-      description: Update the content of a project file
-      tags:
-        - Projects
-      parameters:
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Name of the project file
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - content
-              properties:
-                content:
-                  type: object
-                  description: The complete project configuration
-      responses:
-        '200':
-          description: Project updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Project file updated successfully."
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /projects/load_components:
-    post:
-      summary: Load Components from Project
-      description: Load components from another project file into the active project
-      tags:
-        - Projects
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - project_config_path
-              properties:
-                project_config_path:
-                  type: string
-                  description: Path to the project configuration file
-                  example: "config/projects/other_project.json"
-      responses:
-        '200':
-          description: Components loaded successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoadComponentsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /projects/get_active_project_config:
-    get:
-      summary: Get Active Project Configuration
-      description: Get the complete configuration of the currently active project
-      tags:
-        - Projects
-      responses:
-        '200':
-          description: Active project configuration
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProjectConfig'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /projects/active/component/{component_type}/{component_name}:
-    get:
-      summary: Get Active Project Component Config
-      description: Get a specific component's configuration from the active project
-      tags:
-        - Projects
-      parameters:
-        - name: component_type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [agents, simple_workflows, custom_workflows, clients, llms]
-          description: Type of component
-        - name: component_name
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Name of the component
-      responses:
-        '200':
-          description: Component configuration
-          content:
-            application/json:
-              schema:
-                type: object
-                description: Component-specific configuration object
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  # Configuration Management Endpoints
-  /configs/{component_type}:
-    get:
-      summary: List Configuration Files
-      description: List all configuration files for a specific component type
-      tags:
-        - Configuration
-      parameters:
-        - name: component_type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-          description: Type of component
-      responses:
-        '200':
-          description: List of configuration files
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "weather_agent.json"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /configs/{component_type}/{filename}:
-    get:
-      summary: Get Configuration File Content
-      description: Get the raw content of a configuration file
-      tags:
-        - Configuration
-      parameters:
-        - name: component_type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Configuration filename
-      responses:
-        '200':
-          description: Configuration file content
-          content:
-            application/json:
-              schema:
-                type: object
-                description: Raw configuration content
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          description: Invalid JSON in file
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    post:
-      summary: Create Configuration File
-      description: Create a new configuration file
-      tags:
-        - Configuration
-      parameters:
-        - name: component_type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Configuration filename (must end with .json)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - content
-              properties:
-                content:
-                  type: object
-                  description: Configuration content
-      responses:
-        '201':
-          description: Configuration created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                description: Created configuration
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          description: Configuration file already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    put:
-      summary: Update Configuration File
-      description: Update an existing configuration file
-      tags:
-        - Configuration
-      parameters:
-        - name: component_type
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Configuration filename
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - content
-              properties:
-                content:
-                  type: object
-                  description: Updated configuration content
-      responses:
-        '200':
-          description: Configuration updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                description: Updated configuration
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
     delete:
-      summary: Delete Configuration File
-      description: Delete a configuration file
+      summary: Unregister Server
+      description: Unregister an MCP server from the host.
       tags:
-        - Configuration
+        - MCP Host
       parameters:
-        - name: component_type
+        - name: server_name
           in: path
           required: true
           schema:
             type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-        - name: filename
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Configuration filename
+          description: Name of the MCP server
       responses:
         '200':
-          description: Configuration deleted successfully
+          description: Server unregistered successfully
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  filename:
-                    type: string
-                  message:
-                    type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /configs/{component_type}/id/{id}:
-    get:
-      summary: Get Component by ID
-      description: Get a specific component configuration by its ID
+  /tools/register/config:
+    post:
+      summary: Register Server By Config
+      description: Register a new MCP server with the host using a provided configuration.
       tags:
-        - Configuration
+        - MCP Host
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientConfig'
+      responses:
+        '200':
+          description: Server registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/register/{server_name}:
+    post:
+      summary: Register Server By Name
+      description: Register a new MCP server with the host by its configured name.
+      tags:
+        - MCP Host
+      parameters:
+        - name: server_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the MCP server
+      responses:
+        '200':
+          description: Server registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/servers/{server_name}/restart:
+    post:
+      summary: Restart Server
+      description: |
+        Restart a registered MCP server.
+        This is a convenience endpoint that unregisters and then re-registers the server.
+      tags:
+        - MCP Host
+      parameters:
+        - name: server_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the MCP server
+      responses:
+        '200':
+          description: Server restarted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/{tool_name}:
+    get:
+      summary: Get Tool Details
+      description: |
+        Get detailed information about a specific tool.
+
+        Returns:
+        - Tool name and description
+        - Which server provides the tool
+        - Input schema for the tool
+      tags:
+        - MCP Host
+      parameters:
+        - name: tool_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the tool
+      responses:
+        '200':
+          description: Tool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/servers/{server_name}/tools:
+    get:
+      summary: Get Server Tools
+      description: |
+        List all tools provided by a specific registered server.
+
+        Returns a list of tools with their full details.
+      tags:
+        - MCP Host
+      parameters:
+        - name: server_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the MCP server
+      responses:
+        '200':
+          description: List of tools provided by the server
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/servers/{server_name}/test:
+    post:
+      summary: Test Server
+      description: |
+        Test an MCP server configuration by temporarily registering it.
+
+        This endpoint:
+        1. Retrieves the server configuration
+        2. Temporarily registers the server
+        3. Discovers available tools
+        4. Optionally tests a tool execution
+        5. Unregisters the server
+        6. Returns test results
+      tags:
+        - MCP Host
+      parameters:
+        - name: server_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the MCP server
+      responses:
+        '200':
+          description: Server test results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTestResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tools/{tool_name}/call:
+    post:
+      summary: Call Tool
+      description: Execute a specific tool by name with the given arguments.
+      tags:
+        - MCP Host
+      parameters:
+        - name: tool_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCallArgs'
+      responses:
+        '200':
+          description: Tool execution result
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # Configuration Manager Endpoints
+  /config/components:
+    get:
+      summary: List Component Types
+      description: List all available component types.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: List of component types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["agent", "llm", "mcp_server", "simple_workflow", "custom_workflow"]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /config/components/{component_type}:
+    get:
+      summary: List Components By Type
+      description: |
+        List all available components of a specific type.
+        Accepts both singular and plural forms (e.g., 'agent' or 'agents').
+      tags:
+        - Configuration Manager
       parameters:
         - name: component_type
           in: path
           required: true
           schema:
             type: string
-            enum: [agents, clients, llms, simple-workflows, custom-workflows]
-        - name: id
+            enum: [agent, agents, llm, llms, mcp_server, mcp_servers, simple_workflow, simple_workflows, custom_workflow, custom_workflows]
+          description: Type of component
+      responses:
+        '200':
+          description: List of components
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    post:
+      summary: Create Component
+      description: Create a new component of the specified type.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: component_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [agent, agents, llm, llms, mcp_server, mcp_servers, simple_workflow, simple_workflows, custom_workflow, custom_workflows]
+          description: Type of component
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComponentCreate'
+      responses:
+        '200':
+          description: Component created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Component already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/components/{component_type}/{component_id}:
+    get:
+      summary: Get Component By Id
+      description: |
+        Get a specific component by its type and ID.
+        Accepts both singular and plural forms for component type (e.g., 'agent' or 'agents').
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: component_type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Type of component
+        - name: component_id
           in: path
           required: true
           schema:
@@ -514,290 +478,566 @@ paths:
             application/json:
               schema:
                 type: object
-                description: Component-specific configuration
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                additionalProperties: true
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  # Component Management Endpoints
-  /components/agents:
-    get:
-      summary: List Registered Agents
-      description: List all registered agents in the system
+    put:
+      summary: Update Component
+      description: Update an existing component.
       tags:
-        - Components
-      responses:
-        '200':
-          description: List of agent names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "Weather Agent"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /components/workflows:
-    get:
-      summary: List Registered Simple Workflows
-      description: List all registered simple workflows
-      tags:
-        - Components
-      responses:
-        '200':
-          description: List of workflow names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "Weather Planning Workflow"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /components/custom_workflows:
-    get:
-      summary: List Registered Custom Workflows
-      description: List all registered custom workflows
-      tags:
-        - Components
-      responses:
-        '200':
-          description: List of custom workflow names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "ExampleCustomWorkflow"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /components/clients:
-    get:
-      summary: List Registered Clients
-      description: List all registered MCP clients/servers
-      tags:
-        - Components
-      responses:
-        '200':
-          description: List of client IDs
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "weather_server"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /components/llms:
-    get:
-      summary: List Registered LLM Configurations
-      description: List all registered LLM configurations
-      tags:
-        - Components
-      responses:
-        '200':
-          description: List of LLM configuration IDs
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "anthropic_claude_3_opus"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /host/clients/active:
-    get:
-      summary: List Active Host MCP Servers
-      description: List all currently active MCP servers in the host
-      tags:
-        - Components
-      responses:
-        '200':
-          description: List of active MCP server IDs
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-                  example: "weather_server"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # Registration Endpoints
-  /agents/register:
-    post:
-      summary: Register Agent
-      description: Register a new agent or update an existing one
-      tags:
-        - Registration
+        - Configuration Manager
+      parameters:
+        - name: component_type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Type of component
+        - name: component_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Component ID or name
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentConfig'
+              $ref: '#/components/schemas/ComponentUpdate'
       responses:
-        '201':
-          description: Agent registered successfully
+        '200':
+          description: Component updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  agent_name:
-                    type: string
-                    example: "My Agent"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete Component
+      description: Delete a component.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: component_type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Type of component
+        - name: component_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Component ID or name
+      responses:
+        '200':
+          description: Component deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/components/{component_type}/{component_id}/validate:
+    post:
+      summary: Validate Component
+      description: Validate a component's configuration.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: component_type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Type of component
+        - name: component_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Component ID or name
+      responses:
+        '200':
+          description: Component is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/sources:
+    get:
+      summary: List Config Sources
+      description: |
+        List all configuration source directories with context information.
+
+        Returns a list of configuration source directories in priority order,
+        including their context (project/workspace/user) and associated names.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: List of configuration sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /workflows/register:
-    post:
-      summary: Register Simple Workflow
-      description: Register a new simple workflow or update an existing one
+  /config/files/{source_name}:
+    get:
+      summary: List Config Files By Source
+      description: |
+        List all configuration files for a specific source.
+
+        Returns a list of relative file paths for the given source.
       tags:
-        - Registration
+        - Configuration Manager
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the configuration source
+      responses:
+        '200':
+          description: List of configuration files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/files/{source_name}/{file_path}:
+    get:
+      summary: Get File Content
+      description: Get the content of a specific configuration file.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the configuration source
+        - name: file_path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Path to the configuration file
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    put:
+      summary: Update Config File
+      description: Update an existing configuration file.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the configuration source
+        - name: file_path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Path to the configuration file
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkflowConfig'
+              $ref: '#/components/schemas/FileUpdateRequest'
       responses:
-        '201':
-          description: Workflow registered successfully
+        '200':
+          description: File updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  workflow_name:
-                    type: string
-                    example: "My Workflow"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/MessageResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /custom_workflows/register:
-    post:
-      summary: Register Custom Workflow
-      description: Register a new custom workflow
+    delete:
+      summary: Delete Config File
+      description: Delete an existing configuration file.
       tags:
-        - Registration
+        - Configuration Manager
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the configuration source
+        - name: file_path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Path to the configuration file
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/files:
+    post:
+      summary: Create Config File
+      description: Create a new configuration file.
+      tags:
+        - Configuration Manager
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomWorkflowConfig'
+              $ref: '#/components/schemas/FileCreateRequest'
       responses:
-        '201':
-          description: Custom workflow registered successfully
+        '200':
+          description: File created successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  workflow_name:
-                    type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: File already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/validate:
+    post:
+      summary: Validate All Components
+      description: Validate all components in the system.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /config/refresh:
+    post:
+      summary: Refresh Configs
+      description: |
+        Force refresh all configurations from disk.
+        This will reload all configuration files and rebuild the component index.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: Configurations refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Failed to refresh configurations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /config/projects:
+    get:
+      summary: List Projects
+      description: List all projects in the current workspace.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectInfo'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /clients/register:
     post:
-      summary: Register MCP Client/Server
-      description: Register a new MCP client/server
+      summary: Create Project
+      description: Create a new project in the current workspace.
       tags:
-        - Registration
+        - Configuration Manager
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClientConfig'
+              $ref: '#/components/schemas/ProjectCreate'
       responses:
-        '201':
-          description: Client registered successfully
+        '200':
+          description: Project created successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  name:
-                    type: string
-                    example: "my_mcp_server"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Project already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/projects/active:
+    get:
+      summary: Get Active Project
+      description: Get information about the currently active project.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: Active project information
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/ProjectInfo'
+                  - type: "null"
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /llms/register:
-    post:
-      summary: Register LLM Configuration
-      description: Register a new LLM configuration
+  /config/projects/{name}:
+    get:
+      summary: Get Project
+      description: Get information about a specific project.
       tags:
-        - Registration
+        - Configuration Manager
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Project name
+      responses:
+        '200':
+          description: Project information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    put:
+      summary: Update Project
+      description: Update a project's configuration.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Project name
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LLMConfig'
+              $ref: '#/components/schemas/ProjectUpdate'
       responses:
-        '201':
-          description: LLM configuration registered successfully
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete Project
+      description: Delete a project from the workspace.
+      tags:
+        - Configuration Manager
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Project name
+      responses:
+        '200':
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /config/workspaces:
+    get:
+      summary: List Workspaces
+      description: List workspace information (currently supports single workspace).
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /config/workspaces/active:
+    get:
+      summary: Get Active Workspace
+      description: Get information about the currently active workspace.
+      tags:
+        - Configuration Manager
+      responses:
+        '200':
+          description: Active workspace information
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/WorkspaceInfo'
+                  - type: "null"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Execution Facade Endpoints
+  /execution/status:
+    get:
+      summary: Get Facade Status
+      description: Get the status of the ExecutionFacade.
+      tags:
+        - Execution Facade
+      responses:
+        '200':
+          description: Execution facade status
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  llm_id:
-                    type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  # Execution Endpoints
-  /agents/{agent_name}/execute:
+  /execution/agents/{agent_name}/run:
     post:
-      summary: Execute Agent
-      description: Execute an agent with a user message
+      summary: Run Agent
+      description: Execute an agent by name.
       tags:
-        - Execution
+        - Execution Facade
       parameters:
         - name: agent_name
           in: path
@@ -810,37 +1050,54 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - user_message
-              properties:
-                user_message:
-                  type: string
-                  description: The message to send to the agent
-                  example: "What is the weather in London?"
-                system_prompt:
-                  type: string
-                  description: Optional system prompt override
+              $ref: '#/components/schemas/AgentRunRequest'
       responses:
         '200':
           description: Agent execution result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentExecutionResult'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /agents/{agent_name}/execute-stream:
-    get:
-      summary: Execute Agent (Streaming)
-      description: Execute an agent with streaming response (Server-Sent Events)
+  /execution/agents/{agent_name}/test:
+    post:
+      summary: Test Agent
+      description: Test an agent's configuration and dependencies.
       tags:
-        - Execution
+        - Execution Facade
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent to test
+      responses:
+        '200':
+          description: Agent test results
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/agents/{agent_name}/stream:
+    post:
+      summary: Stream Agent
+      description: Execute an agent by name and stream the response.
+      tags:
+        - Execution Facade
       parameters:
         - name: agent_name
           in: path
@@ -848,43 +1105,32 @@ paths:
           schema:
             type: string
           description: Name of the agent to execute
-        - name: user_message
-          in: query
-          required: true
-          schema:
-            type: string
-          description: The message to send to the agent
-        - name: system_prompt
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Optional system prompt override
-        - name: api_key
-          in: query
-          required: true
-          schema:
-            type: string
-          description: API key for authentication (passed as query param for SSE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRunRequest'
       responses:
         '200':
-          description: Server-Sent Events stream
+          description: Streaming agent execution result
           content:
             text/event-stream:
               schema:
                 type: string
-                description: Stream of events with agent responses
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /workflows/{workflow_name}/execute:
+  /execution/workflows/simple/{workflow_name}/run:
     post:
-      summary: Execute Simple Workflow
-      description: Execute a simple workflow
+      summary: Run Simple Workflow
+      description: Execute a simple workflow by name.
       tags:
-        - Execution
+        - Execution Facade
       parameters:
         - name: workflow_name
           in: path
@@ -897,34 +1143,54 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - initial_user_message
-              properties:
-                initial_user_message:
-                  type: string
-                  description: Initial message to start the workflow
-                  example: "Check weather in SF and save plan"
+              $ref: '#/components/schemas/WorkflowRunRequest'
       responses:
         '200':
           description: Workflow execution result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExecuteWorkflowResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /custom_workflows/{workflow_name}/execute:
+  /execution/workflows/simple/{workflow_name}/test:
     post:
-      summary: Execute Custom Workflow
-      description: Execute a custom workflow
+      summary: Test Simple Workflow
+      description: Test a simple workflow.
       tags:
-        - Execution
+        - Execution Facade
+      parameters:
+        - name: workflow_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the workflow to test
+      responses:
+        '200':
+          description: Workflow test results
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/workflows/custom/{workflow_name}/run:
+    post:
+      summary: Run Custom Workflow
+      description: Execute a custom workflow by name.
+      tags:
+        - Execution Facade
       parameters:
         - name: workflow_name
           in: path
@@ -937,32 +1203,297 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - initial_input
-              properties:
-                initial_input:
-                  type: object
-                  description: Initial input for the workflow
-                  example:
-                    city: "London"
+              $ref: '#/components/schemas/WorkflowRunRequest'
       responses:
         '200':
           description: Custom workflow execution result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExecuteCustomWorkflowResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/workflows/custom/{workflow_name}/test:
+    post:
+      summary: Test Custom Workflow
+      description: Test a custom workflow.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: workflow_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the custom workflow to test
+      responses:
+        '200':
+          description: Custom workflow test results
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/workflows/custom/{workflow_name}/validate:
+    post:
+      summary: Validate Custom Workflow
+      description: Validate a custom workflow.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: workflow_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the custom workflow to validate
+      responses:
+        '200':
+          description: Custom workflow validation results
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/history:
+    get:
+      summary: List Execution History
+      description: |
+        List execution history sessions with optional filtering by agent.
+        Supports pagination with offset/limit.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: agent_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by agent name
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of sessions to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of sessions to skip
+      responses:
+        '200':
+          description: List of execution history sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/history/{session_id}:
+    get:
+      summary: Get Session History
+      description: |
+        Get the full conversation history for a specific session.
+        By default returns a simplified view, but can return raw format with raw_format=true.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session ID
+        - name: raw_format
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Return raw Anthropic format instead of simplified view
+      responses:
+        '200':
+          description: Session conversation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete Session History
+      description: |
+        Delete a specific session's history.
+        Returns 204 No Content on success, 404 if session not found.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session ID
+      responses:
+        '204':
+          description: Session deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/agents/{agent_name}/history:
+    get:
+      summary: Get Agent History
+      description: |
+        Get all sessions for a specific agent.
+        Returns the most recent sessions up to the limit.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of sessions to return
+      responses:
+        '200':
+          description: List of agent execution sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/workflows/{workflow_name}/history:
+    get:
+      summary: Get Workflow History
+      description: |
+        Get all sessions for a specific workflow.
+        Returns the most recent sessions up to the limit.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: workflow_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the workflow
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of sessions to return
+      responses:
+        '200':
+          description: List of workflow execution sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /execution/history/cleanup:
+    post:
+      summary: Cleanup History
+      description: |
+        Clean up old sessions based on retention policy.
+        Deletes sessions older than specified days and keeps only the most recent max_sessions.
+      tags:
+        - Execution Facade
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+          description: Delete sessions older than this many days
+        - name: max_sessions
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 50
+          description: Maximum number of sessions to keep
+      responses:
+        '200':
+          description: Cleanup completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 components:
   securitySchemes:
-    ApiKeyAuth:
+    APIKeyHeader:
       type: apiKey
       in: header
       name: X-API-Key
@@ -978,239 +1509,465 @@ components:
           type: integer
           description: HTTP status code
 
-    ProjectConfig:
+    MessageResponse:
       type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+      description: Standard message response
+
+    # MCP Host Schemas
+    ServerRuntimeInfo:
+      type: object
+      required:
+        - name
+        - transport_type
+        - tools_count
+        - registration_time
       properties:
         name:
           type: string
-          description: Project name
-        description:
+        status:
           type: string
-          description: Project description
-        mcp_servers:
-          type: object
-          description: MCP server configurations
-        agents:
-          type: object
-          description: Agent configurations
-        llms:
-          type: object
-          description: LLM configurations
-        simple_workflows:
-          type: object
-          description: Simple workflow configurations
-        custom_workflows:
-          type: object
-          description: Custom workflow configurations
+          default: "active"
+        transport_type:
+          type: string
+        tools_count:
+          type: integer
+        registration_time:
+          type: string
+          format: date-time
+      description: Runtime information about a registered MCP server.
 
-    LoadComponentsResponse:
+    ServerDetailedStatus:
       type: object
+      required:
+        - name
+        - registered
+        - status
+        - transport_type
+        - tools
+        - registration_time
+        - session_active
+      properties:
+        name:
+          type: string
+        registered:
+          type: boolean
+        status:
+          type: string
+        transport_type:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+        registration_time:
+          type: string
+          format: date-time
+        session_active:
+          type: boolean
+      description: Detailed runtime status for a specific MCP server.
+
+    ServerTestResult:
+      type: object
+      required:
+        - status
+        - server_name
+        - connection_time
+        - tools_discovered
+        - test_tool_result
+        - error
       properties:
         status:
           type: string
-          example: "success"
-        message:
+        server_name:
           type: string
-          example: "Components loaded successfully"
-        loaded_components:
-          type: object
-          properties:
-            agents:
-              type: array
-              items:
-                type: string
-            clients:
-              type: array
-              items:
-                type: string
-            workflows:
-              type: array
-              items:
-                type: string
-
-    AgentConfig:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          description: Agent name
-        mcp_servers:
-          type: array
-          items:
-            type: string
-          description: List of MCP server IDs
-        system_prompt:
-          type: string
-          description: System prompt for the agent
-        model:
-          type: string
-          description: LLM model to use
-        temperature:
+        connection_time:
           type: number
-          format: float
-          minimum: 0
-          maximum: 2
-        max_tokens:
-          type: integer
-          minimum: 1
-        max_iterations:
-          type: integer
-          minimum: 1
-        include_history:
-          type: boolean
-        exclude_components:
+        tools_discovered:
           type: array
           items:
             type: string
+        test_tool_result:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+      description: Result of testing an MCP server configuration.
 
-    WorkflowConfig:
+    ToolDetails:
       type: object
       required:
         - name
-        - steps
+        - description
+        - server_name
+        - inputSchema
       properties:
         name:
           type: string
-          description: Workflow name
-        steps:
-          type: array
-          items:
-            type: string
-          description: List of agent names to execute in sequence
         description:
           type: string
-          description: Workflow description
+        server_name:
+          type: string
+        inputSchema:
+          type: object
+          additionalProperties: true
+      description: Detailed information about a specific tool.
 
-    CustomWorkflowConfig:
+    ToolCallArgs:
       type: object
       required:
-        - name
-        - class_name
-        - module_path
+        - args
       properties:
-        name:
-          type: string
-          description: Custom workflow name
-        class_name:
-          type: string
-          description: Python class name
-        module_path:
-          type: string
-          description: Path to Python module
-        description:
-          type: string
+        args:
+          type: object
+          additionalProperties: true
 
     ClientConfig:
       type: object
       required:
         - name
+        - capabilities
       properties:
         name:
           type: string
-          description: Client/server name
+          description: The unique name of the component.
+        description:
+          type: string
+          description: A brief description of the component.
+        type:
+          type: string
+          const: mcp_server
+          default: mcp_server
+        transport_type:
+          type: string
+          enum: [stdio, http_stream, local]
+          description: The transport type for the client.
         server_path:
           type: string
-          description: Path to MCP server executable
-        roots:
+          description: Path to the server script for 'stdio' transport.
+        http_endpoint:
+          type: string
+          description: URL endpoint for 'http_stream' transport.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: HTTP headers for 'http_stream' transport.
+        command:
+          type: string
+          description: The command to run for 'local' transport.
+        args:
           type: array
           items:
             type: string
+          description: Arguments for the 'local' transport command.
+        roots:
+          type: array
+          items:
+            $ref: '#/components/schemas/RootConfig'
+          description: List of root configurations for this client.
         capabilities:
           type: array
           items:
             type: string
-            enum: [tools, prompts, resources]
+          description: List of capabilities this client provides (e.g., 'tools', 'prompts').
         timeout:
           type: number
-          format: float
+          default: 10.0
+          description: Default timeout in seconds for client operations.
+        registration_timeout:
+          type: number
+          default: 30.0
+          description: Timeout for registering the mcp client
         routing_weight:
           type: number
-          format: float
+          default: 1.0
+          description: Weight for server selection during routing.
         exclude:
           type: array
           items:
             type: string
-        gcp_secrets:
-          type: object
+          description: List of component names (prompt, resource, tool) to exclude from this client.
+      description: Configuration for an MCP client
 
-    LLMConfig:
+    RootConfig:
       type: object
       required:
-        - llm_id
-        - provider
-        - model
+        - uri
+        - name
+        - capabilities
       properties:
-        llm_id:
+        uri:
           type: string
-          description: Unique identifier for the LLM configuration
-        provider:
+          description: The URI of the root.
+        name:
           type: string
-          description: LLM provider (e.g., anthropic, openai, gemini)
-        model:
-          type: string
-          description: Model name
-        api_key_env_var:
-          type: string
-          description: Environment variable containing API key
-        default_system_prompt:
-          type: string
-        max_tokens:
-          type: integer
-        temperature:
-          type: number
-          format: float
-
-    AgentExecutionResult:
-      type: object
-      properties:
-        final_response:
-          type: object
-          properties:
-            role:
-              type: string
-              example: "assistant"
-            content:
-              type: array
-              items:
-                type: object
-        error:
-          type: string
-          nullable: true
-        history:
+          description: The name of the root.
+        capabilities:
           type: array
           items:
-            type: object
+            type: string
+          description: A list of capabilities provided by this root.
+      description: Configuration for an MCP root
 
-    ExecuteWorkflowResponse:
+    # Configuration Manager Schemas
+    ComponentCreate:
       type: object
+      required:
+        - name
+        - config
       properties:
-        workflow_name:
+        name:
           type: string
-        status:
-          type: string
-          enum: [completed, failed]
-        final_message:
-          type: string
-        error:
-          type: string
-          nullable: true
-
-    ExecuteCustomWorkflowResponse:
-      type: object
-      properties:
-        workflow_name:
-          type: string
-        status:
-          type: string
-          enum: [completed, failed]
-        result:
+          description: Unique name for the component
+        config:
           type: object
-          description: Workflow-specific result object
-        error:
+          additionalProperties: true
+          description: Component configuration
+      description: Request model for creating a new component
+
+    ComponentUpdate:
+      type: object
+      required:
+        - config
+      properties:
+        config:
+          type: object
+          additionalProperties: true
+          description: Updated component configuration
+      description: Request model for updating an existing component
+
+    FileCreateRequest:
+      type: object
+      required:
+        - source_name
+        - relative_path
+        - content
+      properties:
+        source_name:
           type: string
-          nullable: true
+        relative_path:
+          type: string
+        content:
+          type: string
+
+    FileUpdateRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+
+    ProjectCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Project name
+        description:
+          type: string
+          description: Project description
+      description: Request model for creating a new project
+
+    ProjectUpdate:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Project description
+        include_configs:
+          type: array
+          items:
+            type: string
+          description: Configuration directories
+        new_name:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: New project name for renaming
+      description: Request model for updating a project
+
+    ProjectInfo:
+      type: object
+      required:
+        - name
+        - path
+        - is_active
+        - include_configs
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        is_active:
+          type: boolean
+        include_configs:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        created_at:
+          type: number
+      description: Response model for project information
+
+    WorkspaceInfo:
+      type: object
+      required:
+        - name
+        - path
+        - projects
+        - include_configs
+        - is_active
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        projects:
+          type: array
+          items:
+            type: string
+        include_configs:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+        description:
+          type: string
+      description: Response model for workspace information
+
+    # Execution Facade Schemas
+    AgentRunRequest:
+      type: object
+      required:
+        - user_message
+      properties:
+        user_message:
+          type: string
+        system_prompt:
+          type: string
+        session_id:
+          type: string
+
+    WorkflowRunRequest:
+      type: object
+      required:
+        - initial_input
+      properties:
+        initial_input:
+          description: Initial input for the workflow
+        session_id:
+          type: string
+
+    SessionMetadata:
+      type: object
+      required:
+        - session_id
+        - agent_name
+        - message_count
+      properties:
+        session_id:
+          type: string
+        agent_name:
+          type: string
+        created_at:
+          type: string
+        last_updated:
+          type: string
+        message_count:
+          type: integer
+
+    SessionListResponse:
+      type: object
+      required:
+        - sessions
+        - total
+        - offset
+        - limit
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionMetadata'
+        total:
+          type: integer
+        offset:
+          type: integer
+        limit:
+          type: integer
+
+    ConversationMessage:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+        content:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+        timestamp:
+          type: string
+
+    SessionHistoryResponse:
+      type: object
+      required:
+        - session_id
+        - agent_name
+        - messages
+        - metadata
+      properties:
+        session_id:
+          type: string
+        agent_name:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationMessage'
+        metadata:
+          $ref: '#/components/schemas/SessionMetadata'
+
+    # Validation Error Schema
+    ValidationError:
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+        type:
+          type: string
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
 
   responses:
     BadRequest:
@@ -1234,16 +1991,19 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
 
+    ValidationError:
+      description: Validation Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/HTTPValidationError'
+
 tags:
   - name: System
     description: System health and status endpoints
-  - name: Projects
-    description: Project management operations
-  - name: Configuration
-    description: Configuration file management
-  - name: Components
-    description: Component listing and management
-  - name: Registration
-    description: Dynamic component registration
-  - name: Execution
-    description: Agent and workflow execution
+  - name: MCP Host
+    description: MCP server management and tool operations
+  - name: Configuration Manager
+    description: Component and configuration management
+  - name: Execution Facade
+    description: Agent and workflow execution operations

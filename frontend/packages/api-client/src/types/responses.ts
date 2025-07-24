@@ -28,18 +28,17 @@ export interface AgentRunResult {
  */
 export interface WorkflowExecutionResult {
   /** Overall workflow status */
-  status: 'success' | 'error';
+  status: 'completed' | 'failed';
   /** Details about each step in the workflow */
-  steps: Array<{
+  step_results: Array<{
     step_name: string;
-    status: 'success' | 'error';
+    step_type: string;
     result?: any;
-    error?: string;
   }>;
   /** Final output from the workflow */
   final_output?: any;
   /** Error message if the workflow failed */
-  error_message?: string;
+  error?: string;
 }
 
 /**

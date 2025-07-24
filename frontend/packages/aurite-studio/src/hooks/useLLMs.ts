@@ -55,7 +55,7 @@ export const useCreateLLM = () => {
     mutationFn: (config: LLMConfig) => 
       llmsService.createAndRegisterLLM(config),
     onSuccess: (data, variables) => {
-      toast.success(`LLM Config "${variables.llm_id}" created successfully`);
+      toast.success(`LLM Config "${variables.name}" created successfully`);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llms });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfigs });
     },
@@ -73,9 +73,9 @@ export const useUpdateLLM = () => {
     mutationFn: ({ filename, config }: { filename: string; config: LLMConfig }) =>
       llmsService.updateLLMConfig(filename, config),
     onSuccess: (data, variables) => {
-      toast.success(`LLM Config "${variables.config.llm_id}" updated successfully`);
+      toast.success(`LLM Config "${variables.config.name}" updated successfully`);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfig(variables.filename) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmById(variables.config.llm_id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmById(variables.config.name) });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to update LLM configuration');

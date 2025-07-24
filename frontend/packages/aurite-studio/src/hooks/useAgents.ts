@@ -103,34 +103,112 @@ export const useDeleteAgent = () => {
   });
 };
 
-// Hook to execute agent
+// Hook to execute agent (non-streaming)
 export const useExecuteAgent = () => {
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [executingAgents, setExecutingAgents] = useState<Set<string>>(new Set());
 
   const executeMutation = useMutation({
     mutationFn: ({ agentName, request }: { agentName: string; request: ExecuteAgentRequest }) =>
       agentsService.executeAgent(agentName, request),
-    onMutate: () => {
-      setIsExecuting(true);
+    onMutate: ({ agentName }) => {
+      setExecutingAgents(prev => new Set(prev).add(agentName));
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { agentName }) => {
       if (data.error) {
         toast.error(`Execution failed: ${data.error}`);
       } else {
         toast.success('Agent executed successfully');
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, { agentName }) => {
       toast.error(error.response?.data?.detail || 'Failed to execute agent');
     },
-    onSettled: () => {
-      setIsExecuting(false);
+    onSettled: (data, error, { agentName }) => {
+      setExecutingAgents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(agentName);
+        return newSet;
+      });
     },
   });
 
+  const isAgentExecuting = (agentName: string) => executingAgents.has(agentName);
+
   return {
     ...executeMutation,
-    isExecuting,
+    isAgentExecuting,
+    // Keep backward compatibility
+    isExecuting: executingAgents.size > 0,
+  };
+};
+
+// Hook to execute agent with streaming
+export const useExecuteAgentStream = () => {
+  const [executingAgents, setExecutingAgents] = useState<Set<string>>(new Set());
+
+  const executeStream = async (
+    agentName: string,
+    request: ExecuteAgentRequest,
+    onStreamEvent: (event: any) => void,
+    onComplete: (result: any) => void,
+    onError: (error: string) => void
+  ) => {
+    // Mark agent as executing
+    setExecutingAgents(prev => new Set(prev).add(agentName));
+
+    try {
+      await agentsService.executeAgentStream(
+        agentName,
+        request,
+        onStreamEvent,
+        (result) => {
+          // Mark agent as no longer executing
+          setExecutingAgents(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(agentName);
+            return newSet;
+          });
+          
+          if (result.error) {
+            toast.error(`Execution failed: ${result.error}`);
+          } else {
+            toast.success('Agent executed successfully');
+          }
+          
+          onComplete(result);
+        },
+        (error) => {
+          // Mark agent as no longer executing
+          setExecutingAgents(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(agentName);
+            return newSet;
+          });
+          
+          toast.error(`Execution failed: ${error}`);
+          onError(error);
+        }
+      );
+    } catch (error) {
+      // Mark agent as no longer executing
+      setExecutingAgents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(agentName);
+        return newSet;
+      });
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to start streaming: ${errorMessage}`);
+      onError(errorMessage);
+    }
+  };
+
+  const isAgentExecuting = (agentName: string) => executingAgents.has(agentName);
+
+  return {
+    executeStream,
+    isAgentExecuting,
+    isExecuting: executingAgents.size > 0,
   };
 };
 

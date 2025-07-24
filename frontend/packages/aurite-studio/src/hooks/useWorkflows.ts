@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import workflowsService from '../services/workflows.service';
-import { WorkflowConfig, ExecuteWorkflowRequest } from '../types';
+import { WorkflowConfig, ExecuteWorkflowRequest, ExecuteCustomWorkflowRequest } from '../types';
 
 // Query keys
 const QUERY_KEYS = {
@@ -54,6 +55,15 @@ export const useWorkflowConfig = (filename: string, enabled = true) => {
     queryKey: QUERY_KEYS.workflowConfig(filename),
     queryFn: () => workflowsService.getWorkflowConfig(filename),
     enabled: enabled && !!filename,
+  });
+};
+
+// Hook to get workflow config by name (for editing) - similar to useLLMConfig
+export const useWorkflowConfigByName = (workflowName: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['workflow-config-by-name', workflowName],
+    queryFn: () => workflowsService.getWorkflowConfigByName(workflowName),
+    enabled: enabled && !!workflowName,
   });
 };
 
@@ -113,23 +123,81 @@ export const useDeleteWorkflow = () => {
 
 // Hook to execute workflow
 export const useExecuteWorkflow = () => {
-  return useMutation({
+  const [executingWorkflows, setExecutingWorkflows] = useState<Set<string>>(new Set());
+
+  const executeMutation = useMutation({
     mutationFn: ({ workflowName, request }: { workflowName: string; request: ExecuteWorkflowRequest }) =>
       workflowsService.executeWorkflow(workflowName, request),
-    onSuccess: (data) => {
+    onMutate: ({ workflowName }) => {
+      setExecutingWorkflows(prev => new Set(prev).add(workflowName));
+    },
+    onSuccess: (data, { workflowName }) => {
       if (data.status === 'failed') {
         toast.error(`Workflow failed: ${data.error || 'Unknown error'}`);
       } else {
         toast.success('Workflow executed successfully');
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, { workflowName }) => {
       toast.error(error.response?.data?.detail || 'Failed to execute workflow');
     },
+    onSettled: (data, error, { workflowName }) => {
+      setExecutingWorkflows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(workflowName);
+        return newSet;
+      });
+    },
   });
+
+  const isWorkflowExecuting = (workflowName: string) => executingWorkflows.has(workflowName);
+
+  return {
+    ...executeMutation,
+    isWorkflowExecuting,
+    // Keep backward compatibility
+    isExecuting: executingWorkflows.size > 0,
+  };
 };
 
-// Hook to get workflows with their configurations
+// Hook to execute custom workflow
+export const useExecuteCustomWorkflow = () => {
+  const [executingWorkflows, setExecutingWorkflows] = useState<Set<string>>(new Set());
+
+  const executeMutation = useMutation({
+    mutationFn: ({ workflowName, request }: { workflowName: string; request: ExecuteCustomWorkflowRequest }) =>
+      workflowsService.executeCustomWorkflow(workflowName, request),
+    onMutate: ({ workflowName }) => {
+      setExecutingWorkflows(prev => new Set(prev).add(workflowName));
+    },
+    onSuccess: (data, { workflowName }) => {
+      if (data.status === 'failed') {
+        toast.error(`Custom workflow failed: ${data.error || 'Unknown error'}`);
+      } else {
+        toast.success('Custom workflow executed successfully');
+      }
+    },
+    onError: (error: any, { workflowName }) => {
+      toast.error(error.response?.data?.detail || 'Failed to execute custom workflow');
+    },
+    onSettled: (data, error, { workflowName }) => {
+      setExecutingWorkflows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(workflowName);
+        return newSet;
+      });
+    },
+  });
+
+  const isWorkflowExecuting = (workflowName: string) => executingWorkflows.has(workflowName);
+
+  return {
+    ...executeMutation,
+    isWorkflowExecuting,
+  };
+};
+
+// Hook to get workflows with their configurations (following LLM pattern)
 export const useWorkflowsWithConfigs = () => {
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
   const { data: configs = [], isLoading: configsLoading } = useWorkflowConfigs();
@@ -142,8 +210,12 @@ export const useWorkflowsWithConfigs = () => {
     
     return {
       name: workflowName,
-      configFile,
+      description: undefined,
+      stepCount: 0,
+      stepPreview: configFile ? 'Configured and ready' : 'Configuration pending',
+      type: 'simple_workflow' as const,
       status: 'active' as const,
+      configFile,
     };
   });
 
@@ -152,6 +224,9 @@ export const useWorkflowsWithConfigs = () => {
     isLoading: workflowsLoading || configsLoading,
   };
 };
+
+// Alias for backward compatibility - now uses the simple pattern
+export const useWorkflowsWithFullConfigs = useWorkflowsWithConfigs;
 
 // Hook to get custom workflows with their configurations
 export const useCustomWorkflowsWithConfigs = () => {
@@ -172,6 +247,7 @@ export const useCustomWorkflowsWithConfigs = () => {
       name: workflowName,
       configFile,
       status: 'active' as const,
+      type: 'custom_workflow' as const,
     };
   });
 
@@ -179,4 +255,49 @@ export const useCustomWorkflowsWithConfigs = () => {
     data: customWorkflowsWithConfigs,
     isLoading: customWorkflowsLoading || configsLoading,
   };
+};
+
+// Hook to get custom workflow config by name (for editing)
+export const useCustomWorkflowConfigByName = (workflowName: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['custom-workflow-config-by-name', workflowName],
+    queryFn: () => workflowsService.getCustomWorkflowConfigByName(workflowName),
+    enabled: enabled && !!workflowName,
+  });
+};
+
+// Hook to update custom workflow configuration
+export const useUpdateCustomWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ filename, config }: { filename: string; config: any }) =>
+      workflowsService.updateCustomWorkflowConfig(filename, config),
+    onSuccess: (data, variables) => {
+      toast.success(`Custom workflow "${variables.config.name}" updated successfully`);
+      queryClient.invalidateQueries({ queryKey: ['custom-workflow-config-by-name', variables.config.name] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customWorkflows });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update custom workflow');
+    },
+  });
+};
+
+// Hook to delete custom workflow
+export const useDeleteCustomWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (filename: string) => workflowsService.deleteCustomWorkflowConfig(filename),
+    onSuccess: (_, filename) => {
+      toast.success('Custom workflow deleted successfully');
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customWorkflows });
+      queryClient.invalidateQueries({ queryKey: ['custom-workflow-configs'] });
+      queryClient.removeQueries({ queryKey: ['custom-workflow-config', filename] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete custom workflow');
+    },
+  });
 };
