@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useCreateAgent } from '@/hooks/useAgents';
 import { useClientsWithStatus } from '@/hooks/useClients';
 import { useLLMsWithConfigs } from '@/hooks/useLLMs';
+import { SuccessResponse } from '@/types';
 
 const quickActions = [
   'Build a data analysis agent',
@@ -60,7 +61,7 @@ export default function HomePage() {
     console.log('🚀 Creating agent from landing page:', agentConfig);
 
     createAgent.mutate(agentConfig, {
-      onSuccess: (data) => {
+      onSuccess: (data: { configFile: string; registration: SuccessResponse }) => {
         console.log('✅ Agent created successfully:', data);
         
         // Reset form fields
@@ -81,46 +82,6 @@ export default function HomePage() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Announcement Banner - Positioned at very top */}
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.5 }}
-        className="flex justify-center pt-32 pb-4"
-      >
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="relative overflow-hidden bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-purple-600/20 border border-purple-500/30 rounded-full px-4 py-2 cursor-pointer group"
-        >
-          {/* Sparkle Animation Background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-          
-          {/* Content */}
-          <div className="relative flex items-center justify-center gap-2 text-xs font-medium">
-            <motion.span
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="text-sm"
-            >
-              🎉
-            </motion.span>
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              The Future of Work is Agent-Powered!
-            </span>
-            <motion.span
-              animate={{ x: [0, 2, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-              className="text-purple-400 text-sm"
-            >
-              {/* → */}
-            </motion.span>
-          </div>
-          
-          {/* Glow Effect */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        </motion.div>
-      </motion.div>
-
       {/* Main Content - Centered */}
       <motion.div
         initial={{ y: 50, opacity: 0 }}
@@ -128,14 +89,54 @@ export default function HomePage() {
         transition={{ duration: 0.6, delay: 0.2 }}
         className="flex-1 flex items-center justify-center"
       >
-        <div className="w-full max-w-2xl mx-auto text-center space-y-8">
+        <div className="w-full max-w-2xl mx-auto text-center space-y-6 md:space-y-8">
+          {/* Announcement Banner - Positioned close to main content */}
+          <motion.div
+            initial={{ y: -36, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="flex justify-center pb-9"
+          >
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="relative overflow-hidden bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-purple-600/20 border border-purple-500/30 rounded-full px-3 py-1.5 md:px-4 md:py-2 cursor-pointer group"
+            >
+              {/* Sparkle Animation Background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
+              
+              {/* Content */}
+              <div className="relative flex items-center justify-center gap-2 text-sm font-medium">
+                <motion.span
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="text-base"
+                >
+                  🎉
+                </motion.span>
+                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  The Future of Work is Agent-Powered!
+                </span>
+                <motion.span
+                  animate={{ x: [0, 2, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="text-purple-400 text-sm"
+                >
+                  {/* → */}
+                </motion.span>
+              </div>
+              
+              {/* Glow Effect */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </motion.div>
+          </motion.div>
+
           {/* Main Heading */}
           <div className="space-y-3">
             <motion.h1 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-4xl md:text-5xl font-bold tracking-tight"
+              className="text-3xl lg:text-5xl font-bold tracking-tight"
             >
               What's Your Dream AI Agent?
             </motion.h1>
@@ -160,7 +161,7 @@ export default function HomePage() {
               placeholder="Describe your AI agent... (e.g., 'I need an agent that can analyze customer feedback and generate insights')"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-[136px] text-base p-4 border border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:border-primary transition-all duration-200 rounded-lg resize-none gradient-card gradient-glow"
+              className="min-h-[100px] md:min-h-[136px] text-base p-4 border border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:border-primary transition-all duration-200 rounded-lg resize-none gradient-card gradient-glow"
             />
             <div className="absolute bottom-3 left-3 flex items-center gap-2 text-muted-foreground">
               <LinkIcon className="h-3.5 w-3.5" />
