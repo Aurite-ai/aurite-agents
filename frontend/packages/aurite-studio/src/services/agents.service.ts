@@ -252,11 +252,11 @@ class AgentsService {
     if (error instanceof ApiError) {
       console.error(sanitizedContext + ': ' + String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error('%s: Request timed out', sanitizedContext, error);
+      console.error(sanitizedContext + ': Request timed out', error);
     } else if (error instanceof CancellationError) {
-      console.error('%s: Request was cancelled', sanitizedContext, error);
+      console.error(sanitizedContext + ': Request was cancelled', error);
     } else {
-      console.error('%s: Unknown error', sanitizedContext, error);
+      console.error(sanitizedContext + ': Unknown error', error);
     }
   }
 
