@@ -515,7 +515,7 @@ async def get_workflow_history(
 @router.post("/history/cleanup", status_code=200)
 async def cleanup_history(
     days: int = Query(30, ge=0, le=365, description="Delete sessions older than this many days"),
-    max_sessions: int = Query(50, ge=1, le=1000, description="Maximum number of sessions to keep"),
+    max_sessions: int = Query(50, ge=0, le=1000, description="Maximum number of sessions to keep"),
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
