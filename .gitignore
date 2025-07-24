@@ -197,3 +197,4 @@ demo-config/*
 !frontend/.env.example
 !frontend/packages/aurite-studio/src/lib/
 !frontend/packages/aurite-studio/.env.example
+docs/aurite-studio/*
