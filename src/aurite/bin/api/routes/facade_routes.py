@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ....components.llm.providers.litellm_client import LiteLLMClient
@@ -163,9 +163,11 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
     llm_config = None
     if agent_config.llm_config_id:
         llm_config = config_manager.get_config("llm", agent_config.llm_config_id)
+    else:
+        raise KeyError(f"llm_config_id is undefined for agent {agent_name}")
 
     if not llm_config:
-        raise KeyError(f"No llm config found for agent {agent_name} (llm_config_id not set or no llm with that name found)")
+        raise KeyError(f"llm_config_id {agent_config.llm_config_id} was not found while running agent {agent_name}")
 
     resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
 
@@ -207,8 +209,24 @@ async def stream_agent(
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
         logger.error(f"Error streaming agent '{agent_name}': {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred during agent execution: {e}") from e
 
+        error_response = {
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+                "details": {
+                    "agent_name": agent_name,
+                    "user_message": request.user_message,
+                    "system_prompt": request.system_prompt,
+                    "session_id": request.session_id,
+                }
+            }
+        }
+
+        return JSONResponse(
+            status_code=500,
+            content=error_response,
+        )
 
 @router.post("/workflows/simple/{workflow_name}/run")
 async def run_simple_workflow(
