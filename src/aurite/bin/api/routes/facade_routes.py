@@ -207,18 +207,7 @@ async def stream_agent(
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
         logger.error(f"Error streaming agent '{agent_name}': {e}")
-        # Cannot raise HTTPException for a streaming response.
-        # The error will be logged, and the client will see a dropped connection.
-        # A more robust solution could involve yielding a final error event.
-        return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': f'An error occurred during agent execution: {e}'}})}\n\n"
-                ]
-            ),
-            media_type="text/event-stream",
-            status_code=500,
-        )
+        raise HTTPException(status_code=500, detail=f"An error occurred during agent execution: {e}") from e
 
 
 @router.post("/workflows/simple/{workflow_name}/run")
