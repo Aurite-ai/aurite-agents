@@ -51,6 +51,8 @@ class CacheManager:
                                 "created_at": data.get("created_at"),
                                 "last_updated": data.get("last_updated"),
                                 "agent_name": data.get("agent_name"),
+                                "workflow_name": data.get("workflow_name"),
+                                "agents_involved": data.get("agents_involved", []),
                                 "message_count": len(data.get("conversation", [])),
                             }
                 except Exception as e:
@@ -61,14 +63,15 @@ class CacheManager:
     def get_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """
         Retrieves the conversation history for a given session ID.
+        Also ensures metadata is loaded into the cache if a file is read.
 
         Args:
-            session_id: The unique identifier for the session.
+            session_id: The unique identifier for the session. Can be sanitized or not.
 
         Returns:
             A list of message dictionaries, or None if no history is found.
         """
-        # Check memory cache first
+        # Check memory cache first for the provided session_id
         if session_id in self._history_cache:
             return self._history_cache[session_id]
 
@@ -78,15 +81,40 @@ class CacheManager:
             try:
                 with open(session_file, "r") as f:
                     data = json.load(f)
-                    conversation = data.get("conversation", [])
-                    self._history_cache[session_id] = conversation
-                    return conversation
+                
+                # The real session_id is the one inside the file
+                real_session_id = data.get("session_id")
+                if not real_session_id:
+                    logger.warning(f"Session file {session_file} is missing 'session_id' key.")
+                    return None
+
+                conversation = data.get("conversation", [])
+                
+                # Use the real_session_id to populate the caches
+                self._history_cache[real_session_id] = conversation
+                self._metadata_cache[real_session_id] = {
+                    "created_at": data.get("created_at"),
+                    "last_updated": data.get("last_updated"),
+                    "agent_name": data.get("agent_name"),
+                    "workflow_name": data.get("workflow_name"),
+                    "agents_involved": data.get("agents_involved", []),
+                    "message_count": len(conversation),
+                }
+                
+                return conversation
             except Exception as e:
                 logger.error(f"Failed to load session {session_id} from disk: {e}")
 
         return None
 
-    def save_history(self, session_id: str, conversation: List[Dict[str, Any]], agent_name: Optional[str] = None):
+    def save_history(
+        self,
+        session_id: str,
+        conversation: List[Dict[str, Any]],
+        agent_name: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+        workflow_session_id: Optional[str] = None,
+    ):
         """
         Saves or updates the conversation history for a given session ID.
 
@@ -94,9 +122,11 @@ class CacheManager:
             session_id: The unique identifier for the session.
             conversation: The full list of message dictionaries to save.
             agent_name: Optional name of the agent for this session.
+            workflow_name: Optional name of the workflow this session belongs to.
+            workflow_session_id: Optional parent workflow session ID.
         """
         logger.info(
-            f"CacheManager.save_history called for session_id: {session_id}, agent_name: {agent_name}, conversation_length: {len(conversation)}"
+            f"CacheManager.save_history called for session_id: {session_id}, agent_name: {agent_name}, workflow_name: {workflow_name}, conversation_length: {len(conversation)}"
         )
 
         # Update memory cache
@@ -105,9 +135,49 @@ class CacheManager:
         # Prepare metadata
         now = datetime.utcnow().isoformat()
         if session_id not in self._metadata_cache:
-            self._metadata_cache[session_id] = {"created_at": now, "agent_name": agent_name}
+            self._metadata_cache[session_id] = {
+                "created_at": now, 
+                "agent_name": agent_name,
+                "workflow_name": workflow_name,
+                "agents_involved": []
+            }
+        
+        # Update metadata
         self._metadata_cache[session_id]["last_updated"] = now
         self._metadata_cache[session_id]["message_count"] = len(conversation)
+        
+        # Track workflow information
+        if workflow_name:
+            self._metadata_cache[session_id]["workflow_name"] = workflow_name
+        
+        # Track agents involved
+        if agent_name and agent_name not in self._metadata_cache[session_id].get("agents_involved", []):
+            if "agents_involved" not in self._metadata_cache[session_id]:
+                self._metadata_cache[session_id]["agents_involved"] = []
+            self._metadata_cache[session_id]["agents_involved"].append(agent_name)
+
+        # Link to parent workflow session
+        if workflow_session_id:
+            self._metadata_cache[session_id]["workflow_session_id"] = workflow_session_id
+            
+            # Update the parent workflow's agents_involved list with this session ID
+            if workflow_session_id in self._metadata_cache:
+                parent_agents_involved = self._metadata_cache[workflow_session_id].get("agents_involved", [])
+                if session_id not in parent_agents_involved:
+                    parent_agents_involved.append(session_id)
+                    self._metadata_cache[workflow_session_id]["agents_involved"] = parent_agents_involved
+                    # Also update the parent workflow file on disk
+                    parent_file = self._get_session_file(workflow_session_id)
+                    if parent_file.exists():
+                        try:
+                            with open(parent_file, "r") as f:
+                                parent_data = json.load(f)
+                            parent_data["agents_involved"] = parent_agents_involved
+                            parent_data["last_updated"] = now
+                            with open(parent_file, "w") as f:
+                                json.dump(parent_data, f, indent=2)
+                        except Exception as e:
+                            logger.warning(f"Failed to update parent workflow file: {e}")
 
         # Save to disk
         session_file = self._get_session_file(session_id)
@@ -119,6 +189,9 @@ class CacheManager:
                 "created_at": self._metadata_cache[session_id].get("created_at"),
                 "last_updated": now,
                 "agent_name": agent_name or self._metadata_cache[session_id].get("agent_name"),
+                "workflow_name": self._metadata_cache[session_id].get("workflow_name"),
+                "workflow_session_id": self._metadata_cache[session_id].get("workflow_session_id"),
+                "agents_involved": self._metadata_cache[session_id].get("agents_involved", []),
                 "message_count": len(conversation),
             }
             with open(session_file, "w") as f:
@@ -141,11 +214,38 @@ class CacheManager:
         if session_id in self._metadata_cache:
             return self._metadata_cache[session_id]
 
-        # Try to load from disk
-        if self.get_history(session_id) is not None:
-            return self._metadata_cache.get(session_id)
+        # If not in memory, load directly from the corresponding file
+        session_file = self._get_session_file(session_id)
+        if not session_file.exists():
+            return None
 
-        return None
+        try:
+            with open(session_file, "r") as f:
+                data = json.load(f)
+
+            real_session_id = data.get("session_id")
+            if not real_session_id:
+                logger.warning(f"Session file {session_file} is missing 'session_id' key.")
+                return None
+
+            # Construct metadata from the file content
+            metadata = {
+                "created_at": data.get("created_at"),
+                "last_updated": data.get("last_updated"),
+                "agent_name": data.get("agent_name"),
+                "workflow_name": data.get("workflow_name"),
+                "agents_involved": data.get("agents_involved", []),
+                "message_count": len(data.get("conversation", [])),
+                "session_id": real_session_id, # Ensure session_id is in the metadata
+            }
+
+            # Update the in-memory cache for future requests
+            self._metadata_cache[real_session_id] = metadata
+            
+            return metadata
+        except Exception as e:
+            logger.error(f"Failed to load metadata for session {session_id} from disk: {e}")
+            return None
 
     def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
@@ -160,7 +260,29 @@ class CacheManager:
         """
         sessions = []
         for session_id, metadata in self._metadata_cache.items():
-            if metadata.get("agent_name") == agent_name:
+            # Check if agent is the primary agent OR in agents_involved list
+            if (metadata.get("agent_name") == agent_name or 
+                agent_name in metadata.get("agents_involved", [])):
+                sessions.append({"session_id": session_id, **metadata})
+
+        # Sort by last_updated descending
+        sessions.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
+        return sessions[:limit]
+
+    def get_sessions_by_workflow(self, workflow_name: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get all sessions for a specific workflow.
+
+        Args:
+            workflow_name: Name of the workflow.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            List of session metadata dictionaries.
+        """
+        sessions = []
+        for session_id, metadata in self._metadata_cache.items():
+            if metadata.get("workflow_name") == workflow_name:
                 sessions.append({"session_id": session_id, **metadata})
 
         # Sort by last_updated descending

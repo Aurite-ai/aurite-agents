@@ -67,6 +67,7 @@ export interface AgentExecutionResult {
   };
   error?: string | null;
   history?: any[];
+  session_id?: string;
 }
 
 // Workflow types

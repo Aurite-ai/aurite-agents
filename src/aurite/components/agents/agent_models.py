@@ -24,6 +24,7 @@ class AgentRunResult(BaseModel):
         description="The complete conversation history as a list of dictionaries, compliant with OpenAI's message format."
     )
     error_message: Optional[str] = Field(None, description="An error message if the agent execution failed.")
+    session_id: Optional[str] = Field(None, description="The session ID used for this agent run.")
 
     @property
     def primary_text(self) -> Optional[str]:

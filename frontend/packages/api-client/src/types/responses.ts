@@ -21,6 +21,8 @@ export interface AgentRunResult {
   }>;
   /** Error message if the execution failed */
   error_message?: string;
+  /** Session ID for the execution */
+  session_id?: string;
 }
 
 /**
@@ -39,6 +41,8 @@ export interface WorkflowExecutionResult {
   final_output?: any;
   /** Error message if the workflow failed */
   error?: string;
+  /** Session ID for the workflow execution */
+  session_id?: string;
 }
 
 /**
