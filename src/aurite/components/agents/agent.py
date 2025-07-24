@@ -4,7 +4,7 @@ Manages the multi-turn conversation loop for an Agent.
 
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -23,6 +23,10 @@ from ..llm.providers.litellm_client import LiteLLMClient
 from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
 
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,12 +42,14 @@ class Agent:
         base_llm_config: LLMConfig,
         host_instance: MCPHost,
         initial_messages: List[Dict[str, Any]],
+        trace: Optional["StatefulTraceClient"] = None,
     ):
         self.config = agent_config
         self.host = host_instance
         self.conversation_history: List[Dict[str, Any]] = initial_messages
         self.final_response: Optional[ChatCompletionMessage] = None
         self.tool_uses_in_last_turn: List[ChatCompletionMessageToolCall] = []
+        self.trace = trace
 
         # --- Configuration Resolution ---
         # The Agent is responsible for resolving its final LLM configuration.
@@ -60,6 +66,7 @@ class Agent:
             resolved_config.default_system_prompt = agent_config.system_prompt
 
         self.resolved_llm_config: LLMConfig = resolved_config
+
         self.llm = LiteLLMClient(config=self.resolved_llm_config)
 
         logger.debug(
@@ -76,6 +83,7 @@ class Agent:
                             history, and any errors.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
+
         tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
 
@@ -89,6 +97,7 @@ class Agent:
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,
+                trace=self.trace,
             )
 
             try:
@@ -161,6 +170,7 @@ class Agent:
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,
+                trace=self.trace,
             )
 
             try:
