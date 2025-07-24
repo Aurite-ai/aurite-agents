@@ -380,12 +380,36 @@ async def get_session_history(
     Get the full conversation history for a specific session.
     For workflow sessions, returns the combined history from all agents.
     By default returns a simplified view, but can return raw format with raw_format=true.
+    Supports partial session ID matching for workflow sessions (e.g., just the suffix like '826c63d4').
     """
     try:
-        # Get metadata first to check if this is a workflow
+        # First try to get metadata with the exact session_id
         metadata = facade.get_session_metadata(session_id)
         
-        # Check if this is a workflow session
+        # If not found and it looks like a short ID (8-12 hex chars), search for matching sessions
+        if metadata is None and len(session_id) >= 8 and len(session_id) <= 12 and all(c in '0123456789abcdefABCDEF-' for c in session_id):
+            # Search for sessions ending with this ID
+            all_sessions = facade.get_sessions_list(limit=1000, offset=0)
+            matching_sessions = []
+            
+            for session_data in all_sessions["sessions"]:
+                if session_data["session_id"].endswith(session_id):
+                    matching_sessions.append(session_data["session_id"])
+            
+            if len(matching_sessions) == 1:
+                # Found exactly one match, use it
+                session_id = matching_sessions[0]
+                metadata = facade.get_session_metadata(session_id)
+                logger.info(f"Found matching session for partial ID: {session_id}")
+            elif len(matching_sessions) > 1:
+                # Multiple matches, return error with suggestions
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}"
+                )
+            # If no matches, continue with normal flow (will result in 404)
+        
+        # Check if this is a workflow session BEFORE modifying metadata
         is_workflow = metadata and metadata.get("workflow_name") and not metadata.get("agent_name")
         
         if is_workflow:
@@ -403,15 +427,17 @@ async def get_session_history(
         if metadata is None:
             # Create minimal metadata if not available
             metadata = {"agent_name": "unknown", "message_count": len(history)}
+        else:
+            # Make a copy of metadata to avoid modifying the original
+            metadata = dict(metadata)
 
         # Add the session_id to the metadata dict before validation
         metadata["session_id"] = session_id
         
         # Fix the agent_name field for workflows
         if is_workflow:
-            # Don't use agent_name for workflows, it's misleading
-            entity_name = metadata.get("workflow_name", "Unknown Workflow")
-            metadata["agent_name"] = entity_name  # Required field, but we'll clarify it's a workflow
+            # For workflows, set agent_name to None since it's not an agent session
+            metadata["agent_name"] = None
             
             # Ensure agents_involved is populated
             if not metadata.get("agents_involved"):
@@ -440,9 +466,12 @@ async def get_session_history(
                 simplified = simplify_message(msg)
                 messages.append(ConversationMessage(**simplified))
 
+        # For the top-level response, use None for agent_name if it's a workflow
+        response_agent_name = None if is_workflow else metadata.get("agent_name")
+
         return SessionHistoryResponse(
             session_id=metadata.get("session_id"),
-            agent_name=metadata.get("agent_name", "unknown"),
+            agent_name=response_agent_name,
             messages=messages,
             metadata=SessionMetadata(**metadata),
         )
