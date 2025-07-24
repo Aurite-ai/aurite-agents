@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ....config.config_manager import ConfigManager
 from ....config.config_models import ClientConfig
+from ....errors import MCPServerTimeoutError
 from ....host.host import MCPHost
 from ...dependencies import get_api_key, get_config_manager, get_host
 
@@ -190,6 +191,9 @@ async def register_server_by_config(
         # Track registration time
         _server_registration_times[server_config.name] = datetime.now()
         return {"status": "success", "name": server_config.name}
+    except MCPServerTimeoutError:
+        # Let timeout errors propagate to the main exception handler
+        raise
     except Exception as e:
         logger.error(f"Failed to register server '{server_config.name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -458,6 +462,8 @@ async def call_tool(
     except KeyError as e:
         # This handles the case where the tool was removed between check and call
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.") from e
+    except MCPServerTimeoutError as e:
+        raise HTTPException(status_code=504, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error calling tool '{tool_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

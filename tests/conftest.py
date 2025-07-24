@@ -111,6 +111,8 @@ def with_test_config():
                 projects_list_str = match.group(1)
                 # Remove brackets and whitespace
                 projects_str = projects_list_str.strip()[1:-1].strip()
+                if projects_str[-1] == ',':
+                    projects_str = projects_str[:-1]
 
                 if not projects_str:
                     # The list is empty

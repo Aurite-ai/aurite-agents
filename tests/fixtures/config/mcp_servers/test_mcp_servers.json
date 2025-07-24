@@ -187,5 +187,25 @@
       "prompts"
     ],
     "type": "mcp_server"
+  },
+  {
+    "name": "error_stdio_server",
+    "server_path": "../mcp_servers/error_stdio_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": 1.0,
+    "type": "mcp_server"
+  },
+  {
+    "name": "error_http_server",
+    "http_endpoint": "http://127.0.0.1:8088/mcp",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": 1.0,
+    "type": "mcp_server"
   }
 ]

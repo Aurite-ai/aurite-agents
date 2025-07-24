@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse  # Add JSONResponse
 from ...errors import (
     AgentExecutionError,
     ConfigurationError,
+    MCPServerTimeoutError,
     WorkflowExecutionError,
 )
 
@@ -37,7 +38,7 @@ from .routes import config_manager_routes, facade_routes, mcp_host_routes, syste
 # Hello
 # Configure logging
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=os.getenv("LOG_LEVEL", "DEBUG").upper(),
     format="%(asctime)s | %(levelname)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -161,6 +162,25 @@ async def workflow_execution_error_exception_handler(request: Request, exc: Work
     return JSONResponse(
         status_code=500,  # Internal Server Error
         content={"detail": f"Workflow execution failed: {str(exc)}"},
+    )
+
+
+# Handler for MCPServerTimeoutError
+@app.exception_handler(MCPServerTimeoutError)
+async def mcp_server_timeout_error_handler(request: Request, exc: MCPServerTimeoutError):
+    logger.error(
+        f"MCP server timeout error: {exc} for request {request.url.path} - "
+        f"Server: {exc.server_name}, Timeout: {exc.timeout_seconds}s, Operation: {exc.operation}"
+    )
+    return JSONResponse(
+        status_code=504,  # Gateway Timeout
+        content={
+            "error": "mcp_server_timeout",
+            "detail": str(exc),
+            "server_name": exc.server_name,
+            "timeout_seconds": exc.timeout_seconds,
+            "operation": exc.operation,
+        },
     )
 
 
