@@ -124,15 +124,22 @@ async def run_agent(
             system_prompt=request.system_prompt,
             session_id=request.session_id,
         )
-        return result.model_dump()
+        if result.status == "success":
+            return result.model_dump()
+
+        return JSONResponse(
+            status_code=500,
+            content=result.model_dump(),
+        )
+
     except ConfigurationError as e:
         logger.error(f"Configuration error for agent '{agent_name}': {e}")
         raise HTTPException(status_code=404, detail=str(e)) from e
     except AgentExecutionError as e:
-        logger.error(f"Agent execution error for '{agent_name}': {e}", exc_info=True)
+        logger.error(f"Agent execution error for '{agent_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {clean_error_message(e)}") from e
     except Exception as e:
-        logger.error(f"Unexpected error running agent '{agent_name}': {e}", exc_info=True)
+        logger.error(f"Unexpected error running agent '{agent_name}': {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
 
 
@@ -151,6 +158,7 @@ async def test_agent(
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 def _validate_agent(agent_name: str, config_manager: ConfigManager):
     agent_config = config_manager.get_config("agent", agent_name)
@@ -181,6 +189,7 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
     llm = LiteLLMClient(config=resolved_config)
 
     llm.validate()
+
 
 @router.post("/agents/{agent_name}/stream")
 async def stream_agent(
@@ -219,7 +228,7 @@ async def stream_agent(
                     "user_message": request.user_message,
                     "system_prompt": request.system_prompt,
                     "session_id": request.session_id,
-                }
+                },
             }
         }
 
@@ -227,6 +236,7 @@ async def stream_agent(
             status_code=500,
             content=error_response,
         )
+
 
 @router.post("/workflows/simple/{workflow_name}/run")
 async def run_simple_workflow(
