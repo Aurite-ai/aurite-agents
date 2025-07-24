@@ -5,16 +5,19 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from ....components.llm.providers.litellm_client import LiteLLMClient
+from ....config.config_manager import ConfigManager
+from ....config.config_models import AgentConfig, LLMConfig
 from ....errors import (
     AgentExecutionError,
     ConfigurationError,
     WorkflowExecutionError,
 )
 from ....execution.facade import ExecutionFacade
-from ...dependencies import get_api_key, get_execution_facade
+from ...dependencies import get_api_key, get_config_manager, get_execution_facade
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -149,6 +152,35 @@ async def test_agent(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+def _validate_agent(agent_name: str, config_manager: ConfigManager):
+    agent_config = config_manager.get_config("agent", agent_name)
+
+    if not agent_config:
+        raise KeyError(f"Agent Config for {agent_name} not found")
+
+    agent_config: AgentConfig = AgentConfig(**agent_config)
+
+    llm_config = None
+    if agent_config.llm_config_id:
+        llm_config = config_manager.get_config("llm", agent_config.llm_config_id)
+    else:
+        raise KeyError(f"llm_config_id is undefined for agent {agent_name}")
+
+    if not llm_config:
+        raise KeyError(f"llm_config_id {agent_config.llm_config_id} was not found while running agent {agent_name}")
+
+    resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
+
+    if agent_config.llm:
+        overrides = agent_config.llm.model_dump(exclude_unset=True)
+        resolved_config = resolved_config.model_copy(update=overrides)
+
+    if agent_config.system_prompt:
+        resolved_config.default_system_prompt = agent_config.system_prompt
+
+    llm = LiteLLMClient(config=resolved_config)
+
+    llm.validate()
 
 @router.post("/agents/{agent_name}/stream")
 async def stream_agent(
@@ -156,11 +188,14 @@ async def stream_agent(
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name and stream the response.
     """
     try:
+        # first, validate the agent
+        _validate_agent(agent_name, config_manager)
 
         async def event_generator():
             async for event in facade.stream_agent_run(
@@ -173,20 +208,25 @@ async def stream_agent(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
-        logger.error(f"Error streaming agent '{agent_name}': {e}", exc_info=True)
-        # Cannot raise HTTPException for a streaming response.
-        # The error will be logged, and the client will see a dropped connection.
-        # A more robust solution could involve yielding a final error event.
-        return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"
-                ]
-            ),
-            media_type="text/event-stream",
-            status_code=500,
-        )
+        logger.error(f"Error streaming agent '{agent_name}': {e}")
 
+        error_response = {
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+                "details": {
+                    "agent_name": agent_name,
+                    "user_message": request.user_message,
+                    "system_prompt": request.system_prompt,
+                    "session_id": request.session_id,
+                }
+            }
+        }
+
+        return JSONResponse(
+            status_code=500,
+            content=error_response,
+        )
 
 @router.post("/workflows/simple/{workflow_name}/run")
 async def run_simple_workflow(

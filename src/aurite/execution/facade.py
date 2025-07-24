@@ -176,7 +176,7 @@ class ExecutionFacade:
             error_msg = (
                 f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             )
-            logger.error(f"Facade: {error_msg}", exc_info=True)
+            logger.error(f"Facade: {error_msg}")
             yield {"type": "error", "data": {"message": error_msg}}
             # Re-raise to be caught by the final `finally` block for cleanup
             raise AgentExecutionError(error_msg) from e
