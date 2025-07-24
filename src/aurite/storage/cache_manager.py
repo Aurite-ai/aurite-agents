@@ -1,19 +1,19 @@
 """
-Provides a file-based cache for conversation history with in-memory caching.
+Provides a file-based cache for execution results with in-memory caching.
 """
 
 import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
 class CacheManager:
     """
-    A file-based cache for storing conversation history with in-memory caching.
+    A file-based cache for storing execution results with in-memory caching.
     This provides persistence across restarts while maintaining fast access.
     """
 
@@ -27,7 +27,8 @@ class CacheManager:
         self._cache_dir = cache_dir or Path(".aurite_cache")
         logger.info(f"CacheManager initializing with cache_dir: {self._cache_dir.absolute()}")
         self._cache_dir.mkdir(exist_ok=True)
-        self._history_cache: Dict[str, List[Dict[str, Any]]] = {}
+        # Store complete execution results instead of just conversations
+        self._result_cache: Dict[str, Dict[str, Any]] = {}
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
         self._load_cache()
 
@@ -46,34 +47,65 @@ class CacheManager:
                         data = json.load(f)
                         session_id = data.get("session_id")
                         if session_id:
-                            self._history_cache[session_id] = data.get("conversation", [])
+                            # Store the complete execution result
+                            self._result_cache[session_id] = data.get("execution_result", data)
+                            
+                            # Extract metadata
+                            result_type = data.get("result_type", "unknown")
+                            
+                            # Calculate message count from execution result
+                            message_count = 0
+                            exec_result = data.get("execution_result", {})
+                            workflow_name = None
+                            agent_name = None
+                            agents_involved = []
+                            
+                            if "conversation_history" in exec_result:
+                                message_count = len(exec_result.get("conversation_history", []))
+                                # For agent results, get agent name if available
+                                agent_name = exec_result.get("agent_name")
+                            elif "step_results" in exec_result:
+                                # For workflows, count messages from all steps and collect agent session IDs
+                                for step in exec_result.get("step_results", []):
+                                    if isinstance(step, dict) and "result" in step:
+                                        step_result = step["result"]
+                                        if isinstance(step_result, dict):
+                                            if "conversation_history" in step_result:
+                                                message_count += len(step_result.get("conversation_history", []))
+                                            # Collect agent session IDs
+                                            if "session_id" in step_result:
+                                                agents_involved.append(step_result["session_id"])
+                                # For workflow results, get workflow name
+                                workflow_name = exec_result.get("workflow_name")
+                            
                             self._metadata_cache[session_id] = {
                                 "created_at": data.get("created_at"),
                                 "last_updated": data.get("last_updated"),
-                                "agent_name": data.get("agent_name"),
-                                "workflow_name": data.get("workflow_name"),
-                                "agents_involved": data.get("agents_involved", []),
-                                "message_count": len(data.get("conversation", [])),
+                                "result_type": result_type,
+                                "session_id": session_id,
+                                "message_count": message_count,
+                                "workflow_name": workflow_name,
+                                "agent_name": agent_name,
+                                "agents_involved": agents_involved if agents_involved else None,
                             }
                 except Exception as e:
                     logger.warning(f"Failed to load session file {session_file}: {e}")
         except Exception as e:
             logger.error(f"Failed to load cache directory: {e}")
 
-    def get_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+    def get_result(self, session_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieves the conversation history for a given session ID.
-        Also ensures metadata is loaded into the cache if a file is read.
+        Retrieves the execution result for a given session ID.
 
         Args:
-            session_id: The unique identifier for the session. Can be sanitized or not.
+            session_id: The unique identifier for the session.
 
         Returns:
-            A list of message dictionaries, or None if no history is found.
+            The execution result dict (AgentRunResult or SimpleWorkflowExecutionResult), or None if not found.
         """
-        # Check memory cache first for the provided session_id
-        if session_id in self._history_cache:
-            return self._history_cache[session_id]
+        # Check memory cache first
+        if session_id in self._result_cache:
+            return self._result_cache[session_id]
 
         # Try to load from disk if not in memory
         session_file = self._get_session_file(session_id)
@@ -82,102 +114,134 @@ class CacheManager:
                 with open(session_file, "r") as f:
                     data = json.load(f)
                 
-                # The real session_id is the one inside the file
                 real_session_id = data.get("session_id")
                 if not real_session_id:
                     logger.warning(f"Session file {session_file} is missing 'session_id' key.")
                     return None
 
-                conversation = data.get("conversation", [])
+                # Get the execution result
+                execution_result = data.get("execution_result", data)
                 
-                # Use the real_session_id to populate the caches
-                self._history_cache[real_session_id] = conversation
+                # Calculate message count and extract names from execution result
+                message_count = 0
+                workflow_name = None
+                agent_name = None
+                agents_involved = []
+                
+                if "conversation_history" in execution_result:
+                    message_count = len(execution_result.get("conversation_history", []))
+                    # For agent results, get agent name if available
+                    agent_name = execution_result.get("agent_name")
+                elif "step_results" in execution_result:
+                    # For workflows, count messages from all steps and collect agent session IDs
+                    for step in execution_result.get("step_results", []):
+                        if isinstance(step, dict) and "result" in step:
+                            step_result = step["result"]
+                            if isinstance(step_result, dict):
+                                if "conversation_history" in step_result:
+                                    message_count += len(step_result.get("conversation_history", []))
+                                # Collect agent session IDs
+                                if "session_id" in step_result:
+                                    agents_involved.append(step_result["session_id"])
+                    # For workflow results, get workflow name
+                    workflow_name = execution_result.get("workflow_name")
+                
+                # Update caches
+                self._result_cache[real_session_id] = execution_result
                 self._metadata_cache[real_session_id] = {
                     "created_at": data.get("created_at"),
                     "last_updated": data.get("last_updated"),
-                    "agent_name": data.get("agent_name"),
-                    "workflow_name": data.get("workflow_name"),
-                    "agents_involved": data.get("agents_involved", []),
-                    "message_count": len(conversation),
+                    "result_type": data.get("result_type", "unknown"),
+                    "session_id": real_session_id,
+                    "message_count": message_count,
+                    "workflow_name": workflow_name,
+                    "agent_name": agent_name,
+                    "agents_involved": agents_involved if agents_involved else None,
                 }
                 
-                return conversation
+                return execution_result
             except Exception as e:
                 logger.error(f"Failed to load session {session_id} from disk: {e}")
 
         return None
-
-    def save_history(
-        self,
-        session_id: str,
-        conversation: List[Dict[str, Any]],
-        agent_name: Optional[str] = None,
-        workflow_name: Optional[str] = None,
-        workflow_session_id: Optional[str] = None,
-    ):
+    
+    def get_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """
-        Saves or updates the conversation history for a given session ID.
+        Legacy method for backward compatibility. Extracts conversation history from execution result.
+        
+        Args:
+            session_id: The unique identifier for the session.
+            
+        Returns:
+            A list of message dictionaries, or None if no history is found.
+        """
+        result = self.get_result(session_id)
+        if result:
+            # Extract conversation history from the result
+            if "conversation_history" in result:
+                return result["conversation_history"]
+            elif "step_results" in result:
+                # For workflows, combine all conversations
+                all_messages = []
+                for step in result.get("step_results", []):
+                    if isinstance(step, dict) and "result" in step:
+                        step_result = step["result"]
+                        if isinstance(step_result, dict) and "conversation_history" in step_result:
+                            all_messages.extend(step_result["conversation_history"])
+                return all_messages if all_messages else None
+        return None
+
+    def save_result(self, session_id: str, execution_result: Dict[str, Any], result_type: str = "unknown"):
+        """
+        Saves the complete execution result for a session.
 
         Args:
             session_id: The unique identifier for the session.
-            conversation: The full list of message dictionaries to save.
-            agent_name: Optional name of the agent for this session.
-            workflow_name: Optional name of the workflow this session belongs to.
-            workflow_session_id: Optional parent workflow session ID.
+            execution_result: The complete execution result (AgentRunResult or SimpleWorkflowExecutionResult as dict).
+            result_type: Type of result ("agent" or "workflow").
         """
-        logger.info(
-            f"CacheManager.save_history called for session_id: {session_id}, agent_name: {agent_name}, workflow_name: {workflow_name}, conversation_length: {len(conversation)}"
-        )
+        logger.info(f"CacheManager.save_result called for session_id: {session_id}, result_type: {result_type}")
 
         # Update memory cache
-        self._history_cache[session_id] = conversation
+        self._result_cache[session_id] = execution_result
 
         # Prepare metadata
         now = datetime.utcnow().isoformat()
-        if session_id not in self._metadata_cache:
-            self._metadata_cache[session_id] = {
-                "created_at": now, 
-                "agent_name": agent_name,
-                "workflow_name": workflow_name,
-                "agents_involved": []
-            }
         
-        # Update metadata
-        self._metadata_cache[session_id]["last_updated"] = now
-        self._metadata_cache[session_id]["message_count"] = len(conversation)
+        # Calculate message count and extract names from execution result
+        message_count = 0
+        workflow_name = None
+        agent_name = None
+        agents_involved = []
         
-        # Track workflow information
-        if workflow_name:
-            self._metadata_cache[session_id]["workflow_name"] = workflow_name
+        if "conversation_history" in execution_result:
+            message_count = len(execution_result.get("conversation_history", []))
+            # For agent results, get agent name if available
+            agent_name = execution_result.get("agent_name")
+        elif "step_results" in execution_result:
+            # For workflows, count messages from all steps and collect agent session IDs
+            for step in execution_result.get("step_results", []):
+                if isinstance(step, dict) and "result" in step:
+                    step_result = step["result"]
+                    if isinstance(step_result, dict):
+                        if "conversation_history" in step_result:
+                            message_count += len(step_result.get("conversation_history", []))
+                        # Collect agent session IDs
+                        if "session_id" in step_result:
+                            agents_involved.append(step_result["session_id"])
+            # For workflow results, get workflow name
+            workflow_name = execution_result.get("workflow_name")
         
-        # Track agents involved
-        if agent_name and agent_name not in self._metadata_cache[session_id].get("agents_involved", []):
-            if "agents_involved" not in self._metadata_cache[session_id]:
-                self._metadata_cache[session_id]["agents_involved"] = []
-            self._metadata_cache[session_id]["agents_involved"].append(agent_name)
-
-        # Link to parent workflow session
-        if workflow_session_id:
-            self._metadata_cache[session_id]["workflow_session_id"] = workflow_session_id
-            
-            # Update the parent workflow's agents_involved list with this session ID
-            if workflow_session_id in self._metadata_cache:
-                parent_agents_involved = self._metadata_cache[workflow_session_id].get("agents_involved", [])
-                if session_id not in parent_agents_involved:
-                    parent_agents_involved.append(session_id)
-                    self._metadata_cache[workflow_session_id]["agents_involved"] = parent_agents_involved
-                    # Also update the parent workflow file on disk
-                    parent_file = self._get_session_file(workflow_session_id)
-                    if parent_file.exists():
-                        try:
-                            with open(parent_file, "r") as f:
-                                parent_data = json.load(f)
-                            parent_data["agents_involved"] = parent_agents_involved
-                            parent_data["last_updated"] = now
-                            with open(parent_file, "w") as f:
-                                json.dump(parent_data, f, indent=2)
-                        except Exception as e:
-                            logger.warning(f"Failed to update parent workflow file: {e}")
+        self._metadata_cache[session_id] = {
+            "created_at": self._metadata_cache.get(session_id, {}).get("created_at", now),
+            "last_updated": now,
+            "result_type": result_type,
+            "session_id": session_id,
+            "message_count": message_count,
+            "workflow_name": workflow_name,
+            "agent_name": agent_name,
+            "agents_involved": agents_involved if agents_involved else None,
+        }
 
         # Save to disk
         session_file = self._get_session_file(session_id)
@@ -185,20 +249,30 @@ class CacheManager:
         try:
             data = {
                 "session_id": session_id,
-                "conversation": conversation,
-                "created_at": self._metadata_cache[session_id].get("created_at"),
+                "execution_result": execution_result,
+                "result_type": result_type,
+                "created_at": self._metadata_cache[session_id]["created_at"],
                 "last_updated": now,
-                "agent_name": agent_name or self._metadata_cache[session_id].get("agent_name"),
-                "workflow_name": self._metadata_cache[session_id].get("workflow_name"),
-                "workflow_session_id": self._metadata_cache[session_id].get("workflow_session_id"),
-                "agents_involved": self._metadata_cache[session_id].get("agents_involved", []),
-                "message_count": len(conversation),
             }
             with open(session_file, "w") as f:
                 json.dump(data, f, indent=2)
             logger.info(f"Successfully saved session {session_id} to disk at {session_file.absolute()}")
         except Exception as e:
             logger.error(f"Failed to save session {session_id} to disk: {e}", exc_info=True)
+
+    def save_history(self, session_id: str, conversation: List[Dict[str, Any]], agent_name: Optional[str] = None, 
+                    workflow_name: Optional[str] = None, workflow_session_id: Optional[str] = None):
+        """
+        Legacy method for backward compatibility. Converts conversation to a result format and saves it.
+        """
+        # Create a minimal result format
+        execution_result = {
+            "conversation_history": conversation,
+            "agent_name": agent_name,
+            "workflow_name": workflow_name,
+        }
+        result_type = "workflow" if workflow_name else "agent"
+        self.save_result(session_id, execution_result, result_type)
 
     def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -208,51 +282,26 @@ class CacheManager:
             session_id: The session identifier.
 
         Returns:
-            Metadata dict with created_at, last_updated, agent_name, message_count
+            Metadata dict with created_at, last_updated, result_type, session_id
         """
         # Check memory cache first
         if session_id in self._metadata_cache:
             return self._metadata_cache[session_id]
 
-        # If not in memory, load directly from the corresponding file
-        session_file = self._get_session_file(session_id)
-        if not session_file.exists():
-            return None
-
-        try:
-            with open(session_file, "r") as f:
-                data = json.load(f)
-
-            real_session_id = data.get("session_id")
-            if not real_session_id:
-                logger.warning(f"Session file {session_file} is missing 'session_id' key.")
-                return None
-
-            # Construct metadata from the file content
-            metadata = {
-                "created_at": data.get("created_at"),
-                "last_updated": data.get("last_updated"),
-                "agent_name": data.get("agent_name"),
-                "workflow_name": data.get("workflow_name"),
-                "agents_involved": data.get("agents_involved", []),
-                "message_count": len(data.get("conversation", [])),
-                "session_id": real_session_id, # Ensure session_id is in the metadata
-            }
-
-            # Update the in-memory cache for future requests
-            self._metadata_cache[real_session_id] = metadata
+        # If not in memory, try to load the result which will populate metadata
+        result = self.get_result(session_id)
+        if result and session_id in self._metadata_cache:
+            return self._metadata_cache[session_id]
             
-            return metadata
-        except Exception as e:
-            logger.error(f"Failed to load metadata for session {session_id} from disk: {e}")
-            return None
+        return None
 
     def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Get all sessions for a specific agent.
-
+        For now, this returns all agent sessions since we don't track agent names in metadata.
+        
         Args:
-            agent_name: Name of the agent.
+            agent_name: Name of the agent (currently unused).
             limit: Maximum number of sessions to return.
 
         Returns:
@@ -260,9 +309,7 @@ class CacheManager:
         """
         sessions = []
         for session_id, metadata in self._metadata_cache.items():
-            # Check if agent is the primary agent OR in agents_involved list
-            if (metadata.get("agent_name") == agent_name or 
-                agent_name in metadata.get("agents_involved", [])):
+            if metadata.get("result_type") == "agent":
                 sessions.append({"session_id": session_id, **metadata})
 
         # Sort by last_updated descending
@@ -272,9 +319,10 @@ class CacheManager:
     def get_sessions_by_workflow(self, workflow_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Get all sessions for a specific workflow.
+        For now, this returns all workflow sessions since we don't track workflow names in metadata.
 
         Args:
-            workflow_name: Name of the workflow.
+            workflow_name: Name of the workflow (currently unused).
             limit: Maximum number of sessions to return.
 
         Returns:
@@ -282,7 +330,7 @@ class CacheManager:
         """
         sessions = []
         for session_id, metadata in self._metadata_cache.items():
-            if metadata.get("workflow_name") == workflow_name:
+            if metadata.get("result_type") == "workflow":
                 sessions.append({"session_id": session_id, **metadata})
 
         # Sort by last_updated descending
@@ -300,7 +348,7 @@ class CacheManager:
             True if deleted successfully, False otherwise.
         """
         # Remove from memory
-        self._history_cache.pop(session_id, None)
+        self._result_cache.pop(session_id, None)
         self._metadata_cache.pop(session_id, None)
 
         # Remove from disk
@@ -315,10 +363,10 @@ class CacheManager:
 
     def clear_cache(self):
         """
-        Clears all conversation histories from memory cache only.
+        Clears all execution results from memory cache only.
         Files on disk are preserved.
         """
-        self._history_cache.clear()
+        self._result_cache.clear()
         self._metadata_cache.clear()
 
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):

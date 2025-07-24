@@ -27,28 +27,6 @@ def clean_error_message(error: Exception) -> str:
     return str(error)
 
 
-def simplify_message(message: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert Anthropic format to simplified format"""
-    simplified_content = ""
-
-    if isinstance(message.get("content"), list):
-        for block in message["content"]:
-            if block.get("type") == "text":
-                simplified_content += block.get("text", "")
-            elif block.get("type") == "tool_use":
-                simplified_content += f"\n[Tool: {block.get('name')}]\n"
-            elif block.get("type") == "tool_result":
-                simplified_content += "\n[Tool Result]\n"
-    else:
-        simplified_content = str(message.get("content", ""))
-
-    return {
-        "role": message.get("role"),
-        "content": simplified_content.strip(),
-        "timestamp": message.get("timestamp"),  # If available
-    }
-
-
 router = APIRouter()
 
 
@@ -81,16 +59,10 @@ class SessionListResponse(BaseModel):
     limit: int
 
 
-class ConversationMessage(BaseModel):
-    role: str
-    content: Union[str, List[Dict[str, Any]]]
-    timestamp: Optional[str] = None
-
-
-class SessionHistoryResponse(BaseModel):
-    session_id: str
-    agent_name: Optional[str] = None
-    messages: List[ConversationMessage]
+class ExecutionHistoryResponse(BaseModel):
+    """Unified response model for both agent and workflow execution history"""
+    result_type: str  # "agent" or "workflow"
+    execution_result: Dict[str, Any]  # The complete AgentRunResult or SimpleWorkflowExecutionResult
     metadata: SessionMetadata
 
 
@@ -369,25 +341,24 @@ async def list_execution_history(
         raise HTTPException(status_code=500, detail="Failed to retrieve execution history") from e
 
 
-@router.get("/history/{session_id}", response_model=SessionHistoryResponse)
+@router.get("/history/{session_id}", response_model=ExecutionHistoryResponse)
 async def get_session_history(
     session_id: str,
-    raw_format: bool = Query(False, description="Return raw Anthropic format instead of simplified view"),
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
     """
-    Get the full conversation history for a specific session.
-    For workflow sessions, returns the combined history from all agents.
-    By default returns a simplified view, but can return raw format with raw_format=true.
-    Supports partial session ID matching for workflow sessions (e.g., just the suffix like '826c63d4').
+    Get the complete execution result for a specific session.
+    Returns the same format as the original execution endpoint.
+    Supports partial session ID matching (e.g., just the suffix like '826c63d4').
     """
     try:
-        # First try to get metadata with the exact session_id
+        # First try to get the execution result with the exact session_id
+        execution_result = facade.get_session_result(session_id)
         metadata = facade.get_session_metadata(session_id)
         
         # If not found and it looks like a short ID (8-12 hex chars), search for matching sessions
-        if metadata is None and len(session_id) >= 8 and len(session_id) <= 12 and all(c in '0123456789abcdefABCDEF-' for c in session_id):
+        if execution_result is None and len(session_id) >= 8 and len(session_id) <= 12 and all(c in '0123456789abcdefABCDEF-' for c in session_id):
             # Search for sessions ending with this ID
             all_sessions = facade.get_sessions_list(limit=1000, offset=0)
             matching_sessions = []
@@ -399,6 +370,7 @@ async def get_session_history(
             if len(matching_sessions) == 1:
                 # Found exactly one match, use it
                 session_id = matching_sessions[0]
+                execution_result = facade.get_session_result(session_id)
                 metadata = facade.get_session_metadata(session_id)
                 logger.info(f"Found matching session for partial ID: {session_id}")
             elif len(matching_sessions) > 1:
@@ -407,72 +379,45 @@ async def get_session_history(
                     status_code=400, 
                     detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}"
                 )
-            # If no matches, continue with normal flow (will result in 404)
         
-        # Check if this is a workflow session BEFORE modifying metadata
-        is_workflow = metadata and metadata.get("workflow_name") and not metadata.get("agent_name")
+        if execution_result is None:
+            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
         
-        if is_workflow:
-            # For workflows, get the full combined history
-            history = facade.get_full_workflow_history(session_id)
-            if not history:
-                # Workflow exists but has no agent executions yet
-                history = []
-        else:
-            # For regular agent sessions, get the normal history
-            history = facade.get_session_history(session_id)
-            if history is None:
-                raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-
         if metadata is None:
             # Create minimal metadata if not available
-            metadata = {"agent_name": "unknown", "message_count": len(history)}
-        else:
-            # Make a copy of metadata to avoid modifying the original
-            metadata = dict(metadata)
-
-        # Add the session_id to the metadata dict before validation
+            metadata = {
+                "session_id": session_id,
+                "result_type": "unknown",
+                "created_at": None,
+                "last_updated": None,
+                "message_count": 0,
+            }
+        
+        # Ensure all required fields are present in metadata
         metadata["session_id"] = session_id
-        
-        # Fix the agent_name field for workflows
-        if is_workflow:
-            # For workflows, set agent_name to None since it's not an agent session
-            metadata["agent_name"] = None
-            
-            # Ensure agents_involved is populated
-            if not metadata.get("agents_involved"):
-                # Extract unique agent session IDs from the full history
-                agents_involved = []
-                if facade._cache_manager and facade._cache_manager._cache_dir:
-                    safe_base_id = "".join(c for c in session_id if c.isalnum() or c in "-_")
-                    try:
-                        for session_file in facade._cache_manager._cache_dir.glob(f"{safe_base_id}-*-*.json"):
-                            # Extract the session ID from the filename
-                            agent_session_id = session_file.stem
-                            agents_involved.append(agent_session_id)
-                    except Exception as e:
-                        logger.warning(f"Could not extract agents_involved: {e}")
-                metadata["agents_involved"] = agents_involved
-        
-        # Update message count to reflect actual messages
-        metadata["message_count"] = len(history)
-
-        # Format messages based on raw_format flag
-        messages = []
-        for msg in history:
-            if raw_format:
-                messages.append(ConversationMessage(**msg))
+        if "message_count" not in metadata:
+            # Count messages from the execution result
+            if "conversation_history" in execution_result:
+                metadata["message_count"] = len(execution_result["conversation_history"])
+            elif "step_results" in execution_result:
+                count = 0
+                for step in execution_result.get("step_results", []):
+                    if isinstance(step, dict) and "result" in step:
+                        step_result = step["result"]
+                        if isinstance(step_result, dict) and "conversation_history" in step_result:
+                            count += len(step_result["conversation_history"])
+                metadata["message_count"] = count
             else:
-                simplified = simplify_message(msg)
-                messages.append(ConversationMessage(**simplified))
-
-        # For the top-level response, use None for agent_name if it's a workflow
-        response_agent_name = None if is_workflow else metadata.get("agent_name")
-
-        return SessionHistoryResponse(
-            session_id=metadata.get("session_id"),
-            agent_name=response_agent_name,
-            messages=messages,
+                metadata["message_count"] = 0
+        
+        # Set default values for optional fields
+        metadata.setdefault("agent_name", None)
+        metadata.setdefault("workflow_name", None)
+        metadata.setdefault("agents_involved", None)
+        
+        return ExecutionHistoryResponse(
+            result_type=metadata.get("result_type", "unknown"),
+            execution_result=execution_result,
             metadata=SessionMetadata(**metadata),
         )
     except HTTPException:
