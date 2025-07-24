@@ -250,13 +250,13 @@ class AgentsService {
   private handleError(error: unknown, context: string): void {
     const sanitizedContext = this.sanitizeInput(context);
     if (error instanceof ApiError) {
-      console.error(sanitizedContext + ': ' + String(error.getDisplayMessage()), error.toJSON());
+      console.error('%s: %s', sanitizedContext, String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error(sanitizedContext + ': Request timed out', error);
+      console.error('%s: Request timed out', sanitizedContext, error);
     } else if (error instanceof CancellationError) {
-      console.error(sanitizedContext + ': Request was cancelled', error);
+      console.error('%s: Request was cancelled', sanitizedContext, error);
     } else {
-      console.error(sanitizedContext + ': Unknown error', error);
+      console.error('%s: Unknown error', sanitizedContext, error);
     }
   }
 
