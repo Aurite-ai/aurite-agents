@@ -186,7 +186,7 @@ async def test_llm(
             )
             
             # Check if the agent execution actually succeeded
-            if result.status != "completed":
+            if result.status != "success":
                 # If the agent didn't complete successfully, this indicates an LLM issue
                 error_details = []
                 if hasattr(result, 'error_message') and result.error_message:
