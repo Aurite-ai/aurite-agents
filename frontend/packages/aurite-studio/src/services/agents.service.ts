@@ -248,15 +248,21 @@ class AgentsService {
 
   // Helper method to handle errors with user-friendly messages
   private handleError(error: unknown, context: string): void {
+    const sanitizedContext = this.sanitizeInput(context);
     if (error instanceof ApiError) {
-      console.error(context + ': ' + String(error.getDisplayMessage()), error.toJSON());
+      console.error(sanitizedContext + ': ' + String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error(context + ': Request timed out', error);
+      console.error(sanitizedContext + ': Request timed out', error);
     } else if (error instanceof CancellationError) {
-      console.error(context + ': Request was cancelled', error);
+      console.error(sanitizedContext + ': Request was cancelled', error);
     } else {
-      console.error(context + ': Unknown error', error);
+      console.error(sanitizedContext + ': Unknown error', error);
     }
+  }
+
+  // Utility method to sanitize user-provided input
+  private sanitizeInput(input: string): string {
+    return input.replace(/[^a-zA-Z0-9 _-]/g, '_');
   }
 
   // Map API client AgentConfig to local AgentConfig
