@@ -256,7 +256,7 @@ class AgentsService {
     } else if (error instanceof CancellationError) {
       console.error(sanitizedContext + ': Request was cancelled', error);
     } else {
-      console.error(sanitizedContext + ': Unknown error', error);
+      console.error('%s: Unknown error', sanitizedContext, error);
     }
   }
 
