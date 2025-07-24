@@ -482,21 +482,31 @@ async def get_workflow_history(
 ):
     """
     Get all sessions for a specific workflow.
-    Returns the most recent sessions up to the limit.
+    Returns only the parent workflow sessions, not individual agent sessions.
     """
     try:
         # Apply retention policy on retrieval
         facade.cleanup_old_sessions()
 
         # Get sessions for specific workflow using the new workflow_name parameter
-        result = facade.get_sessions_list(workflow_name=workflow_name, limit=limit, offset=0)
+        result = facade.get_sessions_list(workflow_name=workflow_name, limit=limit * 10, offset=0)  # Get more to filter
 
-        # Convert to response model
-        sessions = []
+        # Filter to only include parent workflow sessions (those without agent_name)
+        filtered_sessions = []
         for session_data in result["sessions"]:
-            sessions.append(SessionMetadata(**session_data))
+            # Only include sessions where agent_name is None (parent workflow sessions)
+            if session_data.get("agent_name") is None:
+                filtered_sessions.append(SessionMetadata(**session_data))
 
-        return SessionListResponse(sessions=sessions, total=result["total"], offset=0, limit=limit)
+        # Apply the limit after filtering
+        filtered_sessions = filtered_sessions[:limit]
+
+        return SessionListResponse(
+            sessions=filtered_sessions, 
+            total=len(filtered_sessions), 
+            offset=0, 
+            limit=limit
+        )
     except Exception as e:
         logger.error(f"Error getting history for workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve history for workflow '{workflow_name}'") from e
