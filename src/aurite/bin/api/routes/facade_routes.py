@@ -66,7 +66,7 @@ class WorkflowRunRequest(BaseModel):
 # History-related models
 class SessionMetadata(BaseModel):
     session_id: str
-    agent_name: str
+    agent_name: Optional[str] = None
     created_at: Optional[str] = None
     last_updated: Optional[str] = None
     message_count: int
@@ -89,7 +89,7 @@ class ConversationMessage(BaseModel):
 
 class SessionHistoryResponse(BaseModel):
     session_id: str
-    agent_name: str
+    agent_name: Optional[str] = None
     messages: List[ConversationMessage]
     metadata: SessionMetadata
 
@@ -269,13 +269,14 @@ async def run_custom_workflow(
 @router.get("/history", response_model=SessionListResponse)
 async def list_execution_history(
     agent_name: Optional[str] = Query(None, description="Filter by agent name"),
+    workflow_name: Optional[str] = Query(None, description="Filter by workflow name"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
     offset: int = Query(0, ge=0, description="Number of sessions to skip"),
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
     """
-    List execution history sessions with optional filtering by agent.
+    List execution history sessions with optional filtering by agent or workflow.
     Supports pagination with offset/limit.
     """
     try:
@@ -283,7 +284,12 @@ async def list_execution_history(
         facade.cleanup_old_sessions()
 
         # Get sessions from facade
-        result = facade.get_sessions_list(agent_name=agent_name, limit=limit, offset=offset)
+        result = facade.get_sessions_list(
+            agent_name=agent_name, 
+            workflow_name=workflow_name, 
+            limit=limit, 
+            offset=offset
+        )
 
         # Convert to response model
         sessions = []
