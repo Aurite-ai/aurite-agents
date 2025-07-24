@@ -171,7 +171,7 @@ class LiteLLMClient:
         Returns:
             (bool): True if valid to run, otherwise raises error
         """
-        messages = [{"role": "user", "content": "Hey, how's it going?"}]
+        messages = [{"role": "user", "content": "Hello"}]
         try:
             litellm.completion(
                 model=f"{self.config.provider}/{self.config.model}", messages=messages, max_tokens=10
