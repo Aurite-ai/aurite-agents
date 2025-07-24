@@ -269,13 +269,13 @@ class WorkflowsService {
   // Helper method to handle errors with user-friendly messages
   private handleError(error: unknown, context: string): void {
     if (error instanceof ApiError) {
-      console.error(`${context}: ${error.getDisplayMessage()}`, error.toJSON());
+      console.error(context + ': ' + String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error(`${context}: Request timed out`, error);
+      console.error(context + ': Request timed out', error);
     } else if (error instanceof CancellationError) {
-      console.error(`${context}: Request was cancelled`, error);
+      console.error(context + ': Request was cancelled', error);
     } else {
-      console.error(`${context}: Unknown error`, error);
+      console.error(context + ': Unknown error', error);
     }
   }
 
