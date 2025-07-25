@@ -12,7 +12,6 @@ from ....components.llm.providers.litellm_client import LiteLLMClient
 from ....config.config_manager import ConfigManager
 from ....config.config_models import AgentConfig, LLMConfig
 from ....errors import (
-    AgentExecutionError,
     ConfigurationError,
     WorkflowExecutionError,
 )
@@ -127,20 +126,30 @@ async def run_agent(
         if result.status == "success":
             return result.model_dump()
 
-        return JSONResponse(
-            status_code=500,
-            content=result.model_dump(),
-        )
-
-    except ConfigurationError as e:
-        logger.error(f"Configuration error for agent '{agent_name}': {e}")
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except AgentExecutionError as e:
-        logger.error(f"Agent execution error for '{agent_name}': {e}")
-        raise HTTPException(status_code=500, detail=f"Agent execution failed: {clean_error_message(e)}") from e
+        raise HTTPException(status_code=500, detail=result.error_message)
     except Exception as e:
-        logger.error(f"Unexpected error running agent '{agent_name}': {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
+        status_code = 500
+        if type(e) is ConfigurationError:
+            status_code = 404
+        logger.error(f"Error running agent '{agent_name}': {e}")
+
+        error_response = {
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+                "details": {
+                    "agent_name": agent_name,
+                    "user_message": request.user_message,
+                    "system_prompt": request.system_prompt,
+                    "session_id": request.session_id,
+                },
+            }
+        }
+
+        return JSONResponse(
+            status_code=status_code,
+            content=error_response,
+        )
 
 
 @router.post("/agents/{agent_name}/test")
