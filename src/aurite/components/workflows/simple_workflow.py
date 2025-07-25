@@ -108,9 +108,17 @@ class SimpleWorkflowExecutor:
                             agent_session_id = None
                             force_include_history = self.config.include_history
 
-                            if self.config.include_history and session_id:
-                                # Create a unique, traceable session ID for this specific agent run
-                                agent_session_id = f"{session_id}-{step_index}"
+                            if self.config.include_history:
+                                if session_id:
+                                    # Create a unique, traceable session ID for this specific agent run
+                                    agent_session_id = f"{session_id}-{step_index}"
+                                else:
+                                    # If workflow wants history but has no session_id, generate one for the agent
+                                    agent_session_id = f"agent-workflow-{step_index}-{uuid.uuid4().hex[:8]}"
+                                    logger.warning(
+                                        f"Workflow has include_history=true but no session_id. "
+                                        f"Generated agent session_id: {agent_session_id}"
+                                    )
                             
                             # The facade's run_agent now returns a structured AgentRunResult
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
