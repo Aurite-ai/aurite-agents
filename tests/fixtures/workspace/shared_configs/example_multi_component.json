@@ -47,7 +47,7 @@
     "mcp_servers": [
       "weather_server"
     ],
-    "include_history": false,
+    "include_history": true,
     "name": "Weather Agent",
     "type": "agent"
   },
