@@ -83,21 +83,23 @@ class MCPHost:
             await self.unregister_client(server_name)
         logger.debug("MCP Host shutdown complete.")
 
-    async def call_tool(self, name: str, args: dict[str, Any], agent_config: Optional[AgentConfig] = None) -> types.CallToolResult:
+    async def call_tool(
+        self, name: str, args: dict[str, Any], agent_config: Optional[AgentConfig] = None
+    ) -> types.CallToolResult:
         """Executes a tool given its name and arguments."""
         if name not in self._tool_to_session:
             raise KeyError(f"Tool '{name}' not found or its server is not registered.")
-        
+
         # Security check: Ensure agent has access to this tool's server
         if agent_config and agent_config.mcp_servers:
             # Extract server name from tool name (format: "server_name-tool_name")
-            server_name = name.split('-', 1)[0] if '-' in name else None
+            server_name = name.split("-", 1)[0] if "-" in name else None
             if server_name and server_name not in agent_config.mcp_servers:
                 raise PermissionError(
                     f"Agent '{agent_config.name}' does not have access to tool '{name}' "
                     f"from server '{server_name}'. Allowed servers: {agent_config.mcp_servers}"
                 )
-        
+
         session = self._tool_to_session[name]
 
         # get the actual tool name without prepended server name

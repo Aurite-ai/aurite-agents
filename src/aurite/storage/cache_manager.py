@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,17 +49,17 @@ class CacheManager:
                         if session_id:
                             # Store the complete execution result
                             self._result_cache[session_id] = data.get("execution_result", data)
-                            
+
                             # Extract metadata
                             result_type = data.get("result_type", "unknown")
-                            
+
                             # Calculate message count from execution result
                             message_count = 0
                             exec_result = data.get("execution_result", {})
                             workflow_name = None
                             agent_name = None
                             agents_involved = []
-                            
+
                             if "conversation_history" in exec_result:
                                 message_count = len(exec_result.get("conversation_history", []))
                                 # For agent results, get agent name if available
@@ -77,7 +77,7 @@ class CacheManager:
                                                 agents_involved.append(step_result["session_id"])
                                 # For workflow results, get workflow name
                                 workflow_name = exec_result.get("workflow_name")
-                            
+
                             self._metadata_cache[session_id] = {
                                 "created_at": data.get("created_at"),
                                 "last_updated": data.get("last_updated"),
@@ -113,7 +113,7 @@ class CacheManager:
             try:
                 with open(session_file, "r") as f:
                     data = json.load(f)
-                
+
                 real_session_id = data.get("session_id")
                 if not real_session_id:
                     logger.warning(f"Session file {session_file} is missing 'session_id' key.")
@@ -121,13 +121,13 @@ class CacheManager:
 
                 # Get the execution result
                 execution_result = data.get("execution_result", data)
-                
+
                 # Calculate message count and extract names from execution result
                 message_count = 0
                 workflow_name = None
                 agent_name = None
                 agents_involved = []
-                
+
                 if "conversation_history" in execution_result:
                     message_count = len(execution_result.get("conversation_history", []))
                     # For agent results, get agent name if available
@@ -145,7 +145,7 @@ class CacheManager:
                                     agents_involved.append(step_result["session_id"])
                     # For workflow results, get workflow name
                     workflow_name = execution_result.get("workflow_name")
-                
+
                 # Update caches
                 self._result_cache[real_session_id] = execution_result
                 self._metadata_cache[real_session_id] = {
@@ -158,20 +158,20 @@ class CacheManager:
                     "agent_name": agent_name,
                     "agents_involved": agents_involved if agents_involved else None,
                 }
-                
+
                 return execution_result
             except Exception as e:
                 logger.error(f"Failed to load session {session_id} from disk: {e}")
 
         return None
-    
+
     def get_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """
         Legacy method for backward compatibility. Extracts conversation history from execution result.
-        
+
         Args:
             session_id: The unique identifier for the session.
-            
+
         Returns:
             A list of message dictionaries, or None if no history is found.
         """
@@ -207,13 +207,13 @@ class CacheManager:
 
         # Prepare metadata
         now = datetime.utcnow().isoformat()
-        
+
         # Calculate message count and extract names from execution result
         message_count = 0
         workflow_name = None
         agent_name = None
         agents_involved = []
-        
+
         if "conversation_history" in execution_result:
             message_count = len(execution_result.get("conversation_history", []))
             # For agent results, get agent name if available
@@ -231,7 +231,7 @@ class CacheManager:
                             agents_involved.append(step_result["session_id"])
             # For workflow results, get workflow name
             workflow_name = execution_result.get("workflow_name")
-        
+
         self._metadata_cache[session_id] = {
             "created_at": self._metadata_cache.get(session_id, {}).get("created_at", now),
             "last_updated": now,
@@ -260,8 +260,14 @@ class CacheManager:
         except Exception as e:
             logger.error(f"Failed to save session {session_id} to disk: {e}", exc_info=True)
 
-    def save_history(self, session_id: str, conversation: List[Dict[str, Any]], agent_name: Optional[str] = None, 
-                    workflow_name: Optional[str] = None, workflow_session_id: Optional[str] = None):
+    def save_history(
+        self,
+        session_id: str,
+        conversation: List[Dict[str, Any]],
+        agent_name: Optional[str] = None,
+        workflow_name: Optional[str] = None,
+        workflow_session_id: Optional[str] = None,
+    ):
         """
         Legacy method for backward compatibility. Converts conversation to a result format and saves it.
         """
@@ -292,14 +298,14 @@ class CacheManager:
         result = self.get_result(session_id)
         if result and session_id in self._metadata_cache:
             return self._metadata_cache[session_id]
-            
+
         return None
 
     def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Get all sessions for a specific agent.
         For now, this returns all agent sessions since we don't track agent names in metadata.
-        
+
         Args:
             agent_name: Name of the agent (currently unused).
             limit: Maximum number of sessions to return.

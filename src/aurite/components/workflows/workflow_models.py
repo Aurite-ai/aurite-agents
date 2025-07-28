@@ -46,7 +46,7 @@ class SimpleWorkflowExecutionResult(BaseModel):
     final_output: Optional[Any] = Field(None, description="The final output from the last step of the workflow.")
 
     error: Optional[str] = Field(None, description="An error message if the workflow execution failed.")
-    
+
     session_id: Optional[str] = Field(None, description="The session ID used for this workflow run.")
 
     @property

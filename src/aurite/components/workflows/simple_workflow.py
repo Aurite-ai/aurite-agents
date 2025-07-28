@@ -68,14 +68,14 @@ class SimpleWorkflowExecutor:
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
-        
+
         # Auto-generate session_id if workflow wants history but none provided
         if self.config.include_history and not session_id:
             session_id = f"workflow-{uuid.uuid4().hex[:8]}"
             logger.info(f"Auto-generated session_id for workflow with include_history=true: {session_id}")
-        
+
         logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
-        
+
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
 
@@ -119,7 +119,7 @@ class SimpleWorkflowExecutor:
                                         f"Workflow has include_history=true but no session_id. "
                                         f"Generated agent session_id: {agent_session_id}"
                                     )
-                            
+
                             # The facade's run_agent now returns a structured AgentRunResult
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,

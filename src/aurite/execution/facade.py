@@ -1,7 +1,7 @@
 """
 Provides a unified facade for executing Agents, Simple Workflows, and Custom Workflows.
 """
-import json
+
 import logging
 import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
@@ -173,7 +173,7 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
-        
+
         # Auto-generate session_id if agent wants history but none provided
         if not session_id:
             # Check if agent has include_history=true
@@ -182,8 +182,10 @@ class ExecutionFacade:
                 agent_config = AgentConfig(**agent_config_dict)
                 if agent_config.include_history:
                     session_id = f"agent-{uuid.uuid4().hex[:8]}"
-                    logger.info(f"Auto-generated session_id for streaming agent with include_history=true: {session_id}")
-        
+                    logger.info(
+                        f"Auto-generated session_id for streaming agent with include_history=true: {session_id}"
+                    )
+
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:
@@ -191,11 +193,11 @@ class ExecutionFacade:
                 agent_name, user_message, system_prompt, session_id
             )
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
-            
+
             # Yield session_id as the first event
             if session_id:
                 yield {"type": "session_info", "data": {"session_id": session_id}}
-            
+
             async for event in agent_instance.stream_conversation():
                 yield event
         except Exception as e:
@@ -253,11 +255,13 @@ class ExecutionFacade:
             agent_config_dict = self._config_manager.get_config("agent", agent_name)
             if agent_config_dict:
                 agent_config = AgentConfig(**agent_config_dict)
-                effective_include_history = force_include_history if force_include_history is not None else agent_config.include_history
+                effective_include_history = (
+                    force_include_history if force_include_history is not None else agent_config.include_history
+                )
                 if effective_include_history:
                     session_id = f"agent-{uuid.uuid4().hex[:8]}"
                     logger.info(f"Auto-generated session_id for agent with include_history=true: {session_id}")
-        
+
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:
@@ -301,9 +305,7 @@ class ExecutionFacade:
                 elif self._cache_manager:
                     # Save the complete execution result
                     self._cache_manager.save_result(
-                        session_id=session_id,
-                        execution_result=run_result.model_dump(),
-                        result_type="agent"
+                        session_id=session_id, execution_result=run_result.model_dump(), result_type="agent"
                     )
                     logger.info(
                         f"Facade: Saved complete execution result for agent '{agent_name}', session '{session_id}' to file-based cache."
@@ -324,7 +326,9 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
-    async def run_simple_workflow(self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
+    async def run_simple_workflow(
+        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+    ) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
         try:
             workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
@@ -342,16 +346,16 @@ class ExecutionFacade:
 
             result = await workflow_executor.execute(initial_input=initial_input, session_id=session_id)
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
-            
+
             # Save the complete workflow execution result if it has a session_id
             if result.session_id and self._cache_manager:
                 self._cache_manager.save_result(
-                    session_id=result.session_id,
-                    execution_result=result.model_dump(),
-                    result_type="workflow"
+                    session_id=result.session_id, execution_result=result.model_dump(), result_type="workflow"
                 )
-                logger.info(f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}' to cache.")
-            
+                logger.info(
+                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}' to cache."
+                )
+
             return result
         except ConfigurationError as e:
             # Re-raise configuration errors directly
@@ -442,7 +446,7 @@ class ExecutionFacade:
         else:
             logger.warning("No storage backend available for session results")
             return None
-    
+
     def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """
         Legacy method - Get conversation history for a specific session.
@@ -456,8 +460,9 @@ class ExecutionFacade:
             logger.warning("No storage backend available for session history")
             return None
 
-
-    def get_sessions_list(self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    def get_sessions_list(
+        self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0
+    ) -> Dict[str, Any]:
         """
         Get list of sessions with optional filtering by agent or workflow.
         Returns paginated results.

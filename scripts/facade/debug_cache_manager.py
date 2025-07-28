@@ -27,11 +27,7 @@ HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 async def check_facade_status():
     """Check the facade status endpoint."""
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{API_BASE_URL}/execution/status",
-            headers=HEADERS,
-            timeout=10.0
-        )
+        response = await client.get(f"{API_BASE_URL}/execution/status", headers=HEADERS, timeout=10.0)
         response.raise_for_status()
         return response.json()
 
@@ -42,11 +38,8 @@ async def run_agent_with_history(agent_name: str, session_id: str):
         response = await client.post(
             f"{API_BASE_URL}/execution/agents/{agent_name}/run",
             headers=HEADERS,
-            json={
-                "user_message": "Test message for cache debugging",
-                "session_id": session_id
-            },
-            timeout=60.0
+            json={"user_message": "Test message for cache debugging", "session_id": session_id},
+            timeout=60.0,
         )
         response.raise_for_status()
         return response.json()
@@ -55,7 +48,7 @@ async def run_agent_with_history(agent_name: str, session_id: str):
 async def main():
     """Debug the cache manager initialization."""
     print("=== Debugging Cache Manager ===")
-    
+
     # Check facade status
     print("\n1️⃣ Checking facade status...")
     try:
@@ -64,29 +57,27 @@ async def main():
     except Exception as e:
         print(f"   ❌ Error: {e}")
         return
-    
+
     # Test with an agent that has include_history: true
     print("\n2️⃣ Testing with 'Conversation History Weather Agent'...")
     session_id = "debug-cache-test"
-    
+
     try:
-        result = await run_agent_with_history(
-            agent_name="Conversation History Weather Agent",
-            session_id=session_id
-        )
+        result = await run_agent_with_history(agent_name="Conversation History Weather Agent", session_id=session_id)
         print(f"   ✅ Agent completed with status: {result.get('status')}")
         print(f"   Conversation history length: {len(result.get('conversation_history', []))}")
     except Exception as e:
         print(f"   ❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     # Check cache directory
     print("\n3️⃣ Checking cache directory...")
     cache_dir = Path(".aurite_cache")
     print(f"   Cache directory: {cache_dir.absolute()}")
     print(f"   Exists: {cache_dir.exists()}")
-    
+
     if cache_dir.exists():
         files = list(cache_dir.glob("*.json"))
         print(f"   Files found: {len(files)}")
@@ -100,7 +91,7 @@ async def main():
                     print(f"     Messages: {data.get('message_count', 0)}")
             except Exception as e:
                 print(f"     Error reading: {e}")
-    
+
     # Also check if .aurite_cache was created in the wrong location
     print("\n4️⃣ Checking for cache in other locations...")
     possible_locations = [
@@ -108,7 +99,7 @@ async def main():
         Path.home() / ".aurite_cache",
         Path(__file__).parent.parent.parent / ".aurite_cache",
     ]
-    
+
     for location in possible_locations:
         if location.exists() and location.is_dir():
             print(f"   Found cache directory at: {location}")

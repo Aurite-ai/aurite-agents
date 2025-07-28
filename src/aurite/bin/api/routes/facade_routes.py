@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
@@ -61,6 +61,7 @@ class SessionListResponse(BaseModel):
 
 class ExecutionHistoryResponse(BaseModel):
     """Unified response model for both agent and workflow execution history"""
+
     result_type: str  # "agent" or "workflow"
     execution_result: Dict[str, Any]  # The complete AgentRunResult or SimpleWorkflowExecutionResult
     metadata: SessionMetadata
@@ -234,6 +235,7 @@ async def run_custom_workflow(
         logger.error(f"Unexpected error running custom workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
 
+
 @router.post("/workflows/custom/{workflow_name}/test")
 async def test_custom_workflow(
     workflow_name: str,
@@ -293,39 +295,31 @@ async def list_execution_history(
         if workflow_name:
             # Get more sessions to ensure we have enough after filtering
             result = facade.get_sessions_list(
-                agent_name=agent_name, 
-                workflow_name=workflow_name, 
+                agent_name=agent_name,
+                workflow_name=workflow_name,
                 limit=(limit + offset) * 10,  # Get more to account for filtering
-                offset=0
+                offset=0,
             )
-            
+
             # Filter to only include parent workflow sessions (those without agent_name)
             filtered_sessions = []
             for session_data in result["sessions"]:
                 # Only include sessions where agent_name is None (parent workflow sessions)
                 if session_data.get("agent_name") is None:
                     filtered_sessions.append(session_data)
-            
+
             # Apply pagination to filtered results
             total_filtered = len(filtered_sessions)
-            paginated_sessions = filtered_sessions[offset:offset + limit]
-            
+            paginated_sessions = filtered_sessions[offset : offset + limit]
+
             # Convert to response model
             sessions = [SessionMetadata(**session_data) for session_data in paginated_sessions]
-            
-            return SessionListResponse(
-                sessions=sessions, 
-                total=total_filtered, 
-                offset=offset, 
-                limit=limit
-            )
+
+            return SessionListResponse(sessions=sessions, total=total_filtered, offset=offset, limit=limit)
         else:
             # Normal behavior for agent filtering or no filtering
             result = facade.get_sessions_list(
-                agent_name=agent_name, 
-                workflow_name=workflow_name, 
-                limit=limit, 
-                offset=offset
+                agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
             )
 
             # Convert to response model
@@ -356,17 +350,22 @@ async def get_session_history(
         # First try to get the execution result with the exact session_id
         execution_result = facade.get_session_result(session_id)
         metadata = facade.get_session_metadata(session_id)
-        
+
         # If not found and it looks like a short ID (8-12 hex chars), search for matching sessions
-        if execution_result is None and len(session_id) >= 8 and len(session_id) <= 12 and all(c in '0123456789abcdefABCDEF-' for c in session_id):
+        if (
+            execution_result is None
+            and len(session_id) >= 8
+            and len(session_id) <= 12
+            and all(c in "0123456789abcdefABCDEF-" for c in session_id)
+        ):
             # Search for sessions ending with this ID
             all_sessions = facade.get_sessions_list(limit=1000, offset=0)
             matching_sessions = []
-            
+
             for session_data in all_sessions["sessions"]:
                 if session_data["session_id"].endswith(session_id):
                     matching_sessions.append(session_data["session_id"])
-            
+
             if len(matching_sessions) == 1:
                 # Found exactly one match, use it
                 session_id = matching_sessions[0]
@@ -376,13 +375,13 @@ async def get_session_history(
             elif len(matching_sessions) > 1:
                 # Multiple matches, return error with suggestions
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}"
+                    status_code=400,
+                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}",
                 )
-        
+
         if execution_result is None:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-        
+
         if metadata is None:
             # Create minimal metadata if not available
             metadata = {
@@ -392,7 +391,7 @@ async def get_session_history(
                 "last_updated": None,
                 "message_count": 0,
             }
-        
+
         # Ensure all required fields are present in metadata
         metadata["session_id"] = session_id
         if "message_count" not in metadata:
@@ -409,12 +408,12 @@ async def get_session_history(
                 metadata["message_count"] = count
             else:
                 metadata["message_count"] = 0
-        
+
         # Set default values for optional fields
         metadata.setdefault("agent_name", None)
         metadata.setdefault("workflow_name", None)
         metadata.setdefault("agents_involved", None)
-        
+
         return ExecutionHistoryResponse(
             result_type=metadata.get("result_type", "unknown"),
             execution_result=execution_result,
@@ -425,6 +424,7 @@ async def get_session_history(
     except Exception as e:
         logger.error(f"Error getting session history for '{session_id}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve session history") from e
+
 
 @router.delete("/history/{session_id}", status_code=204)
 async def delete_session_history(

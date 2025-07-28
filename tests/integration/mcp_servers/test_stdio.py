@@ -53,6 +53,7 @@ async def test_stdio_server_wrong_args(with_test_config):
         assert type(tool_result) is types.CallToolResult
         assert tool_result.isError
 
+
 @pytest.mark.asyncio
 async def test_stdio_server_tool_dne(with_test_config):
     """
@@ -69,8 +70,9 @@ async def test_stdio_server_tool_dne(with_test_config):
 
         await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
 
-        with pytest.raises(Exception) as e:
-            tool_result = await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
+        with pytest.raises(Exception):
+            await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
+
 
 @pytest.mark.asyncio
 async def test_stdio_server_incorrect_path(with_test_config):
@@ -86,5 +88,7 @@ async def test_stdio_server_incorrect_path(with_test_config):
 
         config_manager.refresh()
 
-        with pytest.raises(Exception) as e:
-            await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_invalid_server_path")))
+        with pytest.raises(Exception):
+            await host.register_client(
+                ClientConfig(**config_manager.get_config("mcp_server", "weather_server_invalid_server_path"))
+            )
