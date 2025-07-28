@@ -197,7 +197,11 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
 
     llm = LiteLLMClient(config=resolved_config)
 
-    llm.validate()
+    result = llm.validate()
+
+    if result and not agent_config.llm:
+        # if llm is valid and no parameters were overriden
+        config_manager.validate_llm(agent_config.llm_config_id)
 
 
 @router.post("/agents/{agent_name}/stream")
