@@ -1,0 +1,903 @@
+{
+	"info": {
+		"_postman_id": "h1st0ry-t3st-c0ll3ct10n",
+		"name": "Aurite History API Tests",
+		"description": "Comprehensive tests for execution history functionality",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Workflow Execution Tests",
+			"item": [
+				{
+					"name": "Run History Test Workflow A",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Workflow execution successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('completed');",
+									"    pm.expect(jsonData.workflow_name).to.eql('History Test Workflow A');",
+									"    pm.expect(jsonData.session_id).to.exist;",
+									"    ",
+									"    // Store session IDs for later tests",
+									"    pm.collectionVariables.set(\"workflow_a_session_id\", jsonData.session_id);",
+									"    ",
+									"    // Verify step results",
+									"    pm.expect(jsonData.step_results).to.have.lengthOf(2);",
+									"    pm.expect(jsonData.step_results[0].result.session_id).to.exist;",
+									"    pm.expect(jsonData.step_results[1].result.session_id).to.exist;",
+									"    ",
+									"    pm.collectionVariables.set(\"workflow_a_agent1_session_id\", jsonData.step_results[0].result.session_id);",
+									"    pm.collectionVariables.set(\"workflow_a_agent2_session_id\", jsonData.step_results[1].result.session_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"initial_input\": \"What is the weather in Paris?\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow A/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"workflows",
+								"simple",
+								"History Test Workflow A",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Run History Test Workflow B",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Workflow execution successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('completed');",
+									"    pm.expect(jsonData.workflow_name).to.eql('History Test Workflow B');",
+									"    pm.expect(jsonData.session_id).to.exist;",
+									"    ",
+									"    pm.collectionVariables.set(\"workflow_b_session_id\", jsonData.session_id);",
+									"    ",
+									"    // First agent should have history, second should not",
+									"    pm.expect(jsonData.step_results[0].result.session_id).to.exist;",
+									"    pm.collectionVariables.set(\"workflow_b_agent1_session_id\", jsonData.step_results[0].result.session_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"initial_input\": \"What is the weather in London?\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow B/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"workflows",
+								"simple",
+								"History Test Workflow B",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Run History Test Workflow C",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Workflow execution successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('completed');",
+									"    pm.expect(jsonData.workflow_name).to.eql('History Test Workflow C');",
+									"    pm.expect(jsonData.session_id).to.exist;",
+									"    ",
+									"    pm.collectionVariables.set(\"workflow_c_session_id\", jsonData.session_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"initial_input\": \"What is the weather in Tokyo?\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow C/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"workflows",
+								"simple",
+								"History Test Workflow C",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Run History Test Workflow D",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Workflow execution successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('completed');",
+									"    pm.expect(jsonData.workflow_name).to.eql('History Test Workflow D');",
+									"    ",
+									"    // Workflow D has include_history=false, so no session_id",
+									"    pm.expect(jsonData.session_id).to.not.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"initial_input\": \"What is the weather in Berlin?\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow D/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"workflows",
+								"simple",
+								"History Test Workflow D",
+								"run"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "History Retrieval Tests",
+			"item": [
+				{
+					"name": "Get All History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('sessions');",
+									"    pm.expect(jsonData).to.have.property('total');",
+									"    pm.expect(jsonData).to.have.property('offset');",
+									"    pm.expect(jsonData).to.have.property('limit');",
+									"    pm.expect(jsonData.sessions).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get History by Workflow Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Only returns sessions for specified workflow\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sessions).to.be.an('array');",
+									"    ",
+									"    // All returned sessions should be for 'History Test Workflow A'",
+									"    jsonData.sessions.forEach(function(session) {",
+									"        pm.expect(session.agent_name).to.be.null;",
+									"        pm.expect(session.workflow_name).to.eql('History Test Workflow A');",
+									"    });",
+									"    ",
+									"    // Should have at least one session from our test run",
+									"    pm.expect(jsonData.sessions.length).to.be.at.least(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history?workflow_name=History Test Workflow A",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history"
+							],
+							"query": [
+								{
+									"key": "workflow_name",
+									"value": "History Test Workflow A"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get History by Agent Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Only returns sessions for specified agent\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sessions).to.be.an('array');",
+									"    ",
+									"    // All returned sessions should be for 'History Test Agent A1'",
+									"    jsonData.sessions.forEach(function(session) {",
+									"        pm.expect(session.agent_name).to.eql('History Test Agent A1');",
+									"        pm.expect(session.workflow_name).to.be.null;",
+									"    });",
+									"    ",
+									"    // Should have at least one session from our test runs",
+									"    pm.expect(jsonData.sessions.length).to.be.at.least(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history?agent_name=History Test Agent A1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history"
+							],
+							"query": [
+								{
+									"key": "agent_name",
+									"value": "History Test Agent A1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Workflow A History by Session ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var sessionId = pm.collectionVariables.get(\"workflow_a_session_id\");",
+									"",
+									"if (sessionId) {",
+									"    pm.test(\"Status code is 200\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    ",
+									"    pm.test(\"Returns correct workflow history\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.result_type).to.eql('workflow');",
+									"        pm.expect(jsonData.execution_result.workflow_name).to.eql('History Test Workflow A');",
+									"        pm.expect(jsonData.execution_result.step_results).to.have.lengthOf(2);",
+									"        pm.expect(jsonData.metadata.session_id).to.eql(sessionId);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Skipped - no session ID available\", function () {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/{{workflow_a_session_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"{{workflow_a_session_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agent History by Session ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var sessionId = pm.collectionVariables.get(\"workflow_a_agent1_session_id\");",
+									"",
+									"if (sessionId) {",
+									"    pm.test(\"Status code is 200\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    ",
+									"    pm.test(\"Returns correct agent history\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.result_type).to.eql('agent');",
+									"        pm.expect(jsonData.execution_result.conversation_history).to.be.an('array');",
+									"        pm.expect(jsonData.metadata.session_id).to.eql(sessionId);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Skipped - no session ID available\", function () {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/{{workflow_a_agent1_session_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"{{workflow_a_agent1_session_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Partial Session ID Matching",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var fullSessionId = pm.collectionVariables.get(\"workflow_a_session_id\");",
+									"",
+									"if (fullSessionId && fullSessionId.length >= 8) {",
+									"    pm.test(\"Status code is 200\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    ",
+									"    pm.test(\"Partial session ID matching works\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.metadata.session_id).to.eql(fullSessionId);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Skipped - no session ID available\", function () {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Extract last 8 characters of session ID for partial matching test",
+									"var fullSessionId = pm.collectionVariables.get(\"workflow_a_session_id\");",
+									"if (fullSessionId && fullSessionId.length >= 8) {",
+									"    var partialId = fullSessionId.slice(-8);",
+									"    pm.variables.set(\"partial_session_id\", partialId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/{{partial_session_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"{{partial_session_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "History Management Tests",
+			"item": [
+				{
+					"name": "Delete Session History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var sessionId = pm.collectionVariables.get(\"workflow_c_session_id\");",
+									"",
+									"if (sessionId) {",
+									"    pm.test(\"Status code is 204\", function () {",
+									"        pm.response.to.have.status(204);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Skipped - no session ID available\", function () {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/{{workflow_c_session_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"{{workflow_c_session_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Deletion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var sessionId = pm.collectionVariables.get(\"workflow_c_session_id\");",
+									"",
+									"if (sessionId) {",
+									"    pm.test(\"Status code is 404\", function () {",
+									"        pm.response.to.have.status(404);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Skipped - no session ID available\", function () {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/{{workflow_c_session_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"{{workflow_c_session_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Old History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Cleanup message returned\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('Cleanup completed');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/cleanup?days=30&max_sessions=100",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"cleanup"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30"
+								},
+								{
+									"key": "max_sessions",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Edge Cases and Error Tests",
+			"item": [
+				{
+					"name": "Get History for Non-existent Session",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error message returned\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/non-existent-session-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"non-existent-session-id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Non-existent Session",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history/non-existent-session-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history",
+								"non-existent-session-id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Pagination",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Pagination parameters work correctly\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.limit).to.eql(2);",
+									"    pm.expect(jsonData.offset).to.eql(1);",
+									"    pm.expect(jsonData.sessions.length).to.be.at.most(2);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/execution/history?limit=2&offset=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"history"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "2"
+								},
+								{
+									"key": "offset",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://0.0.0.0:8000",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "test-api-key",
+			"type": "string"
+		}
+	]
+}
