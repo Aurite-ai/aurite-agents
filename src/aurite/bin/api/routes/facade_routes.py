@@ -64,6 +64,7 @@ class WorkflowRunRequest(BaseModel):
     initial_input: Any
     session_id: Optional[str] = None
 
+
 # History-related models
 class SessionMetadata(BaseModel):
     session_id: str
@@ -155,7 +156,7 @@ async def run_agent(
 async def test_llm(
     llm_config_id: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Test an LLM configuration by running a simple 10 token call
@@ -163,18 +164,17 @@ async def test_llm(
     """
     try:
         # Check if the LLM configuration exists
-        llm_config = facade._config_manager.get_config("llm", llm_config_id)
+        llm_config = config_manager.get_config("llm", llm_config_id)
         if not llm_config:
-            raise HTTPException(
-                status_code=404,
-                detail=f"LLM configuration '{llm_config_id}' not found."
-            )
+            raise HTTPException(status_code=404, detail=f"LLM configuration '{llm_config_id}' not found.")
 
         resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
 
         llm = LiteLLMClient(config=resolved_config)
 
         llm.validate()
+
+        config_manager.validate_llm(llm_config_id)
 
         return {
             "status": "success",
@@ -184,7 +184,7 @@ async def test_llm(
                 "model": resolved_config.model,
                 "temperature": resolved_config.temperature,
                 "max_tokens": resolved_config.max_tokens,
-            }
+            },
         }
     except Exception as e:
         logger.error(f"Error testing llm '{llm_config_id}': {e}")
@@ -195,7 +195,7 @@ async def test_llm(
             "error": {
                 "message": str(e),
                 "error_type": type(e).__name__,
-            }
+            },
         }
 
         if type(e) is HTTPException:
@@ -256,7 +256,7 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
 
     result = llm.validate()
 
-    if result and not agent_config.llm:
+    if result and agent_config.llm_config_id and not agent_config.llm:
         # if llm is valid and no parameters were overriden
         config_manager.validate_llm(agent_config.llm_config_id)
 
