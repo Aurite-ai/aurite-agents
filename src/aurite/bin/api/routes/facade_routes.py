@@ -65,7 +65,6 @@ class WorkflowRunRequest(BaseModel):
     initial_input: Any
     session_id: Optional[str] = None
 
-
 # History-related models
 class SessionMetadata(BaseModel):
     session_id: str
@@ -134,6 +133,64 @@ async def run_agent(
     except Exception as e:
         logger.error(f"Unexpected error running agent '{agent_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
+
+
+@router.post("/llms/{llm_config_id}/test")
+async def test_llm(
+    llm_config_id: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test an LLM configuration by running a simple 10 token call
+    This allows you to quickly test LLM configurations without creating a full agent.
+    """
+    try:
+        # Check if the LLM configuration exists
+        llm_config = facade._config_manager.get_config("llm", llm_config_id)
+        if not llm_config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"LLM configuration '{llm_config_id}' not found."
+            )
+
+        resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
+
+        llm = LiteLLMClient(config=resolved_config)
+
+        llm.validate()
+
+        return {
+            "status": "success",
+            "llm_config_id": llm_config_id,
+            "metadata": {
+                "provider": resolved_config.provider,
+                "model": resolved_config.model,
+                "temperature": resolved_config.temperature,
+                "max_tokens": resolved_config.max_tokens,
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error testing llm '{llm_config_id}': {e}")
+
+        error_response = {
+            "status": "error",
+            "llm_config_id": llm_config_id,
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+            }
+        }
+
+        if type(e) is HTTPException:
+            status_code = e.status_code
+        else:
+            status_code = 500
+
+        return JSONResponse(
+            status_code=status_code,
+            content=error_response,
+        )
 
 
 @router.post("/agents/{agent_name}/test")
