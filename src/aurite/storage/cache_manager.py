@@ -304,10 +304,9 @@ class CacheManager:
     def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Get all sessions for a specific agent.
-        For now, this returns all agent sessions since we don't track agent names in metadata.
 
         Args:
-            agent_name: Name of the agent (currently unused).
+            agent_name: Name of the agent to filter by.
             limit: Maximum number of sessions to return.
 
         Returns:
@@ -315,7 +314,8 @@ class CacheManager:
         """
         sessions = []
         for session_id, metadata in self._metadata_cache.items():
-            if metadata.get("result_type") == "agent":
+            # Filter by agent name
+            if metadata.get("result_type") == "agent" and metadata.get("agent_name") == agent_name:
                 sessions.append({"session_id": session_id, **metadata})
 
         # Sort by last_updated descending
@@ -325,10 +325,9 @@ class CacheManager:
     def get_sessions_by_workflow(self, workflow_name: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         Get all sessions for a specific workflow.
-        For now, this returns all workflow sessions since we don't track workflow names in metadata.
 
         Args:
-            workflow_name: Name of the workflow (currently unused).
+            workflow_name: Name of the workflow to filter by.
             limit: Maximum number of sessions to return.
 
         Returns:
@@ -336,7 +335,8 @@ class CacheManager:
         """
         sessions = []
         for session_id, metadata in self._metadata_cache.items():
-            if metadata.get("result_type") == "workflow":
+            # Filter by workflow name
+            if metadata.get("result_type") == "workflow" and metadata.get("workflow_name") == workflow_name:
                 sessions.append({"session_id": session_id, **metadata})
 
         # Sort by last_updated descending
@@ -351,8 +351,11 @@ class CacheManager:
             session_id: The session to delete.
 
         Returns:
-            True if deleted successfully, False otherwise.
+            True if deleted successfully, False if session not found.
         """
+        # Check if session exists
+        session_exists = session_id in self._metadata_cache
+
         # Remove from memory
         self._result_cache.pop(session_id, None)
         self._metadata_cache.pop(session_id, None)
@@ -362,7 +365,9 @@ class CacheManager:
         try:
             if session_file.exists():
                 session_file.unlink()
-            return True
+                return True
+            # If not in memory and not on disk, session doesn't exist
+            return session_exists
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             return False

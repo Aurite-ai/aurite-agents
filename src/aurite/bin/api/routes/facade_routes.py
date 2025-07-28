@@ -8,11 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from ....errors import (
-    AgentExecutionError,
-    ConfigurationError,
-    WorkflowExecutionError,
-)
+from ....errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
 from ...dependencies import get_api_key, get_execution_facade
 
@@ -426,7 +422,7 @@ async def get_session_history(
         raise HTTPException(status_code=500, detail="Failed to retrieve session history") from e
 
 
-@router.delete("/history/{session_id}", status_code=204)
+@router.delete("/history/{session_id}")
 async def delete_session_history(
     session_id: str,
     api_key: str = Security(get_api_key),
@@ -443,7 +439,9 @@ async def delete_session_history(
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
         # Return 204 No Content on successful deletion
-        return None
+        from fastapi import Response
+
+        return Response(status_code=204)
     except HTTPException:
         raise
     except Exception as e:

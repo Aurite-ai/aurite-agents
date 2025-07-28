@@ -122,6 +122,7 @@ class Agent:
                         conversation_history=self.conversation_history,
                         error_message=None,
                         session_id=self.session_id,
+                        agent_name=self.config.name,
                     )
 
             except Exception as e:
@@ -133,6 +134,7 @@ class Agent:
                     conversation_history=self.conversation_history,
                     error_message=error_message,
                     session_id=self.session_id,
+                    agent_name=self.config.name,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
@@ -142,6 +144,7 @@ class Agent:
             conversation_history=self.conversation_history,
             error_message=f"Agent stopped after reaching the maximum of {max_iterations} iterations.",
             session_id=self.session_id,
+            agent_name=self.config.name,
         )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
