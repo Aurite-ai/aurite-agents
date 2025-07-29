@@ -23,6 +23,7 @@ The System Management routes (`/system/*`) provide comprehensive system informat
 ### System Information
 
 #### Get System Info
+
 ```http
 GET /system/info
 ```
@@ -30,6 +31,7 @@ GET /system/info
 Returns detailed system information including platform, Python version, and hardware details.
 
 **Response:**
+
 ```json
 {
   "platform": "Linux",
@@ -50,6 +52,7 @@ Returns detailed system information including platform, Python version, and hard
 ```
 
 #### Get Framework Version
+
 ```http
 GET /system/version
 ```
@@ -57,6 +60,7 @@ GET /system/version
 Returns Aurite Framework version and metadata.
 
 **Response:**
+
 ```json
 {
   "version": "0.3.26",
@@ -70,6 +74,7 @@ Returns Aurite Framework version and metadata.
 ```
 
 #### Get System Capabilities
+
 ```http
 GET /system/capabilities
 ```
@@ -77,6 +82,7 @@ GET /system/capabilities
 Lists available features and supported providers.
 
 **Response:**
+
 ```json
 {
   "mcp_support": true,
@@ -85,9 +91,20 @@ Lists available features and supported providers.
   "tui_enabled": true,
   "available_transports": ["stdio", "local", "http_stream"],
   "supported_llm_providers": [
-    "openai", "anthropic", "azure", "google", "cohere",
-    "replicate", "huggingface", "together_ai", "openrouter",
-    "vertex_ai", "bedrock", "ollama", "groq", "deepseek"
+    "openai",
+    "anthropic",
+    "azure",
+    "google",
+    "cohere",
+    "replicate",
+    "huggingface",
+    "together_ai",
+    "openrouter",
+    "vertex_ai",
+    "bedrock",
+    "ollama",
+    "groq",
+    "deepseek"
   ],
   "storage_backends": ["sqlite", "json", "redis", "postgresql"],
   "optional_features": {
@@ -104,6 +121,7 @@ Lists available features and supported providers.
 ### Environment Management
 
 #### List Environment Variables
+
 ```http
 GET /system/environment
 ```
@@ -111,6 +129,7 @@ GET /system/environment
 Returns all environment variables with sensitive values masked.
 
 **Response:**
+
 ```json
 [
   {
@@ -129,6 +148,7 @@ Returns all environment variables with sensitive values masked.
 **Security Note**: Variables containing patterns like KEY, SECRET, PASSWORD, TOKEN, CREDENTIAL, AUTH, or PRIVATE are automatically masked.
 
 #### Update Environment Variables
+
 ```http
 PUT /system/environment
 ```
@@ -136,6 +156,7 @@ PUT /system/environment
 Updates environment variables (sensitive variables cannot be updated).
 
 **Request Body:**
+
 ```json
 {
   "variables": {
@@ -146,6 +167,7 @@ Updates environment variables (sensitive variables cannot be updated).
 ```
 
 **Response:**
+
 ```json
 {
   "updated": ["LOG_LEVEL", "CUSTOM_VAR"],
@@ -155,6 +177,7 @@ Updates environment variables (sensitive variables cannot be updated).
 ```
 
 **Error Response (attempting to update sensitive variable):**
+
 ```json
 {
   "updated": ["LOG_LEVEL"],
@@ -166,6 +189,7 @@ Updates environment variables (sensitive variables cannot be updated).
 ### Dependency Management
 
 #### List All Dependencies
+
 ```http
 GET /system/dependencies
 ```
@@ -173,6 +197,7 @@ GET /system/dependencies
 Lists all installed Python packages with metadata.
 
 **Response:**
+
 ```json
 [
   {
@@ -191,6 +216,7 @@ Lists all installed Python packages with metadata.
 ```
 
 #### Check Dependency Health
+
 ```http
 POST /system/dependencies/check
 ```
@@ -198,6 +224,7 @@ POST /system/dependencies/check
 Checks the health of critical framework dependencies.
 
 **Response:**
+
 ```json
 [
   {
@@ -220,6 +247,7 @@ Checks the health of critical framework dependencies.
 ### Real-time Monitoring
 
 #### Get System Metrics
+
 ```http
 GET /system/monitoring/metrics
 ```
@@ -227,6 +255,7 @@ GET /system/monitoring/metrics
 Returns current system metrics including CPU, memory, and disk usage.
 
 **Response (with psutil):**
+
 ```json
 {
   "timestamp": "2025-01-09T16:45:00Z",
@@ -263,6 +292,7 @@ Returns current system metrics including CPU, memory, and disk usage.
 ```
 
 **Response (without psutil - graceful degradation):**
+
 ```json
 {
   "timestamp": "2025-01-09T16:45:00Z",
@@ -286,6 +316,7 @@ Returns current system metrics including CPU, memory, and disk usage.
 ```
 
 #### Stream Logs (SSE)
+
 ```http
 GET /system/monitoring/logs
 ```
@@ -293,6 +324,7 @@ GET /system/monitoring/logs
 Streams logs in real-time using Server-Sent Events.
 
 **Response Headers:**
+
 ```
 Content-Type: text/event-stream
 Cache-Control: no-cache
@@ -300,6 +332,7 @@ Connection: keep-alive
 ```
 
 **Response Stream:**
+
 ```
 data: {'type': 'connected', 'message': 'Log stream connected'}
 
@@ -311,20 +344,22 @@ data: {'type': 'log', 'message': '2025-01-09 16:45:02 - aurite.execution - DEBUG
 ```
 
 **Client Example (JavaScript):**
+
 ```javascript
-const eventSource = new EventSource('/system/monitoring/logs', {
-  headers: {'X-API-Key': 'your-api-key'}
+const eventSource = new EventSource("/system/monitoring/logs", {
+  headers: { "X-API-Key": "your-api-key" },
 });
 
 eventSource.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  if (data.type === 'log') {
-    console.log('Log:', data.message);
+  if (data.type === "log") {
+    console.log("Log:", data.message);
   }
 };
 ```
 
 #### List Active Processes
+
 ```http
 GET /system/monitoring/active
 ```
@@ -332,6 +367,7 @@ GET /system/monitoring/active
 Lists Aurite-related processes and their children.
 
 **Response:**
+
 ```json
 [
   {
@@ -358,6 +394,7 @@ Lists Aurite-related processes and their children.
 ### Health Check
 
 #### Comprehensive Health Check
+
 ```http
 GET /system/health
 ```
@@ -365,6 +402,7 @@ GET /system/health
 Performs a comprehensive health check of all system components.
 
 **Response (Healthy):**
+
 ```json
 {
   "status": "healthy",
@@ -398,6 +436,7 @@ Performs a comprehensive health check of all system components.
 ```
 
 **Response (Degraded):**
+
 ```json
 {
   "status": "degraded",
@@ -434,7 +473,9 @@ Performs a comprehensive health check of all system components.
 ### Common Error Responses
 
 #### 401 Unauthorized
+
 Missing or invalid API key:
+
 ```json
 {
   "detail": "API key required either in X-API-Key header or as 'api_key' query parameter for streaming endpoints."
@@ -442,7 +483,9 @@ Missing or invalid API key:
 ```
 
 #### 403 Forbidden
+
 Invalid API key:
+
 ```json
 {
   "detail": "Invalid API Key"
@@ -450,7 +493,9 @@ Invalid API key:
 ```
 
 #### 500 Internal Server Error
+
 System operation failures:
+
 ```json
 {
   "detail": "Failed to get system info: [error details]"
@@ -470,11 +515,13 @@ The system routes are designed to work with or without optional dependencies:
 ### Security Considerations
 
 1. **Environment Variables**:
+
    - Sensitive patterns are automatically detected and masked
    - Only non-sensitive variables can be updated via API
    - Patterns include: KEY, SECRET, PASSWORD, TOKEN, CREDENTIAL, AUTH, PRIVATE
 
 2. **System Information**:
+
    - No sensitive system details are exposed
    - Process command lines may contain sensitive data - use with caution
 
@@ -486,11 +533,13 @@ The system routes are designed to work with or without optional dependencies:
 ### Performance Optimization
 
 1. **Metrics Collection**:
+
    - CPU percent uses 0.1s interval to get accurate reading
    - Process metrics are collected for current process and children only
    - Consider caching metrics if called frequently
 
 2. **Dependency Listing**:
+
    - Can be slow with many packages installed
    - Results are sorted for consistency
    - Consider caching if called frequently
@@ -591,14 +640,17 @@ stream_logs()
 ### Common Issues and Solutions
 
 #### Missing psutil
+
 **Issue**: Metrics show 0% for CPU/memory
 **Solution**: Install psutil for detailed metrics: `pip install psutil`
 
 #### Environment Variable Not Updating
+
 **Issue**: PUT /environment returns error for certain variables
 **Solution**: Only non-sensitive variables can be updated. Check the error message for details.
 
 #### Log Stream Disconnects
+
 **Issue**: SSE connection drops after some time
 **Solution**: Implement reconnection logic in client. The server sends heartbeats to detect disconnections.
 
@@ -640,7 +692,7 @@ class SystemDashboard {
 
   async updateMetrics() {
     const response = await fetch(`${this.baseUrl}/system/monitoring/metrics`, {
-      headers: {'X-API-Key': this.apiKey}
+      headers: { "X-API-Key": this.apiKey },
     });
     this.metrics = await response.json();
     this.renderMetrics();
@@ -649,12 +701,12 @@ class SystemDashboard {
   startLogStream() {
     const eventSource = new EventSource(
       `${this.baseUrl}/system/monitoring/logs`,
-      {headers: {'X-API-Key': this.apiKey}}
+      { headers: { "X-API-Key": this.apiKey } }
     );
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === 'log') {
+      if (data.type === "log") {
         this.addLogEntry(data.message);
       }
     };
@@ -662,7 +714,7 @@ class SystemDashboard {
 
   async checkHealth() {
     const response = await fetch(`${this.baseUrl}/system/health`, {
-      headers: {'X-API-Key': this.apiKey}
+      headers: { "X-API-Key": this.apiKey },
     });
     const health = await response.json();
     this.updateHealthStatus(health);
@@ -726,7 +778,7 @@ class SystemMonitor:
 
 ## Related Documentation
 
-- [API Reference](/docs/usage/api_reference.md) - Complete API overview
+- [API Reference](../api_reference.md) - Complete API overview
 - [Configuration Manager Routes](./config_manager_routes.md) - Configuration management
 - [MCP Host Routes](./mcp_host_routes.md) - Tool and server management
 - [Execution Facade Routes](./facade_routes.md) - Agent execution endpoints
