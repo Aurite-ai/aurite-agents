@@ -231,24 +231,32 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
     ) -> AgentRunResult:
-        # Auto-generate session_id if agent wants history but none provided
-        if not session_id:
-            # Check if agent has include_history=true (either from config or forced)
-            agent_config_dict = self._config_manager.get_config("agent", agent_name)
-            if agent_config_dict:
-                agent_config = AgentConfig(**agent_config_dict)
-                effective_include_history = (
-                    force_include_history if force_include_history is not None else agent_config.include_history
-                )
-                if effective_include_history:
-                    session_id = f"agent-{uuid.uuid4().hex[:8]}"
-                    logger.info(f"Auto-generated session_id for agent with include_history=true: {session_id}")
+        # --- Session ID Management ---
+        agent_config_dict = self._config_manager.get_config("agent", agent_name)
+        if not agent_config_dict:
+            raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+        agent_config = AgentConfig(**agent_config_dict)
+        effective_include_history = (
+            force_include_history if force_include_history is not None else agent_config.include_history
+        )
+
+        final_session_id = session_id
+        if effective_include_history:
+            if final_session_id:
+                # Only add prefix if it's not part of a workflow and doesn't already have the prefix
+                if not final_session_id.startswith("agent-") and not final_session_id.startswith("workflow-"):
+                    final_session_id = f"agent-{final_session_id}"
+            else:
+                # This is a standalone agent run, so it gets the agent prefix
+                final_session_id = f"agent-{uuid.uuid4().hex[:8]}"
+                logger.info(f"Auto-generated session_id for agent '{agent_name}': {final_session_id}")
+        # --- End Session ID Management ---
 
         agent_instance = None
         servers_to_unregister: List[str] = []
         try:
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id, force_include_history
+                agent_name, user_message, system_prompt, final_session_id, force_include_history
             )
 
             logger.info(
@@ -267,11 +275,14 @@ class ExecutionFacade:
                 )
             )
 
+            # Manually set the agent_name on the result, as the agent itself doesn't know its registered name.
+            run_result.agent_name = agent_name
+
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
-            if agent_instance and agent_instance.config.include_history and session_id and self._session_manager:
-                self._session_manager.save_agent_result(session_id=session_id, agent_result=run_result)
+            if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
+                self._session_manager.save_agent_result(session_id=final_session_id, agent_result=run_result)
                 logger.info(
-                    f"Facade: Saved complete execution result for agent '{agent_name}', session '{session_id}'."
+                    f"Facade: Saved complete execution result for agent '{agent_name}', session '{final_session_id}'."
                 )
 
             return run_result
@@ -302,12 +313,23 @@ class ExecutionFacade:
 
             workflow_config = WorkflowConfig(**workflow_config_dict)
 
+            # --- Session ID Management ---
+            final_session_id = session_id
+            if workflow_config.include_history:
+                if final_session_id:
+                    if not final_session_id.startswith("workflow-"):
+                        final_session_id = f"workflow-{final_session_id}"
+                else:
+                    final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+                    logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
+            # --- End Session ID Management ---
+
             workflow_executor = SimpleWorkflowExecutor(
                 config=workflow_config,
                 facade=self,
             )
 
-            result = await workflow_executor.execute(initial_input=initial_input, session_id=session_id)
+            result = await workflow_executor.execute(initial_input=initial_input, session_id=final_session_id)
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
 
             # Save the complete workflow execution result if it has a session_id

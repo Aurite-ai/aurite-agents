@@ -2,8 +2,9 @@
 Manages the lifecycle and persistence of execution sessions.
 """
 
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
@@ -127,33 +128,45 @@ class SessionManager:
     ) -> Dict[str, Any]:
         """
         Get list of sessions with optional filtering, returning validated Pydantic models.
+        This method now iterates through the cache directory directly.
         """
-        all_sessions_raw = self._cache.get_all_sessions()
         all_validated_sessions: List[SessionMetadata] = []
+        cache_dir = self._cache.get_cache_dir()
 
-        # First, validate all raw session data into Pydantic models
-        for session_data in all_sessions_raw:
-            # Backwards compatibility: ensure message_count is present for older records
-            if "message_count" not in session_data:
-                metadata = self._extract_metadata(session_data.get("execution_result", {}))
-                session_data.update(metadata)
+        for session_file in cache_dir.glob("*.json"):
             try:
+                with open(session_file, "r") as f:
+                    session_data = json.load(f)
+
+                # Backwards compatibility: ensure message_count is present for older records
+                if "message_count" not in session_data:
+                    metadata = self._extract_metadata(session_data.get("execution_result", {}))
+                    session_data.update(metadata)
+
                 model = self._validate_and_transform_metadata(session_data)
                 all_validated_sessions.append(model)
+            except json.JSONDecodeError:
+                logger.warning(f"Skipping non-JSON file in cache: {session_file}")
             except ValidationError as e:
                 session_id = session_data.get("session_id", "unknown")
-                logger.warning(f"Skipping session '{session_id}' due to validation error: {e}")
-                continue
+                logger.warning(
+                    f"Skipping session '{session_id}' from file '{session_file}' due to validation error: {e}"
+                )
+            except Exception as e:
+                logger.error(f"Unexpected error processing session file {session_file}: {e}", exc_info=True)
 
         # Now, perform filtering on the validated Pydantic models
         filtered_sessions: List[SessionMetadata] = []
         if workflow_name:
             filtered_sessions = [s for s in all_validated_sessions if s.is_workflow and s.name == workflow_name]
         elif agent_name:
-            # This will find agents that were run as part of a workflow.
-            # The UI may need to decide how to display this.
-            # For now, we return any session where the agent was the primary actor.
-            filtered_sessions = [s for s in all_validated_sessions if not s.is_workflow and s.name == agent_name]
+            for s in all_validated_sessions:
+                # Case 1: It's a direct agent run with the correct name.
+                if not s.is_workflow and s.name == agent_name:
+                    filtered_sessions.append(s)
+                # Case 2: It's a workflow that involves an agent with the correct name.
+                elif s.is_workflow and s.agents_involved and agent_name in s.agents_involved.values():
+                    filtered_sessions.append(s)
         else:
             filtered_sessions = all_validated_sessions
 
@@ -222,9 +235,61 @@ class SessionManager:
 
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
         """
-        Clean up old sessions.
+        Clean up old sessions based on retention policy.
+        Deletes sessions older than specified days and keeps only the most recent max_sessions.
         """
-        self._cache.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
+        try:
+            # Get all sessions sorted by last_updated
+            all_sessions_result = self.get_sessions_list(limit=10000, offset=0)  # Get all sessions
+            all_sessions = all_sessions_result.get("sessions", [])
+
+            # Sort ascending to find the oldest ones first
+            all_sessions.sort(key=lambda x: x.last_updated or "")
+
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+            # Identify sessions to delete
+            sessions_to_delete = set()
+            sessions_kept = []
+
+            for session in all_sessions:
+                try:
+                    last_updated_str = session.last_updated
+                    if last_updated_str:
+                        # Ensure timezone-aware comparison
+                        last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00")).replace(
+                            tzinfo=None
+                        )
+                        if last_updated < cutoff_date:
+                            sessions_to_delete.add(session.session_id)
+                        else:
+                            sessions_kept.append(session)
+                    else:
+                        # If no last_updated, consider it for deletion
+                        sessions_to_delete.add(session.session_id)
+                except Exception as e:
+                    logger.warning(f"Failed to parse date for session {session.session_id}: {e}")
+                    sessions_to_delete.add(session.session_id)
+
+            # Identify excess sessions from the ones that were kept
+            excess_count = len(sessions_kept) - max_sessions
+            if excess_count > 0:
+                # The list is already sorted oldest to newest, so take the first `excess_count`
+                for i in range(excess_count):
+                    sessions_to_delete.add(sessions_kept[i].session_id)
+
+            # Perform deletion
+            deleted_count = 0
+            for session_id in sessions_to_delete:
+                if self.delete_session(session_id):
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                logger.info(f"Deleted {deleted_count} sessions based on retention policy.")
+
+        except Exception as e:
+            logger.error(f"An error occurred during session cleanup: {e}", exc_info=True)
 
     def _validate_and_transform_metadata(self, session_data: Dict[str, Any]) -> SessionMetadata:
         """
@@ -257,7 +322,7 @@ class SessionManager:
         """
         message_count = 0
         name = None
-        agents_involved = []
+        agents_involved: Dict[str, str] = {}
         is_workflow = "step_results" in execution_result
 
         if is_workflow:
@@ -268,8 +333,12 @@ class SessionManager:
                     if isinstance(step_result, dict):
                         if "conversation_history" in step_result:
                             message_count += len(step_result.get("conversation_history", []))
-                        if "session_id" in step_result:
-                            agents_involved.append(step_result["session_id"])
+
+                        # We now look for both session_id and agent_name in the step result.
+                        agent_session_id = step_result.get("session_id")
+                        agent_name_in_step = step_result.get("agent_name")
+                        if agent_session_id and agent_name_in_step:
+                            agents_involved[agent_session_id] = agent_name_in_step
         else:  # It's an agent result
             name = execution_result.get("agent_name")
             message_count = len(execution_result.get("conversation_history", []))

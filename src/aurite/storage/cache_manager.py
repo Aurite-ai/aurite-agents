@@ -29,8 +29,11 @@ class CacheManager:
         self._cache_dir.mkdir(exist_ok=True)
         # Store complete execution results instead of just conversations
         self._result_cache: Dict[str, Dict[str, Any]] = {}
-        self._metadata_cache: Dict[str, Dict[str, Any]] = {}
         self._load_cache()
+
+    def get_cache_dir(self) -> Path:
+        """Get the cache directory path."""
+        return self._cache_dir
 
     def _get_session_file(self, session_id: str) -> Path:
         """Get the file path for a session."""
@@ -49,8 +52,6 @@ class CacheManager:
                         if session_id:
                             # Store the complete execution result
                             self._result_cache[session_id] = data
-                            # Metadata is now handled by SessionManager
-                            self._metadata_cache[session_id] = data
                 except Exception as e:
                     logger.warning(f"Failed to load session file {session_file}: {e}")
         except Exception as e:
@@ -77,7 +78,6 @@ class CacheManager:
                 with open(session_file, "r") as f:
                     data = json.load(f)
                 self._result_cache[session_id] = data
-                self._metadata_cache[session_id] = data
                 return data
             except Exception as e:
                 logger.error(f"Failed to load session {session_id} from disk: {e}")
@@ -97,7 +97,6 @@ class CacheManager:
 
         # Update memory cache
         self._result_cache[session_id] = session_data
-        self._metadata_cache[session_id] = session_data
 
         # Save to disk
         session_file = self._get_session_file(session_id)
@@ -109,12 +108,6 @@ class CacheManager:
         except Exception as e:
             logger.error(f"Failed to save session {session_id} to disk: {e}", exc_info=True)
 
-    def get_all_sessions(self) -> List[Dict[str, Any]]:
-        """
-        Get all sessions from the cache.
-        """
-        return list(self._metadata_cache.values())
-
     def delete_session(self, session_id: str) -> bool:
         """
         Delete a session from cache and disk.
@@ -125,21 +118,16 @@ class CacheManager:
         Returns:
             True if deleted successfully, False if session not found.
         """
-        # Check if session exists
-        session_exists = session_id in self._metadata_cache
-
         # Remove from memory
-        self._result_cache.pop(session_id, None)
-        self._metadata_cache.pop(session_id, None)
+        session_exists_in_mem = self._result_cache.pop(session_id, None) is not None
 
         # Remove from disk
         session_file = self._get_session_file(session_id)
         try:
-            if session_file.exists():
+            session_exists_on_disk = session_file.exists()
+            if session_exists_on_disk:
                 session_file.unlink()
-                return True
-            # If not in memory and not on disk, session doesn't exist
-            return session_exists
+            return session_exists_in_mem or session_exists_on_disk
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             return False
@@ -150,45 +138,3 @@ class CacheManager:
         Files on disk are preserved.
         """
         self._result_cache.clear()
-        self._metadata_cache.clear()
-
-    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
-        """
-        Clean up old sessions based on retention policy.
-        Deletes sessions older than specified days and keeps only the most recent max_sessions.
-        """
-        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
-
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
-
-        # Get all sessions sorted by last_updated
-        all_sessions = []
-        for session_id, metadata in self._metadata_cache.items():
-            try:
-                last_updated_str = metadata.get("last_updated", "")
-                if last_updated_str:
-                    last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00"))
-                    all_sessions.append((session_id, last_updated))
-            except Exception as e:
-                logger.warning(f"Failed to parse date for session {session_id}: {e}")
-
-        all_sessions.sort(key=lambda x: x[1])
-
-        # Delete old sessions
-        deleted_count = 0
-        for session_id, last_updated in all_sessions:
-            if last_updated < cutoff_date:
-                if self.delete_session(session_id):
-                    deleted_count += 1
-
-        if deleted_count > 0:
-            logger.info(f"Deleted {deleted_count} sessions older than {days} days")
-
-        # Delete excess sessions
-        remaining = [s for s in all_sessions if s[0] in self._metadata_cache]
-        excess_count = len(remaining) - max_sessions
-        if excess_count > 0:
-            for i in range(excess_count):
-                session_id = remaining[i][0]
-                if self.delete_session(session_id):
-                    logger.info(f"Deleted session {session_id} to maintain {max_sessions} session limit")

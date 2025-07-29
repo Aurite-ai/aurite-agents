@@ -7,6 +7,58 @@
 	},
 	"item": [
 		{
+			"name": "Setup - Clear All History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Cleanup message returned\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message).to.include('Cleanup completed');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-API-Key",
+						"value": "{{api_key}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/execution/history/cleanup?days=0&max_sessions=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"execution",
+						"history",
+						"cleanup"
+					],
+					"query": [
+						{
+							"key": "days",
+							"value": "0"
+						},
+						{
+							"key": "max_sessions",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Workflow Execution Tests",
 			"item": [
 				{
@@ -249,6 +301,62 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Run Standalone Agent",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Standalone agent execution successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"    pm.expect(jsonData.agent_name).to.eql('History Test Agent A1');",
+									"    pm.expect(jsonData.session_id).to.exist;",
+									"    pm.expect(jsonData.session_id).to.match(/^agent-/);",
+									"    pm.collectionVariables.set(\"standalone_agent_session_id\", jsonData.session_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_message\": \"This is a test of a standalone agent.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/execution/agents/History Test Agent A1/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"agents",
+								"History Test Agent A1",
+								"run"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -369,16 +477,22 @@
 									"",
 									"pm.test(\"Only returns sessions for specified agent\", function () {",
 									"    var jsonData = pm.response.json();",
+									"    var agentName = \"History Test Agent A1\";",
 									"    pm.expect(jsonData.sessions).to.be.an('array');",
-									"    ",
-									"    // All returned sessions should be for 'History Test Agent A1'",
-									"    jsonData.sessions.forEach(function(session) {",
-									"        pm.expect(session.name).to.eql('History Test Agent A1');",
-									"        pm.expect(session.is_workflow).to.be.false;",
-									"    });",
-									"    ",
-									"    // Should have at least one session from our test runs",
 									"    pm.expect(jsonData.sessions.length).to.be.at.least(1);",
+									"",
+									"    // All returned sessions should either be the agent itself, or a workflow involving the agent",
+									"    jsonData.sessions.forEach(function(session) {",
+									"        if (session.is_workflow) {",
+									"            // If it's a workflow, check that the agent is in the 'agents_involved' dict",
+									"            pm.expect(session.agents_involved).to.be.an('object');",
+									"            var agentNamesInWorkflow = Object.values(session.agents_involved);",
+									"            pm.expect(agentNamesInWorkflow).to.include(agentName);",
+									"        } else {",
+									"            // If it's a direct agent run, its name should match",
+									"            pm.expect(session.name).to.eql(agentName);",
+									"        }",
+									"    });",
 									"});"
 								],
 								"type": "text/javascript"
