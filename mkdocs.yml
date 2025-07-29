@@ -1,0 +1,107 @@
+site_name: Aurite Agents
+site_url: https://aurite-ai.github.io/aurite-agents
+repo_url: https://github.com/Aurite-ai/aurite-agents
+repo_name: Aurite-ai/aurite-agents
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: docs/images/aurite_logo.png
+  favicon: docs/images/aurite_logo.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+
+plugins:
+  - search
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Aurite-ai
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/aurite-agents/
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - attr_list
+  - md_in_html
+
+nav:
+  - 'Home': 'index.md'
+  - 'Getting Started':
+    - 'Start Here': 'getting-started/Start_Here.md'
+    - 'Installation':
+      - 'Package Installation': 'getting-started/installation_guides/package_installation_guide.md'
+      - 'Repository Installation': 'getting-started/installation_guides/repository_installation_guide.md'
+    - 'Tutorials':
+      - 'Overview': 'getting-started/tutorials/Tutorials_Overview.md'
+      - '01: Introducing Aurite Agents': 'getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb'
+      - '02: Agents and Tools': 'getting-started/tutorials/02_Agents_and_Tools.ipynb'
+      - '03: Agent Challenge': 'getting-started/tutorials/03_Agent_Challenge.ipynb'
+      - '04: Agent Challenge Solutions': 'getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb'
+      - '05: LLMs, Schemas, and Workflows': 'getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb'
+      - '06: Building Your Own MCP Server': 'getting-started/tutorials/06_Building_Your_Own_MCP_Server.md'
+      - '07: Understanding Projects': 'getting-started/tutorials/07_Understanding_Projects.md'
+    - 'Project Ideas':
+      - 'Overview': 'getting-started/project_ideas/Project_Ideas_Overview.md'
+      - 'Customer Support': 'getting-started/project_ideas/Project_Ideas_Customer_Support.md'
+      - 'Data Processing': 'getting-started/project_ideas/Project_Ideas_Data_Processing.md'
+  - 'Configuration':
+    - 'Projects and Workspaces': 'config/projects_and_workspaces.md'
+    - 'Agent': 'config/agent.md'
+    - 'LLM': 'config/llm.md'
+    - 'Simple Workflow': 'config/simple_workflow.md'
+    - 'Custom Workflow': 'config/custom_workflow.md'
+    - 'MCP Server': 'config/mcp_server.md'
+  - 'Usage':
+    - 'CLI Reference': 'usage/cli_reference.md'
+    - 'API Reference': 'usage/api_reference.md'
+    - 'TUI Guide': 'usage/tui_guide.md'
+    - 'API Routes':
+      - 'Config Manager': 'usage/routes/config_manager_routes.md'
+      - 'Facade': 'usage/routes/facade_routes.md'
+      - 'MCP Host': 'usage/routes/mcp_host_routes.md'
+      - 'System': 'usage/routes/system_routes.md'
+  - 'Architecture':
+    - 'Overview': 'architecture/overview.md'
+    - 'Layers':
+      - 'Entrypoints': 'architecture/layers/1_entrypoints.md'
+      - 'Orchestration': 'architecture/layers/2_orchestration.md'
+      - 'Execution': 'architecture/layers/2.5_execution.md'
+      - 'Host': 'architecture/layers/3_host.md'
+    - 'Design':
+      - 'Execution Facade': 'architecture/design/execution_facade.md'
+      - 'Index Building': 'architecture/design/index_building_flow.md'
+      - 'Packaging and Runtime': 'architecture/design/packaging_and_runtime_design.md'
+  - 'Testing':
+    - 'API Test Coverage Connections': 'testing/api_test_coverage_connections.md'
+    - 'API Test Coverage Visual': 'testing/api_test_coverage_visual.md'
+  - 'Changelog': 'CHANGELOG.md'
+  - 'Security': 'SECURITY.md'
