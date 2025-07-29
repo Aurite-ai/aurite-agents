@@ -68,6 +68,18 @@ class Agent:
             f"Agent '{self.config.name or 'Unnamed'}' initialized with resolved LLM config: {self.resolved_llm_config.model_dump_json(indent=2)}"
         )
 
+    def _create_turn_processor(self) -> AgentTurnProcessor:
+        """Creates and configures an AgentTurnProcessor for the current turn."""
+        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+        return AgentTurnProcessor(
+            config=self.config,
+            llm_client=self.llm,
+            host_instance=self.host,
+            current_messages=self.conversation_history,
+            tools_data=tools_data,
+            effective_system_prompt=self.resolved_llm_config.default_system_prompt,
+        )
+
     async def run_conversation(self) -> AgentRunResult:
         """
         Runs the agent's conversation loop until a final response is generated
@@ -78,20 +90,12 @@ class Agent:
                             history, and any errors.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
-        tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Conversation loop iteration {current_iteration + 1}")
 
-            turn_processor = AgentTurnProcessor(
-                config=self.config,
-                llm_client=self.llm,
-                host_instance=self.host,
-                current_messages=self.conversation_history,
-                tools_data=tools_data,
-                effective_system_prompt=self.resolved_llm_config.default_system_prompt,
-            )
+            turn_processor = self._create_turn_processor()
 
             try:
                 (
@@ -122,7 +126,6 @@ class Agent:
                         conversation_history=self.conversation_history,
                         error_message=None,
                         session_id=self.session_id,
-                        agent_name=self.config.name,
                     )
 
             except Exception as e:
@@ -134,7 +137,6 @@ class Agent:
                     conversation_history=self.conversation_history,
                     error_message=error_message,
                     session_id=self.session_id,
-                    agent_name=self.config.name,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
@@ -144,7 +146,6 @@ class Agent:
             conversation_history=self.conversation_history,
             error_message=f"Agent stopped after reaching the maximum of {max_iterations} iterations.",
             session_id=self.session_id,
-            agent_name=self.config.name,
         )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
@@ -155,21 +156,13 @@ class Agent:
         """
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
-        tools_data = self.host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
         llm_started = False
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Starting conversation turn {current_iteration + 1}")
 
-            turn_processor = AgentTurnProcessor(
-                config=self.config,
-                llm_client=self.llm,
-                host_instance=self.host,
-                current_messages=self.conversation_history,
-                tools_data=tools_data,
-                effective_system_prompt=self.resolved_llm_config.default_system_prompt,
-            )
+            turn_processor = self._create_turn_processor()
 
             try:
                 is_tool_turn = False

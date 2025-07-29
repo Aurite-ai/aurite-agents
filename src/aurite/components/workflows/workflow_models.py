@@ -96,6 +96,8 @@ class BaseCustomWorkflow:
         agent_name: str,
         user_message: str,
         session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        force_include_history: Optional[bool] = None,
     ) -> "AgentRunResult":
         """
         A helper method for the workflow to execute an agent.
@@ -104,6 +106,8 @@ class BaseCustomWorkflow:
             agent_name=agent_name,
             user_message=user_message,
             session_id=session_id,
+            system_prompt=system_prompt,
+            force_include_history=force_include_history,
         )
 
     async def run(self, initial_input: Any) -> Any:

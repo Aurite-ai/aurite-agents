@@ -107,8 +107,6 @@ class SimpleWorkflowExecutor:
                                 # Let the facade determine the session logic based on workflow context
                                 session_id=f"{session_id}-{step_index}" if session_id else None,
                                 force_include_history=self.config.include_history,
-                                workflow_name=workflow_name,
-                                workflow_session_id=session_id,
                             )
 
                             # Check the status of the agent run

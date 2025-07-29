@@ -230,8 +230,6 @@ class ExecutionFacade:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
-        workflow_name: Optional[str] = None,
-        workflow_session_id: Optional[str] = None,
     ) -> AgentRunResult:
         # Auto-generate session_id if agent wants history but none provided
         if not session_id:

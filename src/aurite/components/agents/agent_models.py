@@ -25,7 +25,6 @@ class AgentRunResult(BaseModel):
     )
     error_message: Optional[str] = Field(None, description="An error message if the agent execution failed.")
     session_id: Optional[str] = Field(None, description="The session ID used for this agent run.")
-    agent_name: Optional[str] = Field(None, description="The name of the agent that produced this result.")
 
     @property
     def primary_text(self) -> Optional[str]:

@@ -109,18 +109,6 @@ class CacheManager:
         except Exception as e:
             logger.error(f"Failed to save session {session_id} to disk: {e}", exc_info=True)
 
-    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get metadata about a session.
-
-        Args:
-            session_id: The session identifier.
-
-        Returns:
-            Metadata dict with created_at, last_updated, result_type, session_id
-        """
-        return self.get_result(session_id)
-
     def get_all_sessions(self) -> List[Dict[str, Any]]:
         """
         Get all sessions from the cache.

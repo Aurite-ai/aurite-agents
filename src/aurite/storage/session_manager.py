@@ -4,8 +4,9 @@ Manages the lifecycle and persistence of execution sessions.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+from fastapi import HTTPException
 from pydantic import ValidationError
 
 from ..components.agents.agent_models import AgentRunResult
@@ -189,6 +190,36 @@ class SessionManager:
             logger.error(f"Validation failed for session '{session_id}': {e}")
             return None
 
+    def get_full_session_details(self, session_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[SessionMetadata]]:
+        """
+        Get both the execution result and metadata for a session, handling partial IDs.
+        """
+        execution_result = self.get_session_result(session_id)
+        metadata_model = self.get_session_metadata(session_id)
+
+        if (
+            execution_result is None
+            and len(session_id) >= 8
+            and len(session_id) <= 12
+            and all(c in "0123456789abcdefABCDEF-" for c in session_id)
+        ):
+            all_sessions_result = self.get_sessions_list(limit=1000, offset=0)
+            matching_sessions = [
+                s.session_id for s in all_sessions_result["sessions"] if s.session_id.endswith(session_id)
+            ]
+
+            if len(matching_sessions) == 1:
+                matched_session_id = matching_sessions[0]
+                execution_result = self.get_session_result(matched_session_id)
+                metadata_model = self.get_session_metadata(matched_session_id)
+                logger.info(f"Found matching session for partial ID '{session_id}': {matched_session_id}")
+            elif len(matching_sessions) > 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}",
+                )
+        return execution_result, metadata_model
+
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
         """
         Clean up old sessions.
@@ -203,7 +234,8 @@ class SessionManager:
         result_type = session_data.get("result_type")
         is_workflow = result_type == "workflow"
 
-        name = session_data.get("workflow_name") if is_workflow else session_data.get("agent_name")
+        # The 'name' is now extracted in _extract_metadata
+        name = session_data.get("name")
         if not name:
             type_str = "Workflow" if is_workflow else "Agent"
             logger.warning(f"{type_str} session '{session_id}' is missing a name. Using placeholder.")
@@ -224,14 +256,12 @@ class SessionManager:
         Extracts metadata from a raw execution result dictionary.
         """
         message_count = 0
-        workflow_name = None
-        agent_name = None
+        name = None
         agents_involved = []
+        is_workflow = "step_results" in execution_result
 
-        if "conversation_history" in execution_result:
-            message_count = len(execution_result.get("conversation_history", []))
-            agent_name = execution_result.get("agent_name")
-        elif "step_results" in execution_result:
+        if is_workflow:
+            name = execution_result.get("workflow_name")
             for step in execution_result.get("step_results", []):
                 if isinstance(step, dict) and "result" in step:
                     step_result = step["result"]
@@ -240,11 +270,12 @@ class SessionManager:
                             message_count += len(step_result.get("conversation_history", []))
                         if "session_id" in step_result:
                             agents_involved.append(step_result["session_id"])
-            workflow_name = execution_result.get("workflow_name")
+        else:  # It's an agent result
+            name = execution_result.get("agent_name")
+            message_count = len(execution_result.get("conversation_history", []))
 
         return {
+            "name": name,
             "message_count": message_count,
-            "workflow_name": workflow_name,
-            "agent_name": agent_name,
             "agents_involved": agents_involved if agents_involved else None,
         }

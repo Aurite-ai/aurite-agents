@@ -11,10 +11,7 @@ from pydantic import BaseModel
 from ....errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
 from ....storage.session_manager import SessionManager
-from ....storage.session_models import (
-    ExecutionHistoryResponse,
-    SessionListResponse,
-)
+from ....storage.session_models import ExecutionHistoryResponse, SessionListResponse
 from ...dependencies import get_api_key, get_execution_facade, get_session_manager
 
 # Configure logging
@@ -293,35 +290,8 @@ async def get_session_history(
     Supports partial session ID matching (e.g., just the suffix like '826c63d4').
     """
     try:
-        # First try to get the execution result and metadata with the exact session_id
-        execution_result = session_manager.get_session_result(session_id)
-        metadata_model = session_manager.get_session_metadata(session_id)
-
-        # If not found and it looks like a short ID (8-12 hex chars), search for matching sessions
-        if (
-            execution_result is None
-            and len(session_id) >= 8
-            and len(session_id) <= 12
-            and all(c in "0123456789abcdefABCDEF-" for c in session_id)
-        ):
-            # Search for sessions ending with this ID
-            all_sessions_result = session_manager.get_sessions_list(limit=1000, offset=0)
-            matching_sessions = [
-                s.session_id for s in all_sessions_result["sessions"] if s.session_id.endswith(session_id)
-            ]
-
-            if len(matching_sessions) == 1:
-                # Found exactly one match, use it
-                matched_session_id = matching_sessions[0]
-                execution_result = session_manager.get_session_result(matched_session_id)
-                metadata_model = session_manager.get_session_metadata(matched_session_id)
-                logger.info(f"Found matching session for partial ID '{session_id}': {matched_session_id}")
-            elif len(matching_sessions) > 1:
-                # Multiple matches, return error with suggestions
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}",
-                )
+        # The session manager now handles partial ID matching
+        execution_result, metadata_model = session_manager.get_full_session_details(session_id)
 
         if execution_result is None or metadata_model is None:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
