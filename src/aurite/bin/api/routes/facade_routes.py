@@ -134,6 +134,8 @@ async def run_agent(
         status_code = 500
         if type(e) is ConfigurationError:
             status_code = 404
+        elif type(e).__name__ == "AuthenticationError":
+            status_code = 401
         logger.error(f"Error running agent '{agent_name}': {e}")
 
         error_response = {
