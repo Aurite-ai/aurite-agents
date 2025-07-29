@@ -52,13 +52,16 @@ class SimpleWorkflowExecutor:
         self.facade = facade
         logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
 
-    async def execute(self, initial_input: str, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
+    async def execute(
+        self, initial_input: str, session_id: Optional[str] = None, base_session_id: Optional[str] = None
+    ) -> SimpleWorkflowExecutionResult:
         """
         Executes the configured simple workflow sequentially.
 
         Args:
             initial_input: The initial input message for the first agent in the sequence.
             session_id: Optional session ID to use for conversation history tracking.
+            base_session_id: The original, user-provided session ID for the workflow.
 
         Returns:
             A SimpleWorkflowExecutionResult object containing the final status,
@@ -107,6 +110,7 @@ class SimpleWorkflowExecutor:
                                 # Let the facade determine the session logic based on workflow context
                                 session_id=f"{session_id}-{step_index}" if session_id else None,
                                 force_include_history=self.config.include_history,
+                                base_session_id=base_session_id,  # Pass the workflow's base ID
                             )
 
                             # Check the status of the agent run

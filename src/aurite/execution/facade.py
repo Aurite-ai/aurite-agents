@@ -230,6 +230,7 @@ class ExecutionFacade:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
+        base_session_id: Optional[str] = None,  # New parameter
     ) -> AgentRunResult:
         # --- Session ID Management ---
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
@@ -241,7 +242,9 @@ class ExecutionFacade:
         )
 
         final_session_id = session_id
-        base_session_id = session_id  # Capture the original ID
+        # If a base_session_id is passed from a workflow, use it. Otherwise, determine it.
+        final_base_session_id = base_session_id if base_session_id is not None else session_id
+
         if effective_include_history:
             if final_session_id:
                 # Only add prefix if it's not part of a workflow and doesn't already have the prefix
@@ -250,7 +253,7 @@ class ExecutionFacade:
             else:
                 # This is a standalone agent run, so it gets the agent prefix
                 final_session_id = f"agent-{uuid.uuid4().hex[:8]}"
-                base_session_id = final_session_id  # The generated ID is the base
+                final_base_session_id = final_session_id  # The generated ID is the base
                 logger.info(f"Auto-generated session_id for agent '{agent_name}': {final_session_id}")
         # --- End Session ID Management ---
 
@@ -283,7 +286,7 @@ class ExecutionFacade:
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
             if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
                 self._session_manager.save_agent_result(
-                    session_id=final_session_id, agent_result=run_result, base_session_id=base_session_id
+                    session_id=final_session_id, agent_result=run_result, base_session_id=final_base_session_id
                 )
                 logger.info(
                     f"Facade: Saved complete execution result for agent '{agent_name}', session '{final_session_id}'."
@@ -335,7 +338,9 @@ class ExecutionFacade:
                 facade=self,
             )
 
-            result = await workflow_executor.execute(initial_input=initial_input, session_id=final_session_id)
+            result = await workflow_executor.execute(
+                initial_input=initial_input, session_id=final_session_id, base_session_id=base_session_id
+            )
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
 
             # Save the complete workflow execution result if it has a session_id

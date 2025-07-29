@@ -180,8 +180,45 @@ class SessionManager:
 
     def delete_session(self, session_id: str) -> bool:
         """
-        Delete a specific session.
+        Delete a specific session. If the session is a workflow, also delete all
+        of its child agent sessions. If it's a child agent session, remove it
+        from the parent's 'agents_involved' list.
         """
+        session_to_delete = self.get_session_metadata(session_id)
+        if not session_to_delete:
+            return self._cache.delete_session(session_id)  # Let cache handle non-existent case
+
+        # Case 1: The deleted session is a workflow.
+        if session_to_delete.is_workflow:
+            # Find all child agent sessions that belong to this workflow.
+            all_sessions = self.get_sessions_list(limit=10000)["sessions"]
+            child_agent_sessions = [
+                s
+                for s in all_sessions
+                if not s.is_workflow
+                and s.base_session_id == session_to_delete.base_session_id
+                and s.session_id != session_to_delete.session_id
+            ]
+            for child in child_agent_sessions:
+                self._cache.delete_session(child.session_id)
+                logger.info(
+                    f"Cascading delete: removed child agent session '{child.session_id}' for workflow '{session_id}'."
+                )
+
+        # Case 2: The deleted session is a child agent of a workflow.
+        elif session_to_delete.base_session_id and session_to_delete.base_session_id != session_id:
+            all_sessions = self.get_sessions_list(limit=10000)["sessions"]
+            parent_workflows = [
+                s for s in all_sessions if s.is_workflow and s.base_session_id == session_to_delete.base_session_id
+            ]
+            for parent in parent_workflows:
+                parent_data = self._cache.get_result(parent.session_id)
+                if parent_data and parent_data.get("agents_involved") and session_id in parent_data["agents_involved"]:
+                    del parent_data["agents_involved"][session_id]
+                    self._cache.save_result(parent.session_id, parent_data)
+                    logger.info(f"Removed deleted session '{session_id}' from parent workflow '{parent.session_id}'.")
+
+        # Finally, delete the main session file.
         return self._cache.delete_session(session_id)
 
     def get_session_metadata(self, session_id: str) -> Optional[SessionMetadata]:
