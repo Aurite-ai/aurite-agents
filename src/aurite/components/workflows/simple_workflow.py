@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ...config.config_models import (
-    WorkflowComponent,
-    WorkflowConfig,
-)
+from ...config.config_models import WorkflowComponent, WorkflowConfig
 from ..agents.agent_models import AgentRunResult
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 
@@ -69,12 +66,11 @@ class SimpleWorkflowExecutor:
         """
         workflow_name = self.config.name
 
-        # Auto-generate session_id if workflow wants history but none provided
-        if self.config.include_history and not session_id:
+        if not session_id and self.config.include_history:
             session_id = f"workflow-{uuid.uuid4().hex[:8]}"
-            logger.info(f"Auto-generated session_id for workflow with include_history=true: {session_id}")
+            logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {session_id}")
 
-        logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
+        logger.info(f"Executing simple workflow: '{workflow_name}' with session_id: {session_id}")
 
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
@@ -104,30 +100,15 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # Generate a unique session ID for each agent step, linked to the workflow session
-                            agent_session_id = None
-                            force_include_history = self.config.include_history
-
-                            if self.config.include_history:
-                                if session_id:
-                                    # Create a unique, traceable session ID for this specific agent run
-                                    agent_session_id = f"{session_id}-{step_index}"
-                                else:
-                                    # If workflow wants history but has no session_id, generate one for the agent
-                                    agent_session_id = f"agent-workflow-{step_index}-{uuid.uuid4().hex[:8]}"
-                                    logger.warning(
-                                        f"Workflow has include_history=true but no session_id. "
-                                        f"Generated agent session_id: {agent_session_id}"
-                                    )
-
-                            # The facade's run_agent now returns a structured AgentRunResult
+                            # The facade is now responsible for handling session ID generation for agent steps.
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
-                                session_id=agent_session_id,
-                                force_include_history=force_include_history,
+                                # Let the facade determine the session logic based on workflow context
+                                session_id=f"{session_id}-{step_index}" if session_id else None,
+                                force_include_history=self.config.include_history,
                                 workflow_name=workflow_name,
-                                workflow_session_id=session_id,  # Pass the parent workflow session ID
+                                workflow_session_id=session_id,
                             )
 
                             # Check the status of the agent run

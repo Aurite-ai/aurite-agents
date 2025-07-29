@@ -21,14 +21,12 @@ from ..config.config_models import (
     LLMConfig,
     LLMConfigOverrides,
 )
-from ..errors import (
-    AgentExecutionError,
-    ConfigurationError,
-    WorkflowExecutionError,
-)
+from ..errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ..host.host import MCPHost
 from ..storage.cache_manager import CacheManager
 from ..storage.db_manager import StorageManager
+from ..storage.session_manager import SessionManager
+from ..storage.session_models import SessionMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +52,8 @@ class ExecutionFacade:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        self._cache_manager = cache_manager
+        # The facade now uses a SessionManager for history, which in turn uses the CacheManager.
+        self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
@@ -126,13 +125,8 @@ class ExecutionFacade:
             agent_config_for_run.include_history = force_include_history
 
         initial_messages: List[Dict[str, Any]] = []
-        if effective_include_history and session_id:
-            history = None
-            if self._storage_manager:
-                history = self._storage_manager.load_history(agent_name, session_id)
-            elif self._cache_manager:
-                history = self._cache_manager.get_history(session_id)
-
+        if effective_include_history and session_id and self._session_manager:
+            history = self._session_manager.get_session_history(session_id)
             if history:
                 initial_messages.extend(history)
 
@@ -140,14 +134,14 @@ class ExecutionFacade:
         current_user_message = {"role": "user", "content": user_message}
         initial_messages.append(current_user_message)
 
-        # Immediately update the cache with the current user message
+        # Immediately update the history with the current user message
         # so the agent can reference it as part of the conversation history
-        if effective_include_history and session_id and self._cache_manager:
-            # Get the existing history again to make sure we have the latest
-            existing_history = self._cache_manager.get_history(session_id) or []
-            # Add only the current user message to the existing history
-            updated_history = existing_history + [current_user_message]
-            self._cache_manager.save_history(session_id, updated_history, agent_name)
+        if effective_include_history and session_id and self._session_manager:
+            self._session_manager.add_message_to_history(
+                session_id=session_id,
+                message=current_user_message,
+                agent_name=agent_name,
+            )
 
         if system_prompt_override:
             if agent_config_for_run.llm is None:
@@ -210,27 +204,17 @@ class ExecutionFacade:
             raise AgentExecutionError(error_msg) from e
         finally:
             # Save history at the end of the stream
-            if agent_instance and agent_instance.config.include_history and session_id:
-                if self._storage_manager:
-                    try:
-                        self._storage_manager.save_full_history(
-                            agent_name=agent_name,
-                            session_id=session_id,
-                            conversation=agent_instance.conversation_history,
-                        )
-                        logger.info(
-                            f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
-                            exc_info=True,
-                        )
-                elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, agent_instance.conversation_history, agent_name)
-                    logger.info(
-                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
-                    )
+            if agent_instance and agent_instance.config.include_history and session_id and self._session_manager:
+                # This is a streaming run, so we don't have a full result object yet.
+                # We save the conversation history for now.
+                self._session_manager.save_conversation_history(
+                    session_id=session_id,
+                    conversation=agent_instance.conversation_history,
+                    agent_name=agent_name,
+                )
+                logger.info(
+                    f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
+                )
 
             # Don't unregister servers - keep them available for future use
             # This allows tools to remain available after agent execution
@@ -286,30 +270,11 @@ class ExecutionFacade:
             )
 
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
-            if agent_instance and agent_instance.config.include_history and session_id:
-                if self._storage_manager:
-                    try:
-                        self._storage_manager.save_full_history(
-                            agent_name=agent_name,
-                            session_id=session_id,
-                            conversation=run_result.conversation_history,
-                        )
-                        logger.info(
-                            f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
-                            exc_info=True,
-                        )
-                elif self._cache_manager:
-                    # Save the complete execution result
-                    self._cache_manager.save_result(
-                        session_id=session_id, execution_result=run_result.model_dump(), result_type="agent"
-                    )
-                    logger.info(
-                        f"Facade: Saved complete execution result for agent '{agent_name}', session '{session_id}' to file-based cache."
-                    )
+            if agent_instance and agent_instance.config.include_history and session_id and self._session_manager:
+                self._session_manager.save_agent_result(session_id=session_id, agent_result=run_result)
+                logger.info(
+                    f"Facade: Saved complete execution result for agent '{agent_name}', session '{session_id}'."
+                )
 
             return run_result
         except Exception as e:
@@ -348,12 +313,10 @@ class ExecutionFacade:
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
 
             # Save the complete workflow execution result if it has a session_id
-            if result.session_id and self._cache_manager:
-                self._cache_manager.save_result(
-                    session_id=result.session_id, execution_result=result.model_dump(), result_type="workflow"
-                )
+            if result.session_id and self._session_manager:
+                self._session_manager.save_workflow_result(session_id=result.session_id, workflow_result=result)
                 logger.info(
-                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}' to cache."
+                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}'."
                 )
 
             return result
@@ -431,114 +394,37 @@ class ExecutionFacade:
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 
-    # --- History Management Methods ---
+    # --- Pass-through Methods to SessionManager ---
 
     def get_session_result(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get the complete execution result for a specific session.
-        Delegates to StorageManager if available, otherwise CacheManager.
-        """
-        if self._storage_manager:
-            # For now, StorageManager doesn't support full results
-            return None
-        elif self._cache_manager:
-            return self._cache_manager.get_result(session_id)
-        else:
-            logger.warning("No storage backend available for session results")
-            return None
+        if self._session_manager:
+            return self._session_manager.get_session_result(session_id)
+        return None
 
     def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
-        """
-        Legacy method - Get conversation history for a specific session.
-        Extracts conversation from the execution result.
-        """
-        if self._storage_manager:
-            return self._storage_manager.get_session_history(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.get_history(session_id)
-        else:
-            logger.warning("No storage backend available for session history")
-            return None
+        if self._session_manager:
+            return self._session_manager.get_session_history(session_id)
+        return None
 
     def get_sessions_list(
         self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0
     ) -> Dict[str, Any]:
-        """
-        Get list of sessions with optional filtering by agent or workflow.
-        Returns paginated results.
-        """
-
-        if workflow_name:
-            # Get sessions for specific workflow
-            if self._storage_manager:
-                # For StorageManager, we'd need a new method to get sessions by workflow
-                logger.warning("Getting sessions by workflow not yet implemented for StorageManager")
-                sessions = []
-            elif self._cache_manager:
-                sessions = self._cache_manager.get_sessions_by_workflow(workflow_name, limit=limit + offset)
-            else:
-                sessions = []
-        elif agent_name:
-            # Get sessions for specific agent
-            if self._storage_manager:
-                sessions = self._storage_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
-            elif self._cache_manager:
-                sessions = self._cache_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
-            else:
-                sessions = []
-        else:
-            # Get all sessions - need to aggregate from all agents
-            if self._storage_manager:
-                # For StorageManager, we'd need a new method to get all sessions
-                # For now, return empty as this is not implemented
-                logger.warning("Getting all sessions not yet implemented for StorageManager")
-                sessions = []
-            elif self._cache_manager:
-                # For CacheManager, get all sessions from metadata
-                sessions = []
-                for session_id, metadata in self._cache_manager._metadata_cache.items():
-                    sessions.append({"session_id": session_id, **metadata})
-                # Sort by last_updated descending
-                sessions.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
-            else:
-                sessions = []
-
-        # Apply pagination
-        total = len(sessions)
-        paginated_sessions = sessions[offset : offset + limit] if sessions else []
-
-        return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+        if self._session_manager:
+            return self._session_manager.get_sessions_list(
+                agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
+            )
+        return {"sessions": [], "total": 0, "offset": offset, "limit": limit}
 
     def delete_session(self, session_id: str) -> bool:
-        """
-        Delete a specific session's history.
-        Returns True if deleted, False if not found.
-        """
-        if self._storage_manager:
-            return self._storage_manager.delete_session(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.delete_session(session_id)
-        else:
-            logger.warning("No storage backend available for session deletion")
-            return False
+        if self._session_manager:
+            return self._session_manager.delete_session(session_id)
+        return False
 
-    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get metadata about a session.
-        """
-        if self._storage_manager:
-            return self._storage_manager.get_session_metadata(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.get_session_metadata(session_id)
-        else:
-            logger.warning("No storage backend available for session metadata")
-            return None
+    def get_session_metadata(self, session_id: str) -> Optional[SessionMetadata]:
+        if self._session_manager:
+            return self._session_manager.get_session_metadata(session_id)
+        return None
 
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
-        """
-        Clean up old sessions based on retention policy.
-        """
-        if self._storage_manager:
-            self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
-        if self._cache_manager:
-            self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        if self._session_manager:
+            self._session_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)

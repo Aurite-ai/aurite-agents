@@ -10,7 +10,13 @@ from pydantic import BaseModel
 
 from ....errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
-from ...dependencies import get_api_key, get_execution_facade
+from ....storage.session_manager import SessionManager
+from ....storage.session_models import (
+    ExecutionHistoryResponse,
+    SessionListResponse,
+    SessionMetadata,
+)
+from ...dependencies import get_api_key, get_execution_facade, get_session_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -35,32 +41,6 @@ class AgentRunRequest(BaseModel):
 class WorkflowRunRequest(BaseModel):
     initial_input: Any
     session_id: Optional[str] = None
-
-
-# History-related models
-class SessionMetadata(BaseModel):
-    session_id: str
-    agent_name: Optional[str] = None
-    created_at: Optional[str] = None
-    last_updated: Optional[str] = None
-    message_count: int
-    workflow_name: Optional[str] = None
-    agents_involved: Optional[List[str]] = None
-
-
-class SessionListResponse(BaseModel):
-    sessions: List[SessionMetadata]
-    total: int
-    offset: int
-    limit: int
-
-
-class ExecutionHistoryResponse(BaseModel):
-    """Unified response model for both agent and workflow execution history"""
-
-    result_type: str  # "agent" or "workflow"
-    execution_result: Dict[str, Any]  # The complete AgentRunResult or SimpleWorkflowExecutionResult
-    metadata: SessionMetadata
 
 
 @router.get("/status")
@@ -276,7 +256,7 @@ async def list_execution_history(
     limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
     offset: int = Query(0, ge=0, description="Number of sessions to skip"),
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
     List execution history sessions with optional filtering by agent or workflow.
@@ -285,47 +265,18 @@ async def list_execution_history(
     """
     try:
         # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
+        session_manager.cleanup_old_sessions()
 
-        # If filtering by workflow, we need to get more sessions and filter
-        if workflow_name:
-            # Get more sessions to ensure we have enough after filtering
-            result = facade.get_sessions_list(
-                agent_name=agent_name,
-                workflow_name=workflow_name,
-                limit=(limit + offset) * 10,  # Get more to account for filtering
-                offset=0,
-            )
+        result = session_manager.get_sessions_list(
+            agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
+        )
 
-            # Filter to only include parent workflow sessions (those without agent_name)
-            filtered_sessions = []
-            for session_data in result["sessions"]:
-                # Only include sessions where agent_name is None (parent workflow sessions)
-                if session_data.get("agent_name") is None:
-                    filtered_sessions.append(session_data)
-
-            # Apply pagination to filtered results
-            total_filtered = len(filtered_sessions)
-            paginated_sessions = filtered_sessions[offset : offset + limit]
-
-            # Convert to response model
-            sessions = [SessionMetadata(**session_data) for session_data in paginated_sessions]
-
-            return SessionListResponse(sessions=sessions, total=total_filtered, offset=offset, limit=limit)
-        else:
-            # Normal behavior for agent filtering or no filtering
-            result = facade.get_sessions_list(
-                agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
-            )
-
-            # Convert to response model
-            sessions = []
-            for session_data in result["sessions"]:
-                sessions.append(SessionMetadata(**session_data))
-
-            return SessionListResponse(
-                sessions=sessions, total=result["total"], offset=result["offset"], limit=result["limit"]
-            )
+        return SessionListResponse(
+            sessions=result["sessions"],
+            total=result["total"],
+            offset=result["offset"],
+            limit=result["limit"],
+        )
     except Exception as e:
         logger.error(f"Error listing execution history: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve execution history") from e
@@ -335,7 +286,7 @@ async def list_execution_history(
 async def get_session_history(
     session_id: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
     Get the complete execution result for a specific session.
@@ -343,9 +294,9 @@ async def get_session_history(
     Supports partial session ID matching (e.g., just the suffix like '826c63d4').
     """
     try:
-        # First try to get the execution result with the exact session_id
-        execution_result = facade.get_session_result(session_id)
-        metadata = facade.get_session_metadata(session_id)
+        # First try to get the execution result and metadata with the exact session_id
+        execution_result = session_manager.get_session_result(session_id)
+        metadata_model = session_manager.get_session_metadata(session_id)
 
         # If not found and it looks like a short ID (8-12 hex chars), search for matching sessions
         if (
@@ -355,19 +306,17 @@ async def get_session_history(
             and all(c in "0123456789abcdefABCDEF-" for c in session_id)
         ):
             # Search for sessions ending with this ID
-            all_sessions = facade.get_sessions_list(limit=1000, offset=0)
-            matching_sessions = []
-
-            for session_data in all_sessions["sessions"]:
-                if session_data["session_id"].endswith(session_id):
-                    matching_sessions.append(session_data["session_id"])
+            all_sessions_result = session_manager.get_sessions_list(limit=1000, offset=0)
+            matching_sessions = [
+                s.session_id for s in all_sessions_result["sessions"] if s.session_id.endswith(session_id)
+            ]
 
             if len(matching_sessions) == 1:
                 # Found exactly one match, use it
-                session_id = matching_sessions[0]
-                execution_result = facade.get_session_result(session_id)
-                metadata = facade.get_session_metadata(session_id)
-                logger.info(f"Found matching session for partial ID: {session_id}")
+                matched_session_id = matching_sessions[0]
+                execution_result = session_manager.get_session_result(matched_session_id)
+                metadata_model = session_manager.get_session_metadata(matched_session_id)
+                logger.info(f"Found matching session for partial ID '{session_id}': {matched_session_id}")
             elif len(matching_sessions) > 1:
                 # Multiple matches, return error with suggestions
                 raise HTTPException(
@@ -375,45 +324,14 @@ async def get_session_history(
                     detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}",
                 )
 
-        if execution_result is None:
+        if execution_result is None or metadata_model is None:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-        if metadata is None:
-            # Create minimal metadata if not available
-            metadata = {
-                "session_id": session_id,
-                "result_type": "unknown",
-                "created_at": None,
-                "last_updated": None,
-                "message_count": 0,
-            }
-
-        # Ensure all required fields are present in metadata
-        metadata["session_id"] = session_id
-        if "message_count" not in metadata:
-            # Count messages from the execution result
-            if "conversation_history" in execution_result:
-                metadata["message_count"] = len(execution_result["conversation_history"])
-            elif "step_results" in execution_result:
-                count = 0
-                for step in execution_result.get("step_results", []):
-                    if isinstance(step, dict) and "result" in step:
-                        step_result = step["result"]
-                        if isinstance(step_result, dict) and "conversation_history" in step_result:
-                            count += len(step_result["conversation_history"])
-                metadata["message_count"] = count
-            else:
-                metadata["message_count"] = 0
-
-        # Set default values for optional fields
-        metadata.setdefault("agent_name", None)
-        metadata.setdefault("workflow_name", None)
-        metadata.setdefault("agents_involved", None)
-
+        result_type = "workflow" if metadata_model.is_workflow else "agent"
         return ExecutionHistoryResponse(
-            result_type=metadata.get("result_type", "unknown"),
+            result_type=result_type,
             execution_result=execution_result,
-            metadata=SessionMetadata(**metadata),
+            metadata=metadata_model,
         )
     except HTTPException:
         raise
@@ -426,7 +344,7 @@ async def get_session_history(
 async def delete_session_history(
     session_id: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
     Delete a specific session's history.
@@ -435,7 +353,7 @@ async def delete_session_history(
     if session_id == "null":
         raise HTTPException(status_code=404, detail="Session 'null' not found")
     try:
-        deleted = facade.delete_session(session_id)
+        deleted = session_manager.delete_session(session_id)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
         # Return 204 No Content on successful deletion
@@ -454,7 +372,7 @@ async def cleanup_history(
     days: int = Query(30, ge=0, le=365, description="Delete sessions older than this many days"),
     max_sessions: int = Query(50, ge=0, le=1000, description="Maximum number of sessions to keep"),
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
     Clean up old sessions based on retention policy.
@@ -462,10 +380,11 @@ async def cleanup_history(
     Set days=0 to delete all sessions older than today.
     """
     try:
-        facade.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        session_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
         return {
             "message": f"Cleanup completed. Removed sessions older than {days} days, keeping maximum {max_sessions} sessions."
         }
     except Exception as e:
         logger.error(f"Error during history cleanup: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to clean up history") from e
         raise HTTPException(status_code=500, detail="Failed to clean up history") from e
