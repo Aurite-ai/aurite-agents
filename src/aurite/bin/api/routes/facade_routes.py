@@ -178,7 +178,7 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
     agent_config = config_manager.get_config("agent", agent_name)
 
     if not agent_config:
-        raise KeyError(f"Agent Config for {agent_name} not found")
+        raise ConfigurationError(f"Agent Config for {agent_name} not found")
 
     agent_config: AgentConfig = AgentConfig(**agent_config)
 
@@ -186,10 +186,12 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
     if agent_config.llm_config_id:
         llm_config = config_manager.get_config("llm", agent_config.llm_config_id)
     else:
-        raise KeyError(f"llm_config_id is undefined for agent {agent_name}")
+        raise ConfigurationError(f"llm_config_id is undefined for agent {agent_name}")
 
     if not llm_config:
-        raise KeyError(f"llm_config_id {agent_config.llm_config_id} was not found while running agent {agent_name}")
+        raise ConfigurationError(
+            f"llm_config_id {agent_config.llm_config_id} was not found while running agent {agent_name}"
+        )
 
     resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
 
@@ -231,6 +233,12 @@ async def stream_agent(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
+        status_code = 500
+        if type(e) is ConfigurationError:
+            status_code = 404
+        elif type(e).__name__ == "AuthenticationError":
+            status_code = 401
+
         logger.error(f"Error streaming agent '{agent_name}': {e}")
 
         error_response = {
@@ -247,7 +255,7 @@ async def stream_agent(
         }
 
         return JSONResponse(
-            status_code=500,
+            status_code=status_code,
             content=error_response,
         )
 
