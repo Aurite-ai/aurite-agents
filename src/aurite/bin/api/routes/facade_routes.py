@@ -126,6 +126,9 @@ async def run_agent(
         if result.status == "success":
             return result.model_dump()
 
+        if result.exception:
+            raise result.exception
+
         raise HTTPException(status_code=500, detail=result.error_message)
     except Exception as e:
         status_code = 500
