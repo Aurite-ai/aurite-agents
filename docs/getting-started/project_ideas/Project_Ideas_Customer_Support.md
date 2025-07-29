@@ -2,7 +2,7 @@
 
 ## Real-World Business Use Cases
 
-Customer support bots are one of the most common applications of AI agents in the business world. They act as the first point of contact for customers, handling common queries and freeing up human agents to focus on more complex issues.
+Customer support bots are one of the most common applications of AI agents in business. They act as the first point of contact for customers, handling common queries and freeing up human agents to focus on more complex issues.
 
 - **E-commerce:** An online store's bot can check order statuses, handle returns, and answer questions about products by reading from a database or product catalog file.
 - **Airlines & Travel:** An airline's bot can provide flight status updates, check for weather delays using a live weather tool, and explain baggage policies by consulting internal documents.
