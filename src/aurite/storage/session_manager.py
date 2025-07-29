@@ -165,13 +165,8 @@ class SessionManager:
         if workflow_name:
             filtered_sessions = [s for s in all_validated_sessions if s.is_workflow and s.name == workflow_name]
         elif agent_name:
-            for s in all_validated_sessions:
-                # Case 1: It's a direct agent run with the correct name.
-                if not s.is_workflow and s.name == agent_name:
-                    filtered_sessions.append(s)
-                # Case 2: It's a workflow that involves an agent with the correct name.
-                elif s.is_workflow and s.agents_involved and agent_name in s.agents_involved.values():
-                    filtered_sessions.append(s)
+            # When filtering by agent name, only return direct agent runs.
+            filtered_sessions = [s for s in all_validated_sessions if not s.is_workflow and s.name == agent_name]
         else:
             filtered_sessions = all_validated_sessions
 
