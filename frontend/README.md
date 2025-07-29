@@ -275,6 +275,37 @@ npm run build
 npm run build:types
 ```
 
+### Windows Setup Issues
+
+If you're experiencing build or script execution issues on Windows, this is likely due to Windows-specific npm workspace binary path resolution problems.
+
+**The Real Problem:** On Windows, npm workspaces don't properly resolve binary paths for workspace packages when using `cmd.exe`. The `rimraf` and `craco` binaries exist in `node_modules/.bin/` but aren't accessible to the individual package scripts.
+
+**Quick Fix (Recommended):**
+
+1. Modify the package.json scripts to use `npx` prefix for binary commands
+2. Fix the husky command to be Windows-compatible
+3. Test the build process
+
+**Files to modify:**
+
+- `frontend/packages/api-client/package.json` - Update clean script
+- `frontend/packages/aurite-studio/package.json` - Update build script
+- `frontend/package.json` - Fix husky prepare script
+
+**Expected changes:**
+
+```json
+// api-client/package.json
+"clean": "npx rimraf dist"
+
+// aurite-studio/package.json  
+"build": "npx craco build"
+
+// root package.json
+"prepare": "npx husky install 2>nul || echo 'Husky install skipped'"
+```
+
 ### Getting Help
 
 - **Documentation**: Check the `docs/` directory in the repository root

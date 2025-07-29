@@ -3,9 +3,11 @@ Provides a unified facade for executing Agents, Simple Workflows, and Custom Wor
 """
 
 import logging
+import os
 import uuid
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
+from langfuse import Langfuse
 from termcolor import colored
 
 from ..components.agents.agent import Agent
@@ -28,6 +30,9 @@ from ..storage.db_manager import StorageManager
 from ..storage.session_manager import SessionManager
 from ..storage.session_models import SessionMetadata
 
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +48,7 @@ class ExecutionFacade:
         host_instance: "MCPHost",
         storage_manager: Optional["StorageManager"] = None,
         cache_manager: Optional["CacheManager"] = None,
+        langfuse: Optional["Langfuse"] = None,
     ):
         if not config_manager:
             raise ValueError("ConfigManager instance is required for ExecutionFacade.")
@@ -55,6 +61,7 @@ class ExecutionFacade:
         # The facade now uses a SessionManager for history, which in turn uses the CacheManager.
         self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
+        self.langfuse = langfuse
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     def set_config_manager(self, config_manager: "ConfigManager"):
@@ -182,10 +189,34 @@ class ExecutionFacade:
 
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Prepare the agent instance and dynamically register any required servers
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, session_id
             )
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                if os.getenv("LANGFUSE_USER_ID"):
+                    user_id = os.getenv("LANGFUSE_USER_ID")
+                else:
+                    user_id = session_id or "anonymous"
+
+                trace = self.langfuse.trace(
+                    name=f"Agent: {agent_name} (streaming) - Aurite Runtime",
+                    session_id=session_id,  # This groups traces into sessions
+                    user_id=user_id,
+                    input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
+
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
 
             # Yield session_id as the first event
@@ -198,7 +229,7 @@ class ExecutionFacade:
             error_msg = (
                 f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             )
-            logger.error(f"Facade: {error_msg}", exc_info=True)
+            logger.error(f"Facade: {error_msg}")
             yield {"type": "error", "data": {"message": error_msg}}
             # Re-raise to be caught by the final `finally` block for cleanup
             raise AgentExecutionError(error_msg) from e
@@ -222,6 +253,26 @@ class ExecutionFacade:
                 logger.debug(
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
+
+            # Update trace with output if available
+            if self.langfuse and trace and agent_instance:
+                # Get the final response from the agent
+                final_output = None
+                if hasattr(agent_instance, "final_response") and agent_instance.final_response:
+                    final_output = agent_instance.final_response.content
+                elif hasattr(agent_instance, "conversation_history") and agent_instance.conversation_history:
+                    # Get the last assistant message
+                    for msg in reversed(agent_instance.conversation_history):
+                        if msg.get("role") == "assistant" and msg.get("content"):
+                            final_output = msg.get("content")
+                            break
+
+                if final_output:
+                    trace.update(output={"response": final_output})
+
+            # Flush Langfuse trace if enabled
+            if self.langfuse and trace:
+                self.langfuse.flush()
 
     async def run_agent(
         self,
@@ -259,10 +310,28 @@ class ExecutionFacade:
 
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                trace = self.langfuse.trace(
+                    name=f"Agent: {agent_name} - Aurite Runtime",
+                    session_id=session_id,  # This groups traces into sessions
+                    user_id=session_id or "anonymous",
+                    input={"user_message": user_message, "system_prompt": system_prompt},
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, final_session_id, force_include_history
             )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
 
             logger.info(
                 colored(
@@ -308,9 +377,16 @@ class ExecutionFacade:
                 )
 
     async def run_simple_workflow(
-        self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
+        self,
+        workflow_name: str,
+        initial_input: Any,
+        session_id: Optional[str] = None,
+        trace: Optional["StatefulTraceClient"] = None,
     ) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
+        # Flush Langfuse trace if enabled
+        if self.langfuse and trace:
+            self.langfuse.flush()
         try:
             workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
             if not workflow_config_dict:

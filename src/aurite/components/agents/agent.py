@@ -4,7 +4,7 @@ Manages the multi-turn conversation loop for an Agent.
 
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
@@ -23,6 +23,10 @@ from ..llm.providers.litellm_client import LiteLLMClient
 from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
 
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +43,7 @@ class Agent:
         host_instance: MCPHost,
         initial_messages: List[Dict[str, Any]],
         session_id: Optional[str] = None,
+        trace: Optional["StatefulTraceClient"] = None,
     ):
         self.config = agent_config
         self.host = host_instance
@@ -46,6 +51,7 @@ class Agent:
         self.final_response: Optional[ChatCompletionMessage] = None
         self.tool_uses_in_last_turn: List[ChatCompletionMessageToolCall] = []
         self.session_id = session_id
+        self.trace = trace
 
         # --- Configuration Resolution ---
         # The Agent is responsible for resolving its final LLM configuration.
@@ -62,6 +68,7 @@ class Agent:
             resolved_config.default_system_prompt = agent_config.system_prompt
 
         self.resolved_llm_config: LLMConfig = resolved_config
+
         self.llm = LiteLLMClient(config=self.resolved_llm_config)
 
         logger.debug(
@@ -130,13 +137,14 @@ class Agent:
 
             except Exception as e:
                 error_message = f"Error during conversation turn {current_iteration + 1}: {type(e).__name__}: {e}"
-                logger.error(error_message, exc_info=True)
+                logger.error(error_message)
                 return AgentRunResult(
                     status="error",
                     final_response=None,
                     conversation_history=self.conversation_history,
                     error_message=error_message,
                     session_id=self.session_id,
+                    exception=e,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
@@ -241,7 +249,7 @@ class Agent:
                         self.conversation_history.append(dict(tool_message))
 
             except Exception as e:
-                logger.error(f"Error in conversation turn {current_iteration}: {e}", exc_info=True)
+                logger.error(f"Error in conversation turn {current_iteration}: {e}")
                 yield {"type": "error", "data": {"message": str(e)}}
                 return
 

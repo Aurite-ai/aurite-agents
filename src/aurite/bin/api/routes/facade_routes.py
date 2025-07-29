@@ -5,14 +5,22 @@ import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ....errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
+from ....components.llm.providers.litellm_client import LiteLLMClient
+from ....config.config_manager import ConfigManager
+from ....config.config_models import AgentConfig, LLMConfig
+from ....errors import ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
 from ....storage.session_manager import SessionManager
 from ....storage.session_models import ExecutionHistoryResponse, SessionListResponse
-from ...dependencies import get_api_key, get_execution_facade, get_session_manager
+from ...dependencies import (
+    get_api_key,
+    get_config_manager,
+    get_execution_facade,
+    get_session_manager,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -68,16 +76,93 @@ async def run_agent(
             system_prompt=request.system_prompt,
             session_id=request.session_id,
         )
-        return result.model_dump()
-    except ConfigurationError as e:
-        logger.error(f"Configuration error for agent '{agent_name}': {e}")
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except AgentExecutionError as e:
-        logger.error(f"Agent execution error for '{agent_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Agent execution failed: {clean_error_message(e)}") from e
+        if result.status == "success":
+            return result.model_dump()
+
+        if result.exception:
+            raise result.exception
+
+        raise HTTPException(status_code=500, detail=result.error_message)
     except Exception as e:
-        logger.error(f"Unexpected error running agent '{agent_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during agent execution") from e
+        status_code = 500
+        if type(e) is ConfigurationError:
+            status_code = 404
+        elif type(e).__name__ == "AuthenticationError":
+            status_code = 401
+        logger.error(f"Error running agent '{agent_name}': {e}")
+
+        error_response = {
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+                "details": {
+                    "agent_name": agent_name,
+                    "user_message": request.user_message,
+                    "system_prompt": request.system_prompt,
+                    "session_id": request.session_id,
+                },
+            }
+        }
+
+        return JSONResponse(
+            status_code=status_code,
+            content=error_response,
+        )
+
+
+@router.post("/llms/{llm_config_id}/test")
+async def test_llm(
+    llm_config_id: str,
+    api_key: str = Security(get_api_key),
+    facade: ExecutionFacade = Depends(get_execution_facade),
+):
+    """
+    Test an LLM configuration by running a simple 10 token call
+    This allows you to quickly test LLM configurations without creating a full agent.
+    """
+    try:
+        # Check if the LLM configuration exists
+        llm_config = facade._config_manager.get_config("llm", llm_config_id)
+        if not llm_config:
+            raise HTTPException(status_code=404, detail=f"LLM configuration '{llm_config_id}' not found.")
+
+        resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
+
+        llm = LiteLLMClient(config=resolved_config)
+
+        llm.validate()
+
+        return {
+            "status": "success",
+            "llm_config_id": llm_config_id,
+            "metadata": {
+                "provider": resolved_config.provider,
+                "model": resolved_config.model,
+                "temperature": resolved_config.temperature,
+                "max_tokens": resolved_config.max_tokens,
+            },
+        }
+    except Exception as e:
+        logger.error(f"Error testing llm '{llm_config_id}': {e}")
+
+        error_response = {
+            "status": "error",
+            "llm_config_id": llm_config_id,
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+            },
+        }
+
+        if type(e) is HTTPException:
+            status_code = e.status_code
+        else:
+            status_code = 500
+
+        return JSONResponse(
+            status_code=status_code,
+            content=error_response,
+        )
 
 
 @router.post("/agents/{agent_name}/test")
@@ -97,17 +182,53 @@ async def test_agent(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _validate_agent(agent_name: str, config_manager: ConfigManager):
+    agent_config = config_manager.get_config("agent", agent_name)
+
+    if not agent_config:
+        raise ConfigurationError(f"Agent Config for {agent_name} not found")
+
+    agent_config: AgentConfig = AgentConfig(**agent_config)
+
+    llm_config = None
+    if agent_config.llm_config_id:
+        llm_config = config_manager.get_config("llm", agent_config.llm_config_id)
+    else:
+        raise ConfigurationError(f"llm_config_id is undefined for agent {agent_name}")
+
+    if not llm_config:
+        raise ConfigurationError(
+            f"llm_config_id {agent_config.llm_config_id} was not found while running agent {agent_name}"
+        )
+
+    resolved_config = LLMConfig(**llm_config).model_copy(deep=True)
+
+    if agent_config.llm:
+        overrides = agent_config.llm.model_dump(exclude_unset=True)
+        resolved_config = resolved_config.model_copy(update=overrides)
+
+    if agent_config.system_prompt:
+        resolved_config.default_system_prompt = agent_config.system_prompt
+
+    llm = LiteLLMClient(config=resolved_config)
+
+    llm.validate()
+
+
 @router.post("/agents/{agent_name}/stream")
 async def stream_agent(
     agent_name: str,
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name and stream the response.
     """
     try:
+        # first, validate the agent
+        _validate_agent(agent_name, config_manager)
 
         async def event_generator():
             async for event in facade.stream_agent_run(
@@ -120,18 +241,30 @@ async def stream_agent(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
-        logger.error(f"Error streaming agent '{agent_name}': {e}", exc_info=True)
-        # Cannot raise HTTPException for a streaming response.
-        # The error will be logged, and the client will see a dropped connection.
-        # A more robust solution could involve yielding a final error event.
-        return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'type': 'error', 'data': {'message': 'An internal error occurred during agent execution'}})}\n\n"
-                ]
-            ),
-            media_type="text/event-stream",
-            status_code=500,
+        status_code = 500
+        if type(e) is ConfigurationError:
+            status_code = 404
+        elif type(e).__name__ == "AuthenticationError":
+            status_code = 401
+
+        logger.error(f"Error streaming agent '{agent_name}': {e}")
+
+        error_response = {
+            "error": {
+                "message": str(e),
+                "error_type": type(e).__name__,
+                "details": {
+                    "agent_name": agent_name,
+                    "user_message": request.user_message,
+                    "system_prompt": request.system_prompt,
+                    "session_id": request.session_id,
+                },
+            }
+        }
+
+        return JSONResponse(
+            status_code=status_code,
+            content=error_response,
         )
 
 

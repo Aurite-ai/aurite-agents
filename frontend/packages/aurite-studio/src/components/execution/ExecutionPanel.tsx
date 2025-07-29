@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, CheckCircle, AlertCircle, Square, User, Bot, Loader2 } from 'lucide-react';
+import { Play, CheckCircle, AlertCircle, StopCircle, User, Bot, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExecutionPanelProps } from '@/types/execution';
 import { ExecutionProgress } from './ExecutionProgress';
@@ -58,7 +58,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                   size="sm"
                   onClick={handleCancelExecution}
                 >
-                  <Square className="h-3 w-3 mr-1" />
+                  <StopCircle className="h-3 w-3 mr-1" />
                   Cancel
                 </Button>
               </div>
@@ -252,7 +252,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
               <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto">
-                <Square className="h-8 w-8 text-yellow-500" />
+                <StopCircle className="h-8 w-8 text-yellow-500" />
               </div>
               <div className="space-y-2">
                 <h3 className="text-lg font-medium">Execution Cancelled</h3>

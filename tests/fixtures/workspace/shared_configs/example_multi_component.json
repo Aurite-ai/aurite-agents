@@ -59,7 +59,6 @@
       "weather_server"
     ],
     "include_history": true,
-    "name": "Conversation History Weather Agent",
     "type": "agent"
   },
   {

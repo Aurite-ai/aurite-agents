@@ -101,6 +101,10 @@ export interface ExecuteWorkflowResponse {
   status: 'completed' | 'failed';
   final_message?: string;
   error?: string | null;
+  execution_id?: string;
+  session_id?: string;
+  step_results?: any[];
+  history?: any[];
 }
 
 export interface ExecuteCustomWorkflowResponse {
@@ -259,11 +263,13 @@ export interface ExecuteAgentRequest {
 }
 
 export interface ExecuteWorkflowRequest {
-  initial_user_message: string;
+  initial_input: string;
+  session_id?: string;
 }
 
 export interface ExecuteCustomWorkflowRequest {
   initial_input: any;
+  session_id?: string;
 }
 
 export interface CreateConfigRequest {
