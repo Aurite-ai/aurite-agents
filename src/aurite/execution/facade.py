@@ -241,6 +241,7 @@ class ExecutionFacade:
         )
 
         final_session_id = session_id
+        base_session_id = session_id  # Capture the original ID
         if effective_include_history:
             if final_session_id:
                 # Only add prefix if it's not part of a workflow and doesn't already have the prefix
@@ -249,6 +250,7 @@ class ExecutionFacade:
             else:
                 # This is a standalone agent run, so it gets the agent prefix
                 final_session_id = f"agent-{uuid.uuid4().hex[:8]}"
+                base_session_id = final_session_id  # The generated ID is the base
                 logger.info(f"Auto-generated session_id for agent '{agent_name}': {final_session_id}")
         # --- End Session ID Management ---
 
@@ -280,7 +282,9 @@ class ExecutionFacade:
 
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
             if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
-                self._session_manager.save_agent_result(session_id=final_session_id, agent_result=run_result)
+                self._session_manager.save_agent_result(
+                    session_id=final_session_id, agent_result=run_result, base_session_id=base_session_id
+                )
                 logger.info(
                     f"Facade: Saved complete execution result for agent '{agent_name}', session '{final_session_id}'."
                 )
@@ -315,12 +319,14 @@ class ExecutionFacade:
 
             # --- Session ID Management ---
             final_session_id = session_id
+            base_session_id = session_id  # Capture the original ID
             if workflow_config.include_history:
                 if final_session_id:
                     if not final_session_id.startswith("workflow-"):
                         final_session_id = f"workflow-{final_session_id}"
                 else:
                     final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+                    base_session_id = final_session_id  # The generated ID is the base
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 
@@ -334,7 +340,9 @@ class ExecutionFacade:
 
             # Save the complete workflow execution result if it has a session_id
             if result.session_id and self._session_manager:
-                self._session_manager.save_workflow_result(session_id=result.session_id, workflow_result=result)
+                self._session_manager.save_workflow_result(
+                    session_id=result.session_id, workflow_result=result, base_session_id=base_session_id
+                )
                 logger.info(
                     f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}'."
                 )

@@ -14,6 +14,7 @@ class SessionMetadata(BaseModel):
     is_workflow: bool = False  # Indicates if this is a workflow session
     # Now stores a mapping of session_id -> agent_name
     agents_involved: Optional[Dict[str, str]] = None
+    base_session_id: Optional[str] = None
 
 
 class SessionListResponse(BaseModel):

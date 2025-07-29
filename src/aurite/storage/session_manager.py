@@ -93,19 +93,23 @@ class SessionManager:
         result_type = "workflow" if workflow_name else "agent"
         self._save_result(session_id, execution_result, result_type)
 
-    def save_agent_result(self, session_id: str, agent_result: AgentRunResult):
+    def save_agent_result(self, session_id: str, agent_result: AgentRunResult, base_session_id: Optional[str] = None):
         """
         Saves the complete result of an agent execution.
         """
-        self._save_result(session_id, agent_result.model_dump(), "agent")
+        self._save_result(session_id, agent_result.model_dump(), "agent", base_session_id)
 
-    def save_workflow_result(self, session_id: str, workflow_result: SimpleWorkflowExecutionResult):
+    def save_workflow_result(
+        self, session_id: str, workflow_result: SimpleWorkflowExecutionResult, base_session_id: Optional[str] = None
+    ):
         """
         Saves the complete result of a workflow execution.
         """
-        self._save_result(session_id, workflow_result.model_dump(), "workflow")
+        self._save_result(session_id, workflow_result.model_dump(), "workflow", base_session_id)
 
-    def _save_result(self, session_id: str, execution_result: Dict[str, Any], result_type: str):
+    def _save_result(
+        self, session_id: str, execution_result: Dict[str, Any], result_type: str, base_session_id: Optional[str] = None
+    ):
         """
         Internal method to save a result to the cache with metadata.
         """
@@ -115,6 +119,7 @@ class SessionManager:
         metadata = self._extract_metadata(execution_result)
         session_data = {
             "session_id": session_id,
+            "base_session_id": base_session_id,
             "execution_result": execution_result,
             "result_type": result_type,
             "created_at": existing_data.get("created_at", now),
@@ -207,30 +212,44 @@ class SessionManager:
         """
         Get both the execution result and metadata for a session, handling partial IDs.
         """
+        # Step 1: Attempt a direct lookup first. This is the most efficient path.
         execution_result = self.get_session_result(session_id)
         metadata_model = self.get_session_metadata(session_id)
 
-        if (
-            execution_result is None
-            and len(session_id) >= 8
-            and len(session_id) <= 12
-            and all(c in "0123456789abcdefABCDEF-" for c in session_id)
-        ):
-            all_sessions_result = self.get_sessions_list(limit=1000, offset=0)
+        # Step 2: If direct lookup fails, search by base_session_id.
+        if execution_result is None:
+            all_sessions_result = self.get_sessions_list(limit=10000, offset=0)  # Get all sessions
             matching_sessions = [
-                s.session_id for s in all_sessions_result["sessions"] if s.session_id.endswith(session_id)
+                s for s in all_sessions_result["sessions"] if s.base_session_id and s.base_session_id == session_id
             ]
 
+            # Step 3: Handle the results of the base_session_id search
             if len(matching_sessions) == 1:
-                matched_session_id = matching_sessions[0]
+                matched_session_id = matching_sessions[0].session_id
+                logger.info(f"Found matching session for base_session_id '{session_id}': {matched_session_id}")
                 execution_result = self.get_session_result(matched_session_id)
                 metadata_model = self.get_session_metadata(matched_session_id)
-                logger.info(f"Found matching session for partial ID '{session_id}': {matched_session_id}")
             elif len(matching_sessions) > 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Multiple sessions found ending with '{session_id}': {matching_sessions[:5]}{'...' if len(matching_sessions) > 5 else ''}",
-                )
+                # If multiple sessions share the same base ID (e.g., a workflow and its agents),
+                # we need to find the primary one (the one without a suffix like -0, -1).
+                primary_match = [
+                    s for s in matching_sessions if not (s.session_id[-2] == "-" and s.session_id[-1].isdigit())
+                ]
+                if len(primary_match) == 1:
+                    matched_session_id = primary_match[0].session_id
+                    logger.info(
+                        f"Found primary matching session for base_session_id '{session_id}': {matched_session_id}"
+                    )
+                    execution_result = self.get_session_result(matched_session_id)
+                    metadata_model = self.get_session_metadata(matched_session_id)
+                else:
+                    # This case is ambiguous, return a 400 error.
+                    session_ids = [s.session_id for s in matching_sessions]
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Ambiguous partial ID '{session_id}'. Multiple sessions found: {session_ids[:5]}",
+                    )
+
         return execution_result, metadata_model
 
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
@@ -314,6 +333,7 @@ class SessionManager:
             message_count=session_data.get("message_count"),
             is_workflow=is_workflow,
             agents_involved=session_data.get("agents_involved"),
+            base_session_id=session_data.get("base_session_id"),
         )
 
     def _extract_metadata(self, execution_result: Dict[str, Any]) -> Dict[str, Any]:

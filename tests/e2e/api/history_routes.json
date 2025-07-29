@@ -632,42 +632,76 @@
 					"response": []
 				},
 				{
-					"name": "Test Partial Session ID Matching",
+					"name": "Create Workflow with Custom ID",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"var fullSessionId = pm.collectionVariables.get(\"workflow_a_session_id\");",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
 									"",
-									"if (fullSessionId && fullSessionId.length >= 8) {",
-									"    pm.test(\"Status code is 200\", function () {",
-									"        pm.response.to.have.status(200);",
-									"    });",
-									"    ",
-									"    pm.test(\"Partial session ID matching works\", function () {",
-									"        var jsonData = pm.response.json();",
-									"        pm.expect(jsonData.metadata.session_id).to.eql(fullSessionId);",
-									"    });",
-									"} else {",
-									"    pm.test(\"Skipped - no session ID available\", function () {",
-									"        pm.expect(true).to.be.true;",
-									"    });",
-									"}"
+									"pm.test(\"Workflow run with custom ID successful\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.session_id).to.eql(\"workflow-my-custom-run\");",
+									"    pm.collectionVariables.set(\"custom_session_id_full\", jsonData.session_id);",
+									"});"
 								],
 								"type": "text/javascript"
 							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"initial_input\": \"Custom ID test\",\n    \"session_id\": \"my-custom-run\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
+						"url": {
+							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow A/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"execution",
+								"workflows",
+								"simple",
+								"History Test Workflow A",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get History with Partial Custom ID",
+					"event": [
 						{
-							"listen": "prerequest",
+							"listen": "test",
 							"script": {
 								"exec": [
-									"// Extract last 8 characters of session ID for partial matching test",
-									"var fullSessionId = pm.collectionVariables.get(\"workflow_a_session_id\");",
-									"if (fullSessionId && fullSessionId.length >= 8) {",
-									"    var partialId = fullSessionId.slice(-8);",
-									"    pm.variables.set(\"partial_session_id\", partialId);",
-									"}"
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Custom partial ID matching works\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var expectedFullId = pm.collectionVariables.get(\"custom_session_id_full\");",
+									"    pm.expect(jsonData.metadata.session_id).to.eql(expectedFullId);",
+									"    pm.expect(expectedFullId).to.eql(\"workflow-my-custom-run\");",
+									"});"
 								],
 								"type": "text/javascript"
 							}
@@ -682,14 +716,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/execution/history/{{partial_session_id}}",
+							"raw": "{{base_url}}/execution/history/my-custom-run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"history",
-								"{{partial_session_id}}"
+								"my-custom-run"
 							]
 						}
 					},
