@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
@@ -14,7 +14,6 @@ from ....storage.session_manager import SessionManager
 from ....storage.session_models import (
     ExecutionHistoryResponse,
     SessionListResponse,
-    SessionMetadata,
 )
 from ...dependencies import get_api_key, get_execution_facade, get_session_manager
 
