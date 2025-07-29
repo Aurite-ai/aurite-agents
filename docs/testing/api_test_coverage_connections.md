@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document maps the connections between API components, test files, documentation, and TypeScript clients to provide a complete picture of the testing ecosystem.
+This document maps the connections between the API components, test files, documentation, and TypeScript clients to provide a complete picture of the testing ecosystem.
 
 ## Component Connection Matrix
 
