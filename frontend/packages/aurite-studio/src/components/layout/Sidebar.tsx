@@ -44,7 +44,7 @@ export default function Sidebar() {
       transition={{ duration: 0.3 }}
       onMouseEnter={() => setSidebarHovered(true)}
       onMouseLeave={() => setSidebarHovered(false)}
-      className={`${sidebarHovered ? 'w-64' : 'w-20'} gradient-sidebar border-r border-border flex flex-col py-6 relative`}
+      className={`${sidebarHovered ? 'w-64' : 'w-20'} gradient-sidebar border-r border-border flex flex-col py-6 h-full`}
     >
       {/* Logo */}
       <div className={`mb-12 ${sidebarHovered ? 'px-6' : 'flex justify-center'}`}>
