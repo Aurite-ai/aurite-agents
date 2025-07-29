@@ -112,6 +112,7 @@ async def run_agent(
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name.
@@ -124,6 +125,11 @@ async def run_agent(
             session_id=request.session_id,
         )
         if result.status == "success":
+            agent_config = AgentConfig(config_manager.get_config("agent", agent_name))
+
+            if agent_config.llm_config_id and not agent_config.llm:
+                config_manager.validate_llm(agent_config.llm_config_id)
+
             return result.model_dump()
 
         raise HTTPException(status_code=500, detail=result.error_message)
