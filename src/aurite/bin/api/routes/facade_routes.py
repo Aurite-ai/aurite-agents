@@ -125,7 +125,7 @@ async def run_agent(
             session_id=request.session_id,
         )
         if result.status == "success":
-            agent_config = AgentConfig(config_manager.get_config("agent", agent_name))
+            agent_config = AgentConfig(**config_manager.get_config("agent", agent_name))
 
             if agent_config.llm_config_id and not agent_config.llm:
                 config_manager.validate_llm(agent_config.llm_config_id)
