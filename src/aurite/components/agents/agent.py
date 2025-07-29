@@ -132,12 +132,13 @@ class Agent:
 
             except Exception as e:
                 error_message = f"Error during conversation turn {current_iteration + 1}: {type(e).__name__}: {e}"
-                logger.error(error_message, exc_info=True)
+                logger.error(error_message)
                 return AgentRunResult(
                     status="error",
                     final_response=None,
                     conversation_history=self.conversation_history,
                     error_message=error_message,
+                    exception=e,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")
