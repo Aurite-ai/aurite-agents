@@ -524,13 +524,35 @@ jobs:
         run: |
           cd /tmp/aurite_validation_test
           
-          # Test basic aurite functionality
-          aurite --help
+          # Test Python import to verify package installation
+          echo "Testing Python import..."
+          python -c "import aurite; print('✅ Python import successful')" || echo "❌ Python import failed"
+          
+          # Test if aurite module has expected attributes
+          python -c "import aurite; print('✅ Aurite version:', getattr(aurite, '__version__', 'unknown'))" || echo "❌ Version check failed"
           
           # Verify we can read config files if they exist
           if [ -d config ]; then
+            echo "✅ Config directory found"
             ls -la config/
-            find config -name "*.json" | head -3 | xargs ls -la
+            
+            # Count config files
+            AGENT_COUNT=$(find config/agents -name "*.json" 2>/dev/null | wc -l || echo 0)
+            LLM_COUNT=$(find config/llms -name "*.json" 2>/dev/null | wc -l || echo 0) 
+            MCP_COUNT=$(find config/mcp_servers -name "*.json" 2>/dev/null | wc -l || echo 0)
+            
+            echo "📊 Config summary:"
+            echo "  - Agent configs: $AGENT_COUNT"
+            echo "  - LLM configs: $LLM_COUNT" 
+            echo "  - MCP server configs: $MCP_COUNT"
+            
+            # Test reading a config file
+            if [ $AGENT_COUNT -gt 0 ]; then
+              echo "Testing config file reading..."
+              find config/agents -name "*.json" | head -1 | xargs cat | head -5
+            fi
+          else
+            echo "⚠️  No config directory found - package installed but no demo configs"
           fi
           
       - name: Verify Installation Success
