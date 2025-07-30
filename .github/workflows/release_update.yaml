@@ -349,18 +349,19 @@ jobs:
           mkdir -p /tmp/aurite_test
           cd /tmp/aurite_test
           
-          # Test aurite init with non-interactive mode
-          echo "test_project" | aurite init --project test_project
+          # Test aurite init (creates default 'aurite' directory)
+          echo "" | aurite init
           
           # Verify the project was created
-          ls -la test_project/
+          ls -la aurite/
           
           # Test that the project structure is correct
-          test -f test_project/aurite_config.json
+          test -f aurite/aurite_config.json
+          test -f aurite/run_example_project.py
           
       - name: Test Project Listing
         run: |
-          cd /tmp/aurite_test/test_project
+          cd /tmp/aurite_test/aurite
           
           # Test basic CLI commands
           aurite list
