@@ -138,6 +138,7 @@ class Agent:
                     final_response=None,
                     conversation_history=self.conversation_history,
                     error_message=error_message,
+                    exception=e,
                 )
 
         logger.warning(f"Reached max iterations ({max_iterations}). Aborting loop.")

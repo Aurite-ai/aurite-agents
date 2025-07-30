@@ -46,6 +46,7 @@ Configuration Management          Runtime Management
 ### Tool Discovery & Execution
 
 #### List All Available Tools
+
 ```http
 GET /tools
 ```
@@ -53,6 +54,7 @@ GET /tools
 Lists all tools available from currently registered servers.
 
 **Response:**
+
 ```json
 [
   {
@@ -73,6 +75,7 @@ Lists all tools available from currently registered servers.
 ```
 
 #### Get Tool Details
+
 ```http
 GET /tools/{tool_name}
 ```
@@ -80,6 +83,7 @@ GET /tools/{tool_name}
 Gets detailed information about a specific tool, including which server provides it.
 
 **Response:**
+
 ```json
 {
   "name": "get_weather",
@@ -104,6 +108,7 @@ Gets detailed information about a specific tool, including which server provides
 ```
 
 #### Execute Tool
+
 ```http
 POST /tools/{tool_name}/call
 ```
@@ -111,6 +116,7 @@ POST /tools/{tool_name}/call
 Executes a specific tool with provided arguments.
 
 **Request Body:**
+
 ```json
 {
   "args": {
@@ -121,6 +127,7 @@ Executes a specific tool with provided arguments.
 ```
 
 **Response:**
+
 ```json
 {
   "content": [
@@ -136,6 +143,7 @@ Executes a specific tool with provided arguments.
 ### Runtime Server Management
 
 #### List Registered Servers
+
 ```http
 GET /tools/servers
 ```
@@ -143,6 +151,7 @@ GET /tools/servers
 Lists all servers currently registered with the MCPHost (runtime state only).
 
 **Response:**
+
 ```json
 [
   {
@@ -163,6 +172,7 @@ Lists all servers currently registered with the MCPHost (runtime state only).
 ```
 
 #### Get Server Runtime Status
+
 ```http
 GET /tools/servers/{server_name}
 ```
@@ -170,6 +180,7 @@ GET /tools/servers/{server_name}
 Gets detailed runtime status of a specific registered server.
 
 **Response:**
+
 ```json
 {
   "name": "weather_server",
@@ -183,6 +194,7 @@ Gets detailed runtime status of a specific registered server.
 ```
 
 **404 Response (not registered):**
+
 ```json
 {
   "detail": "Server 'weather_server' is not currently registered"
@@ -190,6 +202,7 @@ Gets detailed runtime status of a specific registered server.
 ```
 
 #### List Server Tools
+
 ```http
 GET /tools/servers/{server_name}/tools
 ```
@@ -197,6 +210,7 @@ GET /tools/servers/{server_name}/tools
 Lists all tools provided by a specific registered server.
 
 **Response:**
+
 ```json
 [
   {
@@ -213,6 +227,7 @@ Lists all tools provided by a specific registered server.
 ```
 
 #### Test Server Connection
+
 ```http
 POST /tools/servers/{server_name}/test
 ```
@@ -220,6 +235,7 @@ POST /tools/servers/{server_name}/test
 Tests a server configuration without permanently registering it. Useful for validating configurations.
 
 **Response (Success):**
+
 ```json
 {
   "status": "success",
@@ -235,6 +251,7 @@ Tests a server configuration without permanently registering it. Useful for vali
 ```
 
 **Response (Failure):**
+
 ```json
 {
   "status": "failed",
@@ -246,6 +263,7 @@ Tests a server configuration without permanently registering it. Useful for vali
 ### Server Registration
 
 #### Register Server by Config
+
 ```http
 POST /tools/register/config
 ```
@@ -253,6 +271,7 @@ POST /tools/register/config
 Registers a server using a provided configuration object.
 
 **Request Body:**
+
 ```json
 {
   "name": "custom_server",
@@ -264,6 +283,7 @@ Registers a server using a provided configuration object.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -272,6 +292,7 @@ Registers a server using a provided configuration object.
 ```
 
 #### Register Server by Name
+
 ```http
 POST /tools/register/{server_name}
 ```
@@ -279,6 +300,7 @@ POST /tools/register/{server_name}
 Registers a server using its configured name from ConfigManager.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -287,6 +309,7 @@ Registers a server using its configured name from ConfigManager.
 ```
 
 #### Unregister Server
+
 ```http
 DELETE /tools/servers/{server_name}
 ```
@@ -294,6 +317,7 @@ DELETE /tools/servers/{server_name}
 Unregisters a server from the MCPHost, closing the connection.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -304,6 +328,7 @@ Unregisters a server from the MCPHost, closing the connection.
 ### Host Status
 
 #### Get MCPHost Status
+
 ```http
 GET /tools/status
 ```
@@ -311,6 +336,7 @@ GET /tools/status
 Gets the overall status of the MCPHost.
 
 **Response:**
+
 ```json
 {
   "status": "active",
@@ -323,14 +349,17 @@ Gets the overall status of the MCPHost.
 ### Common Error Responses
 
 #### 404 Not Found
+
 - Server not registered: `"Server 'name' is not currently registered"`
 - Tool not found: `"Tool 'name' not found"`
 - Config not found: `"Server 'name' not found in configuration"`
 
 #### 409 Conflict
+
 - Already registered: `"Server 'name' is already registered"`
 
 #### 500 Internal Server Error
+
 - Connection failures: `"Failed to connect to server: [details]"`
 - Registration timeout: `"Registration timeout after X seconds"`
 
@@ -339,6 +368,7 @@ Gets the overall status of the MCPHost.
 ### Runtime vs Configuration
 
 **Runtime Operations** (these endpoints):
+
 - List registered servers
 - Get server status
 - Monitor active connections
@@ -346,6 +376,7 @@ Gets the overall status of the MCPHost.
 - Test connections
 
 **Configuration Operations** (use `/config/components/mcp_servers/*`):
+
 - Create server configs
 - Update server settings
 - Delete server configs
@@ -356,6 +387,7 @@ Gets the overall status of the MCPHost.
 The MCPHost supports three transport types for connecting to servers:
 
 #### stdio
+
 - Launches server as subprocess
 - Communication via stdin/stdout
 - Requires `server_path` parameter
@@ -368,6 +400,7 @@ The MCPHost supports three transport types for connecting to servers:
 ```
 
 #### local
+
 - Launches server with custom command
 - Flexible argument passing
 - Requires `command` and optional `args`
@@ -381,6 +414,7 @@ The MCPHost supports three transport types for connecting to servers:
 ```
 
 #### http_stream
+
 - Connects to HTTP SSE endpoint
 - Supports authentication headers
 - Requires `http_endpoint`
@@ -389,7 +423,7 @@ The MCPHost supports three transport types for connecting to servers:
 {
   "transport_type": "http_stream",
   "http_endpoint": "https://api.example.com/mcp",
-  "headers": {"Authorization": "Bearer token"}
+  "headers": { "Authorization": "Bearer token" }
 }
 ```
 
@@ -466,6 +500,7 @@ asyncio.run(test_mcp_host_routes())
 ### Common Issues and Solutions
 
 #### Server Registration Timeout
+
 **Issue**: Server takes too long to initialize
 **Solution**: Increase `registration_timeout` in server config
 
@@ -476,16 +511,19 @@ asyncio.run(test_mcp_host_routes())
 ```
 
 #### Tool Not Found
+
 **Issue**: Tool execution fails with "not found"
 **Solution**: Ensure server is registered and check tool name spelling
 
 #### Connection Refused
+
 **Issue**: HTTP stream server connection fails
 **Solution**: Verify endpoint URL and authentication headers
 
 ### Debugging Tips
 
 1. **Enable Debug Logging**:
+
    ```python
    import logging
    logging.getLogger("aurite.host").setLevel(logging.DEBUG)
@@ -521,17 +559,20 @@ asyncio.run(test_mcp_host_routes())
 ### When to Use Each Registration Method
 
 #### Configuration-based (`/tools/register/{server_name}`)
+
 - Production deployments with predefined servers
 - Servers that multiple agents will use
 - Standard tool sets
 
 #### Direct Registration (`/tools/register/config`)
+
 - Dynamic server discovery
 - Testing and development
 - Temporary or one-off servers
 - External API integrations
 
 #### JIT Registration (Automatic)
+
 - Agent-driven tool discovery
 - Optimal resource usage
 - Simplified agent configuration
@@ -589,6 +630,6 @@ tools = await client.get(
 ## Related Documentation
 
 - [Configuration Manager Routes](./config_manager_routes.md) - For server configuration management
-- [API Reference](/docs/usage/api_reference.md) - Complete API overview
-- [MCP Server Configuration](/docs/config/mcp_server.md) - Server configuration guide
+- [API Reference](../api_reference.md) - Complete API overview
+- [MCP Server Configuration](../../config/mcp_server.md) - Server configuration guide
 - [ExecutionFacade Routes](./facade_routes.md) - Agent execution endpoints
