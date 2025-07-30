@@ -171,8 +171,14 @@ jobs:
           COMMIT_AUTHOR="${{ github.event.head_commit.author.username }}"
           COMMIT_URL="https://github.com/${{ github.repository }}/commit/$COMMIT_SHA"
           
+          # Validate required fields and provide fallbacks
+          [ -z "$COMMIT_SHA" ] && COMMIT_SHA="${{ github.sha }}"
+          [ -z "$COMMIT_MESSAGE" ] && COMMIT_MESSAGE="Direct commit to ${{ github.ref_name }}"
+          [ -z "$COMMIT_AUTHOR" ] && COMMIT_AUTHOR="${{ github.actor }}"
+          
           # Use first line of commit message as title
           COMMIT_TITLE=$(echo "$COMMIT_MESSAGE" | head -n1 | sed 's/"/\\"/g')
+          [ -z "$COMMIT_TITLE" ] && COMMIT_TITLE="Direct commit update"
           
           # Determine section from commit message keywords
           SECTION="Changed"
@@ -190,6 +196,19 @@ jobs:
           
           echo "Processing direct commit: $COMMIT_TITLE"
           echo "Section determined: $SECTION"
+          echo "Commit author: $COMMIT_AUTHOR"
+          echo "Commit SHA: ${COMMIT_SHA:0:7}"
+          
+          # Validate all required fields before calling script
+          if [ -z "$SECTION" ] || [ -z "$COMMIT_TITLE" ] || [ -z "$COMMIT_AUTHOR" ] || [ -z "$COMMIT_SHA" ] || [ -z "$COMMIT_URL" ]; then
+            echo "::error::Missing required fields for changelog update"
+            echo "Section: $SECTION"
+            echo "Title: $COMMIT_TITLE" 
+            echo "Author: $COMMIT_AUTHOR"
+            echo "SHA: $COMMIT_SHA"
+            echo "URL: $COMMIT_URL"
+            exit 1
+          fi
           
           # Update changelog using commit info
           python3 .github/workflows/changelog_updater.py \
