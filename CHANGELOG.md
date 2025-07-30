@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+### Added
+- Fixed tests and added new ones to fit guide ([@jwilcox17](https://github.com/jwilcox17)) [#commit-47f59dc](https://github.com/Aurite-ai/aurite-agents/commit/47f59dcd25bebeada9b105e10528ac62272f41fc)
 ### Fixed
 - Fixed Framework test commands ([@jwilcox17](https://github.com/jwilcox17)) [#commit-632796a](https://github.com/Aurite-ai/aurite-agents/commit/632796ac358a90150c9847ae49e389dfea3cd9b4)
 ### Changed
