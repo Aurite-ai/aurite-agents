@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Changed
+- Testing run on push again ([@jwilcox17](https://github.com/jwilcox17)) [#commit-32102ba](https://github.com/Aurite-ai/aurite-agents/commit/32102ba764976d72e8ae1509e42c78c2da8114b9)
 ## [0.2.17]
 
 ### Changed
