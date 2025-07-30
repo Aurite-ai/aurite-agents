@@ -17,6 +17,15 @@ on:
           - patch
           - minor
           - major
+      publish_target:
+        description: 'Where to publish the package'
+        required: false
+        default: 'pypi'
+        type: choice
+        options:
+          - pypi
+          - testpypi
+          - none
 
 jobs:
   update-changelog:
@@ -153,6 +162,49 @@ jobs:
             exit 1
           fi
 
+      - name: Update changelog for direct commit
+        if: github.event_name == 'push' && github.ref_name == 'pipeline-test'
+        run: |
+          # Handle direct push to pipeline-test (simulating direct push to main)
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          COMMIT_AUTHOR="${{ github.event.head_commit.author.username }}"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/$COMMIT_SHA"
+          
+          # Use first line of commit message as title
+          COMMIT_TITLE=$(echo "$COMMIT_MESSAGE" | head -n1 | sed 's/"/\\"/g')
+          
+          # Determine section from commit message keywords
+          SECTION="Changed"
+          COMMIT_MSG_LOWER=$(echo "$COMMIT_MESSAGE" | tr '[:upper:]' '[:lower:]')
+          case "$COMMIT_MSG_LOWER" in
+            *"breaking"*|*"breaking change"*) SECTION="Breaking Changes" ;;
+            *"security"*) SECTION="Security" ;;
+            *"feat"*|*"feature"*|*"add"*) SECTION="Added" ;;
+            *"fix"*|*"bug"*) SECTION="Fixed" ;;
+            *"deprecate"*) SECTION="Deprecated" ;;
+            *"remove"*) SECTION="Removed" ;;
+            *"perf"*|*"performance"*) SECTION="Performance" ;;
+            *"docs"*|*"documentation"*) SECTION="Documentation" ;;
+          esac
+          
+          echo "Processing direct commit: $COMMIT_TITLE"
+          echo "Section determined: $SECTION"
+          
+          # Update changelog using commit info
+          python3 .github/workflows/changelog_updater.py \
+            --action add \
+            --section "$SECTION" \
+            --pr-title "$COMMIT_TITLE" \
+            --pr-author "$COMMIT_AUTHOR" \
+            --pr-num "commit-${COMMIT_SHA:0:7}" \
+            --pr-url "$COMMIT_URL"
+          
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to update changelog for direct commit"
+            exit 1
+          fi
+
 
       - name: Release version
         if: github.event_name == 'workflow_dispatch'
@@ -226,8 +278,10 @@ jobs:
           # Create commit message
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             COMMIT_MSG="chore: Release version ${{ steps.release-version.outputs.new_version }}"
-          else
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
             COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            COMMIT_MSG="docs: Update changelog for direct commit ${GITHUB_SHA:0:7}"
           fi
 
           # Commit and push
@@ -266,14 +320,17 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "- Released version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
             echo "- Created tag: v${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
-          else
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "- Updated changelog for PR #${{ steps.pr-info.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
             echo "- Added to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "- Updated changelog for direct commit ${GITHUB_SHA:0:7}" >> $GITHUB_STEP_SUMMARY
+            echo "- Commit title: ${{ github.event.head_commit.message }}" | head -n1 >> $GITHUB_STEP_SUMMARY
           fi
           echo "- Changelog updated successfully" >> $GITHUB_STEP_SUMMARY
 
   pypi-release:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'pypi'
     needs: update-changelog
     runs-on: ubuntu-latest
     environment: release
@@ -330,6 +387,84 @@ jobs:
           echo "## PyPI Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Package built and published successfully" >> $GITHUB_STEP_SUMMARY
           echo "- Published to PyPI" >> $GITHUB_STEP_SUMMARY
+
+  testpypi-release:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'testpypi'
+    needs: update-changelog
+    runs-on: ubuntu-latest
+    environment: test-release
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Create TestPyPI dev version
+        id: testpypi-version
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            # Extract current version from pyproject.toml
+            CURRENT_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/' || echo "0.0.0")
+          else
+            CURRENT_VERSION="0.0.0"
+          fi
+          
+          # Create dev version with timestamp for TestPyPI (unofficial test version)
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          DEV_VERSION="${CURRENT_VERSION}.dev${TIMESTAMP}"
+          
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+          echo "TestPyPI Dev version (unofficial): $DEV_VERSION"
+          echo "Original version (unchanged): $CURRENT_VERSION"
+
+      - name: Build test package
+        run: |
+          # Temporarily modify version for TestPyPI build only (doesn't affect repo)
+          cp pyproject.toml pyproject.toml.backup
+          sed -i 's/version = "\(.*\)"/version = "${{ steps.testpypi-version.outputs.dev_version }}"/' pyproject.toml
+          
+          python -m build
+          echo "Built test packages for TestPyPI:"
+          ls -la dist/
+          
+          # Restore original version (no changes committed)
+          mv pyproject.toml.backup pyproject.toml
+
+      - name: Verify test package
+        run: |
+          python -m twine check dist/*
+          echo "Test package verification passed"
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          verbose: true
+
+      - name: Update summary
+        run: |
+          echo "## TestPyPI Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **UNOFFICIAL TEST VERSION** published to TestPyPI" >> $GITHUB_STEP_SUMMARY
+          echo "- Test version: ${{ steps.testpypi-version.outputs.dev_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Original version unchanged: ${{ steps.testpypi-version.outputs.current_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Use for testing potential bugs before official release" >> $GITHUB_STEP_SUMMARY
 
   framework-tests:
     needs: update-changelog 
