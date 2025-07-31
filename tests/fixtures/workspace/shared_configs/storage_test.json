@@ -1,0 +1,40 @@
+[
+  {
+    "name": "my_openai_gpt4_turbo",
+    "type": "llm",
+    "provider": "openai",
+    "model": "gpt-4-turbo-preview",
+    "temperature": 0.7,
+    "max_tokens": 1500,
+    "default_system_prompt": "You are a helpful AI assistant by OpenAI.",
+    "api_key_env_var": "OPENAI_API_KEY"
+  },
+  {
+    "name": "test_memory_storage",
+    "type": "storage",
+    "storage_type": "postgresql",
+    "description": "A test PostgreSQL storage component."
+  },
+  {
+    "name": "storage_writer_agent",
+    "type": "agent",
+    "description": "An agent that writes a given value to the 'secret_code' key.",
+    "llm_config_id": "my_openai_gpt4_turbo",
+    "storage": ["test_memory_storage"],
+    "system_prompt": "You will be given a secret code. Your only job is to use the 'test_memory_storage-write' tool to save this code to the key 'secret_code'."
+  },
+  {
+    "name": "storage_reader_agent",
+    "type": "agent",
+    "description": "An agent that reads the value from the 'secret_code' key.",
+    "llm_config_id": "my_openai_gpt4_turbo",
+    "storage": ["test_memory_storage"],
+    "system_prompt": "Your only job is to use the 'test_memory_storage-read' tool to read the value from the key 'secret_code' and output only that value."
+  },
+  {
+    "name": "storage_test_workflow",
+    "type": "simple_workflow",
+    "description": "A workflow to test writing to and reading from memory in a single run.",
+    "steps": ["storage_writer_agent", "storage_reader_agent"]
+  }
+]

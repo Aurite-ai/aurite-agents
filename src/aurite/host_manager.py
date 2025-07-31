@@ -34,6 +34,8 @@ from .config.config_models import (
 )
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
+from .host.storage_provider import StorageToolProvider
+from .host.tool_host import ToolHost
 from .storage.cache_manager import CacheManager
 from .storage.db_connection import create_db_engine
 from .storage.db_manager import StorageManager
@@ -111,7 +113,14 @@ class AuriteKernel:
 
         self.config_manager = ConfigManager(start_dir=start_dir)
         self.project_root = self.config_manager.project_root
-        self.host = MCPHost()
+        mcp_host = MCPHost()
+        self.tool_host = ToolHost(mcp_host=mcp_host)
+        self.host = self.tool_host  # Maintain `host` attribute for compatibility if needed, pointing to ToolHost
+
+        # Register native tool providers
+        storage_provider = StorageToolProvider()
+        self.tool_host.register_provider(storage_provider)
+
         self.storage_manager: Optional["StorageManager"] = None
         if os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
             self.langfuse = Langfuse(
@@ -139,7 +148,7 @@ class AuriteKernel:
 
         self.execution = ExecutionFacade(
             config_manager=self.config_manager,
-            host_instance=self.host,
+            tool_host=self.tool_host,
             storage_manager=self.storage_manager,
             cache_manager=self.cache_manager,
             langfuse=self.langfuse,
@@ -151,8 +160,8 @@ class AuriteKernel:
         try:
             if self.storage_manager:
                 self.storage_manager.init_db()
-            if self.host:
-                await self.host.__aenter__()
+            if self.host and hasattr(self.host, "_mcp_host"):
+                await self.host._mcp_host.__aenter__()
             logger.info(colored("Aurite Kernel initialization complete.", "yellow", attrs=["bold"]))
         except Exception as e:
             logger.error(f"Error during Aurite Kernel initialization: {e}", exc_info=True)
@@ -186,8 +195,8 @@ class AuriteKernel:
         except Exception as e:
             logger.debug(f"Error during litellm cleanup: {e}")
 
-        if self.host:
-            await self.host.__aexit__(None, None, None)
+        if self.host and hasattr(self.host, "_mcp_host"):
+            await self.host._mcp_host.__aexit__(None, None, None)
             self.host = None
 
         if self._db_engine:
@@ -267,8 +276,8 @@ class Aurite:
     async def unregister_server(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""
         await self._ensure_initialized()
-        if self.kernel.host:
-            await self.kernel.host.unregister_client(server_name)
+        if self.kernel.host and hasattr(self.kernel.host, "_mcp_host"):
+            await self.kernel.host._mcp_host.unregister_client(server_name)
 
     async def run_agent(
         self,

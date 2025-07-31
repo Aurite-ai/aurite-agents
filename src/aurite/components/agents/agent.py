@@ -18,7 +18,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from openai.types.chat.chat_completion_message_tool_call_param import Function
 
 from ...config.config_models import AgentConfig, LLMConfig
-from ...host.host import MCPHost
+from ...host.tool_host import ToolHost
 from ..llm.providers.litellm_client import LiteLLMClient
 from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
@@ -40,12 +40,12 @@ class Agent:
         self,
         agent_config: AgentConfig,
         base_llm_config: LLMConfig,
-        host_instance: MCPHost,
+        tool_host: ToolHost,
         initial_messages: List[Dict[str, Any]],
         trace: Optional["StatefulTraceClient"] = None,
     ):
         self.config = agent_config
-        self.host = host_instance
+        self.tool_host = tool_host
         self.conversation_history: List[Dict[str, Any]] = initial_messages
         self.final_response: Optional[ChatCompletionMessage] = None
         self.tool_uses_in_last_turn: List[ChatCompletionMessageToolCall] = []
@@ -84,7 +84,7 @@ class Agent:
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
 
-        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+        tools_data = self.tool_host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
 
         for current_iteration in range(max_iterations):
@@ -93,7 +93,7 @@ class Agent:
             turn_processor = AgentTurnProcessor(
                 config=self.config,
                 llm_client=self.llm,
-                host_instance=self.host,
+                tool_host=self.tool_host,
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,
@@ -157,7 +157,7 @@ class Agent:
         """
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
-        tools_data = self.host.get_formatted_tools(agent_config=self.config)
+        tools_data = self.tool_host.get_formatted_tools(agent_config=self.config)
         max_iterations = self.config.max_iterations or 10
         llm_started = False
 
@@ -167,7 +167,7 @@ class Agent:
             turn_processor = AgentTurnProcessor(
                 config=self.config,
                 llm_client=self.llm,
-                host_instance=self.host,
+                tool_host=self.tool_host,
                 current_messages=self.conversation_history,
                 tools_data=tools_data,
                 effective_system_prompt=self.resolved_llm_config.default_system_prompt,

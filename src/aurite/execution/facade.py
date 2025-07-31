@@ -22,12 +22,8 @@ from ..config.config_models import (
     LLMConfig,
     LLMConfigOverrides,
 )
-from ..errors import (
-    AgentExecutionError,
-    ConfigurationError,
-    WorkflowExecutionError,
-)
-from ..host.host import MCPHost
+from ..errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
+from ..host.tool_host import ToolHost
 from ..storage.cache_manager import CacheManager
 from ..storage.db_manager import StorageManager
 
@@ -46,18 +42,18 @@ class ExecutionFacade:
     def __init__(
         self,
         config_manager: "ConfigManager",
-        host_instance: "MCPHost",
+        tool_host: "ToolHost",
         storage_manager: Optional["StorageManager"] = None,
         cache_manager: Optional["CacheManager"] = None,
         langfuse: Optional["Langfuse"] = None,
     ):
         if not config_manager:
             raise ValueError("ConfigManager instance is required for ExecutionFacade.")
-        if not host_instance:
-            raise ValueError("MCPHost instance is required for ExecutionFacade.")
+        if not tool_host:
+            raise ValueError("ToolHost instance is required for ExecutionFacade.")
 
         self._config_manager = config_manager
-        self._host = host_instance
+        self._tool_host = tool_host
         self._storage_manager = storage_manager
         self._cache_manager = cache_manager
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
@@ -82,20 +78,28 @@ class ExecutionFacade:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
 
         agent_config_for_run = AgentConfig(**agent_config_dict)
-        dynamically_registered_servers: List[str] = []
+        dynamically_registered_components: List[str] = []
 
         # JIT Registration of MCP Servers
         if agent_config_for_run.mcp_servers:
             for server_name in agent_config_for_run.mcp_servers:
-                if server_name not in self._host.registered_server_names:
-                    server_config_dict = self._config_manager.get_config("mcp_server", server_name)
-                    if not server_config_dict:
-                        raise ConfigurationError(
-                            f"MCP Server '{server_name}' required by agent '{agent_name}' not found."
-                        )
-                    server_config = ClientConfig(**server_config_dict)
-                    await self._host.register_client(server_config)
-                    dynamically_registered_servers.append(server_name)
+                # Rely on MCPHost to handle re-registration gracefully (it logs a warning and returns)
+                server_config_dict = self._config_manager.get_config("mcp_server", server_name)
+                if not server_config_dict:
+                    raise ConfigurationError(f"MCP Server '{server_name}' required by agent '{agent_name}' not found.")
+                server_config = ClientConfig(**server_config_dict)
+                await self._tool_host._mcp_host.register_client(server_config)
+                dynamically_registered_components.append(server_name)
+
+        # JIT Registration of Storage Components
+        if agent_config_for_run.storage:
+            for storage_name in agent_config_for_run.storage:
+                storage_config_dict = self._config_manager.get_config("storage", storage_name)
+                if not storage_config_dict:
+                    raise ConfigurationError(f"Storage component '{storage_name}' for agent '{agent_name}' not found.")
+                # The ToolHost and its providers are responsible for parsing the raw config dict
+                await self._tool_host.register_component("storage", storage_config_dict)
+                dynamically_registered_components.append(storage_name)
 
         llm_config_id = agent_config_for_run.llm_config_id
         if not llm_config_id:
@@ -155,10 +159,10 @@ class ExecutionFacade:
         agent_instance = Agent(
             agent_config=agent_config_for_run,
             base_llm_config=base_llm_config,
-            host_instance=self._host,
+            tool_host=self._tool_host,
             initial_messages=initial_messages,
         )
-        return agent_instance, dynamically_registered_servers
+        return agent_instance, dynamically_registered_components
 
     # --- Public Execution Methods ---
 

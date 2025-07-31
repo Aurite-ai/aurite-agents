@@ -686,8 +686,15 @@ class ConfigManager:
             A tuple containing a boolean indicating if the component is valid,
             and a list of validation error messages.
         """
-        from .config_models import AgentConfig, LLMConfig, ClientConfig, WorkflowConfig, CustomWorkflowConfig
-        
+        from .config_models import (
+            AgentConfig,
+            ClientConfig,
+            CustomWorkflowConfig,
+            LLMConfig,
+            StorageConfig,
+            WorkflowConfig,
+        )
+
         # Map component types to their Pydantic models
         model_map = {
             "agent": AgentConfig,
@@ -695,31 +702,32 @@ class ConfigManager:
             "mcp_server": ClientConfig,
             "simple_workflow": WorkflowConfig,
             "custom_workflow": CustomWorkflowConfig,
+            "storage": StorageConfig,
         }
-        
+
         model_class = model_map.get(component_type)
         if not model_class:
             return False, [f"No validation model found for component type '{component_type}'"]
-        
+
         try:
             # Remove internal fields that shouldn't be validated
             clean_config = {k: v for k, v in config.items() if not k.startswith("_")}
-            
+
             # Validate using Pydantic model
             model_class(**clean_config)
             return True, []
-            
+
         except Exception as e:
             # Parse Pydantic validation errors into readable messages
             errors = []
-            if hasattr(e, 'errors'):
+            if hasattr(e, "errors"):
                 for error in e.errors():
-                    field_path = " -> ".join(str(loc) for loc in error['loc'])
-                    error_msg = error['msg']
+                    field_path = " -> ".join(str(loc) for loc in error["loc"])
+                    error_msg = error["msg"]
                     errors.append(f"Field '{field_path}': {error_msg}")
             else:
                 errors.append(f"Validation error: {str(e)}")
-            
+
             return False, errors
 
     def validate_all_components(self) -> List[Dict[str, Any]]:

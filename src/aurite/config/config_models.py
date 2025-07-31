@@ -10,7 +10,7 @@ This module provides:
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional  # Added Dict and Literal
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
@@ -141,6 +141,46 @@ class WorkflowConfig(BaseComponentConfig):
     )
 
 
+# --- Storage Configuration ---
+
+
+class BaseStorageConfig(BaseComponentConfig):
+    """Base model for all storage configurations."""
+
+    type: Literal["storage"] = "storage"
+
+
+class LocalStorageConfig(BaseStorageConfig):
+    """Configuration for local file system storage."""
+
+    storage_type: Literal["local"] = "local"
+    base_path: str = Field(description="The root directory for local storage.")
+
+
+class PostgresStorageConfig(BaseStorageConfig):
+    """Configuration for PostgreSQL storage."""
+
+    storage_type: Literal["postgresql"] = "postgresql"
+    host: str
+    port: int = 5432
+    username: str
+    password: str  # Note: Secure handling via env vars is recommended
+    database: str
+
+
+class MemoryStorageConfig(BaseStorageConfig):
+    """Configuration for simple in-memory storage (primarily for testing and simple use cases)."""
+
+    storage_type: Literal["memory"] = "memory"
+
+
+# The Discriminated Union for StorageConfig
+StorageConfig = Annotated[
+    Union[LocalStorageConfig, PostgresStorageConfig, MemoryStorageConfig],
+    Field(discriminator="storage_type"),
+]
+
+
 # --- LLM Configuration ---
 
 
@@ -204,6 +244,11 @@ class AgentConfig(BaseComponentConfig):
         default_factory=list,
         description="List of mcp_server names this agent can use.",
     )
+    storage: Optional[List[str]] = Field(
+        default_factory=list,
+        description="List of storage component names this agent can use.",
+    )
+
     auto: Optional[bool] = Field(
         default=False,
         description="If true, an LLM will dynamically select client_ids for the agent at runtime.",
@@ -264,6 +309,10 @@ class ProjectConfig(BaseComponentConfig):
     mcp_servers: List[ClientConfig] = Field(
         default_factory=list,
         description="Defines MCP Servers available within this project.",
+    )
+    storage: List[StorageConfig] = Field(
+        default_factory=list,
+        description="Storage configurations available within this project.",
     )
     llms: List[LLMConfig] = Field(
         default_factory=list,

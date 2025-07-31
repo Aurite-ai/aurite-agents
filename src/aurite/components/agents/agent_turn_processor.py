@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from langfuse.client import StatefulTraceClient
 
 from ...config.config_models import AgentConfig
-from ...host.host import MCPHost
+from ...host.tool_host import ToolHost
 from ..llm.providers.litellm_client import LiteLLMClient
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class AgentTurnProcessor:
         self,
         config: AgentConfig,
         llm_client: LiteLLMClient,
-        host_instance: MCPHost,
+        tool_host: ToolHost,
         current_messages: List[Dict[str, Any]],
         tools_data: Optional[List[Dict[str, Any]]],
         effective_system_prompt: Optional[str],
@@ -44,7 +44,7 @@ class AgentTurnProcessor:
     ):
         self.config = config
         self.llm = llm_client
-        self.host = host_instance
+        self.tool_host = tool_host
         self.messages = current_messages
         self.tools = tools_data
         self.system_prompt = effective_system_prompt
@@ -459,7 +459,7 @@ class AgentTurnProcessor:
                 tool_result_content = f"Error: Invalid JSON arguments provided: {tool_call.function.arguments}"
             else:
                 try:
-                    tool_result_content = await self.host.call_tool(
+                    tool_result_content = await self.tool_host.call_tool(
                         name=tool_name,
                         args=tool_input,
                     )
