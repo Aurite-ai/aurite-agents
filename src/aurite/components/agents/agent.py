@@ -234,7 +234,7 @@ class Agent:
                         elif event_type == "message_complete":
                             content = event.get("content", "")
                             self.conversation_history.append({"role": "assistant", "content": content})
-                            yield {"type": "llm_response_stop", "data": {}}
+                            yield {"type": "llm_response_stop", "data": {"status": "success", "reason": "success"}}
                             if not is_tool_turn:
                                 return  # End of conversation
 
@@ -254,3 +254,4 @@ class Agent:
                 return
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")
+        yield {"type": "llm_response_stop", "data": {"status": "warning", "reason": "turn_limit_reached"}}
