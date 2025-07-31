@@ -37,6 +37,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
+    "clean": "rimraf build",
     "test": "craco test",
     "eject": "react-scripts eject"
   },

@@ -11,6 +11,7 @@
     "build": "npm run build --workspaces",
     "build:api-client": "npm run build --workspace=packages/api-client",
     "clean": "npm run clean --workspaces",
+    "clean:cache": "npm run clean && find . -name 'tsconfig.tsbuildinfo' -delete && find . -name '.tsbuildinfo' -delete",
     "dev": "npm run dev --workspaces",
     "example": "npm run example --workspace=packages/api-client",
     "example:integration": "npm run example:integration --workspace=packages/api-client",
@@ -28,7 +29,9 @@
     "format:check": "npm run format:check --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "validate": "npm run validate --workspaces",
-    "prepare": "husky install || true"
+    "prepare": "husky install || true",
+    "rebuild": "npm run clean && npm run build",
+    "rebuild:fresh": "npm run clean && rm -rf node_modules/.cache && npm run build"
   },
   "keywords": [
     "aurite",

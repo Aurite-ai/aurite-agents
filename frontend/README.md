@@ -448,6 +448,39 @@ npm run build
 # Verify network connectivity to API server
 ```
 
+#### TypeScript Cache Issues
+
+**Problem:** You encounter TypeScript errors like:
+```
+ERROR in src/services/agents.service.ts:339:29
+TS2339: Property 'session_id' does not exist on type 'AgentRunResult'.
+```
+
+Even though the property exists in the type definition, TypeScript compilation cache can become stale when type definitions change between packages in the monorepo.
+
+**Solution:** Use the cache-clearing rebuild scripts:
+
+```bash
+# Standard cache-clearing rebuild (most common solution)
+npm run rebuild
+
+# Nuclear option - clears all caches including bundler caches
+npm run rebuild:fresh
+
+# TypeScript-specific cache clearing
+npm run clean:cache
+```
+
+**Why This Works:** 
+- Deletes stale compiled type information in `/dist` folders
+- Forces fresh compilation of all cross-package type dependencies
+- Clears inconsistent cached state in TypeScript's incremental build system
+
+**When to Use Each Script:**
+- `npm run rebuild` - First try for most TypeScript cache issues
+- `npm run rebuild:fresh` - When `rebuild` doesn't resolve the issue
+- `npm run clean:cache` - For TypeScript-only cache problems without full rebuild
+
 #### Type Errors
 ```bash
 # Regenerate TypeScript declarations
