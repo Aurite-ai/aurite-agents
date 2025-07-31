@@ -46,3 +46,18 @@ class WorkflowExecutionError(AuriteError):
     """
 
     pass
+
+
+class MCPServerTimeoutError(MCPHostError):
+    """
+    Raised when MCP server registration or operation times out.
+
+    Provides structured information about the timeout for better
+    error handling in frontend applications.
+    """
+
+    def __init__(self, server_name: str, timeout_seconds: float, operation: str = "registration"):
+        self.server_name = server_name
+        self.timeout_seconds = timeout_seconds
+        self.operation = operation
+        super().__init__(f"MCP server '{server_name}' {operation} timed out after {timeout_seconds} seconds")

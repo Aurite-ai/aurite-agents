@@ -21,6 +21,7 @@ from ..config.config_models import (
     AgentConfig,
     ClientConfig,
 )
+from ..errors import MCPServerTimeoutError
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
 
@@ -102,10 +103,28 @@ class MCPHost:
 
         session = self._tool_to_session[name]
 
-        # get the actual tool name without prepended server name
-        actual_name = self._tools[name].title
+        tool = self._tools[name]
 
-        return await session.call_tool(actual_name, args)
+        # get the actual tool name without prepended server name
+        actual_name = tool.title
+
+        if not actual_name:
+            raise KeyError(f"Tool '{name}' does not have a valid title.")
+
+        if not tool.meta or "timeout" not in tool.meta:
+            # no timeout, just return
+            return await session.call_tool(actual_name, args)
+
+        try:
+            await asyncio.wait_for(session.call_tool(actual_name, args), timeout=tool.meta["timeout"])
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Tool call '{actual_name}' timed out after {tool.meta['timeout']} seconds"
+            )
+            server_name = name[:-len(actual_name)-1]
+            raise MCPServerTimeoutError(
+                server_name=server_name, timeout_seconds=tool.meta["timeout"], operation="tool_call"
+            ) from asyncio.TimeoutError
 
     async def register_client(self, config: ClientConfig):
         """
@@ -175,6 +194,9 @@ class MCPHost:
                         # include the mcp server name
                         tool.title = tool.name
                         tool.name = f"{config.name}-{tool.name}"
+                        if not tool.meta:
+                            tool.meta = {}
+                        tool.meta["timeout"] = config.timeout
                         self._tools[tool.name] = tool
                         self._tool_to_session[tool.name] = session
                 except Exception as e:
@@ -200,7 +222,9 @@ class MCPHost:
                 f"Registration of client '{config.name}' timed out after {config.registration_timeout} seconds"
             )
             await session_stack.aclose()
-            raise
+            raise MCPServerTimeoutError(
+                server_name=config.name, timeout_seconds=config.registration_timeout, operation="registration"
+            ) from asyncio.TimeoutError
 
     async def unregister_client(self, server_name: str):
         """Dynamically unregisters a client and cleans up its resources."""

@@ -47,7 +47,6 @@
     "mcp_servers": [
       "weather_server"
     ],
-    "include_history": true,
     "name": "Weather Agent",
     "type": "agent"
   },
@@ -64,7 +63,6 @@
   {
     "name": "Weather Planning Workflow Step 2",
     "type": "agent",
-    "include_history": true,
     "mcp_servers": [
       "planning_server"
     ],
