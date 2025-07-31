@@ -18,12 +18,30 @@ A production-ready TypeScript client for the Aurite Framework API with comprehen
 
 ## Installation
 
+### Option 1: Install as NPM Package
+
 ```bash
 npm install @aurite/api-client
 # or
 yarn add @aurite/api-client
 # or
 pnpm add @aurite/api-client
+```
+
+### Option 2: Development within Workspace
+
+If you're working within the Aurite Framework repository:
+
+```bash
+# Clone the repository
+git clone https://github.com/aurite-ai/aurite-agents.git
+cd aurite-agents/frontend
+
+# Install dependencies for all packages
+npm install
+
+# Build all packages (required for workspace dependencies)
+npm run build
 ```
 
 ## Quick Start
@@ -254,11 +272,21 @@ Create a `.env` file:
 
 ```bash
 # API Configuration
-AURITE_API_BASE_URL=http://localhost:8000
-AURITE_API_KEY=your_api_key_here
+AURITE_API_URL=http://localhost:8000
+API_KEY=your_api_key_here
 
 # Environment
 NODE_ENV=development
+```
+
+### Workspace Development
+
+When developing within the Aurite Framework workspace, you can also run examples and tests from the frontend root:
+
+```bash
+# From frontend root directory
+npm run example --workspace=packages/api-client
+npm run test:integration --workspace=packages/api-client
 ```
 
 ### Building
@@ -460,10 +488,10 @@ MIT License - see [LICENSE](../../LICENSE) file for details.
 
 ## Links
 
-- **Repository**: [https://github.com/aurite/aurite-agents](https://github.com/aurite/aurite-agents)
-- **Documentation**: [https://aurite.dev](https://aurite.dev)
+- **Repository**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
+- **Documentation**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
 - **NPM Package**: [https://www.npmjs.com/package/@aurite/api-client](https://www.npmjs.com/package/@aurite/api-client)
-- **Issues**: [GitHub Issues](https://github.com/aurite/aurite-agents/issues)
+- **Issues**: [GitHub Issues](https://github.com/aurite-ai/aurite-agents/issues)
 - **API Reference**: [API Documentation](../../../docs/usage/api_reference.md)
 
 ## Changelog

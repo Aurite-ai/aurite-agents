@@ -143,7 +143,7 @@ async def create_component(
     """
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
-    
+
     # Validate component type
     valid_types = list(config_manager.get_all_configs().keys())
     if singular_type not in valid_types:

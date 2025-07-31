@@ -4,15 +4,13 @@ Executor for Simple Sequential Workflows.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+import uuid
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ...config.config_models import (
-    WorkflowComponent,
-    WorkflowConfig,
-)
+from ...config.config_models import WorkflowComponent, WorkflowConfig
 from ..agents.agent_models import AgentRunResult
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 
@@ -54,19 +52,29 @@ class SimpleWorkflowExecutor:
         self.facade = facade
         logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
 
-    async def execute(self, initial_input: str) -> SimpleWorkflowExecutionResult:
+    async def execute(
+        self, initial_input: str, session_id: Optional[str] = None, base_session_id: Optional[str] = None
+    ) -> SimpleWorkflowExecutionResult:
         """
         Executes the configured simple workflow sequentially.
 
         Args:
             initial_input: The initial input message for the first agent in the sequence.
+            session_id: Optional session ID to use for conversation history tracking.
+            base_session_id: The original, user-provided session ID for the workflow.
 
         Returns:
             A SimpleWorkflowExecutionResult object containing the final status,
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
-        logger.info(f"Executing simple workflow: {workflow_name}")
+
+        if not session_id and self.config.include_history:
+            session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+            logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {session_id}")
+
+        logger.info(f"Executing simple workflow: '{workflow_name}' with session_id: {session_id}")
+
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
 
@@ -84,7 +92,7 @@ class SimpleWorkflowExecutor:
                 else:
                     processed_workflow.append(step)
 
-            for component in processed_workflow:
+            for step_index, component in enumerate(processed_workflow):
                 component_output: Any = None
                 try:
                     logging.info(
@@ -95,10 +103,14 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # The facade's run_agent now returns a structured AgentRunResult
+                            # The facade is now responsible for handling session ID generation for agent steps.
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
+                                # Let the facade determine the session logic based on workflow context
+                                session_id=f"{session_id}-{step_index}" if session_id else None,
+                                force_include_history=self.config.include_history,
+                                base_session_id=base_session_id,  # Pass the workflow's base ID
                             )
 
                             # Check the status of the agent run
@@ -123,6 +135,7 @@ class SimpleWorkflowExecutor:
                             workflow_result = await self.facade.run_simple_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
+                                session_id=session_id,
                             )
                             if workflow_result.error:
                                 raise Exception(f"Nested workflow '{component.name}' failed: {workflow_result.error}")
@@ -140,6 +153,7 @@ class SimpleWorkflowExecutor:
                             custom_workflow_output = await self.facade.run_custom_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
+                                session_id=session_id,
                             )
                             component_output = custom_workflow_output
                             current_message = custom_workflow_output
@@ -166,6 +180,7 @@ class SimpleWorkflowExecutor:
                         step_results=step_results,
                         final_output=current_message,
                         error=f"Error processing component '{component.name}': {str(e)}",
+                        session_id=session_id,
                     )
 
             return SimpleWorkflowExecutionResult(
@@ -174,6 +189,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=None,
+                session_id=session_id,
             )
 
         except Exception as e:
@@ -184,6 +200,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=f"Workflow setup error: {str(e)}",
+                session_id=session_id,
             )
 
     def _infer_component_type(self, component_name: str):

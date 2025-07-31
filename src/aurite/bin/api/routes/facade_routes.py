@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -11,12 +11,16 @@ from pydantic import BaseModel
 from ....components.llm.providers.litellm_client import LiteLLMClient
 from ....config.config_manager import ConfigManager
 from ....config.config_models import AgentConfig, LLMConfig
-from ....errors import (
-    ConfigurationError,
-    WorkflowExecutionError,
-)
+from ....errors import ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
-from ...dependencies import get_api_key, get_config_manager, get_execution_facade
+from ....storage.session_manager import SessionManager
+from ....storage.session_models import ExecutionHistoryResponse, SessionListResponse
+from ...dependencies import (
+    get_api_key,
+    get_config_manager,
+    get_execution_facade,
+    get_session_manager,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -27,28 +31,6 @@ def clean_error_message(error: Exception) -> str:
     if hasattr(error, "__cause__") and error.__cause__:
         return str(error.__cause__)
     return str(error)
-
-
-def simplify_message(message: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert Anthropic format to simplified format"""
-    simplified_content = ""
-
-    if isinstance(message.get("content"), list):
-        for block in message["content"]:
-            if block.get("type") == "text":
-                simplified_content += block.get("text", "")
-            elif block.get("type") == "tool_use":
-                simplified_content += f"\n[Tool: {block.get('name')}]\n"
-            elif block.get("type") == "tool_result":
-                simplified_content += "\n[Tool Result]\n"
-    else:
-        simplified_content = str(message.get("content", ""))
-
-    return {
-        "role": message.get("role"),
-        "content": simplified_content.strip(),
-        "timestamp": message.get("timestamp"),  # If available
-    }
 
 
 router = APIRouter()
@@ -63,35 +45,6 @@ class AgentRunRequest(BaseModel):
 class WorkflowRunRequest(BaseModel):
     initial_input: Any
     session_id: Optional[str] = None
-
-
-# History-related models
-class SessionMetadata(BaseModel):
-    session_id: str
-    agent_name: str
-    created_at: Optional[str] = None
-    last_updated: Optional[str] = None
-    message_count: int
-
-
-class SessionListResponse(BaseModel):
-    sessions: List[SessionMetadata]
-    total: int
-    offset: int
-    limit: int
-
-
-class ConversationMessage(BaseModel):
-    role: str
-    content: Union[str, List[Dict[str, Any]]]
-    timestamp: Optional[str] = None
-
-
-class SessionHistoryResponse(BaseModel):
-    session_id: str
-    agent_name: str
-    messages: List[ConversationMessage]
-    metadata: SessionMetadata
 
 
 @router.get("/status")
@@ -341,6 +294,7 @@ async def run_simple_workflow(
         result = await facade.run_simple_workflow(
             workflow_name=workflow_name,
             initial_input=request.initial_input,
+            session_id=request.session_id,
         )
         return result.model_dump()
     except ConfigurationError as e:
@@ -399,111 +353,6 @@ async def run_custom_workflow(
         raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
 
 
-# --- History Endpoints ---
-
-
-@router.get("/history", response_model=SessionListResponse)
-async def list_execution_history(
-    agent_name: Optional[str] = Query(None, description="Filter by agent name"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
-    offset: int = Query(0, ge=0, description="Number of sessions to skip"),
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    List execution history sessions with optional filtering by agent.
-    Supports pagination with offset/limit.
-    """
-    try:
-        # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
-
-        # Get sessions from facade
-        result = facade.get_sessions_list(agent_name=agent_name, limit=limit, offset=offset)
-
-        # Convert to response model
-        sessions = []
-        for session_data in result["sessions"]:
-            sessions.append(SessionMetadata(**session_data))
-
-        return SessionListResponse(
-            sessions=sessions, total=result["total"], offset=result["offset"], limit=result["limit"]
-        )
-    except Exception as e:
-        logger.error(f"Error listing execution history: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve execution history") from e
-
-
-@router.get("/history/{session_id}", response_model=SessionHistoryResponse)
-async def get_session_history(
-    session_id: str,
-    raw_format: bool = Query(False, description="Return raw Anthropic format instead of simplified view"),
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Get the full conversation history for a specific session.
-    By default returns a simplified view, but can return raw format with raw_format=true.
-    """
-    try:
-        # Get history from facade
-        history = facade.get_session_history(session_id)
-        if history is None:
-            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-
-        # Get metadata
-        metadata = facade.get_session_metadata(session_id)
-        if metadata is None:
-            # Create minimal metadata if not available
-            metadata = {"session_id": session_id, "agent_name": "unknown", "message_count": len(history)}
-
-        # Format messages based on raw_format flag
-        messages = []
-        for msg in history:
-            if raw_format:
-                messages.append(ConversationMessage(**msg))
-            else:
-                simplified = simplify_message(msg)
-                messages.append(ConversationMessage(**simplified))
-
-        return SessionHistoryResponse(
-            session_id=session_id,
-            agent_name=metadata.get("agent_name", "unknown"),
-            messages=messages,
-            metadata=SessionMetadata(**metadata),
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting session history for '{session_id}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve session history") from e
-
-
-@router.delete("/history/{session_id}", status_code=204)
-async def delete_session_history(
-    session_id: str,
-    api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
-):
-    """
-    Delete a specific session's history.
-    Returns 204 No Content on success, 404 if session not found.
-    """
-    if session_id == "null":
-        raise HTTPException(status_code=404, detail="Session 'null' not found")
-    try:
-        deleted = facade.delete_session(session_id)
-        if not deleted:
-            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
-        # Return 204 No Content on successful deletion
-        return None
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting session '{session_id}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to delete session") from e
-
-
 @router.post("/workflows/custom/{workflow_name}/test")
 async def test_custom_workflow(
     workflow_name: str,
@@ -538,82 +387,118 @@ async def validate_custom_workflow(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/agents/{agent_name}/history", response_model=SessionListResponse)
-async def get_agent_history(
-    agent_name: str,
+# --- History Endpoints ---
+
+
+@router.get("/history", response_model=SessionListResponse)
+async def list_execution_history(
+    agent_name: Optional[str] = Query(None, description="Filter by agent name"),
+    workflow_name: Optional[str] = Query(None, description="Filter by workflow name"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
+    offset: int = Query(0, ge=0, description="Number of sessions to skip"),
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
-    Get all sessions for a specific agent.
-    Returns the most recent sessions up to the limit.
+    List execution history sessions with optional filtering by agent or workflow.
+    When filtering by workflow, returns only parent workflow sessions (not individual agent sessions).
+    Supports pagination with offset/limit.
     """
     try:
         # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
+        session_manager.cleanup_old_sessions()
 
-        # Get sessions for specific agent (no offset for agent-specific queries)
-        result = facade.get_sessions_list(agent_name=agent_name, limit=limit, offset=0)
+        result = session_manager.get_sessions_list(
+            agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
+        )
 
-        # Convert to response model
-        sessions = []
-        for session_data in result["sessions"]:
-            if session_data["agent_name"] == agent_name:
-                sessions.append(SessionMetadata(**session_data))
-
-        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
+        return SessionListResponse(
+            sessions=result["sessions"],
+            total=result["total"],
+            offset=result["offset"],
+            limit=result["limit"],
+        )
     except Exception as e:
-        logger.error(f"Error getting history for agent '{agent_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve history for agent '{agent_name}'") from e
+        logger.error(f"Error listing execution history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve execution history") from e
 
 
-@router.get("/workflows/{workflow_name}/history", response_model=SessionListResponse)
-async def get_workflow_history(
-    workflow_name: str,
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of sessions to return"),
+@router.get("/history/{session_id}", response_model=ExecutionHistoryResponse)
+async def get_session_history(
+    session_id: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
-    Get all sessions for a specific workflow.
-    Returns the most recent sessions up to the limit.
+    Get the complete execution result for a specific session.
+    Returns the same format as the original execution endpoint.
+    Supports partial session ID matching (e.g., just the suffix like '826c63d4').
     """
     try:
-        # Apply retention policy on retrieval
-        facade.cleanup_old_sessions()
+        # The session manager now handles partial ID matching
+        execution_result, metadata_model = session_manager.get_full_session_details(session_id)
 
-        # Get sessions for specific workflow (no offset for workflow-specific queries)
-        result = facade.get_sessions_list(agent_name=workflow_name, limit=limit, offset=0)
+        if execution_result is None or metadata_model is None:
+            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
 
-        # Convert to response model
-        sessions = []
-        for session_data in result["sessions"]:
-            if session_data["agent_name"] == workflow_name:
-                sessions.append(SessionMetadata(**session_data))
-
-        return SessionListResponse(sessions=sessions, total=len(sessions), offset=0, limit=limit)
+        result_type = "workflow" if metadata_model.is_workflow else "agent"
+        return ExecutionHistoryResponse(
+            result_type=result_type,
+            execution_result=execution_result,
+            metadata=metadata_model,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting history for workflow '{workflow_name}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve history for workflow '{workflow_name}'") from e
+        logger.error(f"Error getting session history for '{session_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve session history") from e
+
+
+@router.delete("/history/{session_id}")
+async def delete_session_history(
+    session_id: str,
+    api_key: str = Security(get_api_key),
+    session_manager: SessionManager = Depends(get_session_manager),
+):
+    """
+    Delete a specific session's history.
+    Returns 204 No Content on success, 404 if session not found.
+    """
+    if session_id == "null":
+        raise HTTPException(status_code=404, detail="Session 'null' not found")
+    try:
+        deleted = session_manager.delete_session(session_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found")
+        # Return 204 No Content on successful deletion
+        from fastapi import Response
+
+        return Response(status_code=204)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting session '{session_id}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete session") from e
 
 
 @router.post("/history/cleanup", status_code=200)
 async def cleanup_history(
-    days: int = Query(30, ge=1, le=365, description="Delete sessions older than this many days"),
-    max_sessions: int = Query(50, ge=1, le=1000, description="Maximum number of sessions to keep"),
+    days: int = Query(30, ge=0, le=365, description="Delete sessions older than this many days"),
+    max_sessions: int = Query(50, ge=0, le=1000, description="Maximum number of sessions to keep"),
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    session_manager: SessionManager = Depends(get_session_manager),
 ):
     """
     Clean up old sessions based on retention policy.
     Deletes sessions older than specified days and keeps only the most recent max_sessions.
+    Set days=0 to delete all sessions older than today.
     """
     try:
-        facade.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        session_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
         return {
             "message": f"Cleanup completed. Removed sessions older than {days} days, keeping maximum {max_sessions} sessions."
         }
     except Exception as e:
         logger.error(f"Error during history cleanup: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to clean up history") from e
         raise HTTPException(status_code=500, detail="Failed to clean up history") from e

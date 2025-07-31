@@ -53,6 +53,7 @@ async def test_local_server_wrong_tool_args(with_test_config):
         assert type(tool_result) is types.CallToolResult
         assert tool_result.isError
 
+
 @pytest.mark.asyncio
 async def test_local_server_wrong_keys(with_test_config):
     """
@@ -67,5 +68,7 @@ async def test_local_server_wrong_keys(with_test_config):
 
         config_manager.refresh()
 
-        with pytest.raises(Exception) as e:
-            await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "duckduckgo_local_invalid_both")))
+        with pytest.raises(Exception):
+            await host.register_client(
+                ClientConfig(**config_manager.get_config("mcp_server", "duckduckgo_local_invalid_both"))
+            )

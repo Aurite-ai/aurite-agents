@@ -31,6 +31,7 @@ async def test_http_server_working(with_test_config, start_http_server):
         assert not tool_result.isError
         assert len(tool_result.content) > 0
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
 async def test_http_server_error(with_test_config, start_http_server):
@@ -53,6 +54,7 @@ async def test_http_server_error(with_test_config, start_http_server):
         assert tool_result is not None
         assert type(tool_result) is types.CallToolResult
         assert tool_result.isError
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
