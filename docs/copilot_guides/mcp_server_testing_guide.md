@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-This document outlines the specific workflow for adding new pre-configured ("packaged") components to the `aurite` package's toolbox. This currently focuses on MCP Servers but will be expanded to include other components like Agents and Workflows. The goal is to ensure that new packaged components are tested, correctly configured, and well-documented for end-users.
+This document outlines the specific workflow instructions for adding new pre-configured ("packaged") components to the `aurite` package's toolbox. This currently focuses on MCP Servers but will be expanded to include other components like Agents and Workflows. The goal is to ensure that new packaged components are tested, correctly configured, and well-documented for end-users.
 
 ## 2. Workflow for Adding Packaged MCP Servers
 

@@ -67,13 +67,26 @@ export interface AgentExecutionResult {
   };
   error?: string | null;
   history?: any[];
+  session_id?: string;
 }
 
 // Workflow types
 export interface WorkflowConfig {
   name: string;
+  type: "simple_workflow";
   steps: string[];
   description?: string;
+}
+
+// Runtime information for UI display
+export interface WorkflowDisplayModel {
+  name: string;
+  description?: string;
+  stepCount: number;
+  stepPreview: string; // "Agent A → Agent B → Agent C"
+  type: 'simple_workflow' | 'custom_workflow';
+  status: 'active' | 'inactive' | 'error';
+  configFile?: string;
 }
 
 export interface CustomWorkflowConfig {
@@ -88,6 +101,10 @@ export interface ExecuteWorkflowResponse {
   status: 'completed' | 'failed';
   final_message?: string;
   error?: string | null;
+  execution_id?: string;
+  session_id?: string;
+  step_results?: any[];
+  history?: any[];
 }
 
 export interface ExecuteCustomWorkflowResponse {
@@ -246,11 +263,13 @@ export interface ExecuteAgentRequest {
 }
 
 export interface ExecuteWorkflowRequest {
-  initial_user_message: string;
+  initial_input: string;
+  session_id?: string;
 }
 
 export interface ExecuteCustomWorkflowRequest {
   initial_input: any;
+  session_id?: string;
 }
 
 export interface CreateConfigRequest {

@@ -13,6 +13,7 @@ from ..config.config_manager import ConfigManager
 from ..execution.facade import ExecutionFacade
 from ..host.host import MCPHost  # Added for get_host
 from ..host_manager import Aurite  # Needed for get_host_manager
+from ..storage.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +156,24 @@ async def get_execution_facade(
             detail="ExecutionFacade is not available due to an internal error.",
         )
     return host_manager.kernel.execution
+
+
+# --- SessionManager Dependency ---
+async def get_session_manager(
+    host_manager: Aurite = Depends(get_host_manager),
+) -> SessionManager:
+    """
+    Dependency function to get the SessionManager instance from the Aurite manager.
+    """
+    # The SessionManager is now created and held by the ExecutionFacade.
+    # This dependency retrieves it from there.
+    if not host_manager.kernel.execution or not host_manager.kernel.execution._session_manager:
+        logger.error("SessionManager not found. This indicates an initialization issue.")
+        raise HTTPException(
+            status_code=503,
+            detail="SessionManager is not available due to an internal error.",
+        )
+    return host_manager.kernel.execution._session_manager
 
 
 async def get_current_project_root(

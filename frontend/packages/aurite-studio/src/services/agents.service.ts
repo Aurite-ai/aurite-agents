@@ -106,7 +106,7 @@ class AgentsService {
     }
   }
 
-  // Execute an agent
+  // Execute an agent (non-streaming)
   async executeAgent(
     agentName: string, 
     request: ExecuteAgentRequest
@@ -123,6 +123,96 @@ class AgentsService {
     } catch (error) {
       this.handleError(error, `Failed to execute agent ${agentName}`);
       throw error;
+    }
+  }
+
+  // Execute an agent with streaming
+  async executeAgentStream(
+    agentName: string,
+    request: ExecuteAgentRequest,
+    onStreamEvent: (event: any) => void,
+    onComplete: (result: LocalAgentExecutionResult) => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    try {
+      const apiRequest: AgentRunRequest = {
+        user_message: request.user_message,
+        system_prompt: request.system_prompt,
+      };
+
+      // Get configuration from environment
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      const apiKey = process.env.REACT_APP_API_KEY || '';
+      
+      // Create the streaming URL with query parameters for the request
+      const url = new URL(`${baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`);
+      
+      // Since EventSource doesn't support custom headers or POST body,
+      // we need to use fetch with streaming response
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(apiRequest),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body for streaming');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          // Decode the chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete SSE messages
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
+                
+                // Check if this is a completion event
+                if (data.type === 'complete' || data.event === 'complete') {
+                  const result = this.mapToLocalExecutionResult(data.data || data);
+                  onComplete(result);
+                  return;
+                } else {
+                  // Regular stream event
+                  onStreamEvent(data);
+                }
+              } catch (error) {
+                console.error('Failed to parse stream event:', error);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+    } catch (error) {
+      this.handleError(error, `Failed to stream agent ${agentName}`);
+      onError(error instanceof Error ? error.message : 'Unknown streaming error');
     }
   }
 
@@ -158,15 +248,21 @@ class AgentsService {
 
   // Helper method to handle errors with user-friendly messages
   private handleError(error: unknown, context: string): void {
+    const sanitizedContext = this.sanitizeInput(context);
     if (error instanceof ApiError) {
-      console.error(`${context}: ${error.getDisplayMessage()}`, error.toJSON());
+      console.error('%s: %s', sanitizedContext, String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
-      console.error(`${context}: Request timed out`, error);
+      console.error('%s: Request timed out', sanitizedContext, error);
     } else if (error instanceof CancellationError) {
-      console.error(`${context}: Request was cancelled`, error);
+      console.error('%s: Request was cancelled', sanitizedContext, error);
     } else {
-      console.error(`${context}: Unknown error`, error);
+      console.error('%s: Unknown error', sanitizedContext, error);
     }
+  }
+
+  // Utility method to sanitize user-provided input
+  private sanitizeInput(input: string): string {
+    return input.replace(/[^a-zA-Z0-9 _-]/g, '_');
   }
 
   // Map API client AgentConfig to local AgentConfig
@@ -240,6 +336,7 @@ class AgentsService {
       } : undefined,
       error: apiResult.error_message || null,
       history: apiResult.conversation_history || [],
+      session_id: apiResult.session_id,
     };
   }
 }

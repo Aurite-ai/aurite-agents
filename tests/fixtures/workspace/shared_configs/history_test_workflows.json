@@ -1,0 +1,145 @@
+[
+  {
+    "name": "test_llm_haiku",
+    "type": "llm",
+    "provider": "anthropic",
+    "model": "claude-3-haiku-20240307",
+    "temperature": 0.3,
+    "max_tokens": 1000,
+    "default_system_prompt": "You are a helpful test assistant.",
+    "api_key_env_var": "ANTHROPIC_API_KEY"
+  },
+  {
+    "name": "weather_server",
+    "server_path": "src/aurite/init_templates/mcp_servers/weather_server.py",
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
+    "timeout": "15.0",
+    "type": "mcp_server"
+  },
+  {
+    "name": "planning_server",
+    "type": "mcp_server",
+    "server_path": "src/aurite/init_templates/mcp_servers/planning_server.py",
+    "capabilities": [
+      "tools",
+      "prompts",
+      "resources"
+    ],
+    "timeout": 15.0
+  },
+  {
+    "name": "History Test Agent A1",
+    "type": "agent",
+    "description": "First agent for Workflow A - history enabled",
+    "system_prompt": "You are a weather assistant. Provide weather information concisely.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": ["weather_server"],
+    "include_history": true
+  },
+  {
+    "name": "History Test Agent A2",
+    "type": "agent",
+    "description": "Second agent for Workflow A - history enabled",
+    "system_prompt": "Based on the weather information provided, give a brief recommendation about what to wear. Respond in one or two sentences only.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": [],
+    "include_history": true
+  },
+  {
+    "name": "History Test Agent B1",
+    "type": "agent",
+    "description": "First agent for Workflow B - history enabled",
+    "system_prompt": "You are a weather assistant. Provide weather information concisely.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": ["weather_server"],
+    "include_history": true
+  },
+  {
+    "name": "History Test Agent B2",
+    "type": "agent",
+    "description": "Second agent for Workflow B - history disabled",
+    "system_prompt": "Based on the weather information provided, give a brief recommendation about what to wear. Respond in one or two sentences only.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": [],
+    "include_history": false
+  },
+  {
+    "name": "History Test Agent C1",
+    "type": "agent",
+    "description": "First agent for Workflow C - history enabled",
+    "system_prompt": "You are a weather assistant. Provide weather information concisely.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": ["weather_server"],
+    "include_history": true
+  },
+  {
+    "name": "History Test Agent C2",
+    "type": "agent",
+    "description": "Second agent for Workflow C - history enabled",
+    "system_prompt": "Based on the weather information provided, give a brief recommendation about what to wear. Respond in one or two sentences only.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": [],
+    "include_history": true
+  },
+  {
+    "name": "History Test Agent D1",
+    "type": "agent",
+    "description": "First agent for Workflow D - history disabled",
+    "system_prompt": "You are a weather assistant. Provide weather information concisely.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": ["weather_server"],
+    "include_history": false
+  },
+  {
+    "name": "History Test Agent D2",
+    "type": "agent",
+    "description": "Second agent for Workflow D - history disabled",
+    "system_prompt": "Based on the weather information provided, give a brief recommendation about what to wear. Respond in one or two sentences only.",
+    "llm_config_id": "test_llm_haiku",
+    "mcp_servers": [],
+    "include_history": false
+  },
+  {
+    "name": "History Test Workflow A",
+    "type": "simple_workflow",
+    "description": "Base case: 2 agents both enabled for history",
+    "steps": [
+      "History Test Agent A1",
+      "History Test Agent A2"
+    ],
+    "include_history": true
+  },
+  {
+    "name": "History Test Workflow B",
+    "type": "simple_workflow",
+    "description": "Mixed case: 2 agents - one with history enabled, one disabled",
+    "steps": [
+      "History Test Agent B1",
+      "History Test Agent B2"
+    ],
+    "include_history": true
+  },
+  {
+    "name": "History Test Workflow C",
+    "type": "simple_workflow",
+    "description": "Base case duplicate: 2 agents both enabled for history",
+    "steps": [
+      "History Test Agent C1",
+      "History Test Agent C2"
+    ],
+    "include_history": true
+  },
+  {
+    "name": "History Test Workflow D",
+    "type": "simple_workflow",
+    "description": "No history case: 2 agents both disabled for history",
+    "steps": [
+      "History Test Agent D1",
+      "History Test Agent D2"
+    ],
+    "include_history": false
+  }
+]

@@ -138,6 +138,7 @@ def with_test_config():
     except Exception as e:
         logger.warning(f"Test fixtures config could not be loaded: {e}")
 
+
 @pytest.fixture
 def start_http_server(request):
     process = Popen(["python", request.param])

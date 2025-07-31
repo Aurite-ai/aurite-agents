@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 if sys.version_info < (3, 11):
     try:
@@ -19,6 +19,7 @@ if sys.version_info < (3, 11):
 else:
     pass
 
+from langfuse import Langfuse
 from termcolor import colored
 
 from .components.agents.agent_models import AgentRunResult
@@ -36,6 +37,9 @@ from .host.host import MCPHost
 from .storage.cache_manager import CacheManager
 from .storage.db_connection import create_db_engine
 from .storage.db_manager import StorageManager
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +113,15 @@ class AuriteKernel:
         self.project_root = self.config_manager.project_root
         self.host = MCPHost()
         self.storage_manager: Optional["StorageManager"] = None
+        if os.getenv("LANGFUSE_ENABLED", "false").lower() == "true":
+            self.langfuse = Langfuse(
+                secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+                public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+                host=os.getenv("LANGFUSE_HOST"),
+            )
+        else:
+            self.langfuse = None
+
         # Initialize CacheManager with project-specific cache directory
         if self.project_root:
             cache_dir = self.project_root / ".aurite_cache"
@@ -129,6 +142,7 @@ class AuriteKernel:
             host_instance=self.host,
             storage_manager=self.storage_manager,
             cache_manager=self.cache_manager,
+            langfuse=self.langfuse,
         )
         logger.debug(f"Aurite Kernel initialized for project root: {self.project_root}")
 

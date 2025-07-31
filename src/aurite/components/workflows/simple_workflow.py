@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ...config.config_models import (
-    WorkflowComponent,
-    WorkflowConfig,
-)
+from ...config.config_models import WorkflowComponent, WorkflowConfig
 from ..agents.agent_models import AgentRunResult
 from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
 
@@ -55,34 +52,28 @@ class SimpleWorkflowExecutor:
         self.facade = facade
         logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
 
-    async def execute(self, initial_input: str, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
+    async def execute(
+        self, initial_input: str, session_id: Optional[str] = None, base_session_id: Optional[str] = None
+    ) -> SimpleWorkflowExecutionResult:
         """
         Executes the configured simple workflow sequentially.
 
         Args:
             initial_input: The initial input message for the first agent in the sequence.
             session_id: Optional session ID to use for conversation history tracking.
+            base_session_id: The original, user-provided session ID for the workflow.
 
         Returns:
             A SimpleWorkflowExecutionResult object containing the final status,
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
-        
-        # Auto-generate session_id if workflow wants history but none provided
-        if self.config.include_history and not session_id:
-            session_id = f"workflow-{workflow_name}-{uuid.uuid4().hex[:8]}"
-            logger.info(f"Auto-generated session_id for workflow with include_history=true: {session_id}")
-        
-        logger.info(f"Executing simple workflow: {workflow_name} with session_id: {session_id}")
-        
-        # Save a parent session for the workflow itself
-        if self.config.include_history and session_id and self.facade._cache_manager:
-            self.facade._cache_manager.save_history(
-                session_id=session_id,
-                conversation=[],  # No conversation, just metadata
-                workflow_name=workflow_name,
-            )
+
+        if not session_id and self.config.include_history:
+            session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+            logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {session_id}")
+
+        logger.info(f"Executing simple workflow: '{workflow_name}' with session_id: {session_id}")
 
         step_results: list[SimpleWorkflowStepResult] = []
         current_message: Any = initial_input
@@ -101,7 +92,7 @@ class SimpleWorkflowExecutor:
                 else:
                     processed_workflow.append(step)
 
-            for component in processed_workflow:
+            for step_index, component in enumerate(processed_workflow):
                 component_output: Any = None
                 try:
                     logging.info(
@@ -112,22 +103,14 @@ class SimpleWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # Generate a unique session ID for each agent step, linked to the workflow session
-                            agent_session_id = None
-                            force_include_history = self.config.include_history
-
-                            if self.config.include_history and session_id:
-                                # Create a unique, traceable session ID for this specific agent run
-                                agent_session_id = f"{session_id}-{len(step_results)}-{component.name.replace(' ', '')}"
-                            
-                            # The facade's run_agent now returns a structured AgentRunResult
+                            # The facade is now responsible for handling session ID generation for agent steps.
                             agent_run_result: AgentRunResult = await self.facade.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
-                                session_id=agent_session_id,
-                                force_include_history=force_include_history,
-                                workflow_name=workflow_name,
-                                workflow_session_id=session_id,  # Pass the parent workflow session ID
+                                # Let the facade determine the session logic based on workflow context
+                                session_id=f"{session_id}-{step_index}" if session_id else None,
+                                force_include_history=self.config.include_history,
+                                base_session_id=base_session_id,  # Pass the workflow's base ID
                             )
 
                             # Check the status of the agent run
@@ -197,6 +180,7 @@ class SimpleWorkflowExecutor:
                         step_results=step_results,
                         final_output=current_message,
                         error=f"Error processing component '{component.name}': {str(e)}",
+                        session_id=session_id,
                     )
 
             return SimpleWorkflowExecutionResult(
@@ -205,6 +189,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=None,
+                session_id=session_id,
             )
 
         except Exception as e:
@@ -215,6 +200,7 @@ class SimpleWorkflowExecutor:
                 step_results=step_results,
                 final_output=current_message,
                 error=f"Workflow setup error: {str(e)}",
+                session_id=session_id,
             )
 
     def _infer_component_type(self, component_name: str):

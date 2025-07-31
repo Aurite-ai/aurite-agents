@@ -1,11 +1,13 @@
 """
 Provides a unified facade for executing Agents, Simple Workflows, and Custom Workflows.
 """
-import json
-import logging
-import uuid
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
+import logging
+import os
+import uuid
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
+
+from langfuse import Langfuse
 from termcolor import colored
 
 from ..components.agents.agent import Agent
@@ -21,14 +23,15 @@ from ..config.config_models import (
     LLMConfig,
     LLMConfigOverrides,
 )
-from ..errors import (
-    AgentExecutionError,
-    ConfigurationError,
-    WorkflowExecutionError,
-)
+from ..errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ..host.host import MCPHost
 from ..storage.cache_manager import CacheManager
 from ..storage.db_manager import StorageManager
+from ..storage.session_manager import SessionManager
+from ..storage.session_models import SessionMetadata
+
+if TYPE_CHECKING:
+    from langfuse.client import StatefulTraceClient
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,7 @@ class ExecutionFacade:
         host_instance: "MCPHost",
         storage_manager: Optional["StorageManager"] = None,
         cache_manager: Optional["CacheManager"] = None,
+        langfuse: Optional["Langfuse"] = None,
     ):
         if not config_manager:
             raise ValueError("ConfigManager instance is required for ExecutionFacade.")
@@ -54,8 +58,10 @@ class ExecutionFacade:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        self._cache_manager = cache_manager
+        # The facade now uses a SessionManager for history, which in turn uses the CacheManager.
+        self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
+        self.langfuse = langfuse
         logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     def set_config_manager(self, config_manager: "ConfigManager"):
@@ -126,13 +132,8 @@ class ExecutionFacade:
             agent_config_for_run.include_history = force_include_history
 
         initial_messages: List[Dict[str, Any]] = []
-        if effective_include_history and session_id:
-            history = None
-            if self._storage_manager:
-                history = self._storage_manager.load_history(agent_name, session_id)
-            elif self._cache_manager:
-                history = self._cache_manager.get_history(session_id)
-
+        if effective_include_history and session_id and self._session_manager:
+            history = self._session_manager.get_session_history(session_id)
             if history:
                 initial_messages.extend(history)
 
@@ -140,14 +141,14 @@ class ExecutionFacade:
         current_user_message = {"role": "user", "content": user_message}
         initial_messages.append(current_user_message)
 
-        # Immediately update the cache with the current user message
+        # Immediately update the history with the current user message
         # so the agent can reference it as part of the conversation history
-        if effective_include_history and session_id and self._cache_manager:
-            # Get the existing history again to make sure we have the latest
-            existing_history = self._cache_manager.get_history(session_id) or []
-            # Add only the current user message to the existing history
-            updated_history = existing_history + [current_user_message]
-            self._cache_manager.save_history(session_id, updated_history, agent_name)
+        if effective_include_history and session_id and self._session_manager:
+            self._session_manager.add_message_to_history(
+                session_id=session_id,
+                message=current_user_message,
+                agent_name=agent_name,
+            )
 
         if system_prompt_override:
             if agent_config_for_run.llm is None:
@@ -159,6 +160,7 @@ class ExecutionFacade:
             base_llm_config=base_llm_config,
             host_instance=self._host,
             initial_messages=initial_messages,
+            session_id=session_id,
         )
         return agent_instance, dynamically_registered_servers
 
@@ -172,7 +174,7 @@ class ExecutionFacade:
         session_id: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
-        
+
         # Auto-generate session_id if agent wants history but none provided
         if not session_id:
             # Check if agent has include_history=true
@@ -180,49 +182,70 @@ class ExecutionFacade:
             if agent_config_dict:
                 agent_config = AgentConfig(**agent_config_dict)
                 if agent_config.include_history:
-                    session_id = f"agent-{agent_name}-{uuid.uuid4().hex[:8]}"
-                    logger.info(f"Auto-generated session_id for streaming agent with include_history=true: {session_id}")
-        
+                    session_id = f"agent-{uuid.uuid4().hex[:8]}"
+                    logger.info(
+                        f"Auto-generated session_id for streaming agent with include_history=true: {session_id}"
+                    )
+
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Prepare the agent instance and dynamically register any required servers
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
                 agent_name, user_message, system_prompt, session_id
             )
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                if os.getenv("LANGFUSE_USER_ID"):
+                    user_id = os.getenv("LANGFUSE_USER_ID")
+                else:
+                    user_id = session_id or "anonymous"
+
+                trace = self.langfuse.trace(
+                    name=f"Agent: {agent_name} (streaming) - Aurite Runtime",
+                    session_id=session_id,  # This groups traces into sessions
+                    user_id=user_id,
+                    input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
+
             logger.info(f"Facade: Streaming conversation for Agent '{agent_name}'...")
+
+            # Yield session_id as the first event
+            if session_id:
+                yield {"type": "session_info", "data": {"session_id": session_id}}
+
             async for event in agent_instance.stream_conversation():
                 yield event
         except Exception as e:
             error_msg = (
                 f"Error during streaming setup or execution for Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             )
-            logger.error(f"Facade: {error_msg}", exc_info=True)
+            logger.error(f"Facade: {error_msg}")
             yield {"type": "error", "data": {"message": error_msg}}
             # Re-raise to be caught by the final `finally` block for cleanup
             raise AgentExecutionError(error_msg) from e
         finally:
             # Save history at the end of the stream
-            if agent_instance and agent_instance.config.include_history and session_id:
-                if self._storage_manager:
-                    try:
-                        self._storage_manager.save_full_history(
-                            agent_name=agent_name,
-                            session_id=session_id,
-                            conversation=agent_instance.conversation_history,
-                        )
-                        logger.info(
-                            f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
-                            exc_info=True,
-                        )
-                elif self._cache_manager:
-                    self._cache_manager.save_history(session_id, agent_instance.conversation_history, agent_name)
-                    logger.info(
-                        f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
-                    )
+            if agent_instance and agent_instance.config.include_history and session_id and self._session_manager:
+                # This is a streaming run, so we don't have a full result object yet.
+                # We save the conversation history for now.
+                self._session_manager.save_conversation_history(
+                    session_id=session_id,
+                    conversation=agent_instance.conversation_history,
+                    agent_name=agent_name,
+                )
+                logger.info(
+                    f"Facade: Saved {len(agent_instance.conversation_history)} history turns for agent '{agent_name}', session '{session_id}'."
+                )
 
             # Don't unregister servers - keep them available for future use
             # This allows tools to remain available after agent execution
@@ -231,6 +254,26 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
+            # Update trace with output if available
+            if self.langfuse and trace and agent_instance:
+                # Get the final response from the agent
+                final_output = None
+                if hasattr(agent_instance, "final_response") and agent_instance.final_response:
+                    final_output = agent_instance.final_response.content
+                elif hasattr(agent_instance, "conversation_history") and agent_instance.conversation_history:
+                    # Get the last assistant message
+                    for msg in reversed(agent_instance.conversation_history):
+                        if msg.get("role") == "assistant" and msg.get("content"):
+                            final_output = msg.get("content")
+                            break
+
+                if final_output:
+                    trace.update(output={"response": final_output})
+
+            # Flush Langfuse trace if enabled
+            if self.langfuse and trace:
+                self.langfuse.flush()
+
     async def run_agent(
         self,
         agent_name: str,
@@ -238,26 +281,57 @@ class ExecutionFacade:
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
-        workflow_name: Optional[str] = None,
-        workflow_session_id: Optional[str] = None,
+        base_session_id: Optional[str] = None,  # New parameter
     ) -> AgentRunResult:
-        # Auto-generate session_id if agent wants history but none provided
-        if not session_id:
-            # Check if agent has include_history=true (either from config or forced)
-            agent_config_dict = self._config_manager.get_config("agent", agent_name)
-            if agent_config_dict:
-                agent_config = AgentConfig(**agent_config_dict)
-                effective_include_history = force_include_history if force_include_history is not None else agent_config.include_history
-                if effective_include_history:
-                    session_id = f"agent-{agent_name}-{uuid.uuid4().hex[:8]}"
-                    logger.info(f"Auto-generated session_id for agent with include_history=true: {session_id}")
-        
+        # --- Session ID Management ---
+        agent_config_dict = self._config_manager.get_config("agent", agent_name)
+        if not agent_config_dict:
+            raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+        agent_config = AgentConfig(**agent_config_dict)
+        effective_include_history = (
+            force_include_history if force_include_history is not None else agent_config.include_history
+        )
+
+        final_session_id = session_id
+        # If a base_session_id is passed from a workflow, use it. Otherwise, determine it.
+        final_base_session_id = base_session_id if base_session_id is not None else session_id
+
+        if effective_include_history:
+            if final_session_id:
+                # Only add prefix if it's not part of a workflow and doesn't already have the prefix
+                if not final_session_id.startswith("agent-") and not final_session_id.startswith("workflow-"):
+                    final_session_id = f"agent-{final_session_id}"
+            else:
+                # This is a standalone agent run, so it gets the agent prefix
+                final_session_id = f"agent-{uuid.uuid4().hex[:8]}"
+                final_base_session_id = final_session_id  # The generated ID is the base
+                logger.info(f"Auto-generated session_id for agent '{agent_name}': {final_session_id}")
+        # --- End Session ID Management ---
+
         agent_instance = None
         servers_to_unregister: List[str] = []
+        trace: Optional["StatefulTraceClient"] = None
         try:
+            # Create trace if Langfuse is enabled
+            if self.langfuse:
+                trace = self.langfuse.trace(
+                    name=f"Agent: {agent_name} - Aurite Runtime",
+                    session_id=session_id,  # This groups traces into sessions
+                    user_id=session_id or "anonymous",
+                    input={"user_message": user_message, "system_prompt": system_prompt},
+                    metadata={
+                        "agent_name": agent_name,
+                        "source": "execution-facade",
+                    },
+                )
+
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id, force_include_history
+                agent_name, user_message, system_prompt, final_session_id, force_include_history
             )
+
+            # Pass trace to agent if available
+            if trace:
+                agent_instance.trace = trace
 
             logger.info(
                 colored(
@@ -275,34 +349,17 @@ class ExecutionFacade:
                 )
             )
 
-            # Save history regardless of the outcome, as it's valuable for debugging.
-            if agent_instance and agent_instance.config.include_history and session_id:
-                if self._storage_manager:
-                    try:
-                        self._storage_manager.save_full_history(
-                            agent_name=agent_name,
-                            session_id=session_id,
-                            conversation=run_result.conversation_history,
-                        )
-                        logger.info(
-                            f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to database."
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Facade: Failed to save history for agent '{agent_name}', session '{session_id}' to database: {e}",
-                            exc_info=True,
-                        )
-                elif self._cache_manager:
-                    self._cache_manager.save_history(
-                        session_id=session_id,
-                        conversation=run_result.conversation_history,
-                        agent_name=agent_name,
-                        workflow_name=workflow_name,
-                        workflow_session_id=workflow_session_id,
-                    )
-                    logger.info(
-                        f"Facade: Saved {len(run_result.conversation_history)} history turns for agent '{agent_name}', session '{session_id}' to file-based cache."
-                    )
+            # Manually set the agent_name on the result, as the agent itself doesn't know its registered name.
+            run_result.agent_name = agent_name
+
+            # Save complete execution result regardless of the outcome, as it's valuable for debugging.
+            if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
+                self._session_manager.save_agent_result(
+                    session_id=final_session_id, agent_result=run_result, base_session_id=final_base_session_id
+                )
+                logger.info(
+                    f"Facade: Saved complete execution result for agent '{agent_name}', session '{final_session_id}'."
+                )
 
             return run_result
         except Exception as e:
@@ -319,8 +376,17 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
-    async def run_simple_workflow(self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None) -> SimpleWorkflowExecutionResult:
+    async def run_simple_workflow(
+        self,
+        workflow_name: str,
+        initial_input: Any,
+        session_id: Optional[str] = None,
+        trace: Optional["StatefulTraceClient"] = None,
+    ) -> SimpleWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
+        # Flush Langfuse trace if enabled
+        if self.langfuse and trace:
+            self.langfuse.flush()
         try:
             workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
             if not workflow_config_dict:
@@ -330,13 +396,38 @@ class ExecutionFacade:
 
             workflow_config = WorkflowConfig(**workflow_config_dict)
 
+            # --- Session ID Management ---
+            final_session_id = session_id
+            base_session_id = session_id  # Capture the original ID
+            if workflow_config.include_history:
+                if final_session_id:
+                    if not final_session_id.startswith("workflow-"):
+                        final_session_id = f"workflow-{final_session_id}"
+                else:
+                    final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+                    base_session_id = final_session_id  # The generated ID is the base
+                    logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
+            # --- End Session ID Management ---
+
             workflow_executor = SimpleWorkflowExecutor(
                 config=workflow_config,
                 facade=self,
             )
 
-            result = await workflow_executor.execute(initial_input=initial_input, session_id=session_id)
+            result = await workflow_executor.execute(
+                initial_input=initial_input, session_id=final_session_id, base_session_id=base_session_id
+            )
             logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
+
+            # Save the complete workflow execution result if it has a session_id
+            if result.session_id and self._session_manager:
+                self._session_manager.save_workflow_result(
+                    session_id=result.session_id, workflow_result=result, base_session_id=base_session_id
+                )
+                logger.info(
+                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}'."
+                )
+
             return result
         except ConfigurationError as e:
             # Re-raise configuration errors directly
@@ -412,144 +503,37 @@ class ExecutionFacade:
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 
-    # --- History Management Methods ---
+    # --- Pass-through Methods to SessionManager ---
+
+    def get_session_result(self, session_id: str) -> Optional[Dict[str, Any]]:
+        if self._session_manager:
+            return self._session_manager.get_session_result(session_id)
+        return None
 
     def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
-        """
-        Get history for a specific session regardless of agent.
-        Delegates to StorageManager if available, otherwise CacheManager.
-        """
-        if self._storage_manager:
-            return self._storage_manager.get_session_history(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.get_history(session_id)
-        else:
-            logger.warning("No storage backend available for session history")
-            return None
+        if self._session_manager:
+            return self._session_manager.get_session_history(session_id)
+        return None
 
-    def get_full_workflow_history(self, workflow_session_id: str) -> Optional[List[Dict[str, Any]]]:
-        """
-        Get the full, combined conversation history for a workflow session
-        by directly parsing the cache directory.
-        """
-        if not self._cache_manager or not self._cache_manager._cache_dir:
-            logger.warning("No cache manager or cache directory available for workflow history")
-            return None
-
-        # Sanitize the workflow_session_id to match the file naming convention
-        safe_base_id = "".join(c for c in workflow_session_id if c.isalnum() or c in "-_")
-        
-        related_files = []
-        try:
-            # Find all files starting with the sanitized workflow session ID
-            for session_file in self._cache_manager._cache_dir.glob(f"{safe_base_id}*.json"):
-                related_files.append(session_file)
-        except Exception as e:
-            logger.error(f"Error scanning cache directory for workflow '{workflow_session_id}': {e}")
-            return None
-
-        if not related_files:
-            return None
-
-        # Read and sort all conversations by their creation time
-        session_data = []
-        for file_path in related_files:
-            try:
-                with open(file_path, "r") as f:
-                    data = json.load(f)
-                    # Use a default timestamp if 'created_at' is missing
-                    created_at = data.get("created_at", "1970-01-01T00:00:00Z")
-                    session_data.append({"created_at": created_at, "conversation": data.get("conversation", [])})
-            except Exception as e:
-                logger.warning(f"Could not read or parse session file {file_path}: {e}")
-
-        # Sort sessions chronologically
-        session_data.sort(key=lambda x: x["created_at"])
-
-        # Combine conversations into a single list
-        full_conversation = []
-        for session in session_data:
-            full_conversation.extend(session["conversation"])
-
-        return full_conversation if full_conversation else None
-
-    def get_sessions_list(self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """
-        Get list of sessions with optional filtering by agent or workflow.
-        Returns paginated results.
-        """
-
-        if workflow_name:
-            # Get sessions for specific workflow
-            if self._storage_manager:
-                # For StorageManager, we'd need a new method to get sessions by workflow
-                logger.warning("Getting sessions by workflow not yet implemented for StorageManager")
-                sessions = []
-            elif self._cache_manager:
-                sessions = self._cache_manager.get_sessions_by_workflow(workflow_name, limit=limit + offset)
-            else:
-                sessions = []
-        elif agent_name:
-            # Get sessions for specific agent
-            if self._storage_manager:
-                sessions = self._storage_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
-            elif self._cache_manager:
-                sessions = self._cache_manager.get_sessions_by_agent(agent_name, limit=limit + offset)
-            else:
-                sessions = []
-        else:
-            # Get all sessions - need to aggregate from all agents
-            if self._storage_manager:
-                # For StorageManager, we'd need a new method to get all sessions
-                # For now, return empty as this is not implemented
-                logger.warning("Getting all sessions not yet implemented for StorageManager")
-                sessions = []
-            elif self._cache_manager:
-                # For CacheManager, get all sessions from metadata
-                sessions = []
-                for session_id, metadata in self._cache_manager._metadata_cache.items():
-                    sessions.append({"session_id": session_id, **metadata})
-                # Sort by last_updated descending
-                sessions.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
-            else:
-                sessions = []
-
-        # Apply pagination
-        total = len(sessions)
-        paginated_sessions = sessions[offset : offset + limit] if sessions else []
-
-        return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+    def get_sessions_list(
+        self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0
+    ) -> Dict[str, Any]:
+        if self._session_manager:
+            return self._session_manager.get_sessions_list(
+                agent_name=agent_name, workflow_name=workflow_name, limit=limit, offset=offset
+            )
+        return {"sessions": [], "total": 0, "offset": offset, "limit": limit}
 
     def delete_session(self, session_id: str) -> bool:
-        """
-        Delete a specific session's history.
-        Returns True if deleted, False if not found.
-        """
-        if self._storage_manager:
-            return self._storage_manager.delete_session(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.delete_session(session_id)
-        else:
-            logger.warning("No storage backend available for session deletion")
-            return False
+        if self._session_manager:
+            return self._session_manager.delete_session(session_id)
+        return False
 
-    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get metadata about a session.
-        """
-        if self._storage_manager:
-            return self._storage_manager.get_session_metadata(session_id)
-        elif self._cache_manager:
-            return self._cache_manager.get_session_metadata(session_id)
-        else:
-            logger.warning("No storage backend available for session metadata")
-            return None
+    def get_session_metadata(self, session_id: str) -> Optional[SessionMetadata]:
+        if self._session_manager:
+            return self._session_manager.get_session_metadata(session_id)
+        return None
 
     def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
-        """
-        Clean up old sessions based on retention policy.
-        """
-        if self._storage_manager:
-            self._storage_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
-        if self._cache_manager:
-            self._cache_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)
+        if self._session_manager:
+            self._session_manager.cleanup_old_sessions(days=days, max_sessions=max_sessions)

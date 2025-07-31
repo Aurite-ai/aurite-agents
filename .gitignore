@@ -195,3 +195,8 @@ src/aurite/init_templates/mcp_servers/plans/
 .aurite_cache/
 demo-config/*
 !frontend/.env.example
+!.env.example
+!frontend/packages/aurite-studio/src/lib/
+!frontend/packages/aurite-studio/.env.example
+docs/aurite-studio/*
+.langfuse_logs/

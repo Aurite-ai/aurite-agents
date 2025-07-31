@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+    <msapplication>
+        <tile>
+            <square70x70logo src="/logo70.png"/>
+            <square150x150logo src="/logo150.png"/>
+            <wide310x150logo src="/logo310x150.png"/>
+            <square310x310logo src="/logo310.png"/>
+            <TileColor>#8b5cf6</TileColor>
+        </tile>
+        <notification>
+            <polling-uri src="/notifications/feed1.xml"/>
+            <polling-uri2 src="/notifications/feed2.xml"/>
+            <polling-uri3 src="/notifications/feed3.xml"/>
+            <polling-uri4 src="/notifications/feed4.xml"/>
+            <polling-uri5 src="/notifications/feed5.xml"/>
+            <frequency>30</frequency>
+            <cycle>1</cycle>
+        </notification>
+    </msapplication>
+</browserconfig>
