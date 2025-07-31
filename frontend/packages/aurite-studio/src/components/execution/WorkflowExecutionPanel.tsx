@@ -103,7 +103,7 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
             </div>
           );
         } else {
-          // Simple workflow execution - step-by-step progress
+          // Linear workflow execution - step-by-step progress
           return (
             <div className="flex-1 flex flex-col">
               {/* Progress Header */}

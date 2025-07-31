@@ -1,6 +1,6 @@
 # Linear Workflow Configuration
 
-Simple workflows provide a straightforward way to execute a series of components in a predefined, sequential order. They are perfect for tasks that follow a linear process, such as "first run the data-ingestion agent, then run the analysis agent."
+Linear workflows provide a straightforward way to execute a series of components in a predefined, sequential order. They are perfect for tasks that follow a linear process, such as "first run the data-ingestion agent, then run the analysis agent."
 
 A linear workflow configuration is a JSON or YAML object with a `type` field set to `"linear_workflow"`.
 
@@ -82,9 +82,9 @@ The core of a linear workflow is the `steps` list. This list defines the sequenc
 ### `steps`
 
 **Type:** `list[string | object]` (Required)
-**Description:** An ordered list of the components to execute. Each item in the list can be either a simple string (the name of the component) or a more detailed object.
+**Description:** An ordered list of the components to execute. Each item in the list can be either a string (the name of the component) or a more detailed object.
 
-#### Simple Step (by Name)
+#### Step by Name
 
 The easiest way to define a step is to simply provide the `name` of the component you want to run. The framework will look up the component in the configuration index.
 
@@ -102,7 +102,7 @@ For more clarity or to handle duplicate component names across component types, 
 - `name` (string): The name of the component.
 - `type` (string): The type of the component. Must be one of `"agent"`, `"linear_workflow"`, or `"custom_workflow"`.
 
-This more verbose format is functionally identical to the simple string format for now but may support additional step-specific parameters in the future.
+This more verbose format is functionally identical to the string format for now but may support additional step-specific parameters in the future.
 
 ```json
 {

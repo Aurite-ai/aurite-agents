@@ -277,9 +277,10 @@ VALID_AGENT_CONFIG_DATA = {
     "exclude_components": ["excluded_prompt_1"],
 }
 
-VALID_SIMPLE_WORKFLOW_CONFIG_DATA = {
+VALID_LINEAR_WORKFLOW_CONFIG_DATA = {
     "name": "test_linear_workflow_fixture",
-    "description": "A simple test workflow fixture.",
+    "type": "linear_workflow",
+    "description": "A linear test workflow fixture.",
     "steps": ["test_agent_fixture"],
 }
 

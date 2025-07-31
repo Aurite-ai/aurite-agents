@@ -29,7 +29,7 @@ HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 async def create_test_workflow():
     """Create a test workflow with agents that have include_history: true."""
     async with httpx.AsyncClient() as client:
-        # Create a simple workflow with two agents that both have include_history: true
+        # Create a linear workflow with two agents that both have include_history: true
         workflow_config = {
             "name": "Test History Workflow",
             "type": "linear_workflow",

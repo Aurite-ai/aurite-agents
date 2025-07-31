@@ -13,7 +13,7 @@ from aurite.host_manager import Aurite
 @pytest.mark.integration
 async def test_linear_workflow_success():
     """
-    Tests a successful execution of a simple workflow using the packaged example project.
+    Tests a successful execution of a linear workflow using the packaged example project.
     """
     # Arrange
     example_project_path = Path("src/aurite/init_templates").resolve()

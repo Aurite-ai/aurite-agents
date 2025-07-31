@@ -3,7 +3,7 @@
  *
  * The Execution Facade provides a unified interface for running:
  * - Agents: AI-powered assistants that can use tools and maintain conversation history
- * - Simple Workflows: Sequential execution of multiple agents
+ * - Linear Workflows: Sequential execution of multiple agents
  * - Custom Workflows: Python-based workflows with custom logic
  *
  * All execution happens server-side, with results returned to the client.
@@ -153,7 +153,7 @@ export class ExecutionFacadeClient extends BaseClient {
   /**
    * Run a linear workflow (sequential agent execution)
    *
-   * Simple workflows execute a series of agents in sequence, where:
+   * Linear workflows execute a series of agents in sequence, where:
    * - Each agent receives the output of the previous agent
    * - The workflow stops if any agent fails
    * - The final output is from the last agent in the sequence

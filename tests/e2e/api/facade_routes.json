@@ -140,7 +140,7 @@
 			"response": []
 		},
 		{
-			"name": "Run Simple Workflow",
+			"name": "Run Linear Workflow",
 			"event": [
 				{
 					"listen": "test",
@@ -188,7 +188,7 @@
 			"response": []
 		},
         {
-			"name": "Test Simple Workflow",
+			"name": "Test Linear Workflow",
 			"event": [
 				{
 					"listen": "test",

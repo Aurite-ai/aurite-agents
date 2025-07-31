@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Detailed test to track how session IDs are handled in simple workflows.
+Detailed test to track how session IDs are handled in linear workflows.
 This script will:
 1. Run individual agents with session IDs to verify they work
-2. Run a simple workflow and check if session IDs are propagated
+2. Run a linear workflow and check if session IDs are propagated
 3. Analyze the cache structure
 """
 
@@ -93,7 +93,7 @@ def analyze_cache_structure():
 
 async def main():
     """Test session ID handling in workflows."""
-    print("=== Testing Session ID Handling in Simple Workflows ===")
+    print("=== Testing Session ID Handling in Linear Workflows ===")
 
     # Clean up old cache files first
     cache_dir = Path(".aurite_cache")
@@ -131,8 +131,8 @@ async def main():
     else:
         print(f"   ❌ No cache entry found for session: {agent_session_id}")
 
-    # Test 2: Simple workflow with session ID
-    print("\n📝 Test 2: Simple Workflow with Session ID")
+    # Test 2: Linear workflow with session ID
+    print("\n📝 Test 2: Linear Workflow with Session ID")
     workflow_session_id = f"workflow-test-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     try:
@@ -210,7 +210,7 @@ async def main():
     print("\n=== Analysis Complete ===")
     print("\n🔍 Key Findings:")
     print("   1. Individual agents with session_id DO create cache entries")
-    print("   2. Simple workflows may NOT be passing session_id to agent executions")
+    print("   2. Linear workflows may NOT be passing session_id to agent executions")
     print("   3. Check LinearWorkflowExecutor.execute() to see if it passes session_id")
     print(
         "\n💡 Next Step: Review the linear_workflow.py code to see if session_id is being passed to facade.run_agent()"

@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 class LinearWorkflowStepResult(BaseModel):
     """
-    Represents the output of a single step in a Simple Workflow.
-    This model can hold the result from an Agent, a nested Simple Workflow,
+    Represents the output of a single step in a Linear Workflow.
+    This model can hold the result from an Agent, a nested Linear Workflow,
     or a Custom Workflow.
     """
 
@@ -30,7 +30,7 @@ class LinearWorkflowStepResult(BaseModel):
 
 class LinearWorkflowExecutionResult(BaseModel):
     """
-    Standardized Pydantic model for the output of a Simple Workflow execution.
+    Standardized Pydantic model for the output of a Linear Workflow execution.
     """
 
     workflow_name: str = Field(description="The name of the executed workflow.")

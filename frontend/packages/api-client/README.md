@@ -243,7 +243,7 @@ npm run example:integration
   - Debug and troubleshooting
 
 - **Workflow Management**: `examples/execution/`
-  - Simple workflow execution
+  - Linear workflow execution
   - Custom workflow handling
 
 - **MCP Server Management**: `examples/mcp-host/`

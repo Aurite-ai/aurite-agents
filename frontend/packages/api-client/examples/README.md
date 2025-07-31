@@ -355,7 +355,7 @@ await client.execution.streamAgent('Agent Name', { user_message: 'Hello' }, even
 
 ### ✅ **Workflow Management**
 
-- Simple sequential workflows
+- Linear sequential workflows
 - Complex input processing
 - Step-by-step result tracking
 - Error handling and recovery

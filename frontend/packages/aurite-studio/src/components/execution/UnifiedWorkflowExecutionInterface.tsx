@@ -87,7 +87,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
         finalMessage = (result as any).result || 'Custom workflow completed successfully';
         resultHistory = [];
       } else {
-        // Simple workflow response structure
+        // Linear workflow response structure
         stepResults = (result as any).step_results || [];
         finalMessage = (result as any).final_message;
         resultHistory = (result as any).history || [];

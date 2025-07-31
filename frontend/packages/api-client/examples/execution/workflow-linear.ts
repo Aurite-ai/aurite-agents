@@ -1,5 +1,5 @@
 /**
- * Simple Workflow Execution Example
+ * Linear Workflow Execution Example
  *
  * This example demonstrates how to run linear workflows.
  * Linear workflows execute a series of agents in sequence,
@@ -16,7 +16,7 @@ import {
 async function basicWorkflowExecution() {
   const client = await createExampleClient();
 
-  console.log('\n📋 Example 1: Basic Simple Workflow');
+  console.log('\n📋 Example 1: Basic Linear Workflow');
 
   try {
     const result = await client.execution.runLinearWorkflow('Weather Planning Workflow', {

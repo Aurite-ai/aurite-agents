@@ -58,7 +58,7 @@ class AgentConfigDB(Base):
 
 
 class WorkflowConfigDB(Base):
-    """SQLAlchemy model for storing Simple Workflow configurations."""
+    """SQLAlchemy model for storing Linear Workflow configurations."""
 
     __tablename__ = "workflow_configs"
 

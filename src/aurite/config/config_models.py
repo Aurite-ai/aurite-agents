@@ -278,7 +278,7 @@ class ProjectConfig(BaseComponentConfig):
     )
     linear_workflows: List[WorkflowConfig] = Field(
         default_factory=list,
-        description="Simple workflows defined or referenced by this project.",
+        description="Linear workflows defined or referenced by this project.",
     )
     custom_workflows: List[CustomWorkflowConfig] = Field(
         default_factory=list,
