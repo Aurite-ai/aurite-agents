@@ -597,43 +597,70 @@
 			},
 			"response": []
 		},
-        {
-			"name": "Cleanup History",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
+		{
+				"name": "Delete All History",
+				"event": [
 					{
-						"key": "X-API-Key",
-						"value": "{{api_key}}"
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test(\"Status code is 200\", function () {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"pm.test(\"Cleanup message\", function () {",
+								"    var jsonData = pm.response.json();",
+								"    pm.expect(jsonData.message).to.include(\"Cleanup completed\");",
+								"});"
+							],
+							"type": "text/javascript"
+						}
 					}
 				],
-				"url": {
-					"raw": "{{base_url}}/execution/history/cleanup",
-					"host": [
-						"{{base_url}}"
+				"request": {
+					"method": "POST",
+					"header": [
+						{
+							"key": "X-API-Key",
+							"value": "{{api_key}}"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
 					],
-					"path": [
-						"execution",
-						"history",
-						"cleanup"
-					]
-				}
-			},
-			"response": []
-		}
+					"body": {
+						"mode": "raw",
+						"raw": "",
+						"options": {
+							"raw": {
+								"language": "json"
+							}
+						}
+					},
+					"url": {
+						"raw": "{{base_url}}/execution/history/cleanup?days=0&max_sessions=0",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"execution",
+							"history",
+							"cleanup"
+						],
+						"query": [
+							{
+								"key": "days",
+								"value": "0"
+							},
+							{
+								"key": "max_sessions",
+								"value": "0"
+							}
+						]
+					}
+				},
+				"response": []
+			}
 	],
 	"variable": [
 		{

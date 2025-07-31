@@ -290,27 +290,27 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
         (result) => {
           console.log('✅ Streaming execution completed:', result);
           
-          setExecutionState(prev => ({
-            ...prev,
+        setExecutionState(prev => ({
+          ...prev,
+          status: 'completed',
+          progress: 100,
+          endTime: new Date(),
+          result: {
+            execution_id: 'stream',
+            session_id: result.session_id || request.session_id || 'unknown',
             status: 'completed',
-            progress: 100,
-            endTime: new Date(),
-            result: {
-              execution_id: 'stream',
-              session_id: request.session_id || 'unknown',
-              status: 'completed',
-              final_response: result.final_response,
-              tool_calls: [],
-              metadata: {
-                start_time: prev.startTime?.toISOString() || new Date().toISOString(),
-                end_time: new Date().toISOString(),
-                duration_ms: prev.startTime ? Date.now() - prev.startTime.getTime() : 0,
-                token_usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
-              },
-              history: result.history || []
+            final_response: result.final_response,
+            tool_calls: [],
+            metadata: {
+              start_time: prev.startTime?.toISOString() || new Date().toISOString(),
+              end_time: new Date().toISOString(),
+              duration_ms: prev.startTime ? Date.now() - prev.startTime.getTime() : 0,
+              token_usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
             },
-            currentResponse: result.final_response?.content?.[0]?.text || result.final_response?.content || 'Execution completed'
-          }));
+            history: result.history || []
+          },
+          currentResponse: result.final_response?.content?.[0]?.text || result.final_response?.content || 'Execution completed'
+        }));
         },
         // onError
         (error) => {
@@ -353,7 +353,7 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
           toolCalls: extractedToolCalls, // Add extracted tool calls to execution state
           result: {
             execution_id: 'non-stream',
-            session_id: request.session_id || 'unknown',
+            session_id: (result as any).session_id || request.session_id || 'unknown',
             status: 'completed',
             final_response: result.final_response,
             tool_calls: extractedToolCalls, // Add extracted tool calls to result

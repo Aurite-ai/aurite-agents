@@ -83,10 +83,23 @@ class MCPHost:
             await self.unregister_client(server_name)
         logger.debug("MCP Host shutdown complete.")
 
-    async def call_tool(self, name: str, args: dict[str, Any]) -> types.CallToolResult:
+    async def call_tool(
+        self, name: str, args: dict[str, Any], agent_config: Optional[AgentConfig] = None
+    ) -> types.CallToolResult:
         """Executes a tool given its name and arguments."""
         if name not in self._tool_to_session:
             raise KeyError(f"Tool '{name}' not found or its server is not registered.")
+
+        # Security check: Ensure agent has access to this tool's server
+        if agent_config and agent_config.mcp_servers:
+            # Extract server name from tool name (format: "server_name-tool_name")
+            server_name = name.split("-", 1)[0] if "-" in name else None
+            if server_name and server_name not in agent_config.mcp_servers:
+                raise PermissionError(
+                    f"Agent '{agent_config.name}' does not have access to tool '{name}' "
+                    f"from server '{server_name}'. Allowed servers: {agent_config.mcp_servers}"
+                )
+
         session = self._tool_to_session[name]
 
         # get the actual tool name without prepended server name
@@ -220,12 +233,29 @@ class MCPHost:
         """
         all_tools = list(self.tools.values())
 
+        # Filter tools based on agent's allowed MCP servers
+        if agent_config and agent_config.mcp_servers:
+            # Only include tools from servers the agent has access to
+            filtered_tools = []
+            for tool in all_tools:
+                # Tool names are formatted as "server_name-tool_name"
+                for allowed_server in agent_config.mcp_servers:
+                    if tool.name.startswith(f"{allowed_server}-"):
+                        filtered_tools.append(tool)
+                        break
+            all_tools = filtered_tools
+            logger.debug(
+                f"Filtered tools for agent '{agent_config.name}' to {len(all_tools)} tools "
+                f"from allowed servers: {agent_config.mcp_servers}"
+            )
+
         if tool_names:
             all_tools = [tool for tool in all_tools if tool.name in tool_names]
 
         formatted_tools = [tool.model_dump() for tool in all_tools]
 
         if agent_config:
+            # Apply additional filtering based on exclude_components
             return self._filtering_manager.filter_component_list(formatted_tools, agent_config)
 
         return formatted_tools

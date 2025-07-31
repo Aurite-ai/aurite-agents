@@ -54,6 +54,25 @@ This example defines a two-step workflow for processing customer feedback.
 }
 ```
 
+### `include_history`
+**Type:** `boolean` (Optional)
+**Description:** When set, overrides the `include_history` setting for all agents in the workflow. This allows you to control conversation history persistence at the workflow level.
+
+- When `true`: Forces all agents in the workflow to save their conversation history, regardless of their individual settings
+- When `false`: Prevents all agents from saving history, even if they have `include_history: true` in their configuration
+- When not specified: Agents use their own individual `include_history` settings
+
+```json
+{
+  "name": "customer-support-workflow",
+  "type": "simple_workflow",
+  "include_history": true,
+  "steps": ["greeting-agent", "support-agent", "followup-agent"]
+}
+```
+
+This is particularly useful when you want to ensure all steps in a workflow maintain conversation history for debugging or compliance purposes, or when you want to run a workflow without persisting any history for privacy reasons.
+
 ## Steps Configuration
 
 The core of a simple workflow is the `steps` list. This list defines the sequence of components to be executed.

@@ -462,6 +462,7 @@ class AgentTurnProcessor:
                     tool_result_content = await self.host.call_tool(
                         name=tool_name,
                         args=tool_input,
+                        agent_config=self.config,
                     )
                 except Exception as e:
                     logger.error(f"Error executing tool {tool_name}: {e}")

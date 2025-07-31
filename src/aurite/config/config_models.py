@@ -139,6 +139,9 @@ class WorkflowConfig(BaseComponentConfig):
     steps: List[str | WorkflowComponent] = Field(
         description="List of component names or component objects to execute in sequence."
     )
+    include_history: Optional[bool] = Field(
+        default=None, description="If set, overrides the include_history setting for all agents in this workflow."
+    )
 
 
 # --- LLM Configuration ---

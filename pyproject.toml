@@ -188,6 +188,8 @@ select = [
     "B", # flake8-bugbear
 ]
 ignore = [
+    "E722", # do not use bare except
+    "B017", # Blind exception
     "E501", # line too long, handled by formatter
     "B008", # do not perform function calls in argument defaults
     "C901", # too complex

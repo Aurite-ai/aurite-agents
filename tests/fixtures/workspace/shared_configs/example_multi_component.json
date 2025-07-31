@@ -22,7 +22,10 @@
   {
     "name": "weather_server",
     "server_path": "src/aurite/init_templates/mcp_servers/weather_server.py",
-    "capabilities": ["tools", "prompts"],
+    "capabilities": [
+      "tools",
+      "prompts"
+    ],
     "timeout": "15.0",
     "type": "mcp_server"
   },
@@ -30,30 +33,41 @@
     "name": "planning_server",
     "type": "mcp_server",
     "server_path": "src/aurite/init_templates/mcp_servers/planning_server.py",
-    "capabilities": ["tools", "prompts", "resources"],
+    "capabilities": [
+      "tools",
+      "prompts",
+      "resources"
+    ],
     "timeout": 15.0
   },
   {
-    "name": "Weather Agent",
-    "description": "Weather Agent for testing",
-    "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
+    "description": "Updated weather agent",
+    "system_prompt": "You are a weather assistant",
     "llm_config_id": "anthropic_claude_3_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
+    "include_history": true,
+    "name": "Weather Agent",
     "type": "agent"
   },
   {
-    "name": "Persistent Weather Agent",
-    "description": "Persistent Weather Agent for testing session management",
-    "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
+    "description": "Conversation History Testing Agent",
+    "system_prompt": "You are an updated weather assistant",
     "llm_config_id": "anthropic_claude_3_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
     "include_history": true,
     "type": "agent"
   },
   {
     "name": "Weather Planning Workflow Step 2",
     "type": "agent",
-    "mcp_servers": ["planning_server"],
+    "include_history": true,
+    "mcp_servers": [
+      "planning_server"
+    ],
     "system_prompt": "You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the weather data you retrieve.",
     "llm_config_id": "anthropic_claude_3_haiku",
     "description": "An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan."
@@ -62,7 +76,11 @@
     "name": "Weather Planning Workflow",
     "type": "simple_workflow",
     "description": "A simple workflow to plan based on weather data.",
-    "steps": ["Weather Agent", "Weather Planning Workflow Step 2"]
+    "steps": [
+      "Weather Agent",
+      "Weather Planning Workflow Step 2"
+    ],
+    "include_history": true
   },
   {
     "name": "ExampleCustomWorkflow",
