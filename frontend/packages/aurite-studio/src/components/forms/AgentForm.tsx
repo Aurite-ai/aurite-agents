@@ -40,8 +40,8 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   const [deletingAgent, setDeletingAgent] = useState<any>(null);
 
   // API Hooks
-  const { data: clients = [], isLoading: clientsLoading } = useClientsWithStatus();
-  const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
+  const { data: clients = [] } = useClientsWithStatus();
+  const { data: llms = [] } = useLLMsWithConfigs();
   
   // Agent-specific hooks
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(

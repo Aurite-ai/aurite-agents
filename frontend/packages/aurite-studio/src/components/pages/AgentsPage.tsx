@@ -5,7 +5,6 @@ import { Users, Plus, Edit, Play, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAgentsWithConfigs, useExecuteAgent } from '@/hooks/useAgents';
 import { UnifiedExecutionInterface } from '@/components/execution/UnifiedExecutionInterface';
-import { AgentConfig } from '@/types/execution';
 
 export default function AgentsPage() {
   const navigate = useNavigate();
@@ -48,28 +47,6 @@ export default function AgentsPage() {
 
   const handleRunAgent = (agent: any) => {
     const agentName = extractAgentName(agent);
-    
-    // Convert agent to AgentConfig format for the execution interface
-    const agentConfig: AgentConfig = {
-      type: 'agent',
-      name: agentName,
-      description: (agent as any).fullConfig?.description || 'Agent configuration',
-      llm_config_id: (agent as any).fullConfig?.llm_config_id,
-      model: (agent as any).fullConfig?.model,
-      temperature: (agent as any).fullConfig?.temperature,
-      max_tokens: (agent as any).fullConfig?.max_tokens,
-      system_prompt: (agent as any).fullConfig?.system_prompt,
-      max_iterations: (agent as any).fullConfig?.max_iterations,
-      include_history: (agent as any).fullConfig?.include_history,
-      auto: (agent as any).fullConfig?.auto,
-      mcp_servers: (agent as any).fullConfig?.mcp_servers,
-      exclude_components: (agent as any).fullConfig?.exclude_components,
-      _source_file: agent.configFile,
-      _context_path: (agent as any).fullConfig?._context_path,
-      _context_level: (agent as any).fullConfig?._context_level,
-      _project_name: (agent as any).fullConfig?._project_name,
-      _workspace_name: (agent as any).fullConfig?._workspace_name
-    };
     
     setExecutionInterface({
       isOpen: true,

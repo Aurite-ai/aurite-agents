@@ -14,7 +14,6 @@ import {
   TimeoutError,
   CancellationError,
   WorkflowRunRequest,
-  WorkflowExecutionResult,
 } from '@aurite/api-client';
 
 class WorkflowsService {

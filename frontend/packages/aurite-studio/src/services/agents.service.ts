@@ -341,4 +341,5 @@ class AgentsService {
   }
 }
 
-export default new AgentsService();
+const agentsService = new AgentsService();
+export default agentsService;
