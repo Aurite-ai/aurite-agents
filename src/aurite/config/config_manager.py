@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,6 +38,7 @@ class ConfigManager:
         self.workspace_root: Optional[Path] = None
         self.project_name: Optional[str] = None
         self.workspace_name: Optional[str] = None
+        self.llm_validations: dict[str, datetime | None] = {}
 
         # Identify workspace and project roots by inspecting the anchor files
         for anchor_path in self.context_paths:
@@ -262,6 +264,9 @@ class ConfigManager:
                         resolved_data["module_path"] = (context_path / path).resolve()
                     else:
                         resolved_data["module_path"] = path
+        elif component_type == "llm":
+            # return last validated timestamp for llms
+            resolved_data["validated_at"] = self.llm_validations.get(resolved_data["name"], None)
 
         return resolved_data
 
@@ -309,7 +314,10 @@ class ConfigManager:
 
     def refresh(self):
         logger.debug("Refreshing configuration index...")
+        # Preserve llm_validations across refresh
+        preserved_validations = self.llm_validations.copy()
         self.__init__()
+        self.llm_validations = preserved_validations
 
     def register_component_in_memory(self, component_type: str, config: Dict[str, Any]):
         """
@@ -472,7 +480,14 @@ class ConfigManager:
         else:
             updated_content = yaml.safe_dump(file_data)
 
-        return self.update_config_file(source_name, str(relative_path), updated_content)
+        success = self.update_config_file(source_name, str(relative_path), updated_content)
+
+        # Reset LLM validation entry to None if an LLM component was updated
+        if success and component_type == "llm":
+            self.llm_validations[component_name] = None
+            logger.debug(f"Reset validation entry for LLM '{component_name}' due to configuration update.")
+
+        return success
 
     def _determine_default_context(self) -> Optional[str]:
         """
@@ -539,6 +554,10 @@ class ConfigManager:
         success = self._file_manager.add_component_to_file(target_file, component_config)
         if not success:
             return None
+
+        # set newly created components to not validated
+        if component_type == "llm":
+            self.llm_validations[component_config["name"]] = None
 
         # Refresh index to include the new component
         self.refresh()
@@ -1079,3 +1098,25 @@ class ConfigManager:
         if self.project_name:
             return self.get_project_info(self.project_name)
         return None
+
+    def validate_llm(self, llm_name: str):
+        """
+        Validate an llm config. This should be called after an llm is successfully called or tested.
+
+        Args:
+            llm_name (str): The name of the llm config to validate
+        """
+
+        self.llm_validations[llm_name] = datetime.now()
+
+    def get_llm_validation(self, llm_name) -> datetime | None:
+        """
+        Get the last time an llm was validated
+
+        Args:
+            llm_name (str): The name of the llm config
+
+        Returns:
+            datetime | None: Returns the last time an llm has been validated as running successfully. Returns None if it has not been validated.
+        """
+        return self.llm_validations.get(llm_name, None)

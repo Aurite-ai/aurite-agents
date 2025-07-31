@@ -65,6 +65,7 @@ async def run_agent(
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name.
@@ -77,6 +78,11 @@ async def run_agent(
             session_id=request.session_id,
         )
         if result.status == "success":
+            agent_config = AgentConfig(**config_manager.get_config("agent", agent_name))
+
+            if agent_config.llm_config_id and not agent_config.llm:
+                config_manager.validate_llm(agent_config.llm_config_id)
+
             return result.model_dump()
 
         if result.exception:
@@ -114,7 +120,7 @@ async def run_agent(
 async def test_llm(
     llm_config_id: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Test an LLM configuration by running a simple 10 token call
@@ -122,7 +128,7 @@ async def test_llm(
     """
     try:
         # Check if the LLM configuration exists
-        llm_config = facade._config_manager.get_config("llm", llm_config_id)
+        llm_config = config_manager.get_config("llm", llm_config_id)
         if not llm_config:
             raise HTTPException(status_code=404, detail=f"LLM configuration '{llm_config_id}' not found.")
 
@@ -131,6 +137,8 @@ async def test_llm(
         llm = LiteLLMClient(config=resolved_config)
 
         llm.validate()
+
+        config_manager.validate_llm(llm_config_id)
 
         return {
             "status": "success",
@@ -212,7 +220,11 @@ def _validate_agent(agent_name: str, config_manager: ConfigManager):
 
     llm = LiteLLMClient(config=resolved_config)
 
-    llm.validate()
+    result = llm.validate()
+
+    if result and agent_config.llm_config_id and not agent_config.llm:
+        # if llm is valid and no parameters were overriden
+        config_manager.validate_llm(agent_config.llm_config_id)
 
 
 @router.post("/agents/{agent_name}/stream")
