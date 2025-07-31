@@ -106,13 +106,17 @@ class LiteLLMClient:
         api_messages = self._convert_messages_to_openai_format(messages, resolved_system_prompt)
         api_tools = self._convert_tools_to_openai_format(tools)
 
+        api_key = None
+        if self.config.api_key_env_var:
+            api_key = os.getenv(self.config.api_key_env_var)
+
         request_params: Dict[str, Any] = {
             "model": f"{self.config.provider}/{self.config.model}",
             "messages": api_messages,
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
             "api_base": self.config.api_base,
-            "api_key": self.config.api_key,
+            "api_key": api_key,
             "api_version": self.config.api_version,
         }
 
