@@ -17,10 +17,7 @@ from mcp.client.session_group import StreamableHttpParameters
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 
-from ..config.config_models import (
-    AgentConfig,
-    ClientConfig,
-)
+from ..config.config_models import AgentConfig, ClientConfig
 from ..errors import MCPServerTimeoutError
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
@@ -116,12 +113,10 @@ class MCPHost:
             return await session.call_tool(actual_name, args)
 
         try:
-            await asyncio.wait_for(session.call_tool(actual_name, args), timeout=tool.meta["timeout"])
+            return await asyncio.wait_for(session.call_tool(actual_name, args), timeout=tool.meta["timeout"])
         except asyncio.TimeoutError:
-            logger.error(
-                f"Tool call '{actual_name}' timed out after {tool.meta['timeout']} seconds"
-            )
-            server_name = name[:-len(actual_name)-1]
+            logger.error(f"Tool call '{actual_name}' timed out after {tool.meta['timeout']} seconds")
+            server_name = name[: -len(actual_name) - 1]
             raise MCPServerTimeoutError(
                 server_name=server_name, timeout_seconds=tool.meta["timeout"], operation="tool_call"
             ) from asyncio.TimeoutError

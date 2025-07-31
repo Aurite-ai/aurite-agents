@@ -1,5 +1,5 @@
 """
-Pytest fixtures related to Workflow configurations (Simple and Custom).
+Pytest fixtures related to Workflow configurations (Linear and Custom).
 """
 
 from pathlib import Path

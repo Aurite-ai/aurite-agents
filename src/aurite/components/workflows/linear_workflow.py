@@ -1,5 +1,5 @@
 """
-Executor for Simple Sequential Workflows.
+Executor for Linear Sequential Workflows.
 """
 
 import json
