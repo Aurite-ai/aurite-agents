@@ -234,7 +234,10 @@ class Agent:
                         elif event_type == "message_complete":
                             content = event.get("content", "")
                             self.conversation_history.append({"role": "assistant", "content": content})
-                            yield {"type": "llm_response_stop", "data": {"status": "success", "reason": "success"}}
+                            yield {
+                                "type": "llm_response_stop",
+                                "data": {"status": "success", "reason": "message_complete"},
+                            }
                             if not is_tool_turn:
                                 return  # End of conversation
 
