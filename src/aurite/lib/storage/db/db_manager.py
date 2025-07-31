@@ -15,7 +15,7 @@ from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
 from sqlalchemy import delete, func  # Import delete and func
 from sqlalchemy.engine import Engine  # Import Engine for type hint
 
-from ..config.config_models import (
+from ...config.config_models import (
     AgentConfig,
     CustomWorkflowConfig,
     LLMConfig,
@@ -33,7 +33,7 @@ from .db_models import (
     WorkflowConfigDB,
 )
 from .db_models import (
-    Base as SQLAlchemyBase,  # Alias Base
+    Base as SQLAlchemyBase,
 )
 
 logger = logging.getLogger(__name__)

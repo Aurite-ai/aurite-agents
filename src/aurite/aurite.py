@@ -34,9 +34,9 @@ from .config.config_models import (
 )
 from .execution.facade import ExecutionFacade
 from .host.host import MCPHost
-from .storage.cache_manager import CacheManager
-from .storage.db_connection import create_db_engine
-from .storage.db_manager import StorageManager
+from .storage.db.db_connection import create_db_engine
+from .storage.db.db_manager import StorageManager
+from .storage.sessions.cache_manager import CacheManager
 
 if TYPE_CHECKING:
     pass

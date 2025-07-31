@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ....components.llm.providers.litellm_client import LiteLLMClient
+from ....components.llm.litellm_client import LiteLLMClient
 from ....config.config_manager import ConfigManager
 from ....config.config_models import AgentConfig, LLMConfig
 from ....errors import ConfigurationError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
-from ....storage.session_manager import SessionManager
-from ....storage.session_models import ExecutionHistoryResponse, SessionListResponse
+from ....storage.sessions.session_manager import SessionManager
+from ....storage.sessions.session_models import ExecutionHistoryResponse, SessionListResponse
 from ...dependencies import (
     get_api_key,
     get_config_manager,

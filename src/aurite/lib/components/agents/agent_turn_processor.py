@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 from ...config.config_models import AgentConfig
 from ...host.host import MCPHost
-from ..llm.providers.litellm_client import LiteLLMClient
+from ..llm.litellm_client import LiteLLMClient
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,8 @@ from pathlib import Path
 import mcp.types as types
 import pytest
 
+from aurite.aurite import Aurite
 from aurite.config.config_models import ClientConfig
-from aurite.host_manager import Aurite
 
 
 @pytest.mark.asyncio

@@ -13,16 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
 
+# Adjust imports for new location (src/bin -> src)
+from ...aurite import (  # Corrected relative import (up two levels from src/bin/api)
+    Aurite,
+)
 from ...errors import (
     AgentExecutionError,
     ConfigurationError,
     MCPServerTimeoutError,
     WorkflowExecutionError,
-)
-
-# Adjust imports for new location (src/bin -> src)
-from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
-    Aurite,
 )
 
 # Import shared dependencies (relative to parent directory - src/bin)

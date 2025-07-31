@@ -19,7 +19,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import Function
 
 from ...config.config_models import AgentConfig, LLMConfig
 from ...host.host import MCPHost
-from ..llm.providers.litellm_client import LiteLLMClient
+from ..llm.litellm_client import LiteLLMClient
 from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
 

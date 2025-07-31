@@ -12,7 +12,7 @@ from termcolor import colored
 
 from ..components.agents.agent import Agent
 from ..components.agents.agent_models import AgentRunResult
-from ..components.llm.providers.litellm_client import LiteLLMClient
+from ..components.llm.litellm_client import LiteLLMClient
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
 from ..components.workflows.linear_workflow import LinearWorkflowExecutor
 from ..components.workflows.workflow_models import LinearWorkflowExecutionResult
@@ -25,10 +25,10 @@ from ..config.config_models import (
 )
 from ..errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 from ..host.host import MCPHost
-from ..storage.cache_manager import CacheManager
-from ..storage.db_manager import StorageManager
-from ..storage.session_manager import SessionManager
-from ..storage.session_models import SessionMetadata
+from ..storage.db.db_manager import StorageManager
+from ..storage.sessions.cache_manager import CacheManager
+from ..storage.sessions.session_manager import SessionManager
+from ..storage.sessions.session_models import SessionMetadata
 
 if TYPE_CHECKING:
     from langfuse.client import StatefulTraceClient
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ExecutionFacade:
+class AuriteExecutor:
     """
     A facade that simplifies the execution of different component types
     (Agents, Linear Workflows, Custom Workflows) managed by the Aurite.

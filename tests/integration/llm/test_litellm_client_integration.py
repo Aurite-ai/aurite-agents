@@ -6,7 +6,7 @@ import openai
 import pytest
 from pytest_httpserver import HTTPServer
 
-from aurite.components.llm.providers.litellm_client import LiteLLMClient
+from aurite.components.llm.litellm_client import LiteLLMClient
 from aurite.config.config_models import LLMConfig
 
 # --- Fixtures ---

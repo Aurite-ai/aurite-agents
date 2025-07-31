@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from aurite.aurite import Aurite
 from aurite.config.config_models import ClientConfig
 from aurite.errors import MCPServerTimeoutError
-from aurite.host_manager import Aurite
 
 
 @pytest.mark.asyncio
@@ -25,6 +25,7 @@ async def test_stdio_server_working(with_test_config):
 
         with pytest.raises(MCPServerTimeoutError) as e:
             tool_result = await host.call_tool("error_stdio_server-timeout", {"a": 1, "b": 2})
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/error_http_server.py"], indirect=True)

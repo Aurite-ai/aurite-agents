@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import BaseModel
 
-from ...dependencies import get_api_key, get_host_manager
+from ...dependencies import get_api_key, get_aurite
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -618,7 +618,7 @@ async def list_active_processes(api_key: str = Security(get_api_key)):
 @router.get("/health", response_model=HealthCheckResult)
 async def comprehensive_health_check(
     api_key: str = Security(get_api_key),
-    host_manager=Depends(get_host_manager),
+    aurite=Depends(get_aurite),
 ):
     """
     Perform a comprehensive health check of all system components.
@@ -629,12 +629,12 @@ async def comprehensive_health_check(
     # Check API health
     components["api"] = {
         "status": "healthy",
-        "uptime": time.time() - host_manager._start_time if hasattr(host_manager, "_start_time") else 0,
+        "uptime": time.time() - aurite._start_time if hasattr(aurite, "_start_time") else 0,
     }
 
     # Check ConfigManager
     try:
-        config_manager = host_manager.get_config_manager()
+        config_manager = aurite.get_config_manager()
         components["config_manager"] = {
             "status": "healthy",
             "project_root": str(config_manager.project_root),
@@ -649,8 +649,8 @@ async def comprehensive_health_check(
 
     # Check MCPHost
     try:
-        if host_manager.kernel.host:
-            host = host_manager.kernel.host
+        if aurite.kernel.host:
+            host = aurite.kernel.host
             components["mcp_host"] = {
                 "status": "healthy",
                 "registered_servers": len(host.registered_server_names),
@@ -671,7 +671,7 @@ async def comprehensive_health_check(
 
     # Check ExecutionFacade
     try:
-        if host_manager.kernel.execution:
+        if aurite.kernel.execution:
             components["execution_facade"] = {
                 "status": "healthy",
                 "ready": True,

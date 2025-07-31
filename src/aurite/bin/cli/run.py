@@ -6,8 +6,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from ...aurite import Aurite
 from ...errors import AuriteError
-from ...host_manager import Aurite
 from .ui_presenter import RunPresenter
 
 console = Console()

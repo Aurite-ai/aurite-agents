@@ -111,8 +111,8 @@ if __name__ == "__main__":
     logging.critical("This is a critical message from logging_config.")
 
     # Example of how module-specific loggers would look
-    logger_host_manager = logging.getLogger("aurite.host_manager")
-    logger_host_manager.info("Info from host_manager.")
+    logger_aurite = logging.getLogger("aurite.aurite")
+    logger_aurite.info("Info from aurite.")
 
     logger_facade = logging.getLogger("aurite.execution.facade")
     logger_facade.info("Info from facade.")

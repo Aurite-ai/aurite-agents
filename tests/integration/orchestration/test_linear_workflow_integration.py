@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from openai.types.chat import ChatCompletionMessage
 
+from aurite.aurite import Aurite
 from aurite.components.agents.agent_models import AgentRunResult
-from aurite.host_manager import Aurite
 
 
 @pytest.mark.anyio

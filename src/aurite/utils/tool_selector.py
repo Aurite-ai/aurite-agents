@@ -6,7 +6,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from ..components.llm.providers.litellm_client import LiteLLMClient
+from ..components.llm.litellm_client import LiteLLMClient
 from ..config.config_models import AgentConfig, LLMConfig
 
 if TYPE_CHECKING:

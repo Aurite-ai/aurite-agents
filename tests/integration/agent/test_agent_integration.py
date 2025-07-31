@@ -12,7 +12,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 
 from aurite.components.agents.agent import Agent
-from aurite.components.llm.providers.litellm_client import LiteLLMClient
+from aurite.components.llm.litellm_client import LiteLLMClient
 from aurite.config.config_models import AgentConfig, LLMConfig
 from aurite.host.host import MCPHost
 

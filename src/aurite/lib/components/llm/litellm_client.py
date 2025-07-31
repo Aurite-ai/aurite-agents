@@ -14,7 +14,7 @@ from openai.types.chat import (
     ChatCompletionMessage,
 )
 
-from ....config.config_models import LLMConfig
+from ...config.config_models import LLMConfig
 
 if TYPE_CHECKING:
     from langfuse.client import StatefulSpanClient, StatefulTraceClient

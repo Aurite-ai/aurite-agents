@@ -8,7 +8,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
-from ...host_manager import Aurite
+from ...aurite import Aurite
 
 console = Console()
 logger = console.print
