@@ -62,9 +62,52 @@ Live execution monitoring with streaming responses and tool call tracking.
 
 ### Installation
 
+#### Option 1: Workspace Setup (Recommended)
+
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Aurite-ai/aurite-agents.git
+   git clone https://github.com/aurite-ai/aurite-agents.git
+   cd aurite-agents/frontend
+   ```
+
+2. **Install dependencies for all packages**
+   ```bash
+   npm install
+   ```
+
+3. **Build all packages (required before starting)**
+   ```bash
+   npm run build
+   ```
+
+4. **Configure environment**
+   ```bash
+   # Copy environment template
+   cp packages/aurite-studio/.env.example packages/aurite-studio/.env
+   
+   # Edit packages/aurite-studio/.env with your API configuration
+   # REACT_APP_API_BASE_URL=http://localhost:8000
+   # REACT_APP_API_KEY=your_api_key_here
+   ```
+
+5. **Start Aurite Studio**
+   ```bash
+   # Option A: From frontend root (recommended)
+   npm start
+   
+   # Option B: From package directory
+   cd packages/aurite-studio
+   npm start
+   ```
+
+6. **Open in browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+#### Option 2: Package-Only Setup
+
+1. **Clone and navigate to package**
+   ```bash
+   git clone https://github.com/aurite-ai/aurite-agents.git
    cd aurite-agents/frontend/packages/aurite-studio
    ```
 
@@ -79,8 +122,6 @@ Live execution monitoring with streaming responses and tool call tracking.
    cp .env.example .env
    
    # Edit .env with your API configuration
-   REACT_APP_API_URL=http://localhost:8000
-   REACT_APP_API_KEY=your_api_key_here
    ```
 
 4. **Start the development server**
@@ -96,7 +137,7 @@ Live execution monitoring with streaming responses and tool call tracking.
 ```bash
 # Build and run with Docker
 docker build -t aurite-studio .
-docker run -p 3000:3000 -e REACT_APP_API_URL=http://localhost:8000 aurite-studio
+docker run -p 3000:3000 -e REACT_APP_API_BASE_URL=http://localhost:8000 aurite-studio
 ```
 
 ## Usage Guide
@@ -248,7 +289,7 @@ Create a `.env` file in the project root:
 
 ```bash
 # API Configuration
-REACT_APP_API_URL=http://localhost:8000
+REACT_APP_API_BASE_URL=http://localhost:8000
 REACT_APP_API_KEY=your_api_key_here
 
 # Optional Configuration
@@ -275,7 +316,7 @@ python -m aurite.bin.server --host 0.0.0.0 --port 8000
 
 **Connection Refused**
 - Ensure the API server is running on the correct port
-- Check that `REACT_APP_API_URL` matches your server configuration
+- Check that `REACT_APP_API_BASE_URL` matches your server configuration
 - Verify firewall settings allow connections
 
 **Authentication Errors**
