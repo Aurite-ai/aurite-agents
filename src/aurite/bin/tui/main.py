@@ -287,9 +287,9 @@ class AuriteTUI(App):
                 if event.get("type") == "llm_response":
                     self.post_message(self.StreamMessage(event.get("data", {}).get("content", "")))
 
-        elif self.current_component_type == "simple_workflows":
+        elif self.current_component_type == "linear_workflows":
             self.post_message(self.ClearLogMessage())
-            result = await self.aurite.kernel.execution.run_simple_workflow(self.current_component_name, message)
+            result = await self.aurite.kernel.execution.run_linear_workflow(self.current_component_name, message)
             self.post_message(self.StreamMessage(str(result)))
         else:
             self.post_message(self.StreamMessage("This component type is not runnable."))
@@ -305,7 +305,7 @@ class AuriteTUI(App):
         elif event.button.id == "run-button":
             if self.current_component_name and self.current_component_type in [
                 "agents",
-                "simple_workflows",
+                "linear_workflows",
             ]:
                 run_input = self.query_one("#output-pane-controls Input", Input)
                 message = run_input.value

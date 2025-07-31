@@ -82,7 +82,7 @@ nav:
       - "Projects and Workspaces": "config/projects_and_workspaces.md"
       - "Agent": "config/agent.md"
       - "LLM": "config/llm.md"
-      - "Simple Workflow": "config/simple_workflow.md"
+      - "Simple Workflow": "config/linear_workflow.md"
       - "Custom Workflow": "config/custom_workflow.md"
       - "MCP Server": "config/mcp_server.md"
   - "Usage":

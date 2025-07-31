@@ -22,7 +22,7 @@ An in-depth look at the features each component offers through json configuratio
 - **[LLM Configs](config/llm.md)**
 - **[MCP Server Configs](config/mcp_server.md)**
 - **[Agent Configs](config/agent.md)**
-- **[Simple Workflow Configs](config/simple_workflow.md)**
+- **[Linear Workflow Configs](config/linear_workflow.md)**
 - **[Custom Workflow Configs](config/custom_workflow.md)**
 
 ### 3. Framework Architecture

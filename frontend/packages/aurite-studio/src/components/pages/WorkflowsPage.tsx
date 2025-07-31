@@ -59,7 +59,7 @@ export default function WorkflowsPage() {
       } else {
         const config = await workflowsService.getWorkflowConfigByName(workflowName);
         workflowConfig = {
-          type: 'simple_workflow',
+          type: 'linear_workflow',
           name: workflowName,
           description: config.description,
           steps: config.steps || [],
@@ -133,8 +133,8 @@ export default function WorkflowsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allWorkflows.map((workflow, index) => {
               const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
-              const badgeText = workflow.type === 'simple_workflow' ? 'Simple' : 'Custom';
-              const badgeColor = workflow.type === 'simple_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+              const badgeText = workflow.type === 'linear_workflow' ? 'Simple' : 'Custom';
+              const badgeColor = workflow.type === 'linear_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
               
               return (
                 <motion.div

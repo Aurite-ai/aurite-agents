@@ -21,7 +21,7 @@ You are a **Junior Market Analyst** at **"Momentum Media"**, a dynamic marketing
 **Your Goal:** Build a three-agent workflow that automates this entire process.
 
 ### Core Concepts to Apply
-*   **Simple Workflows:** Defining a sequence of agents to run in order.
+*   **Linear Workflows:** Defining a sequence of agents to run in order.
 *   **Structured Output:** Using `config_validation_schema` to force an agent to produce reliable JSON data.
 *   **Tool Integration:** Using tools for data retrieval (`game_trends_mcp`), web research (`duckduckgo_search`), and file I/O (`desktop_commander`).
 

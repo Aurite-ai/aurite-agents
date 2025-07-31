@@ -122,7 +122,7 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
                     Cancel
                   </Button>
                 </div>
-                
+
                 <WorkflowProgress
                   steps={workflow.steps || []}
                   currentStepIndex={executionState.currentStepIndex}
@@ -167,7 +167,7 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
                   <h3 className="font-medium">Workflow Completed</h3>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {executionState.endTime && executionState.startTime && 
+                  {executionState.endTime && executionState.startTime &&
                     `${Math.round((executionState.endTime.getTime() - executionState.startTime.getTime()) / 1000)}s`
                   }
                 </div>
@@ -189,7 +189,7 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
                   </div>
                 )}
 
-                {/* Step Results Summary - Only show for simple workflows */}
+                 {/* Step Results Summary - Only show for linear workflows */}
                 {!isCustomWorkflow && (
                   <div className="space-y-2">
                     <h4 className="font-medium text-foreground">Step Summary</h4>
@@ -222,7 +222,7 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
                             {/* Show final response preview */}
                             {step.result?.final_response?.content && (
                               <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border-l-2 border-green-500">
-                                {step.result.final_response.content.length > 100 
+                                {step.result.final_response.content.length > 100
                                   ? `${step.result.final_response.content.substring(0, 100)}...`
                                   : step.result.final_response.content
                                 }
@@ -270,8 +270,8 @@ export const WorkflowExecutionPanel: React.FC<WorkflowExecutionPanelProps> = ({
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => onStateChange({ 
-                    ...executionState, 
+                  onClick={() => onStateChange({
+                    ...executionState,
                     status: 'idle',
                     error: undefined,
                     result: undefined

@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from aurite.components.agents.agent_models import AgentRunResult
     from aurite.execution.facade import ExecutionFacade
 
-
 from aurite.components.workflows.workflow_models import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)

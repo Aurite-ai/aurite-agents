@@ -212,7 +212,7 @@ export interface UseExecutionSessionsReturn {
 
 // Workflow Configuration (from existing API alignment)
 export interface WorkflowConfig {
-  type: 'simple_workflow' | 'custom_workflow';
+  type: 'linear_workflow' | 'custom_workflow';
   name: string;
   description?: string;
   steps?: (string | { name: string; type?: string })[];

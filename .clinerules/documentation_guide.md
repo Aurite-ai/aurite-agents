@@ -49,7 +49,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `agent.md` - Agent configuration options
 - `llm.md` - LLM provider configurations
 - `mcp_server.md` - MCP server setup and configuration
-- `simple_workflow.md` - Sequential workflow configuration
+- `linear_workflow.md` - Sequential workflow configuration
 - `custom_workflow.md` - Python-based workflow configuration
 
 ### 4. Interfaces & Usage

@@ -18,7 +18,7 @@ def sample_workflow_config() -> WorkflowConfig:
     """Provides a sample simple workflow configuration for unit tests."""
     # Assumes agents 'Agent1' and 'Agent2' exist where this is used
     return WorkflowConfig(
-        name="TestSimpleWorkflow",
+        name="TestLinearWorkflow",
         steps=["Agent1", "Agent2"],
         description="A test simple workflow",
     )

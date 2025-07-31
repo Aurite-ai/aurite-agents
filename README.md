@@ -20,7 +20,7 @@ Whether you're creating advanced AI assistants, automating processes, or experim
 -   **Declarative Components:** Define agents, LLMs, tools, and workflows in simple JSON or YAML files.
 -   **Interactive CLI & TUIs:** A rich command-line interface (`aurite`) and two built-in Textual User Interfaces (TUIs) for interactive chat and configuration editing.
 -   **Extensible Tooling:** Connect to any tool or service using the **Model Context Protocol (MCP)**, with built-in support for local and remote servers.
--   **Flexible Orchestration:** Chain agents together in `simple_workflows` for sequential tasks or write custom Python logic in `custom_workflows` for complex orchestration.
+-   **Flexible Orchestration:** Chain agents together in `linear_workflows` for sequential tasks or write custom Python logic in `custom_workflows` for complex orchestration.
 -   **REST API:** A comprehensive FastAPI server that exposes all framework functionality for programmatic access and UI development.
 
 ## Getting Started
@@ -59,7 +59,7 @@ Your application is built by defining and combining different types of component
 -   **[Agents](docs/config/agent.md):** The core actors, powered by an LLM and capable of using tools.
 -   **[LLMs](docs/config/llm.md):** Configurations for different language models (e.g., GPT-4, Claude 3).
 -   **[MCP Servers](docs/config/mcp_server.md):** Connections to external tools and resources.
--   **[Simple Workflows](docs/config/simple_workflow.md):** A sequence of agents to be executed in order.
+-   **[Linear Workflows](docs/config/linear_workflow.md):** A sequence of agents to be executed in order.
 -   **[Custom Workflows](docs/config/custom_workflow.md):** Complex orchestration logic defined in your own Python code.
 
 ### 3. Interfaces
@@ -93,7 +93,7 @@ For a deep dive into the framework's design, see the [**Architecture Overview**]
     -   [Agent Config](docs/config/agent.md)
     -   [LLM Config](docs/config/llm.md)
     -   [MCP Server Config](docs/config/mcp_server.md)
-    -   [Simple Workflow Config](docs/config/simple_workflow.md)
+    -   [Linear Workflow Config](docs/config/linear_workflow.md)
     -   [Custom Workflow Config](docs/config/custom_workflow.md)
 -   **Architecture**
     -   [Architecture Overview](docs/architecture/overview.md)

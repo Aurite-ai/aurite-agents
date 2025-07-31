@@ -151,21 +151,21 @@ export class ExecutionFacadeClient extends BaseClient {
   }
 
   /**
-   * Run a simple workflow (sequential agent execution)
+   * Run a linear workflow (sequential agent execution)
    *
    * Simple workflows execute a series of agents in sequence, where:
    * - Each agent receives the output of the previous agent
    * - The workflow stops if any agent fails
    * - The final output is from the last agent in the sequence
    *
-   * @param workflowName - Name of the configured simple workflow
+   * @param workflowName - Name of the configured linear workflow
    * @param request - Request containing the initial input for the workflow
    * @returns Execution result with details about each step
    * @throws Error if the workflow is not found or execution fails
    *
    * @example
    * ```typescript
-   * const result = await client.execution.runSimpleWorkflow(
+   * const result = await client.execution.runLinearWorkflow(
    *   'Weather Planning Workflow',
    *   { initial_input: 'What should I wear in London today?' }
    * );
@@ -176,13 +176,13 @@ export class ExecutionFacadeClient extends BaseClient {
    * });
    * ```
    */
-  async runSimpleWorkflow(
+  async runLinearWorkflow(
     workflowName: string,
     request: WorkflowRunRequest
   ): Promise<WorkflowExecutionResult> {
     return this.request(
       'POST',
-      `/execution/workflows/simple/${encodeURIComponent(workflowName)}/run`,
+      `/execution/workflows/linear/${encodeURIComponent(workflowName)}/run`,
       request
     );
   }
@@ -228,10 +228,10 @@ export class ExecutionFacadeClient extends BaseClient {
     return this.request('POST', `/execution/agents/${encodeURIComponent(agentName)}/test`);
   }
 
-  async testSimpleWorkflow(workflowName: string): Promise<{ status: string }> {
+  async testLinearWorkflow(workflowName: string): Promise<{ status: string }> {
     return this.request(
       'POST',
-      `/execution/workflows/simple/${encodeURIComponent(workflowName)}/test`
+      `/execution/workflows/linear/${encodeURIComponent(workflowName)}/test`
     );
   }
 

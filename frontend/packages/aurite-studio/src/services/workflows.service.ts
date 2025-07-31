@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { 
+import {
   WorkflowConfig,
   WorkflowDisplayModel,
   CustomWorkflowConfig,
@@ -18,10 +18,10 @@ import {
 } from '@aurite/api-client';
 
 class WorkflowsService {
-  // List all registered simple workflows
+  // List all registered linear workflows
   async listWorkflows(): Promise<string[]> {
     try {
-      return await apiClient.config.listConfigs('simple_workflows');
+      return await apiClient.config.listConfigs('linear_workflows');
     } catch (error) {
       this.handleError(error, 'Failed to list workflows');
       throw error;
@@ -41,7 +41,7 @@ class WorkflowsService {
   // List workflow configuration files
   async listWorkflowConfigs(): Promise<string[]> {
     try {
-      return await apiClient.config.listConfigs('simple_workflows');
+      return await apiClient.config.listConfigs('linear_workflows');
     } catch (error) {
       this.handleError(error, 'Failed to list workflow configurations');
       throw error;
@@ -61,7 +61,7 @@ class WorkflowsService {
   // Get workflow configuration by ID
   async getWorkflowById(id: string): Promise<WorkflowConfig> {
     try {
-      const config = await apiClient.config.getConfig('simple_workflow', id);
+      const config = await apiClient.config.getConfig('linear_workflow', id);
       return this.mapToLocalWorkflowConfig(config);
     } catch (error) {
       this.handleError(error, `Failed to get workflow configuration for ${id}`);
@@ -72,7 +72,7 @@ class WorkflowsService {
   // Get workflow configuration by filename
   async getWorkflowConfig(filename: string): Promise<WorkflowConfig> {
     try {
-      const config = await apiClient.config.getConfig('simple_workflow', filename);
+      const config = await apiClient.config.getConfig('linear_workflow', filename);
       return this.mapToLocalWorkflowConfig(config);
     } catch (error) {
       this.handleError(error, `Failed to get workflow configuration ${filename}`);
@@ -83,7 +83,7 @@ class WorkflowsService {
   // Get workflow configuration by name (for editing) - similar to LLM config pattern
   async getWorkflowConfigByName(workflowName: string): Promise<WorkflowConfig> {
     try {
-      const config = await apiClient.config.getConfig('simple_workflow', workflowName);
+      const config = await apiClient.config.getConfig('linear_workflow', workflowName);
       return this.mapToLocalWorkflowConfig(config);
     } catch (error) {
       this.handleError(error, `Failed to get workflow configuration for ${workflowName}`);
@@ -117,7 +117,7 @@ class WorkflowsService {
   async createWorkflowConfig(filename: string, config: WorkflowConfig): Promise<WorkflowConfig> {
     try {
       const apiConfig = this.mapToApiWorkflowConfig(config);
-      const result = await apiClient.config.createConfig('simple_workflow', apiConfig);
+      const result = await apiClient.config.createConfig('linear_workflow', apiConfig);
       return this.mapToLocalWorkflowConfig(result);
     } catch (error) {
       this.handleError(error, `Failed to create workflow configuration ${filename}`);
@@ -129,7 +129,7 @@ class WorkflowsService {
   async updateWorkflowConfig(filename: string, config: WorkflowConfig): Promise<WorkflowConfig> {
     try {
       const apiConfig = this.mapToApiWorkflowConfig(config);
-      const result = await apiClient.config.updateConfig('simple_workflow', filename, apiConfig);
+      const result = await apiClient.config.updateConfig('linear_workflow', filename, apiConfig);
       return this.mapToLocalWorkflowConfig(result);
     } catch (error) {
       this.handleError(error, `Failed to update workflow configuration ${filename}`);
@@ -152,7 +152,7 @@ class WorkflowsService {
   // Delete workflow configuration
   async deleteWorkflowConfig(filename: string): Promise<void> {
     try {
-      await apiClient.config.deleteConfig('simple_workflow', filename);
+      await apiClient.config.deleteConfig('linear_workflow', filename);
     } catch (error) {
       this.handleError(error, `Failed to delete workflow configuration ${filename}`);
       throw error;
@@ -169,7 +169,7 @@ class WorkflowsService {
     }
   }
 
-  // Register a simple workflow (reload configs)
+  // Register a linear workflow (reload configs)
   async registerWorkflow(config: WorkflowConfig): Promise<SuccessResponse> {
     try {
       await apiClient.config.reloadConfigs();
@@ -197,7 +197,7 @@ class WorkflowsService {
     }
   }
 
-  // Execute a simple workflow
+  // Execute a linear workflow
   async executeWorkflow(
     workflowName: string,
     request: ExecuteWorkflowRequest
@@ -207,9 +207,9 @@ class WorkflowsService {
         initial_input: request.initial_input,
         session_id: request.session_id,
       };
-      
-      const result = await apiClient.execution.runSimpleWorkflow(workflowName, apiRequest);
-      
+
+      const result = await apiClient.execution.runLinearWorkflow(workflowName, apiRequest);
+
       return this.mapToLocalWorkflowResponse(workflowName, result);
     } catch (error) {
       this.handleError(error, `Failed to execute workflow ${workflowName}`);
@@ -226,9 +226,9 @@ class WorkflowsService {
       const apiRequest: WorkflowRunRequest = {
         initial_input: request.initial_input,
       };
-      
+
       const result = await apiClient.execution.runCustomWorkflow(workflowName, apiRequest);
-      
+
       return this.mapToLocalCustomWorkflowResponse(workflowName, result);
     } catch (error) {
       this.handleError(error, `Failed to execute custom workflow ${workflowName}`);
@@ -248,14 +248,14 @@ class WorkflowsService {
     registration: SuccessResponse;
   }> {
     const filename = this.generateConfigFilename(config.name);
-    
+
     try {
       // First create the config file
       await this.createWorkflowConfig(filename, config);
-      
+
       // Then register the workflow
       const registration = await this.registerWorkflow(config);
-      
+
       return {
         configFile: filename,
         registration
@@ -283,7 +283,7 @@ class WorkflowsService {
   private mapToLocalWorkflowConfig(apiConfig: any): WorkflowConfig {
     return {
       name: apiConfig.name,
-      type: "simple_workflow",
+      type: "linear_workflow",
       steps: apiConfig.steps || [],
       description: apiConfig.description,
     };
@@ -293,7 +293,7 @@ class WorkflowsService {
   private mapToApiWorkflowConfig(localConfig: WorkflowConfig): any {
     return {
       name: localConfig.name,
-      type: "simple_workflow",
+      type: "linear_workflow",
       steps: localConfig.steps || [],
       description: localConfig.description,
     };
@@ -302,7 +302,7 @@ class WorkflowsService {
   // Helper to create WorkflowDisplayModel from WorkflowConfig
   private createDisplayModel(config: WorkflowConfig, configFile?: string): WorkflowDisplayModel {
     const stepCount = config.steps?.length || 0;
-    const stepPreview = stepCount > 0 
+    const stepPreview = stepCount > 0
       ? config.steps.slice(0, 3).join(' → ') + (stepCount > 3 ? ' ...' : '')
       : 'No steps configured';
 
@@ -311,7 +311,7 @@ class WorkflowsService {
       description: config.description,
       stepCount,
       stepPreview,
-      type: 'simple_workflow',
+      type: 'linear_workflow',
       status: 'active',
       configFile,
     };
@@ -353,9 +353,9 @@ class WorkflowsService {
     // Handle the actual API response format from custom workflow execution
     // Backend returns: { status: "ok", response: "..." } for success
     // Backend returns: { status: "error", error: "..." } for failure
-    
+
     const isSuccess = apiResult.status === 'ok' || apiResult.status === 'completed';
-    
+
     return {
       workflow_name: workflowName,
       status: isSuccess ? 'completed' : 'failed',

@@ -119,7 +119,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
     // Build the workflow config object from form state
     const workflowConfig = {
       name: workflowName,
-      type: "simple_workflow" as const,
+      type: "linear_workflow" as const,
       steps: workflowSteps.map(step => step.agent), // Convert UI format to API format
       description: workflowDescription || undefined
     };

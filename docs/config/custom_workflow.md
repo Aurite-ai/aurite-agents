@@ -1,6 +1,6 @@
 # Custom Workflow Configuration
 
-When a `simple_workflow` isn't enough to capture your logic, you can implement a **Custom Workflow** directly in Python. This gives you complete control over the execution flow, allowing for conditional logic, branching, looping, and complex data manipulation between steps.
+When a `linear_workflow` isn't enough to capture your logic, you can implement a **Custom Workflow** directly in Python. This gives you complete control over the execution flow, allowing for conditional logic, branching, looping, and complex data manipulation between steps.
 
 A custom workflow configuration is a JSON or YAML object with a `type` field set to `"custom_workflow"`. Its purpose is to link a component name to your Python code.
 

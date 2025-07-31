@@ -127,15 +127,15 @@ class HostConfig(BaseComponentConfig):
 
 class WorkflowComponent(BaseModel):
     name: str = Field(description="The name of the component in the workflow step.")
-    type: Literal["agent", "simple_workflow", "custom_workflow"] = Field(description="The type of the component.")
+    type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(description="The type of the component.")
 
 
 class WorkflowConfig(BaseComponentConfig):
     """
-    Configuration for a simple, sequential agent workflow.
+    Configuration for a linear, sequential agent workflow.
     """
 
-    type: Literal["simple_workflow"] = "simple_workflow"
+    type: Literal["linear_workflow"] = "linear_workflow"
     steps: List[str | WorkflowComponent] = Field(
         description="List of component names or component objects to execute in sequence."
     )
@@ -276,7 +276,7 @@ class ProjectConfig(BaseComponentConfig):
         default_factory=list,
         description="Agents defined or referenced by this project.",
     )
-    simple_workflows: List[WorkflowConfig] = Field(
+    linear_workflows: List[WorkflowConfig] = Field(
         default_factory=list,
         description="Simple workflows defined or referenced by this project.",
     )

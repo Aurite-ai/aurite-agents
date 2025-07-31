@@ -64,7 +64,7 @@ class CacheManager:
             session_id: The unique identifier for the session.
 
         Returns:
-            The execution result dict (AgentRunResult or SimpleWorkflowExecutionResult), or None if not found.
+            The execution result dict (AgentRunResult or LinearWorkflowExecutionResult), or None if not found.
         """
         # Check memory cache first
         if session_id in self._result_cache:
@@ -89,7 +89,7 @@ class CacheManager:
 
         Args:
             session_id: The unique identifier for the session.
-            execution_result: The complete execution result (AgentRunResult or SimpleWorkflowExecutionResult as dict).
+            execution_result: The complete execution result (AgentRunResult or LinearWorkflowExecutionResult as dict).
             result_type: Type of result ("agent" or "workflow").
         """
         logger.info(f"CacheManager.save_result called for session_id: {session_id}")

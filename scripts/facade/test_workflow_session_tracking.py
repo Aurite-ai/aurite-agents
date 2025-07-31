@@ -46,11 +46,11 @@ async def run_agent(agent_name: str, user_message: str, session_id: str):
         return response.json()
 
 
-async def run_simple_workflow(workflow_name: str, initial_input: str, session_id: str):
-    """Run a simple workflow via the API."""
+async def run_linear_workflow(workflow_name: str, initial_input: str, session_id: str):
+    """Run a linear workflow via the API."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json={"initial_input": initial_input, "session_id": session_id},
             timeout=60.0,
@@ -137,7 +137,7 @@ async def main():
 
     try:
         print(f"   Running 'Weather Planning Workflow' with session ID: {workflow_session_id}")
-        result = await run_simple_workflow(
+        result = await run_linear_workflow(
             workflow_name="Weather Planning Workflow",
             initial_input="What should I wear in San Francisco today?",
             session_id=workflow_session_id,
@@ -182,7 +182,7 @@ async def main():
         print(f"   Agents: {', '.join(agents_in_workflow)}")
     else:
         print(f"   ❌ No entries found for workflow session: {workflow_session_id}")
-        print("   This suggests that simple workflows are NOT passing session_id to agent executions!")
+        print("   This suggests that linear workflows are NOT passing session_id to agent executions!")
 
     # Look for any files that might be related to our workflow
     print("\n🔍 Looking for workflow-related files:")
@@ -211,9 +211,9 @@ async def main():
     print("\n🔍 Key Findings:")
     print("   1. Individual agents with session_id DO create cache entries")
     print("   2. Simple workflows may NOT be passing session_id to agent executions")
-    print("   3. Check SimpleWorkflowExecutor.execute() to see if it passes session_id")
+    print("   3. Check LinearWorkflowExecutor.execute() to see if it passes session_id")
     print(
-        "\n💡 Next Step: Review the simple_workflow.py code to see if session_id is being passed to facade.run_agent()"
+        "\n💡 Next Step: Review the linear_workflow.py code to see if session_id is being passed to facade.run_agent()"
     )
 
 

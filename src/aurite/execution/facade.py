@@ -14,8 +14,8 @@ from ..components.agents.agent import Agent
 from ..components.agents.agent_models import AgentRunResult
 from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
-from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
+from ..components.workflows.linear_workflow import LinearWorkflowExecutor
+from ..components.workflows.workflow_models import LinearWorkflowExecutionResult
 from ..config.config_manager import ConfigManager
 from ..config.config_models import (
     AgentConfig,
@@ -376,19 +376,19 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
-    async def run_simple_workflow(
+    async def run_linear_workflow(
         self,
         workflow_name: str,
         initial_input: Any,
         session_id: Optional[str] = None,
         trace: Optional["StatefulTraceClient"] = None,
-    ) -> SimpleWorkflowExecutionResult:
+    ) -> LinearWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
         # Flush Langfuse trace if enabled
         if self.langfuse and trace:
             self.langfuse.flush()
         try:
-            workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
+            workflow_config_dict = self._config_manager.get_config("linear_workflow", workflow_name)
             if not workflow_config_dict:
                 raise ConfigurationError(f"Simple Workflow '{workflow_name}' not found.")
 
@@ -409,7 +409,7 @@ class ExecutionFacade:
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 
-            workflow_executor = SimpleWorkflowExecutor(
+            workflow_executor = LinearWorkflowExecutor(
                 config=workflow_config,
                 facade=self,
             )

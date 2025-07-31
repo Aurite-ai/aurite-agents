@@ -303,7 +303,7 @@ export class CancellationError extends ApiError {
 /**
  * Union types for better type safety
  */
-export type ConfigType = 'agent' | 'llm' | 'mcp_server' | 'simple_workflow' | 'custom_workflow';
+export type ConfigType = 'agent' | 'llm' | 'mcp_server' | 'linear_workflow' | 'custom_workflow';
 export type ExecutionStatus = 'success' | 'error' | 'max_iterations_reached';
 export type TransportType = 'stdio' | 'local' | 'http_stream';
 export type LLMProvider = 'openai' | 'anthropic' | 'local' | 'azure';

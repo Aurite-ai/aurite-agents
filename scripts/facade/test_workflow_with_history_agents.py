@@ -32,13 +32,13 @@ async def create_test_workflow():
         # Create a simple workflow with two agents that both have include_history: true
         workflow_config = {
             "name": "Test History Workflow",
-            "type": "simple_workflow",
+            "type": "linear_workflow",
             "description": "Test workflow with history-enabled agents",
             "steps": ["Conversation History Weather Agent", "Weather Planning Workflow Step 2"],
         }
 
         response = await client.post(
-            f"{API_BASE_URL}/config/simple_workflow", headers=HEADERS, json=workflow_config, timeout=10.0
+            f"{API_BASE_URL}/config/linear_workflow", headers=HEADERS, json=workflow_config, timeout=10.0
         )
         return response.status_code == 201
 
@@ -47,7 +47,7 @@ async def run_workflow(workflow_name: str, session_id: str):
     """Run a workflow with a session ID."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json={
                 "initial_input": "What's the weather like in New York and what should I wear?",
@@ -137,7 +137,7 @@ async def main():
 
         if set(agents_with_history) == set(agents_with_include_history):
             print("\n   ✅ SUCCESS: All agents with include_history=true saved their conversation history!")
-            print("   ✅ Session IDs are being properly passed through simple workflows!")
+            print("   ✅ Session IDs are being properly passed through linear workflows!")
         else:
             print("\n   ⚠️  Some agents with include_history=true did not save history")
     else:
