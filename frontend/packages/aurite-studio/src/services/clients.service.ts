@@ -8,12 +8,10 @@ import {
   ApiError,
   TimeoutError,
   CancellationError,
-  ServerConfig,
   ToolDetails,
 } from '@aurite/api-client';
 import { 
-  validateMCPServerConfig, 
-  migrateClientConfig 
+  validateMCPServerConfig
 } from '../utils/mcpValidation';
 
 class ClientsService {
@@ -441,4 +439,5 @@ class ClientsService {
   }
 }
 
-export default new ClientsService();
+const clientsService = new ClientsService();
+export default clientsService;
