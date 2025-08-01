@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
     from aurite.lib.components.agents.agent_models import AgentRunResult
 
-from aurite.lib.components.workflows.workflow_models import BaseCustomWorkflow
+from aurite import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
 
