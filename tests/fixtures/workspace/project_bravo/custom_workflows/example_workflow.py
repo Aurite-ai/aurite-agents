@@ -2,12 +2,12 @@
 import logging
 from typing import TYPE_CHECKING, Any, Optional
 
-# Type hint for ExecutionFacade to avoid circular import
+# Type hint for AuriteEngine to avoid circular import
 if TYPE_CHECKING:
-    from aurite.components.agents.agent_models import AgentRunResult
-    from aurite.execution.facade import ExecutionFacade
+    from aurite.execution.aurite_engine import AuriteEngine
+    from aurite.lib.components.agents.agent_models import AgentRunResult
 
-from aurite.components.workflows.workflow_models import BaseCustomWorkflow
+from aurite import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 class ExampleCustomWorkflow(BaseCustomWorkflow):
     """
     A simple example of a custom workflow that demonstrates how to use the
-    ExecutionFacade to run a pre-configured agent.
+    AuriteEngine to run a pre-configured agent.
     """
 
     async def run(
         self,
         initial_input: Any,
-        executor: "ExecutionFacade",
+        executor: "AuriteEngine",
         session_id: Optional[str] = None,
     ) -> Any:
         """
@@ -32,7 +32,7 @@ class ExampleCustomWorkflow(BaseCustomWorkflow):
 
         Args:
             initial_input: The input data for the workflow.
-            executor: The ExecutionFacade instance to run other components.
+            executor: The AuriteEngine instance to run other components.
             session_id: The session ID for the execution.
 
         Returns:

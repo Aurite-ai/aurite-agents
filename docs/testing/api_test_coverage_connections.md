@@ -14,7 +14,7 @@ This document maps the connections between the API components, test files, docum
 
 **Key Connections:**
 
-- Router imports: `ConfigManager` from `aurite.config.config_manager`
+- Router imports: `ConfigManager` from `aurite.lib.config.config_manager`
 - Depends on: `get_config_manager` dependency
 - Used by: ExecutionFacade for agent/workflow configs
 
@@ -54,7 +54,7 @@ This document maps the connections between the API components, test files, docum
 **Key Connections:**
 
 - Router imports: System utilities, psutil (optional)
-- Depends on: `get_host_manager` dependency
+- Depends on: `get_aurite` dependency
 - Monitors: All other components' health
 - Provides: System metrics and diagnostics
 
@@ -84,7 +84,7 @@ api.py (Main Entry Point)
     │   ├── get_config_manager → ConfigManager
     │   ├── get_host → MCPHost
     │   ├── get_execution_facade → ExecutionFacade
-    │   └── get_host_manager → Aurite
+    │   └── get_aurite → Aurite
     │
     └── Routers (with prefixes)
         ├── /config → config_manager_routes.py

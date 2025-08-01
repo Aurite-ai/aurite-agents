@@ -4,7 +4,7 @@ Pytest fixtures related to Agent configuration and setup.
 
 import pytest
 
-from aurite.config.config_models import AgentConfig
+from aurite.lib.config.config_models import AgentConfig
 
 
 @pytest.fixture

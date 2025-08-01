@@ -2,16 +2,16 @@ from pathlib import Path
 
 import pytest
 
-from aurite.components.agents.agent_models import AgentRunResult
-from aurite.config.config_models import CustomWorkflowConfig
-from aurite.execution.facade import ExecutionFacade
+from aurite.execution.aurite_engine import AuriteEngine
+from aurite.lib.components.agents.agent_models import AgentRunResult
+from aurite.lib.config.config_models import CustomWorkflowConfig
 
 
 class TestRefactoredAgentWorkflow:
     async def execute_workflow(
         self,
         initial_input: str,
-        executor: ExecutionFacade,
+        executor: AuriteEngine,
         session_id: str | None = None,
     ):
         """

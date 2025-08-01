@@ -583,7 +583,7 @@ asyncio.run(test_mcp_host_routes())
 
 ```python
 # ExecutionFacade automatically handles tool registration
-facade = ExecutionFacade(config_manager, host_manager)
+facade = ExecutionFacade(config_manager, aurite)
 result = await facade.execute_agent("weather-assistant", {
     "message": "What's the weather in Paris?"
 })

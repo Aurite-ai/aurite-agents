@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from openai.types.chat import ChatCompletionMessage
 
-from aurite.components.agents.agent_models import AgentRunResult
-from aurite.host_manager import Aurite
+from aurite.aurite import Aurite
+from aurite.lib.components.agents.agent_models import AgentRunResult
 
 
 @pytest.mark.anyio
@@ -18,14 +18,14 @@ async def test_aurite_initialization_and_agent_run():
     """
     # Arrange
     # Use the packaged example project for testing
-    example_project_path = Path("src/aurite/init_templates").resolve()
+    example_project_path = Path("src/aurite/lib/init_templates").resolve()
 
     # Mock the dependencies that perform external actions
     with (
-        patch("aurite.components.agents.agent.Agent.run_conversation", new_callable=AsyncMock) as mock_run_conv,
-        patch("aurite.host_manager.MCPHost", autospec=True) as mock_host_class,
+        patch("aurite.lib.components.agents.agent.Agent.run_conversation", new_callable=AsyncMock) as mock_run_conv,
+        patch("aurite.aurite.MCPHost", autospec=True) as mock_host_class,
     ):
-        # We mock the entire MCPHost class as used by the host_manager
+        # We mock the entire MCPHost class as used by the aurite
         # This ensures we are patching the correct instance.
         mock_host_instance = mock_host_class.return_value
         mock_host_instance.register_client = AsyncMock()

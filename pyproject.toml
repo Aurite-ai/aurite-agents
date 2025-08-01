@@ -60,7 +60,7 @@ aurite = "aurite.bin.cli.main:app"
 packages = [{ include = "aurite", from = "src" }]
 include = [
     "LICENSE",
-    { path = "src/aurite/init_templates", format = [
+    { path = "src/aurite/lib/init_templates", format = [
         "sdist",
         "wheel",
     ] },
@@ -194,6 +194,7 @@ ignore = [
     "B008", # do not perform function calls in argument defaults
     "C901", # too complex
     "E722", # do not use bare except
+    "F403", # forbidden import
 ]
 
 [tool.ruff.lint.isort]

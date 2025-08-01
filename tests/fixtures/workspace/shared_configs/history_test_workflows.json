@@ -11,7 +11,7 @@
   },
   {
     "name": "weather_server",
-    "server_path": "src/aurite/init_templates/mcp_servers/weather_server.py",
+    "server_path": "src/aurite/lib/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"
@@ -22,7 +22,7 @@
   {
     "name": "planning_server",
     "type": "mcp_server",
-    "server_path": "src/aurite/init_templates/mcp_servers/planning_server.py",
+    "server_path": "src/aurite/lib/init_templates/mcp_servers/planning_server.py",
     "capabilities": [
       "tools",
       "prompts",

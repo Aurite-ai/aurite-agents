@@ -6,7 +6,7 @@ import mcp.types as types
 import pytest
 from pydantic import AnyUrl
 
-from src.aurite.host.resources.resources import ResourceManager
+from src.aurite.execution.mcp_host.resources.resources import ResourceManager
 
 # Mark all tests in this file as 'unit' and 'host'
 pytestmark = [pytest.mark.unit, pytest.mark.host]

@@ -1,7 +1,7 @@
 [
   {
     "name": "weather_server_control",
-    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "server_path": "../../../src/aurite/lib/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"
@@ -11,7 +11,7 @@
   },
   {
     "name": "weather_server_invalid_server_path",
-    "server_path": "../../../src/aurite/init_templates/mcp_servers/weathersdfsdfsdfsdfsdfs_server.py",
+    "server_path": "../../../src/aurite/lib/init_templates/mcp_servers/weathersdfsdfsdfsdfsdfs_server.py",
     "capabilities": [
       "tools",
       "prompts"
@@ -21,7 +21,7 @@
   },
   {
     "name": "weather_server_duplicate_name",
-    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "server_path": "../../../src/aurite/lib/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"
@@ -31,7 +31,7 @@
   },
   {
     "name": "weather_server_duplicate_name",
-    "server_path": "../../../src/aurite/init_templates/mcp_servers/weather_server.py",
+    "server_path": "../../../src/aurite/lib/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"

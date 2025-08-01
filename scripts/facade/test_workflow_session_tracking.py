@@ -213,7 +213,7 @@ async def main():
     print("   2. Linear workflows may NOT be passing session_id to agent executions")
     print("   3. Check LinearWorkflowExecutor.execute() to see if it passes session_id")
     print(
-        "\n💡 Next Step: Review the linear_workflow.py code to see if session_id is being passed to facade.run_agent()"
+        "\n💡 Next Step: Review the linear_workflow.py code to see if session_id is being passed to engine.run_agent()"
     )
 
 

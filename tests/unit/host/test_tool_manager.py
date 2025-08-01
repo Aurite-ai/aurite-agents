@@ -5,7 +5,7 @@ Unit tests for the ToolManager class.
 import mcp.types as types
 import pytest
 
-from src.aurite.host.resources.tools import ToolManager
+from src.aurite.execution.mcp_host.resources.tools import ToolManager
 
 # Mark all tests in this file as 'unit' and 'host'
 pytestmark = [pytest.mark.unit, pytest.mark.host]

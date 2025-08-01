@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.aurite.config.config_models import HostConfig
+from src.aurite.lib.config.config_models import HostConfig
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(name)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def with_test_config():
                 projects_list_str = match.group(1)
                 # Remove brackets and whitespace
                 projects_str = projects_list_str.strip()[1:-1].strip()
-                if projects_str[-1] == ',':
+                if projects_str[-1] == ",":
                     projects_str = projects_str[:-1]
 
                 if not projects_str:

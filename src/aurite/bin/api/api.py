@@ -13,16 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
 
-from ...errors import (
+# Adjust imports for new location (src/bin -> src)
+from ...aurite import (  # Corrected relative import (up two levels from src/bin/api)
+    Aurite,
+)
+from ...utils.errors import (
     AgentExecutionError,
     ConfigurationError,
     MCPServerTimeoutError,
     WorkflowExecutionError,
-)
-
-# Adjust imports for new location (src/bin -> src)
-from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
-    Aurite,
 )
 
 # Import shared dependencies (relative to parent directory - src/bin)
@@ -32,7 +31,7 @@ from ..dependencies import (
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import config_manager_routes, facade_routes, mcp_host_routes, system_routes
+from .routes import main_router
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -92,17 +91,8 @@ async def health_check():
     return {"status": "ok"}
 
 
-# --- Application Endpoints ---
-# All application endpoints are now defined in their respective router files.
-
-
-# Include the new routers
-app.include_router(mcp_host_routes.router, prefix="/tools", tags=["MCP Host"])
-app.include_router(config_manager_routes.router, prefix="/config", tags=["Configuration Manager"])
-app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
-
-if os.getenv("INCLUDE_SYSTEM_ROUTER", "false").lower() == "true":
-    app.include_router(system_routes.router, prefix="/system", tags=["System Management"])
+# main routes
+app.include_router(main_router)
 
 
 # Custom OpenAPI schema

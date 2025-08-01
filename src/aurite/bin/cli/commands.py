@@ -8,7 +8,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
-from ...host_manager import Aurite
+from ...aurite import Aurite
 
 console = Console()
 logger = console.print
@@ -17,7 +17,7 @@ logger = console.print
 def copy_project_template(project_path: Path):
     """Copies the project template from the packaged data."""
     try:
-        template_root = importlib.resources.files("aurite").joinpath("init_templates")
+        template_root = importlib.resources.files("aurite.lib").joinpath("init_templates")
 
         for item in template_root.iterdir():
             source_path = template_root.joinpath(item.name)

@@ -1,51 +1,51 @@
 <svg width="800" height="900" xmlns="http://www.w3.org/2000/svg">
   <!-- Background -->
   <rect width="800" height="900" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
-  
+
   <!-- Title -->
   <text x="400" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#212529">
     Framework Architecture - Layered Design
   </text>
-  
+
   <!-- Layer 1: Entrypoints -->
   <g id="layer1">
     <rect x="50" y="60" width="700" height="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
     <text x="60" y="85" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1976d2">
       Layer 1: Entrypoints (src/bin)
     </text>
-    
+
     <!-- CLI -->
     <rect x="80" y="100" width="120" height="60" fill="#bbdefb" stroke="#1565c0" stroke-width="1" rx="3"/>
     <text x="140" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0d47a1">CLI</text>
     <text x="140" y="135" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#1565c0">(cli.py)</text>
-    
+
     <!-- API Server -->
     <rect x="240" y="100" width="120" height="60" fill="#bbdefb" stroke="#1565c0" stroke-width="1" rx="3"/>
     <text x="300" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0d47a1">API Server</text>
     <text x="300" y="135" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#1565c0">(api.py)</text>
-    
+
     <!-- Worker -->
     <rect x="400" y="100" width="120" height="60" fill="#bbdefb" stroke="#1565c0" stroke-width="1" rx="3"/>
     <text x="460" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0d47a1">Worker</text>
     <text x="460" y="135" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#1565c0">(worker.py)</text>
   </g>
-  
+
   <!-- Arrows from Layer 1 to Layer 2 -->
   <line x1="140" y1="160" x2="300" y2="200" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <line x1="300" y1="160" x2="300" y2="200" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <line x1="460" y1="160" x2="300" y2="200" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  
+
   <!-- Layer 2: Orchestration -->
   <g id="layer2">
     <rect x="50" y="200" width="700" height="140" fill="#e8f5e8" stroke="#388e3c" stroke-width="2" rx="5"/>
     <text x="60" y="225" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#388e3c">
       Layer 2: Orchestration
     </text>
-    
+
     <!-- Host Manager -->
     <rect x="80" y="240" width="640" height="80" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1" rx="3"/>
     <text x="400" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1b5e20">
-      Host Manager (host_manager.py)
+      Host Manager (aurite.py)
     </text>
     <text x="90" y="280" font-family="Arial, sans-serif" font-size="10" fill="#2e7d32">
       Purpose: Load Host JSON Config, Init/Shutdown MCP Host &amp; Storage Manager,
@@ -54,17 +54,17 @@
       Holds Agent/Workflow Configs, Dynamic Registration &amp; DB Sync, Owns ExecutionFacade
     </text>
   </g>
-  
+
   <!-- Arrow from Layer 2 to Layer 2.5 -->
   <line x1="400" y1="340" x2="400" y2="370" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  
+
   <!-- Layer 2.5: Execution Facade & Executors -->
   <g id="layer2_5">
     <rect x="50" y="370" width="700" height="180" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="5"/>
     <text x="60" y="395" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#f57c00">
       Layer 2.5: Execution Facade &amp; Executors
     </text>
-    
+
     <!-- ExecutionFacade -->
     <rect x="80" y="410" width="640" height="60" fill="#ffe0b2" stroke="#ef6c00" stroke-width="1" rx="3"/>
     <text x="400" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#e65100">
@@ -76,34 +76,34 @@
     <text x="90" y="465" font-family="Arial, sans-serif" font-size="10" fill="#ef6c00">
       Delegates to specific Executors. Passes Storage Manager to Agent execution.
     </text>
-    
+
     <!-- Executors -->
     <rect x="80" y="480" width="180" height="50" fill="#ffcc02" stroke="#ff8f00" stroke-width="1" rx="3"/>
     <text x="170" y="500" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#e65100">Agent</text>
     <text x="170" y="515" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(agents/agent.py)</text>
-    
+
     <rect x="280" y="480" width="180" height="50" fill="#ffcc02" stroke="#ff8f00" stroke-width="1" rx="3"/>
     <text x="370" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">LinearWorkflow</text>
     <text x="370" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Executor</text>
     <text x="370" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(workflows/linear_workflow.py)</text>
-    
+
     <rect x="480" y="480" width="180" height="50" fill="#ffcc02" stroke="#ff8f00" stroke-width="1" rx="3"/>
     <text x="570" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">CustomWorkflow</text>
     <text x="570" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Executor</text>
     <text x="570" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(workflows/custom_workflow.py)</text>
   </g>
-  
+
   <!-- Arrow from Layer 2.5 to Layer 3 -->
   <line x1="400" y1="550" x2="400" y2="580" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <text x="420" y="570" font-family="Arial, sans-serif" font-size="10" fill="#666">Uses MCP Host &amp; Storage Manager</text>
-  
+
   <!-- Layer 3: Host Infrastructure -->
   <g id="layer3">
     <rect x="50" y="580" width="700" height="120" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="5"/>
     <text x="60" y="605" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#7b1fa2">
       Layer 3: Host Infrastructure (MCP Host System)
     </text>
-    
+
     <!-- MCP Host -->
     <rect x="80" y="620" width="640" height="60" fill="#e1bee7" stroke="#6a1b9a" stroke-width="1" rx="3"/>
     <text x="400" y="640" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#4a148c">
@@ -116,17 +116,17 @@
       Prompts, Resources, Component Discovery/Filtering
     </text>
   </g>
-  
+
   <!-- Arrow from Layer 3 to Layer 4 -->
   <line x1="400" y1="700" x2="400" y2="730" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  
+
   <!-- Layer 4: External Capabilities -->
   <g id="layer4">
     <rect x="50" y="730" width="700" height="120" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="5"/>
     <text x="60" y="755" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#c62828">
       Layer 4: External Capabilities
     </text>
-    
+
     <!-- MCP Servers -->
     <rect x="80" y="770" width="640" height="60" fill="#ffcdd2" stroke="#d32f2f" stroke-width="1" rx="3"/>
     <text x="400" y="790" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#b71c1c">
@@ -139,14 +139,14 @@
       Handle Discovery (ListTools, etc.)
     </text>
   </g>
-  
+
   <!-- Arrow marker definition -->
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
     </marker>
   </defs>
-  
+
   <!-- Legend -->
   <g id="legend">
     <rect x="550" y="860" width="200" height="30" fill="#ffffff" stroke="#ccc" stroke-width="1" rx="3"/>

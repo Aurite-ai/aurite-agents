@@ -13,8 +13,8 @@ from textual.containers import Container, VerticalScroll
 from textual.events import Key
 from textual.widgets import Footer, Header, Markdown, Static, TextArea
 
-from ...host_manager import Aurite, disable_all_logging
-from ..ui_utils import (
+from ...aurite import Aurite, disable_all_logging
+from .ui_utils import (
     format_agent_message,
     format_tool_call_message,
     format_tool_output_message,

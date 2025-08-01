@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.aurite.config.config_utils import find_anchor_files
+from src.aurite.lib.config.config_utils import find_anchor_files
 
 
 def test_find_anchor_files_single_project(tmp_path: Path):
