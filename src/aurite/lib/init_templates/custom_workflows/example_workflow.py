@@ -1,13 +1,9 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
-# Type hint for AuriteEngine to avoid circular import
-if TYPE_CHECKING:
-    from aurite.execution.aurite_engine import AuriteEngine
-    from aurite.lib.components.agents.agent_models import AgentRunResult
-
-from aurite import BaseCustomWorkflow
+# Import BaseCustomWorkflow for inheritance (needed at runtime)
+from aurite import AgentRunResult, AuriteEngine, BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
 
