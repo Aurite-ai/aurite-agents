@@ -257,4 +257,4 @@ class Agent:
                 return
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")
-        yield {"type": "llm_response_stop", "data": {"status": "warning", "reason": "turn_limit_reached"}}
+        yield {"type": "llm_response_stop", "data": {"status": "error", "reason": "turn_limit_reached"}}
