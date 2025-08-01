@@ -8,6 +8,7 @@ import logging
 import os
 from contextlib import contextmanager
 from typing import Generator, Optional
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -15,9 +16,27 @@ from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
-# Removed global singletons for engine and session factory
-# _engine: Optional[Engine] = None
-# _SessionFactory: Optional[sessionmaker[Session]] = None
+# Helper to mask password in DB URL for logging
+def mask_db_url_password(db_url: str) -> str:
+    """
+    Masks the password in a database URL for safe logging.
+    """
+    try:
+        parsed = urlparse(db_url)
+        # If netloc contains userinfo, mask password
+        if parsed.password:
+            # Reconstruct netloc with masked password
+            user = parsed.username or ""
+            host = parsed.hostname or ""
+            port = f":{parsed.port}" if parsed.port else ""
+            masked_netloc = f"{user}:***@{host}{port}"
+            # Rebuild URL with masked netloc
+            masked_url = urlunparse(parsed._replace(netloc=masked_netloc))
+            return masked_url
+        else:
+            return db_url
+    except Exception:
+        return "<masked>"
 
 
 def get_database_url() -> Optional[str]:
@@ -55,7 +74,7 @@ def create_db_engine() -> Optional[Engine]:
         logger.info(f"SQLAlchemy engine created for {engine.url}.")
         return engine
     except Exception as e:
-        sanitized_url = db_url.replace(f":{os.getenv('AURITE_DB_PASSWORD')}@", ":***@") if db_url else "N/A"
+        sanitized_url = mask_db_url_password(db_url) if db_url else "N/A"
         logger.error(f"Failed to create SQLAlchemy engine for URL {sanitized_url}: {e}", exc_info=True)
         return None
 
