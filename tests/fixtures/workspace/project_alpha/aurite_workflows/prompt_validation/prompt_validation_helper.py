@@ -7,9 +7,9 @@
 # from pydantic import BaseModel, Field
 # from typing import TYPE_CHECKING, Tuple, Dict, Any
 
-# # Type hint for ExecutionFacade to avoid circular import
+# # Type hint for AuriteEngine to avoid circular import
 # if TYPE_CHECKING:
-#     from aurite.execution.facade import ExecutionFacade
+#     from aurite.execution.aurite_engine import AuriteEngine
 
 # logger = logging.getLogger(__name__)
 
@@ -104,14 +104,14 @@
 
 
 # async def run_iterations(
-#     executor: "ExecutionFacade",
+#     executor: "AuriteEngine",
 #     testing_config: ValidationConfig,
 #     override_system_prompt: str | None = None,
 # ) -> Tuple[list, list]:
 #     """Run iterations of the agent/workflow and the analysis agent for prompt validation
 
 #     Args:
-#         executor: The ExecutionFacade
+#         executor: The AuriteEngine
 #         testing_config: The ValidationConfig
 #         override_system_prompt: Optional, test_type "agent" only. A system prompt to use instead of the tested agent's system prompt
 
@@ -145,7 +145,7 @@
 
 
 # async def evaluate_results(
-#     executor: "ExecutionFacade",
+#     executor: "AuriteEngine",
 #     testing_config: ValidationConfig,
 #     results: list,
 #     agent_responses: list,
@@ -153,7 +153,7 @@
 #     """Evaluate the prompt validation results
 
 #     Args:
-#         executor: The ExecutionFacade
+#         executor: The AuriteEngine
 #         testing_config: The ValidationConfig
 #         results: The results list from run_iterations()
 #         agent_responses: The list of full agent responses from run_iterations()
@@ -210,7 +210,7 @@
 
 
 # async def evaluate_results_ab(
-#     executor: "ExecutionFacade", testing_config: ValidationConfig, results: dict
+#     executor: "AuriteEngine", testing_config: ValidationConfig, results: dict
 # ):
 #     ab_output_result = await executor.run_agent(
 #         agent_name="A/B Agent",
@@ -228,12 +228,12 @@
 
 
 # async def improve_prompt(
-#     executor: "ExecutionFacade", model: str, results: list, current_prompt: str
+#     executor: "AuriteEngine", model: str, results: list, current_prompt: str
 # ) -> str:
 #     """Improve the system prompt of an agent based on the evaluation results
 
 #     Args:
-#         executor: The ExecutionFacade
+#         executor: The AuriteEngine
 #         model: "claude" or "gemini", the model to use when improving the prompt
 #         results: The results list from run_iterations()
 #         current_prompt: The existing system prompt to improve
@@ -504,7 +504,7 @@
 
 
 # async def _get_agent_result(
-#     executor: "ExecutionFacade",
+#     executor: "AuriteEngine",
 #     testing_config: ValidationConfig,
 #     test_input,
 #     override_system_prompt: str | None = None,
@@ -595,7 +595,7 @@
 
 
 # async def _run_single_iteration(
-#     executor: "ExecutionFacade",
+#     executor: "AuriteEngine",
 #     testing_config: ValidationConfig,
 #     test_input,
 #     prompts,

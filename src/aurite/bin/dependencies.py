@@ -7,14 +7,14 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, Security, status  # Added status
 from fastapi.security import APIKeyHeader
 
+from ...lib.storage.sessions.session_manager import SessionManager
 from ..aurite import Aurite  # Needed for get_aurite
+from ..execution.aurite_engine import AuriteEngine
+from ..execution.mcp_host.host import MCPHost  # Added for get_host
 
 # Import config/models needed by dependencies
-from ..config import ServerConfig
-from ..config.config_manager import ConfigManager
-from ..execution.facade import ExecutionFacade
-from ..host.host import MCPHost  # Added for get_host
-from ..storage.sessions.session_manager import SessionManager
+from ..lib.config import ServerConfig
+from ..lib.config.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -142,19 +142,19 @@ async def get_config_manager(
     return aurite.get_config_manager()
 
 
-# --- ExecutionFacade Dependency ---
+# --- AuriteEngine Dependency ---
 async def get_execution_facade(
     aurite: Aurite = Depends(get_aurite),
-) -> ExecutionFacade:
+) -> AuriteEngine:
     """
-    Dependency function to get the ExecutionFacade instance from the Aurite manager.
+    Dependency function to get the AuriteEngine instance from the Aurite manager.
     """
     if not aurite.kernel.execution:
         # This case should ideally not happen if Aurite is initialized correctly
-        logger.error("ExecutionFacade not found on Aurite instance. This indicates an initialization issue.")
+        logger.error("AuriteEngine not found on Aurite instance. This indicates an initialization issue.")
         raise HTTPException(
             status_code=503,
-            detail="ExecutionFacade is not available due to an internal error.",
+            detail="AuriteEngine is not available due to an internal error.",
         )
     return aurite.kernel.execution
 
@@ -166,7 +166,7 @@ async def get_session_manager(
     """
     Dependency function to get the SessionManager instance from the Aurite manager.
     """
-    # The SessionManager is now created and held by the ExecutionFacade.
+    # The SessionManager is now created and held by the AuriteEngine.
     # This dependency retrieves it from there.
     if not aurite.kernel.execution or not aurite.kernel.execution._session_manager:
         logger.error("SessionManager not found. This indicates an initialization issue.")

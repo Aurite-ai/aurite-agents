@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any, Optional
 # Assuming tests run from project root, this should work:
 from aurite.servers.storage.vector.pgvector_server import search
 
-# Type hint for ExecutionFacade to avoid circular import
+# Type hint for AuriteEngine to avoid circular import
 if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade
+    from aurite.execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class DocsQuestionWorkflow:
     async def execute_workflow(
         self,
         initial_input: Any,
-        executor: "ExecutionFacade",
+        executor: "AuriteEngine",
         session_id: Optional[str] = None,
     ) -> Any:
         """
@@ -29,7 +29,7 @@ class DocsQuestionWorkflow:
 
         Args:
             initial_input: Object containing the user_input
-            executor: The ExecutionFacade
+            executor: The AuriteEngine
             session_id: Optional, id of the session for logging
 
         Returns:

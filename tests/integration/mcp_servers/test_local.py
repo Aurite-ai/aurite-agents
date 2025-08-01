@@ -4,7 +4,7 @@ import mcp.types as types
 import pytest
 
 from aurite.aurite import Aurite
-from aurite.config.config_models import ClientConfig
+from aurite.lib.config.config_models import ClientConfig
 
 
 @pytest.mark.asyncio

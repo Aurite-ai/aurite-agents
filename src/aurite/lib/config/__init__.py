@@ -1,8 +1,8 @@
 """
-Initialization file for the aurite.config package.
+Initialization file for the aurite.lib.config package.
 
 This makes 'aurite/config' a Python package and allows importing
-key configuration elements directly from 'aurite.config'.
+key configuration elements directly from 'aurite.lib.config'.
 
 It also defines the ServerConfig (loaded from environment variables)
 and the project's root directory.
@@ -57,7 +57,7 @@ class ServerConfig(BaseSettings):
     REDIS_STREAM_NAME: str = "aurite:tasks"  # Default stream name for worker tasks
 
 
-# Expose the key elements for direct import from aurite.config
+# Expose the key elements for direct import from aurite.lib.config
 __all__ = [
     # "PROJECT_ROOT_DIR", # Removed as it's being replaced by dynamic project root
     "ServerConfig",

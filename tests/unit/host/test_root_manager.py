@@ -4,8 +4,8 @@ Unit tests for the RootManager class.
 
 import pytest
 
-from src.aurite.config.config_models import RootConfig
-from src.aurite.host.foundation.roots import RootManager
+from src.aurite.execution.mcp_host.foundation.roots import RootManager
+from src.aurite.lib.config.config_models import RootConfig
 
 # Mark all tests in this file as 'unit' and 'host'
 pytestmark = [pytest.mark.unit, pytest.mark.host]

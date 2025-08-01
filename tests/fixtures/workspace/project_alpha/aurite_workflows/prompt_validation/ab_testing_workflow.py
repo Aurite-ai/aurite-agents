@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, Any
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
-from aurite.components.workflows.custom.prompt_validation.prompt_validation_helper import (
+from aurite.lib.components.workflows.custom.prompt_validation.prompt_validation_helper import (
     evaluate_results_ab,
     load_config,
     run_iterations,
 )
 
-# Type hint for ExecutionFacade to avoid circular import
+# Type hint for AuriteEngine to avoid circular import
 if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade
+    from aurite.execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class ABTestingWorkflow:
     Custom workflow for A/B testing
     """
 
-    async def execute_workflow(self, initial_input: Any, executor: "ExecutionFacade") -> Any:
+    async def execute_workflow(self, initial_input: Any, executor: "AuriteEngine") -> Any:
         """
         Executes the A/B testing workflow.
 

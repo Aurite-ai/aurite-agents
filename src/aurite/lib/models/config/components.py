@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional  # Added Dict and Literal
 
+import TYPE_CHECKING
 from pydantic import BaseModel, Field, model_validator  # Use model_validator
 
 logger = logging.getLogger(__name__)
@@ -125,25 +126,6 @@ class HostConfig(BaseComponentConfig):
     mcp_servers: List[ClientConfig] = Field(description="A list of MCP server client configurations.")
 
 
-class WorkflowComponent(BaseModel):
-    name: str = Field(description="The name of the component in the workflow step.")
-    type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(description="The type of the component.")
-
-
-class WorkflowConfig(BaseComponentConfig):
-    """
-    Configuration for a linear, sequential agent workflow.
-    """
-
-    type: Literal["linear_workflow"] = "linear_workflow"
-    steps: List[str | WorkflowComponent] = Field(
-        description="List of component names or component objects to execute in sequence."
-    )
-    include_history: Optional[bool] = Field(
-        default=None, description="If set, overrides the include_history setting for all agents in this workflow."
-    )
-
-
 # --- LLM Configuration ---
 
 
@@ -242,6 +224,28 @@ class AgentConfig(BaseComponentConfig):
     )
 
 
+class WorkflowComponent(BaseModel):
+    name: str = Field(description="The name of the component in the workflow step.")
+    type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(description="The type of the component.")
+
+
+class WorkflowConfig(BaseComponentConfig):
+    """
+    Configuration for a linear, sequential agent workflow.
+    """
+
+    type: Literal["linear_workflow"] = "linear_workflow"
+    steps: List[str | WorkflowComponent] = Field(
+        description="List of component names or component objects to execute in sequence."
+    )
+    include_history: Optional[bool] = Field(
+        default=None, description="If set, overrides the include_history setting for all agents in this workflow."
+    )
+
+
+# --- Custom Workflow Configuration ---
+
+
 class CustomWorkflowConfig(BaseComponentConfig):
     """
     Configuration for a custom Python-based workflow.
@@ -252,35 +256,66 @@ class CustomWorkflowConfig(BaseComponentConfig):
     class_name: str = Field(description="Name of the class within the module that implements the workflow.")
 
 
-# --- Project Configuration ---
+# --- Custom Workflow Configuration ---
+
+"""
+Workflow base classes and models for the Aurite framework.
+
+This module contains the base class for custom workflows and related models.
+"""
 
 
-class ProjectConfig(BaseComponentConfig):
+if TYPE_CHECKING:
+    from ..execution.aurite_engine import AuriteEngine
+    from .execution import AgentRunResult
+
+
+class BaseCustomWorkflow:
     """
-    Defines the overall configuration for a specific project, including
-    all its components (clients, LLMs, agents, workflows).
-    This is typically loaded from a project file (e.g., config/projects/my_project.json)
-    and may reference component configurations defined elsewhere.
+    Abstract base class for custom Python-based workflows.
+
+    Users should subclass this and implement the `execute` method.
+    The `run_agent` method is provided to allow the workflow to easily
+    call agents managed by the framework.
     """
 
-    type: Literal["project"] = "project"
-    mcp_servers: List[ClientConfig] = Field(
-        default_factory=list,
-        description="Defines MCP Servers available within this project.",
-    )
-    llms: List[LLMConfig] = Field(
-        default_factory=list,
-        description="LLM configurations available within this project.",
-    )
-    agents: List[AgentConfig] = Field(
-        default_factory=list,
-        description="Agents defined or referenced by this project.",
-    )
-    linear_workflows: List[WorkflowConfig] = Field(
-        default_factory=list,
-        description="Linear workflows defined or referenced by this project.",
-    )
-    custom_workflows: List[CustomWorkflowConfig] = Field(
-        default_factory=list,
-        description="Custom workflows defined or referenced by this project.",
-    )
+    def __init__(self):
+        self._executor: Optional["AuriteEngine"] = None
+
+    @property
+    def executor(self) -> "AuriteEngine":
+        if self._executor is None:
+            raise RuntimeError("Executor not set. This workflow must be run via the Aurite AuriteEngine.")
+        return self._executor
+
+    def set_executor(self, executor: "AuriteEngine"):
+        """
+        Called by the framework to provide the workflow with an execution engine.
+        """
+        self._executor = executor
+
+    async def run_agent(
+        self,
+        agent_name: str,
+        user_message: str,
+        session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        force_include_history: Optional[bool] = None,
+    ) -> "AgentRunResult":
+        """
+        A helper method for the workflow to execute an agent.
+        """
+        return await self.executor.run_agent(
+            agent_name=agent_name,
+            user_message=user_message,
+            session_id=session_id,
+            system_prompt=system_prompt,
+            force_include_history=force_include_history,
+        )
+
+    async def run(self, initial_input: Any) -> Any:
+        """
+        The main entry point for the workflow's logic.
+        This method must be implemented by the subclass.
+        """
+        raise NotImplementedError

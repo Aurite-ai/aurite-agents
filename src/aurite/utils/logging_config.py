@@ -114,8 +114,8 @@ if __name__ == "__main__":
     logger_aurite = logging.getLogger("aurite.aurite")
     logger_aurite.info("Info from aurite.")
 
-    logger_facade = logging.getLogger("aurite.execution.facade")
-    logger_facade.info("Info from facade.")
+    logger_facade = logging.getLogger("aurite.execution.aurite_engine")
+    logger_facade.info("Info from engine.")
 
     logger_agent = logging.getLogger("aurite.agents.some_agent_module")
     logger_agent.info("Info from an agent module.")

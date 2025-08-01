@@ -14,7 +14,7 @@ This document maps the connections between the API components, test files, docum
 
 **Key Connections:**
 
-- Router imports: `ConfigManager` from `aurite.config.config_manager`
+- Router imports: `ConfigManager` from `aurite.lib.config.config_manager`
 - Depends on: `get_config_manager` dependency
 - Used by: ExecutionFacade for agent/workflow configs
 

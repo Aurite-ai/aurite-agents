@@ -5,7 +5,7 @@ import pytest
 from openai.types.chat import ChatCompletionMessage
 
 from aurite.aurite import Aurite
-from aurite.components.agents.agent_models import AgentRunResult
+from aurite.lib.components.agents.agent_models import AgentRunResult
 
 
 @pytest.mark.anyio
@@ -17,7 +17,7 @@ async def test_custom_workflow_with_refactored_agent_run():
     and handle the AgentRunResult, using the packaged example project.
     """
     # Arrange
-    example_project_path = Path("src/aurite/init_templates").resolve()
+    example_project_path = Path("src/aurite/lib/init_templates").resolve()
 
     async with Aurite(start_dir=example_project_path) as aurite:
         execution_facade = aurite.kernel.execution

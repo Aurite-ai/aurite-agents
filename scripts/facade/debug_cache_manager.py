@@ -25,7 +25,7 @@ HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
 
 async def check_facade_status():
-    """Check the facade status endpoint."""
+    """Check the engine status endpoint."""
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{API_BASE_URL}/execution/status", headers=HEADERS, timeout=10.0)
         response.raise_for_status()
@@ -49,8 +49,8 @@ async def main():
     """Debug the cache manager initialization."""
     print("=== Debugging Cache Manager ===")
 
-    # Check facade status
-    print("\n1️⃣ Checking facade status...")
+    # Check engine status
+    print("\n1️⃣ Checking engine status...")
     try:
         status = await check_facade_status()
         print(f"   ✅ Facade status: {status}")

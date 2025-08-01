@@ -1,5 +1,5 @@
 """
-Provides a unified facade for executing Agents, Linear Workflows, and Custom Workflows.
+Provides a unified engine for executing Agents, Linear Workflows, and Custom Workflows.
 """
 
 import logging
@@ -10,25 +10,25 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tup
 from langfuse import Langfuse
 from termcolor import colored
 
-from ..components.agents.agent import Agent
-from ..components.agents.agent_models import AgentRunResult
-from ..components.llm.litellm_client import LiteLLMClient
-from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-from ..components.workflows.linear_workflow import LinearWorkflowExecutor
-from ..components.workflows.workflow_models import LinearWorkflowExecutionResult
-from ..config.config_manager import ConfigManager
-from ..config.config_models import (
+from ..execution.mcp_host.host import MCPHost
+from ..lib.components.agents.agent import Agent
+from ..lib.components.agents.agent_models import AgentRunResult
+from ..lib.components.llm.litellm_client import LiteLLMClient
+from ..lib.components.workflows.custom_workflow import CustomWorkflowExecutor
+from ..lib.components.workflows.linear_workflow import LinearWorkflowExecutor
+from ..lib.components.workflows.workflow_models import LinearWorkflowExecutionResult
+from ..lib.config.config_manager import ConfigManager
+from ..lib.config.config_models import (
     AgentConfig,
     ClientConfig,
     LLMConfig,
     LLMConfigOverrides,
 )
-from ..errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
-from ..host.host import MCPHost
-from ..storage.db.db_manager import StorageManager
-from ..storage.sessions.cache_manager import CacheManager
-from ..storage.sessions.session_manager import SessionManager
-from ..storage.sessions.session_models import SessionMetadata
+from ..lib.storage.db.db_manager import StorageManager
+from ..lib.storage.sessions.cache_manager import CacheManager
+from ..lib.storage.sessions.session_manager import SessionManager
+from ..lib.storage.sessions.session_models import SessionMetadata
+from ..utils.errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
 
 if TYPE_CHECKING:
     from langfuse.client import StatefulTraceClient
@@ -36,9 +36,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AuriteExecutor:
+class AuriteEngine:
     """
-    A facade that simplifies the execution of different component types
+    A engine that simplifies the execution of different component types
     (Agents, Linear Workflows, Custom Workflows) managed by the Aurite.
     """
 
@@ -51,21 +51,21 @@ class AuriteExecutor:
         langfuse: Optional["Langfuse"] = None,
     ):
         if not config_manager:
-            raise ValueError("ConfigManager instance is required for ExecutionFacade.")
+            raise ValueError("ConfigManager instance is required for AuriteEngine.")
         if not host_instance:
-            raise ValueError("MCPHost instance is required for ExecutionFacade.")
+            raise ValueError("MCPHost instance is required for AuriteEngine.")
 
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        # The facade now uses a SessionManager for history, which in turn uses the CacheManager.
+        # The engine now uses a SessionManager for history, which in turn uses the CacheManager.
         self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         self.langfuse = langfuse
-        logger.debug(f"ExecutionFacade initialized (StorageManager {'present' if storage_manager else 'absent'}).")
+        logger.debug(f"AuriteEngine initialized (StorageManager {'present' if storage_manager else 'absent'}).")
 
     def set_config_manager(self, config_manager: "ConfigManager"):
-        """Updates the ConfigManager instance used by the facade."""
+        """Updates the ConfigManager instance used by the engine."""
         self._config_manager = config_manager
 
     # --- Private Helper Methods ---
@@ -209,7 +209,7 @@ class AuriteExecutor:
                     input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
                     metadata={
                         "agent_name": agent_name,
-                        "source": "execution-facade",
+                        "source": "execution-engine",
                     },
                 )
 
@@ -321,7 +321,7 @@ class AuriteExecutor:
                     input={"user_message": user_message, "system_prompt": system_prompt},
                     metadata={
                         "agent_name": agent_name,
-                        "source": "execution-facade",
+                        "source": "execution-engine",
                     },
                 )
 
@@ -364,7 +364,7 @@ class AuriteExecutor:
             return run_result
         except Exception as e:
             error_msg = (
-                f"Unexpected error in ExecutionFacade while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
+                f"Unexpected error in AuriteEngine while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
             )
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise AgentExecutionError(error_msg) from e
@@ -392,7 +392,7 @@ class AuriteExecutor:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Linear Workflow '{workflow_name}' not found.")
 
-            from ..config.config_models import WorkflowConfig
+            from ..lib.config.config_models import WorkflowConfig
 
             workflow_config = WorkflowConfig(**workflow_config_dict)
 
@@ -411,7 +411,7 @@ class AuriteExecutor:
 
             workflow_executor = LinearWorkflowExecutor(
                 config=workflow_config,
-                facade=self,
+                engine=self,
             )
 
             result = await workflow_executor.execute(
@@ -446,7 +446,7 @@ class AuriteExecutor:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..config.config_models import CustomWorkflowConfig
+            from ..lib.config.config_models import CustomWorkflowConfig
 
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
@@ -470,7 +470,7 @@ class AuriteExecutor:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..config.config_models import CustomWorkflowConfig
+            from ..lib.config.config_models import CustomWorkflowConfig
 
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
@@ -490,7 +490,7 @@ class AuriteExecutor:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..config.config_models import CustomWorkflowConfig
+            from ..lib.config.config_models import CustomWorkflowConfig
 
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 

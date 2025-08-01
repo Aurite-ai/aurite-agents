@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
 
-from ....components.llm.litellm_client import LiteLLMClient
-from ....config.config_manager import ConfigManager
-from ....config.config_models import AgentConfig, LLMConfig
-from ....errors import ConfigurationError, WorkflowExecutionError
-from ....execution.facade import ExecutionFacade
-from ....storage.sessions.session_manager import SessionManager
-from ....storage.sessions.session_models import ExecutionHistoryResponse, SessionListResponse
+from .....lib.storage.sessions.session_manager import SessionManager
+from ....execution.aurite_engine import AuriteEngine
+from ....lib.components.llm.litellm_client import LiteLLMClient
+from ....lib.config.config_manager import ConfigManager
+from ....lib.models import (
+    AgentConfig,
+    AgentRunRequest,
+    ExecutionHistoryResponse,
+    LLMConfig,
+    SessionListResponse,
+    WorkflowRunRequest,
+)
+from ....utils.errors import ConfigurationError, WorkflowExecutionError
 from ...dependencies import (
     get_api_key,
     get_config_manager,
@@ -33,27 +38,16 @@ def clean_error_message(error: Exception) -> str:
     return str(error)
 
 
-router = APIRouter()
-
-
-class AgentRunRequest(BaseModel):
-    user_message: str
-    system_prompt: Optional[str] = None
-    session_id: Optional[str] = None
-
-
-class WorkflowRunRequest(BaseModel):
-    initial_input: Any
-    session_id: Optional[str] = None
+router = APIRouter(prefix="/execution", tags=["Execution Facade"])
 
 
 @router.get("/status")
 async def get_facade_status(
     _api_key: str = Security(get_api_key),
-    _facade: ExecutionFacade = Depends(get_execution_facade),
+    _facade: AuriteEngine = Depends(get_execution_facade),
 ):
     """
-    Get the status of the ExecutionFacade.
+    Get the status of the AuriteEngine.
     """
     # We can add more detailed status checks later
     return {"status": "active"}
@@ -64,14 +58,14 @@ async def run_agent(
     agent_name: str,
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
     config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Execute an agent by name.
     """
     try:
-        result = await facade.run_agent(
+        result = await engine.run_agent(
             agent_name=agent_name,
             user_message=request.user_message,
             system_prompt=request.system_prompt,
@@ -177,14 +171,14 @@ async def test_llm(
 async def test_agent(
     agent_name: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Test an agent's configuration and dependencies.
     """
     try:
         # This can be expanded to a more thorough test
-        await facade.run_agent(agent_name, "test message", system_prompt="test")
+        await engine.run_agent(agent_name, "test message", system_prompt="test")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -232,7 +226,7 @@ async def stream_agent(
     agent_name: str,
     request: AgentRunRequest,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
     config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
@@ -243,7 +237,7 @@ async def stream_agent(
         _validate_agent(agent_name, config_manager)
 
         async def event_generator():
-            async for event in facade.stream_agent_run(
+            async for event in engine.stream_agent_run(
                 agent_name=agent_name,
                 user_message=request.user_message,
                 system_prompt=request.system_prompt,
@@ -285,13 +279,13 @@ async def run_linear_workflow(
     workflow_name: str,
     request: WorkflowRunRequest,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Execute a linear workflow by name.
     """
     try:
-        result = await facade.run_linear_workflow(
+        result = await engine.run_linear_workflow(
             workflow_name=workflow_name,
             initial_input=request.initial_input,
             session_id=request.session_id,
@@ -312,14 +306,14 @@ async def run_linear_workflow(
 async def test_linear_workflow(
     workflow_name: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Test a linear workflow.
     """
     try:
         # This can be expanded to a more thorough test
-        await facade.run_linear_workflow(workflow_name, "test")
+        await engine.run_linear_workflow(workflow_name, "test")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -330,13 +324,13 @@ async def run_custom_workflow(
     workflow_name: str,
     request: WorkflowRunRequest,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Execute a custom workflow by name.
     """
     try:
-        result = await facade.run_custom_workflow(
+        result = await engine.run_custom_workflow(
             workflow_name=workflow_name,
             initial_input=request.initial_input,
             session_id=request.session_id,
@@ -357,14 +351,14 @@ async def run_custom_workflow(
 async def test_custom_workflow(
     workflow_name: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Test a custom workflow.
     """
     try:
         # This can be expanded to a more thorough test
-        await facade.run_custom_workflow(workflow_name, "test")
+        await engine.run_custom_workflow(workflow_name, "test")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -374,14 +368,14 @@ async def test_custom_workflow(
 async def validate_custom_workflow(
     workflow_name: str,
     api_key: str = Security(get_api_key),
-    facade: ExecutionFacade = Depends(get_execution_facade),
+    engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
     Validate a custom workflow.
     """
     try:
         # This can be expanded to a more thorough test
-        await facade.run_custom_workflow(workflow_name, "test")
+        await engine.run_custom_workflow(workflow_name, "test")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

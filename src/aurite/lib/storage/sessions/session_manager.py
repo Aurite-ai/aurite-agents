@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from ...components.agents.agent_models import AgentRunResult
-from ...components.workflows.workflow_models import LinearWorkflowExecutionResult
+from ...lib.components.agents.agent_models import AgentRunResult
+from ...lib.components.workflows.workflow_models import LinearWorkflowExecutionResult
 from .cache_manager import CacheManager
 from .session_models import SessionMetadata
 

@@ -2,67 +2,27 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Security
-from pydantic import BaseModel
 
-from ....config.config_manager import ConfigManager
-from ....config.config_models import ClientConfig
-from ....errors import MCPServerTimeoutError
-from ....host.host import MCPHost
+from ....execution.mcp_host.mcp_host import MCPHost
+from ....lib.config.config_manager import ConfigManager
+from ....lib.models import (
+    ClientConfig,
+    ServerDetailedStatus,
+    ServerRuntimeInfo,
+    ServerTestResult,
+    ToolCallArgs,
+    ToolDetails,
+)
+from ....utils.errors import MCPServerTimeoutError
 from ...dependencies import get_api_key, get_config_manager, get_host
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
-
-
-class ToolCallArgs(BaseModel):
-    args: Dict[str, Any]
-
-
-class ServerRuntimeInfo(BaseModel):
-    """Runtime information about a registered MCP server."""
-
-    name: str
-    status: str = "active"
-    transport_type: str
-    tools_count: int
-    registration_time: datetime
-
-
-class ServerDetailedStatus(BaseModel):
-    """Detailed runtime status for a specific MCP server."""
-
-    name: str
-    registered: bool
-    status: str
-    transport_type: Optional[str]
-    tools: List[str]
-    registration_time: Optional[datetime]
-    session_active: bool
-
-
-class ToolDetails(BaseModel):
-    """Detailed information about a specific tool."""
-
-    name: str
-    description: str
-    server_name: str
-    inputSchema: Dict[str, Any]
-
-
-class ServerTestResult(BaseModel):
-    """Result of testing an MCP server configuration."""
-
-    status: str  # "success" or "failed"
-    server_name: str
-    connection_time: Optional[float]
-    tools_discovered: Optional[List[str]]
-    test_tool_result: Optional[Dict[str, Any]]
-    error: Optional[str]
+router = APIRouter(prefix="/tools", tags=["MCP Host"])
 
 
 # Track server registration times (in-memory for now)

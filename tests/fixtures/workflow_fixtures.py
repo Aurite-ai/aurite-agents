@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 # Use relative imports assuming tests run from aurite-mcp root
-from aurite.config.config_models import CustomWorkflowConfig, WorkflowConfig
+from aurite.lib.config.config_models import CustomWorkflowConfig, WorkflowConfig
 
 # Note: We might need AgentConfig fixtures here if workflows depend on them,
 # but for now, let's keep agent configs in agent_fixtures.py

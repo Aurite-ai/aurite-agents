@@ -7,6 +7,7 @@ This document provides Claude with essential context about the Aurite Agents fra
 Aurite Agents is a Python framework for building AI agents using the Model Context Protocol (MCP). The framework provides a layered architecture for orchestrating LLM-powered agents with external tools and resources.
 
 ### Key Technologies
+
 - **Backend**: Python 3.11+, FastAPI, Pydantic, SQLAlchemy
 - **Frontend**: React, TypeScript, Vite, TailwindCSS
 - **Testing**: pytest, pytest-asyncio, pytest-mock
@@ -44,17 +45,20 @@ Before making any changes, Claude should consult these key documents:
 ## Development Workflow
 
 ### Phase 1: Discovery & Context Retrieval
+
 1. Review `.clinerules/documentation_guide.md` to identify relevant documents
 2. Read component-specific documentation in `docs/components/`
 3. Consult layer documents in `docs/layers/` for implementation details
 4. Review source code and corresponding tests
 
 ### Phase 2: Planning & Design
+
 1. Create implementation plans for complex tasks
 2. Include testing in every implementation step
 3. Plan for documentation updates as the final step
 
 ### Phase 3: Implementation
+
 1. Follow the implementation plan step-by-step
 2. Run tests after each change
 3. Update documentation when implementation is complete
@@ -62,12 +66,14 @@ Before making any changes, Claude should consult these key documents:
 ## Code Style and Standards
 
 ### Python Code
+
 - Follow PEP 8 with 120-character line limit
 - Use type hints for all function signatures
 - Docstrings required for all public functions/classes
 - Imports organized: standard library, third-party, local
 
 ### Frontend Code
+
 - TypeScript with strict mode enabled
 - React functional components with hooks
 - TailwindCSS for styling
@@ -95,11 +101,13 @@ pytest -n auto
 ```
 
 ### Test Structure
+
 - Unit tests: Test individual components in isolation
 - Integration tests: Test component interactions
 - Functional tests: End-to-end testing with real MCP servers
 
 ### Writing Tests
+
 1. Place tests in the corresponding directory under `tests/`
 2. Use descriptive test names: `test_<component>_<behavior>`
 3. Use fixtures from `tests/fixtures/` for common test data
@@ -108,23 +116,27 @@ pytest -n auto
 ## Common Development Tasks
 
 ### Adding a New Agent Configuration
+
 1. Create/update JSON in `config/agents/`
 2. Update `docs/components/agent.md` if adding new fields
 3. Write tests in `tests/orchestration/agent/`
 
 ### Modifying API Endpoints
+
 1. Update route in `src/aurite/bin/api/routes/`
 2. Update `docs/layers/1_entrypoints.md`
 3. Add/update tests in `tests/api/`
 4. Update frontend if endpoint is consumed there
 
 ### Adding MCP Server Support
+
 1. Test server with `tests/functional_mcp_client.py`
 2. Add configuration to `src/aurite/packaged/component_configs/mcp_servers/`
 3. Create documentation in `docs/toolbox/servers/`
 4. Update `docs/toolbox/mcp_server_directory.md`
 
 ### Frontend Development
+
 1. Components go in `frontend/src/components/`
 2. Features go in `frontend/src/features/`
 3. Update `frontend/README.md` for structural changes
@@ -133,6 +145,7 @@ pytest -n auto
 ## Package Development
 
 ### Building the Package
+
 ```bash
 # Install in development mode
 pip install -e .
@@ -145,6 +158,7 @@ pip install dist/aurite-*.whl
 ```
 
 ### Testing `aurite init`
+
 ```bash
 # After making changes to src/aurite/packaged/
 pip install -e .
@@ -156,12 +170,14 @@ aurite init test_project
 ## Configuration Management
 
 ### Project Configuration (`aurite_config.json`)
+
 - Central configuration file for all components
 - Located at project root
 - References other configuration files
 - See `docs/components/PROJECT.md` for details
 
 ### Component Configurations
+
 - **Agents**: `config/agents/*.json`
 - **LLMs**: `config/llms/*.json`
 - **MCP Servers**: `config/mcp_servers/*.json`
@@ -170,6 +186,7 @@ aurite init test_project
 ## Error Handling Patterns
 
 ### API Errors
+
 ```python
 from fastapi import HTTPException
 
@@ -178,6 +195,7 @@ raise HTTPException(status_code=404, detail="Resource not found")
 ```
 
 ### Async Error Handling
+
 ```python
 try:
     result = await async_operation()
@@ -189,18 +207,21 @@ except SpecificError as e:
 ## Debugging Tips
 
 ### Enable Debug Logging
+
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
 ```
 
 ### MCP Server Debugging
+
 ```bash
 # Test MCP server directly
 python tests/functional_mcp_client.py '{"command": "npx", "args": ["server-name"]}' "test query"
 ```
 
 ### API Debugging
+
 - Use Postman collections in `tests/api/`
 - Check API logs for detailed error messages
 - Use FastAPI's automatic `/docs` endpoint
@@ -208,12 +229,14 @@ python tests/functional_mcp_client.py '{"command": "npx", "args": ["server-name"
 ## Important Conventions
 
 ### File Naming
+
 - Python files: `snake_case.py`
 - React components: `PascalCase.tsx`
 - Test files: `test_<module_name>.py`
 - Documentation: `lowercase_with_underscores.md`
 
 ### Import Organization
+
 ```python
 # Standard library
 import os
@@ -224,11 +247,12 @@ import pytest
 from fastapi import FastAPI
 
 # Local
-from aurite.components.agents import Agent
-from aurite.config import ConfigManager
+from aurite.lib.components.agents import Agent
+from aurite.lib.config import ConfigManager
 ```
 
 ### Async/Await Usage
+
 - All MCP operations are async
 - Use `asyncio.run()` for synchronous entry points
 - Prefer `async with` for resource management

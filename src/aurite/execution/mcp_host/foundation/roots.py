@@ -7,7 +7,7 @@ from typing import Dict, List, Set
 from urllib.parse import urlparse
 
 # Import the Pydantic model
-from aurite.config.config_models import RootConfig  # Renamed config.py to models.py
+from aurite.lib.config.config_models import RootConfig  # Renamed config.py to models.py
 
 logger = logging.getLogger(__name__)
 

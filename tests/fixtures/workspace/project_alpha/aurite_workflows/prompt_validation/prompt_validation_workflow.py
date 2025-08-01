@@ -14,12 +14,12 @@
 #     generate_config,
 # )
 
-# # from aurite.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
+# # from aurite.lib.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
 # from typing import TYPE_CHECKING, Optional, Any
 
-# # Type hint for ExecutionFacade to avoid circular import
+# # Type hint for AuriteEngine to avoid circular import
 # if TYPE_CHECKING:
-#     from aurite.execution.facade import ExecutionFacade  # This is now correct
+#     from aurite.execution.aurite_engine import AuriteEngine  # This is now correct
 
 # logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@
 #     async def execute_workflow(
 #         self,
 #         initial_input: Any,
-#         executor: "ExecutionFacade",
+#         executor: "AuriteEngine",
 #         session_id: Optional[str] = None,
 #     ) -> Any:
 #         """

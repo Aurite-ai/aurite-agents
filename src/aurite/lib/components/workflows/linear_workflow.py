@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING, Any, Optional
 from pydantic import BaseModel
 
 # Relative imports assuming this file is in src/workflows/
-from ...config.config_models import WorkflowComponent, WorkflowConfig
+from ...lib.config.config_models import WorkflowComponent, WorkflowConfig
 from ..agents.agent_models import AgentRunResult
 from .workflow_models import LinearWorkflowExecutionResult, LinearWorkflowStepResult
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
-    from ...execution.facade import ExecutionFacade
+    from ...execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -34,22 +34,22 @@ class LinearWorkflowExecutor:
     def __init__(
         self,
         config: WorkflowConfig,
-        facade: "ExecutionFacade",
+        engine: "AuriteEngine",
     ):
         """
         Initializes the LinearWorkflowExecutor.
 
         Args:
             config: The configuration for the specific workflow to execute.
-            facade: The ExecutionFacade instance, used to run agents.
+            engine: The AuriteEngine instance, used to run agents.
         """
         if not isinstance(config, WorkflowConfig):
             raise TypeError("config must be an instance of WorkflowConfig")
-        if not facade:
-            raise ValueError("ExecutionFacade instance is required.")
+        if not engine:
+            raise ValueError("AuriteEngine instance is required.")
 
         self.config = config
-        self.facade = facade
+        self.engine = engine
         logger.debug(f"LinearWorkflowExecutor initialized for workflow: {self.config.name}")
 
     async def execute(
@@ -103,11 +103,11 @@ class LinearWorkflowExecutor:
                             if isinstance(current_message, dict):
                                 current_message = json.dumps(current_message)
 
-                            # The facade is now responsible for handling session ID generation for agent steps.
-                            agent_run_result: AgentRunResult = await self.facade.run_agent(
+                            # The engine is now responsible for handling session ID generation for agent steps.
+                            agent_run_result: AgentRunResult = await self.engine.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
-                                # Let the facade determine the session logic based on workflow context
+                                # Let the engine determine the session logic based on workflow context
                                 session_id=f"{session_id}-{step_index}" if session_id else None,
                                 force_include_history=self.config.include_history,
                                 base_session_id=base_session_id,  # Pass the workflow's base ID
@@ -132,7 +132,7 @@ class LinearWorkflowExecutor:
                             current_message = agent_run_result.final_response.content
 
                         case "linear_workflow":
-                            workflow_result = await self.facade.run_linear_workflow(
+                            workflow_result = await self.engine.run_linear_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
                                 session_id=session_id,
@@ -144,13 +144,13 @@ class LinearWorkflowExecutor:
                             current_message = workflow_result.final_output
 
                         case "custom_workflow":
-                            input_type = await self.facade.get_custom_workflow_input_type(workflow_name=component.name)
+                            input_type = await self.engine.get_custom_workflow_input_type(workflow_name=component.name)
                             if isinstance(current_message, str) and input_type is dict:
                                 current_message = json.loads(current_message)
                             elif isinstance(current_message, dict) and input_type is str:
                                 current_message = json.dumps(current_message)
 
-                            custom_workflow_output = await self.facade.run_custom_workflow(
+                            custom_workflow_output = await self.engine.run_custom_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
                                 session_id=session_id,
@@ -206,11 +206,11 @@ class LinearWorkflowExecutor:
     def _infer_component_type(self, component_name: str):
         """Search through the project's defined components to find the type of a component"""
         possible_types = []
-        if self.facade._config_manager.get_config("agent", component_name):
+        if self.engine._config_manager.get_config("agent", component_name):
             possible_types.append("agent")
-        if self.facade._config_manager.get_config("linear_workflow", component_name):
+        if self.engine._config_manager.get_config("linear_workflow", component_name):
             possible_types.append("linear_workflow")
-        if self.facade._config_manager.get_config("custom_workflow", component_name):
+        if self.engine._config_manager.get_config("custom_workflow", component_name):
             possible_types.append("custom_workflow")
 
         if len(possible_types) == 1:

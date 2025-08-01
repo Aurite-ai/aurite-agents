@@ -18,7 +18,7 @@ from ...dependencies import get_api_key, get_aurite
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/system", tags=["System Management"])
 
 
 class SystemInfo(BaseModel):
@@ -669,7 +669,7 @@ async def comprehensive_health_check(
         }
         issues.append(f"MCPHost error: {e}")
 
-    # Check ExecutionFacade
+    # Check AuriteEngine
     try:
         if aurite.kernel.execution:
             components["execution_facade"] = {
@@ -679,15 +679,15 @@ async def comprehensive_health_check(
         else:
             components["execution_facade"] = {
                 "status": "degraded",
-                "error": "ExecutionFacade not initialized",
+                "error": "AuriteEngine not initialized",
             }
-            issues.append("ExecutionFacade not initialized")
+            issues.append("AuriteEngine not initialized")
     except Exception as e:
         components["execution_facade"] = {
             "status": "unhealthy",
             "error": str(e),
         }
-        issues.append(f"ExecutionFacade error: {e}")
+        issues.append(f"AuriteEngine error: {e}")
 
     # Check database connectivity
     try:

@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ...aurite import Aurite
-from ...errors import AuriteError
+from ...utils.errors import AuriteError
 from .ui_presenter import RunPresenter
 
 console = Console()

@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List
 
 # Import necessary types and models
-from aurite.config.config_models import AgentConfig, ClientConfig
+from aurite.lib.config.config_models import AgentConfig, ClientConfig
 
 # from .foundation import MessageRouter  # MessageRouter is not used
 

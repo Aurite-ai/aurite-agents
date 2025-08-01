@@ -22,20 +22,20 @@ else:
 from langfuse import Langfuse
 from termcolor import colored
 
-from .components.agents.agent_models import AgentRunResult
-from .components.workflows.workflow_models import LinearWorkflowExecutionResult
-from .config.config_manager import ConfigManager
-from .config.config_models import (
+from .execution.aurite_engine import AuriteEngine
+from .host.host import MCPHost
+from .lib.components.agents.agent_models import AgentRunResult
+from .lib.components.workflows.workflow_models import LinearWorkflowExecutionResult
+from .lib.config.config_manager import ConfigManager
+from .lib.config.config_models import (
     AgentConfig,
     ClientConfig,
     CustomWorkflowConfig,
     LLMConfig,
     WorkflowConfig,
 )
-from .execution.facade import ExecutionFacade
-from .host.host import MCPHost
-from .storage.db.db_connection import create_db_engine
-from .storage.db.db_manager import StorageManager
+from .lib.storage.db.db_connection import create_db_engine
+from .lib.storage.db.db_manager import StorageManager
 from .storage.sessions.cache_manager import CacheManager
 
 if TYPE_CHECKING:
@@ -70,13 +70,13 @@ def _setup_logging_if_needed(disable_logging: bool = False):
     # Only setup logging if it hasn't been disabled
     if not _logging_disabled:
         try:
-            from .bin.logging_config import setup_logging
+            from .utils.logging_config import setup_logging
 
             log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
             numeric_level = getattr(logging, log_level_str, logging.INFO)
             setup_logging(level=numeric_level)
         except ImportError:
-            logger.warning("aurite.bin.logging_config not found. Colored logging will not be applied.")
+            logger.warning("aurite.utils.logging_config not found. Colored logging will not be applied.")
             if not logging.getLogger().hasHandlers():
                 log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
                 numeric_level = getattr(logging, log_level_str, logging.INFO)
@@ -137,7 +137,7 @@ class AuriteKernel:
             if self._db_engine:
                 self.storage_manager = StorageManager(engine=self._db_engine)
 
-        self.execution = ExecutionFacade(
+        self.execution = AuriteEngine(
             config_manager=self.config_manager,
             host_instance=self.host,
             storage_manager=self.storage_manager,

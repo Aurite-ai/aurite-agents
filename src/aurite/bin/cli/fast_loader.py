@@ -5,7 +5,7 @@ from typing import List
 
 import yaml
 
-from .config_utils import find_anchor_files
+from aurite.lib.config.config_utils import find_anchor_files
 
 try:
     import tomllib

@@ -5,7 +5,7 @@ import pytest
 from openai.types.chat import ChatCompletionMessage
 
 from aurite.aurite import Aurite
-from aurite.components.agents.agent_models import AgentRunResult
+from aurite.lib.components.agents.agent_models import AgentRunResult
 
 
 @pytest.mark.anyio
@@ -16,12 +16,12 @@ async def test_linear_workflow_success():
     Tests a successful execution of a linear workflow using the packaged example project.
     """
     # Arrange
-    example_project_path = Path("src/aurite/init_templates").resolve()
+    example_project_path = Path("src/aurite/lib/init_templates").resolve()
 
     async with Aurite(start_dir=example_project_path) as aurite:
         execution_facade = aurite.kernel.execution
 
-        # Mock the facade's run_agent method to simulate successful agent runs
+        # Mock the engine's run_agent method to simulate successful agent runs
         mock_run_agent = patch.object(execution_facade, "run_agent", new_callable=AsyncMock).start()
 
         # Define the mock return values for each agent in the workflow
@@ -73,12 +73,12 @@ async def test_linear_workflow_agent_failure():
     Tests that the workflow correctly handles a failure from one of its agents.
     """
     # Arrange
-    example_project_path = Path("src/aurite/init_templates").resolve()
+    example_project_path = Path("src/aurite/lib/init_templates").resolve()
 
     async with Aurite(start_dir=example_project_path) as aurite:
         execution_facade = aurite.kernel.execution
 
-        # Mock the facade's run_agent to simulate a failure on the first call
+        # Mock the engine's run_agent to simulate a failure on the first call
         mock_run_agent = patch.object(
             execution_facade,
             "run_agent",

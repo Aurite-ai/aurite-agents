@@ -60,7 +60,7 @@ aurite = "aurite.bin.cli.main:app"
 packages = [{ include = "aurite", from = "src" }]
 include = [
     "LICENSE",
-    { path = "src/aurite/init_templates", format = [
+    { path = "src/aurite/lib/init_templates", format = [
         "sdist",
         "wheel",
     ] },

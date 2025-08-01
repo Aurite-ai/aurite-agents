@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 import mcp.types as types
 from mcp.client.session_group import ClientSessionGroup
 
-from aurite.config.config_models import AgentConfig
+from aurite.lib.config.config_models import AgentConfig
 
 from ..filtering import FilteringManager
 

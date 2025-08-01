@@ -14,7 +14,7 @@ from textual.events import Key
 from textual.widgets import Footer, Header, Markdown, Static, TextArea
 
 from ...aurite import Aurite, disable_all_logging
-from ..ui_utils import (
+from .ui_utils import (
     format_agent_message,
     format_tool_call_message,
     format_tool_output_message,

@@ -4,15 +4,24 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
-from pydantic import BaseModel, Field
 
-from ....config.config_manager import ConfigManager
+from ....lib.config.config_manager import ConfigManager
+from ....lib.models import (
+    ComponentCreate,
+    ComponentUpdate,
+    FileCreateRequest,
+    FileUpdateRequest,
+    ProjectCreate,
+    ProjectInfo,
+    ProjectUpdate,
+    WorkspaceInfo,
+)
 from ...dependencies import get_api_key, get_config_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/config", tags=["Configuration Manager"])
 
 # Mapping from plural to singular forms for component types
 PLURAL_TO_SINGULAR = {
@@ -22,64 +31,6 @@ PLURAL_TO_SINGULAR = {
     "linear_workflows": "linear_workflow",
     "custom_workflows": "custom_workflow",
 }
-
-
-# Request/Response Models
-class ComponentCreate(BaseModel):
-    """Request model for creating a new component"""
-
-    name: str = Field(..., description="Unique name for the component")
-    config: Dict[str, Any] = Field(..., description="Component configuration")
-
-
-class ComponentUpdate(BaseModel):
-    """Request model for updating an existing component"""
-
-    config: Dict[str, Any] = Field(..., description="Updated component configuration")
-
-
-class MessageResponse(BaseModel):
-    """Standard message response"""
-
-    message: str
-
-
-# Project/Workspace Models
-class ProjectCreate(BaseModel):
-    """Request model for creating a new project"""
-
-    name: str = Field(..., pattern="^[a-zA-Z0-9_-]+$", description="Project name")
-    description: Optional[str] = Field(None, description="Project description")
-
-
-class ProjectUpdate(BaseModel):
-    """Request model for updating a project"""
-
-    description: Optional[str] = Field(None, description="Project description")
-    include_configs: Optional[List[str]] = Field(None, description="Configuration directories")
-    new_name: Optional[str] = Field(None, pattern="^[a-zA-Z0-9_-]+$", description="New project name for renaming")
-
-
-class ProjectInfo(BaseModel):
-    """Response model for project information"""
-
-    name: str
-    path: str
-    is_active: bool
-    include_configs: List[str]
-    description: Optional[str] = None
-    created_at: Optional[float] = None
-
-
-class WorkspaceInfo(BaseModel):
-    """Response model for workspace information"""
-
-    name: str
-    path: str
-    projects: List[str]
-    include_configs: List[str]
-    is_active: bool
-    description: Optional[str] = None
 
 
 # Component CRUD Operations
@@ -131,7 +82,7 @@ async def get_component_by_id(
     return config
 
 
-@router.post("/components/{component_type}", response_model=MessageResponse)
+@router.post("/components/{component_type}", response_model=Dict[str, str])
 async def create_component(
     component_type: str,
     component_data: ComponentCreate,
@@ -216,7 +167,7 @@ async def create_component(
     return result
 
 
-@router.put("/components/{component_type}/{component_id}", response_model=MessageResponse)
+@router.put("/components/{component_type}/{component_id}", response_model=Dict[str, Any])
 async def update_component(
     component_type: str,
     component_id: str,
@@ -251,10 +202,10 @@ async def update_component(
             detail=f"Failed to update component '{component_id}'.",
         )
 
-    return MessageResponse(message=f"Component '{component_id}' updated successfully.")
+    return {"message": f"Component '{component_id}' updated successfully."}
 
 
-@router.delete("/components/{component_type}/{component_id}", response_model=MessageResponse)
+@router.delete("/components/{component_type}/{component_id}", response_model=Dict[str, Any])
 async def delete_component(
     component_type: str,
     component_id: str,
@@ -284,10 +235,10 @@ async def delete_component(
             detail=f"Failed to delete component '{component_id}'.",
         )
 
-    return MessageResponse(message=f"Component '{component_id}' deleted successfully.")
+    return {"message": f"Component '{component_id}' deleted successfully."}
 
 
-@router.post("/components/{component_type}/{component_id}/validate", response_model=MessageResponse)
+@router.post("/components/{component_type}/{component_id}/validate", response_model=Dict[str, Any])
 async def validate_component(
     component_type: str,
     component_id: str,
@@ -316,7 +267,7 @@ async def validate_component(
             detail=f"Validation failed: {', '.join(errors)}",
         )
 
-    return MessageResponse(message=f"Component '{component_id}' is valid.")
+    return {"message": f"Component '{component_id}' is valid."}
 
 
 # File Operations
@@ -381,13 +332,7 @@ async def get_file_content(
     return content
 
 
-class FileCreateRequest(BaseModel):
-    source_name: str
-    relative_path: str
-    content: str
-
-
-@router.post("/files", response_model=MessageResponse)
+@router.post("/files", response_model=Dict[str, Any])
 async def create_config_file(
     request: FileCreateRequest,
     api_key: str = Security(get_api_key),
@@ -402,14 +347,10 @@ async def create_config_file(
             status_code=400,
             detail=f"Failed to create file '{request.relative_path}' in source '{request.source_name}'.",
         )
-    return MessageResponse(message="File created successfully.")
+    return {"message": "File created successfully."}
 
 
-class FileUpdateRequest(BaseModel):
-    content: str
-
-
-@router.put("/files/{source_name}/{file_path:path}", response_model=MessageResponse)
+@router.put("/files/{source_name}/{file_path:path}", response_model=Dict[str, Any])
 async def update_config_file(
     source_name: str,
     file_path: str,
@@ -426,10 +367,10 @@ async def update_config_file(
             status_code=400,
             detail=f"Failed to update file '{file_path}' in source '{source_name}'.",
         )
-    return MessageResponse(message="File updated successfully.")
+    return {"message": "File updated successfully."}
 
 
-@router.delete("/files/{source_name}/{file_path:path}", response_model=MessageResponse)
+@router.delete("/files/{source_name}/{file_path:path}", response_model=Dict[str, Any])
 async def delete_config_file(
     source_name: str,
     file_path: str,
@@ -445,7 +386,7 @@ async def delete_config_file(
             status_code=400,
             detail=f"Failed to delete file '{file_path}' in source '{source_name}'.",
         )
-    return MessageResponse(message="File deleted successfully.")
+    return {"message": "File deleted successfully."}
 
 
 @router.post("/validate", response_model=List[Dict[str, Any]])
@@ -466,7 +407,7 @@ async def validate_all_components(
 
 
 # Configuration Management Operations
-@router.post("/refresh", response_model=MessageResponse)
+@router.post("/refresh", response_model=Dict[str, Any])
 async def refresh_configs(
     api_key: str = Security(get_api_key),
     config_manager: ConfigManager = Depends(get_config_manager),
@@ -477,7 +418,7 @@ async def refresh_configs(
     """
     try:
         config_manager.refresh()
-        return MessageResponse(message="Configurations refreshed successfully.")
+        return {"message": "Configurations refreshed successfully."}
     except Exception as e:
         logger.error(f"Failed to refresh configurations: {e}")
         raise HTTPException(
@@ -499,7 +440,7 @@ async def list_projects(
     return [ProjectInfo(**project) for project in projects]
 
 
-@router.post("/projects", response_model=MessageResponse)
+@router.post("/projects", response_model=Dict[str, Any])
 async def create_project(
     project_data: ProjectCreate,
     api_key: str = Security(get_api_key),
@@ -518,7 +459,7 @@ async def create_project(
     # Refresh to include the new project
     config_manager.refresh()
 
-    return MessageResponse(message=f"Project '{project_data.name}' created successfully.")
+    return {"message": f"Project '{project_data.name}' created successfully."}
 
 
 @router.get("/projects/active", response_model=Optional[ProjectInfo])
@@ -553,7 +494,7 @@ async def get_project(
     return ProjectInfo(**project)
 
 
-@router.put("/projects/{name}", response_model=MessageResponse)
+@router.put("/projects/{name}", response_model=Dict[str, Any])
 async def update_project(
     name: str,
     project_data: ProjectUpdate,
@@ -582,10 +523,10 @@ async def update_project(
     if project_data.new_name:
         config_manager.refresh()
 
-    return MessageResponse(message=f"Project '{name}' updated successfully.")
+    return {"message": f"Project '{name}' updated successfully."}
 
 
-@router.delete("/projects/{name}", response_model=MessageResponse)
+@router.delete("/projects/{name}", response_model=Dict[str, Any])
 async def delete_project(
     name: str,
     api_key: str = Security(get_api_key),
@@ -604,7 +545,7 @@ async def delete_project(
     # Refresh to remove the project from index
     config_manager.refresh()
 
-    return MessageResponse(message=f"Project '{name}' deleted successfully.")
+    return {"message": f"Project '{name}' deleted successfully."}
 
 
 # Workspace Management Operations

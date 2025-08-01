@@ -15,7 +15,7 @@ from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
 from sqlalchemy import delete, func  # Import delete and func
 from sqlalchemy.engine import Engine  # Import Engine for type hint
 
-from ...config.config_models import (
+from ...lib.config.config_models import (
     AgentConfig,
     CustomWorkflowConfig,
     LLMConfig,

@@ -9,18 +9,17 @@ It exposes the core classes and functions for users to build and run AI agents.
 # Core classes for users
 # Configuration models
 from .aurite import Aurite
-from .config.config_models import (
+
+# Add other config models if they are part of the public API
+from .execution.aurite_engine import AuriteEngine
+from .lib.config.config_models import (
     AgentConfig,
     ClientConfig,
     CustomWorkflowConfig,
     HostConfig,
     LLMConfig,
-    ProjectConfig,
     WorkflowConfig,
 )
-
-# Add other config models if they are part of the public API
-from .execution.facade import ExecutionFacade
 
 __all__ = [
     "Aurite",
@@ -29,9 +28,8 @@ __all__ = [
     "CustomWorkflowConfig",
     "HostConfig",
     "LLMConfig",
-    "ProjectConfig",
     "WorkflowConfig",
-    "ExecutionFacade",
+    "AuriteEngine",
     # Add other exposed names to __all__
 ]
 

@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, Optional
 from aurite.servers.storage.file_server import FILES, read_file
 from aurite.servers.storage.vector.pgvector_server import batch_store, clear_database
 
-# Type hint for ExecutionFacade to avoid circular import
+# Type hint for AuriteEngine to avoid circular import
 if TYPE_CHECKING:
-    from aurite.execution.facade import ExecutionFacade
+    from aurite.execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class InitializeDocsWorkflow:
     async def execute_workflow(
         self,
         initial_input: Any,
-        executor: "ExecutionFacade",
+        executor: "AuriteEngine",
         session_id: Optional[str] = None,
     ) -> Any:
         """
@@ -58,7 +58,7 @@ class InitializeDocsWorkflow:
 
         Args:
             initial_input: Unused object
-            executor: The ExecutionFacade
+            executor: The AuriteEngine
             session_id: Optional, id of the session for logging
 
         Returns:

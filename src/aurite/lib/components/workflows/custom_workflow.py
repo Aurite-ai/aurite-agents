@@ -8,14 +8,14 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional  # Added Optional
 
 # Relative imports assuming this file is in src/workflows/
-from ...config.config_models import CustomWorkflowConfig  # Updated import path
+from ...lib.config.config_models import CustomWorkflowConfig  # Updated import path
 
 # MCPHost is still needed for the __init__ method
-# from ..config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by Aurite/ProjectManager
+# from ..lib.config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by Aurite/ProjectManager
 
-# Type hint for ExecutionFacade
+# Type hint for AuriteEngine
 if TYPE_CHECKING:
-    from ...execution.facade import ExecutionFacade
+    from ...execution.aurite_engine import AuriteEngine
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class CustomWorkflowExecutor:
     Handles dynamic loading and execution of the workflow class.
     """
 
-    # Removed host_instance from __init__ as it's passed via facade in execute
+    # Removed host_instance from __init__ as it's passed via engine in execute
     def __init__(self, config: CustomWorkflowConfig):
         """
         Initializes the CustomWorkflowExecutor.
@@ -62,11 +62,11 @@ class CustomWorkflowExecutor:
 
         self.workflow_instance, self.methods = self._load_methods(methods_to_load)
 
-    # Changed signature to accept executor (ExecutionFacade) and session_id
+    # Changed signature to accept executor (AuriteEngine) and session_id
     async def execute(
         self,
         initial_input: Any,
-        executor: "ExecutionFacade",
+        executor: "AuriteEngine",
         session_id: Optional[str] = None,
     ) -> Any:  # Added session_id
         """
@@ -74,7 +74,7 @@ class CustomWorkflowExecutor:
 
         Args:
             initial_input: The input data to pass to the workflow's execute method.
-            executor: The ExecutionFacade instance, passed to the custom workflow
+            executor: The AuriteEngine instance, passed to the custom workflow
                       to allow it to call other components.
             session_id: Optional session ID for context/history tracking.
 
@@ -93,7 +93,7 @@ class CustomWorkflowExecutor:
             workflow_name = self.config.name
 
             logger.debug(  # Already DEBUG
-                "Calling 'execute_workflow', passing ExecutionFacade."
+                "Calling 'execute_workflow', passing AuriteEngine."
             )
 
             result = await self.methods.get("run")(
@@ -196,12 +196,6 @@ class CustomWorkflowExecutor:
 
             # 4. Instantiate Workflow Class
             try:
-                # The check for BaseCustomWorkflow is removed because it's not a requirement
-                # for the dynamic loading logic, only for the type checker.
-                # if not issubclass(WorkflowClass, BaseCustomWorkflow):
-                #     raise TypeError(
-                #         f"Class '{class_name}' must inherit from BaseCustomWorkflow."
-                #     )
                 workflow_instance = WorkflowClass()
                 logger.debug(f"Instantiated workflow class '{class_name}'")  # Already DEBUG
             except Exception as init_err:

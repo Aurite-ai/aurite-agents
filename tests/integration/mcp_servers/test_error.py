@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from aurite.aurite import Aurite
-from aurite.config.config_models import ClientConfig
-from aurite.errors import MCPServerTimeoutError
+from aurite.lib.config.config_models import ClientConfig
+from aurite.utils.errors import MCPServerTimeoutError
 
 
 @pytest.mark.asyncio
