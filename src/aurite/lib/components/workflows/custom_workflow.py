@@ -8,7 +8,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional  # Added Optional
 
 # Relative imports assuming this file is in src/workflows/
-from ...lib.config.config_models import CustomWorkflowConfig  # Updated import path
+from ...models.config.components import CustomWorkflowConfig  # Updated import path
 
 # MCPHost is still needed for the __init__ method
 # from ..lib.config import PROJECT_ROOT_DIR  # Import project root for path validation # Removed: Path validation handled by Aurite/ProjectManager

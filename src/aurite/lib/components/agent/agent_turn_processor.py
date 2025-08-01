@@ -18,8 +18,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
 if TYPE_CHECKING:
     from langfuse.client import StatefulTraceClient
 
-from ...execution.mcp_host.host import MCPHost
-from ...lib.config.config_models import AgentConfig
+from ....execution.mcp_host.mcp_host import MCPHost
+from ...models.config.components import AgentConfig
 from ..llm.litellm_client import LiteLLMClient
 
 logger = logging.getLogger(__name__)

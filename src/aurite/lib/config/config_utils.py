@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Type
 
 # Import model classes for type checking and field identification
 # These are the models that currently have path fields needing resolution/relativization
-from .config_models import ClientConfig, CustomWorkflowConfig
+from aurite.lib.models.config.components import ClientConfig, CustomWorkflowConfig
 
 # It's good practice to also import PROJECT_ROOT_DIR if utils need it directly,
 # or ensure it's passed in, as we are doing.

@@ -23,11 +23,10 @@ from langfuse import Langfuse
 from termcolor import colored
 
 from .execution.aurite_engine import AuriteEngine
-from .host.host import MCPHost
-from .lib.components.agents.agent_models import AgentRunResult
-from .lib.components.workflows.workflow_models import LinearWorkflowExecutionResult
+from .execution.mcp_host.mcp_host import MCPHost
 from .lib.config.config_manager import ConfigManager
-from .lib.config.config_models import (
+from .lib.models.api.responses import AgentRunResult, LinearWorkflowExecutionResult
+from .lib.models.config.components import (
     AgentConfig,
     ClientConfig,
     CustomWorkflowConfig,
@@ -36,7 +35,7 @@ from .lib.config.config_models import (
 )
 from .lib.storage.db.db_connection import create_db_engine
 from .lib.storage.db.db_manager import StorageManager
-from .storage.sessions.cache_manager import CacheManager
+from .lib.storage.sessions.cache_manager import CacheManager
 
 if TYPE_CHECKING:
     pass

@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
 
+from ...models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, LinearWorkflowStepResult
+
 # Relative imports assuming this file is in src/workflows/
-from ...lib.config.config_models import WorkflowComponent, WorkflowConfig
-from ..agents.agent_models import AgentRunResult
-from .workflow_models import LinearWorkflowExecutionResult, LinearWorkflowStepResult
+from ...models.config.components import WorkflowComponent, WorkflowConfig
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:

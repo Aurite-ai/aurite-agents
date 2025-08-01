@@ -13,3 +13,7 @@ main_router.include_router(execution_routes.router)
 
 if os.getenv("INCLUDE_SYSTEM_ROUTER", "false").lower() == "true":
     main_router.include_router(system_routes.router)
+
+__all__ = [
+    "main_router"
+]

@@ -17,10 +17,10 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from openai.types.chat.chat_completion_message_tool_call_param import Function
 
-from ...execution.mcp_host.host import MCPHost
-from ...lib.config.config_models import AgentConfig, LLMConfig
+from ....execution.mcp_host.mcp_host import MCPHost
+from ...models.api.responses import AgentRunResult
+from ...models.config.components import AgentConfig, LLMConfig
 from ..llm.litellm_client import LiteLLMClient
-from .agent_models import AgentRunResult
 from .agent_turn_processor import AgentTurnProcessor
 
 if TYPE_CHECKING:

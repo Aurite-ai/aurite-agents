@@ -7,30 +7,64 @@ It exposes the core classes and functions for users to build and run AI agents.
 """
 
 # Core classes for users
-# Configuration models
 from .aurite import Aurite
-
-# Add other config models if they are part of the public API
 from .execution.aurite_engine import AuriteEngine
-from .lib.config.config_models import (
+
+# Import the models module as 'types' for convenient access
+from .lib import models as types
+
+# Individual imports for backward compatibility
+from .lib.models import (
     AgentConfig,
+    AgentRunRequest,
+    AgentRunResult,
     ClientConfig,
+    ComponentCreate,
+    ComponentUpdate,
     CustomWorkflowConfig,
+    ExecutionHistoryResponse,
     HostConfig,
     LLMConfig,
+    LLMConfigOverrides,
+    ProjectCreate,
+    ProjectInfo,
+    ProjectUpdate,
+    RootConfig,
+    SessionListResponse,
+    SessionMetadata,
+    WorkflowComponent,
     WorkflowConfig,
+    WorkflowRunRequest,
+    WorkspaceInfo,
 )
 
 __all__ = [
     "Aurite",
+    "AuriteEngine",
+    "types",
+    # Individual model exports for backward compatibility
     "AgentConfig",
+    "AgentRunRequest",
+    "AgentRunResult",
     "ClientConfig",
+    "ComponentCreate",
+    "ComponentUpdate",
     "CustomWorkflowConfig",
+    "ExecutionHistoryResponse",
     "HostConfig",
     "LLMConfig",
+    "LLMConfigOverrides",
+    "ProjectCreate",
+    "ProjectInfo",
+    "ProjectUpdate",
+    "RootConfig",
+    "SessionListResponse",
+    "ServerConfig",
+    "SessionMetadata",
+    "WorkflowComponent",
     "WorkflowConfig",
-    "AuriteEngine",
-    # Add other exposed names to __all__
+    "WorkflowRunRequest",
+    "WorkspaceInfo",
 ]
 
 __version__ = "0.2.0"  # Keep in sync with pyproject.toml

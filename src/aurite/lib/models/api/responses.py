@@ -1,6 +1,8 @@
-from typing import Any, BaseModel, Dict, Field, List, Literal, Optional, Union
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from openai.types.chat import ChatCompletionMessage
+from pydantic import BaseModel, Field
 
 
 class AgentRunResult(BaseModel):
@@ -144,3 +146,46 @@ class WorkspaceInfo(BaseModel):
     include_configs: List[str]
     is_active: bool
     description: Optional[str] = None
+
+
+# --- Server and Tool Response Models --
+class ToolDetails(BaseModel):
+    """Detailed information about a specific tool."""
+
+    name: str
+    description: str
+    server_name: str
+    inputSchema: Dict[str, Any]
+
+
+class ServerDetailedStatus(BaseModel):
+    """Detailed runtime status for a specific MCP server."""
+
+    name: str
+    registered: bool
+    status: str
+    transport_type: Optional[str]
+    tools: List[str]
+    registration_time: Optional[datetime]
+    session_active: bool
+
+
+class ServerTestResult(BaseModel):
+    """Result of testing an MCP server configuration."""
+
+    status: str  # "success" or "failed"
+    server_name: str
+    connection_time: Optional[float]
+    tools_discovered: Optional[List[str]]
+    test_tool_result: Optional[Dict[str, Any]]
+    error: Optional[str]
+
+
+class ServerRuntimeInfo(BaseModel):
+    """Runtime information about a registered MCP server."""
+
+    name: str
+    status: str = "active"
+    transport_type: str
+    tools_count: int
+    registration_time: datetime

@@ -7,14 +7,14 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, Security, status  # Added status
 from fastapi.security import APIKeyHeader
 
-from ...lib.storage.sessions.session_manager import SessionManager
 from ..aurite import Aurite  # Needed for get_aurite
 from ..execution.aurite_engine import AuriteEngine
-from ..execution.mcp_host.host import MCPHost  # Added for get_host
+from ..execution.mcp_host.mcp_host import MCPHost  # Added for get_host
+from ..lib.config.config_manager import ConfigManager
 
 # Import config/models needed by dependencies
-from ..lib.config import ServerConfig
-from ..lib.config.config_manager import ConfigManager
+from ..lib.models.api.server import ServerConfig
+from ..lib.storage.sessions.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 

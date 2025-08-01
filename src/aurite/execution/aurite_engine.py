@@ -10,25 +10,34 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tup
 from langfuse import Langfuse
 from termcolor import colored
 
-from ..execution.mcp_host.host import MCPHost
-from ..lib.components.agents.agent import Agent
-from ..lib.components.agents.agent_models import AgentRunResult
+# Import Component Classes
+from ..lib.components.agent.agent import Agent
 from ..lib.components.llm.litellm_client import LiteLLMClient
 from ..lib.components.workflows.custom_workflow import CustomWorkflowExecutor
 from ..lib.components.workflows.linear_workflow import LinearWorkflowExecutor
-from ..lib.components.workflows.workflow_models import LinearWorkflowExecutionResult
+
+# Import Config Manager
 from ..lib.config.config_manager import ConfigManager
-from ..lib.config.config_models import (
+
+# Import Models
+from ..lib.models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, SessionMetadata
+from ..lib.models.config.components import (
     AgentConfig,
     ClientConfig,
+    CustomWorkflowConfig,
     LLMConfig,
     LLMConfigOverrides,
+    WorkflowConfig,
 )
+
+# Import Storage and Session Managers
 from ..lib.storage.db.db_manager import StorageManager
 from ..lib.storage.sessions.cache_manager import CacheManager
 from ..lib.storage.sessions.session_manager import SessionManager
-from ..lib.storage.sessions.session_models import SessionMetadata
 from ..utils.errors import AgentExecutionError, ConfigurationError, WorkflowExecutionError
+
+# Import Host
+from .mcp_host.mcp_host import MCPHost
 
 if TYPE_CHECKING:
     from langfuse.client import StatefulTraceClient
@@ -392,8 +401,6 @@ class AuriteEngine:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Linear Workflow '{workflow_name}' not found.")
 
-            from ..lib.config.config_models import WorkflowConfig
-
             workflow_config = WorkflowConfig(**workflow_config_dict)
 
             # --- Session ID Management ---
@@ -446,7 +453,7 @@ class AuriteEngine:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..lib.config.config_models import CustomWorkflowConfig
+            # CustomWorkflowConfig is already imported at the top of the file
 
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
@@ -470,8 +477,6 @@ class AuriteEngine:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..lib.config.config_models import CustomWorkflowConfig
-
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 
             workflow_executor = CustomWorkflowExecutor(config=workflow_config)
@@ -490,7 +495,7 @@ class AuriteEngine:
             if not workflow_config_dict:
                 raise ConfigurationError(f"Custom Workflow '{workflow_name}' not found.")
 
-            from ..lib.config.config_models import CustomWorkflowConfig
+            # CustomWorkflowConfig is already imported at the top of the file
 
             workflow_config = CustomWorkflowConfig(**workflow_config_dict)
 

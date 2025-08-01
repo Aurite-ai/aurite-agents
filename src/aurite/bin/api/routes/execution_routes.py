@@ -7,7 +7,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from .....lib.storage.sessions.session_manager import SessionManager
 from ....execution.aurite_engine import AuriteEngine
 from ....lib.components.llm.litellm_client import LiteLLMClient
 from ....lib.config.config_manager import ConfigManager
@@ -19,6 +18,7 @@ from ....lib.models import (
     SessionListResponse,
     WorkflowRunRequest,
 )
+from ....lib.storage.sessions.session_manager import SessionManager
 from ....utils.errors import ConfigurationError, WorkflowExecutionError
 from ...dependencies import (
     get_api_key,

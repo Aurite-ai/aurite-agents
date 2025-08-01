@@ -3,5 +3,7 @@
 Execution layer responsible for running agents and workflows via a unified engine.
 """
 
-# Optionally expose key classes like the engine here later
-# from .engine import AuriteEngine
+from .aurite_engine import AuriteEngine
+from .mcp_host import MCPHost
+
+__all__ = ["AuriteEngine", "MCPHost"]  # Explicitly define what 'from aurite.execution import *' imports

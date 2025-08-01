@@ -1,4 +1,6 @@
-from typing import Any, BaseModel, Dict, Field, List, Optional
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 # --- Component Execution Request Models ---
@@ -33,6 +35,17 @@ class ComponentUpdate(BaseModel):
     config: Dict[str, Any] = Field(..., description="Updated component configuration")
 
 
+# -- File Management Request Models ---
+class FileCreateRequest(BaseModel):
+    source_name: str
+    relative_path: str
+    content: str
+
+
+class FileUpdateRequest(BaseModel):
+    content: str
+
+
 # --- Project Management Request Models ---
 class ProjectCreate(BaseModel):
     """Request model for creating a new project"""
@@ -47,3 +60,10 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = Field(None, description="Project description")
     include_configs: Optional[List[str]] = Field(None, description="Configuration directories")
     new_name: Optional[str] = Field(None, pattern="^[a-zA-Z0-9_-]+$", description="New project name for renaming")
+
+
+# Tools
+
+
+class ToolCallArgs(BaseModel):
+    args: Dict[str, Any]

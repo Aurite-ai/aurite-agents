@@ -17,8 +17,8 @@ from mcp.client.session_group import StreamableHttpParameters
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 
-from ..lib.config.config_models import AgentConfig, ClientConfig
-from ..utils.errors import MCPServerTimeoutError
+from ...lib.models.config.components import AgentConfig, ClientConfig
+from ...utils.errors import MCPServerTimeoutError
 from .filtering import FilteringManager
 from .foundation import MessageRouter, RootManager, SecurityManager
 
