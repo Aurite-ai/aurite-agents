@@ -86,7 +86,7 @@ async def run_agent(
             return result.model_dump()
 
         elif result.status == "max_iterations_reached":
-            raise MaxIterationsReachedError(detail=result.error_message)
+            raise MaxIterationsReachedError(result.error_message)
 
         if result.exception:
             raise result.exception
