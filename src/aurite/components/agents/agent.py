@@ -97,7 +97,7 @@ class Agent:
                             history, and any errors.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
-        max_iterations = self.config.max_iterations or 10
+        max_iterations = self.config.max_iterations
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Conversation loop iteration {current_iteration + 1}")
@@ -164,7 +164,7 @@ class Agent:
         """
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
-        max_iterations = self.config.max_iterations or 10
+        max_iterations = self.config.max_iterations
         llm_started = False
 
         for current_iteration in range(max_iterations):

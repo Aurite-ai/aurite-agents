@@ -224,7 +224,7 @@ class AgentConfig(BaseComponentConfig):
         description="JSON schema for validating agent-specific configurations.",
     )
     # --- Agent Behavior ---
-    max_iterations: Optional[int] = Field(default=None, description="Max conversation turns before stopping.")
+    max_iterations: Optional[int] = Field(default=10, description="Max conversation turns before stopping.")
     include_history: Optional[bool] = Field(
         default=None,
         description="Whether to include the conversation history, or just the latest message.",
