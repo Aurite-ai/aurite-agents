@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from ....components.llm.providers.litellm_client import LiteLLMClient
 from ....config.config_manager import ConfigManager
 from ....config.config_models import AgentConfig, LLMConfig
-from ....errors import ConfigurationError, WorkflowExecutionError
+from ....errors import ConfigurationError, MaxIterationsReachedError, WorkflowExecutionError
 from ....execution.facade import ExecutionFacade
 from ....storage.session_manager import SessionManager
 from ....storage.session_models import ExecutionHistoryResponse, SessionListResponse
@@ -84,6 +84,9 @@ async def run_agent(
                 config_manager.validate_llm(agent_config.llm_config_id)
 
             return result.model_dump()
+
+        elif result.status == "max_iterations_reached":
+            raise MaxIterationsReachedError(result.error_message)
 
         if result.exception:
             raise result.exception

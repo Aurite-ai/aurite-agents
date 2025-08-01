@@ -61,3 +61,11 @@ class MCPServerTimeoutError(MCPHostError):
         self.timeout_seconds = timeout_seconds
         self.operation = operation
         super().__init__(f"MCP server '{server_name}' {operation} timed out after {timeout_seconds} seconds")
+
+
+class MaxIterationsReachedError(AuriteError):
+    """
+    Raised when the max turn limit is reached during agent execution.
+    """
+
+    pass
