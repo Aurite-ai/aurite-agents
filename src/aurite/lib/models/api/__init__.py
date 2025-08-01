@@ -1,47 +1,12 @@
-from .requests import (
-    AgentRunRequest,
-    ComponentCreate,
-    ComponentUpdate,
-    FileCreateRequest,
-    FileUpdateRequest,
-    ProjectCreate,
-    ProjectUpdate,
-    ToolCallArgs,
-    WorkflowRunRequest,
-)
-from .responses import (
-    AgentRunResult,
-    ExecutionHistoryResponse,
-    ProjectInfo,
-    ServerDetailedStatus,
-    ServerRuntimeInfo,
-    ServerTestResult,
-    SessionListResponse,
-    SessionMetadata,
-    ToolDetails,
-    WorkspaceInfo,
-)
-from .server import ServerConfig
+"""
+API Models
 
-__all__ = [
-    "AgentRunRequest",
-    "ComponentCreate",
-    "ComponentUpdate",
-    "FileCreateRequest",
-    "FileUpdateRequest",
-    "ProjectCreate",
-    "ProjectUpdate",
-    "WorkflowRunRequest",
-    "AgentRunResult",
-    "ExecutionHistoryResponse",
-    "ProjectInfo",
-    "SessionListResponse",
-    "SessionMetadata",
-    "WorkspaceInfo",
-    "ServerConfig",
-    "ServerDetailedStatus",
-    "ToolCallArgs",
-    "ToolDetails",
-    "ServerRuntimeInfo",
-    "ServerTestResult",
-]
+Simple approach: Import everything from submodules and let Python handle the rest.
+"""
+
+# Import all models from submodules
+from .requests import *
+from .responses import *
+from .server import *
+
+# Python will automatically populate __all__ from the imported modules
