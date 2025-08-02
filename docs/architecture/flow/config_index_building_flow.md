@@ -20,13 +20,14 @@ The configuration system uses a three-phase process to build a comprehensive ind
 
 ### File Structure Example
 
-```
+```tree
 my_workspace/
-├── .aurite                          # type="workspace"
+├── .aurite
+|   # type="workspace"
 │   # projects: ["project_alpha", "project_bravo"]
 │   # include_configs: ["config"]
 │
-├── config/                          # Workspace-level shared configs
+├── config/
 │   ├── agents/
 │   │   └── shared_agents.json
 │   ├── mcp_servers/
@@ -35,7 +36,8 @@ my_workspace/
 │       └── company_llms.json
 │
 ├── project_alpha/
-│   ├── .aurite                      # type="project"
+│   ├── .aurite
+|   |   # type="project"
 │   │   # include_configs: ["config", "shared_config"]
 │   ├── config/
 │   │   ├── agents/
@@ -46,7 +48,8 @@ my_workspace/
 │       └── alpha_shared.json
 │
 └── project_bravo/
-    ├── .aurite                      # type="project"
+    ├── .aurite
+    |   # type="project"
     │   # include_configs: ["config"]
     └── config/
         ├── agents/
@@ -57,29 +60,27 @@ my_workspace/
 
 ## Three-Phase Index Building Process
 
-<!-- prettier-ignore -->
-??? abstract "Process Overview"
-    The ConfigManager builds its index through three distinct phases, each with specific responsibilities and outcomes. This ensures reliable configuration discovery and proper priority resolution.
+### Process Overview
+
+The ConfigManager builds its index through three distinct phases, each with specific responsibilities and outcomes. This ensures reliable configuration discovery and proper priority resolution.
 
 ### Phase 1: Context Discovery and Ordering
 
-<!-- prettier-ignore -->
-!!! info "Phase 1 Goal"
-    🎯 **Objective**: Find all `.aurite` files and establish the configuration hierarchy with proper priority ordering.
+**Objective**: Find all `.aurite` files and establish the configuration hierarchy with proper priority ordering.
 
 ```mermaid
 flowchart TD
-    A[🚀 ConfigManager.__init__] --> B[🔍 find_anchor_files]
-    B --> C{📁 .aurite found?}
-    C -->|Yes| D[📋 Parse TOML content]
-    C -->|No| E[⬆️ Move up directory]
+    A[ConfigManager.__init__] --> B[find_anchor_files]
+    B --> C{.aurite found?}
+    C -->|Yes| D[Parse TOML content]
+    C -->|No| E[Move up directory]
     E --> C
-    D --> F{🏷️ Determine type}
-    F -->|workspace| G[🏢 Add to workspace context]
-    F -->|project| H[📦 Add to project context]
-    G --> I[🗂️ Build context hierarchy]
+    D --> F{Determine type}
+    F -->|workspace| G[Add to workspace context]
+    F -->|project| H[Add to project context]
+    G --> I[Build context hierarchy]
     H --> I
-    I --> J[✅ Context discovery complete]
+    I --> J[Context discovery complete]
 
     style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style J fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
@@ -92,27 +93,21 @@ flowchart TD
 === "Step 1: Search for .aurite files"
 
     ```python
-    def find_anchor_files(start_path: Path) -> List[Path]: # (1)
+    def find_anchor_files(start_path: Path) -> List[Path]:
         anchor_files = []
         current_path = start_path.resolve()
 
         while True:
-            anchor_file = current_path / ".aurite" # (2)
+            anchor_file = current_path / ".aurite"
             if anchor_file.is_file():
-                anchor_files.append(anchor_file) # (3)
+                anchor_files.append(anchor_file)
 
-            if current_path.parent == current_path: # (4)
+            if current_path.parent == current_path:  # Filesystem root
                 break
             current_path = current_path.parent
 
-        return anchor_files # (5)
+        return anchor_files  # Ordered from closest to furthest
     ```
-
-    1. :material-magnify: Searches upward from starting directory
-    2. :material-file-search: Looks for `.aurite` file in current directory
-    3. :material-plus-circle: Adds found files to collection
-    4. :material-stop-circle: Stops at filesystem root
-    5. :material-check-all: Returns ordered list (closest to furthest)
 
 === "Step 2: Parse and categorize"
 
@@ -120,62 +115,58 @@ flowchart TD
     # Parse each .aurite file to determine context type
     for anchor_path in anchor_files:
         with open(anchor_path, "rb") as f:
-            settings = tomllib.load(f).get("aurite", {}) # (1)
+            settings = tomllib.load(f).get("aurite", {})
 
-        context_type = settings.get("type") # (2)
+        context_type = settings.get("type")
         if context_type == "project":
-            self.project_root = anchor_path.parent # (3)
+            self.project_root = anchor_path.parent
         elif context_type == "workspace":
-            self.workspace_root = anchor_path.parent # (4)
+            self.workspace_root = anchor_path.parent
     ```
-
-    1. :material-file-code: Parse TOML configuration
-    2. :material-tag: Extract context type
-    3. :material-folder: Set project root directory
-    4. :material-domain: Set workspace root directory
 
 === "Step 3: Build priority hierarchy"
 
-    <!-- prettier-ignore -->
-    !!! success "Priority Order Established"
+    **Priority Order:**
 
-        **When in PROJECT context:**
-        ```
-        1. 🥇 In-Memory (highest)
-        2. 🥈 Current Project
-        3. 🥉 Workspace
-        4. 🏅 Other Projects
-        5. 🎖️ User Global (lowest)
-        ```
+    **When in PROJECT context:**
 
-        **When in WORKSPACE context:**
-        ```
-        1. 🥇 In-Memory (highest)
-        2. 🥈 Workspace
-        3. 🥉 All Projects
-        4. 🎖️ User Global (lowest)
-        ```
+    ```
+    1. In-Memory (highest)
+    2. Current Project
+    3. Workspace
+    4. Other Projects
+    5. User Global (lowest)
+    ```
+
+    **When in WORKSPACE context:**
+
+    ```
+    1. In-Memory (highest)
+    2. Workspace
+    3. All Projects
+    4. User Global (lowest)
+    ```
 
 **Priority Rules:**
 
-When CWD is a **PROJECT**:
+=== "When in PROJECT context"
 
-```
-1. In-Memory Registrations (highest priority)
-2. Current Project
-3. Workspace (shared configs)
-4. Other Projects (in workspace order)
-5. User Global (~/.aurite)
-```
+    ```
+    1. In-Memory Registrations (highest priority)
+    2. Current Project
+    3. Workspace (shared configs)
+    4. Other Projects (in workspace order)
+    5. User Global (~/.aurite)
+    ```
 
-When CWD is the **WORKSPACE**:
+=== "When in WORKSPACE context"
 
-```
-1. In-Memory Registrations (highest priority)
-2. Workspace
-3. All Projects (in workspace order)
-4. User Global (~/.aurite)
-```
+    ```
+    1. In-Memory Registrations (highest priority)
+    2. Workspace
+    3. All Projects (in workspace order)
+    4. User Global (~/.aurite)
+    ```
 
 <!-- prettier-ignore -->
 !!! note "In-Memory Registration Priority"
@@ -187,40 +178,47 @@ When CWD is the **WORKSPACE**:
 
 **Example Results:**
 
-_Scenario 1: Running from `project_bravo/`_
+=== "Running from project_bravo/"
 
-```
-Context Order:
-project_bravo → /path/to/my_workspace/project_bravo
-my_workspace → /path/to/my_workspace
-project_alpha → /path/to/my_workspace/project_alpha
-```
+    ```
+    Context Order:
+    project_bravo → /path/to/my_workspace/project_bravo
+    my_workspace → /path/to/my_workspace
+    project_alpha → /path/to/my_workspace/project_alpha
+    ```
 
-_Scenario 2: Running from `my_workspace/`_
+=== "Running from project_alpha/"
 
-```
-Context Order:
-my_workspace → /path/to/my_workspace
-project_alpha → /path/to/my_workspace/project_alpha
-project_bravo → /path/to/my_workspace/project_bravo
-```
+    ```
+    Context Order:
+    project_alpha → /path/to/my_workspace/project_alpha
+    my_workspace → /path/to/my_workspace
+    project_bravo → /path/to/my_workspace/project_bravo
+    ```
+
+=== "Running from my_workspace/"
+
+    ```
+    Context Order:
+    my_workspace → /path/to/my_workspace
+    project_alpha → /path/to/my_workspace/project_alpha
+    project_bravo → /path/to/my_workspace/project_bravo
+    ```
 
 ### Phase 2: Configuration Source Discovery
 
-<!-- prettier-ignore -->
-!!! info "Phase 2 Goal"
-    🎯 **Objective**: Extract `include_configs` paths from each `.aurite` file in priority order and build the ordered source list.
+**Objective**: Extract `include_configs` paths from each `.aurite` file in priority order and build the ordered source list.
 
 ```mermaid
 flowchart TD
-    A[📋 _initialize_sources] --> B[🔄 For each context in priority order]
-    B --> C[📖 Read .aurite include_configs list]
-    C --> D[🔗 Resolve paths relative to .aurite location]
-    D --> E[📁 Convert relative paths to absolute]
-    E --> F{🔍 More contexts?}
+    A[_initialize_sources] --> B[For each context in priority order]
+    B --> C[Read .aurite include_configs list]
+    C --> D[Resolve paths relative to .aurite location]
+    D --> E[Convert relative paths to absolute]
+    E --> F{More contexts?}
     F -->|Yes| B
-    F -->|No| G[📚 Build ordered source list]
-    G --> H[✅ Source discovery complete]
+    F -->|No| G[Build ordered source list]
+    G --> H[Source discovery complete]
 
     style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
@@ -243,29 +241,27 @@ flowchart TD
 
 ### Phase 3: Component Indexing
 
-<!-- prettier-ignore -->
-!!! info "Phase 3 Goal"
-    🎯 **Objective**: Scan configuration directories and build the final component index with proper conflict resolution.
+**Objective**: Scan configuration directories and build the final component index with proper conflict resolution.
 
 ```mermaid
 flowchart TD
-    A[🏗️ _build_component_index] --> B[🔄 For each source directory in order]
-    B --> C[🔍 Scan for config files]
-    C --> D[📄 *.json, *.yaml, *.yml]
-    D --> E[🔄 For each file]
-    E --> F[📖 Parse as array of components]
-    F --> G[🔄 For each component]
-    G --> H{🔍 Already indexed?}
-    H -->|Yes| I[⏭️ Skip - first wins]
-    H -->|No| J[📝 Add to index with metadata]
-    J --> K{🔍 More components?}
+    A[_build_component_index] --> B[For each source directory in order]
+    B --> C[Scan for config files]
+    C --> D[*.json, *.yaml, *.yml]
+    D --> E[For each file]
+    E --> F[Parse as array of components]
+    F --> G[For each component]
+    G --> H{Already indexed?}
+    H -->|Yes| I[Skip - first wins]
+    H -->|No| J[Add to index with metadata]
+    J --> K{More components?}
     I --> K
     K -->|Yes| G
-    K -->|No| L{🔍 More files?}
+    K -->|No| L{More files?}
     L -->|Yes| E
-    L -->|No| M{🔍 More sources?}
+    L -->|No| M{More sources?}
     M -->|Yes| B
-    M -->|No| N[✅ Component indexing complete]
+    M -->|No| N[Component indexing complete]
 
     style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style N fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
@@ -341,103 +337,138 @@ The implementation can be found in:
 
 ## Special Features
 
-### Advanced Configuration Features
+### In-Memory Registration
 
-=== "🧠 In-Memory Registration"
+In-memory registrations bypass the file system and have the highest priority in the configuration hierarchy.
 
-<!-- prettier-ignore -->
-!!! tip "Highest Priority Override"
-        In-memory registrations bypass the file system and have the highest priority in the configuration hierarchy.
+```python
+# Register component with highest priority
+config_manager.register_component_in_memory("agent", {
+    "name": "test_agent",
+    "type": "agent",
+    "llm_config_id": "test_llm",
+    "system_prompt": "Test agent for unit testing"
+})
 
-    ```python
-    # Register component with highest priority
-    config_manager.register_component_in_memory("agent", { # (1)
-        "name": "test_agent",
-        "type": "agent",
-        "llm_config_id": "test_llm",
-        "system_prompt": "Test agent for unit testing"
-    })
+# This component will override any file-based component with the same name
+agent_config = config_manager.get_config("agent", "test_agent")
+assert agent_config["_source_file"] == "in-memory"
+assert agent_config["_context_level"] == "programmatic"
+```
 
-    # This component will override any file-based component with the same name
-    agent_config = config_manager.get_config("agent", "test_agent") # (2)
-    assert agent_config["_source_file"] == "in-memory" # (3)
-    assert agent_config["_context_level"] == "programmatic" # (4)
-    ```
+**Use Cases:**
 
-    1. :material-memory: Registers component directly in memory
-    2. :material-arrow-right: Retrieval returns in-memory version
-    3. :material-tag: Special source marker for in-memory components
-    4. :material-code-tags: Context level indicates programmatic registration
+- **Unit Testing**: Override configurations for isolated tests
+- **Jupyter Notebooks**: Experiment with configurations interactively
+- **Development**: Temporary overrides without file modifications
 
-<!-- prettier-ignore -->
-!!! example "Use Cases"
-        - **🧪 Unit Testing**: Override configurations for isolated tests
-        - **📓 Jupyter Notebooks**: Experiment with configurations interactively
-        - **🔧 Development**: Temporary overrides without file modifications
+### LLM Validation Tracking
 
-=== "✅ LLM Validation Tracking"
+The system tracks successful LLM operations to provide reliability insights and validation status.
 
-<!-- prettier-ignore -->
-!!! info "Reliability Monitoring"
-        The system tracks successful LLM operations to provide reliability insights and validation status.
+```python
+# After successful LLM operation
+config_manager.validate_llm("gpt4")
 
-    ```python
-    # After successful LLM operation
-    config_manager.validate_llm("gpt4") # (1)
+# Check validation status
+validation_time = config_manager.get_llm_validation("gpt4")
+if validation_time:
+    print(f"LLM last validated: {validation_time}")
+else:
+    print("LLM not yet validated")
 
-    # Check validation status
-    validation_time = config_manager.get_llm_validation("gpt4") # (2)
-    if validation_time:
-        print(f"🟢 LLM last validated: {validation_time}")
-    else:
-        print("🔴 LLM not yet validated")
+# LLM configs include validation status automatically
+llm_config = config_manager.get_config("llm", "gpt4")
+status = "Validated" if llm_config.get("validated_at") else "Unvalidated"
+print(f"Status: {status}")
+```
 
-    # LLM configs include validation status automatically
-    llm_config = config_manager.get_config("llm", "gpt4") # (3)
-    status = "✅ Validated" if llm_config.get("validated_at") else "⚠️ Unvalidated"
-    print(f"Status: {status}")
-    ```
+**Important**: When an LLM configuration is updated, its validation timestamp is automatically reset to `None` to ensure accuracy.
 
-    1. :material-check-circle: Mark LLM as successfully validated
-    2. :material-clock: Get last validation timestamp
-    3. :material-auto-fix: Validation status automatically injected
+### Force Refresh Control
 
-<!-- prettier-ignore -->
-!!! warning "Automatic Reset"
-        When an LLM configuration is updated, its validation timestamp is automatically reset to `None` to ensure accuracy.
+Control when the configuration index is rebuilt for optimal performance in different environments.
 
-=== "🔄 Force Refresh Control"
+```bash
+# Development: Force refresh on every operation (default)
+export AURITE_CONFIG_FORCE_REFRESH=true
 
-<!-- prettier-ignore -->
-!!! gear "Development vs Production"
-        Control when the configuration index is rebuilt for optimal performance in different environments.
+# Production: Disable for performance
+export AURITE_CONFIG_FORCE_REFRESH=false
+```
 
-    ```bash title="Environment Configuration"
-    # Development: Force refresh on every operation (default)
-    export AURITE_CONFIG_FORCE_REFRESH=true # (1)
+```python
+def get_config(self, component_type: str, component_id: str):
+    if self._force_refresh:
+        self.refresh()  # Rebuild entire index
 
-    # Production: Disable for performance
-    export AURITE_CONFIG_FORCE_REFRESH=false # (2)
-    ```
+    return self._component_index.get(component_type, {}).get(component_id)
+```
 
-    1. :material-refresh: Rebuilds index on every `get_config()` call
-    2. :material-speedometer: Uses cached index for better performance
+**Performance Impact:**
 
-    ```python title="Runtime Behavior"
-    def get_config(self, component_type: str, component_id: str):
-        if self._force_refresh: # (1)
-            self.refresh()  # Rebuild entire index
+- **Development**: ~10-50ms overhead per operation (acceptable for development)
+- **Production**: ~1ms cached lookups (optimal for production workloads)
 
-        return self._component_index.get(component_type, {}).get(component_id) # (2)
-    ```
+## Component Operations
 
-    1. :material-sync: Check environment variable setting
-    2. :material-database: Return from cached or refreshed index
+The ConfigManager provides comprehensive interfaces for component management, validation, project operations, and file management. Key operation categories include:
 
-<!-- prettier-ignore -->
-!!! performance "Performance Impact"
-        - **Development**: ~10-50ms overhead per operation (acceptable for development)
-        - **Production**: ~1ms cached lookups (optimal for production workloads)
+- **Configuration Operations**: Component retrieval, listing, and CRUD operations with automatic path resolution
+- **Validation System**: Component validation against Pydantic models with detailed error reporting
+- **Project Management**: Full project lifecycle management within workspace contexts
+- **LLM Validation Tracking**: Reliability monitoring with timestamp-based validation tracking
+- **In-Memory Registration**: Programmatic component registration for testing and notebook environments
+
+> 📋 **Method Signatures**: See the ConfigManager source code in `src/aurite/lib/config/config_manager.py` for complete method signatures and implementation details.
+
+## Validation Workflows
+
+The ConfigManager integrates with Pydantic models for comprehensive validation, supporting all component types with detailed error reporting and field-level validation messages.
+
+**Key Validation Features:**
+
+- Automatic model mapping for each component type
+- Internal field filtering (removes `_` prefixed metadata fields)
+- Detailed error path reporting for nested validation failures
+- Duplicate name detection across component types
+
+> 🔧 **Validation Implementation**: See the `_validate_component_config` method in the ConfigManager source code for detailed validation logic.
+
+## Path Resolution
+
+The ConfigManager implements context-aware path resolution for component configurations:
+
+**Resolution Strategy:**
+
+- **MCP Servers**: Resolves `server_path` relative to component's context directory
+- **Custom Workflows**: Handles both dot-notation module paths and direct file paths
+- **LLM Components**: Injects validation timestamps during resolution
+- **Lazy Resolution**: Paths resolved only when configurations are retrieved
+
+> 🔧 **Path Resolution Details**: See the `_resolve_paths_in_config` method in the ConfigManager source code for complete resolution algorithms.
+
+## Development and Testing
+
+### Usage Examples
+
+```python
+# Basic component operations
+result = config_manager.create_component("agent", new_agent_config, project="target_project")
+is_valid, errors = config_manager.validate_component("llm", "my_llm")
+
+# In-memory registration for testing
+config_manager.register_component_in_memory("agent", test_agent_config)
+agent_config = config_manager.get_config("agent", "test_agent")
+```
+
+### Testing Approach
+
+**Key Test Areas**: Hierarchical resolution, component CRUD operations, LLM validation tracking, project management, in-memory registration, and file system integration.
+
+**Performance Targets**: Index building < 100ms, component retrieval < 1ms, file operations < 10ms, memory usage < 5MB.
+
+> 🔧 **Implementation Details**: See ConfigManager source code in `src/aurite/lib/config/config_manager.py` and test files in `tests/unit/config/` for complete examples and patterns.
 
 ## Future Considerations
 
