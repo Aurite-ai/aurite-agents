@@ -28,6 +28,18 @@ graph TD
     G --> J[Project Configs]
     G --> K[Workspace Configs]
     G --> L[User Global Configs]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style B fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style C fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style D fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style E fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style G fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style I fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style J fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style K fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style L fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
 ```
 
 ## 3. Core Responsibilities

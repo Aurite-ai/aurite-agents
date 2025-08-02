@@ -81,9 +81,12 @@ flowchart TD
     H --> I
     I --> J[✅ Context discovery complete]
 
-    style A fill:#e1f5fe
-    style J fill:#c8e6c9
-    style F fill:#fff3e0
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style J fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style F fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style C fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style G fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style H fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
 ```
 
 === "Step 1: Search for .aurite files"
@@ -133,8 +136,8 @@ flowchart TD
 
 === "Step 3: Build priority hierarchy"
 
-<!-- prettier-ignore -->
-!!! success "Priority Order Established"
+    <!-- prettier-ignore -->
+    !!! success "Priority Order Established"
 
         **When in PROJECT context:**
         ```
@@ -204,33 +207,28 @@ project_bravo → /path/to/my_workspace/project_bravo
 
 ### Phase 2: Configuration Source Discovery
 
-**Goal:** Extract `include_configs` paths from each `.aurite` file in priority order.
+<!-- prettier-ignore -->
+!!! info "Phase 2 Goal"
+    🎯 **Objective**: Extract `include_configs` paths from each `.aurite` file in priority order and build the ordered source list.
 
-```
-┌─────────────────┐
-│ _initialize_    │
-│ sources()       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ For each        │────▶│ Read .aurite     │
-│ context in      │     │ include_configs  │
-│ priority order  │     │ list             │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ Resolve paths   │────▶│ Convert relative │
-│ relative to     │     │ paths to         │
-│ .aurite location│     │ absolute         │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Build ordered   │
-│ source list     │
-└─────────────────┘
+```mermaid
+flowchart TD
+    A[📋 _initialize_sources] --> B[🔄 For each context in priority order]
+    B --> C[📖 Read .aurite include_configs list]
+    C --> D[🔗 Resolve paths relative to .aurite location]
+    D --> E[📁 Convert relative paths to absolute]
+    E --> F{🔍 More contexts?}
+    F -->|Yes| B
+    F -->|No| G[📚 Build ordered source list]
+    G --> H[✅ Source discovery complete]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style F fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style G fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style C fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style D fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style E fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
 ```
 
 **Example Configuration Sources (from project_bravo):**
@@ -245,40 +243,37 @@ project_bravo → /path/to/my_workspace/project_bravo
 
 ### Phase 3: Component Indexing
 
-**Goal:** Scan configuration directories and build the final component index.
+<!-- prettier-ignore -->
+!!! info "Phase 3 Goal"
+    🎯 **Objective**: Scan configuration directories and build the final component index with proper conflict resolution.
 
-```
-┌─────────────────┐
-│ _build_         │
-│ component_      │
-│ index()         │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ For each source │────▶│ Scan for:        │
-│ directory       │     │ - *.json         │
-│ (in order)      │     │ - *.yaml/*.yml   │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ For each file   │────▶│ Parse as array   │
-│                 │     │ of components    │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ For each        │────▶│ Check if already │
-│ component       │     │ indexed (first   │
-│                 │     │ wins)            │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Add to index    │
-│ with metadata   │
-└─────────────────┘
+```mermaid
+flowchart TD
+    A[🏗️ _build_component_index] --> B[🔄 For each source directory in order]
+    B --> C[🔍 Scan for config files]
+    C --> D[📄 *.json, *.yaml, *.yml]
+    D --> E[🔄 For each file]
+    E --> F[📖 Parse as array of components]
+    F --> G[🔄 For each component]
+    G --> H{🔍 Already indexed?}
+    H -->|Yes| I[⏭️ Skip - first wins]
+    H -->|No| J[📝 Add to index with metadata]
+    J --> K{🔍 More components?}
+    I --> K
+    K -->|Yes| G
+    K -->|No| L{🔍 More files?}
+    L -->|Yes| E
+    L -->|No| M{🔍 More sources?}
+    M -->|Yes| B
+    M -->|No| N[✅ Component indexing complete]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style N fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style H fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style J fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style I fill:#F44336,stroke:#D32F2F,stroke-width:2px,color:#fff
+    style C fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    style F fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
 ```
 
 **Component Metadata:**
