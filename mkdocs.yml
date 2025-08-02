@@ -69,7 +69,6 @@ markdown_extensions:
 nav:
   - "Home": "index.md"
   - "Getting Started":
-      - "Start Here": "getting-started/Start_Here.md"
       - "Installation":
           - "Package Installation": "getting-started/installation_guides/package_installation_guide.md"
           - "Repository Installation": "getting-started/installation_guides/repository_installation_guide.md"
@@ -82,10 +81,6 @@ nav:
           - "05: LLMs, Schemas, and Workflows": "getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb"
           - "06: Building Your Own MCP Server": "getting-started/tutorials/06_Building_Your_Own_MCP_Server.md"
           - "07: Understanding Projects": "getting-started/tutorials/07_Understanding_Projects.md"
-      - "Project Ideas":
-          - "Overview": "getting-started/project_ideas/Project_Ideas_Overview.md"
-          - "Customer Support": "getting-started/project_ideas/Project_Ideas_Customer_Support.md"
-          - "Data Processing": "getting-started/project_ideas/Project_Ideas_Data_Processing.md"
   - "Configuration":
       - "Projects and Workspaces": "config/projects_and_workspaces.md"
       - "Agent": "config/agent.md"

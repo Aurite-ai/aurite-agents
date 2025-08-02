@@ -32,12 +32,6 @@ This module provides a hands-on, code-first approach to learning Aurite through 
 
 ---
 
-Now that you've completed the introductory notebooks, you're ready to apply your skills.
-
-- **[Go to Project Ideas](../project_ideas/Project_Ideas_Overview.md)**
-
----
-
 ## Part 2: Building Local Projects
 
 Once you are comfortable with the concepts from the notebooks, these tutorials guide you through setting up and running the Aurite framework in a local development environment like VSCode.

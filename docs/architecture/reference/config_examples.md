@@ -2,7 +2,7 @@
 
 This document contains comprehensive configuration examples and patterns referenced by the architecture documentation.
 
-> 📋 **Configuration Schema Reference**: All configuration examples in this document are based on the Pydantic models defined in [`src/aurite/lib/models/config/components.py`](../../../src/aurite/lib/models/config/components.py). Refer to this file for the complete schema definitions, validation rules, and field descriptions.
+> 📋 **Configuration Schema Reference**: All configuration examples in this document are based on the Pydantic models defined in `src/aurite/lib/models/config/components.py`. Refer to this file for the complete schema definitions, validation rules, and field descriptions.
 
 ## Component Configuration Examples
 
