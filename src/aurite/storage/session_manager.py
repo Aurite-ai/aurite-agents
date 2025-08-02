@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from ..components.agents.agent_models import AgentRunResult
-from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
+from ..components.workflows.workflow_models import LinearWorkflowExecutionResult
 from .cache_manager import CacheManager
 from .session_models import SessionMetadata
 
@@ -100,7 +100,7 @@ class SessionManager:
         self._save_result(session_id, agent_result.model_dump(), "agent", base_session_id)
 
     def save_workflow_result(
-        self, session_id: str, workflow_result: SimpleWorkflowExecutionResult, base_session_id: Optional[str] = None
+        self, session_id: str, workflow_result: LinearWorkflowExecutionResult, base_session_id: Optional[str] = None
     ):
         """
         Saves the complete result of a workflow execution.

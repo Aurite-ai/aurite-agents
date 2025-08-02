@@ -95,7 +95,7 @@ Returns a list of all available component types in the system.
 
 **Response:**
 ```json
-["agent", "llm", "mcp_server", "simple_workflow", "custom_workflow"]
+["agent", "llm", "mcp_server", "linear_workflow", "custom_workflow"]
 ```
 
 #### List Components by Type

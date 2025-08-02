@@ -23,7 +23,7 @@ from langfuse import Langfuse
 from termcolor import colored
 
 from .components.agents.agent_models import AgentRunResult
-from .components.workflows.workflow_models import SimpleWorkflowExecutionResult
+from .components.workflows.workflow_models import LinearWorkflowExecutionResult
 from .config.config_manager import ConfigManager
 from .config.config_models import (
     AgentConfig,
@@ -252,10 +252,10 @@ class Aurite:
         self.kernel.config_manager.register_component_in_memory("mcp_server", config.model_dump())
         self.kernel.execution.set_config_manager(self.kernel.config_manager)
 
-    async def register_simple_workflow(self, config: WorkflowConfig):
-        """Programmatically register a simple workflow configuration."""
+    async def register_linear_workflow(self, config: WorkflowConfig):
+        """Programmatically register a linear workflow configuration."""
         await self._ensure_initialized()
-        self.kernel.config_manager.register_component_in_memory("simple_workflow", config.model_dump())
+        self.kernel.config_manager.register_component_in_memory("linear_workflow", config.model_dump())
         self.kernel.execution.set_config_manager(self.kernel.config_manager)
 
     async def register_custom_workflow(self, config: CustomWorkflowConfig):
@@ -290,9 +290,9 @@ class Aurite:
                 await self.kernel.host.unregister_client(server_name)
         return result
 
-    async def run_simple_workflow(self, workflow_name: str, initial_input: Any) -> SimpleWorkflowExecutionResult:
+    async def run_linear_workflow(self, workflow_name: str, initial_input: Any) -> LinearWorkflowExecutionResult:
         await self._ensure_initialized()
-        return await self.kernel.execution.run_simple_workflow(workflow_name=workflow_name, initial_input=initial_input)
+        return await self.kernel.execution.run_linear_workflow(workflow_name=workflow_name, initial_input=initial_input)
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None

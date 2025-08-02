@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Detailed test to track how session IDs are handled in simple workflows.
+Detailed test to track how session IDs are handled in linear workflows.
 This script will:
 1. Run individual agents with session IDs to verify they work
-2. Run a simple workflow and check if session IDs are propagated
+2. Run a linear workflow and check if session IDs are propagated
 3. Analyze the cache structure
 """
 
@@ -46,11 +46,11 @@ async def run_agent(agent_name: str, user_message: str, session_id: str):
         return response.json()
 
 
-async def run_simple_workflow(workflow_name: str, initial_input: str, session_id: str):
-    """Run a simple workflow via the API."""
+async def run_linear_workflow(workflow_name: str, initial_input: str, session_id: str):
+    """Run a linear workflow via the API."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json={"initial_input": initial_input, "session_id": session_id},
             timeout=60.0,
@@ -93,7 +93,7 @@ def analyze_cache_structure():
 
 async def main():
     """Test session ID handling in workflows."""
-    print("=== Testing Session ID Handling in Simple Workflows ===")
+    print("=== Testing Session ID Handling in Linear Workflows ===")
 
     # Clean up old cache files first
     cache_dir = Path(".aurite_cache")
@@ -131,13 +131,13 @@ async def main():
     else:
         print(f"   ❌ No cache entry found for session: {agent_session_id}")
 
-    # Test 2: Simple workflow with session ID
-    print("\n📝 Test 2: Simple Workflow with Session ID")
+    # Test 2: Linear workflow with session ID
+    print("\n📝 Test 2: Linear Workflow with Session ID")
     workflow_session_id = f"workflow-test-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     try:
         print(f"   Running 'Weather Planning Workflow' with session ID: {workflow_session_id}")
-        result = await run_simple_workflow(
+        result = await run_linear_workflow(
             workflow_name="Weather Planning Workflow",
             initial_input="What should I wear in San Francisco today?",
             session_id=workflow_session_id,
@@ -182,7 +182,7 @@ async def main():
         print(f"   Agents: {', '.join(agents_in_workflow)}")
     else:
         print(f"   ❌ No entries found for workflow session: {workflow_session_id}")
-        print("   This suggests that simple workflows are NOT passing session_id to agent executions!")
+        print("   This suggests that linear workflows are NOT passing session_id to agent executions!")
 
     # Look for any files that might be related to our workflow
     print("\n🔍 Looking for workflow-related files:")
@@ -210,10 +210,10 @@ async def main():
     print("\n=== Analysis Complete ===")
     print("\n🔍 Key Findings:")
     print("   1. Individual agents with session_id DO create cache entries")
-    print("   2. Simple workflows may NOT be passing session_id to agent executions")
-    print("   3. Check SimpleWorkflowExecutor.execute() to see if it passes session_id")
+    print("   2. Linear workflows may NOT be passing session_id to agent executions")
+    print("   3. Check LinearWorkflowExecutor.execute() to see if it passes session_id")
     print(
-        "\n💡 Next Step: Review the simple_workflow.py code to see if session_id is being passed to facade.run_agent()"
+        "\n💡 Next Step: Review the linear_workflow.py code to see if session_id is being passed to facade.run_agent()"
     )
 
 

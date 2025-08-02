@@ -15,7 +15,7 @@ async function listAllConfigTypes() {
 
   console.log('\n📋 Example 1: List All Configuration Types');
 
-  const configTypes = ['agent', 'llm', 'mcp_server', 'simple_workflow', 'custom_workflow'];
+  const configTypes = ['agent', 'llm', 'mcp_server', 'linear_workflow', 'custom_workflow'];
 
   for (const configType of configTypes) {
     try {
@@ -155,15 +155,15 @@ async function exploreWorkflowConfigurations() {
   console.log('\n📋 Example 5: Explore Workflow Configurations');
 
   try {
-    // Check simple workflows
-    console.log('\n🔄 Simple Workflows:');
-    const simpleWorkflows = await client.config.listConfigs('simple_workflow');
-    console.log(`   Found ${simpleWorkflows.length} simple workflow configurations`);
+    // Check linear workflows
+    console.log('\n🔄 Linear Workflows:');
+    const linearWorkflows = await client.config.listConfigs('linear_workflow');
+    console.log(`   Found ${linearWorkflows.length} linear workflow configurations`);
 
-    for (const workflow of simpleWorkflows.slice(0, 2)) {
+    for (const workflow of linearWorkflows.slice(0, 2)) {
       try {
-        const workflowConfig = await client.config.getConfig('simple_workflow', workflow.name);
-        console.log(`\n   📋 Simple Workflow: ${workflow.name}`);
+        const workflowConfig = await client.config.getConfig('linear_workflow', workflow.name);
+        console.log(`\n   📋 Linear Workflow: ${workflow.name}`);
         console.log(`      Description: ${workflowConfig.description || 'No description'}`);
         console.log(`      Steps: ${workflowConfig.steps?.length || 0} agents`);
 
@@ -173,8 +173,8 @@ async function exploreWorkflowConfigurations() {
           });
         }
       } catch (error) {
-        console.log(`   ❌ Failed to get simple workflow ${workflow.name}`);
-        handleExampleError(error, `Get Simple Workflow ${workflow.name}`);
+        console.log(`   ❌ Failed to get linear workflow ${workflow.name}`);
+        handleExampleError(error, `Get Linear Workflow ${workflow.name}`);
       }
     }
 
@@ -205,7 +205,7 @@ async function configurationSummary() {
 
   console.log('\n📋 Example 6: Configuration Summary');
 
-  const configTypes = ['agent', 'llm', 'mcp_server', 'simple_workflow', 'custom_workflow'];
+  const configTypes = ['agent', 'llm', 'mcp_server', 'linear_workflow', 'custom_workflow'];
   const summary: Record<string, number> = {};
 
   try {
@@ -244,7 +244,7 @@ async function searchConfigurations() {
     const searchTerm = 'weather';
     console.log(`🔍 Searching for configurations containing "${searchTerm}"...`);
 
-    const configTypes = ['agent', 'llm', 'mcp_server', 'simple_workflow'];
+    const configTypes = ['agent', 'llm', 'mcp_server', 'linear_workflow'];
     let foundConfigs = 0;
 
     for (const configType of configTypes) {

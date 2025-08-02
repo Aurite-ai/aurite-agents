@@ -84,6 +84,7 @@ REACT_APP_API_KEY=your-key-here
 ### Quick Start Options
 
 #### Option 1: Use Aurite Studio (Web Interface)
+
 ```bash
 # Option A: Start from frontend root (recommended)
 npm start
@@ -96,6 +97,7 @@ npm start
 ```
 
 #### Option 2: Use API Client (Programmatic)
+
 ```bash
 # Run API client examples
 npm run example --workspace=packages/api-client
@@ -111,14 +113,16 @@ npm run build:api-client
 A modern, intuitive React web application for managing and executing AI agents, workflows, and configurations in the Aurite Framework.
 
 **Key Features:**
+
 - 🤖 **Agent Management**: Create, configure, and execute AI agents with real-time streaming
-- 🔄 **Workflow Design**: Build simple sequential workflows and custom Python workflows
+- 🔄 **Workflow Design**: Build linear sequential workflows and custom Python workflows
 - 🔧 **MCP Server Configuration**: Manage Model Context Protocol servers and tools
 - ⚙️ **LLM Configuration**: Configure multiple language model providers
 - 🎨 **Modern Interface**: Clean, responsive design with dark/light themes
 - 📱 **Mobile-Friendly**: Responsive layout that works on all devices
 
 **Technology Stack:**
+
 - React 19 with TypeScript
 - Tailwind CSS with custom design system
 - Framer Motion for animations
@@ -126,6 +130,7 @@ A modern, intuitive React web application for managing and executing AI agents, 
 - TanStack Query for state management
 
 **Quick Usage:**
+
 ```bash
 cd packages/aurite-studio
 npm start
@@ -137,6 +142,7 @@ npm start
 A production-ready TypeScript client for the Aurite Framework API with comprehensive error handling, retry logic, and full type safety.
 
 **Key Features:**
+
 - 🔒 **Type Safety**: Full TypeScript support with comprehensive type definitions
 - 🔄 **Retry Logic**: Intelligent retry mechanisms for network failures
 - 🛡️ **Error Handling**: Comprehensive error categorization and handling
@@ -145,6 +151,7 @@ A production-ready TypeScript client for the Aurite Framework API with comprehen
 - 📖 **Examples**: Comprehensive examples for all API endpoints
 
 **Quick Usage:**
+
 ```typescript
 import { createAuriteClient } from '@aurite/api-client';
 
@@ -194,6 +201,7 @@ npm run dev
 ### Package-Specific Commands
 
 #### API Client
+
 ```bash
 # Build API client
 npm run build:api-client
@@ -209,6 +217,7 @@ npm run dev --workspace=packages/api-client
 ```
 
 #### Aurite Studio
+
 ```bash
 # Start development server
 npm start --workspace=packages/aurite-studio
@@ -243,9 +252,10 @@ npm run example:integration --workspace=packages/api-client
 ```
 
 **Example Categories:**
+
 - **Configuration Management**: List, create, update configurations
 - **Agent Execution**: Run agents with streaming support
-- **Workflow Management**: Execute simple and custom workflows
+- **Workflow Management**: Execute linear and custom workflows
 - **MCP Server Management**: Register and manage MCP servers
 - **Tool Execution**: Direct tool invocation
 - **System Operations**: Health checks and system information
@@ -253,6 +263,7 @@ npm run example:integration --workspace=packages/api-client
 ### Aurite Studio Usage
 
 #### Creating Your First Agent
+
 1. Navigate to the Home page in Aurite Studio
 2. Describe your agent in the main text area
 3. Configure advanced options (optional):
@@ -262,10 +273,12 @@ npm run example:integration --workspace=packages/api-client
 4. Click "Create Agent" to save your configuration
 
 #### Building Workflows
-- **Simple Workflows**: Chain agents in sequence using the visual interface
+
+- **Linear Workflows**: Chain agents in sequence using the visual interface
 - **Custom Workflows**: Create Python classes for complex logic and execution
 
 #### Managing Configurations
+
 - **MCP Servers**: Configure stdio, HTTP, and local transport types
 - **LLM Configurations**: Set up multiple providers with custom parameters
 
@@ -375,6 +388,7 @@ npm publish
 ### Aurite Studio (Web Application)
 
 #### Production Build
+
 ```bash
 # Build optimized production bundle
 npm run build --workspace=packages/aurite-studio
@@ -384,6 +398,7 @@ npx serve -s packages/aurite-studio/build -l 3000
 ```
 
 #### Docker Deployment
+
 ```dockerfile
 FROM node:18-alpine as build
 WORKDIR /app
@@ -400,7 +415,9 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 #### Environment-Specific Configuration
+
 For different environments, create environment-specific `.env` files:
+
 - `.env.development` - Development settings
 - `.env.staging` - Staging environment
 - `.env.production` - Production configuration
@@ -435,6 +452,7 @@ For different environments, create environment-specific `.env` files:
 ### Common Issues
 
 #### Build Failures
+
 ```bash
 # Clean and rebuild all packages
 npm run clean
@@ -442,6 +460,7 @@ npm run build
 ```
 
 #### Test Failures
+
 ```bash
 # Ensure API server is running for integration tests
 # Check environment variables are set correctly
@@ -451,6 +470,7 @@ npm run build
 #### TypeScript Cache Issues
 
 **Problem:** You encounter TypeScript errors like:
+
 ```
 ERROR in src/services/agents.service.ts:339:29
 TS2339: Property 'session_id' does not exist on type 'AgentRunResult'.
@@ -471,17 +491,20 @@ npm run rebuild:fresh
 npm run clean:cache
 ```
 
-**Why This Works:** 
+**Why This Works:**
+
 - Deletes stale compiled type information in `/dist` folders
 - Forces fresh compilation of all cross-package type dependencies
 - Clears inconsistent cached state in TypeScript's incremental build system
 
 **When to Use Each Script:**
+
 - `npm run rebuild` - First try for most TypeScript cache issues
 - `npm run rebuild:fresh` - When `rebuild` doesn't resolve the issue
 - `npm run clean:cache` - For TypeScript-only cache problems without full rebuild
 
 #### Type Errors
+
 ```bash
 # Regenerate TypeScript declarations
 npm run build
@@ -490,11 +513,13 @@ npm run build
 #### Aurite Studio Issues
 
 **Connection Refused:**
+
 - Ensure the API server is running on the correct port
 - Check that `REACT_APP_API_URL` matches your server configuration
 - Verify firewall settings allow connections
 
 **Authentication Errors:**
+
 - Verify your API key is correctly set in `.env`
 - Check that the API server has authentication enabled
 - Ensure the API key has necessary permissions
@@ -504,16 +529,18 @@ npm run build
 If you're experiencing build or script execution issues on Windows, this is likely due to Windows-specific npm workspace binary path resolution problems.
 
 **Quick Fix:**
+
 1. Use PowerShell instead of Command Prompt
 2. Ensure all environment variables are properly set
 3. Run `npm install` from the frontend root directory
 
 **Expected fixes in package.json files:**
+
 ```json
 // api-client/package.json
 "clean": "npx rimraf dist"
 
-// aurite-studio/package.json  
+// aurite-studio/package.json
 "build": "npx craco build"
 
 // root package.json

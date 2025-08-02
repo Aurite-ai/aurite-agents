@@ -283,18 +283,18 @@ async def stream_agent(
         )
 
 
-@router.post("/workflows/simple/{workflow_name}/run")
-async def run_simple_workflow(
+@router.post("/workflows/linear/{workflow_name}/run")
+async def run_linear_workflow(
     workflow_name: str,
     request: WorkflowRunRequest,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
     """
-    Execute a simple workflow by name.
+    Execute a linear workflow by name.
     """
     try:
-        result = await facade.run_simple_workflow(
+        result = await facade.run_linear_workflow(
             workflow_name=workflow_name,
             initial_input=request.initial_input,
             session_id=request.session_id,
@@ -307,22 +307,22 @@ async def run_simple_workflow(
         logger.error(f"Workflow execution error for '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {clean_error_message(e)}") from e
     except Exception as e:
-        logger.error(f"Unexpected error running simple workflow '{workflow_name}': {e}", exc_info=True)
+        logger.error(f"Unexpected error running linear workflow '{workflow_name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
 
 
-@router.post("/workflows/simple/{workflow_name}/test")
-async def test_simple_workflow(
+@router.post("/workflows/linear/{workflow_name}/test")
+async def test_linear_workflow(
     workflow_name: str,
     api_key: str = Security(get_api_key),
     facade: ExecutionFacade = Depends(get_execution_facade),
 ):
     """
-    Test a simple workflow.
+    Test a linear workflow.
     """
     try:
         # This can be expanded to a more thorough test
-        await facade.run_simple_workflow(workflow_name, "test")
+        await facade.run_linear_workflow(workflow_name, "test")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

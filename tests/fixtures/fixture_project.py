@@ -30,7 +30,7 @@ VALID_PROJECT_CONFIG_INLINE_DEFS = {
             # Other params missing, should use defaults or None
         },
     ],
-    "simple_workflow_configs": [  # Renamed key
+    "linear_workflow_configs": [  # Renamed key
         {
             "name": "Workflow1",
             "description": "A test workflow",
@@ -277,9 +277,10 @@ VALID_AGENT_CONFIG_DATA = {
     "exclude_components": ["excluded_prompt_1"],
 }
 
-VALID_SIMPLE_WORKFLOW_CONFIG_DATA = {
-    "name": "test_simple_workflow_fixture",
-    "description": "A simple test workflow fixture.",
+VALID_LINEAR_WORKFLOW_CONFIG_DATA = {
+    "name": "test_linear_workflow_fixture",
+    "type": "linear_workflow",
+    "description": "A linear test workflow fixture.",
     "steps": ["test_agent_fixture"],
 }
 
@@ -313,6 +314,6 @@ VALID_PROJECT_CONFIG_WITH_REFS = {
     "clients": ["test_client_min", "test_client_full"],  # IDs of client components
     "llm_configs": ["test_llm_fixture"],  # ID of an LLM component
     "agent_configs": ["test_agent_fixture"],  # Name/ID of an agent component
-    "simple_workflow_configs": ["test_simple_workflow_fixture"],
+    "linear_workflow_configs": ["test_linear_workflow_fixture"],
     "custom_workflow_configs": ["test_custom_workflow_fixture"],
 }

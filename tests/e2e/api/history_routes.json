@@ -112,14 +112,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow A/run",
+							"raw": "{{base_url}}/execution/workflows/linear/History Test Workflow A/run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"workflows",
-								"simple",
+								"linear",
 								"History Test Workflow A",
 								"run"
 							]
@@ -173,14 +173,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow B/run",
+							"raw": "{{base_url}}/execution/workflows/linear/History Test Workflow B/run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"workflows",
-								"simple",
+								"linear",
 								"History Test Workflow B",
 								"run"
 							]
@@ -230,14 +230,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow C/run",
+							"raw": "{{base_url}}/execution/workflows/linear/History Test Workflow C/run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"workflows",
-								"simple",
+								"linear",
 								"History Test Workflow C",
 								"run"
 							]
@@ -287,14 +287,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow D/run",
+							"raw": "{{base_url}}/execution/workflows/linear/History Test Workflow D/run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"workflows",
-								"simple",
+								"linear",
 								"History Test Workflow D",
 								"run"
 							]
@@ -670,14 +670,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/execution/workflows/simple/History Test Workflow A/run",
+							"raw": "{{base_url}}/execution/workflows/linear/History Test Workflow A/run",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"execution",
 								"workflows",
-								"simple",
+								"linear",
 								"History Test Workflow A",
 								"run"
 							]

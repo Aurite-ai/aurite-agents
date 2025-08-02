@@ -356,6 +356,6 @@ def _text_to_embedding(input_text: str | list[str]):
 
 
 if __name__ == "__main__":
-    # print(search("What is the difference between simple and custom workflows?", metadata_filter={"filepath": "README.md"}))
+    # print(search("What is the difference between linear and custom workflows?", metadata_filter={"filepath": "README.md"}))
 
     mcp.run(transport="stdio")

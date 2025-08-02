@@ -71,7 +71,7 @@
       ExecutionFacade (execution/facade.py)
     </text>
     <text x="90" y="450" font-family="Arial, sans-serif" font-size="10" fill="#ef6c00">
-      Purpose: Unified interface (run_agent, run_simple_workflow, run_custom_workflow)
+      Purpose: Unified interface (run_agent, run_linear_workflow, run_custom_workflow)
     </text>
     <text x="90" y="465" font-family="Arial, sans-serif" font-size="10" fill="#ef6c00">
       Delegates to specific Executors. Passes Storage Manager to Agent execution.
@@ -83,9 +83,9 @@
     <text x="170" y="515" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(agents/agent.py)</text>
     
     <rect x="280" y="480" width="180" height="50" fill="#ffcc02" stroke="#ff8f00" stroke-width="1" rx="3"/>
-    <text x="370" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">SimpleWorkflow</text>
+    <text x="370" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">LinearWorkflow</text>
     <text x="370" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Executor</text>
-    <text x="370" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(workflows/simple_workflow.py)</text>
+    <text x="370" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">(workflows/linear_workflow.py)</text>
     
     <rect x="480" y="480" width="180" height="50" fill="#ffcc02" stroke="#ff8f00" stroke-width="1" rx="3"/>
     <text x="570" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">CustomWorkflow</text>

@@ -24,7 +24,7 @@ The framework follows a layered architecture:
     *   The **`ExecutionFacade`** (`src/aurite/execution/facade.py`) provides a unified interface (`run_agent`, `stream_agent_run`, etc.) for all execution requests. It handles Just-in-Time (JIT) registration of required MCP servers and manages conversation history.
     *   It instantiates and delegates tasks to specific **Executors**:
         *   **`Agent`** (`src/aurite/components/agents/agent.py`): Manages the multi-turn conversation loop, including tool use and history.
-        *   **`SimpleWorkflowExecutor`** (`src/aurite/components/workflows/simple_workflow.py`): Executes a defined sequence of agents.
+        *   **`LinearWorkflowExecutor`** (`src/aurite/components/workflows/linear_workflow.py`): Executes a defined sequence of agents.
         *   **`CustomWorkflowExecutor`** (`src/aurite/components/workflows/custom_workflow.py`): Dynamically loads and executes user-defined Python classes.
 
 *   **Layer 3: Host Infrastructure:** The `MCPHost` (`src/aurite/host/host.py`) is the core infrastructure layer responsible for direct interaction with external MCP servers.

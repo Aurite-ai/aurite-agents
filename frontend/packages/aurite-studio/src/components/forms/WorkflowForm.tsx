@@ -24,7 +24,7 @@ interface WorkflowFormProps {
 export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
   const navigate = useNavigate();
   const { name: workflowNameParam } = useParams<{ name: string }>();
-  
+
   // Form state
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
@@ -35,17 +35,17 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
 
   // API Hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
-  
+
   // Workflow-specific hooks
   const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
     workflowNameParam || '',
     !!workflowNameParam && editMode
   );
-  
+
   const updateWorkflow = useUpdateWorkflow();
   const createWorkflow = useCreateWorkflow();
   const deleteWorkflow = useDeleteWorkflow();
-  
+
   // Query client for cache invalidation
   const queryClient = useQueryClient();
 
@@ -66,11 +66,11 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
   useEffect(() => {
     if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
       console.log('🔄 Populating workflow form with config:', workflowConfig);
-      
+
       // Populate workflow form fields
       setWorkflowName(workflowConfig.name || '');
       setWorkflowDescription(workflowConfig.description || '');
-      
+
       // Convert steps array to UI format
       if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
         const stepsWithIds = workflowConfig.steps.map((step, index) => ({
@@ -81,7 +81,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       } else {
         setWorkflowSteps([]);
       }
-      
+
       // Mark form as populated to prevent re-population
       setWorkflowFormPopulated(true);
       console.log('✅ Workflow form populated successfully');
@@ -98,7 +98,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       setWorkflowDescription('');
       setWorkflowSteps([]);
       setSelectedAgentToAdd('');
-      
+
       // Mark form as populated to prevent re-initialization
       setWorkflowFormPopulated(true);
     }
@@ -119,7 +119,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
     // Build the workflow config object from form state
     const workflowConfig = {
       name: workflowName,
-      type: "simple_workflow" as const,
+      type: "linear_workflow" as const,
       steps: workflowSteps.map(step => step.agent), // Convert UI format to API format
       description: workflowDescription || undefined
     };
@@ -134,12 +134,12 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       }, {
         onSuccess: () => {
           console.log('✅ Workflow updated successfully');
-          
+
           // Invalidate workflow config cache to force fresh data load
-          queryClient.invalidateQueries({ 
-            queryKey: ['workflow-config-by-name', workflowNameParam] 
+          queryClient.invalidateQueries({
+            queryKey: ['workflow-config-by-name', workflowNameParam]
           });
-          
+
           navigate('/workflows');
         },
         onError: (error) => {
@@ -198,7 +198,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <h1 className="text-3xl font-bold text-primary">
-                {editMode ? 'Edit Simple Workflow' : 'Build New Simple Workflow'}
+                {editMode ? 'Edit Linear Workflow' : 'Build New Linear Workflow'}
               </h1>
             </div>
 
@@ -303,8 +303,8 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                     )}
                   </SelectContent>
                 </Select>
-                <Button 
-                  onClick={addWorkflowStep} 
+                <Button
+                  onClick={addWorkflowStep}
                   variant="outline"
                   disabled={!selectedAgentToAdd}
                 >
@@ -322,7 +322,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
             >
               {/* Delete Button - Only show in edit mode */}
               {editMode && (
-                <Button 
+                <Button
                   variant="destructive"
                   className="px-6"
                   onClick={handleDelete}
@@ -338,11 +338,11 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                   )}
                 </Button>
               )}
-              
+
               {/* Spacer for alignment when no delete button */}
               {!editMode && <div />}
-              
-              <Button 
+
+              <Button
                 className="px-8"
                 onClick={handleSubmit}
                 disabled={(updateWorkflow.isPending || createWorkflow.isPending) || !workflowName.trim() || workflowSteps.length === 0}
@@ -353,7 +353,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                     {editMode ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  editMode ? 'Update Simple Workflow' : 'Save Simple Workflow'
+                  editMode ? 'Update Linear Workflow' : 'Save Linear Workflow'
                 )}
               </Button>
             </motion.div>

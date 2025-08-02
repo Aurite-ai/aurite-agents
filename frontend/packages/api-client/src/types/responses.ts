@@ -35,7 +35,9 @@ export interface WorkflowExecutionResult {
   step_results: Array<{
     step_name: string;
     step_type: string;
+    status: 'success' | 'failed';
     result?: any;
+    error?: string;
   }>;
   /** Final output from the workflow */
   final_output?: any;

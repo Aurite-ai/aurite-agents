@@ -712,7 +712,7 @@ class ConfigManager:
             "agent": AgentConfig,
             "llm": LLMConfig,
             "mcp_server": ClientConfig,
-            "simple_workflow": WorkflowConfig,
+            "linear_workflow": WorkflowConfig,
             "custom_workflow": CustomWorkflowConfig,
         }
 

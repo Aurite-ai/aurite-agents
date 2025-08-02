@@ -124,7 +124,7 @@ curl -X POST "http://localhost:8000/config/components/invalid_type" \
 Response:
 ```json
 {
-  "detail": "Invalid component type 'invalid_type'. Valid types are: agent, llm, mcp_server, simple_workflow, custom_workflow"
+  "detail": "Invalid component type 'invalid_type'. Valid types are: agent, llm, mcp_server, linear_workflow, custom_workflow"
 }
 ```
 
@@ -223,7 +223,7 @@ curl -X POST "http://localhost:8000/config/components/agents" \
 - **Agents**: `agents/agents.json`
 - **LLMs**: `llms/llms.json`
 - **MCP Servers**: `mcp_servers/mcp_servers.json`
-- **Simple Workflows**: `simple_workflows/simple_workflows.json`
+- **Linear Workflows**: `linear_workflows/linear_workflows.json`
 - **Custom Workflows**: `custom_workflows/custom_workflows.json`
 
 ## Key Improvements

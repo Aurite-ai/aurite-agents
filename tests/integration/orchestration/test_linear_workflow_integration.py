@@ -11,9 +11,9 @@ from aurite.host_manager import Aurite
 @pytest.mark.anyio
 @pytest.mark.orchestration
 @pytest.mark.integration
-async def test_simple_workflow_success():
+async def test_linear_workflow_success():
     """
-    Tests a successful execution of a simple workflow using the packaged example project.
+    Tests a successful execution of a linear workflow using the packaged example project.
     """
     # Arrange
     example_project_path = Path("src/aurite/init_templates").resolve()
@@ -42,7 +42,7 @@ async def test_simple_workflow_success():
         mock_run_agent.side_effect = [weather_agent_result, planning_agent_result]
 
         # Act
-        result = await execution_facade.run_simple_workflow(
+        result = await execution_facade.run_linear_workflow(
             workflow_name="test_weather_workflow",
             initial_input="What's the weather in Boston?",
         )
@@ -68,7 +68,7 @@ async def test_simple_workflow_success():
 @pytest.mark.anyio
 @pytest.mark.orchestration
 @pytest.mark.integration
-async def test_simple_workflow_agent_failure():
+async def test_linear_workflow_agent_failure():
     """
     Tests that the workflow correctly handles a failure from one of its agents.
     """
@@ -92,7 +92,7 @@ async def test_simple_workflow_agent_failure():
         ).start()
 
         # Act
-        result = await execution_facade.run_simple_workflow(
+        result = await execution_facade.run_linear_workflow(
             workflow_name="test_weather_workflow",
             initial_input="What's the weather in Boston?",
         )

@@ -30,7 +30,7 @@ async def run_workflow_with_history(workflow_name: str, session_id: str):
     """Run a workflow with a specific session ID."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json={"initial_input": "What's the weather like in New York?", "session_id": session_id},
             timeout=60.0,
@@ -105,7 +105,7 @@ def modify_workflow_config(include_history=True):
         configs = json.load(f)
 
     for config in configs:
-        if config.get("name") == "Weather Planning Workflow" and config.get("type") == "simple_workflow":
+        if config.get("name") == "Weather Planning Workflow" and config.get("type") == "linear_workflow":
             config["include_history"] = include_history
             break
 

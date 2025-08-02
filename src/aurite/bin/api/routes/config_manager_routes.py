@@ -19,7 +19,7 @@ PLURAL_TO_SINGULAR = {
     "agents": "agent",
     "llms": "llm",
     "mcp_servers": "mcp_server",
-    "simple_workflows": "simple_workflow",
+    "linear_workflows": "linear_workflow",
     "custom_workflows": "custom_workflow",
 }
 

@@ -7,54 +7,62 @@ This document provides detailed information about the Execution Facade API endpo
 The Execution Facade API provides unified endpoints for executing agents and workflows within the Aurite Framework. It handles agent conversations (both synchronous and streaming), workflow execution, session management with history persistence, and automatic MCP server registration.
 
 ## Base Path
+
 All execution endpoints are prefixed with `/execution/`.
 
 ## Key Features
+
 - **Agent Execution**: Run agents with user messages, optional system prompts, and session management
 - **Streaming Support**: Real-time streaming of agent responses via Server-Sent Events (SSE)
-- **Workflow Execution**: Execute both simple (sequential) and custom (Python-based) workflows
+- **Workflow Execution**: Execute both linear (sequential) and custom (Python-based) workflows
 - **Session Management**: Automatic conversation history loading and persistence
 - **JIT MCP Server Registration**: Automatic registration of required MCP servers at runtime
 
 ## Agent Execution
 
 ### Run Agent (Synchronous)
+
 `POST /execution/agents/{agent_name}/run`
 
 Executes an agent synchronously and returns the complete result after all processing is finished.
 
 **Parameters:**
+
 - `agent_name` (path): The name of the agent to execute
 
 **Request Body:**
+
 ```json
 {
-  "user_message": "string",           // Required: The user's input message
-  "system_prompt": "string",          // Optional: Override the agent's system prompt
-  "session_id": "string"              // Optional: Session ID for conversation history
+  "user_message": "string", // Required: The user's input message
+  "system_prompt": "string", // Optional: Override the agent's system prompt
+  "session_id": "string" // Optional: Session ID for conversation history
 }
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success | error | max_iterations_reached",
   "final_response": {
     "role": "assistant",
     "content": "string",
-    "tool_calls": []                  // If tools were used
+    "tool_calls": [] // If tools were used
   },
-  "conversation_history": [           // Full conversation including tool interactions
+  "conversation_history": [
+    // Full conversation including tool interactions
     {
       "role": "user | assistant | tool",
       "content": "string or structured content"
     }
   ],
-  "error_message": "string"           // Present only if status is "error"
+  "error_message": "string" // Present only if status is "error"
 }
 ```
 
 **Session Management:**
+
 - If `session_id` is provided and the agent has `include_history: true` in its configuration:
   - Previous conversation history is loaded before execution
   - The current user message is immediately added to the session
@@ -64,20 +72,23 @@ Executes an agent synchronously and returns the complete result after all proces
   - **CacheManager**: In-memory storage (fallback when DB not configured)
 
 ### Stream Agent (Server-Sent Events)
+
 `POST /execution/agents/{agent_name}/stream`
 
 Executes an agent and streams the response in real-time using Server-Sent Events (SSE).
 
 **Parameters:**
+
 - `agent_name` (path): The name of the agent to execute
 
 **Request Body:**
 Same as synchronous execution:
+
 ```json
 {
   "user_message": "string",
-  "system_prompt": "string",          // Optional
-  "session_id": "string"              // Optional
+  "system_prompt": "string", // Optional
+  "session_id": "string" // Optional
 }
 ```
 
@@ -87,25 +98,33 @@ Server-Sent Events stream with the following event types:
 #### Event Types
 
 ##### `llm_response_start`
+
 Indicates the LLM has started generating a response.
+
 ```
 data: {"type": "llm_response_start", "data": {}}
 ```
 
 ##### `llm_response`
+
 Contains text chunks as the LLM generates its response.
+
 ```
 data: {"type": "llm_response", "data": {"content": "partial response text"}}
 ```
 
 ##### `llm_response_stop`
+
 Indicates the LLM has finished generating its response.
+
 ```
 data: {"type": "llm_response_stop", "data": {}}
 ```
 
 ##### `tool_call`
+
 Indicates a tool is being invoked by the agent.
+
 ```
 data: {
   "type": "tool_call",
@@ -117,7 +136,9 @@ data: {
 ```
 
 ##### `tool_output`
+
 Contains the result of a tool execution.
+
 ```
 data: {
   "type": "tool_output",
@@ -129,7 +150,9 @@ data: {
 ```
 
 ##### `error`
+
 Indicates an error occurred during execution.
+
 ```
 data: {
   "type": "error",
@@ -143,57 +166,66 @@ data: {
 Same behavior as synchronous execution - history is loaded at start and saved at completion.
 
 **Error Handling:**
+
 - Errors during streaming are sent as `error` events
 - The stream is terminated after an error event
 - HTTP 500 status code is set for the streaming response on errors
 
 ## Workflow Execution
 
-### Run Simple Workflow
-`POST /execution/workflows/simple/{workflow_name}/run`
+### Run Linear Workflow
 
-Executes a simple (sequential) workflow with the provided initial input.
+`POST /execution/workflows/linear/{workflow_name}/run`
+
+Executes a linear (sequential) workflow with the provided initial input.
 
 **Parameters:**
-- `workflow_name` (path): The name of the simple workflow to execute
+
+- `workflow_name` (path): The name of the linear workflow to execute
 
 **Request Body:**
+
 ```json
 {
-  "initial_input": "any",             // Required: Input data for the workflow
-  "session_id": "string"              // Optional: Currently not used for simple workflows
+  "initial_input": "any", // Required: Input data for the workflow
+  "session_id": "string" // Optional: Currently not used for linear workflows
 }
 ```
 
 **Response:**
+
 ```json
 {
   "status": "completed | failed",
-  "final_output": "any",              // The output from the last step
-  "step_outputs": [                   // Outputs from each step in sequence
+  "final_output": "any", // The output from the last step
+  "step_outputs": [
+    // Outputs from each step in sequence
     {
       "step_name": "string",
       "output": "any",
-      "error": "string"               // If step failed
+      "error": "string" // If step failed
     }
   ],
-  "error": "string"                   // If workflow failed
+  "error": "string" // If workflow failed
 }
 ```
 
 ### Run Custom Workflow
+
 `POST /execution/workflows/custom/{workflow_name}/run`
 
 Executes a custom (Python-based) workflow with the provided initial input.
 
 **Parameters:**
+
 - `workflow_name` (path): The name of the custom workflow to execute
 
 **Request Body:**
+
 ```json
 {
-  "initial_input": "any",             // Required: Input data for the workflow
-  "session_id": "string"              // Optional: Passed to workflow implementation
+  "initial_input": "any", // Required: Input data for the workflow
+  "session_id": "string" // Optional: Passed to workflow implementation
 }
 ```
 
@@ -206,11 +238,13 @@ The `session_id` is passed to the custom workflow executor, allowing workflow im
 ## Status Endpoint
 
 ### Get Execution Facade Status
+
 `GET /execution/status`
 
 Returns the current status of the Execution Facade.
 
 **Response:**
+
 ```json
 {
   "status": "active"
@@ -218,6 +252,7 @@ Returns the current status of the Execution Facade.
 ```
 
 **Purpose:**
+
 - Health check for monitoring
 - Verify the execution facade is operational
 - Future: Could include additional metrics
@@ -225,16 +260,19 @@ Returns the current status of the Execution Facade.
 ## History Management Endpoints
 
 ### List All Sessions
+
 `GET /execution/history`
 
 Lists all conversation sessions with optional filtering and pagination.
 
 **Query Parameters:**
+
 - `agent_name` (optional): Filter sessions by agent name
 - `limit` (optional, default=50): Maximum number of sessions to return (1-100)
 - `offset` (optional, default=0): Number of sessions to skip for pagination
 
 **Response:**
+
 ```json
 {
   "sessions": [
@@ -253,17 +291,21 @@ Lists all conversation sessions with optional filtering and pagination.
 ```
 
 ### Get Session History
+
 `GET /execution/history/{session_id}`
 
 Retrieves the full conversation history for a specific session.
 
 **Parameters:**
+
 - `session_id` (path): The session identifier
 
 **Query Parameters:**
+
 - `raw_format` (optional, default=false): Return raw Anthropic format instead of simplified view
 
 **Response (Simplified Format):**
+
 ```json
 {
   "session_id": "user123-chat-001",
@@ -291,6 +333,7 @@ Retrieves the full conversation history for a specific session.
 ```
 
 **Response (Raw Format with `raw_format=true`):**
+
 ```json
 {
   "session_id": "user123-chat-001",
@@ -328,41 +371,50 @@ Retrieves the full conversation history for a specific session.
 ```
 
 ### Delete Session
+
 `DELETE /execution/history/{session_id}`
 
 Deletes a specific session and all its conversation history.
 
 **Parameters:**
+
 - `session_id` (path): The session identifier to delete
 
 **Response:**
+
 - **204 No Content**: Session successfully deleted
 - **404 Not Found**: Session does not exist
 
 ### Get Agent History
+
 `GET /execution/agents/{agent_name}/history`
 
 Retrieves all sessions for a specific agent.
 
 **Parameters:**
+
 - `agent_name` (path): The name of the agent
 
 **Query Parameters:**
+
 - `limit` (optional, default=50): Maximum number of sessions to return (1-100)
 
 **Response:**
 Same format as `GET /execution/history` but filtered to only show sessions for the specified agent.
 
 ### Clean Up History
+
 `POST /execution/history/cleanup`
 
 Manually triggers cleanup of old sessions based on retention policy.
 
 **Query Parameters:**
+
 - `days` (optional, default=30): Delete sessions older than this many days (1-365)
 - `max_sessions` (optional, default=50): Maximum number of sessions to keep (1-1000)
 
 **Response:**
+
 ```json
 {
   "message": "Cleanup completed. Removed sessions older than 30 days, keeping maximum 50 sessions."
@@ -392,6 +444,7 @@ When using agents with session support, the framework automatically handles conv
 ### Error Response Format
 
 All error responses follow this format:
+
 ```json
 {
   "detail": "Detailed error message describing what went wrong"
@@ -401,7 +454,9 @@ All error responses follow this format:
 ### Common Error Scenarios
 
 #### Configuration Not Found
+
 **Status**: 404
+
 ```json
 {
   "detail": "Agent configuration 'unknown_agent' not found."
@@ -409,7 +464,9 @@ All error responses follow this format:
 ```
 
 #### Missing LLM Configuration
+
 **Status**: 500
+
 ```json
 {
   "detail": "LLM configuration 'gpt-4' not found."
@@ -417,7 +474,9 @@ All error responses follow this format:
 ```
 
 #### MCP Server Registration Failure
+
 **Status**: 500
+
 ```json
 {
   "detail": "MCP Server 'weather_server' required by agent 'weather_bot' not found."
@@ -425,7 +484,9 @@ All error responses follow this format:
 ```
 
 #### Execution Errors
+
 **Status**: 500
+
 ```json
 {
   "detail": "Unexpected error in ExecutionFacade while running Agent 'assistant': ConnectionError: Failed to connect to LLM provider"
@@ -448,6 +509,7 @@ For streaming endpoints, errors are handled differently:
 ### Basic Agent Execution
 
 **Request:**
+
 ```bash
 POST /execution/agents/weather_assistant/run
 Content-Type: application/json
@@ -459,6 +521,7 @@ X-API-Key: your-api-key
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -473,14 +536,16 @@ X-API-Key: your-api-key
     },
     {
       "role": "assistant",
-      "tool_calls": [{
-        "id": "call_abc123",
-        "function": {
-          "name": "get_weather",
-          "arguments": "{\"location\": \"San Francisco, CA\"}"
-        },
-        "type": "function"
-      }]
+      "tool_calls": [
+        {
+          "id": "call_abc123",
+          "function": {
+            "name": "get_weather",
+            "arguments": "{\"location\": \"San Francisco, CA\"}"
+          },
+          "type": "function"
+        }
+      ]
     },
     {
       "role": "tool",
@@ -499,6 +564,7 @@ X-API-Key: your-api-key
 ### Agent with Session Management
 
 **Request:**
+
 ```bash
 POST /execution/agents/personal_assistant/run
 Content-Type: application/json
@@ -511,6 +577,7 @@ X-API-Key: your-api-key
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -544,6 +611,7 @@ X-API-Key: your-api-key
 ### Streaming Agent Execution
 
 **Request:**
+
 ```bash
 POST /execution/agents/code_assistant/stream
 Content-Type: application/json
@@ -556,7 +624,8 @@ X-API-Key: your-api-key
 ```
 
 **Response (Server-Sent Events):**
-```
+
+````
 data: {"type": "llm_response_start", "data": {}}
 
 data: {"type": "llm_response", "data": {"content": "I'll help you create"}}
@@ -578,13 +647,14 @@ data: {"type": "llm_response", "data": {"content": "    if n <= 0:\n        retu
 data: {"type": "llm_response", "data": {"content": "This implementation has O(n) time complexity and O(1) space complexity."}}
 
 data: {"type": "llm_response_stop", "data": {}}
-```
+````
 
-### Simple Workflow Execution
+### Linear Workflow Execution
 
 **Request:**
+
 ```bash
-POST /execution/workflows/simple/data_processing_pipeline/run
+POST /execution/workflows/linear/data_processing_pipeline/run
 Content-Type: application/json
 X-API-Key: your-api-key
 
@@ -597,6 +667,7 @@ X-API-Key: your-api-key
 ```
 
 **Response:**
+
 ```json
 {
   "status": "completed",
@@ -608,19 +679,24 @@ X-API-Key: your-api-key
   "step_outputs": [
     {
       "step_name": "load_data",
-      "output": {"rows_loaded": 10000, "columns": ["date", "product", "amount"]}
+      "output": {
+        "rows_loaded": 10000,
+        "columns": ["date", "product", "amount"]
+      }
     },
     {
       "step_name": "validate_data",
-      "output": {"valid_rows": 9950, "errors": 50}
+      "output": { "valid_rows": 9950, "errors": 50 }
     },
     {
       "step_name": "analyze_sales",
-      "output": {"total": 1250000, "average": 125.63}
+      "output": { "total": 1250000, "average": 125.63 }
     },
     {
       "step_name": "generate_report",
-      "output": {"report_url": "https://reports.example.com/sales_2024_summary.pdf"}
+      "output": {
+        "report_url": "https://reports.example.com/sales_2024_summary.pdf"
+      }
     }
   ]
 }
@@ -629,6 +705,7 @@ X-API-Key: your-api-key
 ### Custom Workflow Execution
 
 **Request:**
+
 ```bash
 POST /execution/workflows/custom/ml_training_pipeline/run
 Content-Type: application/json
@@ -648,6 +725,7 @@ X-API-Key: your-api-key
 ```
 
 **Response (Dynamic based on workflow):**
+
 ```json
 {
   "model_id": "rf_model_20240115_143022",
@@ -671,26 +749,30 @@ X-API-Key: your-api-key
 ## Best Practices
 
 1. **Session Management**:
+
    - Use consistent session IDs for conversation continuity
    - Include user identifiers in session IDs for multi-user scenarios
    - Consider session expiration policies
 
 2. **Streaming vs Synchronous**:
+
    - Use streaming for interactive chat interfaces
    - Use synchronous for batch processing or API integrations
    - Handle SSE reconnection in client applications
 
 3. **Error Handling**:
+
    - Implement retry logic for transient failures
    - Log session IDs for debugging conversation issues
    - Monitor for max iteration warnings
 
 4. **System Prompts**:
+
    - Use system prompt overrides sparingly
    - Prefer configuring prompts in agent definitions
    - Document prompt changes for debugging
 
 5. **Workflow Design**:
-   - Keep simple workflows for linear processes
+   - Keep linear workflows for linear processes
    - Use custom workflows for complex logic
    - Pass session IDs to maintain workflow state

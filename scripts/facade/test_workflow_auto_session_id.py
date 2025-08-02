@@ -33,7 +33,7 @@ async def run_workflow(workflow_name: str, session_id=None):
             payload["session_id"] = session_id
 
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json=payload,
             timeout=60.0,
@@ -74,7 +74,7 @@ def modify_workflow_config(include_history=None):
 
     # Find and modify the Weather Planning Workflow
     for config in configs:
-        if config.get("name") == "Weather Planning Workflow" and config.get("type") == "simple_workflow":
+        if config.get("name") == "Weather Planning Workflow" and config.get("type") == "linear_workflow":
             if include_history is None:
                 # Remove include_history if it exists
                 config.pop("include_history", None)

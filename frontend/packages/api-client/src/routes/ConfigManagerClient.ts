@@ -6,7 +6,7 @@
  * - Agents: AI assistants with specific capabilities and prompts
  * - LLMs: Language model configurations (OpenAI, Anthropic, etc.)
  * - MCP Servers: Tool providers for agents
- * - Workflows: Both simple (sequential) and custom (Python-based)
+ * - Workflows: Both linear (sequential) and custom (Python-based)
  *
  * Configurations are stored as JSON files and can be managed programmatically.
  */
@@ -22,7 +22,7 @@ export class ConfigManagerClient extends BaseClient {
    * - 'agent': AI assistants
    * - 'llm': Language model configurations
    * - 'mcp_server': MCP server configurations
-   * - 'simple_workflow': Sequential agent workflows
+   * - 'linear_workflow': Sequential agent workflows
    * - 'custom_workflow': Python-based workflows
    *
    * @param configType - Type of configuration to list

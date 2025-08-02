@@ -50,7 +50,7 @@ async def run_component(
             (
                 comp
                 for comp in found_components
-                if comp["component_type"] in ["agent", "simple_workflow", "custom_workflow"]
+                if comp["component_type"] in ["agent", "linear_workflow", "custom_workflow"]
             ),
             found_components[0],
         )
@@ -94,7 +94,7 @@ async def run_component(
                 )
                 await presenter.render_stream(stream, component_to_run)
 
-        elif component_type in ["simple_workflow", "custom_workflow"]:
+        elif component_type in ["linear_workflow", "custom_workflow"]:
             presenter = RunPresenter(mode=output_mode)
             if not user_message:
                 logger(f"[bold red]Error:[/bold red] An initial input is required to run a {component_type}.")
@@ -103,8 +103,8 @@ async def run_component(
             async def workflow_streamer():
                 yield {"type": "workflow_step_start", "data": {"name": name}}
                 try:
-                    if component_type == "simple_workflow":
-                        result = await aurite.run_simple_workflow(workflow_name=name, initial_input=user_message)
+                    if component_type == "linear_workflow":
+                        result = await aurite.run_linear_workflow(workflow_name=name, initial_input=user_message)
                     else:
                         try:
                             parsed_input = json.loads(user_message)

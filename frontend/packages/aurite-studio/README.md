@@ -9,30 +9,35 @@ Aurite Studio is a React-based web application that serves as the primary graphi
 ### Key Features
 
 🤖 **Agent Management**
+
 - Create and configure AI agents with custom system prompts
 - Manage LLM configurations and parameters
 - Real-time agent execution with streaming responses
 - Session-based conversation management
 
 🔄 **Workflow Design**
-- Build simple sequential workflows by chaining agents
+
+- Build linear sequential workflows by chaining agents
 - Create custom Python workflows for complex logic
 - Visual workflow editor with drag-and-drop interface
 - Execute workflows with progress tracking
 
 🔧 **MCP Server Configuration**
+
 - Manage Model Context Protocol (MCP) servers
 - Configure tools, prompts, and resources
 - Support for multiple transport types (stdio, HTTP, local)
 - Real-time connection status monitoring
 
 ⚙️ **LLM Configuration**
+
 - Configure multiple language model providers
 - Manage API keys and model parameters
 - Support for OpenAI, Anthropic, Google, and more
 - Inline parameter overrides for specific use cases
 
 🎨 **Modern Interface**
+
 - Clean, responsive design with dark/light themes
 - Smooth animations and transitions
 - Real-time updates and streaming responses
@@ -41,15 +46,19 @@ Aurite Studio is a React-based web application that serves as the primary graphi
 ## Screenshots
 
 ### Home Dashboard
+
 The main landing page provides quick access to create agents and shows recent activity.
 
 ### Agent Management
+
 Comprehensive agent configuration with LLM settings, MCP server selection, and execution parameters.
 
 ### Workflow Designer
+
 Visual workflow builder for creating complex multi-agent processes.
 
 ### Real-time Execution
+
 Live execution monitoring with streaming responses and tool call tracking.
 
 ## Getting Started
@@ -65,36 +74,41 @@ Live execution monitoring with streaming responses and tool call tracking.
 #### Option 1: Workspace Setup (Recommended)
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/aurite-ai/aurite-agents.git
    cd aurite-agents/frontend
    ```
 
 2. **Install dependencies for all packages**
+
    ```bash
    npm install
    ```
 
 3. **Build all packages (required before starting)**
+
    ```bash
    npm run build
    ```
 
 4. **Configure environment**
+
    ```bash
    # Copy environment template
    cp packages/aurite-studio/.env.example packages/aurite-studio/.env
-   
+
    # Edit packages/aurite-studio/.env with your API configuration
    # REACT_APP_API_BASE_URL=http://localhost:8000
    # REACT_APP_API_KEY=your_api_key_here
    ```
 
 5. **Start Aurite Studio**
+
    ```bash
    # Option A: From frontend root (recommended)
    npm start
-   
+
    # Option B: From package directory
    cd packages/aurite-studio
    npm start
@@ -106,25 +120,29 @@ Live execution monitoring with streaming responses and tool call tracking.
 #### Option 2: Package-Only Setup
 
 1. **Clone and navigate to package**
+
    ```bash
    git clone https://github.com/aurite-ai/aurite-agents.git
    cd aurite-agents/frontend/packages/aurite-studio
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment**
+
    ```bash
    # Copy environment template
    cp .env.example .env
-   
+
    # Edit .env with your API configuration
    ```
 
 4. **Start the development server**
+
    ```bash
    npm start
    ```
@@ -161,13 +179,15 @@ docker run -p 3000:3000 -e REACT_APP_API_BASE_URL=http://localhost:8000 aurite-s
 
 ### Building Workflows
 
-#### Simple Workflows
+#### Linear Workflows
+
 1. Go to "Workflows" → "New Workflow"
 2. Add a name and description
 3. Add agents in sequence using the dropdown
 4. Save and execute your workflow
 
 #### Custom Workflows
+
 1. Create a Python class inheriting from `BaseCustomWorkflow`
 2. Configure the module path and class name in Studio
 3. Execute with custom parameters
@@ -238,16 +258,19 @@ Aurite Studio communicates with the Aurite Framework API through the `@aurite/ap
 ### Development Setup
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Start development server**
+
    ```bash
    npm start
    ```
 
 3. **Run tests**
+
    ```bash
    npm test
    ```
@@ -267,6 +290,7 @@ Aurite Studio communicates with the Aurite Framework API through the `@aurite/ap
 ### Code Quality
 
 The project uses:
+
 - **ESLint** for code linting
 - **Prettier** for code formatting
 - **TypeScript** for type safety
@@ -303,9 +327,9 @@ Ensure the Aurite Framework API server is running:
 
 ```bash
 # Start the API server (from repository root)
-aurite api 
+aurite api
 
-OR 
+OR
 
 python -m aurite.bin.server --host 0.0.0.0 --port 8000
 ```
@@ -315,16 +339,19 @@ python -m aurite.bin.server --host 0.0.0.0 --port 8000
 ### Common Issues
 
 **Connection Refused**
+
 - Ensure the API server is running on the correct port
 - Check that `REACT_APP_API_BASE_URL` matches your server configuration
 - Verify firewall settings allow connections
 
 **Authentication Errors**
+
 - Verify your API key is correctly set in `.env`
 - Check that the API server has authentication enabled
 - Ensure the API key has necessary permissions
 
 **Build Failures**
+
 ```bash
 # Clear cache and reinstall
 rm -rf node_modules package-lock.json
@@ -333,6 +360,7 @@ npm run build
 ```
 
 **Development Server Issues**
+
 ```bash
 # Reset development environment
 npm start -- --reset-cache
@@ -376,6 +404,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ### Environment-Specific Configuration
 
 For different environments, create environment-specific `.env` files:
+
 - `.env.development` - Development settings
 - `.env.staging` - Staging environment
 - `.env.production` - Production configuration

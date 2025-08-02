@@ -51,8 +51,8 @@
   },
   {
     "name": "Weather Planning Workflow",
-    "type": "simple_workflow",
-    "description": "A simple workflow to plan based on weather data.",
+    "type": "linear_workflow",
+    "description": "A linear workflow to plan based on weather data.",
     "steps": ["Weather Agent", "Weather Planning Workflow Step 2"]
   },
   {

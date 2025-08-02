@@ -19,7 +19,7 @@ for config in configs:
 
 print("\nWorkflows:")
 for config in configs:
-    if config.get("type") == "simple_workflow":
+    if config.get("type") == "linear_workflow":
         include_history = config.get("include_history", "not set")
         print(f"  - {config['name']}: include_history={include_history}")
         if "steps" in config:

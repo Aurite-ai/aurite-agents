@@ -1,6 +1,6 @@
 [
   {
-    "name": "Simple Planning Agent",
+    "name": "Linear Planning Agent",
     "description": "An agent that creates a step-by-step plan based on the user's request.",
     "type": "agent",
     "mcp_servers": [],

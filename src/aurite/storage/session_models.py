@@ -28,5 +28,5 @@ class ExecutionHistoryResponse(BaseModel):
     """Unified response model for both agent and workflow execution history"""
 
     result_type: str  # "agent" or "workflow"
-    execution_result: Dict[str, Any]  # The complete AgentRunResult or SimpleWorkflowExecutionResult
+    execution_result: Dict[str, Any]  # The complete AgentRunResult or LinearWorkflowExecutionResult
     metadata: SessionMetadata

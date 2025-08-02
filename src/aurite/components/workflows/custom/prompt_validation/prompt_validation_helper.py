@@ -553,7 +553,7 @@
 #                         )
 #                 # ---- END DEBUG LOGGING ----
 #             case "workflow":
-#                 full_output = await executor.run_simple_workflow(
+#                 full_output = await executor.run_linear_workflow(
 #                     workflow_name=testing_config.name,
 #                     initial_input=test_input,
 #                 )

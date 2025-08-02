@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from aurite.components.agents.agent_models import AgentRunResult
     from aurite.execution.facade import ExecutionFacade
 
-
 from aurite.components.workflows.workflow_models import BaseCustomWorkflow
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ class ExampleCustomWorkflow(BaseCustomWorkflow):
         session_id: Optional[str] = None,
     ) -> Any:
         """
-        Executes a simple workflow that runs a single agent.
+        Executes a linear workflow that runs a single agent.
 
         This workflow expects an `initial_input` dictionary with a "city" key,
         e.g., `{"city": "New York"}`. It uses this to query the "Weather Agent".

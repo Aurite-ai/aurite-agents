@@ -1,4 +1,4 @@
-// Core Execution Types for Simple Agent Execution UX
+// Core Execution Types for Agent Execution UX
 
 // Agent Configuration (from existing API alignment)
 export interface AgentConfig {
@@ -101,7 +101,7 @@ export interface ToolCall {
 
 // Stream Event
 export interface StreamEvent {
-  type: 'llm_response_start' | 'llm_response' | 'llm_response_stop' | 
+  type: 'llm_response_start' | 'llm_response' | 'llm_response_stop' |
         'tool_call' | 'tool_output' | 'error' | 'complete';
   data: any;
   timestamp: Date;
@@ -219,7 +219,7 @@ export interface UseExecutionSessionsReturn {
 
 // Workflow Configuration (from existing API alignment)
 export interface WorkflowConfig {
-  type: 'simple_workflow' | 'custom_workflow';
+  type: 'linear_workflow' | 'custom_workflow';
   name: string;
   description?: string;
   steps?: (string | { name: string; type?: string })[];

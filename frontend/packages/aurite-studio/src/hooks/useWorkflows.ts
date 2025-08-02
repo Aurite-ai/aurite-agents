@@ -72,7 +72,7 @@ export const useCreateWorkflow = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (config: WorkflowConfig) => 
+    mutationFn: (config: WorkflowConfig) =>
       workflowsService.createAndRegisterWorkflow(config),
     onSuccess: (data, variables) => {
       toast.success(`Workflow "${variables.name}" created successfully`);
@@ -203,17 +203,17 @@ export const useWorkflowsWithConfigs = () => {
   const { data: configs = [], isLoading: configsLoading } = useWorkflowConfigs();
 
   const workflowsWithConfigs = workflows.map(workflowName => {
-    const configFile = configs.find(file => 
-      typeof file === 'string' && 
+    const configFile = configs.find(file =>
+      typeof file === 'string' &&
       file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
-    
+
     return {
       name: workflowName,
       description: undefined,
       stepCount: 0,
       stepPreview: configFile ? 'Configured and ready' : 'Configuration pending',
-      type: 'simple_workflow' as const,
+      type: 'linear_workflow' as const,
       status: 'active' as const,
       configFile,
     };
@@ -225,7 +225,7 @@ export const useWorkflowsWithConfigs = () => {
   };
 };
 
-// Alias for backward compatibility - now uses the simple pattern
+// Alias for backward compatibility - now uses the linear pattern
 export const useWorkflowsWithFullConfigs = useWorkflowsWithConfigs;
 
 // Hook to get custom workflows with their configurations
@@ -238,11 +238,11 @@ export const useCustomWorkflowsWithConfigs = () => {
   });
 
   const customWorkflowsWithConfigs = customWorkflows.map(workflowName => {
-    const configFile = configs.find(file => 
-      typeof file === 'string' && 
+    const configFile = configs.find(file =>
+      typeof file === 'string' &&
       file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
-    
+
     return {
       name: workflowName,
       configFile,

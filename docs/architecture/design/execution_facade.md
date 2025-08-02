@@ -23,7 +23,7 @@ The ExecutionFacade serves as the orchestration layer between the API endpoints 
          ├─────────────────┬─────────────────┬─────────────────┐
          ▼                 ▼                 ▼                 ▼
 ┌─────────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Agent           │ │ Simple      │ │ Custom       │ │ Storage      │
+│ Agent           │ │ Linear      │ │ Custom       │ │ Storage      │
 │ Execution       │ │ Workflow    │ │ Workflow     │ │ Management   │
 └─────────────────┘ └─────────────┘ └──────────────┘ └──────────────┘
 ```
@@ -31,21 +31,25 @@ The ExecutionFacade serves as the orchestration layer between the API endpoints 
 ## Core Responsibilities
 
 ### 1. Component Resolution
+
 - Retrieves component configurations from ConfigManager
 - Validates component existence and dependencies
 - Handles missing configuration gracefully with fallbacks
 
 ### 2. Resource Management
+
 - Manages LLM client instances
 - Coordinates with MCPHost for tool availability
 - Implements JIT (Just-In-Time) server registration
 
 ### 3. Session Management
+
 - Loads conversation history for agents
 - Persists conversation state after execution
 - Provides abstraction over storage backends
 
 ### 4. Execution Orchestration
+
 - Initializes components with proper configuration
 - Manages execution lifecycle
 - Handles both synchronous and streaming execution modes
@@ -145,12 +149,14 @@ Session management enables agents to maintain conversation context across multip
 **Purpose**: Provides persistent storage for production environments.
 
 **Features**:
+
 - Full ACID compliance
 - Efficient querying by agent_name and session_id
 - Timestamp tracking for audit trails
 - Scalable for large conversation histories
 
 **Schema**:
+
 ```sql
 AgentHistoryDB:
   - id: Integer (Primary Key)
@@ -167,6 +173,7 @@ AgentHistoryDB:
 **Purpose**: Lightweight persistent storage for development and testing.
 
 **Current Implementation**:
+
 ```python
 class CacheManager:
     def __init__(self, cache_dir: Optional[Path] = None):
@@ -178,6 +185,7 @@ class CacheManager:
 ```
 
 **Features**:
+
 - File-based persistence with JSON storage
 - In-memory caching for performance
 - Session metadata tracking (timestamps, agent name, message count)
@@ -185,6 +193,7 @@ class CacheManager:
 - Safe session ID sanitization
 
 **File Structure**:
+
 ```
 .aurite_cache/
 ├── session-id-1.json
@@ -193,6 +202,7 @@ class CacheManager:
 ```
 
 **Session File Format**:
+
 ```json
 {
   "session_id": "test-session-123",
@@ -273,6 +283,7 @@ Internal Events:              Translated to:
 ### Stream State Management
 
 The streaming implementation maintains state across turns:
+
 - Tracks whether LLM has started responding
 - Collects tool results for history updates
 - Manages conversation history updates in real-time
@@ -280,16 +291,19 @@ The streaming implementation maintains state across turns:
 ## Error Handling Strategy
 
 ### Configuration Errors
+
 - Caught early in the preparation phase
 - Clear error messages indicating missing components
 - Prevents partial execution with invalid configuration
 
 ### Execution Errors
+
 - Wrapped with context about which component failed
 - Original error preserved in the chain
 - Graceful degradation where possible
 
 ### Streaming Errors
+
 - Converted to error events in the stream
 - Stream terminated cleanly
 - Client can handle reconnection if needed
@@ -312,6 +326,7 @@ The streaming implementation maintains state across turns:
 ### Monitoring and Observability
 
 1. **Execution Metrics**
+
    - Response times
    - Token usage
    - Error rates

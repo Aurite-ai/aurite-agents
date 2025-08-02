@@ -56,6 +56,6 @@ The `AuriteKernel` is the internal engine that owns and manages the state of the
 
 The `Aurite` class provides a clean, high-level API for users to interact with the framework without needing to manage the internal state.
 
-*   **Execution Delegation:** Methods like `run_agent`, `run_simple_workflow`, and `stream_agent` are the primary user-facing functions. They perform a single critical task: they ensure the `AuriteKernel` is initialized and then delegate the actual execution logic to the `ExecutionFacade` (Layer 2.5).
+*   **Execution Delegation:** Methods like `run_agent`, `run_linear_workflow`, and `stream_agent` are the primary user-facing functions. They perform a single critical task: they ensure the `AuriteKernel` is initialized and then delegate the actual execution logic to the `ExecutionFacade` (Layer 2.5).
 *   **Lazy Initialization:** The `_ensure_initialized` method allows users to instantiate the `Aurite` class cheaply without kicking off all the underlying services until they are actually needed.
 *   **Context Management:** It can be used as an `async` context manager (`async with Aurite() as aurite:`) to guarantee that the `shutdown` sequence is called, which is the recommended pattern for applications.
