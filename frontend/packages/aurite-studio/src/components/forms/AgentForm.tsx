@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ interface AgentFormProps {
 export default function AgentForm({ editMode = false }: AgentFormProps) {
   const navigate = useNavigate();
   const { name: agentNameParam } = useParams<{ name: string }>();
+  const [searchParams] = useSearchParams();
   
   // Form state
   const [agentFormName, setAgentFormName] = useState('');
@@ -39,9 +40,12 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   const [showAgentDeleteConfirmation, setShowAgentDeleteConfirmation] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState<any>(null);
 
+  // Ref for auto-focus functionality
+  const maxIterationsRef = useRef<HTMLInputElement>(null);
+
   // API Hooks
-  const { data: clients = [], isLoading: clientsLoading } = useClientsWithStatus();
-  const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
+  const { data: clients = [] } = useClientsWithStatus();
+  const { data: llms = [] } = useLLMsWithConfigs();
   
   // Agent-specific hooks
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
@@ -139,6 +143,23 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       setFormPopulated(true);
     }
   }, [editMode, formPopulated]);
+
+  // Auto-focus Max Iterations field when focus=max_iterations URL parameter is present
+  useEffect(() => {
+    const focusParam = searchParams.get('focus');
+    if (focusParam === 'max_iterations' && formPopulated && maxIterationsRef.current) {
+      // Small delay to ensure the form is fully rendered
+      setTimeout(() => {
+        maxIterationsRef.current?.focus();
+        maxIterationsRef.current?.select();
+        // Scroll to the field
+        maxIterationsRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 500);
+    }
+  }, [searchParams, formPopulated]);
 
   const handleSubmit = () => {
     // Build the agent config object
@@ -496,6 +517,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                 <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations</Label>
                 <Input
                   id="max-iterations"
+                  ref={maxIterationsRef}
                   type="number"
                   value={maxIterations}
                   onChange={(e) => setMaxIterations(e.target.value)}

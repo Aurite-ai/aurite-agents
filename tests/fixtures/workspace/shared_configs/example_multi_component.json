@@ -51,6 +51,7 @@
     "type": "agent"
   },
   {
+    "name": "conversation_history_agent",
     "description": "Conversation History Testing Agent",
     "system_prompt": "You are an updated weather assistant",
     "llm_config_id": "anthropic_claude_3_haiku",

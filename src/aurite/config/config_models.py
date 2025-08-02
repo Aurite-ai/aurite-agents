@@ -163,10 +163,12 @@ class LLMConfig(BaseComponentConfig):
     )
 
     # Provider-specific settings (Example - adjust as needed)
-    # api_key_env_var: Optional[str] = Field(None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).")
+    api_key_env_var: Optional[str] = Field(
+        None, description="Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY)."
+    )
     # credentials_path: Optional[Path] = Field(None, description="Path to credentials file for some providers.")
     api_base: Optional[str] = Field(default=None, description="The base URL for the LLM.")
-    api_key: Optional[str] = Field(default=None, description="The API key for the LLM.")
+    # api_key: Optional[str] = Field(default=None, description="The API key for the LLM.")
     api_version: Optional[str] = Field(default=None, description="The API version for the LLM.")
 
     class Config:
@@ -224,7 +226,7 @@ class AgentConfig(BaseComponentConfig):
         description="JSON schema for validating agent-specific configurations.",
     )
     # --- Agent Behavior ---
-    max_iterations: Optional[int] = Field(default=None, description="Max conversation turns before stopping.")
+    max_iterations: Optional[int] = Field(default=50, description="Max conversation turns before stopping.")
     include_history: Optional[bool] = Field(
         default=None,
         description="Whether to include the conversation history, or just the latest message.",

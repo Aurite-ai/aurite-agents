@@ -70,9 +70,9 @@ These fields are used for connecting to specific APIs, especially for self-hoste
 **Type:** `string` (Optional)
 **Description:** The base URL for the API endpoint. This is commonly used for local models (e.g., `http://localhost:8000/v1`) or custom provider endpoints.
 
-### `api_key`
+### `api_key_env_var`
 **Type:** `string` (Optional)
-**Description:** The API key for the provider. It is **highly recommended** to manage API keys using environment variables instead of placing them directly in configuration files. However, this field is available for convenience or specific use cases.
+**Description:** The environment variable name for the API key to use with this LLM (if not using default like ANTHROPIC_API_KEY)
 
 ### `api_version`
 **Type:** `string` (Optional)
