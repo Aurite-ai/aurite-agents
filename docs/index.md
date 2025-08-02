@@ -27,11 +27,21 @@ An in-depth look at the features each component offers through json configuratio
 
 ### 3. Framework Architecture
 
-- **[Framework Overview](architecture/overview.md)**: A diagram of the overall architecture, design principles, and how different parts of the framework interact.
-- **Framework Layers**: Understand the specific responsibilities of each architectural layer.
-  - **[Layer 1: Entrypoints](architecture/layers/1_entrypoints.md)**
-  - **[Layer 2: Orchestration & Configuration](architecture/layers/2_orchestration.md)**
-  - **[Layer 2.5: Execution](architecture/layers/2.5_execution.md)**
-  - **[Layer 3: Host Infrastructure](architecture/layers/3_host.md)**
+- **[Framework Overview](architecture/overview.md)**: High-level architecture, design principles, and component interactions.
 
----
+#### Design Documents
+
+- **[Aurite Engine Design](architecture/design/aurite_engine_design.md)**
+- **[Config Manager Design](architecture/design/config_manager_design.md)**
+- **[MCP Host Design](architecture/design/mcp_host_design.md)**
+
+#### Execution & Flow
+
+- **[Aurite Engine Execution Flow](architecture/flow/aurite_engine_execution_flow.md)**
+- **[Config Index Building Flow](architecture/flow/config_index_building_flow.md)**
+- **[MCP Server Registration Flow](architecture/flow/mcp_server_registration_flow.md)**
+- **[Session Management Flow](architecture/flow/session_management_flow.md)**
+
+#### Reference
+
+- **[Config Examples](architecture/reference/config_examples.md)**

@@ -1,154 +1,125 @@
-# Agent Configuration
+# :material-robot: Agent Configuration
 
-Agents are the primary actors in the Aurite framework. The `agent.md` configuration file defines an agent's identity, its capabilities, and its behavior. This document details all the available fields for configuring an agent.
+Agents are the primary actors in the Aurite framework, responsible for executing tasks by interacting with tools and models. The agent configuration defines an agent's identity, its capabilities, and its behavior.
 
 An agent configuration is a JSON or YAML object with a `type` field set to `"agent"`.
 
-## Full Example
+!!! tip "Configuration Location"
 
-Here is an example of a complete agent configuration:
+    Agent configurations can be placed in any directory specified in your project's `.aurite` file (e.g., `config/agents/`, `shared/agents/`). The framework will automatically discover them.
 
-```json
-{
-  "type": "agent",
-  "name": "code-refactor-agent",
-  "description": "An agent that helps refactor Python code by using static analysis tools.",
-  "mcp_servers": [
-    "pylint-server",
-    "file-system-server"
-  ],
-  "llm_config_id": "claude-3-opus",
-  "max_iterations": 10
-}
-```
+---
 
-## Core Fields
+## Schema
 
-These fields define the fundamental properties of the agent.
+The `AgentConfig` defines the structure for an agent configuration. Below are the available fields, categorized for clarity.
 
-### `name`
-**Type:** `string` (Required)
+=== ":material-format-list-bulleted-type: Core Fields"
 
-**Description:** A unique identifier for the agent. This name is used to reference the agent in workflows and commands.
+    These fields define the fundamental properties of the agent.
 
-```json
-  "name": "customer-support-agent"
-```
+    | Field | Type | Required | Description |
+    | --- | --- | --- | --- |
+    | `name` | `string` | Yes | A unique identifier for the agent. This name is used to reference the agent in workflows and commands. |
+    | `description` | `string` | No | A brief, human-readable description of what the agent does. |
+    | `system_prompt` | `string` | No | The primary system prompt for the agent. This can be overridden by the `system_prompt` in the `llm` block. |
 
+=== ":material-tools: Capability Management"
 
-### `type`
-**Type:** `string` (Required)
+    These fields control which tools and resources the agent can access.
 
-**Description:** You must specify the component type as `agent`
-```json
-  "type": "agent"
-```
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `mcp_servers` | `list[string]` | `[]` | A list of `mcp_server` component names this agent can use. The agent gains access to all tools, prompts, and resources from these servers. |
+    | `exclude_components` | `list[string]` | `None` | A list of component names (tools, prompts, resources) to explicitly exclude, even if provided by allowed `mcp_servers`. |
+    | `auto` | `boolean` | `false` | If `true`, an LLM dynamically selects the most appropriate `mcp_servers` at runtime based on the user's prompt. |
 
+=== ":simple-amd: LLM Configuration"
 
-### `system_prompt`
-**Type:** `string` (Optional)
+    These fields control the Large Language Model that powers the agent's reasoning.
 
-**Description:** The system prompt for the agent.
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `llm_config_id` | `string` | `None` | The `name` of an `llm` component to use. This is the recommended way to assign an LLM, allowing for reusable configurations. |
+    | `llm` | `object` | `None` | An object containing LLM parameters to override the base `LLMConfig`. See details below. |
 
-```json
-  "system_prompt": "You are a..."
-```
+    !!! abstract "LLM Overrides"
+        The `llm` block allows you to fine-tune the model's behavior for a specific agent. It accepts any field from the [LLM Configuration](llm.md), including:
+        - `model` (string): A different model name (e.g., `"gpt-3.5-turbo"`).
+        - `temperature` (float): A different sampling temperature.
+        - `max_tokens` (integer): A different max token limit.
+        - `system_prompt` (string): A more specific system prompt for this agent.
+        - `api_base`, `api_key`, `api_version` for custom endpoints.
+        - Any other provider-specific parameters.
 
+=== ":material-cogs: Behavior Control"
 
+    These fields fine-tune how the agent executes its tasks.
 
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `max_iterations` | `integer` | `50` | The maximum number of conversational turns before stopping automatically. This is a safeguard to prevent infinite loops. |
+    | `include_history` | `boolean` | `None` | If `true`, the entire conversation history is included in each turn. If `false` or `None`, the agent is stateless and only sees the latest message. |
 
-## Capability & Server Management
+=== ":material-flask: Advanced & Experimental"
 
-These fields control which tools and resources the agent can access.
+    These fields are for advanced use cases like validation and testing.
 
-### `mcp_servers`
-**Type:** `list[string]` (Optional)
-**Default:** `[]` (empty list)
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `config_validation_schema` | `dict` | `None` | A JSON schema for validating agent-specific configurations. |
+    | `evaluation` | `string` | `None` | Optional runtime evaluation. Can be a prompt describing expected output or the name of a file in `config/testing`. |
 
-**Description:** A list of `mcp_server` component names that this agent is allowed to use. The agent will have access to all tools, prompts, and resources provided by the specified servers.
+---
 
-```json
-  "mcp_servers": ["knowledge-base-server", "ticket-system-server"]
-```
+## :material-code-json: Configuration Examples
 
-### `exclude_components`
-**Type:** `list[string]` (Optional)
+Here are some practical examples of agent configurations.
 
-**Description:** A list of specific component names (tools, prompts, or resources) to explicitly exclude from this agent's capabilities, even if they are provided by one of its allowed `mcp_servers`. This is useful for creating a more restricted or specialized version of an agent without needing to redefine the underlying servers.
+=== "Simple Agent"
+A basic agent that uses a centrally-defined LLM and has access to a set of tools.
 
-```json
-  "exclude_components": ["delete_ticket_tool"]
-```
+    ```json
+    {
+      "type": "agent",
+      "name": "code-refactor-agent",
+      "description": "An agent that helps refactor Python code by using static analysis tools.",
+      "mcp_servers": [
+        "pylint-server",
+        "file-system-server"
+      ],
+      "llm_config_id": "claude-3-opus",
+      "system_prompt": "You are an expert Python programmer. You will be given a file and your goal is to refactor it to improve readability and performance.",
+      "max_iterations": 10
+    }
+    ```
 
+=== "Agent with LLM Overrides"
+This agent uses a base LLM configuration but overrides the model and temperature for its specific task.
 
-## LLM Configuration
+    ```json
+    {
+      "type": "agent",
+      "name": "creative-writer-agent",
+      "description": "An agent for brainstorming creative ideas.",
+      "mcp_servers": ["internet-search-server"],
+      "llm_config_id": "gpt-4-base",
+      "llm": {
+        "model": "gpt-4-1106-preview",
+        "temperature": 0.9
+      }
+    }
+    ```
 
-These fields control the Large Language Model that powers the agent's reasoning and decision-making.
+=== "Stateless Agent"
+This agent is configured to be stateless (`include_history` is `false`), making it suitable for simple, single-turn tasks where context is not needed.
 
-### `llm_config_id`
-**Type:** `string` (Optional)
-
-**Description:** The `name` of an `llm` component configuration to use for this agent. This is the recommended way to assign an LLM to an agent, as it allows you to reuse and manage LLM configurations centrally.
-
-```json
-  "llm_config_id": "gpt-4-turbo"
-```
-
-### llm override parameters
-
-(Optional)
-
-**Description:** LLM parameters that will override the settings from the `llm` component specified by `llm_config_id`. This allows for fine-tuning the LLM's behavior for a specific agent.
-
-You can override the following fields:
--   `model` (string): A different model name (e.g., `"gpt-3.5-turbo"`).
--   `temperature` (float): A different sampling temperature.
--   `max_tokens` (integer): A different max token limit.
-
-```json
-    "model": "gpt-3.5-turbo",
-    "max_tokens": 2048,
-    "temperature": 0.5,
-```
-
-
-## Behavior Control
-
-These fields fine-tune how the agent executes its tasks.
-
-### `max_iterations`
-**Type:** `integer` (Optional)
-```json
-  "max_iterations": 10
-```
-**Description:** The maximum number of conversational turns (user message -> agent response) the agent will execute before stopping automatically. This is a safeguard to prevent infinite loops.
-
-### `include_history`
-**Type:** `boolean` (Optional)
-
-**Description:** If set to `true`, the entire conversation history is included. By default, the agent will only consider the most recent user message in each turn, effectively making it stateless.
-
-```json
-  "include_history": "true"
-```
-
-## Other Features
-
-### `description`
-**Type:** `string` (Optional)
-
-**Description:** A brief, human-readable description of what the agent does.
-
-```json
-  "description": "An agent that answers customer questions using a knowledge base."
-```
-
-### `auto`
-**Type:** `boolean` (Optional)
-**Default:** `false`
-
-**Description:** If set to `true`, the framework will use an LLM to dynamically select the most appropriate `mcp_servers` for the agent at runtime based on the user's prompt. This is an advanced feature that allows for more flexible and intelligent tool selection.
-
-```json
-  "auto": true
-```
+    ```json
+    {
+      "type": "agent",
+      "name": "simple-calculator-agent",
+      "description": "A stateless agent that performs a single calculation.",
+      "mcp_servers": ["calculator-tool-server"],
+      "llm_config_id": "gpt-3.5-turbo",
+      "include_history": false
+    }

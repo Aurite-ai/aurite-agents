@@ -1,121 +1,93 @@
-# Linear Workflow Configuration
+# :material-chart-timeline-variant: Linear Workflow Configuration
 
 Linear workflows provide a straightforward way to execute a series of components in a predefined, sequential order. They are perfect for tasks that follow a linear process, such as "first run the data-ingestion agent, then run the analysis agent."
 
 A linear workflow configuration is a JSON or YAML object with a `type` field set to `"linear_workflow"`.
 
-## How It Works
+!!! info "How It Works"
+When you execute a linear workflow, the framework iterates through the `steps` list in order. The output from one step is passed as the input to the next, allowing you to chain components together to create a processing pipeline.
 
-When you execute a linear workflow, the framework iterates through the `steps` list in order. For each step, it runs the specified component and waits for it to complete before moving on to the next one. The output or result from one step is passed as the input to the next, allowing you to chain components together to create a processing pipeline.
+---
 
-## Full Example
+## Schema
 
+The `WorkflowConfig` defines the structure for a linear workflow.
+
+=== ":material-format-list-bulleted-type: Core Fields"
+
+    These fields define the fundamental properties of the workflow.
+
+    | Field | Type | Required | Description |
+    | --- | --- | --- | --- |
+    | `name` | `string` | Yes | A unique identifier for the workflow. This name is used to run the workflow from the CLI or API. |
+    | `description` | `string` | No | A brief, human-readable description of what the workflow accomplishes. |
+    | `steps` | `list[string or object]` | Yes | An ordered list of the components to execute. See "Steps Configuration" below for details. |
+    | `include_history` | `boolean` | No | If set, overrides the `include_history` setting for all agents in the workflow, forcing them all to either save or discard history. |
+
+=== ":material-step-forward: Steps Configuration"
+
+    The core of a linear workflow is the `steps` list. Each item in the list can be either a simple string (the component name) or a detailed object.
+
+    **Simple Step (by Name)**
+
+    The easiest way to define a step is to provide the `name` of the component.
+
+    ```json
+    "steps": ["fetch-data-agent", "process-data-agent"]
+    ```
+
+    **Detailed Step (by Object)**
+
+    For more clarity, you can specify the component `type` along with its `name`. This is useful if you have components of different types with the same name.
+
+    ```json
+    "steps": [
+      { "name": "fetch-data-agent", "type": "agent" },
+      { "name": "analysis-pipeline", "type": "linear_workflow" }
+    ]
+    ```
+    The `type` can be `"agent"`, `"linear_workflow"`, or `"custom_workflow"`.
+
+---
+
+## :material-code-json: Configuration Examples
+
+=== "Simple Pipeline"
 This example defines a two-step workflow for processing customer feedback.
 
-```json
-{
-  "type": "linear_workflow",
-  "name": "customer-feedback-pipeline",
-  "description": "Fetches customer feedback, analyzes sentiment, and saves the result.",
-  "steps": ["fetch-feedback-agent", "analyze-sentiment-agent"]
-}
-```
-
-## Core Fields
-
-### `name`
-
-**Type:** `string` (Required)
-**Description:** A unique identifier for the workflow. This name is used to run the workflow from the command line or other interfaces.
-
-```json
-{
-  "name": "daily-report-workflow"
-}
-```
-
-### `type`
-
-**Type:** `string` (Required)
-
-**Description:** You must specify the component type as `linear_workflow` for the index's efficiency.
-
-```json
-  "type": "linear_workflow"
-```
-
-### `description`
-
-**Type:** `string` (Optional)
-**Description:** A brief, human-readable description of what the workflow accomplishes.
-
-```json
-{
-  "description": "A workflow that generates and distributes a daily sales report."
-}
-```
-
-### `include_history`
-
-**Type:** `boolean` (Optional)
-**Description:** When set, overrides the `include_history` setting for all agents in the workflow. This allows you to control conversation history persistence at the workflow level.
-
-- When `true`: Forces all agents in the workflow to save their conversation history, regardless of their individual settings
-- When `false`: Prevents all agents from saving history, even if they have `include_history: true` in their configuration
-- When not specified: Agents use their own individual `include_history` settings
-
-```json
-{
-  "name": "customer-support-workflow",
-  "type": "linear_workflow",
-  "include_history": true,
-  "steps": ["greeting-agent", "support-agent", "followup-agent"]
-}
-```
-
-This is particularly useful when you want to ensure all steps in a workflow maintain conversation history for debugging or compliance purposes, or when you want to run a workflow without persisting any history for privacy reasons.
-
-## Steps Configuration
-
-The core of a linear workflow is the `steps` list. This list defines the sequence of components to be executed.
-
-### `steps`
-
-**Type:** `list[string | object]` (Required)
-**Description:** An ordered list of the components to execute. Each item in the list can be either a string (the name of the component) or a more detailed object.
-
-#### Step by Name
-
-The easiest way to define a step is to simply provide the `name` of the component you want to run. The framework will look up the component in the configuration index.
-
-```json
-{
-  "name": "linear-ingestion-workflow",
-  "steps": ["fetch-data-agent", "process-data-agent", "save-results-agent"]
-}
-```
-
-#### Detailed Step (by Object)
-
-For more clarity or to handle duplicate component names across component types, you can specify the component type. This object must include the `name` and `type` of the component.
-
-- `name` (string): The name of the component.
-- `type` (string): The type of the component. Must be one of `"agent"`, `"linear_workflow"`, or `"custom_workflow"`.
-
-This more verbose format is functionally identical to the string format for now but may support additional step-specific parameters in the future.
-
-```json
-{
-  "name": "detailed-ingestion-workflow",
-  "steps": [
+    ```json
     {
-      "name": "fetch-data-agent",
-      "type": "agent"
-    },
-    {
-      "name": "process-data-agent",
-      "type": "agent"
+      "type": "linear_workflow",
+      "name": "customer-feedback-pipeline",
+      "description": "Fetches customer feedback, analyzes sentiment, and saves the result.",
+      "steps": ["fetch-feedback-agent", "analyze-sentiment-agent"]
     }
-  ]
-}
-```
+    ```
+
+=== "Workflow with History Override"
+This workflow forces all agents within it to maintain conversation history, which is useful for debugging or creating a continuous conversational experience across multiple agents.
+
+    ```json
+    {
+      "type": "linear_workflow",
+      "name": "stateful-support-flow",
+      "description": "A multi-agent support flow that remembers the conversation.",
+      "include_history": true,
+      "steps": ["greeting-agent", "support-agent", "followup-agent"]
+    }
+    ```
+
+=== "Nested Workflow"
+This example shows how a linear workflow can include another workflow as one of its steps.
+
+    ```json
+    {
+      "type": "linear_workflow",
+      "name": "daily-reporting-process",
+      "description": "A top-level workflow that orchestrates other workflows and agents.",
+      "steps": [
+        { "name": "ingestion-workflow", "type": "linear_workflow" },
+        { "name": "analysis-agent", "type": "agent" },
+        { "name": "distribution-workflow", "type": "custom_workflow" }
+      ]
+    }

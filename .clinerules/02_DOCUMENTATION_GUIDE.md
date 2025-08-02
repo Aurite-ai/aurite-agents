@@ -88,11 +88,6 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `tui_guide.md` - Terminal UI interface guide
 - `openapi.yaml` - OpenAPI specification (root directory)
 - API endpoints: `/api-docs`, `/redoc`, `/openapi.json` (when server is running)
-- `routes/` - Detailed API route documentation
-  - `config_manager_routes.md` - Configuration Manager API details, decision trees, and error handling
-  - `facade_routes.md` - Execution Facade API details
-  - `mcp_host_routes.md` - MCP Host API details
-  - `system_routes.md` - System API details
 
 ### 5. Architecture & Design
 
@@ -101,16 +96,18 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 **Location:** `docs/architecture/`
 **Documents:**
 
-- `overview.md` - High-level architecture overview
-- `layers/` - Layer-by-layer architecture documentation
-  - `1_entrypoints.md` - API, CLI, and worker entrypoints
-  - `2_orchestration.md` - Core orchestration layer
-  - `2.5_execution.md` - Execution layer details
-  - `3_host.md` - MCP host infrastructure
-- `design/` - Design documents and architectural decisions
-  - `execution_facade.md` - ExecutionFacade architecture, JIT server registration, session management
-  - `index_building_flow.md` - How the configuration index is built with priority resolution
-  - `packaging_and_runtime_design.md` - Package structure and runtime design decisions
+- `overview.md` - High-level framework architecture and component integration
+- `design/` - Component design documents and architectural decisions
+  - `aurite_engine_design.md` - AuriteEngine architecture, JIT server registration, session management
+  - `config_manager_design.md` - ConfigManager hierarchical configuration system
+  - `mcp_host_design.md` - MCP Host distributed tool management and security
+- `flow/` - Operational flow documentation
+  - `aurite_engine_execution_flow.md` - Agent and workflow execution flows
+  - `config_index_building_flow.md` - Configuration discovery and indexing process
+  - `mcp_server_registration_flow.md` - MCP server registration and component discovery
+  - `session_management_flow.md` - Session lifecycle and storage operations
+- `reference/` - Reference documentation and examples
+  - `config_examples.md` - Comprehensive configuration examples and patterns
 
 ### 6. Testing
 

@@ -1,94 +1,118 @@
-# LLM Configuration
+# :simple-amd: LLM Configuration
 
-LLM (Large Language Model) configurations are reusable components that define the settings for a specific model from a specific provider. By defining LLMs centrally, you can easily share them across multiple agents and manage your model settings in one place.
+LLM (Large Language Model) configurations are reusable components that define the settings for a specific model from a particular provider. By defining LLMs centrally, you can easily share them across multiple agents and manage your model settings in one place.
 
 An LLM configuration is a JSON or YAML object with a `type` field set to `"llm"`.
 
-## Core Fields
+!!! tip "Configuration Location"
 
-### `name`
-**Type:** `string` (Required)
-**Description:** A unique identifier for the LLM configuration. This name is used in an agent's `llm_config_id` field to link to this configuration.
+    LLM configurations can be placed in any directory specified in your project's `.aurite` file (e.g., `config/`, `shared/llms/`). The framework will automatically discover them.
 
-```json
-{
-  "name": "Standard GPT4"
-}
-```
+---
 
-### `provider`
-**Type:** `string` (Required)
-**Description:** The name of the LLM provider. This typically corresponds to a provider supported by the underlying model library (e.g., LiteLLM). Common values include `openai`, `anthropic`, `gemini`, `groq`, etc.
+## Schema
 
-```json
-{
-  "provider": "openai"
-}
-```
+The `LLMConfig` defines the structure for an LLM configuration. Below are the available fields, categorized for clarity.
 
-### `model`
-**Type:** `string` (Required)
-**Description:** The specific model name as recognized by the provider.
+=== ":material-format-list-bulleted-type: Core Fields"
 
-```json
-{
-  "model": "gpt-4-1106-preview"
-}
-```
+    These fields are essential for defining the identity and source of the model.
 
-### `description`
-**Type:** `string` (Optional)
-**Description:** A brief, human-readable description of the LLM configuration.
+    | Field | Type | Required | Description |
+    | --- | --- | --- | --- |
+    | `name` | `string` | Yes | A unique identifier for the LLM configuration. This name is used in an agent's `llm_config_id` field to link to this configuration. |
+    | `provider` | `string` | Yes | The name of the LLM provider, corresponding to a provider supported by the underlying model library (e.g., LiteLLM). Common values include `openai`, `anthropic`, `gemini`, `groq`. |
+    | `model` | `string` | Yes | The specific model name as recognized by the provider (e.g., `gpt-4-1106-preview`). |
+    | `description` | `string` | No | A brief, human-readable description of the LLM configuration. |
 
-```json
-{
-  "description": "Standard configuration for OpenAI's GPT-4 model with default settings."
-}
-```
+=== ":material-tune: Common Parameters"
 
-## Common Parameters
+    These are standard LLM parameters that can be set as defaults for this configuration. Agents can override these values.
 
-These are standard LLM parameters that can be set as defaults for this configuration. Agents can override these values.
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `temperature` | `float` | `None` | The sampling temperature to use (0-2). Higher values (e.g., 0.8) make output more random; lower values (e.g., 0.2) make it more deterministic. |
+    | `max_tokens` | `integer` | `None` | The maximum number of tokens to generate in the completion. |
+    | `default_system_prompt` | `string` | `None` | A default system prompt for this LLM. An agent's `system_prompt` will override this value. |
 
-### `temperature`
-**Type:** `float` (Optional)
-**Description:** The sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
+=== ":material-api: Provider-Specific Fields"
 
-### `max_tokens`
-**Type:** `integer` (Optional)
-**Description:** The maximum number of tokens to generate in the completion.
+    These fields are used for connecting to specific APIs, especially for self-hosted or non-standard endpoints.
 
-### `default_system_prompt`
-**Type:** `string` (Optional)
-**Description:** A default system prompt to be used with this LLM. An agent's `system_prompt` will override this value.
+    | Field | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `api_base` | `string` | `None` | The base URL for the API endpoint. Commonly used for local models (e.g., `http://localhost:8000/v1`) or custom provider endpoints. |
+    | `api_key_env_var` | `string` | `None` | The environment variable name for the API key if not using a default (e.g., `ANTHROPIC_API_KEY`). |
+    | `api_version` | `string` | `None` | The API version string required by some providers (e.g., Azure OpenAI). |
 
-## Provider-Specific Fields
+    !!! info "Dynamic Fields"
+        The `LLMConfig` allows for extra, provider-specific fields not explicitly defined in the schema. Any additional key-value pairs will be passed directly to the underlying model library.
 
-These fields are used for connecting to specific APIs, especially for self-hosted or non-standard endpoints.
+---
 
-### `api_base`
-**Type:** `string` (Optional)
-**Description:** The base URL for the API endpoint. This is commonly used for local models (e.g., `http://localhost:8000/v1`) or custom provider endpoints.
+## :material-file-replace-outline: Agent Overrides
 
-### `api_key_env_var`
-**Type:** `string` (Optional)
-**Description:** The environment variable name for the API key to use with this LLM (if not using default like ANTHROPIC_API_KEY)
+While `LLMConfig` provides a central place for model settings, individual agents can override them at runtime using the `llm` block in their configuration. This provides flexibility for agent-specific needs.
 
-### `api_version`
-**Type:** `string` (Optional)
-**Description:** The API version string required by some providers (e.g., Azure OpenAI).
+The `LLMConfigOverrides` schema allows an agent to specify its own values for:
 
-## Full Example
+- `model`
+- `temperature`
+- `max_tokens`
+- `system_prompt`
+- `api_base`
+- `api_key`
+- `api_version`
 
-Here is an example of a complete LLM configuration for a local model served via Ollama:
+!!! example "See the [Agent Configuration](agent.md) documentation for more details on how to apply these overrides."
 
-```json
-{
-  "type": "llm",
-  "name": "local-llama3",
-  "description": "Configuration for a local Llama 3 model served by Ollama.",
-  "provider": "ollama",
-  "model": "llama3",
-  "api_base": "http://localhost:11434",
-  "temperature": 0.7
-}
+---
+
+## :material-code-json: Configuration Examples
+
+Here are some practical examples of LLM configurations for different providers.
+
+=== "OpenAI"
+
+    ```json
+    {
+      "type": "llm",
+      "name": "gpt-4-turbo",
+      "description": "Configuration for OpenAI's GPT-4 Turbo model.",
+      "provider": "openai",
+      "model": "gpt-4-1106-preview",
+      "temperature": 0.5,
+      "max_tokens": 4096
+    }
+    ```
+
+=== "Anthropic"
+
+    ```json
+    {
+      "type": "llm",
+      "name": "claude-3-sonnet",
+      "description": "Configuration for Anthropic's Claude 3 Sonnet model.",
+      "provider": "anthropic",
+      "model": "claude-3-sonnet-20240229",
+      "temperature": 0.7,
+      "default_system_prompt": "You are a helpful and friendly assistant."
+    }
+    ```
+
+=== "Local (Ollama)"
+
+    This example configures a local Llama 3 model served by Ollama.
+
+    ```json
+    {
+      "type": "llm",
+      "name": "local-llama3",
+      "description": "Configuration for a local Llama 3 model served by Ollama.",
+      "provider": "ollama",
+      "model": "llama3",
+      "api_base": "http://localhost:11434",
+      "temperature": 0.7
+    }
+
+    ```

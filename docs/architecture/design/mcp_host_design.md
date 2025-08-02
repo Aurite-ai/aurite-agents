@@ -267,9 +267,7 @@ The MCP Host implements comprehensive error handling patterns following the fram
 
 The MCP Host consumes server configurations provided by the ConfigManager. All configuration examples, validation patterns, and integration scenarios are documented in the ConfigManager flow documentation.
 
-> 📋 **Configuration Reference**: See [MCP Server Configuration Patterns](../flow/config_index_building_flow.md#mcp-server-configuration-patterns) for comprehensive configuration examples, transport-specific patterns, environment variable usage, and validation examples.
-
-> 🔗 **Integration Details**: See [Configuration Resolution Process](../flow/config_index_building_flow.md#configuration-resolution-process) for how the ConfigManager resolves and provides configurations to the MCP Host.
+> 📋 **Configuration Reference**: See [MCP Server Configuration Patterns](../flow/config_index_building_flow.md) for comprehensive configuration examples, transport-specific patterns, environment variable usage, and validation examples.
 
 ## Integration Points
 
@@ -290,5 +288,5 @@ The MCP Host consumes server configurations provided by the ConfigManager. All c
 ## References
 
 - **Implementation**: `src/aurite/execution/mcp_host.py`
-- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md#mcp-host-usage-examples)
+- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md)
 - **Flow Details**: [MCP Server Registration Flow](../flow/mcp_server_registration_flow.md)
