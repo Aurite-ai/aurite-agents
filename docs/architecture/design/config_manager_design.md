@@ -3,15 +3,13 @@
 **Version:** 1.0
 **Date:** 2025-08-02
 
-## 1. Overview
+## Overview
 
 The ConfigManager is the central component responsible for discovering, loading, and managing all configuration data in the Aurite framework. It implements a hierarchical configuration system that respects project and workspace boundaries while providing a unified interface for accessing component configurations (agents, LLMs, MCP servers, workflows).
 
-The ConfigManager solves the problem of configuration management across complex project structures by automatically discovering `.aurite` anchor files, building a priority-ordered index of configuration sources, and providing both read and write operations for component configurations.
+**Key Problem Solved**: Configuration management across complex project structures with automatic discovery, priority-based resolution, and unified CRUD operations.
 
-## 2. Architecture
-
-The ConfigManager follows a layered discovery and indexing approach:
+## Architecture
 
 ```mermaid
 graph TD
@@ -42,7 +40,7 @@ graph TD
     style L fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
 ```
 
-## 3. Core Responsibilities
+## Core Responsibilities
 
 <!-- prettier-ignore -->
 !!! info "Primary Functions"
@@ -61,15 +59,11 @@ graph TD
     - Does not manage MCP server connections (that's the MCPHost's responsibility)
     - Does not handle component lifecycle or state management
 
-## 4. Key Classes & Interfaces
+## Key Classes & Interfaces
 
-### Core Implementation
+### ConfigManager Class
 
-**`ConfigManager` Class:**
-
-- Central facade for all configuration operations with hierarchical context discovery
-- Provides unified interface for component access, validation, and manipulation
-- Manages priority-ordered configuration sources and automatic refresh capabilities
+Central facade for all configuration operations with hierarchical context discovery and unified interface for component access, validation, and manipulation.
 
 **Core Interface Groups:**
 
@@ -79,33 +73,19 @@ graph TD
 - **LLM Validation Tracking**: Reliability monitoring with timestamp-based validation tracking
 - **In-Memory Registration**: Programmatic component registration for testing and notebook environments
 
-> 📋 **Implementation Details**: See [Configuration Index Building Flow](../flow/config_index_building_flow.md#component-operations) for detailed method signatures, usage examples, and implementation specifics.
+### Supporting Components
 
-**Supporting Components:**
+**`find_anchor_files` Function**: Hierarchical `.aurite` file discovery with proper context establishment and complex project/workspace boundary detection.
 
-**`find_anchor_files` Function:**
+**`FileManager` Class**: Low-level file operations with atomic transaction support and multi-format configuration file handling (JSON/YAML).
 
-- Hierarchical `.aurite` file discovery with proper context establishment
-- Handles complex project/workspace boundary detection
+**Configuration Models**: Pydantic-based validation models for all component types with automatic transport type inference and specialized path field handling.
 
-**`FileManager` Class:**
+> 📋 **Implementation Details**: See [Configuration Index Building Flow](../flow/config_index_building_flow.md) for detailed method signatures, usage examples, and implementation specifics.
 
-- Low-level file operations with atomic transaction support
-- Multi-format configuration file handling (JSON/YAML)
-
-**Configuration Models:**
-
-- Pydantic-based validation models for all component types
-- Automatic transport type inference and complex field validation
-- Specialized path field handling for relative path resolution
-
-> 🔧 **Validation Details**: See [Component Validation](../flow/config_index_building_flow.md#validation-workflows) for detailed validation processes and error handling examples.
-
-## 5. Configuration & Dependencies
+## Configuration & Dependencies
 
 ### Configuration
-
-The ConfigManager is configured through environment variables and `.aurite` files:
 
 ```python
 # Environment configuration
@@ -119,77 +99,9 @@ projects = ["project1", "project2"]  # workspace only
 description = "Project description"
 ```
 
-### Dependencies
+## Priority Resolution System
 
-- **TOML Libraries**: `tomllib` (Python 3.11+) or `tomli` for parsing `.aurite` files
-- **YAML Library**: `pyyaml` for YAML configuration file support
-- **Pydantic Models**: For configuration validation (imported from `config_models`)
-- **FileManager**: For low-level file operations and path management
-
-## 6. Integration Points
-
-### Initialization Flow
-
-```mermaid
-sequenceDiagram
-    participant A as 🚀 AuriteKernel
-    participant CM as ⚙️ ConfigManager
-    participant FA as 🔍 find_anchor_files
-    participant FM as 📁 FileManager
-
-    Note over A,FM: Phase 1: Context Discovery
-    A->>+CM: __init__(start_dir)
-    CM->>+FA: find_anchor_files(start_dir)
-    Note right of FA: Searches upward for<br/>.aurite files
-    FA-->>-CM: List[Path] (anchor files)
-
-    Note over CM: Phase 2: Source Initialization
-    CM->>CM: _initialize_sources()
-    Note right of CM: Builds priority-ordered<br/>configuration sources
-
-    Note over CM: Phase 3: Component Indexing
-    CM->>CM: _build_component_index()
-    Note right of CM: Scans config files<br/>and builds index
-
-    Note over CM,FM: Phase 4: FileManager Setup
-    CM->>+FM: FileManager(sources)
-    FM-->>-CM: Initialized FileManager
-
-    CM-->>-A: ✅ Initialized ConfigManager
-
-    Note over A,FM: Ready for Configuration Operations
-```
-
-### Key Integration Patterns
-
-<!-- prettier-ignore -->
-!!! tip "Integration with AuriteEngine"
-    The ConfigManager serves as the primary configuration provider for the AuriteEngine:
-
-    - **Component Resolution**: Engine calls `get_config()` to retrieve component configurations
-    - **JIT Registration**: Engine uses ConfigManager to get MCP server configs for dynamic registration
-    - **Validation**: Engine relies on ConfigManager's validation for component integrity
-
-## 7. Implementation Notes
-
-### Design Decisions
-
-<!-- prettier-ignore -->
-!!! note "Key Design Patterns"
-    - **Priority-First Indexing**: Components are indexed in priority order, with first-found winning conflicts
-    - **Lazy Path Resolution**: Relative paths are resolved only when configurations are retrieved
-    - **Context-Aware Operations**: All operations respect the hierarchical project/workspace structure
-    - **Atomic File Operations**: Configuration changes are atomic to prevent corruption
-
-### Performance Considerations
-
-- **Caching Strategy**: In-memory index with optional force-refresh for development
-- **File System Optimization**: Recursive glob operations are minimized during indexing
-- **Validation Caching**: LLM validation timestamps are cached to avoid repeated validation
-
-### Priority Resolution System
-
-The ConfigManager implements a sophisticated priority system:
+The ConfigManager implements a sophisticated priority system where the first-found component wins conflicts:
 
 ```python
 # Priority order (highest to lowest)
@@ -204,157 +116,154 @@ The ConfigManager implements a sophisticated priority system:
 !!! note "In-Memory Priority"
     In-memory registrations have the highest priority to support testing and notebook environments where components need to override file-based configurations temporarily.
 
-### Component Index Structure
+## Key Design Patterns
 
-The internal component index uses a three-level nested dictionary structure: `{component_type: {component_name: {config_data}}}`. Each indexed component includes metadata fields (`_source_file`, `_context_path`, `_context_level`, etc.) for traceability and path resolution.
+=== "Three-Phase Index Building"
 
-<!-- prettier-ignore -->
-!!! note "Index Access Patterns"
-    The ConfigManager provides multiple access methods for different use cases:
+    **Process Overview**: The ConfigManager builds its configuration index through three distinct phases for reliable discovery and proper priority resolution.
 
+    **Phase 1: Context Discovery**
+    - Find all `.aurite` files by searching upward from start directory
+    - Parse TOML content to determine context types (project/workspace)
+    - Establish configuration hierarchy with proper priority ordering
+    - Build context relationships and boundaries
+
+    **Phase 2: Source Initialization**
+    - Extract `include_configs` paths from each `.aurite` file in priority order
+    - Resolve paths relative to their `.aurite` file locations
+    - Convert relative paths to absolute paths for consistent access
+    - Build ordered source list respecting priority hierarchy
+
+    **Phase 3: Component Indexing**
+    - Scan configuration directories for JSON/YAML files
+    - Parse files as arrays of component configurations
+    - Apply first-found-wins conflict resolution
+    - Add metadata fields for traceability and path resolution
+
+    > 📋 **Detailed Flow**: See [Configuration Index Building Flow](../flow/config_index_building_flow.md) for complete implementation details and examples.
+
+=== "Component Index Structure"
+
+    **Data Structure**: Three-level nested dictionary: `{component_type: {component_name: {config_data}}}`
+
+    **Component Metadata**: Each indexed component includes metadata fields for traceability and path resolution:
+    - `_source_file`: Full path to the configuration file
+    - `_context_path`: Root directory of the context (project/workspace)
+    - `_context_level`: "project", "workspace", "user", or "programmatic"
+    - `_project_name`: Name of the project (if applicable)
+    - `_workspace_name`: Name of the workspace (if applicable)
+
+    **Conflict Resolution**: When the same component name exists in multiple locations, the **first occurrence wins** based on the priority order.
+
+    **Example Conflict Resolution**:
+    If "Weather Agent" exists in:
+
+    1. `project_bravo/config/agents/agents.json` (when running from project_bravo)
+    2. `my_workspace/config/agents/shared_agents.json`
+    3. `project_alpha/config/agents/agents.json`
+
+    The version from `project_bravo` will be used because it has the highest priority.
+
+    **Access Patterns**: The ConfigManager provides multiple access methods:
     - **Single Component**: Direct component retrieval with path resolution
     - **By Type**: All components of a specific type with metadata
     - **Full Index**: Complete nested dictionary structure
     - **Flattened View**: Linear list of all components across types
 
-> 📋 **Implementation Details**: See [Component Index Structure](../flow/config_index_building_flow.md#component-indexing) for detailed data structure examples and access patterns.
+    **Index Refresh**: The index can be rebuilt on-demand or automatically based on force refresh settings.
 
-### LLM Validation System
+=== "LLM Validation System"
 
-The ConfigManager tracks successful LLM operations with timestamp-based validation to provide reliability monitoring. Validation timestamps are automatically reset when LLM configurations are updated, ensuring accuracy.
+    **Purpose**: Tracks successful LLM operations with timestamp-based validation for reliability monitoring.
 
-<!-- prettier-ignore -->
-!!! tip "LLM Validation Integration"
-    - **Automatic Reset**: Configuration updates reset validation timestamps
+    **Key Features**:
+    - Automatic validation timestamp recording after successful LLM operations
+    - Validation status included in component configurations
+    - Automatic reset when LLM configurations are updated
+    - Persistence across ConfigManager refresh operations
+
+    **Integration Points**:
     - **Runtime Integration**: AuriteEngine integration for automatic validation tracking
-    - **Reliability Monitoring**: Validation status available in component configurations
-    - **Persistence**: Timestamps preserved across ConfigManager refresh operations
+    - **Configuration Updates**: Timestamps reset when configurations change
+    - **Reliability Monitoring**: Validation status available in component metadata
+    - **Development Support**: Clear indication of tested vs untested LLM configurations
 
-> 🔧 **Implementation Details**: See [LLM Validation Tracking](../flow/config_index_building_flow.md#llm-validation-tracking) for detailed validation workflows and integration examples.
-
-### Path Resolution System
-
-The ConfigManager implements context-aware path resolution for component configurations, handling relative paths based on their configuration context (project/workspace). Resolution is lazy (occurs only when configurations are retrieved) and type-specific for different component types.
-
-<!-- prettier-ignore -->
-!!! tip "Path Resolution Features"
-    - **Context-Aware**: Paths resolved relative to component's configuration context
-    - **Lazy Resolution**: Path resolution occurs only during configuration retrieval
-    - **Type-Specific**: Different component types have specialized resolution logic
-    - **Fallback Handling**: Graceful handling of missing or invalid paths
-
-> 🔧 **Path Resolution Details**: See [Path Resolution Process](../flow/config_index_building_flow.md#path-resolution) for detailed algorithms and component-specific resolution logic.
-
-### Force Refresh Mechanism
-
-The ConfigManager supports development-time force refresh via environment variables, allowing control over when the configuration index is rebuilt for optimal performance in different environments.
-
-<!-- prettier-ignore -->
-!!! warning "Performance Impact"
-    Force refresh rebuilds the entire configuration index on every operation. Useful for development but should be disabled in production for optimal performance.
-
-> ⚡ **Performance Details**: See [Force Refresh Control](../flow/config_index_building_flow.md#force-refresh-control) for implementation details and performance impact analysis.
-
-## 8. Examples
-
-### Basic Usage
-
-=== "Python API"
-
+    **Usage Pattern**:
     ```python
-    # Initialize ConfigManager
-    config_manager = ConfigManager(start_dir=Path("/path/to/project")) # (1)
+    # After successful LLM operation
+    config_manager.validate_llm("gpt4")
 
-    # Retrieve component configuration
-    agent_config = config_manager.get_config("agent", "weather_agent") # (2)
-    if agent_config:
-        print(f"Found agent: {agent_config['name']}")
-
-    # List all components of a type
-    all_llms = config_manager.list_configs("llm") # (3)
-    print(f"Available LLMs: {[llm['name'] for llm in all_llms]}")
+    # Validation status automatically included
+    llm_config = config_manager.get_config("llm", "gpt4")
+    is_validated = llm_config.get("validated_at") is not None
     ```
 
-    1. :material-folder-open: Automatically discovers `.aurite` files and builds configuration index
-    2. :material-cog: Returns resolved configuration with paths and validation status
-    3. :material-format-list-bulleted: Returns all components of specified type with metadata
+=== "Path Resolution System"
 
-=== "CLI Usage"
+    **Purpose**: Context-aware path resolution for component configurations based on their configuration context.
 
+    **Resolution Strategy**:
+    - **MCP Servers**: Resolves `server_path` relative to component's context directory
+    - **Custom Workflows**: Handles both dot-notation module paths and direct file paths
+    - **LLM Components**: Injects validation timestamps during resolution
+    - **Lazy Resolution**: Paths resolved only when configurations are retrieved
+
+    **Context Awareness**:
+    - Paths resolved relative to the configuration file's location
+    - Different component types have specialized resolution logic
+    - Fallback handling for missing or invalid paths
+    - Type-specific resolution for different component categories
+
+    **Performance Optimization**:
+    - Resolution occurs only during configuration retrieval
+    - Cached resolution results for repeated access
+    - Efficient path computation with minimal filesystem operations
+
+=== "Force Refresh Mechanism"
+
+    **Purpose**: Development-time control over when the configuration index is rebuilt for optimal performance.
+
+    **Configuration**:
     ```bash
-    # List all available agents
-    aurite list agents # (1)
+    # Development: Force refresh on every operation (default)
+    export AURITE_CONFIG_FORCE_REFRESH=true
 
-    # List all components (shows the component index)
-    aurite list # (2)
-
-    # Show specific component configuration
-    aurite show weather_agent # (3)
-
-    # Show all components of a type
-    aurite show agent # (4)
-
-    # Show full configuration details
-    aurite show weather_agent --full # (5)
+    # Production: Disable for performance
+    export AURITE_CONFIG_FORCE_REFRESH=false
     ```
 
-    1. :material-console: Lists all agents in current context
-    2. :material-format-list-bulleted: Shows the complete component index
-    3. :material-file-document: Shows specific component configuration
-    4. :material-folder-multiple: Shows all components of specified type
-    5. :material-file-document-outline: Shows detailed configuration with all fields
+    **Behavior**:
+    - **Enabled**: Rebuilds entire configuration index on every operation
+    - **Disabled**: Uses cached index until explicit refresh is called
+    - **Development**: Useful for seeing configuration changes immediately
+    - **Production**: Should be disabled for optimal performance
 
-=== "Configuration Files"
+    <!-- prettier-ignore -->
+    !!! warning "Performance Impact"
+        Force refresh rebuilds the entire configuration index on every operation. Useful for development but should be disabled in production for optimal performance.
 
-    ```json title="config/agents/weather_agents.json"
-    [
-      {
-        "name": "weather_agent", // (1)
-        "type": "agent",
-        "llm_config_id": "gpt4", // (2)
-        "system_prompt": "You are a weather assistant", // (3)
-        "mcp_servers": ["weather_server", "location_server"] // (4)
-      }
-    ]
-    ```
+    **Use Cases**:
+    - **Development**: Immediate reflection of configuration file changes
+    - **Testing**: Ensure tests see latest configuration state
+    - **Production**: Optimized performance with cached index
+    - **Debugging**: Force refresh to troubleshoot configuration issues
 
-    1. :material-tag: Unique identifier for the agent
-    2. :material-brain: References an LLM configuration
-    3. :material-message-text: Instructions for the agent's behavior
-    4. :material-server: MCP servers this agent can use
-
-> 🚀 **Advanced Usage Examples**: See [Advanced Configuration Management](../flow/config_index_building_flow.md#advanced-usage) for detailed examples of component creation with context selection, validation workflows, project management operations, LLM validation tracking, and in-memory registration patterns.
-
-## 9. Testing
-
-### Test Strategy
+## Integration Points
 
 <!-- prettier-ignore -->
-!!! info "Testing Approach"
-    - **Unit Tests**: Testing individual methods like `get_config`, `create_component`, validation
-    - **Integration Tests**: Testing full discovery and indexing flows with mock file systems
-    - **File System Tests**: Testing actual file operations with temporary directories
-    - **Priority Tests**: Validating configuration priority resolution across contexts
+!!! tip "Integration with AuriteEngine"
+    The ConfigManager serves as the primary configuration provider for the AuriteEngine:
 
-### Key Test Scenarios
+    **Component Resolution**: Engine calls `get_config()` to retrieve component configurations for agents, LLMs, MCP servers, and workflows. The ConfigManager handles all path resolution and validation automatically.
 
-<!-- prettier-ignore -->
-!!! note "Critical Test Areas"
-    - **Hierarchical Resolution**: Verify priority-based configuration resolution across project/workspace boundaries
-    - **Component CRUD**: Test complete lifecycle operations for all component types
-    - **LLM Validation**: Validate timestamp tracking and automatic reset behavior
-    - **Project Management**: Test project creation, updates, and deletion with proper safety checks
-    - **In-Memory Registration**: Verify highest-priority override behavior for programmatic components
-    - **File System Integration**: Test actual file operations with temporary directory structures
-    - **Priority Resolution**: Validate complex priority scenarios across multiple contexts
+    **JIT Registration**: Engine uses ConfigManager to get MCP server configurations for dynamic registration. When an agent requires specific MCP servers, the engine queries the ConfigManager to retrieve their configurations and passes them to the MCP Host for registration.
 
-> 🧪 **Detailed Test Implementations**: See [Testing Scenarios](../flow/config_index_building_flow.md#testing-scenarios) for complete test case implementations, mock setups, and validation patterns.
+    **Validation**: Engine relies on ConfigManager's validation system for component integrity. All configurations are validated against Pydantic models before being used, ensuring type safety and completeness.
 
-### Performance Benchmarks
+    **Priority Resolution**: The hierarchical priority system ensures that project-specific configurations override workspace and global settings, allowing for proper development isolation and shared resource management.
 
-- **Index Building**: < 100ms for typical project structures (< 50 config files)
-- **Component Retrieval**: < 1ms for cached lookups
-- **File Operations**: < 10ms for single component CRUD operations
-- **Memory Usage**: < 5MB for typical configuration indexes
+## References
 
-> ⚡ **Performance Testing**: See [Performance Benchmarks](../flow/config_index_building_flow.md#performance-testing) for detailed performance test implementations and optimization strategies.
+- **Implementation**: `src/aurite/lib/config/config_manager.py`
+- **Flow Details**: [Configuration Index Building Flow](../flow/config_index_building_flow.md)
+- **Usage Examples**: [Configuration Examples Reference](../reference/config_examples.md)

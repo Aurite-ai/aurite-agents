@@ -107,11 +107,12 @@ nav:
           - "Aurite Engine": "architecture/design/aurite_engine_design.md"
           - "Config Manager": "architecture/design/config_manager_design.md"
           - "MCP Host": "architecture/design/mcp_host_design.md"
-          - "Design Template": "architecture/design/design_template.md"
       - "Flow":
+          - "Aurite Engine Flow": "architecture/flow/aurite_engine_execution_flow.md"
           - "Config Index Building": "architecture/flow/config_index_building_flow.md"
           - "MCP Server Registration": "architecture/flow/mcp_server_registration_flow.md"
-          - "Flow Template": "architecture/flow/flow_template.md"
+      - "Reference":
+          - "Configuration Examples": "architecture/reference/config_examples.md"
   - "Testing":
       - "API Test Coverage Connections": "testing/api_test_coverage_connections.md"
       - "API Test Coverage Visual": "testing/api_test_coverage_visual.md"

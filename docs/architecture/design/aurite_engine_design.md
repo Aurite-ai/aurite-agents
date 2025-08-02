@@ -1,111 +1,80 @@
-# Execution Facade Architecture
+# AuriteEngine Design
 
-This document explains the design and implementation of the Execution Facade, which provides a unified interface for executing agents and workflows in the Aurite Framework.
+**Version:** 1.0
+**Date:** 2025-08-02
 
 ## Overview
 
-The ExecutionFacade serves as the orchestration layer between the API endpoints and the core execution components (Agents, Workflows). It manages the complexity of component initialization, session management, and resource allocation while providing a simple interface for execution requests.
+The AuriteEngine is the central execution orchestrator in the Aurite framework, providing a unified interface for executing agents, linear workflows, and custom workflows. It coordinates between the ConfigManager, MCPHost, and SessionManager to handle component resolution, resource management, and execution lifecycle while providing both synchronous and streaming execution modes.
 
-## Architecture Components
+**Key Problem Solved**: Unified execution orchestration with Just-in-Time resource provisioning, session management integration, and comprehensive error handling across all component types.
 
-```
-┌─────────────────┐
-│  API Routes     │
-│  /execution/*   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ ExecutionFacade │────▶│ ConfigManager    │     │ MCPHost          │
-│                 │     │(Component Lookup)│     │ (Tool Registry)  │
-└────────┬────────┘     └──────────────────┘     └──────────────────┘
-         │
-         ├─────────────────┬─────────────────┬─────────────────┐
-         ▼                 ▼                 ▼                 ▼
-┌─────────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Agent           │ │ Linear      │ │ Custom       │ │ Storage      │
-│ Execution       │ │ Workflow    │ │ Workflow     │ │ Management   │
-└─────────────────┘ └─────────────┘ └──────────────┘ └──────────────┘
+## Architecture
+
+```mermaid
+graph TD
+    A[AuriteEngine] --> B[Component Resolution]
+    A --> C[Resource Management]
+    A --> D[Session Integration]
+    A --> E[Execution Orchestration]
+
+    B --> F[ConfigManager]
+    C --> G[MCPHost]
+    D --> H[SessionManager]
+
+    F --> I[Agent Configs]
+    F --> J[LLM Configs]
+    F --> K[Workflow Configs]
+
+    G --> L[JIT Server Registration]
+    G --> M[Tool Execution]
+
+    H --> N[History Management]
+    H --> O[Result Persistence]
+
+    E --> P[Agent Execution]
+    E --> Q[Linear Workflows]
+    E --> R[Custom Workflows]
+    E --> S[Streaming Support]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style B fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style C fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style D fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style E fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style F fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style G fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
 ```
 
 ## Core Responsibilities
 
-### 1. Component Resolution
+<!-- prettier-ignore -->
+!!! info "Primary Functions"
+    - **Component Resolution**: Retrieves and validates component configurations from ConfigManager with fallback handling
+    - **JIT Resource Management**: Dynamically registers MCP servers based on agent requirements through MCPHost integration
+    - **Session Orchestration**: Manages conversation history and result persistence through SessionManager integration
+    - **Execution Lifecycle**: Coordinates component initialization, execution, and cleanup across all component types
+    - **Streaming Support**: Provides real-time event streaming with state management and error handling
+    - **Observability Integration**: Langfuse tracing and monitoring for execution analytics
+    - **Error Management**: Comprehensive error handling with context preservation and graceful degradation
 
-- Retrieves component configurations from ConfigManager
-- Validates component existence and dependencies
-- Handles missing configuration gracefully with fallbacks
+<!-- prettier-ignore -->
+!!! warning "What This Component Does NOT Do"
+    - Does not manage configuration discovery or indexing (that's the ConfigManager's responsibility)
+    - Does not handle MCP server connections or tool routing (that's the MCPHost's job)
+    - Does not implement session storage backends (that's the SessionManager's role)
+    - Does not execute LLM calls directly (delegates to Agent and Workflow components)
 
-### 2. Resource Management
+## Key Design Patterns
 
-- Manages LLM client instances
-- Coordinates with MCPHost for tool availability
-- Implements JIT (Just-In-Time) server registration
+=== "JIT MCP Server Registration"
 
-### 3. Session Management
+    **Purpose**: Dynamic server registration based on agent requirements to optimize resource usage and startup time.
 
-- Loads conversation history for agents
-- Persists conversation state after execution
-- Provides abstraction over storage backends
-
-### 4. Execution Orchestration
-
-- Initializes components with proper configuration
-- Manages execution lifecycle
-- Handles both synchronous and streaming execution modes
-
-## JIT MCP Server Registration
-
-### Design Rationale
-
-MCP servers provide tools that agents can use during execution. Rather than loading all servers at startup (which could be resource-intensive and slow), the ExecutionFacade implements Just-In-Time registration.
-
-### Implementation Flow
-
-```
-┌─────────────────┐
-│ Agent Execution │
-│ Request         │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ Load Agent      │────▶│ Check required   │
-│ Configuration   │     │ mcp_servers list │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ For each server │────▶│ Is server        │
-│ in mcp_servers  │     │ registered?      │
-└────────┬────────┘     └────────┬─────────┘
-         │                       │
-         │                       ├─ YES → Skip
-         │                       │
-         │                       └─ NO → Register
-         ▼                                  │
-┌─────────────────┐                         ▼
-│ Execute Agent   │               ┌──────────────────┐
-│ with all tools  │               │ Load server      │
-│ available       │               │ config & register│
-└─────────────────┘               └──────────────────┘
-```
-
-### Key Design Decisions
-
-1. **Persistent Registration**: Servers remain registered after agent execution completes. This optimizes subsequent executions that need the same tools.
-
-2. **Lazy Loading**: Servers are only loaded when actually needed by an agent, reducing startup time and memory usage.
-
-3. **Graceful Failure**: If a required server cannot be loaded, the error is caught early before agent execution begins.
-
-### Code Reference
-
-```python
-async def _prepare_agent_for_run(self, agent_name: str, ...):
-    # ... load agent config ...
-
-    # JIT Registration of MCP Servers
+    **Registration Flow**:
+    ```python
+    # During agent preparation
     if agent_config_for_run.mcp_servers:
         for server_name in agent_config_for_run.mcp_servers:
             if server_name not in self._host.registered_server_names:
@@ -115,229 +84,204 @@ async def _prepare_agent_for_run(self, agent_name: str, ...):
                 server_config = ClientConfig(**server_config_dict)
                 await self._host.register_client(server_config)
                 dynamically_registered_servers.append(server_name)
-```
+    ```
 
-## Session Management Architecture
+    **Key Design Decisions**:
+    - **Persistent Registration**: Servers remain active after execution for subsequent use
+    - **Lazy Loading**: Servers only loaded when required by specific agents
+    - **Early Validation**: Configuration errors caught before execution begins
+    - **Graceful Failure**: Missing server configurations result in clear error messages
 
-### Overview
+    > 📋 **Server Registration Details**: See [MCP Server Registration Flow](../flow/mcp_server_registration_flow.md) for complete registration process and error handling patterns.
 
-Session management enables agents to maintain conversation context across multiple interactions. The system supports two storage backends with a unified interface.
+=== "Session Management Integration"
 
-### Storage Backend Design
+    **Purpose**: Unified session handling across all execution types with automatic ID generation and history management.
 
-```
-┌─────────────────┐
-│ ExecutionFacade │
-└────────┬────────┘
-         │
-         ├─────────────────┬─────────────────┐
-         ▼                 ▼                 │
-┌─────────────────┐ ┌─────────────┐          │
-│ StorageManager  │ │ CacheManager│          │
-│ (Database)      │ │ (File-Based)│          │
-└────────┬────────┘ └──────┬──────┘          │
-         │                  │                │
-         ▼                  ▼                │
-┌─────────────────┐ ┌─────────────┐          │
-│ PostgreSQL/     │ │ JSON Files  │          │
-│ SQLite          │ │ + Memory    │          │
-└─────────────────┘ └─────────────┘          │
-```
+    **Session ID Management**:
+    ```python
+    # Auto-generation for agents with history enabled
+    if effective_include_history:
+        if final_session_id:
+            if not final_session_id.startswith("agent-") and not final_session_id.startswith("workflow-"):
+                final_session_id = f"agent-{final_session_id}"
+        else:
+            final_session_id = f"agent-{uuid.uuid4().hex[:8]}"
+            logger.info(f"Auto-generated session_id for agent '{agent_name}': {final_session_id}")
+    ```
 
-### Storage Manager (Database Backend)
+    **History Integration**:
+    - **Immediate Updates**: Current user message added to history before execution
+    - **Result Persistence**: Complete execution results saved with session metadata
+    - **Backend Abstraction**: Works with both CacheManager and StorageManager backends
+    - **Workflow Support**: Base session ID tracking for workflow step coordination
 
-**Purpose**: Provides persistent storage for production environments.
+    **Session Lifecycle**:
+    1. **Pre-execution**: Load existing history if `include_history=true`
+    2. **During execution**: Add current user message to session
+    3. **Post-execution**: Save complete conversation and execution results
+    4. **Cleanup**: Session metadata updated with execution statistics
 
-**Features**:
+=== "Component Execution Orchestration"
 
-- Full ACID compliance
-- Efficient querying by agent_name and session_id
-- Timestamp tracking for audit trails
-- Scalable for large conversation histories
+    **Agent Execution Pattern**:
+    ```python
+    async def run_agent(self, agent_name: str, user_message: str, ...):
+        # 1. Component Resolution
+        agent_instance, servers_to_unregister = await self._prepare_agent_for_run(...)
 
-**Schema**:
+        # 2. Execution
+        run_result = await agent_instance.run_conversation()
 
-```sql
-AgentHistoryDB:
-  - id: Integer (Primary Key)
-  - agent_name: String (Indexed)
-  - session_id: String (Indexed)
-  - role: String
-  - content_json: JSON
-  - timestamp: DateTime
-  - created_at: DateTime
-```
+        # 3. Result Processing
+        run_result.agent_name = agent_name
+        if session_id and self._session_manager:
+            self._session_manager.save_agent_result(session_id, run_result, base_session_id)
 
-### Cache Manager (File-Based Backend)
+        return run_result
+    ```
 
-**Purpose**: Lightweight persistent storage for development and testing.
+    **Workflow Execution Pattern**:
+    ```python
+    async def run_linear_workflow(self, workflow_name: str, initial_input: Any, ...):
+        # 1. Configuration Resolution
+        workflow_config = WorkflowConfig(**workflow_config_dict)
 
-**Current Implementation**:
+        # 2. Session Management
+        final_session_id = self._manage_workflow_session_id(session_id, workflow_config)
 
-```python
-class CacheManager:
-    def __init__(self, cache_dir: Optional[Path] = None):
-        self._cache_dir = cache_dir or Path(".aurite_cache")
-        self._cache_dir.mkdir(exist_ok=True)
-        self._history_cache: Dict[str, List[Dict[str, Any]]] = {}
-        self._metadata_cache: Dict[str, Dict[str, Any]] = {}
-        self._load_cache()
-```
+        # 3. Execution Delegation
+        workflow_executor = LinearWorkflowExecutor(config=workflow_config, engine=self)
+        result = await workflow_executor.execute(initial_input, final_session_id, base_session_id)
 
-**Features**:
+        # 4. Result Persistence
+        if result.session_id and self._session_manager:
+            self._session_manager.save_workflow_result(result.session_id, result, base_session_id)
 
-- File-based persistence with JSON storage
-- In-memory caching for performance
-- Session metadata tracking (timestamps, agent name, message count)
-- Automatic cache directory creation
-- Safe session ID sanitization
+        return result
+    ```
 
-**File Structure**:
+    **Key Orchestration Features**:
+    - **Unified Interface**: Same execution pattern across all component types
+    - **Error Context**: Execution errors wrapped with component and operation context
+    - **Resource Cleanup**: Proper cleanup even on execution failure
+    - **Result Standardization**: Consistent result format with metadata injection
 
-```
-.aurite_cache/
-├── session-id-1.json
-├── session-id-2.json
-└── ...
-```
+=== "Streaming Architecture"
 
-**Session File Format**:
+    **Purpose**: Real-time event streaming with state management and error handling for interactive agent execution.
 
-```json
-{
-  "session_id": "test-session-123",
-  "conversation": [...],
-  "created_at": "2025-01-09T19:08:48.959750",
-  "last_updated": "2025-01-09T19:08:52.329089",
-  "agent_name": "Weather Agent",
-  "message_count": 4
-}
-```
+    **Event Flow Management**:
+    ```python
+    async def stream_agent_run(self, agent_name: str, user_message: str, ...):
+        # Yield session info as first event
+        if session_id:
+            yield {"type": "session_info", "data": {"session_id": session_id}}
 
-### Session Flow
+        # Stream agent events
+        async for event in agent_instance.stream_conversation():
+            yield event
+    ```
 
-```
-┌─────────────────┐
-│ API Request     │
-│ with session_id │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────────┐
-│ Check if agent  │────▶│ include_history  │
-│ configuration   │     │ = true?          │
-└────────┬────────┘     └────────┬─────────┘
-         │                       │
-         │                       ├─ NO → Skip history
-         │                       │
-         │                       └─ YES → Load history
-         ▼                              │
-┌─────────────────┐                     ▼
-│ Add current     │     ┌──────────────────┐
-│ user message    │     │ Load from        │
-│ to history      │     │ storage backend  │
-└────────┬────────┘     └──────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Execute Agent   │
-│ with history    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Save complete   │
-│ conversation    │
-└─────────────────┘
-```
+    **State Management**:
+    - **Session Tracking**: Session ID provided as first event for client tracking
+    - **History Updates**: Conversation history updated in real-time during streaming
+    - **Error Handling**: Errors converted to stream events with graceful termination
+    - **Resource Cleanup**: Proper cleanup in finally blocks regardless of stream outcome
 
-### Key Design Decisions
+    **Integration Features**:
+    - **Langfuse Tracing**: Streaming executions tracked with observability metadata
+    - **Auto Session Generation**: Automatic session ID creation for agents with history enabled
+    - **Event Translation**: Internal agent events translated to standardized API events
 
-1. **Immediate Cache Update**: The current user message is added to the cache immediately, ensuring it's available during agent execution.
+=== "Langfuse Integration"
 
-2. **Full History Replacement**: On save, the entire conversation history replaces the previous version. This ensures consistency but may have performance implications for very long conversations.
+    **Purpose**: Comprehensive observability and tracing for execution analytics and debugging.
 
-3. **Backend Abstraction**: The ExecutionFacade doesn't know which storage backend is in use, allowing for easy swapping or enhancement.
+    **Trace Creation**:
+    ```python
+    if self.langfuse:
+        trace = self.langfuse.trace(
+            name=f"Agent: {agent_name} - Aurite Runtime",
+            session_id=session_id,
+            user_id=session_id or "anonymous",
+            input={"user_message": user_message, "system_prompt": system_prompt},
+            metadata={"agent_name": agent_name, "source": "execution-engine"}
+        )
+        agent_instance.trace = trace
+    ```
 
-## Streaming Architecture
+    **Observability Features**:
+    - **Execution Tracing**: Complete execution traces with input/output capture
+    - **Session Grouping**: Traces grouped by session ID for conversation analysis
+    - **Metadata Enrichment**: Agent names, execution context, and source tracking
+    - **Performance Monitoring**: Execution timing and resource usage tracking
+    - **Error Tracking**: Exception capture with full context preservation
 
-### Event Translation Layer
-
-The ExecutionFacade acts as a translator between the internal agent streaming events and the standardized API events.
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ Agent Internal  │────▶│ ExecutionFacade  │────▶│ API SSE Events   │
-│ Events          │     │ Translation      │     │                  │
-└─────────────────┘     └──────────────────┘     └──────────────────┘
-
-Internal Events:              Translated to:
-- Raw LiteLLM chunks    →     - llm_response_start
-- tool_complete         →     - llm_response
-- tool_result           →     - llm_response_stop
-- message_complete      →     - tool_call
-- Errors                →     - tool_output
-                              - error
-```
-
-### Stream State Management
-
-The streaming implementation maintains state across turns:
-
-- Tracks whether LLM has started responding
-- Collects tool results for history updates
-- Manages conversation history updates in real-time
+    **Integration Points**:
+    - **Agent Integration**: Traces passed to agent instances for LLM call tracking
+    - **Workflow Support**: Workflow executions traced with step-level granularity
+    - **Streaming Support**: Streaming executions tracked with real-time updates
 
 ## Error Handling Strategy
 
 ### Configuration Errors
 
-- Caught early in the preparation phase
-- Clear error messages indicating missing components
-- Prevents partial execution with invalid configuration
+- **Early Detection**: Configuration validation during preparation phase
+- **Clear Messaging**: Specific error messages indicating missing or invalid components
+- **Graceful Degradation**: Fallback to default configurations where appropriate
+- **Context Preservation**: Full error context maintained through exception chaining
 
 ### Execution Errors
 
-- Wrapped with context about which component failed
-- Original error preserved in the chain
-- Graceful degradation where possible
+- **Component Context**: Errors wrapped with information about which component failed
+- **Resource Cleanup**: Proper cleanup of registered servers and sessions on failure
+- **State Consistency**: Session state maintained even on execution failure
+- **Error Propagation**: Original errors preserved in exception chains
 
 ### Streaming Errors
 
-- Converted to error events in the stream
-- Stream terminated cleanly
-- Client can handle reconnection if needed
+- **Event Conversion**: Errors converted to stream events for client handling
+- **Stream Termination**: Clean stream termination with proper resource cleanup
+- **Client Recovery**: Error events include information for client reconnection
+- **State Preservation**: Session state saved even on streaming failure
 
-## Future Enhancements
+## Integration Points
 
-### Enhanced Session Management
+<!-- prettier-ignore -->
+!!! tip "Integration with ConfigManager"
+    The AuriteEngine serves as the primary consumer of the ConfigManager's configuration services:
 
-1. **Session Query APIs**
-   - List sessions by agent
-   - Search within conversations
-   - Session analytics
+    **Component Resolution**: Engine calls `get_config()` to retrieve component configurations with automatic path resolution and validation. The ConfigManager handles all hierarchical priority resolution and context-aware path computation.
 
-### Performance Optimizations
+    **Configuration Updates**: Engine updates ConfigManager reference when in-memory components are registered, ensuring consistent configuration state across execution cycles.
 
-1. **Connection Pooling**: Reuse LLM client connections
-2. **Lazy History Loading**: Load only recent messages initially
-3. **Streaming History Updates**: Update history incrementally during streaming
+    **Validation Integration**: Engine relies on ConfigManager's validation system for component integrity, with all configurations validated against Pydantic models before execution.
 
-### Monitoring and Observability
+<!-- prettier-ignore -->
+!!! tip "Integration with MCPHost"
+    The AuriteEngine coordinates with the MCPHost for dynamic tool and resource provisioning:
 
-1. **Execution Metrics**
+    **JIT Registration**: Engine triggers server registration based on agent requirements, calling MCPHost to register servers that aren't already active. This ensures optimal resource usage by only loading servers when needed.
 
-   - Response times
-   - Token usage
-   - Error rates
+    **Tool Execution**: During agent execution, the engine provides the MCPHost instance to agents for tool execution. The MCPHost handles all tool routing, session management, and security filtering transparently.
 
-2. **Session Analytics**
-   - Active sessions
-   - Average conversation length
-   - Tool usage patterns
+    **Resource Management**: Engine leverages MCPHost's component discovery and filtering capabilities, ensuring agents only have access to authorized tools and resources based on their configuration.
 
-## Implementation References
+<!-- prettier-ignore -->
+!!! tip "Integration with SessionManager"
+    The AuriteEngine integrates with the SessionManager for comprehensive conversation and result management:
 
-- **Main Class**: `src/aurite/execution/facade.py`
-- **Storage**: `src/aurite/storage/db_manager.py`, `src/aurite/storage/cache_manager.py`
-- **Routes**: `src/aurite/bin/api/routes/facade_routes.py`
+    **History Management**: Engine loads conversation history before execution and saves complete results after execution. The SessionManager handles all backend abstraction and storage optimization.
+
+    **Session Lifecycle**: Engine manages session ID generation, prefixing, and metadata tracking. The SessionManager provides the storage and retrieval interface for session data.
+
+    **Result Persistence**: Engine saves both conversation history and execution results through the SessionManager, enabling comprehensive session analytics and debugging capabilities.
+
+## References
+
+- **Implementation**: `src/aurite/execution/aurite_engine.py`
+- **Flow Details**: [AuriteEngine Execution Flow](../flow/aurite_engine_execution_flow.md)
+- **Configuration Integration**: [ConfigManager Design](config_manager_design.md)
+- **Resource Management**: [MCP Host Design](mcp_host_design.md)
+- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md)

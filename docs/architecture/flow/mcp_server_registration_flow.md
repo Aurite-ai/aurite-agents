@@ -1,327 +1,361 @@
 # MCP Server Registration Flow
 
-**Version:** 1.0
-**Date:** 2025-08-02
+This document explains the five-phase process used by the MCP Host to register MCP (Model Context Protocol) servers and discover their capabilities.
 
-## 1. Overview
+## Overview
 
-This document describes the process of registering MCP (Model Context Protocol) servers with the Aurite framework. Server registration establishes connections to external MCP servers and makes their tools, prompts, and resources available to agents and workflows. The registration process supports both static (startup) and Just-in-Time (JIT) registration patterns.
+The MCP Host uses a comprehensive five-phase registration process to establish connections with external MCP servers and discover their tools, prompts, and resources. This process ensures reliable server registration, proper component discovery, and robust error handling.
 
-## 2. Components Involved
+## Registration Process
 
-- **[MCPHost](../design/mcp_host_design.md)** - Manages server connections and component discovery
-- **ConfigManager** - Provides server configuration data
-- **AuriteEngine** - Triggers JIT registration during agent execution
-- **SecurityManager** - Handles credential resolution and encryption
-- **MessageRouter** - Maps discovered components to their source servers
+The registration process follows a sequential five-phase approach, where each phase must complete successfully before proceeding to the next phase.
 
-## 3. Flow Diagram
+## Five-Phase Registration Process
 
-```mermaid
-graph TD
-    A[Registration Request] --> B{Registration Type}
-    B -->|Static| C[Startup Registration]
-    B -->|JIT| D[Just-in-Time Registration]
+=== "Phase 1: Configuration Resolution"
 
-    C --> E[Load HostConfig]
-    E --> F[For each configured server]
-    F --> G[Initialize Connection]
+    **Objective**: Retrieve and validate server configuration with credential resolution.
 
-    D --> H[Agent requests execution]
-    H --> I[Check agent.mcp_servers]
-    I --> J{Server registered?}
-    J -->|No| K[Load server config]
-    J -->|Yes| L[Skip registration]
-    K --> G
+    ```mermaid
+    flowchart TD
+        A[ClientConfig] --> B[SecurityManager.resolve_credentials]
+        B --> C[Environment Variable Substitution]
+        C --> D[Transport Validation]
+        D --> E[Resolved Configuration]
 
-    G --> M[Establish Transport]
-    M --> N[Initialize MCP Session]
-    N --> O[Discover Components]
-    O --> P[Register with Managers]
-    P --> Q[Update Router Mappings]
-    Q --> R[Registration Complete]
-```
+        style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+        style E fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+        style B fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+        style C fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+        style D fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    ```
 
-## 4. Detailed Steps
+    **Key Activities**:
+    - SecurityManager resolves encrypted credentials and environment variables
+    - Environment variable substitution with placeholder resolution
+    - Transport-specific validation (stdio, local, http_stream)
+    - Configuration integrity verification
 
-### Phase 1: Configuration Resolution
+    **Implementation Details**:
+    ```python
+    # SecurityManager resolves encrypted credentials
+    resolved_config = security_manager.resolve_credentials(server_config)
 
-**What happens:** The system retrieves the server configuration and resolves any credentials or environment variables.
+    # Environment variable substitution
+    if "{API_TOKEN}" in resolved_config.headers.get("Authorization", ""):
+        resolved_config.headers["Authorization"] = resolved_config.headers["Authorization"].replace(
+            "{API_TOKEN}", os.environ.get("API_TOKEN", "")
+        )
+    ```
 
-**Components responsible:**
+    **Validation Examples**:
+    ```python
+    # Validate required fields based on transport type
+    if server_config.transport_type == "stdio":
+        if not server_config.server_path:
+            raise ValueError("'server_path' is required for stdio transport")
+    elif server_config.transport_type == "http_stream":
+        if not server_config.http_endpoint:
+            raise ValueError("'http_endpoint' is required for http_stream transport")
+    ```
 
-- **ConfigManager**: Provides server configuration from the component index
-- **SecurityManager**: Resolves encrypted credentials and environment variables
+=== "Phase 2: Transport Establishment"
 
-**Key data transformations:**
+    **Objective**: Establish the appropriate transport connection based on server configuration.
 
-```python
-# Input: Server name or ClientConfig object
-server_name = "weather_server"
+    ```mermaid
+    flowchart TD
+        A[Resolved ClientConfig] --> B{Transport Type}
+        B -->|stdio| C[StdioServerParameters]
+        B -->|local| D[Local Command Setup]
+        B -->|http_stream| E[StreamableHttpParameters]
 
-# ConfigManager retrieval
-server_config_dict = config_manager.get_config("mcp_server", server_name)
+        C --> F[AsyncExitStack Context]
+        D --> F
+        E --> F
 
-# Pydantic model creation
-server_config = ClientConfig(**server_config_dict)
+        F --> G[read, write streams]
 
-# SecurityManager credential resolution
-resolved_config = security_manager.resolve_credentials(server_config)
-```
+        style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+        style G fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+        style B fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+        style F fill:#607D8B,stroke:#455A64,stroke-width:2px,color:#fff
+    ```
 
-### Phase 2: Transport Establishment
+    **Key Activities**:
+    - Transport-specific parameter setup based on configuration
+    - AsyncExitStack context creation for guaranteed cleanup
+    - Stream establishment (stdin/stdout, HTTP, or command execution)
+    - Connection validation and error handling
 
-**What happens:** The system establishes the appropriate transport connection based on the server's configuration.
+    **Transport Implementations**:
 
-**Components responsible:**
-
-- **MCPHost**: Orchestrates the connection process
-- **mcp.client libraries**: Handle the actual transport protocols
-
-**Supported transport types:**
-
-1. **STDIO Transport** (`transport_type: "stdio"`)
-
-   - Launches a Python subprocess with the specified `server_path`
-   - Communicates via stdin/stdout pipes
-   - Used for local MCP server implementations
-
-2. **Local Command Transport** (`transport_type: "local"`)
-
-   - Executes a local command with specified arguments
-   - Supports environment variable substitution in arguments
-   - Used for executable MCP servers
-
-3. **HTTP Stream Transport** (`transport_type: "http_stream"`)
-   - Establishes HTTP connection to remote MCP server
-   - Supports custom headers and timeout configuration
-   - Used for remote MCP server deployments
-
-**Connection flow:**
-
-```python
-# Transport-specific connection establishment
-if transport_type == "stdio":
+    **STDIO Transport**:
+    ```python
+    # Local Python subprocess
     params = StdioServerParameters(
         command="python",
-        args=[str(server_path)],
-        env=environment
+        args=[str(server_config.server_path)],
+        env=client_env
     )
-    client = stdio_client(params)
+    client = stdio_client(params, errlog=open(os.devnull, "w"))
     read, write = await session_stack.enter_async_context(client)
+    ```
 
-elif transport_type == "http_stream":
+    **Local Command Transport**:
+    ```python
+    # Execute local command with arguments
+    resolved_args = [
+        _resolve_placeholders(arg) for arg in (config.args or [])
+    ]
+    params = StdioServerParameters(
+        command=config.command,
+        args=resolved_args,
+        env=client_env
+    )
+    client = stdio_client(params, errlog=open(os.devnull, "w"))
+    read, write = await session_stack.enter_async_context(client)
+    ```
+
+    **HTTP Stream Transport**:
+    ```python
+    # Remote HTTP streaming connection
+    endpoint_url = _resolve_placeholders(config.http_endpoint)
     params = StreamableHttpParameters(
         url=endpoint_url,
-        headers=headers,
-        timeout=timedelta(seconds=timeout)
+        headers=config.headers,
+        timeout=timedelta(seconds=config.timeout or 30.0)
     )
-    client = streamablehttp_client(**params)
+    client = streamablehttp_client(
+        url=params.url,
+        headers=params.headers,
+        timeout=params.timeout,
+        sse_read_timeout=params.sse_read_timeout,
+        terminate_on_close=True
+    )
     read, write, _ = await session_stack.enter_async_context(client)
-```
+    ```
 
-### Phase 3: MCP Session Initialization
+=== "Phase 3: MCP Session Initialization"
 
-**What happens:** The system creates an MCP client session and performs the protocol handshake.
+    **Objective**: Create MCP client session and perform protocol handshake.
 
-**Components responsible:**
+    ```mermaid
+    flowchart TD
+        A[Transport Streams] --> B[mcp.ClientSession]
+        B --> C[session.initialize]
+        C --> D{Handshake Success?}
+        D -->|Yes| E[Session Ready]
+        D -->|No| F[Cleanup & Error]
+        E --> G[Store Session]
 
-- **mcp.ClientSession**: Handles MCP protocol communication
-- **MCPHost**: Manages session lifecycle with AsyncExitStack
+        style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+        style G fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+        style D fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+        style F fill:#F44336,stroke:#D32F2F,stroke-width:2px,color:#fff
+    ```
 
-**Session initialization:**
+    **Key Activities**:
+    - MCP ClientSession creation with transport streams
+    - Protocol handshake and capability negotiation
+    - Session validation and error recovery
+    - Session storage with exit stack for lifecycle management
 
-```python
-# Create MCP session
-session = await session_stack.enter_async_context(
-    mcp.ClientSession(read, write)
-)
+    **Session Creation**:
+    ```python
+    # Create MCP client session
+    session = await session_stack.enter_async_context(
+        mcp.ClientSession(read, write)
+    )
 
-# Perform MCP protocol initialization
-await session.initialize()
-```
+    # Store session for lifecycle management
+    self._sessions[server_name] = session
+    self._session_exit_stacks[server_name] = session_stack
+    ```
 
-### Phase 4: Component Discovery
+    **Protocol Handshake**:
+    ```python
+    # Perform MCP protocol initialization
+    await session.initialize()
 
-**What happens:** The system queries the MCP server for available tools, prompts, and resources.
+    # Session now ready for component discovery
+    logger.info(f"MCP session initialized for '{server_name}'")
+    ```
 
-**Components responsible:**
+=== "Phase 4: Component Discovery"
 
-- **MCPHost**: Orchestrates discovery process
-- **MCP Session**: Executes discovery requests
-- **Resource Managers**: Process discovered components
+    **Objective**: Query MCP server for available tools, prompts, and resources.
 
-**Discovery process:**
+    ```mermaid
+    flowchart TD
+        A[Initialized Session] --> B[session.list_tools]
+        A --> C[session.list_prompts]
+        A --> D[session.list_resources]
 
-```python
-# Discover tools
-try:
-    tools_response = await session.list_tools()
-    for tool in tools_response.tools:
-        # Prefix tool name with server name for uniqueness
-        tool.title = tool.name  # Preserve original name
-        tool.name = f"{server_name}-{tool.name}"
+        B --> E[Process & Prefix Tools]
+        C --> F[Process & Prefix Prompts]
+        D --> G[Validate & Store Resources]
 
-        # Add timeout metadata
-        if not tool.meta:
-            tool.meta = {}
-        tool.meta["timeout"] = server_config.timeout
+        E --> H[Update Registries]
+        F --> H
+        G --> H
 
-        # Register with ToolManager
-        self._tools[tool.name] = tool
-        self._tool_to_session[tool.name] = session
+        style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+        style H fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+        style B fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+        style C fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+        style D fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    ```
 
-except Exception as e:
-    logger.warning(f"Could not fetch tools from '{server_name}': {e}")
+    **Key Activities**:
+    - Parallel discovery of tools, prompts, and resources via MCP protocol
+    - Server prefix application to prevent naming conflicts
+    - Resource access validation through RootManager
+    - Metadata enhancement (timeouts, schemas, access controls)
 
-# Similar discovery for prompts and resources...
-```
+    **Tool Discovery**:
+    ```python
+    # Discover available tools
+    try:
+        tools_response = await session.list_tools()
+        for tool in tools_response.tools:
+            # Preserve original name in title
+            tool.title = tool.name
 
-### Phase 5: Component Registration
+            # Add server prefix for uniqueness
+            tool.name = f"{server_name}-{tool.name}"
 
-**What happens:** Discovered components are registered with their respective managers and routing tables are updated.
+            # Add timeout metadata
+            if not tool.meta:
+                tool.meta = {}
+            tool.meta["timeout"] = server_config.timeout
 
-**Components responsible:**
+            # Register with ToolManager
+            self._tools[tool.name] = tool
+            self._tool_to_session[tool.name] = session
 
-- **ToolManager, PromptManager, ResourceManager**: Store component definitions
-- **MessageRouter**: Maps component names to client sessions
-- **FilteringManager**: Applies access control rules
+        logger.info(f"Discovered {len(tools_response.tools)} tools from '{server_name}'")
 
-**Registration mappings:**
+    except Exception as e:
+        logger.warning(f"Could not fetch tools from '{server_name}': {e}")
+    ```
 
-```python
-# Tool registration creates multiple mappings:
-{
-    # Component storage
-    "weather_server-get_weather": Tool(name="weather_server-get_weather", ...),
+    **Prompt Discovery**:
+    ```python
+    # Discover available prompts
+    try:
+        prompts_response = await session.list_prompts()
+        for prompt in prompts_response.prompts:
+            # Add server prefix for uniqueness
+            prompt_name = f"{server_name}-{prompt.name}"
 
-    # Session routing
-    "weather_server-get_weather": <ClientSession object>,
+            # Store prompt definition
+            self._prompts[prompt_name] = prompt
 
-    # Filtering metadata
-    "weather_server-get_weather": {
-        "server_name": "weather_server",
-        "original_name": "get_weather",
-        "access_rules": [...]
+            # Map to session for execution
+            self._prompt_to_session[prompt_name] = session
+
+        logger.info(f"Discovered {len(prompts_response.prompts)} prompts from '{server_name}'")
+
+    except Exception as e:
+        logger.warning(f"Could not fetch prompts from '{server_name}': {e}")
+    ```
+
+    **Resource Discovery**:
+    ```python
+    # Discover available resources
+    try:
+        resources_response = await session.list_resources()
+        for resource in resources_response.resources:
+            # Add server prefix for uniqueness
+            resource_name = f"{server_name}-{resource.name}"
+
+            # Validate resource URI with RootManager
+            if self._root_manager.validate_access(resource.uri):
+                # Store resource definition
+                self._resources[resource_name] = resource
+
+                # Map to session for access
+                self._resource_to_session[resource_name] = session
+            else:
+                logger.warning(f"Resource '{resource.name}' denied by root manager")
+
+        logger.info(f"Discovered {len(resources_response.resources)} resources from '{server_name}'")
+
+    except Exception as e:
+        logger.warning(f"Could not fetch resources from '{server_name}': {e}")
+    ```
+
+    <!-- prettier-ignore -->
+    !!! note "Component Naming Strategy"
+        Components are prefixed with server names to prevent conflicts:
+
+        - **Tool Names**: `weather_server-get_weather` (server_name-tool_name)
+        - **Prompt Names**: `planning_server-task_breakdown` (server_name-prompt_name)
+        - **Resource Names**: `file_server-document.txt` (server_name-resource_name)
+        - **Original Names**: Preserved in `title` field for display purposes
+
+=== "Phase 5: Component Registration"
+
+    **Objective**: Register discovered components with internal registries and update routing tables.
+
+    ```mermaid
+    flowchart TD
+        A[Discovered Components] --> B[Update Tool Registry]
+        A --> C[Update Prompt Registry]
+        A --> D[Update Resource Registry]
+
+        B --> E[Update MessageRouter]
+        C --> E
+        D --> E
+
+        E --> F[Registration Complete]
+
+        style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+        style F fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+        style E fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    ```
+
+    **Key Activities**:
+    - Component storage in type-specific registries
+    - Session routing table updates for efficient tool execution
+    - MessageRouter mapping creation for O(1) component lookup
+    - FilteringManager integration for access control enforcement
+
+    **Registry Updates**:
+    ```python
+    # Registration creates multiple data structures
+    registration_data = {
+        # Component storage (by type)
+        "tools": {
+            "weather_server-get_weather": Tool(name="weather_server-get_weather", ...),
+            "location_server-geocode": Tool(name="location_server-geocode", ...)
+        },
+
+        # Session routing (for execution)
+        "tool_to_session": {
+            "weather_server-get_weather": <ClientSession for weather_server>,
+            "location_server-geocode": <ClientSession for location_server>
+        }
     }
-}
-```
+    ```
 
-## 5. Error Handling
+    **MessageRouter Updates**:
+    ```python
+    # MessageRouter maintains component-to-session mappings
+    self._message_router.register_component_mappings({
+        "weather_server-get_weather": session_weather,
+        "weather_server-get_forecast": session_weather,
+        "location_server-geocode": session_location,
+        "location_server-reverse_geocode": session_location
+    })
 
-### Configuration Errors
+    # Enables fast lookup during tool execution
+    target_session = self._message_router.get_session_for_component("weather_server-get_weather")
+    ```
 
-- **Missing server config**: Clear error message with server name
-- **Invalid transport type**: Validation error with supported types
-- **Credential resolution failure**: Security error with masked details
+## References
 
-### Connection Errors
-
-- **Server startup failure**: Process execution error with command details
-- **Network connection failure**: Transport error with endpoint information
-- **MCP protocol errors**: Session initialization error with protocol details
-
-### Timeout Handling
-
-- **Registration timeout**: Configurable via `registration_timeout` setting
-- **Tool execution timeout**: Per-tool timeout via `timeout` setting
-- **Connection timeout**: Transport-specific timeout configuration
-
-**Error recovery:**
-
-```python
-try:
-    await asyncio.wait_for(
-        _registration_process(),
-        timeout=config.registration_timeout
-    )
-except asyncio.TimeoutError:
-    logger.error(f"Registration of '{server_name}' timed out")
-    await session_stack.aclose()  # Clean up resources
-    raise MCPServerTimeoutError(
-        server_name=server_name,
-        timeout_seconds=config.registration_timeout,
-        operation="registration"
-    )
-```
-
-## 6. Performance Considerations
-
-### Lazy Registration Benefits
-
-- **Reduced startup time**: Only essential servers loaded at framework startup
-- **Memory efficiency**: Server connections created only when needed
-- **Resource optimization**: Unused servers don't consume system resources
-
-### Connection Persistence
-
-- **Session reuse**: Registered servers remain active for subsequent requests
-- **Connection pooling**: Multiple agents can share the same server connection
-- **Graceful cleanup**: AsyncExitStack ensures proper resource cleanup
-
-### Concurrent Registration
-
-- **Parallel processing**: Multiple servers can register simultaneously
-- **Timeout isolation**: One slow server doesn't block others
-- **Error isolation**: Registration failures don't affect other servers
-
-## 7. Examples
-
-### Static Registration Example
-
-```python
-# During framework startup
-aurite_kernel = AuriteKernel()
-await aurite_kernel.initialize()  # Triggers MCPHost.__aenter__()
-
-# MCPHost automatically registers servers from HostConfig
-# No additional code required
-```
-
-### JIT Registration Example
-
-```python
-# Agent configuration specifies required servers
-agent_config = {
-    "name": "weather_agent",
-    "mcp_servers": ["weather_server", "location_server"],
-    # ... other config
-}
-
-# During agent execution
-engine = AuriteEngine(...)
-result = await engine.run_agent("weather_agent", "What's the weather?")
-
-# AuriteEngine automatically:
-# 1. Checks if weather_server is registered
-# 2. If not, loads config and calls MCPHost.register_client()
-# 3. Proceeds with agent execution once tools are available
-```
-
-### Manual Registration Example
-
-```python
-# Programmatic server registration
-server_config = ClientConfig(
-    name="custom_server",
-    transport_type="stdio",
-    server_path="/path/to/server.py",
-    timeout=30.0
-)
-
-mcp_host = MCPHost()
-await mcp_host.register_client(server_config)
-
-# Server tools now available for use
-tools = mcp_host.get_formatted_tools()
-```
-
-## 8. Integration with Other Flows
-
-This registration flow integrates with several other framework flows:
-
-- **[Agent Execution Flow](agent_execution_flow.md)**: JIT registration occurs during agent preparation
-- **[Tool Execution Flow](../design/mcp_host_design.md#tool-execution-flow)**: Registered tools become available for agent use
-- **[Session Management Flow](session_management_flow.md)**: Server connections persist across multiple agent sessions
-
-For detailed information about the MCPHost architecture and component management, see the [MCP Host Design](../design/mcp_host_design.md) document.
+- **Implementation**: `src/aurite/execution/mcp_host.py` - Main MCP Host implementation
+- **Design Details**: [MCP Host Design](../design/mcp_host_design.md) - Architecture and component details
+- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md) - Server configuration patterns
