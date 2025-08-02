@@ -125,6 +125,32 @@ export class ApiError extends Error {
    * Categorizes error based on status code and error details
    */
   private categorizeError(status: number, _code?: string, details?: any) {
+    // Check for non-retryable execution errors first
+    if (details?.error?.error_type === 'MaxIterationsReachedError') {
+      return {
+        category: ErrorCategory.VALIDATION,
+        severity: ErrorSeverity.WARNING,
+        userMessage: 'Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.',
+        retryable: false,
+      };
+    }
+
+    // Add other non-retryable execution errors
+    const nonRetryableExecutionErrors = [
+      'MaxIterationsReachedError',
+      'ValidationError',
+      'ConfigurationError'
+    ];
+    
+    if (status >= 500 && details?.error?.error_type && nonRetryableExecutionErrors.includes(details.error.error_type)) {
+      return {
+        category: ErrorCategory.VALIDATION,
+        severity: ErrorSeverity.WARNING,
+        userMessage: details?.error?.message || 'Execution failed due to configuration or validation issue.',
+        retryable: false,
+      };
+    }
+
     // Network/connectivity errors
     if (status === 0 || status === -1) {
       return {
@@ -307,3 +333,12 @@ export type ConfigType = 'agent' | 'llm' | 'mcp_server' | 'simple_workflow' | 'c
 export type ExecutionStatus = 'success' | 'error' | 'max_iterations_reached';
 export type TransportType = 'stdio' | 'local' | 'http_stream';
 export type LLMProvider = 'openai' | 'anthropic' | 'local' | 'azure';
+
+/**
+ * Execution error types that should not be retried
+ */
+export type ExecutionErrorType = 
+  | 'MaxIterationsReachedError'
+  | 'TimeoutError' 
+  | 'ValidationError'
+  | 'ConfigurationError';
