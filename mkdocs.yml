@@ -95,16 +95,15 @@ nav:
           - "MCP Host": "usage/routes/mcp_host_routes.md"
           - "System": "usage/routes/system_routes.md"
   - "Architecture":
-      - "Overview": "architecture/overview.md"
-      - "Layers":
-          - "Entrypoints": "architecture/layers/1_entrypoints.md"
-          - "Orchestration": "architecture/layers/2_orchestration.md"
-          - "Execution": "architecture/layers/2.5_execution.md"
-          - "Host": "architecture/layers/3_host.md"
       - "Design":
-          - "Execution Facade": "architecture/design/execution_facade.md"
-          - "Index Building": "architecture/design/index_building_flow.md"
-          - "Packaging and Runtime": "architecture/design/packaging_and_runtime_design.md"
+          - "Aurite Engine": "architecture/design/aurite_engine_design.md"
+          - "Config Manager": "architecture/design/config_manager_design.md"
+          - "MCP Host": "architecture/design/mcp_host_design.md"
+          - "Design Template": "architecture/design/design_template.md"
+      - "Flow":
+          - "Config Index Building": "architecture/flow/config_index_building_flow.md"
+          - "MCP Server Registration": "architecture/flow/mcp_server_registration_flow.md"
+          - "Flow Template": "architecture/flow/flow_template.md"
   - "Testing":
       - "API Test Coverage Connections": "testing/api_test_coverage_connections.md"
       - "API Test Coverage Visual": "testing/api_test_coverage_visual.md"

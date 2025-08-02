@@ -20,6 +20,8 @@
     "**/.mypy_cache/**": true
   },
 
+  "markdownAdmonitions.enable": true,
+
   "ruff.lint.ignore": ["F841", "E722"],
   "fileNestingUpdater.autoUpdate": true,
   "explorer.fileNesting.patterns": {
@@ -50,9 +52,13 @@
       "source.organizeImports.ruff": "explicit"
     }
   },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": false // Disable format on save specifically if needed
+    "editor.formatOnSave": true
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",

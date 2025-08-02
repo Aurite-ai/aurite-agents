@@ -431,7 +431,7 @@ When using agents with session support, the framework automatically handles conv
 - **History Loading**: If the agent has `include_history: true`, previous messages are loaded
 - **Persistence**: History is saved after each execution for future reference
 
-**Note**: For detailed information about session management architecture and storage backends, see [Execution Facade Architecture](../../architecture/design/execution_facade.md).
+**Note**: For detailed information about session management architecture and storage backends, see [Execution Facade Architecture](../../architecture/design/aurite_engine_design.md).
 
 ## Error Handling
 
