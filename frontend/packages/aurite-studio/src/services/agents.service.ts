@@ -191,6 +191,15 @@ class AgentsService {
               try {
                 const data = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
                 
+                // Check if this is a max iterations reached event
+                if (data.type === 'llm_response_stop' && 
+                    data.data && 
+                    data.data.status === 'error' && 
+                    data.data.reason === 'turn_limit_reached') {
+                  onError('Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.');
+                  return;
+                }
+                
                 // Check if this is a completion event
                 if (data.type === 'complete' || data.event === 'complete') {
                   const result = this.mapToLocalExecutionResult(data.data || data);
