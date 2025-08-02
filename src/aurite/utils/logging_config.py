@@ -4,6 +4,7 @@ Uses colorlog to provide colored output for different log levels and logger name
 """
 
 import logging
+import os
 
 import colorlog
 
@@ -23,6 +24,44 @@ DEFAULT_LOG_COLORS = {
 }
 
 # LAYER_SPECIFIC_INFO_COLORS and LayerSpecificInfoFormatter are removed for simplification.
+
+# Global flag to track if logging has been disabled
+_logging_disabled = False
+
+
+def disable_all_logging():
+    """Disable all logging globally."""
+    global _logging_disabled
+    _logging_disabled = True
+    # Disable all logging by setting the root logger to CRITICAL+1
+    logging.getLogger().setLevel(logging.CRITICAL + 1)
+    # Also disable all existing handlers
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+
+def setup_logging_if_needed(disable_logging: bool = False):
+    """Setup logging configuration unless explicitly disabled."""
+    global _logging_disabled
+
+    if disable_logging or _logging_disabled:
+        disable_all_logging()
+        return
+
+    # Only setup logging if it hasn't been disabled
+    if not _logging_disabled:
+        try:
+            log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+            numeric_level = getattr(logging, log_level_str, logging.INFO)
+            setup_logging(level=numeric_level)
+        except ImportError:
+            logger = logging.getLogger(__name__)
+            logger.warning("aurite.utils.logging_config not found. Colored logging will not be applied.")
+            if not logging.getLogger().hasHandlers():
+                log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
+                numeric_level = getattr(logging, log_level_str, logging.INFO)
+                logging.basicConfig(level=numeric_level)
 
 
 class SafeColoredFormatter(colorlog.ColoredFormatter):

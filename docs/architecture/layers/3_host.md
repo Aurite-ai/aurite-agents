@@ -1,13 +1,13 @@
-# Layer 3: MCP Host System
+# MCP Host System (Execution Layer Component)
 
-**Version:** 1.1
-**Date:** 2025-07-09
+**Version:** 2.0
+**Date:** 2025-08-02
 
 ## 1. Overview
 
-The MCP Host System (Layer 3) is the foundational service layer of the Aurite framework. Its primary responsibility is to manage connections with external Model Context Protocol (MCP) servers and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level Orchestration Layer (Layer 2) and the individual MCP servers.
+The MCP Host System is a core component of the Aurite framework's execution layer. Its primary responsibility is to manage connections with external Model Context Protocol (MCP) servers and provide a secure, unified interface for accessing their capabilities (tools, prompts, resources). It acts as the bridge between the higher-level orchestration components and the individual MCP servers.
 
-The lifecycle of the `MCPHost` is managed by the `AuriteKernel` (in `aurite.py`), which ensures that the host is initialized on-demand and shut down gracefully. During runtime, the primary consumer of the Host's services is the `ExecutionFacade`, which brokers requests from agents and workflows.
+The lifecycle of the `MCPHost` is managed by the `AuriteKernel` (in `aurite.py`), which ensures that the host is initialized on-demand and shut down gracefully. During runtime, the primary consumer of the Host's services is the `AuriteEngine`, which brokers requests from agents and workflows.
 
 Key responsibilities include:
 
@@ -26,19 +26,19 @@ The Host System is structured internally into two sub-layers:
 
 ## 2. Relevant Files
 
-| File Path                                | Primary Class(es)  | Core Responsibility                                                                 |
-| :--------------------------------------- | :----------------- | :---------------------------------------------------------------------------------- |
-| `src/aurite/host/host.py`                | `MCPHost`          | Main entrypoint, orchestrates managers, and manages client sessions.                |
-| `src/aurite/config/config_models.py`     | Config Models      | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
-| `src/aurite/host/filtering.py`           | `FilteringManager` | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules.    |
-| **Foundation Layer**                     |                    |                                                                                     |
-| `src/aurite/host/foundation/security.py` | `SecurityManager`  | Manages encryption and credential resolution (e.g., from environment or GCP).       |
-| `src/aurite/host/foundation/routing.py`  | `MessageRouter`    | Maps components to clients and routes requests accordingly.                         |
-| `src/aurite/host/foundation/roots.py`    | `RootManager`      | Manages MCP root definitions for client access control.                             |
-| **Resource Layer**                       |                    |                                                                                     |
-| `src/aurite/host/resources/prompts.py`   | `PromptManager`    | Manages prompt definitions discovered from clients.                                 |
-| `src/aurite/host/resources/resources.py` | `ResourceManager`  | Manages resource definitions discovered from clients.                               |
-| `src/aurite/host/resources/tools.py`     | `ToolManager`      | Manages tool definitions, formats them for LLMs, and handles execution.             |
+| File Path                                              | Primary Class(es)  | Core Responsibility                                                                 |
+| :----------------------------------------------------- | :----------------- | :---------------------------------------------------------------------------------- |
+| `src/aurite/execution/mcp_host/mcp_host.py`            | `MCPHost`          | Main entrypoint, orchestrates managers, and manages client sessions.                |
+| `src/aurite/lib/models/config/components.py`           | Config Models      | Pydantic models for `HostConfig`, `ClientConfig`, `AgentConfig`, `RootConfig`, etc. |
+| `src/aurite/execution/mcp_host/filtering.py`           | `FilteringManager` | Centralized logic for applying `ClientConfig` and `AgentConfig` filtering rules.    |
+| **Foundation Layer**                                   |                    |                                                                                     |
+| `src/aurite/execution/mcp_host/foundation/security.py` | `SecurityManager`  | Manages encryption and credential resolution (e.g., from environment or GCP).       |
+| `src/aurite/execution/mcp_host/foundation/routing.py`  | `MessageRouter`    | Maps components to clients and routes requests accordingly.                         |
+| `src/aurite/execution/mcp_host/foundation/roots.py`    | `RootManager`      | Manages MCP root definitions for client access control.                             |
+| **Resource Layer**                                     |                    |                                                                                     |
+| `src/aurite/execution/mcp_host/resources/prompts.py`   | `PromptManager`    | Manages prompt definitions discovered from clients.                                 |
+| `src/aurite/execution/mcp_host/resources/resources.py` | `ResourceManager`  | Manages resource definitions discovered from clients.                               |
+| `src/aurite/execution/mcp_host/resources/tools.py`     | `ToolManager`      | Manages tool definitions, formats them for LLMs, and handles execution.             |
 
 ## 3. Functionality
 
@@ -46,50 +46,164 @@ This layer provides the core infrastructure for interacting with MCP servers.
 
 **3.1. Multi-File Interactions & Core Flows:**
 
-- **Initialization (`MCPHost.__aenter__`):**
-  - Triggered by `AuriteKernel` (in `aurite.py`) when the framework is first used.
-  - Initializes all managers (`SecurityManager`, `MessageRouter`, etc.).
-  - Enters the `ClientSessionGroup` context, preparing for client connections.
-  - Connects to all servers defined in the `HostConfig`.
-- **Just-in-Time (JIT) Server Registration (`ExecutionFacade` -> `MCPHost.register_client`):**
-  - When an agent run begins, the `ExecutionFacade` inspects the `AgentConfig`.
-  - If the `AgentConfig` specifies `mcp_servers` that are not yet active, the `ExecutionFacade` retrieves their configurations.
-  - It then calls `MCPHost.register_client` for each required server, making them available for the agent's use.
-- **Tool Formatting (`Agent` -> `MCPHost.get_formatted_tools`):**
-  - Before an agent turn, the `Agent` class calls `MCPHost.get_formatted_tools`, passing its `AgentConfig`.
-  - The `MCPHost` delegates to the `ToolManager`, which uses the `FilteringManager` to produce a list of tools that respects the agent's specific permissions (`client_ids` and `exclude_components`).
-  - This filtered list is then provided to the LLM.
-- **Tool Execution (`AgentTurnProcessor` -> `MCPHost.call_tool`):**
-  - After the LLM indicates a tool call, the `AgentTurnProcessor` is responsible for fulfilling the request.
-  - It calls `MCPHost.call_tool` with the tool name and arguments.
-  - The `MCPHost` uses the `MessageRouter` to find which client provides the tool.
-  - It applies filtering based on the agent's configuration to ensure access is permitted.
-  - Finally, it delegates the execution to the `ToolManager`, which sends the request to the correct MCP server via its `ClientSession`.
+### Initialization Flow
+
+```mermaid
+graph TD
+    A[AuriteKernel] -->|calls| B[MCPHost.__aenter__]
+    B --> C[Initialize SecurityManager]
+    B --> D[Initialize MessageRouter]
+    B --> E[Initialize RootManager]
+    B --> F[Enter ClientSessionGroup context]
+    F --> G[Connect to configured servers]
+```
+
+!!! info "Initialization Process"
+**Initialization (`MCPHost.__aenter__`):**
+
+    - Triggered by `AuriteKernel` (in `aurite.py`) when the framework is first used
+    - Initializes all managers (`SecurityManager`, `MessageRouter`, etc.)
+    - Enters the `ClientSessionGroup` context, preparing for client connections
+    - Connects to all servers defined in the `HostConfig`
+
+### Just-in-Time Server Registration
+
+```mermaid
+sequenceDiagram
+    participant AE as AuriteEngine
+    participant MH as MCPHost
+    participant CM as ConfigManager
+
+    AE->>AE: Inspect AgentConfig
+    AE->>MH: Check registered_server_names
+    AE->>CM: Get server config
+    AE->>MH: register_client(config)
+    MH->>MH: Initialize client session
+    MH->>MH: Discover tools/prompts/resources
+```
+
+!!! tip "JIT Registration Benefits"
+**Just-in-Time (JIT) Server Registration (`AuriteEngine` → `MCPHost.register_client`):**
+
+    - When an agent run begins, the `AuriteEngine` inspects the `AgentConfig`
+    - If the `AgentConfig` specifies `mcp_servers` that are not yet active, the `AuriteEngine` retrieves their configurations
+    - It then calls `MCPHost.register_client` for each required server, making them available for the agent's use
+    - This approach minimizes resource usage by only connecting to servers when needed
+
+### Tool Execution Flow
+
+```mermaid
+graph LR
+    A[Agent] -->|get_formatted_tools| B[MCPHost]
+    B --> C[ToolManager]
+    C --> D[FilteringManager]
+    D --> E[Filtered Tools List]
+    E --> F[LLM]
+    F -->|tool_call| G[AgentTurnProcessor]
+    G -->|call_tool| B
+    B --> H[MessageRouter]
+    H --> I[Correct MCP Server]
+```
+
+!!! note "Security & Filtering"
+**Tool Formatting & Execution:**
+
+    1. **Tool Formatting (`Agent` → `MCPHost.get_formatted_tools`):**
+        - Before an agent turn, the `Agent` class calls `MCPHost.get_formatted_tools`, passing its `AgentConfig`
+        - The `MCPHost` delegates to the `ToolManager`, which uses the `FilteringManager` to produce a list of tools that respects the agent's specific permissions
+        - This filtered list is then provided to the LLM
+
+    2. **Tool Execution (`AgentTurnProcessor` → `MCPHost.call_tool`):**
+        - After the LLM indicates a tool call, the `AgentTurnProcessor` is responsible for fulfilling the request
+        - It calls `MCPHost.call_tool` with the tool name and arguments
+        - The `MCPHost` uses the `MessageRouter` to find which client provides the tool
+        - It applies filtering based on the agent's configuration to ensure access is permitted
+        - Finally, it delegates the execution to the `ToolManager`, which sends the request to the correct MCP server via its `ClientSession`
 
 **3.2. Individual File Functionality:**
 
-- **`host/host.py` (`MCPHost`):**
-  - Acts as the central facade for the Host layer, managed by `AuriteKernel`.
-  - Orchestrates the initialization and shutdown of all managers.
-  - Delegates client lifecycle management to `ClientSessionGroup`.
-  - Provides the public API (`get_formatted_tools`, `call_tool`, `register_client`) for Layer 2 components.
-- **`host/filtering.py` (`FilteringManager`):**
-  - Contains stateless methods for applying filtering logic based on `ClientConfig` (global rules) and `AgentConfig` (agent-specific rules).
-- **`host/foundation/security.py` (`SecurityManager`):**
-  - Manages the encryption key (`AURITE_MCP_ENCRYPTION_KEY`). It is crucial for production to set this environment variable for persistent, secure encryption.
-  - Resolves and decrypts credentials from various sources.
-- **`host/foundation/routing.py` (`MessageRouter`):**
-  - Maintains a mapping of components (tools, prompts, resources) to the client IDs that provide them.
-  - Used by `MCPHost` to determine where to send execution requests.
-- **`host/foundation/roots.py` (`RootManager`):**
-  - Stores `RootConfig` definitions to enforce access control for resources based on their URIs.
-- **`host/resources/prompts.py` (`PromptManager`):**
-  - Stores and manages discovered `mcp.types.Prompt` definitions from each client.
-- **`host/resources/resources.py` (`ResourceManager`):**
-  - Stores and manages discovered `mcp.types.Resource` definitions, checking access against the `RootManager`.
-- **`host/resources/tools.py` (`ToolManager`):**
-  - Stores discovered `mcp.types.Tool` definitions.
-  - Handles tool registration, execution requests, and formatting tools for LLM consumption, applying filtering logic as needed.
+### Core Host Implementation
+
+??? abstract "Source code in `execution/mcp_host/mcp_host.py`"
+
+    **`MCPHost` Class:**
+
+    - Acts as the central facade for the MCP Host system, managed by `AuriteKernel`
+    - Orchestrates the initialization and shutdown of all managers
+    - Delegates client lifecycle management to `ClientSessionGroup`
+    - Provides the public API (`get_formatted_tools`, `call_tool`, `register_client`) for orchestration layer components
+
+    **Key Methods:**
+
+    ```python
+    async def call_tool(self, name: str, args: dict[str, Any], agent_config: Optional[AgentConfig] = None) -> types.CallToolResult
+    async def register_client(self, config: ClientConfig)
+    def get_formatted_tools(self, agent_config: Optional[AgentConfig] = None, tool_names: Optional[List[str]] = None) -> List[Dict[str, Any]]
+    ```
+
+??? abstract "Source code in `execution/mcp_host/filtering.py`"
+
+    **`FilteringManager` Class:**
+
+    - Contains stateless methods for applying filtering logic based on `ClientConfig` (global rules) and `AgentConfig` (agent-specific rules)
+    - Ensures agents only access tools and resources they're permitted to use
+    - Applies both server-level and component-level filtering rules
+
+### Foundation Layer
+
+??? abstract "Source code in `execution/mcp_host/foundation/security.py`"
+
+    **`SecurityManager` Class:**
+
+    - Manages the encryption key (`AURITE_MCP_ENCRYPTION_KEY`)
+    - Resolves and decrypts credentials from various sources (environment variables, GCP Secret Manager)
+    - Handles credential masking for logging and debugging
+
+    !!! warning "Production Security"
+        It is crucial for production to set the `AURITE_MCP_ENCRYPTION_KEY` environment variable for persistent, secure encryption.
+
+??? abstract "Source code in `execution/mcp_host/foundation/routing.py`"
+
+    **`MessageRouter` Class:**
+
+    - Maintains a mapping of components (tools, prompts, resources) to the client IDs that provide them
+    - Used by `MCPHost` to determine where to send execution requests
+    - Enables efficient routing of requests to the correct MCP server
+
+??? abstract "Source code in `execution/mcp_host/foundation/roots.py`"
+
+    **`RootManager` Class:**
+
+    - Stores `RootConfig` definitions to enforce access control for resources based on their URIs
+    - Validates resource access permissions before allowing operations
+    - Manages hierarchical access control for MCP resources
+
+### Resource Layer
+
+??? abstract "Source code in `execution/mcp_host/resources/prompts.py`"
+
+    **`PromptManager` Class:**
+
+    - Stores and manages discovered `mcp.types.Prompt` definitions from each client
+    - Handles prompt registration, retrieval, and lifecycle management
+    - Applies filtering rules for agent-specific prompt access
+
+??? abstract "Source code in `execution/mcp_host/resources/resources.py`"
+
+    **`ResourceManager` Class:**
+
+    - Stores and manages discovered `mcp.types.Resource` definitions
+    - Checks access permissions against the `RootManager` before allowing resource operations
+    - Handles resource discovery, registration, and access control
+
+??? abstract "Source code in `execution/mcp_host/resources/tools.py`"
+
+    **`ToolManager` Class:**
+
+    - Stores discovered `mcp.types.Tool` definitions from connected MCP servers
+    - Handles tool registration, execution requests, and formatting tools for LLM consumption
+    - Applies filtering logic to ensure agents only access permitted tools
+    - Manages tool timeouts and error handling during execution
 
 ## 4. Testing
 

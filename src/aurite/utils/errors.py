@@ -69,3 +69,9 @@ class MaxIterationsReachedError(AuriteError):
     """
 
     pass
+
+
+class DuplicateClientIdError(ValueError):
+    """Custom exception for duplicate client ID registration attempts."""
+
+    pass

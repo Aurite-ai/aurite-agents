@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 if sys.version_info < (3, 11):
     try:
@@ -36,56 +36,9 @@ from .lib.models.config.components import (
 from .lib.storage.db.db_connection import create_db_engine
 from .lib.storage.db.db_manager import StorageManager
 from .lib.storage.sessions.cache_manager import CacheManager
-
-if TYPE_CHECKING:
-    pass
+from .utils.logging_config import setup_logging_if_needed
 
 logger = logging.getLogger(__name__)
-
-# Global flag to track if logging has been disabled
-_logging_disabled = False
-
-
-def disable_all_logging():
-    """Disable all logging globally."""
-    global _logging_disabled
-    _logging_disabled = True
-    # Disable all logging by setting the root logger to CRITICAL+1
-    logging.getLogger().setLevel(logging.CRITICAL + 1)
-    # Also disable all existing handlers
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-
-def _setup_logging_if_needed(disable_logging: bool = False):
-    """Setup logging configuration unless explicitly disabled."""
-    global _logging_disabled
-
-    if disable_logging or _logging_disabled:
-        disable_all_logging()
-        return
-
-    # Only setup logging if it hasn't been disabled
-    if not _logging_disabled:
-        try:
-            from .utils.logging_config import setup_logging
-
-            log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
-            numeric_level = getattr(logging, log_level_str, logging.INFO)
-            setup_logging(level=numeric_level)
-        except ImportError:
-            logger.warning("aurite.utils.logging_config not found. Colored logging will not be applied.")
-            if not logging.getLogger().hasHandlers():
-                log_level_str = os.getenv("AURITE_LOG_LEVEL", "INFO").upper()
-                numeric_level = getattr(logging, log_level_str, logging.INFO)
-                logging.basicConfig(level=numeric_level)
-
-
-class DuplicateClientIdError(ValueError):
-    """Custom exception for duplicate client ID registration attempts."""
-
-    pass
 
 
 class AuriteKernel:
@@ -106,7 +59,7 @@ class AuriteKernel:
             start_dir = Path(os.getcwd()).resolve()
 
         # Setup logging based on the disable_logging flag
-        _setup_logging_if_needed(disable_logging)
+        setup_logging_if_needed(disable_logging)
 
         self.config_manager = ConfigManager(start_dir=start_dir)
         self.project_root = self.config_manager.project_root
