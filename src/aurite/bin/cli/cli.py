@@ -4,15 +4,15 @@ from typing import Optional
 import typer
 from rich.console import Console
 
+from ...utils.cli.fast_loader import list_component_names
 from ..api.api import start as start_api_server
-from ..tui.edit import AuriteEditTUI
+from ..tui.apps.edit import AuriteEditTUI
 
 # Relative imports from within the bin directory
-from .commands import init_project, init_workspace, interactive_init
-from .fast_loader import list_component_names
-from .list import list_all, list_components_by_type, list_index, list_workflows
-from .run import run_component
-from .show import show_components
+from .commands.init import init_project, init_workspace, interactive_init
+from .commands.list import list_all, list_components_by_type, list_index, list_workflows
+from .commands.run import run_component
+from .commands.show import show_components
 
 app = typer.Typer(
     name="aurite",

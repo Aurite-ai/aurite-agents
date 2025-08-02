@@ -86,7 +86,7 @@ class SystemPromptEditorScreen(ModalScreen):
 class AuriteEditTUI(App):
     """A Textual user interface for editing Aurite configurations."""
 
-    CSS_PATH = "edit.tcss"
+    CSS_PATH = "../styles/edit.tcss"
 
     def __init__(self, component_name: str | None = None):
         super().__init__()

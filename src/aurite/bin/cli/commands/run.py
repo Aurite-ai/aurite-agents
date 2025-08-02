@@ -6,9 +6,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from ...aurite import Aurite
-from ...utils.errors import AuriteError
-from .ui_presenter import RunPresenter
+from ....aurite import Aurite
+from ....utils.cli.ui_presenter import RunPresenter
+from ....utils.errors import AuriteError
 
 console = Console()
 logger = console.print

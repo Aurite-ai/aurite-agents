@@ -13,8 +13,8 @@ from textual.containers import Container, VerticalScroll
 from textual.events import Key
 from textual.widgets import Footer, Header, Markdown, Static, TextArea
 
-from ...aurite import Aurite, disable_all_logging
-from .ui_utils import (
+from ....aurite import Aurite, disable_all_logging
+from ....utils.cli.ui_utils import (
     format_agent_message,
     format_tool_call_message,
     format_tool_output_message,
@@ -25,7 +25,7 @@ from .ui_utils import (
 class TextualChatApp(App):
     """A Textual TUI application for interactive agent chat."""
 
-    CSS_PATH = "chat.tcss"
+    CSS_PATH = "../styles/chat.tcss"
     BINDINGS = [
         Binding("ctrl+enter", "send_message", "Send Message", priority=True),
     ]

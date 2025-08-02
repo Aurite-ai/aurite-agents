@@ -54,7 +54,7 @@ Homepage = "https://publish.obsidian.md/aurite/HOME"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
 
 [project.scripts]
-aurite = "aurite.bin.cli.main:app"
+aurite = "aurite.bin.cli:app"
 
 [tool.poetry]
 packages = [{ include = "aurite", from = "src" }]

@@ -4,7 +4,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from ...aurite import Aurite
+from ....aurite import Aurite
 
 console = Console()
 logger = console.print

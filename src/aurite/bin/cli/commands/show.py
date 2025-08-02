@@ -6,7 +6,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
-from ...aurite import Aurite
+from ....aurite import Aurite
 
 console = Console()
 logger = console.print

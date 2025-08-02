@@ -102,7 +102,7 @@ class AuriteTUI(App):
 
         pass
 
-    CSS_PATH = "main.tcss"
+    CSS_PATH = "../styles/main.tcss"
 
     def __init__(self):
         super().__init__()
