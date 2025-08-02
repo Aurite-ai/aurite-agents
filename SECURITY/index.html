@@ -1,0 +1,2356 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for Aurite Agents, a framework for building AI agents.">
+      
+      
+        <meta name="author" content="Aurite AI">
+      
+      
+        <link rel="canonical" href="https://aurite-ai.github.io/aurite-agents/SECURITY/">
+      
+      
+        <link rel="prev" href="../CHANGELOG/">
+      
+      
+      
+      <link rel="icon" href="../images/aurite_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Security - Aurite Agents Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#security-policy-for-aurite-agents" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Aurite Agents Documentation" class="md-header__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../images/aurite_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Aurite Agents Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Security
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Aurite Agents Documentation" class="md-nav__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../images/aurite_logo.png" alt="logo">
+
+    </a>
+    Aurite Agents Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/Start_Here/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Start Here
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation_guides/package_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Package Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation_guides/repository_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Repository Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/Tutorials_Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/01_Introducing_Aurite_Agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Welcome to Aurite Agents!
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/02_Agents_and_Tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Agents Tutorial 2: Giving Agents Tools with MCP Servers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/03_Agent_Challenge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Optional Assignment: Agent Tooling Challenge
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/04_Agent_Challenge_Solutions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Optional Assignment: Agent Tooling Challenge (Solutions)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/05_LLMs_Schemas_and_Workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tutorial 5: A Detailed Look at Agents - Custom LLMs, Structured Output, and Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/06_Building_Your_Own_MCP_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06: Building Your Own MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/tutorials/07_Understanding_Projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07: Understanding Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Project Ideas
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Project Ideas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/project_ideas/Project_Ideas_Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/project_ideas/Project_Ideas_Customer_Support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Customer Support
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/project_ideas/Project_Ideas_Data_Processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Data Processing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/projects_and_workspaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects and Workspaces
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/simple_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Simple Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/custom_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/api_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/tui_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    TUI Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Routes
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            API Routes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/routes/config_manager_routes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Manager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/routes/facade_routes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Facade
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/routes/mcp_host_routes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Host
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/routes/system_routes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    System
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Layers
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Layers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/layers/1_entrypoints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Entrypoints
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/layers/2_orchestration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Orchestration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/layers/2.5_execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Execution
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/layers/3_host/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Host
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/design/execution_facade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Execution Facade
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/design/index_building_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Index Building
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/design/packaging_and_runtime_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Packaging and Runtime
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Testing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/api_test_coverage_connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Test Coverage Connections
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/api_test_coverage_visual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Test Coverage Visual
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Copilot Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Copilot Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../copilot_guides/mcp_server_testing_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CHANGELOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changelog
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-a-vulnerability" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reporting a Vulnerability
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-mechanisms-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Mechanisms &amp; Configuration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Mechanisms &amp; Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-encryption-key-aurite_mcp_encryption_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Encryption Key (AURITE_MCP_ENCRYPTION_KEY)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-gcp-secret-manager-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. GCP Secret Manager Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-in-memory-credential-storage-securitymanager_credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. In-Memory Credential Storage (SecurityManager._credentials)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-root-access-control-rootmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Root Access Control (RootManager)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-request-routing-filtering-messagerouter-filteringmanager-mcphost" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Request Routing &amp; Filtering (MessageRouter, FilteringManager, MCPHost)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-environment-variable-handling-for-mcp-server-subprocesses" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Environment Variable Handling for MCP Server Subprocesses
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-custom-workflow-execution-customworkflowexecutor" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Custom Workflow Execution (CustomWorkflowExecutor)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-data-persistence-security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Data Persistence Security Considerations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-dynamic-registration-control-aurite_allow_dynamic_registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Dynamic Registration Control (AURITE_ALLOW_DYNAMIC_REGISTRATION)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-api-authentication-fastapi-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. API Authentication (FastAPI Server)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-a-vulnerability" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reporting a Vulnerability
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-mechanisms-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Mechanisms &amp; Configuration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Mechanisms &amp; Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-encryption-key-aurite_mcp_encryption_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Encryption Key (AURITE_MCP_ENCRYPTION_KEY)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-gcp-secret-manager-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. GCP Secret Manager Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-in-memory-credential-storage-securitymanager_credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. In-Memory Credential Storage (SecurityManager._credentials)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-root-access-control-rootmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Root Access Control (RootManager)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-request-routing-filtering-messagerouter-filteringmanager-mcphost" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Request Routing &amp; Filtering (MessageRouter, FilteringManager, MCPHost)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-environment-variable-handling-for-mcp-server-subprocesses" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Environment Variable Handling for MCP Server Subprocesses
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-custom-workflow-execution-customworkflowexecutor" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Custom Workflow Execution (CustomWorkflowExecutor)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-data-persistence-security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Data Persistence Security Considerations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-dynamic-registration-control-aurite_allow_dynamic_registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Dynamic Registration Control (AURITE_ALLOW_DYNAMIC_REGISTRATION)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-api-authentication-fastapi-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      10. API Authentication (FastAPI Server)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="security-policy-for-aurite-agents">Security Policy for Aurite Agents</h1>
+<p>The Aurite Agents team and community take the security of the framework seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.</p>
+<h2 id="reporting-a-vulnerability">Reporting a Vulnerability</h2>
+<p>Please <strong>DO NOT</strong> report security vulnerabilities through public GitHub issues.</p>
+<p>Instead, please report them by sending an email to <code>support@aurite.ai</code>.</p>
+<p>Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:</p>
+<ul>
+<li>Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)</li>
+<li>Full paths of source file(s) related to the manifestation of the issue</li>
+<li>The location of the affected source code (tag/branch/commit or direct URL)</li>
+<li>Any special configuration required to reproduce the issue</li>
+<li>Step-by-step instructions to reproduce the issue</li>
+<li>Proof-of-concept or exploit code (if possible)</li>
+<li>Impact of the issue, including how an attacker might exploit the issue</li>
+</ul>
+<p>This information will help us triage your report more quickly.</p>
+<h2 id="security-mechanisms-configuration">Security Mechanisms &amp; Configuration</h2>
+<p>This section details important security-related configurations and mechanisms within the Aurite Agents framework.</p>
+<h3 id="1-encryption-key-aurite_mcp_encryption_key">1. Encryption Key (<code>AURITE_MCP_ENCRYPTION_KEY</code>)</h3>
+<p>The <code>AURITE_MCP_ENCRYPTION_KEY</code> environment variable is critical for securing sensitive data that might be encrypted by the framework's <code>SecurityManager</code> (located in <code>src/host/foundation/security.py</code>).</p>
+<ul>
+<li><strong>Purpose:</strong> This key is used for symmetric encryption (via Fernet) of credentials or other sensitive information that the <code>SecurityManager</code> is tasked to protect.</li>
+<li><strong>Auto-generation:</strong> If this environment variable is not set when the framework starts, a new encryption key will be <strong>auto-generated</strong>. This is provided for convenience, especially for quick local testing or initial setup.</li>
+<li><strong>CRITICAL FOR PERSISTENCE:</strong> If you rely on an auto-generated key, any data encrypted with it will become <strong>inaccessible</strong> if the application restarts and generates a new key.</li>
+<li><strong>Recommendation for Production/Persistent Deployments:</strong> For any deployment that is intended to be persistent, or if you plan to use features that rely on data encrypted by the <code>SecurityManager</code>, you <strong>MUST</strong> set <code>AURITE_MCP_ENCRYPTION_KEY</code> to a strong, persistent, and unique key.</li>
+<li><strong>Key Format:</strong> The key should be a URL-safe base64-encoded 32-byte string. You can generate such a key using Python:
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cryptography.fernet</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fernet</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">key</span> <span class="o">=</span> <span class="n">Fernet</span><span class="o">.</span><span class="n">generate_key</span><span class="p">()</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+</code></pre></div>
+    Store this generated key securely and set it as the <code>AURITE_MCP_ENCRYPTION_KEY</code> environment variable.</li>
+<li><strong><code>.env.example</code>:</strong> This variable is included and commented in the <code>.env.example</code> file as a reminder.</li>
+</ul>
+<h3 id="2-gcp-secret-manager-usage">2. GCP Secret Manager Usage</h3>
+<p>The framework can optionally resolve secrets from Google Cloud Platform (GCP) Secret Manager.</p>
+<ul>
+<li><strong>Enabling:</strong> This feature is controlled by the <code>USE_SECRETS_MANAGER</code> environment variable (see <code>.env.example</code>). Set it to <code>true</code> to enable.</li>
+<li><strong>Prerequisites:</strong><ul>
+<li><strong>Application Default Credentials (ADC):</strong> The environment where the Aurite Agents framework is running must have Google Cloud ADC configured. This typically involves running <code>gcloud auth application-default login</code> or setting the <code>GOOGLE_APPLICATION_CREDENTIALS</code> environment variable to point to a service account key file.</li>
+<li><strong>IAM Permissions:</strong> The identity associated with the ADC (e.g., your user account, or the service account) <strong>MUST</strong> have the <code>Secret Manager Secret Accessor</code> IAM role (or equivalent permissions) for each specific secret in GCP Secret Manager that you configure the framework to use.</li>
+</ul>
+</li>
+<li><strong>Configuration:</strong> Secrets to be fetched are defined in the <code>ClientConfig</code> under the <code>gcp_secrets</code> list, specifying the GCP secret resource ID and the environment variable name it should populate for the MCP server process.</li>
+</ul>
+<h3 id="3-in-memory-credential-storage-securitymanager_credentials">3. In-Memory Credential Storage (<code>SecurityManager._credentials</code>)</h3>
+<p>The <code>SecurityManager</code> component currently includes an internal, in-memory dictionary (<code>_credentials</code>) for storing credentials that it might be asked to manage via its <code>store_credential</code> method.</p>
+<ul>
+<li><strong>Encryption:</strong> Credentials stored via this mechanism are encrypted using the <code>AURITE_MCP_ENCRYPTION_KEY</code> before being held in this in-memory store.</li>
+<li><strong>Intended Use &amp; Limitations:</strong><ul>
+<li>This in-memory store is primarily intended for <strong>development and testing purposes</strong>, or for scenarios where the framework might temporarily handle a credential that doesn't warrant full external vault integration for a specific use case.</li>
+<li>It is <strong>NOT recommended</strong> for storing highly sensitive production credentials that require robust, persistent, and audited storage solutions.</li>
+<li>For production environments requiring the framework to manage and persist sensitive credentials beyond what's passed for immediate MCP server use, integration with a dedicated secure vault service (e.g., HashiCorp Vault, Azure Key Vault, AWS Secrets Manager) is the best practice. The current <code>SecurityManager</code> provides the encryption primitives but not the persistent secure storage backend.</li>
+</ul>
+</li>
+<li><strong>Data Lifetime:</strong> Credentials stored in this in-memory dictionary are cleared when the <code>SecurityManager</code> (and thus the <code>MCPHost</code>) is shut down.</li>
+</ul>
+<h3 id="4-root-access-control-rootmanager">4. Root Access Control (<code>RootManager</code>)</h3>
+<p>The <code>RootManager</code> (located in <code>src/host/foundation/roots.py</code>) is responsible for managing <strong>Root Configurations</strong> (<code>RootConfig</code>) for each connected MCP client.</p>
+<ul>
+<li><strong>Purpose:</strong> Root configurations define the permissible operational boundaries or namespaces (typically as base URIs) within which an MCP client is allowed to operate or provide resources. For example, a file system client might be rooted at <code>file:///mnt/shared/</code>, meaning it can only list or access files and directories under that path.</li>
+<li><strong>Registration:</strong> <code>MCPHost</code> registers these roots (defined in <code>ClientConfig</code>) with the <code>RootManager</code> during client initialization.</li>
+<li><strong>Enforcement:</strong> While <code>RootManager</code> stores these definitions, the actual enforcement of whether a requested resource URI (e.g., in a <code>read_resource</code> call) falls within a client's allowed roots is typically performed by the <code>ResourceManager</code> (in <code>src/host/resources/resources.py</code>), which consults the <code>RootManager</code>.</li>
+<li><strong>Security Implication:</strong> Properly configured roots are essential for sandboxing clients and preventing them from accessing unauthorized resources or areas of the system. Misconfigured or overly permissive roots can pose a security risk.</li>
+</ul>
+<h3 id="5-request-routing-filtering-messagerouter-filteringmanager-mcphost">5. Request Routing &amp; Filtering (<code>MessageRouter</code>, <code>FilteringManager</code>, <code>MCPHost</code>)</h3>
+<p>Controlled access to tools, prompts, and resources is managed through a combination of components:</p>
+<ul>
+<li><strong><code>MessageRouter</code> (<code>src/host/foundation/routing.py</code>):</strong><ul>
+<li>Acts as a central registry, mapping component names (e.g., tool names, prompt names) or resource URIs to the list of client IDs that provide them.</li>
+<li>It does not, by itself, make security decisions but provides the foundational data for such decisions.</li>
+</ul>
+</li>
+<li><strong><code>FilteringManager</code> (<code>src/host/filtering.py</code>):</strong><ul>
+<li>Provides stateless functions used by <code>MCPHost</code> and Resource Managers to apply filtering rules.</li>
+<li><strong>Client-Level Exclusions:</strong> During component registration, <code>FilteringManager</code> checks the <code>ClientConfig.exclude</code> list to prevent globally disallowed components from a specific client from being registered.</li>
+<li><strong>Agent-Specific Access (<code>AgentConfig</code>):</strong> When <code>MCPHost</code> processes a request from an agent:<ul>
+<li><code>AgentConfig.client_ids</code>: <code>FilteringManager</code> helps filter the list of potential clients (obtained from <code>MessageRouter</code>) down to only those explicitly allowed for the requesting agent.</li>
+<li><code>AgentConfig.exclude_components</code>: <code>FilteringManager</code> helps ensure that an agent cannot use a component explicitly excluded in its configuration, even if provided by an allowed client.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>MCPHost</code> (<code>src/host/host.py</code>):</strong></p>
+<ul>
+<li>Orchestrates the use of <code>MessageRouter</code> to find potential providers and then <code>FilteringManager</code> to apply agent-specific access rules before dispatching a request to a resource manager (e.g., <code>ToolManager</code>).</li>
+</ul>
+</li>
+<li>
+<p><strong>Security Implication:</strong> This layered approach ensures that agents can only access clients and specific components they are explicitly permissioned for via their <code>AgentConfig</code>, providing a critical access control mechanism.</p>
+</li>
+</ul>
+<h3 id="6-environment-variable-handling-for-mcp-server-subprocesses">6. Environment Variable Handling for MCP Server Subprocesses</h3>
+<p>When <code>MCPHost</code> initializes an MCP client (which typically runs as a separate Python subprocess via <code>mcp.stdio_client</code>), it takes care to prepare the environment for that subprocess:</p>
+<ul>
+<li><strong>Base Environment:</strong> The subprocess inherits a copy of the environment from the main Aurite Agents host process.</li>
+<li><strong>GCP Secret Injection:</strong> If <code>ClientConfig.gcp_secrets</code> are defined and <code>USE_SECRETS_MANAGER</code> is enabled, the <code>SecurityManager</code> resolves these secrets, and they are then <strong>added to or overwrite existing variables in the environment specific to that MCP server subprocess.</strong> This is handled by <code>ClientManager</code> before launching the subprocess.</li>
+<li><strong>Mechanism:</strong> These environment variables are passed to the subprocess using standard operating system mechanisms for process creation (typically via the <code>env</code> parameter in Python's <code>subprocess</code> module, which is used by <code>anyio</code> and <code>mcp.stdio_client</code>).</li>
+<li><strong>Security Considerations:</strong><ul>
+<li><strong>Isolation:</strong> Environment variables are generally isolated to the specific child process they are passed to. They are not directly accessible by other MCP server subprocesses or the host process after launch (unless the host process explicitly reads them back, which it doesn't).</li>
+<li><strong>Logging:</strong> The Aurite Agents framework (specifically <code>ClientManager</code> and <code>MCPHost</code>) <strong>does not log the values of these environment variables</strong> (including resolved secrets) during the startup process. It logs that secrets <em>are</em> being injected and how many, but not their content.</li>
+<li><strong>MCP Server Script Responsibility:</strong> Once the MCP server subprocess is launched with these environment variables, it is the responsibility of the MCP server script itself to handle them securely (e.g., not logging them, not writing them to insecure locations). The Aurite Agents framework provides them to the script in a standard way; the script must then maintain their confidentiality.</li>
+<li><strong>Least Privilege:</strong> Ensure that any secrets configured via <code>ClientConfig.gcp_secrets</code> (and the IAM permissions for the ADC identity) grant only the necessary permissions required by that specific MCP server.</li>
+</ul>
+</li>
+</ul>
+<h3 id="7-custom-workflow-execution-customworkflowexecutor">7. Custom Workflow Execution (<code>CustomWorkflowExecutor</code>)</h3>
+<p>The Aurite Agents framework allows for the execution of custom Python-based workflows via the <code>CustomWorkflowExecutor</code> (<code>src/workflows/custom_workflow.py</code>). This feature provides significant flexibility but carries inherent security implications due to the execution of arbitrary Python code.</p>
+<ul>
+<li><strong>Nature of Risk:</strong> Custom workflows execute Python code defined in modules specified by <code>CustomWorkflowConfig</code>. The primary risk is that this code could be insecure, whether unintentionally or maliciously.</li>
+<li><strong>Path Restriction (Mitigation):</strong><ul>
+<li>A critical security control is that the <code>module_path</code> for custom workflow code <strong>must reside within the defined <code>PROJECT_ROOT_DIR</code></strong>. This restriction is enforced by both <code>CustomWorkflowExecutor</code> during execution and <code>HostManager</code> during dynamic registration of new custom workflows. This prevents loading code from arbitrary, potentially unsafe system locations.</li>
+</ul>
+</li>
+<li><strong>Dynamic Registration Control (Mitigation):</strong><ul>
+<li>The <code>AURITE_ALLOW_DYNAMIC_REGISTRATION</code> environment variable (see Section 9 of this document) globally controls whether new custom workflows (and other components) can be registered at runtime. Setting this to <code>"false"</code> (recommended for production) prevents the addition of new custom workflow configurations beyond those defined in the initial project setup.</li>
+</ul>
+</li>
+<li><strong>Trust Model:</strong> The framework inherently trusts the Python code within the modules specified for custom workflows. Developers using this feature are responsible for the security, correctness, and resource management of their custom workflow code.</li>
+<li><strong>Capabilities Granted:</strong> Custom workflows are passed an instance of the <code>ExecutionFacade</code>. This allows them to orchestrate other components within the Aurite Agents framework, such as running agents or other workflows. This power means that a compromised custom workflow could potentially misuse these capabilities.</li>
+<li><strong>Input/Output:</strong> Custom workflows can define arbitrary inputs and outputs. Validation and sanitization of these are the responsibility of the custom workflow's implementation and its calling context.</li>
+</ul>
+<h3 id="8-data-persistence-security-considerations">8. Data Persistence Security Considerations</h3>
+<p>If database persistence is enabled (via <code>AURITE_ENABLE_DB="true"</code>), the <code>StorageManager</code> (<code>src/storage/db_manager.py</code>) handles saving and loading certain configurations and agent conversation history.</p>
+<ul>
+<li><strong>Agent Conversation History:</strong><ul>
+<li>Agent conversation history is stored in the database if <code>AgentConfig.include_history</code> is true and a <code>session_id</code> is provided.</li>
+<li>The content of these conversations (stored in the <code>AgentHistoryDB.content_json</code> column) is saved as-is by the <code>StorageManager</code> (typically as plaintext JSON).</li>
+<li><strong>Security Implication:</strong> If agents handle or discuss sensitive information, this data will be stored in plaintext within the database. The security of this sensitive data then relies heavily on the security measures applied to the database system itself (e.g., access controls, network security, encryption at rest at the database/filesystem level). The Aurite Agents framework does not currently perform application-level encryption of conversation history before storage.</li>
+<li><strong>Recommendation:</strong> Ensure your database instance is appropriately secured if sensitive information is anticipated in agent conversations.</li>
+</ul>
+</li>
+<li><strong>Configuration Storage:</strong><ul>
+<li>Component configurations (Agents, LLMs, Workflows) are also synced to the database. These configurations generally do not contain direct secrets like API keys (which are typically handled via environment variables for the respective clients or via GCP Secret Manager integration). They are stored as-is.</li>
+</ul>
+</li>
+<li><strong>SQL Injection:</strong> The <code>StorageManager</code> uses SQLAlchemy ORM for database interactions, which inherently protects against SQL injection vulnerabilities when used correctly.</li>
+</ul>
+<h3 id="9-dynamic-registration-control-aurite_allow_dynamic_registration">9. Dynamic Registration Control (<code>AURITE_ALLOW_DYNAMIC_REGISTRATION</code>)</h3>
+<p>The <code>HostManager</code> (<code>src/host_manager.py</code>) provides methods for dynamically registering new components (Clients, Agents, LLMs, Simple Workflows, and Custom Workflows) at runtime, typically via API endpoints.</p>
+<ul>
+<li><strong>Purpose:</strong> This environment variable allows administrators to globally enable or disable these dynamic registration capabilities.</li>
+<li><strong>Environment Variable:</strong> <code>AURITE_ALLOW_DYNAMIC_REGISTRATION</code><ul>
+<li>Set to <code>"true"</code> (case-insensitive) to enable dynamic registration.</li>
+<li>If set to any other value, or if not set, dynamic registration will be <strong>disabled by default</strong>.</li>
+</ul>
+</li>
+<li><strong>Behavior When Disabled:</strong> If an attempt is made to call a dynamic registration method (e.g., <code>HostManager.register_agent()</code>) while this feature is disabled, the method will raise a <code>PermissionError</code>.</li>
+<li><strong>Security Implication:</strong><ul>
+<li>Disabling dynamic registration provides an important security hardening measure, especially in production environments or where API endpoints might be exposed. It prevents unauthorized or accidental changes to the running configuration of the Aurite Agents framework.</li>
+<li>If dynamic registration is required, ensure that the API endpoints or other mechanisms that trigger these <code>HostManager</code> methods are adequately secured with authentication and authorization.</li>
+</ul>
+</li>
+<li><strong>Recommendation:</strong> For most production deployments, it is recommended to set <code>AURITE_ALLOW_DYNAMIC_REGISTRATION="false"</code> unless dynamic updates to the configuration are a specific operational requirement and the calling interfaces are secured.</li>
+</ul>
+<h3 id="10-api-authentication-fastapi-server">10. API Authentication (FastAPI Server)</h3>
+<p>The FastAPI server (<code>src/bin/api/api.py</code>) provides the primary programmatic interface to the Aurite Agents framework. Access to its endpoints is controlled via an API key.</p>
+<ul>
+<li><strong>Mechanism:</strong> API key authentication is enforced by a dependency (<code>get_api_key</code> in <code>src/bin/dependencies.py</code>) applied to protected routes.</li>
+<li><strong>Transmission:</strong> The API key <strong>must</strong> be provided in the <code>X-API-Key</code> HTTP header of the request. Transmitting the API key via query parameters is <strong>not supported</strong> to enhance security (as URLs, including query parameters, can be logged in various places).</li>
+<li><strong>Configuration:</strong> The server-side expected API key is configured via the <code>API_KEY</code> environment variable (see <code>.env.example</code>).</li>
+<li><strong>Security Best Practices:</strong><ul>
+<li>The framework uses <code>secrets.compare_digest</code> for comparing the provided API key against the expected key, which helps protect against timing attacks.</li>
+<li>It is crucial to generate a strong, unique, and random string for your <code>API_KEY</code>.</li>
+<li>Treat the <code>API_KEY</code> as a sensitive secret and manage it accordingly (e.g., using environment variables, secrets management tools, and not committing it to version control).</li>
+</ul>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Aurite-ai" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/aurite-agents/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+    
+  </body>
+</html>
