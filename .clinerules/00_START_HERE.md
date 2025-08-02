@@ -7,7 +7,7 @@ You are working in the **Aurite Agents** framework repository, a collaborative p
 1. **Assess the task complexity** (see Section 1 below)
 2. **Select the appropriate rule document** (see Section 2 - Task Router)
 3. **Follow general development principles** (see Section 3)
-4. **Use documentation guide for context** (see `.clinerules/documentation_guide.md`)
+4. **Use documentation guide for context** (see `.clinerules/02_DOCUMENTATION_GUIDE.md`)
 
 ---
 
@@ -71,20 +71,20 @@ For development tasks (Level 3+), follow this guidance:
 
 ```
 ALL development tasks:
-├─ Start with → `development_rules.md`
+├─ Start with → `01_DEVELOPMENT_RULES.md`
 │
 └─ Then, based on task type, ALSO read:
-   ├─ Improving existing code? → Add `refactoring_rules.md`
-   └─ Fixing bugs/errors? → Add `debugging_rules.md`
+   ├─ Improving existing code? → Add `REFACTORING_RULES.md`
+   └─ Fixing bugs/errors? → Add `DEBUGGING_RULES.md`
 ```
 
 ### Quick Reference:
 
-- **All development tasks** → Start with `development_rules.md`
-- **Code improvements** → Also read `refactoring_rules.md`
-- **Bug fixes** → Also read `debugging_rules.md`
+- **All development tasks** → Start with `01_DEVELOPMENT_RULES.md`
+- **Code improvements** → Also read `REFACTORING_RULES.md`
+- **Bug fixes** → Also read `DEBUGGING_RULES.md`
 
-Note: Testing and documentation updates are integral parts of all development tasks and are covered in `development_rules.md`.
+Note: Testing and documentation updates are integral parts of all development tasks and are covered in `01_DEVELOPMENT_RULES.md`.
 
 ---
 
@@ -110,7 +110,7 @@ These rules apply to ALL development tasks, regardless of type:
 ### 3.3 Code Quality
 
 - Write clean, readable, maintainable code
-- Follow the **Aurite Framework Coding Standard** (see `.clinerules/coding_standard.md`)
+- Follow the **Aurite Framework Coding Standard** (see `.clinerules/CODING_STANDARD.md`)
 - Include appropriate comments for complex logic
 - Ensure all relevant tests pass before considering a task complete
 
@@ -148,19 +148,19 @@ These rules apply to ALL development tasks, regardless of type:
 
 ### Essential Documents
 
-- **Documentation Navigation:** `.clinerules/documentation_guide.md`
+- **Documentation Navigation:** `.clinerules/02_DOCUMENTATION_GUIDE.md`
 - **Architecture Overview:** `docs/architecture/overview.md`
 - **Testing Guide:** `tests/README.md`
 
 ### Code Organization
 
-- **Aurite Framework Coding Standard:** `.clinerules/coding_standard.md`
+- **Aurite Framework Coding Standard:** `.clinerules/CODING_STANDARD.md`
 
 ### Task-Specific Rules (Level 3+ tasks)
 
-- **All Development:** `.clinerules/development_rules.md`
-- **Refactoring:** `.clinerules/refactoring_rules.md`
-- **Debugging:** `.clinerules/debugging_rules.md`
+- **All Development:** `.clinerules/01_DEVELOPMENT_RULES.md`
+- **Refactoring:** `.clinerules/REFACTORING_RULES.md`
+- **Debugging:** `.clinerules/DEBUGGING_RULES.md`
 
 ### Implementation Plans
 
