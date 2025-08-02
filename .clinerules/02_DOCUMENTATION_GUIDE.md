@@ -13,9 +13,8 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 3. **Configuration Reference** - How to configure framework components
 4. **Interfaces & Usage** - How to interact with the framework (API, CLI, TUI)
 5. **Architecture & Design** - Technical architecture and design decisions
-6. **Testing** - Test strategies and execution
-7. **Frontend** - Frontend client, examples, and usage
-8. **Internal Resources** - Implementation plans and external references
+6. **Frontend** - Frontend client, examples, and usage
+7. **Internal Resources** - Implementation plans and external references
 
 ### 1. Getting Started
 
@@ -109,18 +108,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `reference/` - Reference documentation and examples
   - `config_examples.md` - Comprehensive configuration examples and patterns
 
-### 6. Testing
-
-**Purpose:** Guide for running tests and understanding test strategies
-**Audience:** Contributors and developers
-**Location:** `tests/` + `docs/testing/`
-**Documents:**
-
-- `tests/README.md` - Test execution guide and strategies
-- `docs/testing/api_test_coverage_connections.md` - API test coverage analysis
-- `docs/testing/api_test_coverage_visual.md` - Visual test coverage documentation
-
-### 7. Frontend
+### 6. Frontend
 
 **Purpose:** Documentation for the TypeScript/JavaScript frontend client and examples
 **Audience:** Frontend developers, users of the API client
@@ -132,7 +120,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `frontend/packages/api-client/examples/README.md` - Detailed guide to API client examples
 - `frontend/packages/aurite-studio/README.md` - React-based web UI documentation
 
-### 8. Internal Resources
+### 7. Internal Resources
 
 **Purpose:** Internal references and implementation details
 **Audience:** Framework maintainers
@@ -144,7 +132,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
     **Notes:**
 - Not included in open-source releases
 
-### 9. Copilot Guides
+### 8. Copilot Guides
 
 **Purpose:** Specialized guides for development and testing workflows
 **Audience:** Framework developers using AI copilots
@@ -153,7 +141,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 
 - `mcp_server_testing_guide.md` - Guide for testing MCP server implementations
 
-### 10. Documentation Assets
+### 9. Documentation Assets
 
 **Purpose:** Diagrams, logos, stylesheets, and images used in documentation
 **Location:** `docs/images/` + `docs/assets/`

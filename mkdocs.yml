@@ -110,9 +110,6 @@ nav:
           - "Session Management": "architecture/flow/session_management_flow.md"
       - "Reference":
           - "Configuration Examples": "architecture/reference/config_examples.md"
-  - "Testing":
-      - "API Test Coverage Connections": "testing/api_test_coverage_connections.md"
-      - "API Test Coverage Visual": "testing/api_test_coverage_visual.md"
   - "Copilot Guides":
       - "MCP Server Testing": "copilot_guides/mcp_server_testing_guide.md"
   - "Changelog": "CHANGELOG.md"
