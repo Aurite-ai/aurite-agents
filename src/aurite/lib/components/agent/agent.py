@@ -97,7 +97,7 @@ class Agent:
                             history, and any errors.
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
-        max_iterations = self.config.max_iterations or 10
+        max_iterations = self.config.max_iterations
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Conversation loop iteration {current_iteration + 1}")
@@ -164,7 +164,7 @@ class Agent:
         """
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
-        max_iterations = self.config.max_iterations or 10
+        max_iterations = self.config.max_iterations
         llm_started = False
 
         for current_iteration in range(max_iterations):
@@ -234,7 +234,10 @@ class Agent:
                         elif event_type == "message_complete":
                             content = event.get("content", "")
                             self.conversation_history.append({"role": "assistant", "content": content})
-                            yield {"type": "llm_response_stop", "data": {}}
+                            yield {
+                                "type": "llm_response_stop",
+                                "data": {"status": "success", "reason": "message_complete"},
+                            }
                             if not is_tool_turn:
                                 return  # End of conversation
 
@@ -254,3 +257,4 @@ class Agent:
                 return
 
         logger.warning(f"Reached max iterations ({max_iterations}) in stream. Ending conversation.")
+        yield {"type": "llm_response_stop", "data": {"status": "error", "reason": "turn_limit_reached"}}

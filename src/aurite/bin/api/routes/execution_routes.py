@@ -19,7 +19,7 @@ from ....lib.models import (
     WorkflowRunRequest,
 )
 from ....lib.storage.sessions.session_manager import SessionManager
-from ....utils.errors import ConfigurationError, WorkflowExecutionError
+from ....utils.errors import ConfigurationError, MaxIterationsReachedError, WorkflowExecutionError
 from ...dependencies import (
     get_api_key,
     get_config_manager,
@@ -78,6 +78,9 @@ async def run_agent(
                 config_manager.validate_llm(agent_config.llm_config_id)
 
             return result.model_dump()
+
+        elif result.status == "max_iterations_reached":
+            raise MaxIterationsReachedError(result.error_message)
 
         if result.exception:
             raise result.exception

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, CheckCircle, AlertCircle, StopCircle, User, Bot, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ExecutionPanelProps } from '@/types/execution';
@@ -11,8 +12,10 @@ import { DebugSection } from './DebugSection';
 export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
   agent,
   executionState,
-  onStateChange
+  onStateChange,
+  onClose
 }) => {
+  const navigate = useNavigate();
   const handleCancelExecution = () => {
     onStateChange({
       ...executionState,
@@ -265,6 +268,42 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                 >
                   Start New Execution
                 </Button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'max_iterations_reached':
+        return (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto">
+                <AlertCircle className="h-8 w-8 text-orange-500" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium">Maximum Iterations Reached</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  The agent reached its maximum iteration limit{agent.max_iterations ? ` of ${agent.max_iterations}` : ''}. 
+                  Consider increasing the max_iterations setting or simplifying your request.
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => onStateChange({ ...executionState, status: 'idle' })}
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      // Navigate to agent edit page and close modal
+                      navigate(`/agents/${encodeURIComponent(agent.name)}/edit?focus=max_iterations`);
+                      onClose?.();
+                    }}
+                  >
+                    Adjust Settings
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

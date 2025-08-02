@@ -34,7 +34,7 @@ export interface ExecutionRequest {
 
 // Execution State
 export interface ExecutionState {
-  status: 'idle' | 'starting' | 'executing' | 'completed' | 'failed' | 'cancelled';
+  status: 'idle' | 'starting' | 'executing' | 'completed' | 'failed' | 'cancelled' | 'max_iterations_reached';
   progress: number;
   currentStep?: string;
   startTime?: Date;
@@ -108,6 +108,12 @@ export interface StreamEvent {
   execution_id: string;
 }
 
+// Stream Stop Event Data
+export interface StreamStopData {
+  status: 'success' | 'error';
+  reason?: 'turn_limit_reached' | 'user_cancelled' | 'error' | 'completed';
+}
+
 // Session Information
 export interface SessionInfo {
   id: string;
@@ -137,6 +143,7 @@ export interface ExecutionPanelProps {
   agent: AgentConfig;
   executionState: ExecutionState;
   onStateChange: (state: ExecutionState) => void;
+  onClose?: () => void;
 }
 
 export interface StreamingHandlerProps {
