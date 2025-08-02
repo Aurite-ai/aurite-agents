@@ -75,13 +75,13 @@ nav:
           - "Repository Installation": "getting-started/installation_guides/repository_installation_guide.md"
       - "Tutorials":
           - "Overview": "getting-started/tutorials/Tutorials_Overview.md"
-          # - "01: Introducing Aurite Agents": "getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb"
-          # - "02: Agents and Tools": "getting-started/tutorials/02_Agents_and_Tools.ipynb"
-          # - "03: Agent Challenge": "getting-started/tutorials/03_Agent_Challenge.ipynb"
-          # - "04: Agent Challenge Solutions": "getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb"
-          # - "05: LLMs, Schemas, and Workflows": "getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb"
-          # - "06: Building Your Own MCP Server": "getting-started/tutorials/06_Building_Your_Own_MCP_Server.md"
-          # - "07: Understanding Projects": "getting-started/tutorials/07_Understanding_Projects.md"
+          - "01: Introducing Aurite Agents": "getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb"
+          - "02: Agents and Tools": "getting-started/tutorials/02_Agents_and_Tools.ipynb"
+          - "03: Agent Challenge": "getting-started/tutorials/03_Agent_Challenge.ipynb"
+          - "04: Agent Challenge Solutions": "getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb"
+          - "05: LLMs, Schemas, and Workflows": "getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb"
+          - "06: Building Your Own MCP Server": "getting-started/tutorials/06_Building_Your_Own_MCP_Server.md"
+          - "07: Understanding Projects": "getting-started/tutorials/07_Understanding_Projects.md"
       - "Project Ideas":
           - "Overview": "getting-started/project_ideas/Project_Ideas_Overview.md"
           - "Customer Support": "getting-started/project_ideas/Project_Ideas_Customer_Support.md"
@@ -103,6 +103,7 @@ nav:
           - "MCP Host": "usage/routes/mcp_host_routes.md"
           - "System": "usage/routes/system_routes.md"
   - "Architecture":
+      - "Overview": "architecture/overview.md"
       - "Design":
           - "Aurite Engine": "architecture/design/aurite_engine_design.md"
           - "Config Manager": "architecture/design/config_manager_design.md"
@@ -111,6 +112,7 @@ nav:
           - "Aurite Engine Flow": "architecture/flow/aurite_engine_execution_flow.md"
           - "Config Index Building": "architecture/flow/config_index_building_flow.md"
           - "MCP Server Registration": "architecture/flow/mcp_server_registration_flow.md"
+          - "Session Management": "architecture/flow/session_management_flow.md"
       - "Reference":
           - "Configuration Examples": "architecture/reference/config_examples.md"
   - "Testing":
