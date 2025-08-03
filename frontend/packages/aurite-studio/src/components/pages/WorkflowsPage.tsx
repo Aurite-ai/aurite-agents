@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Workflow, Plus, Edit, Play, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import HoverExpandEditButton from '@/components/ui/HoverExpandEditButton';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useExecuteWorkflow, useExecuteCustomWorkflow } from '@/hooks/useWorkflows';
 import { UnifiedWorkflowExecutionInterface } from '@/components/execution/UnifiedWorkflowExecutionInterface';
 import { WorkflowConfig } from '@/types/execution';
@@ -32,11 +33,11 @@ export default function WorkflowsPage() {
     navigate('/workflows/new');
   };
 
-  const handleEditWorkflow = (workflow: any) => {
+  const handleEditWorkflow = (workflow: any, mode: 'text' | 'visual') => {
     const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
     
-    // Navigate to edit form
-    navigate(`/workflows/${encodeURIComponent(workflowName)}/edit`);
+    // Navigate to appropriate edit form based on mode
+    navigate(`/workflows/${encodeURIComponent(workflowName)}/edit/${mode}`);
   };
 
   const handleRunWorkflow = async (workflow: any) => {
@@ -159,15 +160,10 @@ export default function WorkflowsPage() {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1.5" 
-                      onClick={() => handleEditWorkflow(workflow)}
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
+                    <HoverExpandEditButton 
+                      workflow={workflow}
+                      onEdit={handleEditWorkflow}
+                    />
                     <Button 
                       size="sm" 
                       className="gap-1.5"

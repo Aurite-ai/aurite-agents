@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, X } from 'lucide-react';
 import {
@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAgentsWithConfigs } from '@/hooks/useAgents';
-import { useCreateWorkflow } from '@/hooks/useWorkflows';
+import { useCreateWorkflow, useUpdateWorkflow, useWorkflowConfigByName } from '@/hooks/useWorkflows';
 import AgentPalette from './visual/AgentPalette';
 
 // Custom styles for dark theme controls
@@ -229,10 +229,12 @@ const edgeTypes: EdgeTypes = {
 
 export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkflowBuilderProps): React.ReactElement {
   const navigate = useNavigate();
+  const { name: workflowNameParam } = useParams<{ name: string }>();
   
   // Form state
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
+  const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
   
   // React Flow state
   const initialNodes: Node[] = [];
@@ -243,6 +245,13 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   // API Hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
   const createWorkflow = useCreateWorkflow();
+  const updateWorkflow = useUpdateWorkflow();
+  
+  // Workflow-specific hooks for edit mode
+  const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
+    workflowNameParam || '',
+    !!workflowNameParam && editMode
+  );
 
   // Handle edge deletion by ID
   const handleEdgeDelete = useCallback((edgeId: string) => {
@@ -286,6 +295,78 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
       edge.source !== nodeId && edge.target !== nodeId
     ));
   }, [setNodes, setEdges]);
+
+  // Convert workflow steps to visual nodes and edges
+  const convertStepsToVisual = useCallback((steps: string[]) => {
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
+    
+    steps.forEach((step, index) => {
+      // Create node for each step
+      const node: Node = {
+        id: `agent-${index}`,
+        type: 'agentNode',
+        position: { x: 150, y: 100 + (index * 120) }, // Vertical layout
+        data: {
+          label: step,
+          agentName: step,
+          onDelete: handleNodeDelete,
+        },
+      };
+      newNodes.push(node);
+      
+      // Create edge to connect to next step
+      if (index < steps.length - 1) {
+        const edge: Edge = {
+          id: `edge-${index}`,
+          source: `agent-${index}`,
+          target: `agent-${index + 1}`,
+          type: 'custom',
+          animated: true,
+          style: { stroke: '#6366f1', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#6366f1',
+          },
+          data: {
+            onDelete: handleEdgeDelete,
+          },
+        };
+        newEdges.push(edge);
+      }
+    });
+    
+    return { nodes: newNodes, edges: newEdges };
+  }, [handleNodeDelete, handleEdgeDelete]);
+
+  // Effect to populate workflow form when workflow config is loaded
+  useEffect(() => {
+    if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
+      console.log('🔄 Populating visual workflow form with config:', workflowConfig);
+      
+      // Populate form fields
+      setWorkflowName(workflowConfig.name || '');
+      setWorkflowDescription(workflowConfig.description || '');
+      
+      // Convert steps to visual representation
+      if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
+        const { nodes: newNodes, edges: newEdges } = convertStepsToVisual(workflowConfig.steps);
+        setNodes(newNodes);
+        setEdges(newEdges);
+      }
+      
+      // Mark form as populated
+      setWorkflowFormPopulated(true);
+      console.log('✅ Visual workflow form populated successfully');
+    } else if (!editMode && !workflowFormPopulated) {
+      // Initialize form for create mode
+      setWorkflowName('');
+      setWorkflowDescription('');
+      setNodes([]);
+      setEdges([]);
+      setWorkflowFormPopulated(true);
+    }
+  }, [workflowConfig, workflowNameParam, editMode, workflowFormPopulated, convertStepsToVisual, setNodes, setEdges]);
 
   // Handle agent drop from palette
   const onAgentDrop = useCallback((agentName: string, position: { x: number; y: number }) => {
@@ -349,15 +430,32 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     const workflowConfig = convertToWorkflowConfig();
     console.log('💾 Saving visual workflow config:', workflowConfig);
 
-    createWorkflow.mutate(workflowConfig, {
-      onSuccess: () => {
-        console.log('✅ Visual workflow created successfully');
-        navigate('/workflows');
-      },
-      onError: (error) => {
-        console.error('❌ Failed to create visual workflow:', error);
-      }
-    });
+    if (editMode && workflowNameParam) {
+      // Edit mode - update existing workflow
+      updateWorkflow.mutate({
+        filename: workflowNameParam,
+        config: workflowConfig
+      }, {
+        onSuccess: () => {
+          console.log('✅ Visual workflow updated successfully');
+          navigate('/workflows');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to update visual workflow:', error);
+        }
+      });
+    } else {
+      // Create mode - create new workflow
+      createWorkflow.mutate(workflowConfig, {
+        onSuccess: () => {
+          console.log('✅ Visual workflow created successfully');
+          navigate('/workflows');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to create visual workflow:', error);
+        }
+      });
+    }
   };
 
   return (
@@ -386,7 +484,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-2xl font-bold text-primary">
-              Build New Visual Workflow
+              {editMode ? 'Edit Visual Workflow' : 'Build New Visual Workflow'}
             </h1>
           </div>
           
@@ -400,15 +498,15 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             <Button 
               className="px-6"
               onClick={handleSubmit}
-              disabled={createWorkflow.isPending || !workflowName.trim() || nodes.length === 0}
+              disabled={(createWorkflow.isPending || updateWorkflow.isPending) || !workflowName.trim() || nodes.length === 0}
             >
-              {createWorkflow.isPending ? (
+              {(createWorkflow.isPending || updateWorkflow.isPending) ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Creating...
+                  {editMode ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                'Save Visual Workflow'
+                editMode ? 'Update Visual Workflow' : 'Save Visual Workflow'
               )}
             </Button>
           </div>
@@ -416,6 +514,14 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
 
         {/* Workflow Details */}
         <div className="px-6 py-4 border-b border-border bg-card space-y-4">
+          {/* Loading State for Workflow Config */}
+          {workflowConfigLoading && editMode && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading workflow configuration...
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="visual-workflow-name" className="text-sm font-medium text-foreground">

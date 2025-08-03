@@ -33,7 +33,12 @@ function App() {
         <Route path="/workflows/new" element={<Layout><WorkflowCreationModeSelector /></Layout>} />
         <Route path="/workflows/new/text" element={<Layout><WorkflowForm editMode={false} /></Layout>} />
         <Route path="/workflows/new/visual" element={<Layout><VisualWorkflowBuilder editMode={false} /></Layout>} />
+        
+        {/* Edit Routes - Legacy route redirects to text mode for backward compatibility */}
         <Route path="/workflows/:name/edit" element={<Layout><WorkflowForm editMode={true} /></Layout>} />
+        <Route path="/workflows/:name/edit/text" element={<Layout><WorkflowForm editMode={true} /></Layout>} />
+        <Route path="/workflows/:name/edit/visual" element={<Layout><VisualWorkflowBuilder editMode={true} /></Layout>} />
+        
         <Route path="/workflows/custom/:name/edit" element={<Layout><CustomWorkflowForm editMode={true} /></Layout>} />
         <Route path="/mcp-clients/new" element={<Layout><MCPClientForm editMode={false} /></Layout>} />
         <Route path="/mcp-clients/:name/edit" element={<Layout><MCPClientForm editMode={true} /></Layout>} />
