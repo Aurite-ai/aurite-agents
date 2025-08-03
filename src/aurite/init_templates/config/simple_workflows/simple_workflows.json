@@ -1,0 +1,10 @@
+[
+  {
+    "type": "simple_workflow",
+    "steps": [
+      "History Test Agent A1",
+      "History Test Agent A2"
+    ],
+    "name": "test nid1"
+  }
+]

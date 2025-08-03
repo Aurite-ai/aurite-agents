@@ -1,0 +1,534 @@
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Loader2, X } from 'lucide-react';
+import {
+  ReactFlow,
+  Node,
+  Edge,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Connection,
+  Controls,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  NodeTypes,
+  EdgeTypes,
+  Handle,
+  Position,
+  MarkerType,
+  ConnectionMode,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  EdgeProps,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useAgentsWithConfigs } from '@/hooks/useAgents';
+import { useCreateWorkflow } from '@/hooks/useWorkflows';
+import AgentPalette from './visual/AgentPalette';
+
+// Custom styles for dark theme controls
+const controlsStyle = `
+  .react-flow__controls {
+    background: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    padding: 4px !important;
+  }
+  
+  .react-flow__controls-button {
+    background: hsl(var(--background)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 6px !important;
+    color: hsl(var(--foreground)) !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .react-flow__controls-button:hover {
+    background: hsl(var(--muted)) !important;
+    border-color: hsl(var(--primary)) !important;
+    transform: scale(1.05) !important;
+  }
+  
+  .react-flow__controls-button svg {
+    fill: hsl(var(--foreground)) !important;
+    stroke: hsl(var(--foreground)) !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .react-flow__controls-button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+  }
+  
+  .react-flow__minimap {
+    background: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+  }
+  
+  .react-flow__minimap-mask {
+    fill: hsl(var(--primary) / 0.2) !important;
+    stroke: hsl(var(--primary)) !important;
+    stroke-width: 2px !important;
+  }
+  
+  .react-flow__minimap-node {
+    fill: hsl(var(--muted-foreground)) !important;
+  }
+`;
+
+interface VisualWorkflowBuilderProps {
+  editMode?: boolean;
+}
+
+// Custom node type for agents
+const AgentNode = ({ data, id }: { data: any; id: string }) => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data?.onDelete && typeof data.onDelete === 'function') {
+      data.onDelete(id);
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-3 shadow-sm min-w-[150px] relative group hover:shadow-md transition-shadow">
+      {/* Delete Button - Top Right */}
+      <button
+        onClick={handleDelete}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive hover:bg-destructive/80 text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md z-10"
+        title="Delete agent"
+      >
+        <X className="h-3 w-3" />
+      </button>
+
+      {/* Input Handle - Top */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+        style={{ 
+          top: -8,
+          borderRadius: '50%',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        id="input"
+      />
+      
+      {/* Node Content */}
+      <div className="text-sm font-medium text-foreground">{data.label}</div>
+      {data.description && (
+        <div className="text-xs text-muted-foreground mt-1">{data.description}</div>
+      )}
+      
+      {/* Output Handle - Bottom */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+        style={{ 
+          bottom: -8,
+          borderRadius: '50%',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        id="output"
+      />
+    </div>
+  );
+};
+
+// Custom edge with delete button
+const CustomEdge = ({ 
+  id, 
+  sourceX, 
+  sourceY, 
+  targetX, 
+  targetY, 
+  sourcePosition, 
+  targetPosition,
+  style = {},
+  markerEnd,
+  data 
+}: EdgeProps) => {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const handleDelete = () => {
+    if (data?.onDelete && typeof data.onDelete === 'function') {
+      data.onDelete(id);
+    }
+  };
+
+  return (
+    <>
+      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            fontSize: 12,
+            pointerEvents: 'all',
+          }}
+          className="nodrag nopan"
+        >
+          <button
+            onClick={handleDelete}
+            className="w-5 h-5 bg-destructive hover:bg-destructive/80 text-destructive-foreground rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-all duration-200 opacity-0 hover:opacity-100 group-hover:opacity-100"
+            title="Delete connection"
+            style={{
+              opacity: 0.7,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '0.7';
+            }}
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+};
+
+// Define custom node types
+const nodeTypes: NodeTypes = {
+  agentNode: AgentNode,
+};
+
+// Define custom edge types
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
+};
+
+export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkflowBuilderProps): React.ReactElement {
+  const navigate = useNavigate();
+  
+  // Form state
+  const [workflowName, setWorkflowName] = useState('');
+  const [workflowDescription, setWorkflowDescription] = useState('');
+  
+  // React Flow state
+  const initialNodes: Node[] = [];
+  const initialEdges: Edge[] = [];
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  
+  // API Hooks
+  const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
+  const createWorkflow = useCreateWorkflow();
+
+  // Handle edge deletion by ID
+  const handleEdgeDelete = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter(edge => edge.id !== edgeId));
+  }, [setEdges]);
+
+  // Handle edge connections
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (params.source && params.target) {
+        const newEdge = {
+          id: `edge-${params.source}-${params.target}-${Date.now()}`,
+          source: params.source,
+          target: params.target,
+          sourceHandle: params.sourceHandle,
+          targetHandle: params.targetHandle,
+          type: 'custom',
+          animated: true,
+          style: { stroke: '#6366f1', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#6366f1',
+          },
+          data: {
+            onDelete: handleEdgeDelete,
+          },
+        };
+        
+        setEdges((eds) => [...eds, newEdge]);
+      }
+    },
+    [setEdges, handleEdgeDelete]
+  );
+
+  // Handle node deletion by ID
+  const handleNodeDelete = useCallback((nodeId: string) => {
+    // Remove the node
+    setNodes((nds) => nds.filter(node => node.id !== nodeId));
+    // Remove any edges connected to this node
+    setEdges((eds) => eds.filter(edge => 
+      edge.source !== nodeId && edge.target !== nodeId
+    ));
+  }, [setNodes, setEdges]);
+
+  // Handle agent drop from palette
+  const onAgentDrop = useCallback((agentName: string, position: { x: number; y: number }) => {
+    const newNode: Node = {
+      id: `agent-${Date.now()}`,
+      type: 'agentNode',
+      position,
+      data: {
+        label: agentName,
+        agentName: agentName,
+        onDelete: handleNodeDelete,
+      },
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes, handleNodeDelete]);
+
+  // Handle node deletion
+  const onNodesDelete = useCallback(
+    (deletedNodes: Node[]) => {
+      const deletedNodeIds = deletedNodes.map(node => node.id);
+      // Also remove any edges connected to deleted nodes
+      setEdges((eds) => eds.filter(edge => 
+        !deletedNodeIds.includes(edge.source) && !deletedNodeIds.includes(edge.target)
+      ));
+    },
+    [setEdges]
+  );
+
+  // Handle edge deletion
+  const onEdgesDelete = useCallback(
+    (deletedEdges: Edge[]) => {
+      // Edges are automatically removed by React Flow, this is just for logging
+      console.log('Deleted edges:', deletedEdges.map(e => e.id));
+    },
+    []
+  );
+
+  // Convert visual workflow to text workflow format
+  const convertToWorkflowConfig = () => {
+    // For now, create a simple sequential workflow from nodes
+    // This is a basic implementation - can be enhanced for complex flows
+    const steps = nodes.map(node => node.data?.agentName).filter(Boolean) as string[];
+    
+    return {
+      name: workflowName,
+      type: "simple_workflow" as const,
+      steps: steps,
+      description: workflowDescription || undefined
+    };
+  };
+
+
+
+  // Handle save workflow
+  const handleSubmit = () => {
+    if (!workflowName.trim() || nodes.length === 0) {
+      return;
+    }
+
+    const workflowConfig = convertToWorkflowConfig();
+    console.log('💾 Saving visual workflow config:', workflowConfig);
+
+    createWorkflow.mutate(workflowConfig, {
+      onSuccess: () => {
+        console.log('✅ Visual workflow created successfully');
+        navigate('/workflows');
+      },
+      onError: (error) => {
+        console.error('❌ Failed to create visual workflow:', error);
+      }
+    });
+  };
+
+  return (
+    <div className="flex h-screen bg-background text-foreground">
+      {/* Inject custom styles for controls */}
+      <style dangerouslySetInnerHTML={{ __html: controlsStyle }} />
+      
+      {/* Left Sidebar - Agent Palette */}
+      <AgentPalette 
+        agents={agents}
+        isLoading={agentsLoading}
+        onAgentDrop={onAgentDrop}
+      />
+
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/workflows')}
+              className="w-9 h-9"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold text-primary">
+              Build New Visual Workflow
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/workflows')}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="px-6"
+              onClick={handleSubmit}
+              disabled={createWorkflow.isPending || !workflowName.trim() || nodes.length === 0}
+            >
+              {createWorkflow.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                'Save Visual Workflow'
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Workflow Details */}
+        <div className="px-6 py-4 border-b border-border bg-card space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="visual-workflow-name" className="text-sm font-medium text-foreground">
+                Workflow Name
+              </Label>
+              <Input
+                id="visual-workflow-name"
+                placeholder="e.g., Visual Data Processing Workflow"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                className="text-base"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="visual-workflow-description" className="text-sm font-medium text-foreground">
+                Description (Optional)
+              </Label>
+              <Input
+                id="visual-workflow-description"
+                placeholder="Brief description of the workflow"
+                value={workflowDescription}
+                onChange={(e) => setWorkflowDescription(e.target.value)}
+                className="text-base"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div 
+          className="flex-1"
+          onDrop={(e) => {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('application/json');
+            
+            if (data) {
+              try {
+                const { agentName } = JSON.parse(data);
+                const reactFlowBounds = document.querySelector('.react-flow')?.getBoundingClientRect();
+                
+                if (reactFlowBounds) {
+                  const position = {
+                    x: e.clientX - reactFlowBounds.left - 75, // Center the node
+                    y: e.clientY - reactFlowBounds.top - 25,
+                  };
+                  onAgentDrop(agentName, position);
+                }
+              } catch (error) {
+                console.error('Error parsing drag data:', error);
+              }
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+          }}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            className="bg-background"
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              animated: true,
+              style: { stroke: '#6366f1', strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#6366f1',
+              },
+            }}
+            connectionLineStyle={{ 
+              stroke: '#6366f1', 
+              strokeWidth: 2,
+              strokeDasharray: '5,5'
+            }}
+            connectionMode={ConnectionMode.Loose}
+            snapToGrid={true}
+            snapGrid={[20, 20]}
+            deleteKeyCode="Delete"
+            multiSelectionKeyCode="Shift"
+            selectNodesOnDrag={false}
+          >
+            <Controls />
+            <MiniMap 
+              nodeColor={(node) => '#6366f1'}
+            />
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+          </ReactFlow>
+        </div>
+
+        {/* Status Bar */}
+        <div className="px-6 py-2 border-t border-border bg-card">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              {nodes.length} agent{nodes.length !== 1 ? 's' : ''} • {edges.length} connection{edges.length !== 1 ? 's' : ''}
+            </span>
+            <span>
+              {nodes.length === 0 
+                ? "Drag agents from the left panel to create your workflow"
+                : "Connect: drag from bottom to top blue dots • Delete: hover over agent/connection and click X"
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
