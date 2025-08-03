@@ -31,7 +31,7 @@ theme:
     - content.code.copy
 
 plugins:
-  - mkdocs-jupyter
+  # - mkdocs-jupyter
   - search
   - gen-files:
       scripts:
@@ -69,6 +69,7 @@ markdown_extensions:
 nav:
   - "Home": "index.md"
   - "Getting Started":
+      - "Quick Start": "getting-started/quick_start.md"
       - "Installation":
           - "Package Installation": "getting-started/installation_guides/package_installation_guide.md"
           - "Repository Installation": "getting-started/installation_guides/repository_installation_guide.md"
@@ -81,6 +82,10 @@ nav:
           - "05: LLMs, Schemas, and Workflows": "getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb"
           - "06: Building Your Own MCP Server": "getting-started/tutorials/06_Building_Your_Own_MCP_Server.md"
           - "07: Understanding Projects": "getting-started/tutorials/07_Understanding_Projects.md"
+  - "Usage":
+      - "CLI Reference": "usage/cli_reference.md"
+      - "API Reference": "usage/api_reference.md"
+      - "TUI Guide": "usage/tui_guide.md"
   - "Configuration":
       - "Projects and Workspaces": "config/projects_and_workspaces.md"
       - "Agent": "config/agent.md"
@@ -88,10 +93,6 @@ nav:
       - "Linear Workflow": "config/linear_workflow.md"
       - "Custom Workflow": "config/custom_workflow.md"
       - "MCP Server": "config/mcp_server.md"
-  - "Usage":
-      - "CLI Reference": "usage/cli_reference.md"
-      - "API Reference": "usage/api_reference.md"
-      - "TUI Guide": "usage/tui_guide.md"
   - "Architecture":
       - "Overview": "architecture/overview.md"
       - "Design":

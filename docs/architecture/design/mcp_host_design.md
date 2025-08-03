@@ -267,7 +267,7 @@ The MCP Host implements comprehensive error handling patterns following the fram
 
 The MCP Host consumes server configurations provided by the ConfigManager. All configuration examples, validation patterns, and integration scenarios are documented in the ConfigManager flow documentation.
 
-> 📋 **Configuration Reference**: See [MCP Server Configuration Patterns](../flow/config_index_building_flow.md) for comprehensive configuration examples, transport-specific patterns, environment variable usage, and validation examples.
+> 📋 **Configuration Reference**: See [Configuration Examples Reference](../reference/config_examples.md) for comprehensive configuration examples, transport-specific patterns, and validation examples.
 
 ## Integration Points
 

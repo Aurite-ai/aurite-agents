@@ -4,8 +4,9 @@ Linear workflows provide a straightforward way to execute a series of components
 
 A linear workflow configuration is a JSON or YAML object with a `type` field set to `"linear_workflow"`.
 
+<!-- prettier-ignore -->
 !!! info "How It Works"
-When you execute a linear workflow, the framework iterates through the `steps` list in order. The output from one step is passed as the input to the next, allowing you to chain components together to create a processing pipeline.
+    When you execute a linear workflow, the framework iterates through the `steps` list in order. The output from one step is passed as the input to the next, allowing you to chain components together to create a processing pipeline.
 
 ---
 
@@ -17,12 +18,12 @@ The `WorkflowConfig` defines the structure for a linear workflow.
 
     These fields define the fundamental properties of the workflow.
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
-    | `name` | `string` | Yes | A unique identifier for the workflow. This name is used to run the workflow from the CLI or API. |
-    | `description` | `string` | No | A brief, human-readable description of what the workflow accomplishes. |
-    | `steps` | `list[string or object]` | Yes | An ordered list of the components to execute. See "Steps Configuration" below for details. |
-    | `include_history` | `boolean` | No | If set, overrides the `include_history` setting for all agents in the workflow, forcing them all to either save or discard history. |
+    | Field             | Type                     | Required | Description                                                                                                                         |
+    | ----------------- | ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+    | `name`            | `string`                 | Yes      | A unique identifier for the workflow. This name is used to run the workflow from the CLI or API.                                    |
+    | `description`     | `string`                 | No       | A brief, human-readable description of what the workflow accomplishes.                                                              |
+    | `steps`           | `list[string or object]` | Yes      | An ordered list of the components to execute. See "Steps Configuration" below for details.                                          |
+    | `include_history` | `boolean`                | `None`   | If set, overrides the `include_history` setting for all agents in the workflow, forcing them all to either save or discard history. |
 
 === ":material-step-forward: Steps Configuration"
 
@@ -46,6 +47,7 @@ The `WorkflowConfig` defines the structure for a linear workflow.
       { "name": "analysis-pipeline", "type": "linear_workflow" }
     ]
     ```
+
     The `type` can be `"agent"`, `"linear_workflow"`, or `"custom_workflow"`.
 
 ---
@@ -53,7 +55,8 @@ The `WorkflowConfig` defines the structure for a linear workflow.
 ## :material-code-json: Configuration Examples
 
 === "Simple Pipeline"
-This example defines a two-step workflow for processing customer feedback.
+
+    This example defines a two-step workflow for processing customer feedback.
 
     ```json
     {
@@ -65,7 +68,8 @@ This example defines a two-step workflow for processing customer feedback.
     ```
 
 === "Workflow with History Override"
-This workflow forces all agents within it to maintain conversation history, which is useful for debugging or creating a continuous conversational experience across multiple agents.
+
+    This workflow forces all agents within it to maintain conversation history, which is useful for debugging or creating a continuous conversational experience across multiple agents.
 
     ```json
     {
@@ -78,7 +82,8 @@ This workflow forces all agents within it to maintain conversation history, whic
     ```
 
 === "Nested Workflow"
-This example shows how a linear workflow can include another workflow as one of its steps.
+
+    This example shows how a linear workflow can include another workflow as one of its steps.
 
     ```json
     {
@@ -91,3 +96,4 @@ This example shows how a linear workflow can include another workflow as one of 
         { "name": "distribution-workflow", "type": "custom_workflow" }
       ]
     }
+    ```

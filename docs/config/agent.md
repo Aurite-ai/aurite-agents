@@ -22,35 +22,37 @@ The `AgentConfig` defines the structure for an agent configuration. Below are th
     | --- | --- | --- | --- |
     | `name` | `string` | Yes | A unique identifier for the agent. This name is used to reference the agent in workflows and commands. |
     | `description` | `string` | No | A brief, human-readable description of what the agent does. |
+    | `llm_config_id` | `string` | `None` | The `name` of an `llm` component to use. This is the recommended way to assign an LLM, allowing for reusable configurations. |
     | `system_prompt` | `string` | No | The primary system prompt for the agent. This can be overridden by the `system_prompt` in the `llm` block. |
+    | `mcp_servers` | `list[string]` | `[]` | A list of `mcp_server` component names this agent can use. The agent gains access to all tools, prompts, and resources from these servers. |
+    | `config_validation_schema` | `dict` | `None` | A JSON schema for validating agent-specific configurations. |
 
-=== ":material-tools: Capability Management"
+=== ":material-tools: Tool Management"
 
     These fields control which tools and resources the agent can access.
 
     | Field | Type | Default | Description |
     | --- | --- | --- | --- |
-    | `mcp_servers` | `list[string]` | `[]` | A list of `mcp_server` component names this agent can use. The agent gains access to all tools, prompts, and resources from these servers. |
     | `exclude_components` | `list[string]` | `None` | A list of component names (tools, prompts, resources) to explicitly exclude, even if provided by allowed `mcp_servers`. |
     | `auto` | `boolean` | `false` | If `true`, an LLM dynamically selects the most appropriate `mcp_servers` at runtime based on the user's prompt. |
 
-=== ":simple-amd: LLM Configuration"
+=== ":simple-amd: LLM Overrides"
 
     These fields control the Large Language Model that powers the agent's reasoning.
 
     | Field | Type | Default | Description |
     | --- | --- | --- | --- |
-    | `llm_config_id` | `string` | `None` | The `name` of an `llm` component to use. This is the recommended way to assign an LLM, allowing for reusable configurations. |
-    | `llm` | `object` | `None` | An object containing LLM parameters to override the base `LLMConfig`. See details below. |
+    | `model`          | `string`  | None    | Override the model name (e.g., `"gpt-3.5-turbo"`). |
+    | `temperature`    | `float`   | None    | Override the sampling temperature for the agent's LLM. |
+    | `max_tokens`     | `integer` | None    | Override the maximum token limit for responses. |
+    | `system_prompt`  | `string`  | None    | Provide a more specific system prompt for this agent. |
+    | `api_base`       | `string`  | None    | Custom API endpoint base URL for the LLM provider. |
+    | `api_key`        | `string`  | None    | Custom API key for the LLM provider. |
+    | `api_version`    | `string`  | None    | Custom API version for the LLM provider. |
+    | *other fields*   | *various* | None    | Any other provider-specific parameters supported by the [LLM Configuration](llm.md). |
 
     !!! abstract "LLM Overrides"
-        The `llm` block allows you to fine-tune the model's behavior for a specific agent. It accepts any field from the [LLM Configuration](llm.md), including:
-        - `model` (string): A different model name (e.g., `"gpt-3.5-turbo"`).
-        - `temperature` (float): A different sampling temperature.
-        - `max_tokens` (integer): A different max token limit.
-        - `system_prompt` (string): A more specific system prompt for this agent.
-        - `api_base`, `api_key`, `api_version` for custom endpoints.
-        - Any other provider-specific parameters.
+        Agent Configurations can include llm variables (See LLM Overrides in the table above). These variables will replace the corresponding values in the LLM Configuration referenced by `llm_config_id`. This allows for agent-specific customization while still using a shared LLM configuration.
 
 === ":material-cogs: Behavior Control"
 
@@ -61,15 +63,6 @@ The `AgentConfig` defines the structure for an agent configuration. Below are th
     | `max_iterations` | `integer` | `50` | The maximum number of conversational turns before stopping automatically. This is a safeguard to prevent infinite loops. |
     | `include_history` | `boolean` | `None` | If `true`, the entire conversation history is included in each turn. If `false` or `None`, the agent is stateless and only sees the latest message. |
 
-=== ":material-flask: Advanced & Experimental"
-
-    These fields are for advanced use cases like validation and testing.
-
-    | Field | Type | Default | Description |
-    | --- | --- | --- | --- |
-    | `config_validation_schema` | `dict` | `None` | A JSON schema for validating agent-specific configurations. |
-    | `evaluation` | `string` | `None` | Optional runtime evaluation. Can be a prompt describing expected output or the name of a file in `config/testing`. |
-
 ---
 
 ## :material-code-json: Configuration Examples
@@ -77,17 +70,15 @@ The `AgentConfig` defines the structure for an agent configuration. Below are th
 Here are some practical examples of agent configurations.
 
 === "Simple Agent"
-A basic agent that uses a centrally-defined LLM and has access to a set of tools.
+
+    A basic agent that uses a centrally-defined LLM and has access to a set of tools.
 
     ```json
     {
       "type": "agent",
       "name": "code-refactor-agent",
       "description": "An agent that helps refactor Python code by using static analysis tools.",
-      "mcp_servers": [
-        "pylint-server",
-        "file-system-server"
-      ],
+      "mcp_servers": ["pylint-server", "file-system-server"],
       "llm_config_id": "claude-3-opus",
       "system_prompt": "You are an expert Python programmer. You will be given a file and your goal is to refactor it to improve readability and performance.",
       "max_iterations": 10
@@ -95,7 +86,8 @@ A basic agent that uses a centrally-defined LLM and has access to a set of tools
     ```
 
 === "Agent with LLM Overrides"
-This agent uses a base LLM configuration but overrides the model and temperature for its specific task.
+
+    This agent uses a base LLM configuration but overrides the model and temperature for its specific task.
 
     ```json
     {
@@ -104,15 +96,14 @@ This agent uses a base LLM configuration but overrides the model and temperature
       "description": "An agent for brainstorming creative ideas.",
       "mcp_servers": ["internet-search-server"],
       "llm_config_id": "gpt-4-base",
-      "llm": {
-        "model": "gpt-4-1106-preview",
-        "temperature": 0.9
-      }
+      "model": "gpt-4-1106-preview",
+      "temperature": 0.9
     }
     ```
 
-=== "Stateless Agent"
-This agent is configured to be stateless (`include_history` is `false`), making it suitable for simple, single-turn tasks where context is not needed.
+=== "Stateful Agent"
+
+    This agent is configured to be stateful (`include_history` is `true`), allowing it to maintain context across multiple turns.
 
     ```json
     {
@@ -121,5 +112,28 @@ This agent is configured to be stateless (`include_history` is `false`), making 
       "description": "A stateless agent that performs a single calculation.",
       "mcp_servers": ["calculator-tool-server"],
       "llm_config_id": "gpt-3.5-turbo",
-      "include_history": false
+      "include_history": true
     }
+    ```
+
+=== "Agent with Schema"
+
+    This agent includes a custom validation schema to ensure its configuration adheres to specific rules.
+
+    ```json
+    {
+      "type": "agent",
+      "name": "data-validation-agent",
+      "description": "An agent that validates data formats.",
+      "mcp_servers": ["data-validator-server"],
+      "llm_config_id": "gpt-3.5-turbo",
+      "config_validation_schema": {
+        "type": "object",
+        "properties": {
+          "input_format": { "type": "string" },
+          "output_format": { "type": "string" }
+        },
+        "required": ["input_format", "output_format"]
+      }
+    }
+    ```

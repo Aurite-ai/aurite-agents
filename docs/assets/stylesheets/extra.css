@@ -1,1 +1,13 @@
-/* This file can be used for custom CSS styling. */
+/*
+  Prevent text in tables from wrapping, allowing columns to expand.
+  - white-space: nowrap; prevents text from wrapping to the next line.
+  - width: auto; allows the table to adjust its width based on content.
+*/
+.md-typeset table {
+  width: auto;
+}
+
+.md-typeset table th,
+.md-typeset table td {
+  white-space: nowrap;
+}

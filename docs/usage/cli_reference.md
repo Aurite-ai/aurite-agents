@@ -4,18 +4,6 @@ The Aurite Command Line Interface (CLI) is the primary tool for interacting with
 
 ---
 
-## Global Options
-
-These options can be used with the base `aurite` command.
-
-| Option                 | Description                                                           |
-| ---------------------- | --------------------------------------------------------------------- |
-| `--install-completion` | Installs shell completion for the `aurite` command.                   |
-| `--show-completion`    | Displays the shell completion script to be sourced or saved manually. |
-| `--help`               | Shows the main help message listing all commands.                     |
-
----
-
 ## Commands
 
 The CLI is organized into several main commands.
@@ -48,6 +36,16 @@ The CLI is organized into several main commands.
     | `workflows` | Lists all workflow configurations (both linear and custom). |
     | `index` | Prints the entire component index as a formatted table. |
 
+    **Examples**
+
+    ```bash
+    # List all available agents
+    aurite list agents
+
+    # List all workflows (linear and custom)
+    aurite list workflows
+    ```
+
 === ":material-eye: `aurite show`"
 
     Displays the detailed configuration for a specific component or all components of a certain type.
@@ -57,6 +55,16 @@ The CLI is organized into several main commands.
     | `<NAME_OR_TYPE>` | `string` | The name of a specific component (e.g., `my_agent`) or a component type (e.g., `agents`). |
     | `-f`, `--full` | `flag` | Display the complete, unabridged configuration. |
     | `-s`, `--short` | `flag` | Display a compact, summary view. |
+
+    **Examples**
+
+    ```bash
+    # Show the full configuration for the "Weather Agent"
+    aurite show "Weather Agent" --full
+
+    # Show a summary of all linear workflow configurations
+    aurite show linear_workflows -s
+    ```
 
 === ":material-play: `aurite run`"
 
@@ -74,6 +82,22 @@ The CLI is organized into several main commands.
     !!! abstract "Execution Behavior"
         - **Interactive Chat:** Running an agent by `NAME` without a `USER_MESSAGE` launches an interactive chat TUI.
         - **Single-Shot:** Providing a `USER_MESSAGE` runs the component once and streams the output to the terminal.
+
+    **Examples**
+
+    ```bash
+    # Run the "Weather Agent" in interactive chat mode
+    aurite run "Weather Agent"
+
+    # Run the "Weather Agent" once with a specific question
+    aurite run "Weather Agent" "What is the weather in London?"
+
+    # Run the "Weather Planning Workflow"
+    aurite run "Weather Planning Workflow" "Plan a trip to Paris next week"
+
+    # Run the "Example Custom Workflow" with JSON input
+    aurite run "Example Custom Workflow" '{"city": "Tokyo"}'
+    ```
 
 === ":material-api: `aurite api`"
 
@@ -93,3 +117,27 @@ The CLI is organized into several main commands.
 
     !!! info "TUI Interface"
         The editor features a three-pane layout for navigation, component listing, and editing, with interactive widgets and dropdowns for easy configuration.
+
+    **Examples**
+
+    ```bash
+    # Open the TUI editor
+    aurite edit
+
+    # Open the "Weather Agent" configuration directly in the editor
+    aurite edit "Weather Agent"
+    ```
+
+---
+
+## Global Options
+
+These options can be used with the base `aurite` command.
+
+| Option                 | Description                                                           |
+| ---------------------- | --------------------------------------------------------------------- |
+| `--install-completion` | Installs shell completion for the `aurite` command.                   |
+| `--show-completion`    | Displays the shell completion script to be sourced or saved manually. |
+| `--help`               | Shows the main help message listing all commands.                     |
+
+---

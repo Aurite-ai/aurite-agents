@@ -12,7 +12,9 @@ An MCP server configuration is a JSON or YAML object with a `type` field set to 
 
 ## Schema
 
-The `ClientConfig` model defines the structure for an MCP server configuration. The most critical part of the configuration is defining the **transport type**, which tells the framework how to communicate with the server.
+<!-- prettier-ignore -->
+!!! info "Transport Types"
+    The `ClientConfig` model defines the structure for an MCP server configuration. There are three main transport types: `stdio`, `http_stream`, and `local`. Each transport type has its own required fields. The framework will infer the transport type based on the fields you provide.
 
 === ":material-format-list-bulleted-type: Core Fields"
 
@@ -65,7 +67,6 @@ The `ClientConfig` model defines the structure for an MCP server configuration. 
     | --- | --- | --- | --- |
     | `timeout` | `float` | `10.0` | The default timeout in seconds for operations (like tool calls) sent to this server. |
     | `registration_timeout` | `float` | `30.0` | The timeout in seconds for registering this server. |
-    | `routing_weight` | `float` | `1.0` | A weight for server selection during routing (future use). |
     | `exclude` | `list[string]` | `None` | A list of component names (tools, prompts, or resources) to exclude from this server's offerings. |
     | `roots` | `list[object]` | `[]` | A list of root objects describing the server's capabilities. This is typically auto-discovered and rarely needs to be set manually. |
 
@@ -76,7 +77,8 @@ The `ClientConfig` model defines the structure for an MCP server configuration. 
 Here are some practical examples for each transport type.
 
 === "Stdio Transport"
-This example runs a local Python script as an MCP server.
+
+    This example runs a local Python script as an MCP server.
 
     ```json
     {
@@ -89,23 +91,25 @@ This example runs a local Python script as an MCP server.
     ```
 
 === "HTTP Stream Transport"
-This example connects to a running Notion API server. Note the use of an environment variable in the header.
+
+    This example connects to a custom running service. Note the use of an environment variable in the header for authentication.
 
     ```json
     {
       "type": "mcp_server",
-      "name": "notion-api-server",
-      "description": "Connects to the official Notion API.",
-      "http_endpoint": "https://api.notion.com/v1/mcp",
+      "name": "my-remote-service",
+      "description": "Connects to a custom remote service.",
+      "http_endpoint": "https://my-custom-service.com/mcp",
       "headers": {
-        "Authorization": "Bearer {NOTION_API_KEY}"
+        "X-API-Key": "{MY_SERVICE_API_KEY}"
       },
-      "capabilities": ["tools"]
+      "capabilities": ["tools", "resources"]
     }
     ```
 
 === "Local Command Transport"
-This example runs a pre-compiled binary as a server.
+
+    This example runs a pre-compiled binary as a server.
 
     ```json
     {
@@ -116,3 +120,4 @@ This example runs a pre-compiled binary as a server.
       "args": ["--port", "8080"],
       "capabilities": ["tools"]
     }
+    ```

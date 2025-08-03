@@ -3,10 +3,7 @@
 import mkdocs_gen_files
 
 # List of files to copy from the project root to the docs directory
-root_files = [
-    "CHANGELOG.md",
-    "SECURITY.md",
-]
+root_files = ["CHANGELOG.md", "SECURITY.md"]
 
 for file_path in root_files:
     with open(file_path, "r") as f:

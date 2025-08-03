@@ -45,24 +45,11 @@ The `LLMConfig` defines the structure for an LLM configuration. Below are the av
     | `api_key_env_var` | `string` | `None` | The environment variable name for the API key if not using a default (e.g., `ANTHROPIC_API_KEY`). |
     | `api_version` | `string` | `None` | The API version string required by some providers (e.g., Azure OpenAI). |
 
-    !!! info "Dynamic Fields"
-        The `LLMConfig` allows for extra, provider-specific fields not explicitly defined in the schema. Any additional key-value pairs will be passed directly to the underlying model library.
-
 ---
 
 ## :material-file-replace-outline: Agent Overrides
 
-While `LLMConfig` provides a central place for model settings, individual agents can override them at runtime using the `llm` block in their configuration. This provides flexibility for agent-specific needs.
-
-The `LLMConfigOverrides` schema allows an agent to specify its own values for:
-
-- `model`
-- `temperature`
-- `max_tokens`
-- `system_prompt`
-- `api_base`
-- `api_key`
-- `api_version`
+While `LLMConfig` provides a central place for model settings, individual agents can override them at runtime using the same configuration variables inserted directly into the AgentConfig. This provides flexibility for agent-specific needs.
 
 !!! example "See the [Agent Configuration](agent.md) documentation for more details on how to apply these overrides."
 
@@ -114,5 +101,4 @@ Here are some practical examples of LLM configurations for different providers.
       "api_base": "http://localhost:11434",
       "temperature": 0.7
     }
-
     ```

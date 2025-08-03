@@ -2,8 +2,9 @@
 
 The Aurite Framework API is organized around four core managers, each with its own base path and specific responsibilities. This document provides a comprehensive reference for all available endpoints.
 
+<!-- prettier-ignore -->
 !!! info "Interactive API Docs"
-For detailed request/response schemas and to try out the API live, please use the interactive documentation interfaces available when the server is running:
+    For detailed request/response schemas and to try out the API live, please use the interactive documentation interfaces available when the server is running:
 
     -   `/api-docs` - Swagger UI interface
     -   `/redoc` - ReDoc documentation interface
@@ -156,23 +157,3 @@ The API is structured around four main routers.
     | `GET` | `/system/monitoring/active` | List active Aurite-related processes. |
 
 ---
-
-## Error Responses
-
-All endpoints follow a consistent error response format.
-
-```json
-{
-  "detail": "A descriptive error message."
-}
-```
-
-**Common HTTP Status Codes:**
-
-- `200 OK`: Request succeeded.
-- `201 Created`: Resource created successfully.
-- `400 Bad Request`: Invalid request parameters.
-- `401 Unauthorized`: Missing or invalid API key.
-- `404 Not Found`: The requested resource could not be found.
-- `422 Unprocessable Entity`: The request was well-formed but contained semantic errors (e.g., validation failed).
-- `500 Internal Server Error`: An unexpected error occurred on the server.

@@ -170,6 +170,7 @@ This document contains comprehensive configuration examples and patterns referen
         "name": "weather_server",
         "type": "mcp_server",
         "server_path": "./servers/weather_server.py",
+        "capabilities": ["tools"],
         "timeout": 30.0,
         "registration_timeout": 60.0,
         "description": "Local weather data server"
@@ -178,6 +179,7 @@ This document contains comprehensive configuration examples and patterns referen
         "name": "file_manager",
         "type": "mcp_server",
         "server_path": "../shared_servers/file_manager.py",
+        "capabilities": ["tools", "resources"],
         "timeout": 45.0,
         "registration_timeout": 90.0,
         "description": "File system management server"
@@ -189,6 +191,10 @@ This document contains comprehensive configuration examples and patterns referen
     ```json title="config/mcp_servers/remote_servers.json"
     [
       {
+        "name": "remote_api",
+        "type": "mcp_server",
+        "http_endpoint": "https://api.example.com/mcp",
+        "capabilities": ["tools"],
         "headers": {
           "Authorization": "Bearer {API_TOKEN}",
           "Content-Type": "application/json"
@@ -199,7 +205,9 @@ This document contains comprehensive configuration examples and patterns referen
       },
       {
         "name": "cloud_storage",
+        "type": "mcp_server",
         "http_endpoint": "https://storage.cloudprovider.com/mcp-endpoint",
+        "capabilities": ["resources"],
         "headers": {
           "Authorization": "Bearer {CLOUD_TOKEN}"
         },
@@ -214,16 +222,20 @@ This document contains comprehensive configuration examples and patterns referen
     [
       {
         "name": "node_tools",
+        "type": "mcp_server",
         "command": "node",
         "args": ["./servers/tool-server.js", "--port", "{PORT}"],
+        "capabilities": ["tools"],
         "timeout": 20.0,
         "registration_timeout": 45.0,
         "description": "Node.js-based tool server"
       },
       {
         "name": "python_tools",
+        "type": "mcp_server",
         "command": "python",
         "args": ["-m", "my_tools.server", "--config", "{CONFIG_PATH}"],
+        "capabilities": ["tools"],
         "timeout": 30.0,
         "description": "Python module-based tool server"
       }

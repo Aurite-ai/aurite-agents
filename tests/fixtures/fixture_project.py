@@ -250,7 +250,6 @@ VALID_CLIENT_CONFIG_DATA_FULL = {
     "capabilities": ["prompts", "tools"],
     "roots": [{"uri": "file://./test_root", "name": "Test Root", "capabilities": ["read"]}],
     "timeout": 15.0,
-    "routing_weight": 0.8,
     "exclude": ["excluded_tool_1"],
     "gcp_secrets": [{"secret_id": "projects/p/secrets/s/versions/l", "env_var_name": "MY_SECRET"}],
 }

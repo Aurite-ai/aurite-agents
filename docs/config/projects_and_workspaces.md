@@ -2,8 +2,9 @@
 
 The Aurite framework uses a powerful hierarchical configuration system built on two core concepts: **Projects** and **Workspaces**. This system is driven by a special anchor file named `.aurite`, which tells the framework how to discover and prioritize configurations.
 
+<!-- prettier-ignore -->
 !!! info "The `.aurite` Anchor File"
-The framework finds configurations by searching upwards from your current directory for `.aurite` files. This file marks a directory as a **Project** or a **Workspace** root and specifies which subdirectories contain configuration files.
+    The framework finds configurations by searching upwards from your current directory for `.aurite` files. This file marks a directory as a **Project** or a **Workspace** root and specifies which subdirectories contain configuration files.
 
 ---
 
@@ -19,8 +20,8 @@ Your configurations are organized into contexts, allowing for both separation of
 
     **`.aurite` File Fields:**
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
+    |  Field  |  Type  |  Required  |  Description  |
+    |----|----|----|----|
     | `type` | `string` | Yes | Must be set to `"project"`. |
     | `include_configs` | `list[string]` | Yes | A list of directories (relative to the `.aurite` file) where component configurations are stored. |
 
@@ -65,10 +66,10 @@ The priority is as follows, from highest to lowest:
 2.  **Project Level**: Configurations from the current project's `include_configs` directories.
 3.  **Workspace Level**: Configurations from the parent workspace's `include_configs` directories.
 4.  **Other Projects**: Configurations from other projects within the same workspace.
-5.  **User Level**: Global configurations in `~/.aurite/` (lowest priority).
 
+<!-- prettier-ignore -->
 !!! example "Overriding Example"
-You could define a default `dev-llm` at the user level, a `standard-llm` at the workspace level, and a `task-specific-llm` at the project level. The framework automatically picks the most specific one based on your current directory.
+    You could define a `standard-llm` at the workspace level, and a `standard-llm` at the project level. The framework automatically picks the most specific one based on your current directory.
 
 ---
 
@@ -80,6 +81,25 @@ When a component configuration references a local file (e.g., `server_path` in a
 
 This makes your configurations portable and easy to share.
 
-!!! abstract "Path Resolution Example" - Your workspace is at `/path/to/my-workspace/`. - Its `.aurite` file is at `/path/to/my-workspace/.aurite`. - A shared server is defined in `/path/to/my-workspace/workspace-config/servers.json`. - The server's `server_path` is set to `mcp_servers/shared_server.py`.
+<!-- prettier-ignore -->
+!!! example "Path Resolution Example"
+    Imagine the following setup:
+
+    - Your workspace is at `/path/to/my-workspace/`.
+    - Its `.aurite` file is at `/path/to/my-workspace/.aurite`.
+    - A shared server is defined in `/path/to/my-workspace/workspace-config/servers.json`.
+    - The server's `server_path` is set to `mcp_servers/shared_server.py`.
 
     The framework will correctly resolve the full path to `/path/to/my-workspace/mcp_servers/shared_server.py`.
+
+## :material-cube-outline: Component Types
+
+Aurite supports several core component types, each with its own configuration and purpose. Learn more about each type:
+
+- [Agent](agent.md)
+- [LLM](llm.md)
+- [MCP Server](mcp_server.md)
+- [Linear Workflow](linear_workflow.md)
+- [Custom Workflow](custom_workflow.md)
+
+Explore these guides to understand how to configure and use each component within your projects and workspaces.
