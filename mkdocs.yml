@@ -23,7 +23,7 @@ theme:
         name: Switch to light mode
   features:
     - navigation.top
-    - toc.instant
+    - toc.integrate
     - search.suggest
     - search.highlight
     - content.tabs.link

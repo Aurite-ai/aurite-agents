@@ -68,6 +68,7 @@
   padding-left: 0 !important;
 }
 
+
 /* If you want the whole content area to also align with this space, you can tweak .md-container or .md-grid too */
 .md-container {
   padding-left: 24px !important; /* Optional: keep content in line with nav */
@@ -101,6 +102,5 @@ body {
 }
 
 /* Add padding to the right side of all page content */
-.md-content {
-  padding-right: 3rem !important;  /* Adjust value to your preference */
-}
+
+
