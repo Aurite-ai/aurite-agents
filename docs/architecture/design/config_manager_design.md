@@ -266,4 +266,3 @@ The ConfigManager implements a sophisticated priority system where the first-fou
 
 - **Implementation**: `src/aurite/lib/config/config_manager.py`
 - **Flow Details**: [Configuration Index Building Flow](../flow/config_index_building_flow.md)
-- **Usage Examples**: [Configuration Examples Reference](../reference/config_examples.md)

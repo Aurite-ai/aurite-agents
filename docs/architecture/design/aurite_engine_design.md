@@ -284,4 +284,3 @@ graph TD
 - **Flow Details**: [AuriteEngine Execution Flow](../flow/aurite_engine_execution_flow.md)
 - **Configuration Integration**: [ConfigManager Design](config_manager_design.md)
 - **Resource Management**: [MCP Host Design](mcp_host_design.md)
-- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md)

@@ -358,4 +358,3 @@ The registration process follows a sequential five-phase approach, where each ph
 
 - **Implementation**: `src/aurite/execution/mcp_host.py` - Main MCP Host implementation
 - **Design Details**: [MCP Host Design](../design/mcp_host_design.md) - Architecture and component details
-- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md) - Server configuration patterns

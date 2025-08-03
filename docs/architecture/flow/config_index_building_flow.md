@@ -260,4 +260,3 @@ The ConfigManager builds its index through three distinct phases, each with spec
 
 - **Implementation**: `src/aurite/lib/config/config_manager.py` - Main ConfigManager class
 - **Design Details**: [ConfigManager Design](../design/config_manager_design.md) - Architecture and design patterns
-- **Configuration Examples**: [Configuration Examples Reference](../reference/config_examples.md) - Comprehensive usage examples

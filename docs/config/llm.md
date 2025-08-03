@@ -1,4 +1,4 @@
-# :simple-amd: LLM Configuration
+# :material-robot-outline: LLM Configuration
 
 LLM (Large Language Model) configurations are reusable components that define the settings for a specific model from a particular provider. By defining LLMs centrally, you can easily share them across multiple agents and manage your model settings in one place.
 

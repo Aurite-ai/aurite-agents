@@ -105,8 +105,6 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
   - `config_index_building_flow.md` - Configuration discovery and indexing process
   - `mcp_server_registration_flow.md` - MCP server registration and component discovery
   - `session_management_flow.md` - Session lifecycle and storage operations
-- `reference/` - Reference documentation and examples
-  - `config_examples.md` - Comprehensive configuration examples and patterns
 
 ### 6. Frontend
 

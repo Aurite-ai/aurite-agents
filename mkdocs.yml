@@ -22,8 +22,8 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.sections
     - navigation.top
+    - toc.instant
     - search.suggest
     - search.highlight
     - content.tabs.link
@@ -33,9 +33,6 @@ theme:
 plugins:
   # - mkdocs-jupyter
   - search
-  - gen-files:
-      scripts:
-        - scripts/gen_doc_files.py
 
 extra_css:
   - assets/stylesheets/extra.css
@@ -86,13 +83,14 @@ nav:
       - "CLI Reference": "usage/cli_reference.md"
       - "API Reference": "usage/api_reference.md"
       - "TUI Guide": "usage/tui_guide.md"
-  - "Configuration":
+  - "Configurations":
       - "Projects and Workspaces": "config/projects_and_workspaces.md"
-      - "Agent": "config/agent.md"
-      - "LLM": "config/llm.md"
-      - "Linear Workflow": "config/linear_workflow.md"
-      - "Custom Workflow": "config/custom_workflow.md"
-      - "MCP Server": "config/mcp_server.md"
+      - "Components":
+          - "Agent": "config/agent.md"
+          - "LLM": "config/llm.md"
+          - "Linear Workflow": "config/linear_workflow.md"
+          - "Custom Workflow": "config/custom_workflow.md"
+          - "MCP Server": "config/mcp_server.md"
   - "Architecture":
       - "Overview": "architecture/overview.md"
       - "Design":
@@ -104,13 +102,8 @@ nav:
           - "Config Index Building": "architecture/flow/config_index_building_flow.md"
           - "MCP Server Registration": "architecture/flow/mcp_server_registration_flow.md"
           - "Session Management": "architecture/flow/session_management_flow.md"
-      - "Reference":
-          - "Configuration Examples": "architecture/reference/config_examples.md"
-  - "Copilot Guides":
-      - "MCP Server Testing": "copilot_guides/mcp_server_testing_guide.md"
-  - "Changelog": "CHANGELOG.md"
-  - "Security": "SECURITY.md"
 
 exclude_docs: |
   internal/
   /internal/*
+  copilot_guides/

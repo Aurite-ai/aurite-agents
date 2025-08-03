@@ -496,4 +496,3 @@ The framework supports multiple interface types through consistent internal APIs
 - **Tool Management**: [MCP Host Design](design/mcp_host_design.md) - Distributed tool orchestration
 - **Session Management**: [Session Management Flow](flow/session_management_flow.md) - Persistent conversation management
 - **Execution Flows**: [AuriteEngine Execution Flow](flow/aurite_engine_execution_flow.md) - Detailed execution patterns
-- **Configuration Examples**: [Configuration Examples Reference](reference/config_examples.md) - Comprehensive usage examples

@@ -6,8 +6,101 @@
 .md-typeset table {
   width: auto;
 }
-
 .md-typeset table th,
 .md-typeset table td {
   white-space: nowrap;
+}
+
+/* Hero Banner Styles */
+.hero-banner {
+  background-color: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  padding: 2rem 1.5rem 0.5rem;
+  text-align: center;
+  margin-top: -1rem;
+  border-bottom: 1px solid var(--md-typeset-color-light);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero-banner .title-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.hero-banner .logo {
+  width: 60px;
+  height: 60px;
+}
+.hero-banner h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--md-default-fg-color);
+}
+.hero-banner .subtitle {
+  font-size: 1rem;
+  margin-top: 1rem;
+  font-weight: 300;
+  color: var(--md-default-fg-color--light);
+  white-space: nowrap;
+}
+.badges {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 1rem 1.5rem;
+}
+.badges .badge-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  overflow-x: auto;
+}
+.badges .badge-row img {
+  margin: 0 0.2rem;
+}
+
+/* Add space between the left edge and the sidebar */
+.md-sidebar {
+  margin-left: 24px !important;  /* Adjust the value for more/less space */
+  padding-left: 0 !important;
+}
+
+/* If you want the whole content area to also align with this space, you can tweak .md-container or .md-grid too */
+.md-container {
+  padding-left: 24px !important; /* Optional: keep content in line with nav */
+}
+
+
+/* (Optional) If there's still unwanted space, override the grid width for more compact layout */
+.md-grid {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  /* Optionally, increase max width if you want more content area: */
+  /* max-width: 1440px; */
+}
+
+
+/* Center the entire page layout */
+body {
+  max-width: 1600px;
+  margin: 0 auto !important;
+  box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* (Optional, advanced) For smaller screens, ensure left alignment persists */
+@media (max-width: 960px) {
+  .md-sidebar,
+  .md-container,
+  .md-grid {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+}
+
+/* Add padding to the right side of all page content */
+.md-content {
+  padding-right: 3rem !important;  /* Adjust value to your preference */
 }
