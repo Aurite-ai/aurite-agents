@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, X, Settings } from 'lucide-react';
 import {
   ReactFlow,
   Node,
@@ -33,7 +33,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAgentsWithConfigs } from '@/hooks/useAgents';
 import { useCreateWorkflow, useUpdateWorkflow, useWorkflowConfigByName } from '@/hooks/useWorkflows';
+import { useLLMs } from '@/hooks/useLLMs';
+import mcpServersService from '@/services/mcpServers.service';
 import AgentPalette from './visual/AgentPalette';
+import AgentConfigModal from './visual/AgentConfigModal';
+import { AgentConfig } from '@/types/api.generated';
 
 // Custom styles for dark theme controls
 const controlsStyle = `
@@ -108,6 +112,15 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
     }
   };
 
+  const handleConfig = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data?.onConfig && typeof data.onConfig === 'function') {
+      data.onConfig(id);
+    }
+  };
+
+  const isConfigured = data?.agentConfig && Object.keys(data.agentConfig).length > 2; // More than just type and name
+
   return (
     <div className="bg-card border border-border rounded-lg p-3 shadow-sm min-w-[150px] relative group hover:shadow-md transition-shadow">
       {/* Delete Button - Top Right */}
@@ -118,6 +131,24 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
       >
         <X className="h-3 w-3" />
       </button>
+
+      {/* Config Button - Top Left */}
+      <button
+        onClick={handleConfig}
+        className={`absolute -top-2 -left-2 w-6 h-6 ${
+          isConfigured 
+            ? 'bg-primary hover:bg-primary/80 text-primary-foreground' 
+            : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+        } rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md z-10`}
+        title={isConfigured ? "Agent is configured - click to edit" : "Configure agent"}
+      >
+        <Settings className="h-3 w-3" />
+      </button>
+
+      {/* Configuration Indicator */}
+      {isConfigured && (
+        <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" title="Agent is configured" />
+      )}
 
       {/* Input Handle - Top */}
       <Handle
@@ -136,6 +167,9 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
       <div className="text-sm font-medium text-foreground">{data.label}</div>
       {data.description && (
         <div className="text-xs text-muted-foreground mt-1">{data.description}</div>
+      )}
+      {data.agentConfig?.description && (
+        <div className="text-xs text-muted-foreground mt-1 italic">{data.agentConfig.description}</div>
       )}
       
       {/* Output Handle - Bottom */}
@@ -236,6 +270,13 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
   
+  // Agent configuration modal state
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [configModalNodeId, setConfigModalNodeId] = useState<string | null>(null);
+  
+  // Available configurations for dropdowns
+  const [availableMCPServers, setAvailableMCPServers] = useState<string[]>([]);
+  
   // React Flow state
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
@@ -244,6 +285,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   
   // API Hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
+  const { data: llmConfigs = [], isLoading: llmsLoading } = useLLMs();
   const createWorkflow = useCreateWorkflow();
   const updateWorkflow = useUpdateWorkflow();
   
@@ -296,21 +338,57 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     ));
   }, [setNodes, setEdges]);
 
+  // Handle opening agent configuration
+  const handleNodeConfig = useCallback((nodeId: string) => {
+    setConfigModalNodeId(nodeId);
+    setConfigModalOpen(true);
+  }, []);
+
+  // Handle saving agent configuration
+  const handleConfigSave = useCallback((config: AgentConfig) => {
+    if (configModalNodeId) {
+      setNodes((nds) => 
+        nds.map(node => 
+          node.id === configModalNodeId 
+            ? { 
+                ...node, 
+                data: { 
+                  ...node.data, 
+                  agentConfig: config,
+                  // Update the label if the name changed
+                  label: config.name || node.data.label,
+                  agentName: config.name || node.data.agentName,
+                }
+              }
+            : node
+        )
+      );
+    }
+    setConfigModalOpen(false);
+    setConfigModalNodeId(null);
+  }, [configModalNodeId, setNodes]);
+
   // Convert workflow steps to visual nodes and edges
-  const convertStepsToVisual = useCallback((steps: string[]) => {
+  const convertStepsToVisual = useCallback((steps: string[], agentConfigurations?: Record<string, AgentConfig>) => {
     const newNodes: Node[] = [];
     const newEdges: Edge[] = [];
     
     steps.forEach((step, index) => {
+      // Get agent configuration if it exists
+      const agentConfig = agentConfigurations?.[step];
+      
       // Create node for each step
       const node: Node = {
         id: `agent-${index}`,
         type: 'agentNode',
         position: { x: 150, y: 100 + (index * 120) }, // Vertical layout
         data: {
-          label: step,
+          label: agentConfig?.name || step,
           agentName: step,
           onDelete: handleNodeDelete,
+          onConfig: handleNodeConfig,
+          // Include agent configuration if it exists
+          ...(agentConfig && { agentConfig }),
         },
       };
       newNodes.push(node);
@@ -337,7 +415,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     });
     
     return { nodes: newNodes, edges: newEdges };
-  }, [handleNodeDelete, handleEdgeDelete]);
+  }, [handleNodeDelete, handleNodeConfig, handleEdgeDelete]);
 
   // Effect to populate workflow form when workflow config is loaded
   useEffect(() => {
@@ -350,7 +428,10 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
       
       // Convert steps to visual representation
       if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
-        const { nodes: newNodes, edges: newEdges } = convertStepsToVisual(workflowConfig.steps);
+        const { nodes: newNodes, edges: newEdges } = convertStepsToVisual(
+          workflowConfig.steps, 
+          (workflowConfig as any).agent_configurations
+        );
         setNodes(newNodes);
         setEdges(newEdges);
       }
@@ -368,6 +449,21 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     }
   }, [workflowConfig, workflowNameParam, editMode, workflowFormPopulated, convertStepsToVisual, setNodes, setEdges]);
 
+  // Fetch MCP servers on component mount
+  useEffect(() => {
+    const fetchMCPServers = async () => {
+      try {
+        const servers = await mcpServersService.listMCPServers();
+        setAvailableMCPServers(servers);
+      } catch (error) {
+        console.error('Failed to fetch MCP servers:', error);
+        setAvailableMCPServers([]);
+      }
+    };
+
+    fetchMCPServers();
+  }, []);
+
   // Handle agent drop from palette
   const onAgentDrop = useCallback((agentName: string, position: { x: number; y: number }) => {
     const newNode: Node = {
@@ -378,11 +474,12 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         label: agentName,
         agentName: agentName,
         onDelete: handleNodeDelete,
+        onConfig: handleNodeConfig,
       },
     };
     
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes, handleNodeDelete]);
+  }, [setNodes, handleNodeDelete, handleNodeConfig]);
 
   // Handle node deletion
   const onNodesDelete = useCallback(
@@ -411,11 +508,25 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     // This is a basic implementation - can be enhanced for complex flows
     const steps = nodes.map(node => node.data?.agentName).filter(Boolean) as string[];
     
+    // Extract agent configurations for agents that have been configured
+    const agentConfigurations: Record<string, AgentConfig> = {};
+    nodes.forEach(node => {
+      const agentConfig = node.data?.agentConfig as AgentConfig;
+      if (agentConfig && 
+          node.data?.agentName && 
+          typeof node.data.agentName === 'string' &&
+          agentConfig.name) {
+        agentConfigurations[node.data.agentName] = agentConfig;
+      }
+    });
+    
     return {
       name: workflowName,
       type: "simple_workflow" as const,
       steps: steps,
-      description: workflowDescription || undefined
+      description: workflowDescription || undefined,
+      // Include agent configurations if any exist
+      ...(Object.keys(agentConfigurations).length > 0 && { agent_configurations: agentConfigurations })
     };
   };
 
@@ -635,6 +746,22 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
           </div>
         </div>
       </div>
+
+      {/* Agent Configuration Modal */}
+      {configModalNodeId && (
+        <AgentConfigModal
+          isOpen={configModalOpen}
+          onClose={() => {
+            setConfigModalOpen(false);
+            setConfigModalNodeId(null);
+          }}
+          onSave={handleConfigSave}
+          agentName={String(nodes.find(node => node.id === configModalNodeId)?.data?.agentName || 'Agent')}
+          initialConfig={nodes.find(node => node.id === configModalNodeId)?.data?.agentConfig || {}}
+          availableLLMConfigs={llmConfigs}
+          availableMCPServers={availableMCPServers}
+        />
+      )}
     </div>
   );
 }
