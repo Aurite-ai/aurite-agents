@@ -281,14 +281,14 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {agentsLoading ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="__loading__" disabled>
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Loading agents...
                         </div>
                       </SelectItem>
                     ) : agents.length === 0 ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="__no_agents__" disabled>
                         No agents available
                       </SelectItem>
                     ) : (
