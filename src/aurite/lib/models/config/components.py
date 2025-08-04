@@ -225,6 +225,10 @@ class AgentConfig(BaseComponentConfig):
         default=None,
         description="Whether to include the conversation history, or just the latest message.",
     )
+    include_logging: Optional[bool] = Field(
+        default=None,
+        description="Whether to enable Langfuse logging for this agent, overriding global settings.",
+    )
     # --- Component Filtering ---
     # List of component names (tool, prompt, resource) to specifically exclude for this agent
     exclude_components: Optional[List[str]] = Field(
@@ -254,6 +258,10 @@ class WorkflowConfig(BaseComponentConfig):
     )
     include_history: Optional[bool] = Field(
         default=None, description="If set, overrides the include_history setting for all agents in this workflow."
+    )
+    include_logging: Optional[bool] = Field(
+        default=None,
+        description="If set, overrides the include_logging setting for all agents in this workflow.",
     )
 
 
