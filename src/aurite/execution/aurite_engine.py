@@ -5,7 +5,7 @@ Provides a unified engine for executing Agents, Linear Workflows, and Custom Wor
 import logging
 import os
 import uuid
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 from langfuse import Langfuse
 from termcolor import colored
@@ -78,6 +78,27 @@ class AuriteEngine:
         self._config_manager = config_manager
 
     # --- Private Helper Methods ---
+
+    def _should_enable_logging(
+        self,
+        component_config: Union["AgentConfig", "WorkflowConfig"],
+        force_logging: Optional[bool] = None,
+    ) -> bool:
+        """
+        Determines if Langfuse logging should be enabled based on a hierarchy of settings.
+
+        The priority is:
+        1. `force_logging` override (from a parent workflow).
+        2. The component's own `include_logging` setting.
+        3. The global `LANGFUSE_ENABLED` environment variable.
+        """
+        if force_logging is not None:
+            return force_logging
+
+        if component_config.include_logging is not None:
+            return component_config.include_logging
+
+        return os.getenv("LANGFUSE_ENABLED", "false").lower() == "true"
 
     async def _prepare_agent_for_run(
         self,
@@ -181,6 +202,7 @@ class AuriteEngine:
         user_message: str,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
+        force_logging: Optional[bool] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
 
@@ -205,7 +227,8 @@ class AuriteEngine:
                 agent_name, user_message, system_prompt, session_id
             )
             # Create trace if Langfuse is enabled
-            if self.langfuse:
+            agent_config_for_log_check = AgentConfig(**self._config_manager.get_config("agent", agent_name))
+            if self.langfuse and self._should_enable_logging(agent_config_for_log_check, force_logging):
                 if os.getenv("LANGFUSE_USER_ID"):
                     user_id = os.getenv("LANGFUSE_USER_ID")
                 else:
@@ -215,7 +238,7 @@ class AuriteEngine:
                     name=f"Agent: {agent_name} (streaming) - Aurite Runtime",
                     session_id=session_id,  # This groups traces into sessions
                     user_id=user_id,
-                    input={"user_message": user_message, "system_prompt": agent_instance.config.system_prompt},
+                    input=agent_instance.conversation_history,
                     metadata={
                         "agent_name": agent_name,
                         "source": "execution-engine",
@@ -291,6 +314,8 @@ class AuriteEngine:
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
         base_session_id: Optional[str] = None,  # New parameter
+        force_logging: Optional[bool] = None,
+        trace: Optional["StatefulTraceClient"] = None,
     ) -> AgentRunResult:
         # --- Session ID Management ---
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
@@ -319,24 +344,23 @@ class AuriteEngine:
 
         agent_instance = None
         servers_to_unregister: List[str] = []
-        trace: Optional["StatefulTraceClient"] = None
         try:
+            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
+                agent_name, user_message, system_prompt, final_session_id, force_include_history
+            )
+
             # Create trace if Langfuse is enabled
-            if self.langfuse:
+            if self.langfuse and self._should_enable_logging(agent_config, force_logging) and not trace:
                 trace = self.langfuse.trace(
                     name=f"Agent: {agent_name} - Aurite Runtime",
                     session_id=session_id,  # This groups traces into sessions
                     user_id=session_id or "anonymous",
-                    input={"user_message": user_message, "system_prompt": system_prompt},
+                    input=agent_instance.conversation_history,
                     metadata={
                         "agent_name": agent_name,
                         "source": "execution-engine",
                     },
                 )
-
-            agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, final_session_id, force_include_history
-            )
 
             # Pass trace to agent if available
             if trace:
@@ -390,18 +414,30 @@ class AuriteEngine:
         workflow_name: str,
         initial_input: Any,
         session_id: Optional[str] = None,
-        trace: Optional["StatefulTraceClient"] = None,
+        force_logging: Optional[bool] = None,
     ) -> LinearWorkflowExecutionResult:
         logger.info(f"Facade: Received request to run Linear Workflow '{workflow_name}' with session_id: {session_id}")
-        # Flush Langfuse trace if enabled
-        if self.langfuse and trace:
-            self.langfuse.flush()
         try:
             workflow_config_dict = self._config_manager.get_config("linear_workflow", workflow_name)
             if not workflow_config_dict:
                 raise ConfigurationError(f"Linear Workflow '{workflow_name}' not found.")
 
             workflow_config = WorkflowConfig(**workflow_config_dict)
+
+            # --- Logging Management ---
+            enable_logging = self._should_enable_logging(workflow_config, force_logging)
+            trace: Optional["StatefulTraceClient"] = None
+            if self.langfuse and enable_logging:
+                trace = self.langfuse.trace(
+                    name=f"Workflow: {workflow_name} - Aurite Runtime",
+                    session_id=session_id,
+                    user_id=session_id or "anonymous",
+                    input=initial_input,
+                    metadata={
+                        "workflow_name": workflow_name,
+                        "source": "execution-engine",
+                    },
+                )
 
             # --- Session ID Management ---
             final_session_id = session_id
@@ -422,8 +458,13 @@ class AuriteEngine:
             )
 
             result = await workflow_executor.execute(
-                initial_input=initial_input, session_id=final_session_id, base_session_id=base_session_id
+                initial_input=initial_input,
+                session_id=final_session_id,
+                base_session_id=base_session_id,
+                trace=trace,
             )
+            if trace:
+                trace.update(output=result.final_output)
             logger.info(f"Facade: Linear Workflow '{workflow_name}' execution finished.")
 
             # Save the complete workflow execution result if it has a session_id
