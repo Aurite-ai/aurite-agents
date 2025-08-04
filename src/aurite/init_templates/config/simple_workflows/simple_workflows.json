@@ -18,5 +18,14 @@
     ],
     "description": "Testing",
     "name": "Parallet-test"
+  },
+  {
+    "type": "simple_workflow",
+    "steps": [
+      "History Test Agent A2",
+      "History Test Agent B2",
+      "History Test Agent C1"
+    ],
+    "name": "History Test Workflow A111"
   }
 ]

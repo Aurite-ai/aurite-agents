@@ -10,7 +10,8 @@ import {
   Clock, 
   History,
   Zap,
-  Shield
+  Shield,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentConfig } from '@/types/api.generated';
+import { useAgentConfig } from '@/hooks/useAgents';
 
 interface AgentConfigModalProps {
   isOpen: boolean;
@@ -77,6 +79,13 @@ export default function AgentConfigModal({
   availableMCPServers = []
 }: AgentConfigModalProps) {
   const [activeTab, setActiveTab] = useState('basic');
+  const [formPopulated, setFormPopulated] = useState(false);
+  
+  // Fetch agent configuration from API
+  const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
+    agentName || '',
+    !!(agentName && isOpen)
+  );
   
   // Form state
   const [config, setConfig] = useState<Partial<AgentConfig>>({
@@ -92,29 +101,87 @@ export default function AgentConfigModal({
     include_history: false,
     auto: false,
     mcp_servers: [],
-    exclude_components: [],
-    ...initialConfig
+    exclude_components: []
   });
 
-  // Update config when initialConfig changes
+  // Effect to populate form when agent config is loaded
   useEffect(() => {
-    setConfig({
-      type: 'agent',
-      name: agentName,
-      description: '',
-      llm_config_id: '',
-      model: '',
-      temperature: 0.7,
-      max_tokens: 4096,
-      system_prompt: '',
-      max_iterations: 10,
-      include_history: false,
-      auto: false,
-      mcp_servers: [],
-      exclude_components: [],
-      ...initialConfig
-    });
-  }, [initialConfig, agentName]);
+    if (agentConfig && agentName && !formPopulated && isOpen) {
+      console.log('🔄 Populating workflow agent form with config:', agentConfig);
+      
+      // Safely extract agent name according to canonical AgentConfig model
+      const safeName = typeof agentConfig.name === 'string' 
+        ? agentConfig.name 
+        : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
+          ? String((agentConfig.name as any).name)
+          : String(agentConfig.name || agentName);
+      
+      console.log('📝 Setting workflow form fields:', {
+        name: safeName,
+        description: agentConfig.description,
+        system_prompt: agentConfig.system_prompt,
+        mcp_servers: agentConfig.mcp_servers,
+        max_iterations: agentConfig.max_iterations,
+        llm_config_id: agentConfig.llm_config_id,
+        model: agentConfig.model,
+        temperature: agentConfig.temperature,
+        max_tokens: agentConfig.max_tokens,
+        include_history: agentConfig.include_history,
+        auto: agentConfig.auto,
+        exclude_components: agentConfig.exclude_components
+      });
+      
+      // Populate form fields with fetched configuration
+      setConfig({
+        type: 'agent',
+        name: safeName,
+        description: agentConfig.description || '',
+        system_prompt: agentConfig.system_prompt || '',
+        mcp_servers: agentConfig.mcp_servers || [],
+        max_iterations: agentConfig.max_iterations || 10,
+        llm_config_id: agentConfig.llm_config_id || '',
+        model: agentConfig.model || '',
+        temperature: agentConfig.temperature !== undefined ? agentConfig.temperature : 0.7,
+        max_tokens: agentConfig.max_tokens || 4096,
+        include_history: agentConfig.include_history || false,
+        auto: agentConfig.auto || false,
+        exclude_components: agentConfig.exclude_components || []
+      });
+      
+      // Mark form as populated to prevent re-population
+      setFormPopulated(true);
+      console.log('✅ Workflow agent form populated successfully');
+    } else if (agentName && !agentConfig && !configLoading && isOpen && !formPopulated) {
+      console.log('❌ Failed to load agent config for:', agentName, 'using fallback from initialConfig');
+      
+      // Fallback to initialConfig if API fetch fails
+      setConfig({
+        type: 'agent',
+        name: agentName,
+        description: '',
+        llm_config_id: '',
+        model: '',
+        temperature: 0.7,
+        max_tokens: 4096,
+        system_prompt: '',
+        max_iterations: 10,
+        include_history: false,
+        auto: false,
+        mcp_servers: [],
+        exclude_components: [],
+        ...initialConfig
+      });
+      setFormPopulated(true);
+    }
+  }, [agentConfig, agentName, configLoading, formPopulated, isOpen, initialConfig]);
+
+  // Reset form when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setFormPopulated(false);
+      setActiveTab('basic');
+    }
+  }, [isOpen]);
 
   const handleSave = () => {
     // Clean up the config - remove empty values and ensure proper types
@@ -222,7 +289,19 @@ export default function AgentConfigModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'basic' && (
+          {/* Loading State for Agent Config */}
+          {configLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading agent configuration...
+              </div>
+            </div>
+          )}
+
+          {!configLoading && (
+            <div>
+              {activeTab === 'basic' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Bot className="h-4 w-4" />
@@ -531,16 +610,33 @@ export default function AgentConfigModal({
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="p-6 border-t border-border flex justify-between">
-          <Button variant="outline" onClick={onClose}>
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            disabled={configLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} className="min-w-[100px]">
-            Save Configuration
+          <Button 
+            onClick={handleSave} 
+            className="min-w-[100px]"
+            disabled={configLoading || !config.name}
+          >
+            {configLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Loading...
+              </>
+            ) : (
+              'Save Configuration'
+            )}
           </Button>
         </div>
       </div>
