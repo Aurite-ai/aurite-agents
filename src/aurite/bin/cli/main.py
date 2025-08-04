@@ -9,17 +9,8 @@ from ..api.api import start as start_api_server
 from ..tui.edit import AuriteEditTUI
 
 # Relative imports from within the bin directory
-from .commands import (
-    init_project,
-    init_workspace,
-    interactive_init,
-)
-from .list import (
-    list_all,
-    list_components_by_type,
-    list_index,
-    list_workflows,
-)
+from .commands import init_project, init_workspace, interactive_init
+from .list import list_all, list_components_by_type, list_index, list_workflows
 from .run import run_component
 from .show import show_components
 
@@ -126,10 +117,10 @@ def list_mcp_servers_cmd():
     list_components_by_type("mcp_server")
 
 
-@list_app.command("simple_workflows")
-def list_simple_workflows_cmd():
-    """Lists all available simple workflow configurations."""
-    list_components_by_type("simple_workflow")
+@list_app.command("linear_workflows")
+def list_linear_workflows_cmd():
+    """Lists all available linear workflow configurations."""
+    list_components_by_type("linear_workflow")
 
 
 @list_app.command("custom_workflows")
@@ -155,7 +146,7 @@ def list_index_cmd():
 
 def complete_component_type(incomplete: str):
     """Provides completion for component types."""
-    types = ["agent", "simple_workflow", "custom_workflow"]
+    types = ["agent", "linear_workflow", "custom_workflow"]
     for comp_type in types:
         if comp_type.startswith(incomplete):
             yield comp_type
@@ -166,7 +157,7 @@ def complete_runnable_component_name(incomplete: str):
     # This is a simplified example. A real implementation would use the
     # config manager to get a list of all runnable components.
     all_names = []
-    for comp_type in ["agent", "simple_workflow", "custom_workflow"]:
+    for comp_type in ["agent", "linear_workflow", "custom_workflow"]:
         all_names.extend(list_component_names(comp_type))
 
     for name in all_names:

@@ -1,5 +1,5 @@
 """
-Executor for Simple Sequential Workflows.
+Executor for Linear Sequential Workflows.
 """
 
 import json
@@ -12,7 +12,7 @@ from pydantic import BaseModel
 # Relative imports assuming this file is in src/workflows/
 from ...config.config_models import WorkflowComponent, WorkflowConfig
 from ..agents.agent_models import AgentRunResult
-from .workflow_models import SimpleWorkflowExecutionResult, SimpleWorkflowStepResult
+from .workflow_models import LinearWorkflowExecutionResult, LinearWorkflowStepResult
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
@@ -26,9 +26,9 @@ class ComponentWorkflowInput(BaseModel):
     input: Any
 
 
-class SimpleWorkflowExecutor:
+class LinearWorkflowExecutor:
     """
-    Executes a simple sequential workflow defined by a WorkflowConfig.
+    Executes a linear sequential workflow defined by a WorkflowConfig.
     """
 
     def __init__(
@@ -37,7 +37,7 @@ class SimpleWorkflowExecutor:
         facade: "ExecutionFacade",
     ):
         """
-        Initializes the SimpleWorkflowExecutor.
+        Initializes the LinearWorkflowExecutor.
 
         Args:
             config: The configuration for the specific workflow to execute.
@@ -50,13 +50,13 @@ class SimpleWorkflowExecutor:
 
         self.config = config
         self.facade = facade
-        logger.debug(f"SimpleWorkflowExecutor initialized for workflow: {self.config.name}")
+        logger.debug(f"LinearWorkflowExecutor initialized for workflow: {self.config.name}")
 
     async def execute(
         self, initial_input: str, session_id: Optional[str] = None, base_session_id: Optional[str] = None
-    ) -> SimpleWorkflowExecutionResult:
+    ) -> LinearWorkflowExecutionResult:
         """
-        Executes the configured simple workflow sequentially.
+        Executes the configured linear workflow sequentially.
 
         Args:
             initial_input: The initial input message for the first agent in the sequence.
@@ -64,7 +64,7 @@ class SimpleWorkflowExecutor:
             base_session_id: The original, user-provided session ID for the workflow.
 
         Returns:
-            A SimpleWorkflowExecutionResult object containing the final status,
+            A LinearWorkflowExecutionResult object containing the final status,
             step-by-step results, the final output, and any error message.
         """
         workflow_name = self.config.name
@@ -73,9 +73,9 @@ class SimpleWorkflowExecutor:
             session_id = f"workflow-{uuid.uuid4().hex[:8]}"
             logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {session_id}")
 
-        logger.info(f"Executing simple workflow: '{workflow_name}' with session_id: {session_id}")
+        logger.info(f"Executing linear workflow: '{workflow_name}' with session_id: {session_id}")
 
-        step_results: list[SimpleWorkflowStepResult] = []
+        step_results: list[LinearWorkflowStepResult] = []
         current_message: Any = initial_input
 
         try:
@@ -131,8 +131,8 @@ class SimpleWorkflowExecutor:
                             # The input for the next step is the agent's final text response
                             current_message = agent_run_result.final_response.content
 
-                        case "simple_workflow":
-                            workflow_result = await self.facade.run_simple_workflow(
+                        case "linear_workflow":
+                            workflow_result = await self.facade.run_linear_workflow(
                                 workflow_name=component.name,
                                 initial_input=current_message,
                                 session_id=session_id,
@@ -162,7 +162,7 @@ class SimpleWorkflowExecutor:
                             raise ValueError(f"Component type not recognized: {component.type}")
 
                     step_results.append(
-                        SimpleWorkflowStepResult(
+                        LinearWorkflowStepResult(
                             step_name=component.name,
                             step_type=component.type,
                             result=component_output,
@@ -174,7 +174,7 @@ class SimpleWorkflowExecutor:
                         f"Error processing component '{component.name}': {e}",
                         exc_info=True,
                     )
-                    return SimpleWorkflowExecutionResult(
+                    return LinearWorkflowExecutionResult(
                         workflow_name=workflow_name,
                         status="failed",
                         step_results=step_results,
@@ -183,7 +183,7 @@ class SimpleWorkflowExecutor:
                         session_id=session_id,
                     )
 
-            return SimpleWorkflowExecutionResult(
+            return LinearWorkflowExecutionResult(
                 workflow_name=workflow_name,
                 status="completed",
                 step_results=step_results,
@@ -193,8 +193,8 @@ class SimpleWorkflowExecutor:
             )
 
         except Exception as e:
-            logger.error(f"Error within simple workflow execution: {e}", exc_info=True)
-            return SimpleWorkflowExecutionResult(
+            logger.error(f"Error within linear workflow execution: {e}", exc_info=True)
+            return LinearWorkflowExecutionResult(
                 workflow_name=workflow_name,
                 status="failed",
                 step_results=step_results,
@@ -208,8 +208,8 @@ class SimpleWorkflowExecutor:
         possible_types = []
         if self.facade._config_manager.get_config("agent", component_name):
             possible_types.append("agent")
-        if self.facade._config_manager.get_config("simple_workflow", component_name):
-            possible_types.append("simple_workflow")
+        if self.facade._config_manager.get_config("linear_workflow", component_name):
+            possible_types.append("linear_workflow")
         if self.facade._config_manager.get_config("custom_workflow", component_name):
             possible_types.append("custom_workflow")
 

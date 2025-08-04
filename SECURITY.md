@@ -130,7 +130,7 @@ If database persistence is enabled (via `AURITE_ENABLE_DB="true"`), the `Storage
 
 ### 9. Dynamic Registration Control (`AURITE_ALLOW_DYNAMIC_REGISTRATION`)
 
-The `HostManager` (`src/host_manager.py`) provides methods for dynamically registering new components (Clients, Agents, LLMs, Simple Workflows, and Custom Workflows) at runtime, typically via API endpoints.
+The `HostManager` (`src/host_manager.py`) provides methods for dynamically registering new components (Clients, Agents, LLMs, Linear Workflows, and Custom Workflows) at runtime, typically via API endpoints.
 
 *   **Purpose:** This environment variable allows administrators to globally enable or disable these dynamic registration capabilities.
 *   **Environment Variable:** `AURITE_ALLOW_DYNAMIC_REGISTRATION`

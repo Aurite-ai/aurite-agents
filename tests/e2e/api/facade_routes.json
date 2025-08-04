@@ -140,7 +140,7 @@
 			"response": []
 		},
 		{
-			"name": "Run Simple Workflow",
+			"name": "Run Linear Workflow",
 			"event": [
 				{
 					"listen": "test",
@@ -172,14 +172,14 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/execution/workflows/simple/Weather Planning Workflow/run",
+					"raw": "{{base_url}}/execution/workflows/linear/Weather Planning Workflow/run",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"execution",
 						"workflows",
-						"simple",
+						"linear",
 						"Weather Planning Workflow",
 						"run"
 					]
@@ -188,7 +188,7 @@
 			"response": []
 		},
         {
-			"name": "Test Simple Workflow",
+			"name": "Test Linear Workflow",
 			"event": [
 				{
 					"listen": "test",
@@ -211,14 +211,14 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/execution/workflows/simple/Weather Planning Workflow/test",
+					"raw": "{{base_url}}/execution/workflows/linear/Weather Planning Workflow/test",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"execution",
 						"workflows",
-						"simple",
+						"linear",
 						"Weather Planning Workflow",
 						"test"
 					]

@@ -31,7 +31,7 @@ async def create_test_workflow(name: str, include_history: bool = None):
     async with httpx.AsyncClient() as client:
         workflow_config = {
             "name": name,
-            "type": "simple_workflow",
+            "type": "linear_workflow",
             "description": f"Test workflow with include_history={include_history}",
             "steps": ["Weather Agent", "Weather Planning Workflow Step 2"],
         }
@@ -40,7 +40,7 @@ async def create_test_workflow(name: str, include_history: bool = None):
             workflow_config["include_history"] = include_history
 
         response = await client.post(
-            f"{API_BASE_URL}/config/simple_workflow", headers=HEADERS, json=workflow_config, timeout=10.0
+            f"{API_BASE_URL}/config/linear_workflow", headers=HEADERS, json=workflow_config, timeout=10.0
         )
         return response.status_code == 201
 
@@ -48,10 +48,11 @@ async def create_test_workflow(name: str, include_history: bool = None):
 async def run_workflow(workflow_name: str, session_id: str):
     """Run a workflow with a session ID."""
     async with httpx.AsyncClient() as client:
+        payload = {"initial_input": "What's the weather like in New York?", "session_id": session_id}
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
-            json={"initial_input": "What's the weather in San Francisco?", "session_id": session_id},
+            json=payload,
             timeout=60.0,
         )
         response.raise_for_status()
@@ -62,7 +63,7 @@ async def delete_workflow(workflow_name: str):
     """Delete a workflow configuration."""
     async with httpx.AsyncClient() as client:
         response = await client.delete(
-            f"{API_BASE_URL}/config/simple_workflow/{workflow_name}", headers=HEADERS, timeout=10.0
+            f"{API_BASE_URL}/config/linear_workflow/{workflow_name}", headers=HEADERS, timeout=10.0
         )
         return response.status_code in [200, 204, 404]
 

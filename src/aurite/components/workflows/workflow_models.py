@@ -11,33 +11,33 @@ if TYPE_CHECKING:
     from ..agents.agent_models import AgentRunResult
 
 
-class SimpleWorkflowStepResult(BaseModel):
+class LinearWorkflowStepResult(BaseModel):
     """
-    Represents the output of a single step in a Simple Workflow.
-    This model can hold the result from an Agent, a nested Simple Workflow,
+    Represents the output of a single step in a Linear Workflow.
+    This model can hold the result from an Agent, a nested Linear Workflow,
     or a Custom Workflow.
     """
 
     step_name: str = Field(description="The name of the component that was executed in this step.")
-    step_type: str = Field(description="The type of the component (e.g., 'agent', 'simple_workflow').")
+    step_type: str = Field(description="The type of the component (e.g., 'agent', 'linear_workflow').")
 
     # The 'result' field will hold the specific output model for the component type.
     # Agent results are now stored as dicts from model_dump().
-    result: Union[Dict[str, Any], "SimpleWorkflowExecutionResult", Any] = Field(
+    result: Union[Dict[str, Any], "LinearWorkflowExecutionResult", Any] = Field(
         description="The execution result from the step's component."
     )
 
 
-class SimpleWorkflowExecutionResult(BaseModel):
+class LinearWorkflowExecutionResult(BaseModel):
     """
-    Standardized Pydantic model for the output of a Simple Workflow execution.
+    Standardized Pydantic model for the output of a Linear Workflow execution.
     """
 
     workflow_name: str = Field(description="The name of the executed workflow.")
     status: str = Field(description="The final status of the workflow (e.g., 'completed', 'failed').")
 
     # A list of step results to provide a full execution trace
-    step_results: List[SimpleWorkflowStepResult] = Field(
+    step_results: List[LinearWorkflowStepResult] = Field(
         default_factory=list,
         description="A list containing the result of each step in the workflow.",
     )
@@ -63,8 +63,8 @@ class SimpleWorkflowExecutionResult(BaseModel):
         return str(self.final_output) if self.final_output is not None else None
 
 
-# This is needed to allow the recursive type hint in SimpleWorkflowStepResult
-SimpleWorkflowStepResult.model_rebuild()
+# This is needed to allow the recursive type hint in LinearWorkflowStepResult
+LinearWorkflowStepResult.model_rebuild()
 
 
 class BaseCustomWorkflow:

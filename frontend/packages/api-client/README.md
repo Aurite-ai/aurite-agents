@@ -68,6 +68,7 @@ console.log(result.final_response?.content);
 The client provides access to four main API modules:
 
 ### 🤖 Execution (`client.execution`)
+
 Execute agents and workflows with streaming support.
 
 ```typescript
@@ -80,7 +81,7 @@ const result = await client.execution.runAgent('Weather Agent', {
 await client.execution.streamAgent(
   'Weather Agent',
   { user_message: 'Tell me about the weather' },
-  (event) => {
+  event => {
     if (event.type === 'llm_response') {
       console.log(event.data.content);
     }
@@ -88,12 +89,13 @@ await client.execution.streamAgent(
 );
 
 // Execute workflows
-const workflowResult = await client.execution.runSimpleWorkflow('Data Processing', {
-  input_data: { source: 'api', format: 'json' }
+const workflowResult = await client.execution.runLinearWorkflow('Data Processing', {
+  input_data: { source: 'api', format: 'json' },
 });
 ```
 
 ### 🔧 Host (`client.host`)
+
 Manage MCP servers and tools.
 
 ```typescript
@@ -105,11 +107,12 @@ await client.host.registerServerByName('weather_server');
 
 // Call a tool directly
 const toolResult = await client.host.callTool('get_weather', {
-  location: 'San Francisco'
+  location: 'San Francisco',
 });
 ```
 
 ### ⚙️ Config (`client.config`)
+
 Manage configurations for agents, LLMs, and servers.
 
 ```typescript
@@ -123,11 +126,12 @@ const agentConfig = await client.config.getConfig('agent', 'Weather Agent');
 await client.config.createConfig('agent', {
   name: 'New Agent',
   llm: 'gpt-4',
-  system_prompt: 'You are a helpful assistant.'
+  system_prompt: 'You are a helpful assistant.',
 });
 ```
 
 ### 🔍 System (`client.system`)
+
 Monitor system health and manage the framework.
 
 ```typescript
@@ -175,7 +179,7 @@ Stream real-time responses from agents:
 await client.execution.streamAgent(
   'Weather Agent',
   { user_message: 'Tell me about the weather' },
-  (event) => {
+  event => {
     switch (event.type) {
       case 'llm_response':
         console.log('LLM Response:', event.data.content);
@@ -201,18 +205,15 @@ Configure the client with custom options:
 ```typescript
 import { createAuriteClient } from '@aurite/api-client';
 
-const client = createAuriteClient(
-  'http://localhost:8000',
-  'your-api-key',
-  {
-    timeout: 30000,        // 30 second timeout
-    retryAttempts: 3,      // Retry failed requests 3 times
-    retryDelay: 1000,      // Wait 1 second between retries
-    headers: {             // Custom headers
-      'User-Agent': 'MyApp/1.0.0'
-    }
-  }
-);
+const client = createAuriteClient('http://localhost:8000', 'your-api-key', {
+  timeout: 30000, // 30 second timeout
+  retryAttempts: 3, // Retry failed requests 3 times
+  retryDelay: 1000, // Wait 1 second between retries
+  headers: {
+    // Custom headers
+    'User-Agent': 'MyApp/1.0.0',
+  },
+});
 ```
 
 ## Examples
@@ -242,7 +243,7 @@ npm run example:integration
   - Debug and troubleshooting
 
 - **Workflow Management**: `examples/execution/`
-  - Simple workflow execution
+  - Linear workflow execution
   - Custom workflow handling
 
 - **MCP Server Management**: `examples/mcp-host/`
@@ -361,7 +362,7 @@ createAuriteClient(baseUrl: string, apiKey: string, options?: ClientOptions): Au
 - `getStatus()` - Get execution facade status
 - `runAgent(name, request)` - Run an agent synchronously
 - `streamAgent(name, request, onEvent)` - Stream agent responses
-- `runSimpleWorkflow(name, request)` - Run a simple workflow
+- `runLinearWorkflow(name, request)` - Run a linear workflow
 - `runCustomWorkflow(name, request)` - Run a custom workflow
 
 #### Host Client (`client.host`)
@@ -400,23 +401,27 @@ createAuriteClient(baseUrl: string, apiKey: string, options?: ClientOptions): Au
 The client exports comprehensive TypeScript types:
 
 ### Core Types
+
 - `ApiConfig` - Client configuration options
 - `RequestOptions` - Request-specific options
 - `ConfigType` - Configuration type enumeration
 - `ExecutionStatus` - Execution status enumeration
 
 ### Request Types
+
 - `AgentRunRequest` - Agent execution request
 - `WorkflowRunRequest` - Workflow execution request
 - `ToolCallArgs` - Tool call arguments
 
 ### Response Types
+
 - `AgentRunResult` - Agent execution result
 - `WorkflowExecutionResult` - Workflow execution result
 - `StreamEvent` - Streaming event types
 - `ToolCallResult` - Tool call result
 
 ### Error Types
+
 - `ApiError` - API-related errors
 - `TimeoutError` - Request timeout errors
 - `CancellationError` - Request cancellation errors
@@ -426,6 +431,7 @@ The client exports comprehensive TypeScript types:
 ### Common Issues
 
 **Connection Errors:**
+
 ```typescript
 // Ensure the API server is running and accessible
 const client = createAuriteClient('http://localhost:8000', 'your-key');
@@ -437,16 +443,18 @@ try {
 ```
 
 **Authentication Errors:**
+
 ```typescript
 // Verify your API key is correct
 const client = createAuriteClient(baseUrl, 'correct-api-key');
 ```
 
 **Timeout Issues:**
+
 ```typescript
 // Increase timeout for long-running operations
 const client = createAuriteClient(baseUrl, apiKey, {
-  timeout: 60000 // 60 seconds
+  timeout: 60000, // 60 seconds
 });
 ```
 
@@ -460,7 +468,7 @@ process.env.DEBUG = 'aurite:*';
 
 // Or enable in code
 const client = createAuriteClient(baseUrl, apiKey, {
-  debug: true
+  debug: true,
 });
 ```
 

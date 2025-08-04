@@ -1,5 +1,5 @@
 """
-Pytest fixtures related to Workflow configurations (Simple and Custom).
+Pytest fixtures related to Workflow configurations (Linear and Custom).
 """
 
 from pathlib import Path
@@ -15,12 +15,12 @@ from aurite.config.config_models import CustomWorkflowConfig, WorkflowConfig
 
 @pytest.fixture
 def sample_workflow_config() -> WorkflowConfig:
-    """Provides a sample simple workflow configuration for unit tests."""
+    """Provides a sample linear workflow configuration for unit tests."""
     # Assumes agents 'Agent1' and 'Agent2' exist where this is used
     return WorkflowConfig(
-        name="TestSimpleWorkflow",
+        name="TestLinearWorkflow",
         steps=["Agent1", "Agent2"],
-        description="A test simple workflow",
+        description="A test linear workflow",
     )
 
 

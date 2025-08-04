@@ -1,7 +1,7 @@
 from .custom_workflow import CustomWorkflowExecutor
-from .simple_workflow import SimpleWorkflowExecutor
+from .linear_workflow import LinearWorkflowExecutor
 
 __all__ = [
-    "SimpleWorkflowExecutor",
+    "LinearWorkflowExecutor",
     "CustomWorkflowExecutor",
 ]

@@ -99,8 +99,8 @@ def _format_mcp_server_details(component: dict, level: str) -> str:
     return content
 
 
-def _format_simple_workflow_details(component: dict, level: str) -> str:
-    """Formats the details of a simple workflow component for display."""
+def _format_linear_workflow_details(component: dict, level: str) -> str:
+    """Formats the details of a linear workflow component for display."""
     config = component["config"]
     content = ""
     description = config.get("description", "No description.")
@@ -152,7 +152,7 @@ def format_component_details(component: dict, level: str) -> str:
         "agent": _format_agent_details,
         "llm": _format_llm_details,
         "mcp_server": _format_mcp_server_details,
-        "simple_workflow": _format_simple_workflow_details,
+        "linear_workflow": _format_linear_workflow_details,
         "custom_workflow": _format_custom_workflow_details,
     }
     formatter = formatters.get(comp_type, lambda c, loc: json.dumps(loc["config"], indent=2))

@@ -41,7 +41,7 @@ class AgentExecutionError(AuriteError):
 
 class WorkflowExecutionError(AuriteError):
     """
-    Raised for errors that occur during the execution of a simple or
+    Raised for errors that occur during the execution of a linear or
     custom workflow.
     """
 

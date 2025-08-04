@@ -136,7 +136,7 @@ The TypeScript integration test (`frontend/tests/integration/test-integration.ts
 
 - `config/agents/agents.json` - Must contain "Weather Agent"
 - `config/mcp_servers/mcp_servers.json` - Must contain "weather_server"
-- `config/simple_workflows/workflows.json` - Must contain "Weather Planning Workflow"
+- `config/linear_workflows/workflows.json` - Must contain "Weather Planning Workflow"
 - `custom_workflows/example_workflow.py` - Must define "ExampleCustomWorkflow"
 
 ### Environment Variables

@@ -1,5 +1,5 @@
 """
-Provides a unified facade for executing Agents, Simple Workflows, and Custom Workflows.
+Provides a unified facade for executing Agents, Linear Workflows, and Custom Workflows.
 """
 
 import logging
@@ -14,8 +14,8 @@ from ..components.agents.agent import Agent
 from ..components.agents.agent_models import AgentRunResult
 from ..components.llm.providers.litellm_client import LiteLLMClient
 from ..components.workflows.custom_workflow import CustomWorkflowExecutor
-from ..components.workflows.simple_workflow import SimpleWorkflowExecutor
-from ..components.workflows.workflow_models import SimpleWorkflowExecutionResult
+from ..components.workflows.linear_workflow import LinearWorkflowExecutor
+from ..components.workflows.workflow_models import LinearWorkflowExecutionResult
 from ..config.config_manager import ConfigManager
 from ..config.config_models import (
     AgentConfig,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class ExecutionFacade:
     """
     A facade that simplifies the execution of different component types
-    (Agents, Simple Workflows, Custom Workflows) managed by the Aurite.
+    (Agents, Linear Workflows, Custom Workflows) managed by the Aurite.
     """
 
     def __init__(
@@ -376,21 +376,21 @@ class ExecutionFacade:
                     f"Keeping {len(servers_to_unregister)} dynamically registered servers active: {servers_to_unregister}"
                 )
 
-    async def run_simple_workflow(
+    async def run_linear_workflow(
         self,
         workflow_name: str,
         initial_input: Any,
         session_id: Optional[str] = None,
         trace: Optional["StatefulTraceClient"] = None,
-    ) -> SimpleWorkflowExecutionResult:
-        logger.info(f"Facade: Received request to run Simple Workflow '{workflow_name}' with session_id: {session_id}")
+    ) -> LinearWorkflowExecutionResult:
+        logger.info(f"Facade: Received request to run Linear Workflow '{workflow_name}' with session_id: {session_id}")
         # Flush Langfuse trace if enabled
         if self.langfuse and trace:
             self.langfuse.flush()
         try:
-            workflow_config_dict = self._config_manager.get_config("simple_workflow", workflow_name)
+            workflow_config_dict = self._config_manager.get_config("linear_workflow", workflow_name)
             if not workflow_config_dict:
-                raise ConfigurationError(f"Simple Workflow '{workflow_name}' not found.")
+                raise ConfigurationError(f"Linear Workflow '{workflow_name}' not found.")
 
             from ..config.config_models import WorkflowConfig
 
@@ -409,7 +409,7 @@ class ExecutionFacade:
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 
-            workflow_executor = SimpleWorkflowExecutor(
+            workflow_executor = LinearWorkflowExecutor(
                 config=workflow_config,
                 facade=self,
             )
@@ -417,7 +417,7 @@ class ExecutionFacade:
             result = await workflow_executor.execute(
                 initial_input=initial_input, session_id=final_session_id, base_session_id=base_session_id
             )
-            logger.info(f"Facade: Simple Workflow '{workflow_name}' execution finished.")
+            logger.info(f"Facade: Linear Workflow '{workflow_name}' execution finished.")
 
             # Save the complete workflow execution result if it has a session_id
             if result.session_id and self._session_manager:
@@ -433,7 +433,7 @@ class ExecutionFacade:
             # Re-raise configuration errors directly
             raise e
         except Exception as e:
-            error_msg = f"Unexpected error running Simple Workflow '{workflow_name}': {e}"
+            error_msg = f"Unexpected error running Linear Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 

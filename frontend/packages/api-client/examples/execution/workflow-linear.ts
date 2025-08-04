@@ -1,8 +1,8 @@
 /**
- * Simple Workflow Execution Example
+ * Linear Workflow Execution Example
  *
- * This example demonstrates how to run simple workflows.
- * Simple workflows execute a series of agents in sequence,
+ * This example demonstrates how to run linear workflows.
+ * Linear workflows execute a series of agents in sequence,
  * where each agent receives the output of the previous agent.
  */
 
@@ -16,20 +16,20 @@ import {
 async function basicWorkflowExecution() {
   const client = await createExampleClient();
 
-  console.log('\n📋 Example 1: Basic Simple Workflow');
+  console.log('\n📋 Example 1: Basic Linear Workflow');
 
   try {
-    const result = await client.execution.runSimpleWorkflow('Weather Planning Workflow', {
+    const result = await client.execution.runLinearWorkflow('Weather Planning Workflow', {
       initial_input: 'What should I wear in London today?',
     });
 
     console.log('✅ Workflow Status:', result.status);
     console.log('📝 Final Output:', result.final_output);
 
-    // Check if steps exist and display them
-    if (result.steps && Array.isArray(result.steps)) {
+    // Check if step_results exist and display them
+    if (result.step_results && Array.isArray(result.step_results)) {
       console.log('\n📊 Workflow Steps:');
-      result.steps.forEach((step, index) => {
+      result.step_results.forEach((step: any, index: number) => {
         console.log(`  ${index + 1}. ${step.step_name}: ${step.status}`);
         if (step.result) {
           console.log(`     Result: ${JSON.stringify(step.result).substring(0, 100)}...`);
@@ -43,8 +43,8 @@ async function basicWorkflowExecution() {
     }
 
     // Show error message if workflow failed
-    if (result.error_message) {
-      console.log('❌ Workflow Error:', result.error_message);
+    if (result.error) {
+      console.log('❌ Workflow Error:', result.error);
     }
   } catch (error) {
     handleExampleError(error, 'Basic Workflow');
@@ -76,7 +76,7 @@ async function workflowWithDifferentInputs() {
       console.log(`\n🔄 Testing: ${test.name}`);
       console.log(`   Input: "${test.input}"`);
 
-      const result = await client.execution.runSimpleWorkflow('Weather Planning Workflow', {
+      const result = await client.execution.runLinearWorkflow('Weather Planning Workflow', {
         initial_input: test.input,
       });
 
@@ -102,7 +102,7 @@ async function workflowErrorHandling() {
 
   // Test 1: Non-existent workflow
   try {
-    await client.execution.runSimpleWorkflow('Non-Existent Workflow', {
+    await client.execution.runLinearWorkflow('Non-Existent Workflow', {
       initial_input: 'Test input',
     });
   } catch (error) {
@@ -112,7 +112,7 @@ async function workflowErrorHandling() {
 
   // Test 2: Invalid input format
   try {
-    await client.execution.runSimpleWorkflow('Weather Planning Workflow', {} as any);
+    await client.execution.runLinearWorkflow('Weather Planning Workflow', {} as any);
   } catch (error) {
     console.log('\n✅ Expected error for invalid input:');
     handleExampleError(error, 'Invalid Input');
@@ -120,7 +120,7 @@ async function workflowErrorHandling() {
 
   // Test 3: Empty input
   try {
-    const result = await client.execution.runSimpleWorkflow('Weather Planning Workflow', {
+    const result = await client.execution.runLinearWorkflow('Weather Planning Workflow', {
       initial_input: '',
     });
 
@@ -153,7 +153,7 @@ async function workflowComparison() {
 
     // Run workflow
     console.log('\n🔄 Running Weather Planning Workflow...');
-    const workflowResult = await client.execution.runSimpleWorkflow('Weather Planning Workflow', {
+    const workflowResult = await client.execution.runLinearWorkflow('Weather Planning Workflow', {
       initial_input: userMessage,
     });
 
@@ -193,7 +193,7 @@ async function workflowWithComplexInput() {
 
     console.log('🔄 Running workflow with complex input...');
 
-    const result = await client.execution.runSimpleWorkflow('Weather Planning Workflow', {
+    const result = await client.execution.runLinearWorkflow('Weather Planning Workflow', {
       initial_input: complexInput.trim(),
     });
 
@@ -205,9 +205,9 @@ async function workflowWithComplexInput() {
       prettyPrint(result.final_output, 'Workflow Final Output');
     }
 
-    if (result.steps && result.steps.length > 0) {
+    if (result.step_results && result.step_results.length > 0) {
       console.log('\n📊 Step-by-Step Breakdown:');
-      result.steps.forEach((step, index) => {
+      result.step_results.forEach((step: any, index: number) => {
         console.log(`\n   Step ${index + 1}: ${step.step_name}`);
         console.log(`   Status: ${step.status}`);
         if (step.result) {
