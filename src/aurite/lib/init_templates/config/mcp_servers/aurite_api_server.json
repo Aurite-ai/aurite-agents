@@ -1,0 +1,15 @@
+[
+    {
+        "name": "aurite_api",
+        "type": "mcp_server",
+        "http_endpoint": "http://localhost:8123/mcp/",
+        "capabilities": [
+            "tools",
+            "prompts",
+            "resources"
+        ],
+        "timeout": 15.0,
+        "description": "Aurite API Server for MCP integration"
+
+    }
+]
