@@ -190,8 +190,8 @@ docs/.copilot/
 notebook-venv/
 docs/guides/
 docs/reports/newman/*
-!src/aurite/init_templates/.env.example
-src/aurite/init_templates/mcp_servers/plans/
+!src/aurite/lib/init_templates/.env.example
+src/aurite/lib/init_templates/mcp_servers/plans/
 .aurite_cache/
 demo-config/*
 !frontend/.env.example
@@ -200,5 +200,4 @@ demo-config/*
 !frontend/packages/aurite-studio/.env.example
 docs/aurite-studio/*
 .langfuse_logs/
-
-# :dancing_bear: PR #100 celebration
+!src/aurite/lib

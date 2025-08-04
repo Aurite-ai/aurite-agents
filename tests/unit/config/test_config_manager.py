@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.aurite.config.config_manager import ConfigManager
+from src.aurite.lib.config.config_manager import ConfigManager
 
 
 @pytest.fixture

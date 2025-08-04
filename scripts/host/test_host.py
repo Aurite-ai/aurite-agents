@@ -8,8 +8,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.aurite.config.config_models import ClientConfig
-from src.aurite.host.host import MCPHost
+from src.aurite.execution.mcp_host.host import MCPHost
+from src.aurite.lib.config.config_models import ClientConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -39,13 +39,13 @@ async def main():
             logging.info("Host entered context.")
 
             # 1. Load server configuration
-            config_path = "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
+            config_path = "src/aurite/lib/init_templates/config/mcp_servers/example_mcp_servers.json"
             server_name = "weather_server"
             server_config_dict = load_server_config(config_path, server_name)
 
             # Adjust path for local execution
             original_path = server_config_dict["server_path"]
-            server_config_dict["server_path"] = os.path.join("src/aurite/init_templates", original_path)
+            server_config_dict["server_path"] = os.path.join("src/aurite/lib/init_templates", original_path)
 
             client_config = ClientConfig(**server_config_dict)
 

@@ -1714,10 +1714,6 @@ components:
           type: number
           default: 30.0
           description: Timeout for registering the mcp client
-        routing_weight:
-          type: number
-          default: 1.0
-          description: Weight for server selection during routing.
         exclude:
           type: array
           items:

@@ -1,72 +1,105 @@
-# Projects and Workspaces
+# :material-file-tree: Projects and Workspaces
 
-The Aurite framework uses a powerful hierarchical configuration system to manage components like agents, LLMs, and MCP servers. This system is built on two core concepts: **Projects** and **Workspaces**. Understanding how they work is key to organizing your configurations effectively.
+The Aurite framework uses a powerful hierarchical configuration system built on two core concepts: **Projects** and **Workspaces**. This system is driven by a special anchor file named `.aurite`, which tells the framework how to discover and prioritize configurations.
 
-## The `.aurite` Anchor File
+<!-- prettier-ignore -->
+!!! info "The `.aurite` Anchor File"
+    The framework finds configurations by searching upwards from your current directory for `.aurite` files. This file marks a directory as a **Project** or a **Workspace** root and specifies which subdirectories contain configuration files.
 
-The entire configuration system is driven by a special file named `.aurite`. This file acts as an "anchor," telling the framework that a directory is the root of either a project or a workspace.
+---
 
-When you run a command, the framework searches upwards from your current directory, looking for all `.aurite` files. This creates a chain of contexts, allowing for powerful and flexible configuration management.
+## Configuration Contexts
 
-### Defining a Project
+Your configurations are organized into contexts, allowing for both separation of concerns and sharing of common components.
 
-A **Project** is the most common organizational unit. It's a self-contained directory that holds all the necessary configurations for a specific task or set of related tasks.
+=== ":material-folder-home-outline: Project"
 
-To define a project, create a `.aurite` file in its root directory with the following content:
+    A **Project** is a self-contained directory for a specific task or set of related tasks. It's the most common organizational unit.
 
-```toml
-# .aurite
-[aurite]
-type = "project"
-include_configs = ["config"]
-```
+    To define a project, create an `.aurite` file in its root directory.
 
--   **`type = "project"`**: This line is mandatory and identifies the directory as a project root.
--   **`include_configs = ["config"]`**: This tells the `ConfigManager` to look inside the `config/` directory (relative to the `.aurite`) for your component configuration files (`.json` or `.yaml`). You can list multiple directories here to add the configurations located in those directories to the project.
+    **`.aurite` File Fields:**
 
-### Defining a Workspace
+    |  Field  |  Type  |  Required  |  Description  |
+    |----|----|----|----|
+    | `type` | `string` | Yes | Must be set to `"project"`. |
+    | `include_configs` | `list[string]` | Yes | A list of directories (relative to the `.aurite` file) where component configurations are stored. |
 
-A **Workspace** is a higher-level container that can manage multiple projects. This is useful when you have several related projects that might share common configurations (like a set of standard LLMs or MCP servers).
+    **Example `.aurite`:**
+    ```toml
+    # .aurite
+    [aurite]
+    type = "project"
+    include_configs = ["config", "shared_components"]
+    ```
 
-To define a workspace, create a `.aurite` file in its root directory:
+=== ":material-folder-multiple-outline: Workspace"
 
-```toml
-# .aurite
-[aurite]
-type = "workspace"
-projects = ["project-a", "project-b"]
-include_configs = ["workspace-config"]
-```
+    A **Workspace** is a higher-level container that can manage multiple projects and shared configurations.
 
--   **`type = "workspace"`**: Identifies the directory as a workspace root.
--   **`projects = [...]`**: An optional list of subdirectories that are individual projects. The `ConfigManager` will be aware of these projects when operating from the workspace root.
--   **`include_configs = [...]`**: Specifies directories containing shared, workspace-level configurations.
+    **`.aurite` File Fields:**
 
-## Configuration Loading and Priority
+    | Field | Type | Required | Description |
+    | --- | --- | --- | --- |
+    | `type` | `string` | Yes | Must be set to `"workspace"`. |
+    | `include_configs` | `list[string]` | Yes | A list of directories containing shared, workspace-level configurations. |
+    | `projects` | `list[string]` | No | An optional list of subdirectories that are individual projects. |
 
-When the framework looks for a component (e.g., an agent named `my-agent`), it searches the contexts in a specific order of priority, from most specific to most general. A component found in a higher-priority context will override one with the same name from a lower-priority context.
-The priority is as follows:
+    **Example `.aurite`:**
+    ```toml
+    # .aurite
+    [aurite]
+    type = "workspace"
+    projects = ["project-a", "project-b"]
+    include_configs = ["workspace_config"]
+    ```
 
-1.  **Project Level**: Configurations found in the `include_configs` directories of the current project's `.aurite` file.
-2.  **Workspace Level**: Configurations found in the `include_configs` directories of the parent workspace's `.aurite` file.
-3.  **User Level**: Global configurations located in your home directory at `~/.aurite/`.
+---
 
-This hierarchy allows you to define a default "development" LLM at the user level, a "standard-production" LLM at the workspace level, and a highly specialized "task-specific" LLM at the project level, all using the same component name. The framework will automatically pick the most specific one based on your current location.
+## :material-sort-variant: Priority Resolution
 
-## Duplicate Component Names
-The configuration folders are listed by priority, so a configuration folder that is first in the include_configs list will have a higher priority than the ones that come after it.
+When the framework looks for a component, it searches contexts in a specific order. A component found in a higher-priority context overrides one with the same name from a lower-priority context.
 
-## How Paths are Resolved
+The priority is as follows, from highest to lowest:
 
-When you define a component that references a local file, such as an `mcp_server` with a `server_path` or a `custom_workflow` with a `module_path`, you can use a relative path.
+1.  **In-Memory**: Programmatically registered components (highest priority).
+2.  **Project Level**: Configurations from the current project's `include_configs` directories.
+3.  **Workspace Level**: Configurations from the parent workspace's `include_configs` directories.
+4.  **Other Projects**: Configurations from other projects within the same workspace.
 
-The framework is smart about resolving these paths. **All relative paths are resolved from the location of the `.aurite` file that defines their context.**
+<!-- prettier-ignore -->
+!!! example "Overriding Example"
+    You could define a `standard-llm` at the workspace level, and a `standard-llm` at the project level. The framework automatically picks the most specific one based on your current directory.
 
-**Example:**
+---
 
--   Your workspace is at `/path/to/my-workspace/`.
--   Its `.aurite` file is at `/path/to/my-workspace/.aurite`.
--   You have a shared MCP server defined in `/path/to/my-workspace/workspace-config/servers.json`.
--   The server's `server_path` is set to `mcp_servers/shared_server.py`.
+## :material-map-marker-path: Path Resolution
 
-The framework will correctly resolve the full path to `/path/to/my-workspace/mcp_servers/shared_server.py`. This makes your configurations portable and easy to share.
+When a component configuration references a local file (e.g., `server_path` in an MCP server), you can use a relative path.
+
+**All relative paths are resolved from the location of the `.aurite` file that defines their context.**
+
+This makes your configurations portable and easy to share.
+
+<!-- prettier-ignore -->
+!!! example "Path Resolution Example"
+    Imagine the following setup:
+
+    - Your workspace is at `/path/to/my-workspace/`.
+    - Its `.aurite` file is at `/path/to/my-workspace/.aurite`.
+    - A shared server is defined in `/path/to/my-workspace/workspace-config/servers.json`.
+    - The server's `server_path` is set to `mcp_servers/shared_server.py`.
+
+    The framework will correctly resolve the full path to `/path/to/my-workspace/mcp_servers/shared_server.py`.
+
+## :material-cube-outline: Component Types
+
+Aurite supports several core component types, each with its own configuration and purpose. Learn more about each type:
+
+- [Agent](agent.md)
+- [LLM](llm.md)
+- [MCP Server](mcp_server.md)
+- [Linear Workflow](linear_workflow.md)
+- [Custom Workflow](custom_workflow.md)
+
+Explore these guides to understand how to configure and use each component within your projects and workspaces.

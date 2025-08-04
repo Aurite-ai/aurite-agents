@@ -135,7 +135,7 @@ export function getApiClientConfig(
 export function createAuriteConfig(overrides: Partial<AuriteConfig> = {}): AuriteConfig {
   const config = createConfig();
   return {
-    ...config,
+    ...lib.config,
     ...overrides,
   };
 }
