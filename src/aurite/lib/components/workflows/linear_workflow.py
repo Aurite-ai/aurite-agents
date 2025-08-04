@@ -57,7 +57,7 @@ class LinearWorkflowExecutor:
         initial_input: str,
         session_id: Optional[str] = None,
         base_session_id: Optional[str] = None,
-        trace: Optional[Any] = None,
+        force_logging: Optional[bool] = None,
     ) -> LinearWorkflowExecutionResult:
         """
         Executes the configured linear workflow sequentially.
@@ -114,7 +114,7 @@ class LinearWorkflowExecutor:
                                 session_id=f"{session_id}-{step_index}" if session_id else None,
                                 force_include_history=self.config.include_history,
                                 base_session_id=base_session_id,
-                                trace=trace,
+                                force_logging=force_logging,
                             )
 
                             # Check the status of the agent run
@@ -140,7 +140,7 @@ class LinearWorkflowExecutor:
                                 workflow_name=component.name,
                                 initial_input=current_message,
                                 session_id=session_id,
-                                trace=trace,
+                                force_logging=force_logging,
                             )
                             if workflow_result.error:
                                 raise Exception(f"Nested workflow '{component.name}' failed: {workflow_result.error}")
