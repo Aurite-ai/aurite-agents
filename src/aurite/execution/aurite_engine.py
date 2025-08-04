@@ -374,6 +374,8 @@ class AuriteEngine:
                 )
             )
             run_result = await agent_instance.run_conversation()
+            if trace:
+                trace.update(output=run_result.final_response.content)
             logger.info(
                 colored(
                     f"Facade: Agent '{agent_name}' conversation finished with status: {run_result.status}.",
@@ -427,7 +429,7 @@ class AuriteEngine:
             # --- Logging Management ---
             enable_logging = self._should_enable_logging(workflow_config, force_logging)
             trace: Optional["StatefulTraceClient"] = None
-            if self.langfuse and enable_logging:
+            if self.langfuse and workflow_config.include_logging:
                 trace = self.langfuse.trace(
                     name=f"Workflow: {workflow_name} - Aurite Runtime",
                     session_id=session_id,
@@ -461,7 +463,7 @@ class AuriteEngine:
                 initial_input=initial_input,
                 session_id=final_session_id,
                 base_session_id=base_session_id,
-                trace=trace,
+                force_logging=enable_logging if workflow_config.include_logging is not None else None,
             )
             if trace:
                 trace.update(output=result.final_output)
