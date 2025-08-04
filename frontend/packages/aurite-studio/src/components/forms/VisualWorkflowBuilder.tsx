@@ -122,69 +122,117 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
   const isConfigured = data?.agentConfig && Object.keys(data.agentConfig).length > 2; // More than just type and name
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3 shadow-sm min-w-[150px] relative group hover:shadow-md transition-shadow">
-      {/* Delete Button - Top Right */}
-      <button
-        onClick={handleDelete}
-        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive hover:bg-destructive/80 text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md z-10"
-        title="Delete agent"
-      >
-        <X className="h-3 w-3" />
-      </button>
+    <motion.div 
+      className="relative group min-w-[200px] max-w-[280px] p-4"
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      {/* Main Node Card */}
+      <div className="bg-card border border-border rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
+        
+        {/* Gradient Accent Bar */}
+        <div className={`absolute top-0 left-0 right-0 h-1 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/20'}`} />
+        
+        {/* Status Indicator */}
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          {isConfigured && (
+            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-lg" title="Agent is configured" />
+          )}
+        </div>
 
-      {/* Config Button - Top Left */}
-      <button
-        onClick={handleConfig}
-        className={`absolute -top-2 -left-2 w-6 h-6 ${
-          isConfigured 
-            ? 'bg-primary hover:bg-primary/80 text-primary-foreground' 
-            : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-        } rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md z-10`}
-        title={isConfigured ? "Agent is configured - click to edit" : "Configure agent"}
-      >
-        <Settings className="h-3 w-3" />
-      </button>
+        {/* Action Buttons */}
+        <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+          <button
+            onClick={handleConfig}
+            className={`w-6 h-6 ${
+              isConfigured 
+                ? 'bg-primary hover:bg-primary/80 text-primary-foreground' 
+                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+            } rounded-full flex items-center justify-center transition-all duration-200 shadow-md border border-white/20 hover:scale-110`}
+            title={isConfigured ? "Agent is configured - click to edit" : "Configure agent"}
+          >
+            <Settings className="h-3 w-3" />
+          </button>
+          <button
+            onClick={handleDelete}
+            className="w-6 h-6 bg-destructive hover:bg-destructive/80 text-destructive-foreground rounded-full flex items-center justify-center transition-all duration-200 shadow-md border border-white/20 hover:scale-110"
+            title="Delete agent"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
 
-      {/* Configuration Indicator */}
-      {isConfigured && (
-        <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" title="Agent is configured" />
-      )}
+        {/* Input Handle - Top */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+          style={{ 
+            top: -8,
+            borderRadius: '50%',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+          id="input"
+        />
+        
+        {/* Node Icon and Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`w-10 h-10 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/30'} rounded-lg flex items-center justify-center text-white shadow-md`}>
+            <div className="w-5 h-5 bg-white/90 rounded-sm flex items-center justify-center">
+              <div className="w-2 h-2 bg-current rounded-full" />
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-foreground truncate">
+              {data.label}
+            </h3>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {isConfigured ? 'Configured' : 'Not configured'}
+            </div>
+          </div>
+        </div>
 
-      {/* Input Handle - Top */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
-        style={{ 
-          top: -8,
-          borderRadius: '50%',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}
-        id="input"
-      />
-      
-      {/* Node Content */}
-      <div className="text-sm font-medium text-foreground">{data.label}</div>
-      {data.description && (
-        <div className="text-xs text-muted-foreground mt-1">{data.description}</div>
-      )}
-      {data.agentConfig?.description && (
-        <div className="text-xs text-muted-foreground mt-1 italic">{data.agentConfig.description}</div>
-      )}
-      
-      {/* Output Handle - Bottom */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
-        style={{ 
-          bottom: -8,
-          borderRadius: '50%',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}
-        id="output"
-      />
-    </div>
+        {/* Node Description */}
+        {(data.description || data.agentConfig?.description) && (
+          <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3">
+            {data.agentConfig?.description || data.description}
+          </div>
+        )}
+
+        {/* Configuration Details */}
+        {isConfigured && data.agentConfig && (
+          <div className="space-y-2">
+            {data.agentConfig.llm_config && (
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-muted-foreground">LLM: {data.agentConfig.llm_config}</span>
+              </div>
+            )}
+            {data.agentConfig.mcp_servers && data.agentConfig.mcp_servers.length > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-muted-foreground">{data.agentConfig.mcp_servers.length} MCP Server{data.agentConfig.mcp_servers.length !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Output Handle - Bottom */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+          style={{ 
+            bottom: -8,
+            borderRadius: '50%',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+          id="output"
+        />
+      </div>
+    </motion.div>
   );
 };
 
@@ -701,6 +749,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
+            fitViewOptions={{ padding: 0.6 }}
             className="bg-background"
             defaultEdgeOptions={{
               type: 'smoothstep',
