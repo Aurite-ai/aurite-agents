@@ -35,6 +35,7 @@ import { useAgentsWithConfigs } from '@/hooks/useAgents';
 import { useCreateWorkflow, useUpdateWorkflow, useWorkflowConfigByName } from '@/hooks/useWorkflows';
 import { useLLMs } from '@/hooks/useLLMs';
 import mcpServersService from '@/services/mcpServers.service';
+import agentsService from '@/services/agents.service';
 import AgentPalette from './visual/AgentPalette';
 import AgentConfigModal from './visual/AgentConfigModal';
 import { AgentConfig } from '@/types/api.generated';
@@ -120,6 +121,14 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
   };
 
   const isConfigured = data?.agentConfig && Object.keys(data.agentConfig).length > 2; // More than just type and name
+  console.log('=== AgentNode Debug ===');
+  console.log('Agent Name:', data?.agentName);
+  console.log('Agent Label:', data?.label);
+  console.log('Full Data Object:', data);
+  console.log('Agent Configuration:', data?.agentConfig);
+  console.log('Is Configured:', isConfigured);
+  console.log('Debug Info:', data?.debugInfo);
+  console.log('========================');
 
   return (
     <motion.div 
@@ -189,7 +198,7 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
               {data.label}
             </h3>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {isConfigured ? 'Configured' : 'Not configured'}
+              {data?.loading ? 'Loading...' : (isConfigured ? 'Configured' : 'Not configured')}
             </div>
           </div>
         </div>
@@ -513,9 +522,13 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   }, []);
 
   // Handle agent drop from palette
-  const onAgentDrop = useCallback((agentName: string, position: { x: number; y: number }) => {
-    const newNode: Node = {
-      id: `agent-${Date.now()}`,
+  const onAgentDrop = useCallback(async (agentName: string, position: { x: number; y: number }) => {
+    console.log('onAgentDrop - Attempting to fetch config for agent:', agentName);
+    
+    // Create initial node without configuration
+    const nodeId = `agent-${Date.now()}`;
+    const initialNode: Node = {
+      id: nodeId,
       type: 'agentNode',
       position,
       data: {
@@ -523,10 +536,51 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         agentName: agentName,
         onDelete: handleNodeDelete,
         onConfig: handleNodeConfig,
+        loading: true, // Add loading state
       },
     };
     
-    setNodes((nds) => [...nds, newNode]);
+    // Add the node immediately
+    setNodes((nds) => [...nds, initialNode]);
+    
+    // Try to fetch the agent configuration
+    try {
+      const agentConfig = await agentsService.getAgentConfig(agentName);
+      console.log('Successfully fetched agent config:', agentConfig);
+      
+      // Update the node with the configuration
+      setNodes((nds) => 
+        nds.map(node => 
+          node.id === nodeId 
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  agentConfig,
+                  loading: false,
+                }
+              }
+            : node
+        )
+      );
+    } catch (error) {
+      console.warn('Failed to fetch agent config for', agentName, ':', error);
+      
+      // Update node to remove loading state even if config fetch failed
+      setNodes((nds) => 
+        nds.map(node => 
+          node.id === nodeId 
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  loading: false,
+                }
+              }
+            : node
+        )
+      );
+    }
   }, [setNodes, handleNodeDelete, handleNodeConfig]);
 
   // Handle node deletion
