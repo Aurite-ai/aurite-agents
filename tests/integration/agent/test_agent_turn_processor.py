@@ -11,10 +11,10 @@ from openai.types.chat.chat_completion_message_tool_call import (
     Function,
 )
 
-from aurite.components.agents.agent_turn_processor import AgentTurnProcessor
-from aurite.components.llm.providers.litellm_client import LiteLLMClient
-from aurite.config.config_models import AgentConfig
-from aurite.host.host import MCPHost
+from aurite.execution.mcp_host.host import MCPHost
+from aurite.lib.components.agents.agent_turn_processor import AgentTurnProcessor
+from aurite.lib.components.llm.litellm_client import LiteLLMClient
+from aurite.lib.config.config_models import AgentConfig
 
 # --- Fixtures ---
 

@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from aurite.config.file_manager import FileManager
+from aurite.lib.config.file_manager import FileManager
 
 
 class TestFileManager:

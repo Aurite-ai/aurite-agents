@@ -4,7 +4,7 @@ import logging
 from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
-from aurite.config.config_models import AgentConfig, LLMConfig
+from aurite.lib.config.config_models import AgentConfig, LLMConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ async def main():
         user_query = "What's the weather like in New York?"
 
         # Run the agent with the user's query. The check for the execution
-        # facade is now handled internally by the `aurite.run_agent` method.
+        # engine is now handled internally by the `aurite.run_agent` method.
         agent_result = await aurite.run_agent(agent_name="My Weather Agent", user_message=user_query)
 
         # Print the agent's response in a colored format for better visibility.

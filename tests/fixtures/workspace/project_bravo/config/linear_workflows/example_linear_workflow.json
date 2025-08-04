@@ -1,7 +1,7 @@
 [
   {
     "name": "test_weather_workflow",
-    "type": "simple_workflow",
+    "type": "linear_workflow",
     "steps": [
       "Weather Agent",
       "Weather Planning Workflow Step 2"

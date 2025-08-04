@@ -5,7 +5,7 @@ Unit tests for the PromptManager class.
 import mcp.types as types
 import pytest
 
-from src.aurite.host.resources.prompts import PromptManager
+from src.aurite.execution.mcp_host.resources.prompts import PromptManager
 
 # Mark all tests in this file as 'unit' and 'host'
 pytestmark = [pytest.mark.unit, pytest.mark.host]

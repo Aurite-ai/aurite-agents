@@ -5,16 +5,17 @@
 **Learning Objectives:**
 
 **Primary Goal: Understanding MCP and Building a Custom Server**
-*   Understand what the Model Context Protocol (MCP) is and how it enables tool integration
-*   Learn the structure and components of an MCP server
-*   Build a functional MCP server from scratch that provides custom tools
-*   Test your MCP server to ensure it works correctly
+
+- Understand what the Model Context Protocol (MCP) is and how it enables tool integration.
+- Learn the structure and components of an MCP server.
+- Build a functional MCP server from scratch that provides custom tools.
+- Test your MCP server to ensure it works correctly.
 
 **Secondary Goal: Integration with Aurite Framework**
-*   Learn how to register your custom MCP server as a ClientConfig in your Aurite project
-*   Create an agent that uses your custom MCP server
-*   Understand the difference between packaged servers and custom servers
-*   Successfully run an agent that uses your custom tools
+
+- Learn how to register your custom MCP server as a `ClientConfig` in your Aurite project.
+- Create an agent that uses your custom MCP server.
+- Successfully run an agent that uses your custom tools.
 
 ---
 
@@ -22,11 +23,11 @@
 
 ⚠️ **Before you begin this tutorial, please ensure you have completed:**
 
-*   All previous tutorials, especially "Understanding Projects" and "Using the CLI"
-*   A working Aurite project set up locally
-*   Python 3.12+ installed and configured
-*   Basic understanding of Python programming
-*   Familiarity with JSON configuration files
+- All previous tutorials, especially "[Understanding Projects](07_Understanding_Projects.md)".
+- A working Aurite project set up locally.
+- Python 3.12+ installed and configured.
+- Basic understanding of Python programming.
+- Familiarity with JSON configuration files.
 
 ---
 
@@ -38,82 +39,52 @@ The **Model Context Protocol (MCP)** is a standardized way for AI applications t
 
 **Key Concepts:**
 
-*   **MCP Server**: A program that provides tools, resources, or prompts to AI agents
-*   **MCP Client**: The AI application (like Aurite) that connects to and uses MCP servers
-*   **Tools**: Functions that agents can call to perform actions (e.g., search the web, save files)
-*   **Resources**: Data sources that agents can read from (e.g., files, databases)
-*   **Prompts**: Pre-defined prompt templates that can be used by agents
+- **MCP Server**: A program that provides tools, resources, or prompts to AI agents.
+- **MCP Client**: The AI application (like Aurite) that connects to and uses MCP servers.
+- **Tools**: Functions that agents can call to perform actions (e.g., search the web, save files).
 
 ### How MCP Works in Aurite
 
-In the Aurite framework:
+1.  **MCP Servers** run as separate processes and provide tools.
+2.  **`ClientConfig`** objects in your `aurite_config.json` define how to connect to these servers.
+3.  **Agents** specify which MCP servers they can use via the `mcp_servers` field in their configuration.
+4.  When an agent runs, Aurite connects to the specified servers and makes their tools available.
 
-1. **MCP Servers** run as separate processes and provide tools/resources
-2. **ClientConfig** objects define how to connect to these servers
-3. **Agents** specify which MCP servers they can use via the `mcp_servers` field
-4. When an agent runs, Aurite connects to the specified servers and makes their tools available
-
-### Transport Types
-
-MCP servers can communicate using different transport methods:
-
-*   **`stdio`**: For local Python scripts that communicate via standard input/output
-*   **`http_stream`**: For servers running as web services with HTTP endpoints
-*   **`local`**: For servers installed via package managers (like npm packages from Smithery)
-
-For this tutorial, we'll focus on creating a **`stdio`** server since it's the most straightforward for custom development.
+For this tutorial, we'll create a server that communicates via **`stdio`** (standard input/output), as it's the most straightforward method for custom Python scripts.
 
 ---
 
-## Part 2: Planning Your MCP Server
+## Part 2: Building the MCP Server Step-by-Step
 
-Before we start coding, let's plan what our MCP server will do. For this tutorial, we'll create a **Task Management Server** that provides tools for:
+We will create a simple **Task Management Server** that stores tasks in memory.
 
-1. **Creating tasks** with titles, descriptions, and priorities
-2. **Listing tasks** with optional filtering
-3. **Marking tasks as complete**
-4. **Getting task statistics**
+### Step 1: Create the Project Directory and Server File
 
-This will demonstrate the key concepts while being practical and useful.
+First, let's set up the file structure. Inside your Aurite project folder (e.g., `my_first_aurite_project`), create a new directory called `mcp_servers`.
 
-### Server Structure
+Inside this new `mcp_servers` directory, create a file named `task_manager_server.py`.
 
-Our MCP server will:
-*   Use the Python MCP SDK for easy development
-*   Store tasks in a simple JSON file for persistence
-*   Provide 4 tools: `create_task`, `list_tasks`, `complete_task`, and `get_task_stats`
-*   Include proper error handling and validation
+Your project structure should look like this:
 
----
+```
+my_first_aurite_project/
+├── mcp_servers/
+│   └── task_manager_server.py
+├── aurite_config.json
+└── run_example_project.py
+```
 
-## Part 3: Setting Up the Development Environment
+### Step 2: Create the Server Skeleton
 
-Follow the Package Installation Guide.
-
-## Part 4: Building the MCP Server
-
-### Step 1: Create the Server File in aurite/mcp_servers
-
-Create a new file called `task_manager_server.py`:
+Open `task_manager_server.py` and add the following boilerplate code. This sets up the basic server structure.
 
 ```python
 #!/usr/bin/env python3
 """
-Task Management MCP Server
-
-This server provides tools for managing tasks:
-- create_task: Create a new task with title, description, and priority
-- list_tasks: List all tasks with optional filtering
-- complete_task: Mark a task as completed
-- get_task_stats: Get statistics about tasks
+A simple Task Management MCP Server that stores tasks in memory.
 """
-
-import json
 import logging
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from uuid import uuid4
+from typing import Dict, Any, List
 
 # MCP imports
 from mcp.server.fastmcp import FastMCP
@@ -122,562 +93,184 @@ from mcp.server.fastmcp import FastMCP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Constants
-TASKS_FILE = Path(__file__).parent / "tasks.json"
+# Create the MCP server instance
+mcp = FastMCP("In-Memory Task Manager")
 
-# Create the MCP server
-mcp = FastMCP("Task Manager")
+# In-memory storage for our tasks
+tasks: List[Dict[str, Any]] = []
 
-# Task storage
-def load_tasks() -> List[Dict[str, Any]]:
-    """Load tasks from the JSON file."""
-    if not TASKS_FILE.exists():
-        return []
-    
-    try:
-        with open(TASKS_FILE, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        logger.warning("Could not load tasks file, starting with empty list")
-        return []
-
-def save_tasks(tasks: List[Dict[str, Any]]) -> None:
-    """Save tasks to the JSON file."""
-    try:
-        with open(TASKS_FILE, 'w') as f:
-            json.dump(tasks, f, indent=2, default=str)
-    except Exception as e:
-        logger.error(f"Failed to save tasks: {e}")
-        raise
-
-@mcp.tool()
-async def create_task(
-    title: str,
-    description: str = "",
-    priority: str = "medium"
-) -> Dict[str, Any]:
-    """
-    Create a new task.
-    
-    Args:
-        title: The title of the task (required)
-        description: Detailed description of the task
-        priority: Priority level (low, medium, high)
-    
-    Returns:
-        Dictionary with the created task information
-    """
-    # Validate priority
-    valid_priorities = ["low", "medium", "high"]
-    if priority not in valid_priorities:
-        return {
-            "success": False,
-            "error": f"Invalid priority. Must be one of: {', '.join(valid_priorities)}"
-        }
-    
-    # Load existing tasks
-    tasks = load_tasks()
-    
-    # Create new task
-    new_task = {
-        "id": str(uuid4()),
-        "title": title,
-        "description": description,
-        "priority": priority,
-        "completed": False,
-        "created_at": datetime.now().isoformat(),
-        "completed_at": None
-    }
-    
-    # Add to tasks list
-    tasks.append(new_task)
-    
-    # Save tasks
-    try:
-        save_tasks(tasks)
-        return {
-            "success": True,
-            "task": new_task,
-            "message": f"Task '{title}' created successfully"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to save task: {str(e)}"
-        }
-
-@mcp.tool()
-async def list_tasks(
-    status: Optional[str] = None,
-    priority: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    List all tasks with optional filtering.
-    
-    Args:
-        status: Filter by status ('completed', 'pending', or None for all)
-        priority: Filter by priority ('low', 'medium', 'high', or None for all)
-    
-    Returns:
-        Dictionary with list of tasks matching the filters
-    """
-    # Load tasks
-    tasks = load_tasks()
-    
-    # Apply filters
-    filtered_tasks = tasks
-    
-    if status:
-        if status == "completed":
-            filtered_tasks = [t for t in filtered_tasks if t["completed"]]
-        elif status == "pending":
-            filtered_tasks = [t for t in filtered_tasks if not t["completed"]]
-        else:
-            return {
-                "success": False,
-                "error": "Invalid status. Must be 'completed' or 'pending'"
-            }
-    
-    if priority:
-        valid_priorities = ["low", "medium", "high"]
-        if priority not in valid_priorities:
-            return {
-                "success": False,
-                "error": f"Invalid priority. Must be one of: {', '.join(valid_priorities)}"
-            }
-        filtered_tasks = [t for t in filtered_tasks if t["priority"] == priority]
-    
-    return {
-        "success": True,
-        "tasks": filtered_tasks,
-        "count": len(filtered_tasks),
-        "total_tasks": len(tasks)
-    }
-
-@mcp.tool()
-async def complete_task(task_id: str) -> Dict[str, Any]:
-    """
-    Mark a task as completed.
-    
-    Args:
-        task_id: The ID of the task to complete
-    
-    Returns:
-        Dictionary with the result of the operation
-    """
-    # Load tasks
-    tasks = load_tasks()
-    
-    # Find the task
-    task_found = False
-    for task in tasks:
-        if task["id"] == task_id:
-            if task["completed"]:
-                return {
-                    "success": False,
-                    "error": "Task is already completed"
-                }
-            
-            task["completed"] = True
-            task["completed_at"] = datetime.now().isoformat()
-            task_found = True
-            break
-    
-    if not task_found:
-        return {
-            "success": False,
-            "error": f"Task with ID '{task_id}' not found"
-        }
-    
-    # Save tasks
-    try:
-        save_tasks(tasks)
-        return {
-            "success": True,
-            "message": f"Task '{task_id}' marked as completed"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to save task: {str(e)}"
-        }
-
-@mcp.tool()
-async def get_task_stats() -> Dict[str, Any]:
-    """
-    Get statistics about all tasks.
-    
-    Returns:
-        Dictionary with task statistics
-    """
-    # Load tasks
-    tasks = load_tasks()
-    
-    if not tasks:
-        return {
-            "success": True,
-            "stats": {
-                "total_tasks": 0,
-                "completed_tasks": 0,
-                "pending_tasks": 0,
-                "completion_rate": 0.0,
-                "priority_breakdown": {"low": 0, "medium": 0, "high": 0}
-            }
-        }
-    
-    # Calculate statistics
-    total_tasks = len(tasks)
-    completed_tasks = len([t for t in tasks if t["completed"]])
-    pending_tasks = total_tasks - completed_tasks
-    completion_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0.0
-    
-    # Priority breakdown
-    priority_breakdown = {"low": 0, "medium": 0, "high": 0}
-    for task in tasks:
-        priority_breakdown[task["priority"]] += 1
-    
-    return {
-        "success": True,
-        "stats": {
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "pending_tasks": pending_tasks,
-            "completion_rate": round(completion_rate, 2),
-            "priority_breakdown": priority_breakdown
-        }
-    }
+# --- Tool implementations will go here ---
 
 # Allow direct execution of the server
 if __name__ == "__main__":
     mcp.run()
 ```
 
-### Step 2: Make the Server Executable
+### Step 3: Add the `create_task` Tool
 
-Make sure your server file is executable:
+Now, let's add our first tool. This function will add a new task to our in-memory `tasks` list. Add the following code to `task_manager_server.py` where the comment `--- Tool implementations will go here ---` is.
+
+```python
+@mcp.tool()
+async def create_task(title: str, priority: str = "medium") -> Dict[str, Any]:
+    """
+    Create a new task.
+
+    Args:
+        title: The title of the task (required).
+        priority: Priority level (low, medium, high).
+
+    Returns:
+        A dictionary with the created task information.
+    """
+    task_id = len(tasks)  # Use the list index as a simple ID
+    new_task = {
+        "id": task_id,
+        "title": title,
+        "priority": priority,
+        "completed": False,
+    }
+    tasks.append(new_task)
+    logger.info(f"Created task: {new_task}")
+    return {"success": True, "task": new_task}
+```
+
+The `@mcp.tool()` decorator automatically registers this function as a tool that agents can call.
+
+### Step 4: Add the `list_tasks` Tool
+
+Next, let's add a tool to view the tasks. Add this code below the `create_task` function.
+
+```python
+@mcp.tool()
+async def list_tasks() -> Dict[str, Any]:
+    """
+    List all tasks.
+
+    Returns:
+        A dictionary containing the list of tasks.
+    """
+    logger.info(f"Listing {len(tasks)} tasks.")
+    return {"success": True, "tasks": tasks}
+```
+
+### Step 5: Make the Server Executable
+
+On macOS and Linux, you need to make the script executable. Open your terminal, navigate to the `mcp_servers` directory, and run:
 
 ```bash
 chmod +x task_manager_server.py
 ```
 
----
-
-## Part 5: Testing Your MCP Server
-
-Before integrating with Aurite, let's test our MCP server to make sure it works correctly.
-
-### Step 1: Test Server Startup
-
-First, let's verify the server can start without errors:
-
-```bash
-# Navigate to your mcp_servers directory
-cd mcp_servers
-
-# Test the server startup (it should start and wait for input)
-python task_manager_server.py
-```
-
-If the server starts without errors, you can stop it with `Ctrl+C`.
-
-### Step 2: Create a Test Script
-
-Create a simple test script to verify our tools work:
-
-```python
-# Create test_server.py
-cat > test_server.py << 'EOF'
-#!/usr/bin/env python3
-"""
-Simple test script for our Task Manager MCP Server
-"""
-
-import asyncio
-import json
-from task_manager_server import mcp
-
-async def test_tools():
-    """Test all the tools in our MCP server."""
-    print("Testing Task Manager MCP Server...")
-    print("=" * 50)
-    
-    # Test 1: Create a task
-    print("\n1. Creating a task...")
-    result = await mcp.call_tool("create_task", {
-        "title": "Test Task",
-        "description": "This is a test task",
-        "priority": "high"
-    })
-    print(f"Result: {json.dumps(result, indent=2)}")
-    
-    # Test 2: List tasks
-    print("\n2. Listing all tasks...")
-    result = await mcp.call_tool("list_tasks", {})
-    print(f"Result: {json.dumps(result, indent=2)}")
-    
-    # Test 3: Get task stats
-    print("\n3. Getting task statistics...")
-    result = await mcp.call_tool("get_task_stats", {})
-    print(f"Result: {json.dumps(result, indent=2)}")
-    
-    print("\n" + "=" * 50)
-    print("Test completed!")
-
-if __name__ == "__main__":
-    asyncio.run(test_tools())
-EOF
-
-# Run the test
-python test_server.py
-```
-
-If everything works correctly, you should see output showing the creation of a task, listing of tasks, and task statistics.
+(Windows users can skip this step.)
 
 ---
 
-## Part 6: Integrating with Aurite
+## Part 3: Testing Your MCP Server
 
-Now that our MCP server is working, let's integrate it with your Aurite project.
+Before integrating with Aurite, let's write a small script to test our server directly.
 
-### Step 1: Register the MCP Server as a ClientConfig
+1.  **Create a Test Script:** In your project's root directory (e.g., `my_first_aurite_project`), create a new file named `test_mcp.py`.
 
-Open your `aurite_config.json` file and add a new MCP server configuration:
+2.  **Add Test Code:** Add the following code to `test_mcp.py`. This script will call your server's tools and print the results.
+
+    ```python
+    import asyncio
+    import json
+    from mcp_servers.task_manager_server import mcp
+
+    async def test_tools():
+        """Test the tools in our MCP server."""
+        print("--- Testing Task Manager MCP Server ---")
+
+        # Test 1: Create a task
+        print("\n1. Creating a task...")
+        result = await mcp.call_tool("create_task", {
+            "title": "Test Task",
+            "priority": "high"
+        })
+        print(f"Result: {json.dumps(result, indent=2)}")
+
+        # Test 2: List tasks
+        print("\n2. Listing all tasks...")
+        result = await mcp.call_tool("list_tasks", {})
+        print(f"Result: {json.dumps(result, indent=2)}")
+
+        print("\n--- Test completed! ---")
+
+    if __name__ == "__main__":
+        asyncio.run(test_tools())
+    ```
+
+3.  **Run the Test:** In your terminal, from your project's root directory, run the test script:
+
+    ```bash
+    python test_mcp.py
+    ```
+
+You should see output showing that a task was created and then listed successfully.
+
+---
+
+## Part 4: Integrating with Aurite
+
+Now let's connect your new server to an agent.
+
+### Step 1: Register the Server in `aurite_config.json`
+
+Open your `aurite_config.json` file and add a new object to the `mcp_servers` array.
 
 ```json
 {
-  "llms": [
-    // ... your existing LLM configurations
-  ],
-  "mcp_servers": [
-    // ... your existing MCP server configurations
-    {
-      "name": "task_manager_server",
-      "transport_type": "stdio",
-      "server_path": "mcp_servers/task_manager_server.py",
-      "capabilities": ["tools"],
-      "timeout": 15.0
-    }
-  ],
-  "agents": [
-    // ... your existing agent configurations
-  ]
+  "name": "task_manager_server",
+  "transport_type": "stdio",
+  "server_path": "mcp_servers/task_manager_server.py"
 }
 ```
 
-### Step 2: Create an Agent That Uses Your MCP Server
+Make sure to add a comma after the preceding server configuration if one exists.
 
-Add a new agent configuration that can use your task management tools:
+### Step 2: Create an Agent That Uses the Server
+
+In the same `aurite_config.json` file, add a new agent to the `agents` array that uses your server.
 
 ```json
 {
-  "agents": [
-    // ... your existing agents
-    {
-      "name": "TaskManagerAgent",
-      "system_prompt": "You are a helpful task management assistant. You can help users create, list, complete, and get statistics about their tasks. Use the available tools to manage tasks effectively. Always provide clear feedback about the operations you perform.",
-      "llm_config_id": "my_openai_gpt4_turbo",
-      "mcp_servers": ["task_manager_server"]
-    }
-  ]
+  "name": "TaskManagerAgent",
+  "system_prompt": "You are a helpful task management assistant. Use the available tools to manage tasks. Always provide clear feedback about the operations you perform.",
+  "llm_config_id": "my_openai_gpt4_turbo",
+  "mcp_servers": ["task_manager_server"]
 }
 ```
 
-### Step 3: Test the Integration
+### Step 3: Run the Agent
 
-Create a simple test script to verify the integration works:
-
-```python
-# Create test_integration.py in your project root
-cat > test_integration.py << 'EOF'
-#!/usr/bin/env python3
-"""
-Test script to verify our custom MCP server works with Aurite
-"""
-
-import asyncio
-from aurite import Aurite
-
-async def test_task_agent():
-    """Test our TaskManagerAgent with the custom MCP server."""
-    
-    # Initialize Aurite
-    aurite = Aurite()
-    await aurite.initialize()
-    
-    print("Testing TaskManagerAgent with custom MCP server...")
-    print("=" * 60)
-    
-    # Test 1: Create a task
-    print("\n1. Creating a task...")
-    result = await aurite.run_agent(
-        agent_name="TaskManagerAgent",
-        user_message="Create a task called 'Learn MCP Development' with description 'Complete the MCP server tutorial' and high priority"
-    )
-    print(f"Agent Response: {result.primary_text}")
-    
-    # Test 2: List tasks
-    print("\n2. Listing tasks...")
-    result = await aurite.run_agent(
-        agent_name="TaskManagerAgent",
-        user_message="Show me all my tasks"
-    )
-    print(f"Agent Response: {result.primary_text}")
-    
-    # Test 3: Get statistics
-    print("\n3. Getting task statistics...")
-    result = await aurite.run_agent(
-        agent_name="TaskManagerAgent",
-        user_message="Give me statistics about my tasks"
-    )
-    print(f"Agent Response: {result.primary_text}")
-    
-    print("\n" + "=" * 60)
-    print("Integration test completed!")
-
-if __name__ == "__main__":
-    asyncio.run(test_task_agent())
-EOF
-
-# Run the integration test
-python test_integration.py
-```
-
----
-
-## Part 7: Using the CLI
-
-You can also test your agent using the Aurite CLI:
+You can now use the Aurite CLI to interact with your agent.
 
 ```bash
 # Test creating a task
 aurite run-agent TaskManagerAgent "Create a new task: 'Buy groceries' with medium priority"
 
 # Test listing tasks
-aurite run-agent TaskManagerAgent "Show me all my pending tasks"
-
-# Test completing a task (you'll need the task ID from the list)
-aurite run-agent TaskManagerAgent "Mark the task with ID [task-id] as completed"
-
-# Test getting statistics
-aurite run-agent TaskManagerAgent "What are my task statistics?"
+aurite run-agent TaskManagerAgent "Show me all my tasks"
 ```
-
----
-
-## Part 8: Understanding the Difference Between Custom and Packaged Servers
-
-### Custom MCP Servers (What You Just Built)
-
-**Characteristics:**
-*   Created by you for your specific needs
-*   Stored in your project's `mcp_servers/` directory
-*   Configured with `transport_type: "stdio"` and `server_path`
-*   Fully customizable and under your control
-
-**Use Cases:**
-*   Business-specific tools and integrations
-*   Experimental or prototype functionality
-*   Tools that require custom logic or data sources
-*   Learning and development purposes
-
-### Packaged MCP Servers (From Aurite's Toolbox)
-
-**Characteristics:**
-*   Pre-built and tested by the Aurite team
-*   Available through Just-in-Time (JIT) registration
-*   Often use `transport_type: "local"` or `"http_stream"`
-*   Ready to use without configuration
-
-**Use Cases:**
-*   Common functionality like web search, weather, etc.
-*   Quick prototyping and testing
-*   Standard integrations with popular services
-
-### When to Use Each
-
-**Use Custom Servers When:**
-*   You need functionality that doesn't exist in the packaged toolbox
-*   You have specific business requirements or data sources
-*   You want to learn how MCP works
-*   You need full control over the implementation
-
-**Use Packaged Servers When:**
-*   The functionality you need already exists
-*   You want to get started quickly
-*   You're prototyping or experimenting
-*   You prefer tested, maintained solutions
-
----
-
-## Part 9: Best Practices and Next Steps
-
-### Best Practices for MCP Server Development
-
-1. **Error Handling**: Always include proper error handling and return meaningful error messages
-2. **Validation**: Validate all input parameters before processing
-3. **Logging**: Use logging to help with debugging and monitoring
-4. **Documentation**: Include clear docstrings for all tools
-5. **Testing**: Test your server thoroughly before integration
-6. **Security**: Be careful with file operations and external API calls
-
-### Extending Your MCP Server
-
-Here are some ideas for extending your task management server:
-
-1. **Add due dates** to tasks with reminder functionality
-2. **Implement task categories** or tags for better organization
-3. **Add task dependencies** (tasks that depend on other tasks)
-4. **Create recurring tasks** functionality
-5. **Add file attachments** to tasks
-6. **Implement task sharing** between users
-
-### Advanced MCP Concepts
-
-As you become more comfortable with MCP development, you can explore:
-
-1. **Resources**: Provide data sources that agents can read from
-2. **Prompts**: Create reusable prompt templates
-3. **HTTP Servers**: Build MCP servers that run as web services
-4. **Authentication**: Implement secure authentication for your servers
-5. **Streaming**: Handle real-time data streams
 
 ---
 
 ## 🎉 Congratulations!
 
-You've successfully completed the MCP Server Development tutorial! You now know how to:
+You've successfully built, tested, and integrated your first custom MCP server!
 
 ### ✅ What You've Learned:
 
-1. **MCP Fundamentals**
-   - Understand what MCP is and how it works
-   - Know the different transport types and when to use them
-   - Understand the relationship between servers, clients, and agents
-
-2. **Custom MCP Server Development**
-   - Build a complete MCP server from scratch
-   - Implement multiple tools with proper error handling
-   - Test your server independently before integration
-
-3. **Aurite Integration**
-   - Register custom MCP servers as ClientConfig objects
-   - Create agents that use your custom tools
-   - Test the integration using both Python scripts and the CLI
-
-4. **Best Practices**
-   - Understand when to use custom vs. packaged servers
-   - Know how to structure and organize MCP server code
-   - Implement proper error handling and validation
-
-### 💡 Key Takeaway:
-
-Building custom MCP servers allows you to extend the Aurite framework with any functionality you need. By following the MCP protocol, you can create tools that integrate seamlessly with AI agents, enabling powerful automation and integration capabilities.
+- How to build a simple MCP server with the `FastMCP` helper.
+- How to define tools using the `@mcp.tool()` decorator.
+- How to test an MCP server directly.
+- How to register a custom server in `aurite_config.json`.
+- How to create an agent that uses your custom tools.
 
 ### 🚀 Next Steps:
 
-*   Experiment with different types of tools and integrations
-*   Explore the MCP documentation for advanced features
-*   Consider contributing useful servers back to the community
-*   Build MCP servers that integrate with your business systems
-
-**You're now ready to build sophisticated AI agents with custom tools tailored to your specific needs!**
+- Try adding a `complete_task` tool to your server.
+- Experiment with adding more complex logic, like file persistence.
+- Explore the official MCP documentation for more advanced features.

@@ -11,10 +11,10 @@ from openai.types.chat.chat_completion_message_tool_call import (
     Function,
 )
 
-from aurite.components.agents.agent import Agent
-from aurite.components.llm.providers.litellm_client import LiteLLMClient
-from aurite.config.config_models import AgentConfig, LLMConfig
-from aurite.host.host import MCPHost
+from aurite.execution.mcp_host.host import MCPHost
+from aurite.lib.components.agents.agent import Agent
+from aurite.lib.components.llm.litellm_client import LiteLLMClient
+from aurite.lib.config.config_models import AgentConfig, LLMConfig
 
 # --- Fixtures ---
 
@@ -77,7 +77,7 @@ async def test_agent_run_conversation_with_tool_use(
         llm_response_turn_1,
         llm_response_turn_2,
     ]
-    mocker.patch("aurite.components.agents.agent.LiteLLMClient", return_value=mock_llm_instance)
+    mocker.patch("aurite.lib.components.agents.agent.LiteLLMClient", return_value=mock_llm_instance)
 
     # Configure the mock host to return a result for the tool call
     mock_host.get_formatted_tools.return_value = [{"name": "get_user_info", "input_schema": {}}]

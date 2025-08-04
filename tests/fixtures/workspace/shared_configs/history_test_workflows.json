@@ -11,7 +11,7 @@
   },
   {
     "name": "weather_server",
-    "server_path": "src/aurite/init_templates/mcp_servers/weather_server.py",
+    "server_path": "src/aurite/lib/init_templates/mcp_servers/weather_server.py",
     "capabilities": [
       "tools",
       "prompts"
@@ -22,7 +22,7 @@
   {
     "name": "planning_server",
     "type": "mcp_server",
-    "server_path": "src/aurite/init_templates/mcp_servers/planning_server.py",
+    "server_path": "src/aurite/lib/init_templates/mcp_servers/planning_server.py",
     "capabilities": [
       "tools",
       "prompts",
@@ -121,7 +121,7 @@
   },
   {
     "name": "History Test Workflow B",
-    "type": "simple_workflow",
+    "type": "linear_workflow",
     "description": "Mixed case: 2 agents - one with history enabled, one disabled",
     "steps": [
       "History Test Agent B1",
@@ -131,7 +131,7 @@
   },
   {
     "name": "History Test Workflow C",
-    "type": "simple_workflow",
+    "type": "linear_workflow",
     "description": "Base case duplicate: 2 agents both enabled for history",
     "steps": [
       "History Test Agent C1",
@@ -141,7 +141,7 @@
   },
   {
     "name": "History Test Workflow D",
-    "type": "simple_workflow",
+    "type": "linear_workflow",
     "description": "No history case: 2 agents both disabled for history",
     "steps": [
       "History Test Agent D1",

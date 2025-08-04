@@ -12,13 +12,13 @@ import toast from 'react-hot-toast';
 
 export default function WorkflowsPage() {
   const navigate = useNavigate();
-  
+
   // API Hooks
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflowsWithConfigs();
   const { data: customWorkflows = [], isLoading: customWorkflowsLoading } = useCustomWorkflowsWithConfigs();
   const executeWorkflow = useExecuteWorkflow();
   const executeCustomWorkflow = useExecuteCustomWorkflow();
-  
+
   // Workflow Execution Interface State
   const [workflowExecutionInterface, setWorkflowExecutionInterface] = useState<{
     isOpen: boolean;
@@ -42,11 +42,11 @@ export default function WorkflowsPage() {
 
   const handleRunWorkflow = async (workflow: any) => {
     const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
-    
+
     try {
       // Fetch the actual workflow configuration to get the steps
       let workflowConfig: WorkflowConfig;
-      
+
       if (workflow.type === 'custom_workflow') {
         const config = await workflowsService.getCustomWorkflowConfigByName(workflowName);
         workflowConfig = {
@@ -60,14 +60,14 @@ export default function WorkflowsPage() {
       } else {
         const config = await workflowsService.getWorkflowConfigByName(workflowName);
         workflowConfig = {
-          type: 'simple_workflow',
+          type: 'linear_workflow',
           name: workflowName,
           description: config.description,
           steps: config.steps || [],
           _source_file: workflow.configFile,
         };
       }
-      
+
       setWorkflowExecutionInterface({
         isOpen: true,
         workflow: workflowConfig
@@ -134,9 +134,9 @@ export default function WorkflowsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allWorkflows.map((workflow, index) => {
               const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
-              const badgeText = workflow.type === 'simple_workflow' ? 'Simple' : 'Custom';
-              const badgeColor = workflow.type === 'simple_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
-              
+              const badgeText = workflow.type === 'linear_workflow' ? 'Linear' : 'Custom';
+              const badgeColor = workflow.type === 'linear_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+
               return (
                 <motion.div
                   key={workflowName}
@@ -158,7 +158,7 @@ export default function WorkflowsPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <HoverExpandEditButton 
                       workflow={workflow}
@@ -169,12 +169,12 @@ export default function WorkflowsPage() {
                       className="gap-1.5"
                       onClick={() => handleRunWorkflow(workflow)}
                       disabled={
-                        workflow.type === 'custom_workflow' 
+                        workflow.type === 'custom_workflow'
                           ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
                           : executeWorkflow.isWorkflowExecuting(workflowName)
                       }
                     >
-                      {(workflow.type === 'custom_workflow' 
+                      {(workflow.type === 'custom_workflow'
                         ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
                         : executeWorkflow.isWorkflowExecuting(workflowName)
                       ) ? (

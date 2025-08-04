@@ -233,11 +233,11 @@ describe('ExecutionFacadeClient', () => {
     });
   });
 
-  describe('runSimpleWorkflow', () => {
-    it('should run a simple workflow', async () => {
+  describe('runLinearWorkflow', () => {
+    it('should run a linear workflow', async () => {
       const mockResponse = {
         status: 'success',
-        steps: [
+        step_results: [
           { step_name: 'weather_check', status: 'success', result: {} },
           { step_name: 'outfit_suggestion', status: 'success', result: {} },
         ],
@@ -249,12 +249,12 @@ describe('ExecutionFacadeClient', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await client.runSimpleWorkflow('Weather Planning Workflow', {
+      const result = await client.runLinearWorkflow('Weather Planning Workflow', {
         initial_input: 'What should I wear today?',
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${config.baseUrl}/execution/workflows/simple/Weather%20Planning%20Workflow/run`,
+        `${config.baseUrl}/execution/workflows/linear/Weather%20Planning%20Workflow/run`,
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -278,16 +278,16 @@ describe('ExecutionFacadeClient', () => {
       } as Response);
 
       await expect(
-        client.runSimpleWorkflow('NonExistentWorkflow', { initial_input: 'test' })
+        client.runLinearWorkflow('NonExistentWorkflow', { initial_input: 'test' })
       ).rejects.toThrow('Workflow not found');
     });
 
     it('should handle workflow step failures', async () => {
       const mockResponse = {
         status: 'failed',
-        steps: [
-          { step_name: 'step1', status: 'success', result: {} },
-          { step_name: 'step2', status: 'failed', error: 'Tool not available' },
+        step_results: [
+          { step_name: 'step1', status: 'success', result: {}, step_type: 'agent' },
+          { step_name: 'step2', status: 'failed', error: 'Tool not available', step_type: 'agent' },
         ],
         error: 'Workflow failed at step: step2',
       };
@@ -297,12 +297,12 @@ describe('ExecutionFacadeClient', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await client.runSimpleWorkflow('Failing Workflow', {
+      const result = await client.runLinearWorkflow('Failing Workflow', {
         initial_input: 'test',
       });
 
       expect(result.status).toBe('failed');
-      expect(result.steps[1].status).toBe('failed');
+      expect(result.step_results[1].status).toBe('failed');
     });
   });
 

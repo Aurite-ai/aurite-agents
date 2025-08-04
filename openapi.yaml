@@ -3,10 +3,10 @@ info:
   title: Aurite Agents API
   description: |
     API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP).
-    
+
     ## Authentication
     All endpoints (except /health) require an API key to be passed in the `X-API-Key` header.
-    
+
     ## Base URL
     The default base URL is `http://localhost:8000`
   version: 1.0.0
@@ -31,7 +31,7 @@ paths:
         - System
       security: []
       responses:
-        '200':
+        "200":
           description: Server is healthy
           content:
             application/json:
@@ -50,14 +50,14 @@ paths:
       tags:
         - MCP Host
       responses:
-        '200':
+        "200":
           description: Host status information
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tools/:
     get:
@@ -66,7 +66,7 @@ paths:
       tags:
         - MCP Host
       responses:
-        '200':
+        "200":
           description: List of available tools
           content:
             application/json:
@@ -75,8 +75,8 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tools/servers:
     get:
@@ -92,16 +92,16 @@ paths:
       tags:
         - MCP Host
       responses:
-        '200':
+        "200":
           description: List of registered servers
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ServerRuntimeInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/ServerRuntimeInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tools/servers/{server_name}:
     get:
@@ -124,16 +124,16 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: Server status information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerDetailedStatus'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/ServerDetailedStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       summary: Unregister Server
@@ -148,16 +148,16 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: Server unregistered successfully
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/register/config:
     post:
@@ -170,18 +170,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClientConfig'
+              $ref: "#/components/schemas/ClientConfig"
       responses:
-        '200':
+        "200":
           description: Server registered successfully
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/register/{server_name}:
     post:
@@ -197,16 +197,16 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: Server registered successfully
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/servers/{server_name}/restart:
     post:
@@ -224,16 +224,16 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: Server restarted successfully
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/{tool_name}:
     get:
@@ -255,16 +255,16 @@ paths:
             type: string
           description: Name of the tool
       responses:
-        '200':
+        "200":
           description: Tool details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ToolDetails'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/ToolDetails"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/servers/{server_name}/tools:
     get:
@@ -283,7 +283,7 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: List of tools provided by the server
           content:
             application/json:
@@ -292,10 +292,10 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/servers/{server_name}/test:
     post:
@@ -320,16 +320,16 @@ paths:
             type: string
           description: Name of the MCP server
       responses:
-        '200':
+        "200":
           description: Server test results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerTestResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/ServerTestResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /tools/{tool_name}/call:
     post:
@@ -349,18 +349,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ToolCallArgs'
+              $ref: "#/components/schemas/ToolCallArgs"
       responses:
-        '200':
+        "200":
           description: Tool execution result
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   # Configuration Manager Endpoints
   /config/components:
@@ -370,7 +370,7 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: List of component types
           content:
             application/json:
@@ -378,9 +378,16 @@ paths:
                 type: array
                 items:
                   type: string
-                example: ["agent", "llm", "mcp_server", "simple_workflow", "custom_workflow"]
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                example:
+                  [
+                    "agent",
+                    "llm",
+                    "mcp_server",
+                    "linear_workflow",
+                    "custom_workflow",
+                  ]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /config/components/{component_type}:
     get:
@@ -396,10 +403,22 @@ paths:
           required: true
           schema:
             type: string
-            enum: [agent, agents, llm, llms, mcp_server, mcp_servers, simple_workflow, simple_workflows, custom_workflow, custom_workflows]
+            enum:
+              [
+                agent,
+                agents,
+                llm,
+                llms,
+                mcp_server,
+                mcp_servers,
+                linear_workflow,
+                linear_workflows,
+                custom_workflow,
+                custom_workflows,
+              ]
           description: Type of component
       responses:
-        '200':
+        "200":
           description: List of components
           content:
             application/json:
@@ -408,10 +427,10 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     post:
       summary: Create Component
@@ -424,31 +443,43 @@ paths:
           required: true
           schema:
             type: string
-            enum: [agent, agents, llm, llms, mcp_server, mcp_servers, simple_workflow, simple_workflows, custom_workflow, custom_workflows]
+            enum:
+              [
+                agent,
+                agents,
+                llm,
+                llms,
+                mcp_server,
+                mcp_servers,
+                linear_workflow,
+                linear_workflows,
+                custom_workflow,
+                custom_workflows,
+              ]
           description: Type of component
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ComponentCreate'
+              $ref: "#/components/schemas/ComponentCreate"
       responses:
-        '200':
+        "200":
           description: Component created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
           description: Component already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/components/{component_type}/{component_id}:
     get:
@@ -472,19 +503,19 @@ paths:
             type: string
           description: Component ID or name
       responses:
-        '200':
+        "200":
           description: Component configuration
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     put:
       summary: Update Component
@@ -509,20 +540,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ComponentUpdate'
+              $ref: "#/components/schemas/ComponentUpdate"
       responses:
-        '200':
+        "200":
           description: Component updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       summary: Delete Component
@@ -543,18 +574,18 @@ paths:
             type: string
           description: Component ID or name
       responses:
-        '200':
+        "200":
           description: Component deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/components/{component_type}/{component_id}/validate:
     post:
@@ -576,18 +607,18 @@ paths:
             type: string
           description: Component ID or name
       responses:
-        '200':
+        "200":
           description: Component is valid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/sources:
     get:
@@ -600,7 +631,7 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: List of configuration sources
           content:
             application/json:
@@ -609,8 +640,8 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /config/files/{source_name}:
     get:
@@ -629,7 +660,7 @@ paths:
             type: string
           description: Name of the configuration source
       responses:
-        '200':
+        "200":
           description: List of configuration files
           content:
             application/json:
@@ -637,12 +668,12 @@ paths:
                 type: array
                 items:
                   type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/files/{source_name}/{file_path}:
     get:
@@ -664,18 +695,18 @@ paths:
             type: string
           description: Path to the configuration file
       responses:
-        '200':
+        "200":
           description: File content
           content:
             application/json:
               schema:
                 type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     put:
       summary: Update Config File
@@ -700,20 +731,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FileUpdateRequest'
+              $ref: "#/components/schemas/FileUpdateRequest"
       responses:
-        '200':
+        "200":
           description: File updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       summary: Delete Config File
@@ -734,18 +765,18 @@ paths:
             type: string
           description: Path to the configuration file
       responses:
-        '200':
+        "200":
           description: File deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/files:
     post:
@@ -758,24 +789,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FileCreateRequest'
+              $ref: "#/components/schemas/FileCreateRequest"
       responses:
-        '200':
+        "200":
           description: File created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
           description: File already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/validate:
     post:
@@ -784,7 +815,7 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: Validation results
           content:
             application/json:
@@ -793,9 +824,9 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
           description: Validation failed
           content:
             application/json:
@@ -814,20 +845,20 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: Configurations refreshed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Failed to refresh configurations
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /config/projects:
     get:
@@ -836,16 +867,16 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: List of projects
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProjectInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/ProjectInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
     post:
       summary: Create Project
@@ -857,24 +888,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectCreate'
+              $ref: "#/components/schemas/ProjectCreate"
       responses:
-        '200':
+        "200":
           description: Project created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
           description: Project already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/projects/active:
     get:
@@ -883,16 +914,16 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: Active project information
           content:
             application/json:
               schema:
                 anyOf:
-                  - $ref: '#/components/schemas/ProjectInfo'
+                  - $ref: "#/components/schemas/ProjectInfo"
                   - type: "null"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /config/projects/{name}:
     get:
@@ -908,18 +939,18 @@ paths:
             type: string
           description: Project name
       responses:
-        '200':
+        "200":
           description: Project information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProjectInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/ProjectInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     put:
       summary: Update Project
@@ -938,20 +969,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectUpdate'
+              $ref: "#/components/schemas/ProjectUpdate"
       responses:
-        '200':
+        "200":
           description: Project updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       summary: Delete Project
@@ -966,18 +997,18 @@ paths:
             type: string
           description: Project name
       responses:
-        '200':
+        "200":
           description: Project deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /config/workspaces:
     get:
@@ -986,16 +1017,16 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: List of workspaces
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/WorkspaceInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                  $ref: "#/components/schemas/WorkspaceInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /config/workspaces/active:
     get:
@@ -1004,16 +1035,16 @@ paths:
       tags:
         - Configuration Manager
       responses:
-        '200':
+        "200":
           description: Active workspace information
           content:
             application/json:
               schema:
                 anyOf:
-                  - $ref: '#/components/schemas/WorkspaceInfo'
+                  - $ref: "#/components/schemas/WorkspaceInfo"
                   - type: "null"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   # Execution Facade Endpoints
   /execution/status:
@@ -1023,14 +1054,14 @@ paths:
       tags:
         - Execution Facade
       responses:
-        '200':
+        "200":
           description: Execution facade status
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /execution/agents/{agent_name}/run:
     post:
@@ -1050,20 +1081,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentRunRequest'
+              $ref: "#/components/schemas/AgentRunRequest"
       responses:
-        '200':
+        "200":
           description: Agent execution result
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/agents/{agent_name}/test:
     post:
@@ -1079,18 +1110,18 @@ paths:
             type: string
           description: Name of the agent to test
       responses:
-        '200':
+        "200":
           description: Agent test results
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/agents/{agent_name}/stream:
     post:
@@ -1110,25 +1141,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentRunRequest'
+              $ref: "#/components/schemas/AgentRunRequest"
       responses:
-        '200':
+        "200":
           description: Streaming agent execution result
           content:
             text/event-stream:
               schema:
                 type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
-  /execution/workflows/simple/{workflow_name}/run:
+  /execution/workflows/linear/{workflow_name}/run:
     post:
-      summary: Run Simple Workflow
-      description: Execute a simple workflow by name.
+      summary: Run Linear Workflow
+      description: Execute a linear workflow by name.
       tags:
         - Execution Facade
       parameters:
@@ -1143,25 +1174,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkflowRunRequest'
+              $ref: "#/components/schemas/WorkflowRunRequest"
       responses:
-        '200':
+        "200":
           description: Workflow execution result
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
-  /execution/workflows/simple/{workflow_name}/test:
+  /execution/workflows/linear/{workflow_name}/test:
     post:
-      summary: Test Simple Workflow
-      description: Test a simple workflow.
+      summary: Test Linear Workflow
+      description: Test a linear workflow.
       tags:
         - Execution Facade
       parameters:
@@ -1172,18 +1203,18 @@ paths:
             type: string
           description: Name of the workflow to test
       responses:
-        '200':
+        "200":
           description: Workflow test results
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/workflows/custom/{workflow_name}/run:
     post:
@@ -1203,20 +1234,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkflowRunRequest'
+              $ref: "#/components/schemas/WorkflowRunRequest"
       responses:
-        '200':
+        "200":
           description: Custom workflow execution result
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/workflows/custom/{workflow_name}/test:
     post:
@@ -1232,18 +1263,18 @@ paths:
             type: string
           description: Name of the custom workflow to test
       responses:
-        '200':
+        "200":
           description: Custom workflow test results
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/workflows/custom/{workflow_name}/validate:
     post:
@@ -1259,18 +1290,18 @@ paths:
             type: string
           description: Name of the custom workflow to validate
       responses:
-        '200':
+        "200":
           description: Custom workflow validation results
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/history:
     get:
@@ -1305,16 +1336,16 @@ paths:
             default: 0
           description: Number of sessions to skip
       responses:
-        '200':
+        "200":
           description: List of execution history sessions
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/SessionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/history/{session_id}:
     get:
@@ -1339,18 +1370,18 @@ paths:
             default: false
           description: Return raw Anthropic format instead of simplified view
       responses:
-        '200':
+        "200":
           description: Session conversation history
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionHistoryResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/SessionHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
     delete:
       summary: Delete Session History
@@ -1367,14 +1398,14 @@ paths:
             type: string
           description: Session ID
       responses:
-        '204':
+        "204":
           description: Session deleted successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/agents/{agent_name}/history:
     get:
@@ -1401,18 +1432,18 @@ paths:
             default: 50
           description: Maximum number of sessions to return
       responses:
-        '200':
+        "200":
           description: List of agent execution sessions
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/SessionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/workflows/{workflow_name}/history:
     get:
@@ -1439,18 +1470,18 @@ paths:
             default: 50
           description: Maximum number of sessions to return
       responses:
-        '200':
+        "200":
           description: List of workflow execution sessions
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+                $ref: "#/components/schemas/SessionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
   /execution/history/cleanup:
     post:
@@ -1480,16 +1511,16 @@ paths:
             default: 50
           description: Maximum number of sessions to keep
       responses:
-        '200':
+        "200":
           description: Cleanup completed successfully
           content:
             application/json:
               schema:
                 type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
 
 components:
   securitySchemes:
@@ -1668,7 +1699,7 @@ components:
         roots:
           type: array
           items:
-            $ref: '#/components/schemas/RootConfig'
+            $ref: "#/components/schemas/RootConfig"
           description: List of root configurations for this client.
         capabilities:
           type: array
@@ -1683,10 +1714,6 @@ components:
           type: number
           default: 30.0
           description: Timeout for registering the mcp client
-        routing_weight:
-          type: number
-          default: 1.0
-          description: Weight for server selection during routing.
         exclude:
           type: array
           items:
@@ -1770,7 +1797,7 @@ components:
       properties:
         name:
           type: string
-          pattern: '^[a-zA-Z0-9_-]+$'
+          pattern: "^[a-zA-Z0-9_-]+$"
           description: Project name
         description:
           type: string
@@ -1790,7 +1817,7 @@ components:
           description: Configuration directories
         new_name:
           type: string
-          pattern: '^[a-zA-Z0-9_-]+$'
+          pattern: "^[a-zA-Z0-9_-]+$"
           description: New project name for renaming
       description: Request model for updating a project
 
@@ -1897,7 +1924,7 @@ components:
         sessions:
           type: array
           items:
-            $ref: '#/components/schemas/SessionMetadata'
+            $ref: "#/components/schemas/SessionMetadata"
         total:
           type: integer
         offset:
@@ -1938,9 +1965,9 @@ components:
         messages:
           type: array
           items:
-            $ref: '#/components/schemas/ConversationMessage'
+            $ref: "#/components/schemas/ConversationMessage"
         metadata:
-          $ref: '#/components/schemas/SessionMetadata'
+          $ref: "#/components/schemas/SessionMetadata"
 
     # Validation Error Schema
     ValidationError:
@@ -1967,7 +1994,7 @@ components:
         detail:
           type: array
           items:
-            $ref: '#/components/schemas/ValidationError'
+            $ref: "#/components/schemas/ValidationError"
 
   responses:
     BadRequest:
@@ -1975,28 +2002,28 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
-    
+            $ref: "#/components/schemas/Error"
+
     Unauthorized:
       description: Unauthorized - Invalid or missing API key
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
-    
+            $ref: "#/components/schemas/Error"
+
     NotFound:
       description: Resource not found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
 
     ValidationError:
       description: Validation Error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HTTPValidationError'
+            $ref: "#/components/schemas/HTTPValidationError"
 
 tags:
   - name: System

@@ -40,7 +40,7 @@ async def run_workflow_with_history(workflow_name: str, session_id: str = None):
         print(f"\n🚀 Running workflow '{workflow_name}' with payload: {json.dumps(payload, indent=2)}")
 
         response = await client.post(
-            f"{API_BASE_URL}/execution/workflows/simple/{workflow_name}/run",
+            f"{API_BASE_URL}/execution/workflows/linear/{workflow_name}/run",
             headers=HEADERS,
             json=payload,
             timeout=60.0,
@@ -200,7 +200,7 @@ async def check_workflow_config(workflow_name: str):
 
     workflow_config = None
     for config in configs:
-        if config.get("name") == workflow_name and config.get("type") == "simple_workflow":
+        if config.get("name") == workflow_name and config.get("type") == "linear_workflow":
             workflow_config = config
             break
 
