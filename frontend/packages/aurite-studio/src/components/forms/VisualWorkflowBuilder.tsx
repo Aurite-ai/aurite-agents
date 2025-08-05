@@ -624,7 +624,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     
     return {
       name: workflowName,
-      type: "simple_workflow" as const,
+      type: "linear_workflow" as const,
       steps: steps,
       description: workflowDescription || undefined,
       // Include agent configurations if any exist
