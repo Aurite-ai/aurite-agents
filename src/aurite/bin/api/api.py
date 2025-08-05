@@ -233,10 +233,7 @@ async def runtime_error_exception_handler(request: Request, exc: RuntimeError):
 # Generic fallback handler for any other exceptions
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    logger.error(
-        f"Unhandled exception: {type(exc).__name__}: {exc} for request {request.url.path}",
-        exc_info=True,
-    )
+    logger.error(f"Unhandled exception: {type(exc).__name__}: {exc} for request {request.url.path}")
     return JSONResponse(
         status_code=500,
         content={"detail": f"An unexpected internal server error occurred: {type(exc).__name__}"},

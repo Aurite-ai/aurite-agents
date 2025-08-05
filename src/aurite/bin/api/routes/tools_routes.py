@@ -182,8 +182,11 @@ async def register_server_by_name(
         # Track registration time
         _server_registration_times[server_config.name] = datetime.now()
         return {"status": "success", "name": server_config.name}
+    except MCPServerTimeoutError:
+        # Let timeout errors propagate to the main exception handler
+        raise
     except Exception as e:
-        logger.error(f"Failed to register server '{server_name}': {e}", exc_info=True)
+        logger.error(f"Failed to register server '{server_name}': {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -241,6 +244,9 @@ async def restart_server(
     except HTTPException as e:
         # Re-raise HTTP exceptions directly
         raise e
+    except MCPServerTimeoutError:
+        # Let timeout errors propagate to the main exception handler
+        raise
     except Exception as e:
         logger.error(f"Failed to restart server '{server_name}': {e}", exc_info=True)
         # Provide a detailed error message for failures during the restart process
@@ -389,6 +395,9 @@ async def test_server(
 
         test_result.status = "success"
 
+    except MCPServerTimeoutError as e:
+        test_result.error = f"Server registration timed out: {str(e)}"
+        logger.error(f"Timeout testing server '{server_name}': {e}", exc_info=True)
     except Exception as e:
         test_result.error = str(e)
         logger.error(f"Error testing server '{server_name}': {e}", exc_info=True)
