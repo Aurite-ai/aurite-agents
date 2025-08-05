@@ -36,10 +36,10 @@ class StorageManager:
         """
         if engine:
             self._engine = engine
-            logger.info(f"StorageManager initialized with provided engine: {self._engine.url}")
+            logger.info("StorageManager initialized with provided engine.")
         else:
             # Attempt to create default engine if none provided
-            logger.info("No engine provided to StorageManager, attempting to create default engine.")
+            logger.debug("No engine provided to StorageManager, attempting to create default engine.")
             self._engine = create_db_engine()  # type: ignore[assignment] # Ignore None vs Engine mismatch
 
         if not self._engine:
@@ -57,10 +57,10 @@ class StorageManager:
             logger.error("Cannot initialize database: DB engine is not available.")
             return
 
-        logger.info("Initializing database schema...")
+        logger.debug("Initializing database schema...")
         try:
             SQLAlchemyBase.metadata.create_all(bind=self._engine)  # Use the alias
-            logger.info("Database schema initialized successfully.")
+            logger.debug("Database schema initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
             # Depending on the error, we might want to raise it
