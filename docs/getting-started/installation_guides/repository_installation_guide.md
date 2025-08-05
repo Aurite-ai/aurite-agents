@@ -143,7 +143,12 @@ If you prefer to set up and run components manually or without Docker for all se
 
 To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
 
-**Note:** Ensure the backend API server (Step 5 above) is running before starting the frontend if you are not using the Docker quickstart.
+**Prerequisites:**
+- Node.js >= 18.0.0
+- npm >= 8.0.0
+- Running Aurite Framework API server (Step 4 above)
+
+**Note:** Ensure the backend API server is running before starting the frontend if you are not using the Docker quickstart.
 
 1.  **Navigate to the Frontend Directory:**
     Open a new terminal or use your existing one to change into the `frontend` directory:
@@ -153,15 +158,52 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
     ```
 
 2.  **Install Frontend Dependencies:**
-    Inside the `frontend` directory, install the necessary Node.js packages using `npm`:
+    Inside the `frontend` directory, install the necessary Node.js packages for all packages:
 
     ```bash
     npm install
     ```
 
-3.  **Start the Frontend Development Server:**
-    Once dependencies are installed, start the Vite development server:
+3.  **Build All Packages:**
+    Build all packages (required before starting development):
+
     ```bash
-    npm run dev
+    npm run build
     ```
-    The frontend UI will typically be available in your web browser at `http://localhost:5173`.
+
+4.  **Environment Configuration:**
+    Set up environment variables for Aurite Studio:
+    ```bash
+    # Copy environment template for Aurite Studio
+    cp packages/aurite-studio/.env.example packages/aurite-studio/.env
+    # Edit packages/aurite-studio/.env with your React app configuration
+    ```
+
+    Create a `.env` file in the `packages/aurite-studio/` directory with:
+    ```bash
+    # API Server URL - where the Aurite API server is running
+    REACT_APP_API_BASE_URL=http://localhost:8000
+
+    # API Key for authentication with the Aurite API server
+    REACT_APP_API_KEY=your-key-here
+    ```
+
+5.  **Start the Frontend Development Server:**
+    Once dependencies are installed and environment is configured, you have two options:
+
+    **Option A: Start from frontend root (recommended):**
+    ```bash
+    npm run start
+    ```
+
+    **Option B: Start from package directory:**
+    ```bash
+    cd packages/aurite-studio
+    npm start
+    ```
+
+    The frontend UI will be available in your web browser at `http://localhost:3000`.
+
+**Troubleshooting:**
+- If you encounter connection issues, ensure the API server is fully started (it may take a moment to initialize MCP servers)
+- Verify that your API key matches the one configured in your backend `.env` file
