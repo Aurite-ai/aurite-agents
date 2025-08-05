@@ -164,6 +164,40 @@ class StorageManager:
                 logger.error(f"Failed to load component index from database: {e}", exc_info=True)
                 return {}
 
+    def delete_component(self, component_name: str) -> bool:
+        """
+        Deletes a component from the database.
+        """
+        if not self._engine:
+            logger.warning("Database not configured. Cannot delete component.")
+            return False
+
+        logger.info(f"Deleting component '{component_name}' from database...")
+        with self.get_db_session() as db:
+            if not db:
+                logger.error("Failed to get DB session for component deletion.")
+                return False
+
+            try:
+                # Find the record to delete
+                db_record = db.get(ComponentDB, component_name)
+                if db_record:
+                    db.delete(db_record)
+                    logger.info(f"Successfully deleted component '{component_name}'.")
+                    return True
+                else:
+                    logger.warning(f"Component '{component_name}' not found in database.")
+                    return False
+            except Exception as e:
+                logger.error(f"Failed to delete component '{component_name}': {e}", exc_info=True)
+                return False
+
+    def get_db_session(self):
+        """
+        Provides a transactional database session context.
+        """
+        return get_db_session(self._engine)
+
     # --- History Methods ---
 
     # NOTE: Making these synchronous for now as SQLAlchemy session operations
