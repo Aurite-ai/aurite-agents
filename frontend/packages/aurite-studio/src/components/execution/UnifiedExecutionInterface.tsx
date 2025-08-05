@@ -400,7 +400,7 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
           // Check for max iterations patterns in error message
           isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
                                errorMessage.includes('max_iterations') ||
-                               errorMessage.includes('maximum of') && errorMessage.includes('iterations');
+                               (errorMessage.includes('maximum of') && errorMessage.includes('iterations'));
         } else if (typeof error === 'string') {
           errorMessage = error;
           isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
@@ -417,7 +417,7 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
             errorMessage = errorObj.error.message;
             isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
                                  errorMessage.includes('max_iterations') ||
-                                 errorMessage.includes('maximum of') && errorMessage.includes('iterations');
+                                 (errorMessage.includes('maximum of') && errorMessage.includes('iterations'));
           } else {
             errorMessage = errorObj.message || JSON.stringify(errorObj);
             isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
