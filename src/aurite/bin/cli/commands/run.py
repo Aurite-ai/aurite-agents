@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -38,6 +39,7 @@ async def run_component(
     """
     Finds a component by name, infers its type, and executes it with rich UI rendering.
     """
+    os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
     output_mode = "default"
     if short:
         output_mode = "short"

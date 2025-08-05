@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
@@ -34,6 +35,12 @@ PLURAL_TO_SINGULAR = {
 }
 
 
+# Helper function to refresh config if needed
+def _refresh_config_if_needed(config_manager: ConfigManager):
+    if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+        config_manager.refresh()
+
+
 # Component CRUD Operations
 @router.get("/components", response_model=List[str])
 async def list_component_types(
@@ -43,6 +50,7 @@ async def list_component_types(
     """
     List all available component types.
     """
+    _refresh_config_if_needed(config_manager)
     return list(config_manager.get_all_configs().keys())
 
 
@@ -56,6 +64,7 @@ async def list_components_by_type(
     List all available components of a specific type.
     Accepts both singular and plural forms (e.g., 'agent' or 'agents').
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
     return config_manager.list_configs(singular_type)
@@ -72,6 +81,7 @@ async def get_component_by_id(
     Get a specific component by its type and ID.
     Accepts both singular and plural forms for component type (e.g., 'agent' or 'agents').
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
     config = config_manager.get_config(singular_type, component_id)
@@ -93,6 +103,7 @@ async def create_component(
     """
     Create a new component of the specified type.
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
@@ -179,6 +190,7 @@ async def update_component(
     """
     Update an existing component.
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
@@ -216,6 +228,7 @@ async def delete_component(
     """
     Delete a component.
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
@@ -249,6 +262,7 @@ async def validate_component(
     """
     Validate a component's configuration.
     """
+    _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
@@ -283,6 +297,7 @@ async def list_config_sources(
     Returns a list of configuration source directories in priority order,
     including their context (project/workspace/user) and associated names.
     """
+    _refresh_config_if_needed(config_manager)
     return config_manager.list_config_sources()
 
 
@@ -297,6 +312,7 @@ async def list_config_files_by_source(
 
     Returns a list of relative file paths for the given source.
     """
+    _refresh_config_if_needed(config_manager)
     files = config_manager.list_config_files(source_name)
     if not files and source_name not in [
         s["project_name"] or s.get("workspace_name", "") for s in config_manager.list_config_sources()
@@ -324,6 +340,7 @@ async def get_file_content(
     """
     Get the content of a specific configuration file.
     """
+    _refresh_config_if_needed(config_manager)
     content = config_manager.get_file_content(source_name, file_path)
     if content is None:
         raise HTTPException(
@@ -342,6 +359,7 @@ async def create_config_file(
     """
     Create a new configuration file.
     """
+    _refresh_config_if_needed(config_manager)
     success = config_manager.create_config_file(request.source_name, request.relative_path, request.content)
     if not success:
         raise HTTPException(
@@ -362,6 +380,7 @@ async def update_config_file(
     """
     Update an existing configuration file.
     """
+    _refresh_config_if_needed(config_manager)
     success = config_manager.update_config_file(source_name, file_path, request.content)
     if not success:
         raise HTTPException(
@@ -381,6 +400,7 @@ async def delete_config_file(
     """
     Delete an existing configuration file.
     """
+    _refresh_config_if_needed(config_manager)
     success = config_manager.delete_config_file(source_name, file_path)
     if not success:
         raise HTTPException(
@@ -398,6 +418,7 @@ async def validate_all_components(
     """
     Validate all components in the system.
     """
+    _refresh_config_if_needed(config_manager)
     errors = config_manager.validate_all_components()
     if errors:
         raise HTTPException(
@@ -437,6 +458,7 @@ async def list_projects(
     """
     List all projects in the current workspace.
     """
+    _refresh_config_if_needed(config_manager)
     projects = config_manager.list_projects()
     return [ProjectInfo(**project) for project in projects]
 
@@ -450,6 +472,7 @@ async def create_project(
     """
     Create a new project in the current workspace.
     """
+    _refresh_config_if_needed(config_manager)
     success = config_manager.create_project(project_data.name, project_data.description)
     if not success:
         raise HTTPException(
@@ -471,6 +494,7 @@ async def get_active_project(
     """
     Get information about the currently active project.
     """
+    _refresh_config_if_needed(config_manager)
     project = config_manager.get_active_project()
     if project:
         return ProjectInfo(**project)
@@ -486,6 +510,7 @@ async def get_project(
     """
     Get information about a specific project.
     """
+    _refresh_config_if_needed(config_manager)
     project = config_manager.get_project_info(name)
     if not project:
         raise HTTPException(
@@ -505,6 +530,7 @@ async def update_project(
     """
     Update a project's configuration.
     """
+    _refresh_config_if_needed(config_manager)
     updates = {}
     if project_data.description is not None:
         updates["description"] = project_data.description
@@ -536,6 +562,7 @@ async def delete_project(
     """
     Delete a project from the workspace.
     """
+    _refresh_config_if_needed(config_manager)
     success, error_message = config_manager.delete_project(name)
     if not success:
         raise HTTPException(
@@ -558,6 +585,7 @@ async def list_workspaces(
     """
     List workspace information (currently supports single workspace).
     """
+    _refresh_config_if_needed(config_manager)
     workspace = config_manager.get_workspace_info()
     if workspace:
         return [WorkspaceInfo(**workspace)]
@@ -572,6 +600,7 @@ async def get_active_workspace(
     """
     Get information about the currently active workspace.
     """
+    _refresh_config_if_needed(config_manager)
     workspace = config_manager.get_workspace_info()
     if workspace:
         return WorkspaceInfo(**workspace)
