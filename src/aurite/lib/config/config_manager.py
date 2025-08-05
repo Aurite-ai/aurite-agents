@@ -425,8 +425,24 @@ class ConfigManager:
 
     def update_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
         """
-        Updates a component configuration by writing back to its source file.
+        Updates a component configuration by writing back to its source file or the database.
         """
+        if self._db_enabled:
+            if not self._storage_manager:
+                logger.error("StorageManager not initialized. Cannot update component in DB mode.")
+                return False
+            try:
+                # The _upsert_component method is on StorageManager, not ConfigManager
+                with self._storage_manager.get_db_session() as db:
+                    if db:
+                        self._storage_manager._upsert_component(db, component_type, new_config)
+                self.refresh()  # Refresh the in-memory index
+                return True
+            except Exception as e:
+                logger.error(f"Failed to update component '{component_name}' in database: {e}")
+                return False
+
+        # File-based logic
         existing_config = self.get_config(component_type, component_name)
         if not existing_config:
             logger.error(f"Component '{component_name}' of type '{component_type}' not found for update.")
@@ -594,9 +610,22 @@ class ConfigManager:
 
     def delete_config(self, component_type: str, component_name: str) -> bool:
         """
-        Deletes a component configuration by removing it from its source file.
-        If the component is the last one in the file, the file will be deleted.
+        Deletes a component configuration from its source file or the database.
         """
+        if self._db_enabled:
+            if not self._storage_manager:
+                logger.error("StorageManager not initialized. Cannot delete component in DB mode.")
+                return False
+            try:
+                success = self._storage_manager.delete_component(component_name)
+                if success:
+                    self.refresh()  # Refresh the in-memory index
+                return success
+            except Exception as e:
+                logger.error(f"Failed to delete component '{component_name}' from database: {e}")
+                return False
+
+        # File-based logic
         try:
             # Find the existing component to get its source file
             existing_config = self._component_index.get(component_type, {}).get(component_name)
