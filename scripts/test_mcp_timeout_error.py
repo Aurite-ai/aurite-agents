@@ -15,8 +15,8 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aurite.execution.mcp_host.host import MCPHost
-from aurite.lib.config.config_models import ClientConfig
+from aurite.execution.mcp_host import MCPHost
+from aurite.lib.models.config.components import ClientConfig
 from aurite.utils.errors import MCPServerTimeoutError
 
 logging.basicConfig(level=logging.INFO)
