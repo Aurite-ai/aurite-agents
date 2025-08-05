@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Optional
 
 import typer
@@ -15,6 +16,7 @@ from .commands.list import list_all, list_components_by_type, list_index, list_w
 from .commands.run import run_component
 from .commands.show import show_components
 
+os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
 app = typer.Typer(
     name="aurite",
     help="A framework for building, testing, and running AI agents.",
