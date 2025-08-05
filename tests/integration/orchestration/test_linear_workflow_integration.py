@@ -5,7 +5,7 @@ import pytest
 from openai.types.chat import ChatCompletionMessage
 
 from aurite.aurite import Aurite
-from aurite.lib.components.agents.agent_models import AgentRunResult
+from aurite.lib.models.api.responses import AgentRunResult
 
 
 @pytest.mark.anyio
@@ -57,10 +57,18 @@ async def test_linear_workflow_success():
         mock_run_agent.assert_any_call(
             agent_name="Weather Agent",
             user_message="What's the weather in Boston?",
+            session_id=None,
+            force_include_history=None,
+            base_session_id=None,
+            force_logging=None,
         )
         mock_run_agent.assert_any_call(
             agent_name="Weather Planning Workflow Step 2",
             user_message='{"temperature": 72, "conditions": "Sunny"}',
+            session_id=None,
+            force_include_history=None,
+            base_session_id=None,
+            force_logging=None,
         )
         patch.stopall()
 
@@ -104,5 +112,9 @@ async def test_linear_workflow_agent_failure():
         mock_run_agent.assert_called_once_with(
             agent_name="Weather Agent",
             user_message="What's the weather in Boston?",
+            session_id=None,
+            force_include_history=None,
+            base_session_id=None,
+            force_logging=None,
         )
         patch.stopall()

@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional  # Added Dict and Literal
 
-from pydantic import BaseModel, Field, model_validator  # Use model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict  # Use model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +144,8 @@ class HostConfig(BaseComponentConfig):
 class LLMConfig(BaseComponentConfig):
     """Configuration for a specific LLM setup."""
 
+    model_config = ConfigDict(extra="allow")  # Allow provider-specific fields not explicitly defined
+
     type: Literal["llm"] = "llm"
     provider: str = Field(description="The LLM provider (e.g., 'anthropic', 'openai', 'gemini').")
     model: str = Field(description="The specific model name for the provider.")
@@ -165,12 +167,11 @@ class LLMConfig(BaseComponentConfig):
     # api_key: Optional[str] = Field(default=None, description="The API key for the LLM.")
     api_version: Optional[str] = Field(default=None, description="The API version for the LLM.")
 
-    class Config:
-        extra = "allow"  # Allow provider-specific fields not explicitly defined
-
 
 class LLMConfigOverrides(BaseModel):
     """A model for agent-specific overrides of LLM parameters."""
+
+    model_config = ConfigDict(extra="allow")
 
     model: Optional[str] = Field(default=None, description="Overrides model from LLMConfig if specified.")
     temperature: Optional[float] = Field(default=None, description="Overrides temperature from LLMConfig if specified.")
@@ -179,9 +180,6 @@ class LLMConfigOverrides(BaseModel):
     api_base: Optional[str] = Field(default=None, description="Overrides the base URL for the LLM.")
     api_key: Optional[str] = Field(default=None, description="Overrides the API key for the LLM.")
     api_version: Optional[str] = Field(default=None, description="Overrides the API version for the LLM.")
-
-    class Config:
-        extra = "allow"
 
 
 # --- Agent Configuration ---

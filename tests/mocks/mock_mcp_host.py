@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock  # Added Mock
 import pytest
 
 # Import the class we are mocking to ensure the mock spec matches
-from aurite.execution.mcp_host.host import MCPHost
+from aurite.execution.mcp_host import MCPHost
 from aurite.execution.mcp_host.resources import ToolManager  # Import ToolManager for spec
 
 

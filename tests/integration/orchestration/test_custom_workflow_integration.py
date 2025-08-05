@@ -5,7 +5,7 @@ import pytest
 from openai.types.chat import ChatCompletionMessage
 
 from aurite.aurite import Aurite
-from aurite.lib.components.agents.agent_models import AgentRunResult
+from aurite.lib.models.api.responses import AgentRunResult
 
 
 @pytest.mark.anyio

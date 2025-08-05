@@ -11,10 +11,10 @@ from openai.types.chat.chat_completion_message_tool_call import (
     Function,
 )
 
-from aurite.execution.mcp_host.host import MCPHost
-from aurite.lib.components.agents.agent_turn_processor import AgentTurnProcessor
+from aurite.execution.mcp_host import MCPHost
+from aurite.lib.components.agent.agent_turn_processor import AgentTurnProcessor
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
-from aurite.lib.config.config_models import AgentConfig
+from aurite.lib.models.config.components import AgentConfig
 
 # --- Fixtures ---
 
@@ -116,7 +116,7 @@ async def test_process_turn_successful_tool_call(
 
     mock_llm_client.create_message.assert_awaited_once()  # type: ignore
     mock_host.call_tool.assert_awaited_once_with(  # type: ignore
-        name="get_weather", args={"location": "Boston"}
+        name="get_weather", args={"location": "Boston"}, agent_config=basic_agent_config
     )
 
 
@@ -162,5 +162,5 @@ async def test_process_turn_failed_tool_call(
 
     mock_llm_client.create_message.assert_awaited_once()  # type: ignore
     mock_host.call_tool.assert_awaited_once_with(  # type: ignore
-        name="get_stock_price", args={"ticker": "XYZ"}
+        name="get_stock_price", args={"ticker": "XYZ"}, agent_config=basic_agent_config
     )

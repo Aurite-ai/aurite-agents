@@ -4,7 +4,7 @@ import pytest
 
 from aurite.execution.aurite_engine import AuriteEngine
 from aurite.lib.components.agents.agent_models import AgentRunResult
-from aurite.lib.config.config_models import CustomWorkflowConfig
+from aurite.lib.models.config.components import CustomWorkflowConfig
 
 
 class TestRefactoredAgentWorkflow:
