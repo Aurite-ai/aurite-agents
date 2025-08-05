@@ -87,5 +87,6 @@
   "[dockerfile]": {
     // Keep existing specific settings
     "editor.formatOnSave": false
-  }
+  },
+  "postman.settings.dotenv-detection-notification-visibility": false
 }

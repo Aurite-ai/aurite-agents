@@ -17,6 +17,7 @@ __all__ = [
     "ServerDetailedStatus",
     "ServerTestResult",
     "ServerRuntimeInfo",
+    "ComponentCreateResponse",
 ]
 
 
@@ -204,3 +205,11 @@ class ServerRuntimeInfo(BaseModel):
     transport_type: str
     tools_count: int
     registration_time: datetime
+
+
+# --- Component Creation Response Models ---
+class ComponentCreateResponse(BaseModel):
+    """Standardized response for component creation."""
+
+    message: str
+    component: Dict[str, Any]
