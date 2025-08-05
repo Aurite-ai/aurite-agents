@@ -469,35 +469,43 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
 
               {llmConfigOption === 'inline' && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Model</Label>
-                    <Input
-                      placeholder="e.g., gpt-4, claude-3-opus"
-                      value={inlineModel}
-                      onChange={(e) => setInlineModel(e.target.value)}
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-foreground">Temperature</Label>
+                      <Label className="text-sm font-medium text-foreground">Model</Label>
                       <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="2"
-                        placeholder="0.7"
-                        value={inlineTemperature}
-                        onChange={(e) => setInlineTemperature(e.target.value)}
+                        placeholder="e.g., gpt-4, claude-3-opus"
+                        value={inlineModel}
+                        onChange={(e) => setInlineModel(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-foreground">Max Tokens</Label>
                       <Input
                         type="number"
+                        min="1"
+                        max="32768"
                         placeholder="2048"
                         value={inlineMaxTokens}
                         onChange={(e) => setInlineMaxTokens(e.target.value)}
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">Temperature: {inlineTemperature || '0.7'}</Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={inlineTemperature || '0.7'}
+                      onChange={(e) => setInlineTemperature(e.target.value)}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Focused (0.0)</span>
+                      <span>Balanced (1.0)</span>
+                      <span>Creative (2.0)</span>
                     </div>
                   </div>
                 </div>

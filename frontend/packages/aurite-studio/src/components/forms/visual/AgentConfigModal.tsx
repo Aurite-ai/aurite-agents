@@ -7,8 +7,6 @@ import {
   Brain, 
   Server, 
   MessageSquare, 
-  Clock, 
-  History,
   Zap,
   Shield,
   Loader2
@@ -79,6 +77,7 @@ export default function AgentConfigModal({
 }: AgentConfigModalProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [formPopulated, setFormPopulated] = useState(false);
+  const [llmConfigOption, setLlmConfigOption] = useState('existing');
   
   // Fetch agent configuration from API
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
@@ -100,8 +99,6 @@ export default function AgentConfigModal({
     max_tokens: 4096,
     system_prompt: '',
     max_iterations: 10,
-    include_history: false,
-    auto: false,
     mcp_servers: [],
     exclude_components: []
   });
@@ -128,8 +125,6 @@ export default function AgentConfigModal({
         model: agentConfig.model,
         temperature: agentConfig.temperature,
         max_tokens: agentConfig.max_tokens,
-        include_history: agentConfig.include_history,
-        auto: agentConfig.auto,
         exclude_components: agentConfig.exclude_components
       });
       
@@ -145,10 +140,17 @@ export default function AgentConfigModal({
         model: agentConfig.model || '',
         temperature: agentConfig.temperature !== undefined ? agentConfig.temperature : 0.7,
         max_tokens: agentConfig.max_tokens || 4096,
-        include_history: agentConfig.include_history || false,
-        auto: agentConfig.auto || false,
         exclude_components: agentConfig.exclude_components || []
       });
+      
+      // Set LLM config option based on existing configuration
+      if (agentConfig.llm_config_id) {
+        setLlmConfigOption('existing');
+      } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens) {
+        setLlmConfigOption('inline');
+      } else {
+        setLlmConfigOption('existing');
+      }
       
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
@@ -167,8 +169,6 @@ export default function AgentConfigModal({
         max_tokens: 4096,
         system_prompt: '',
         max_iterations: 10,
-        include_history: false,
-        auto: false,
         mcp_servers: [],
         exclude_components: [],
         ...initialConfig
@@ -182,6 +182,7 @@ export default function AgentConfigModal({
     if (!isOpen) {
       setFormPopulated(false);
       setActiveTab('basic');
+      setLlmConfigOption('existing');
     }
   }, [isOpen]);
 
@@ -191,17 +192,23 @@ export default function AgentConfigModal({
       type: 'agent',
       name: config.name || agentName,
       ...(config.description && { description: config.description }),
-      ...(config.llm_config_id && { llm_config_id: config.llm_config_id }),
-      ...(config.model && { model: config.model }),
-      ...(config.temperature !== undefined && { temperature: Number(config.temperature) }),
-      ...(config.max_tokens !== undefined && { max_tokens: Number(config.max_tokens) }),
       ...(config.system_prompt && { system_prompt: config.system_prompt }),
       ...(config.max_iterations !== undefined && { max_iterations: Number(config.max_iterations) }),
-      ...(config.include_history !== undefined && { include_history: config.include_history }),
-      ...(config.auto !== undefined && { auto: config.auto }),
       ...(config.mcp_servers && config.mcp_servers.length > 0 && { mcp_servers: config.mcp_servers }),
       ...(config.exclude_components && config.exclude_components.length > 0 && { exclude_components: config.exclude_components })
     };
+
+    // Handle LLM configuration based on selected option
+    if (llmConfigOption === 'existing') {
+      if (config.llm_config_id) {
+        cleanConfig.llm_config_id = config.llm_config_id;
+      }
+    } else if (llmConfigOption === 'inline') {
+      // Include inline parameters when defining inline LLM parameters
+      if (config.model) cleanConfig.model = config.model;
+      if (config.temperature !== undefined) cleanConfig.temperature = Number(config.temperature);
+      if (config.max_tokens !== undefined) cleanConfig.max_tokens = Number(config.max_tokens);
+    }
 
     onSave(cleanConfig);
     onClose();
@@ -267,7 +274,6 @@ export default function AgentConfigModal({
             {[
               { id: 'basic', label: 'Basic', icon: Bot },
               { id: 'llm', label: 'LLM', icon: Brain },
-              { id: 'behavior', label: 'Behavior', icon: Zap },
               { id: 'capabilities', label: 'Capabilities', icon: Server },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -345,6 +351,22 @@ export default function AgentConfigModal({
                       This prompt defines the agent's identity and behavior. Be specific about what the agent should do.
                     </p>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="max-iterations">Max Iterations</Label>
+                    <Input
+                      id="max-iterations"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={config.max_iterations || ''}
+                      onChange={(e) => setConfig(prev => ({ ...prev, max_iterations: parseInt(e.target.value) || 10 }))}
+                      placeholder="10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Maximum number of conversation turns before the agent stops automatically
+                    </p>
+                  </div>
                 </div>
           )}
 
@@ -355,150 +377,107 @@ export default function AgentConfigModal({
                     Language Model Configuration
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="llm-config">LLM Configuration</Label>
-                    <Select 
-                      value={config.llm_config_id || ''} 
-                      onValueChange={(value) => setConfig(prev => ({ ...prev, llm_config_id: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an LLM configuration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableLLMConfigs.map((llmConfig, index) => {
-                          // Handle both string names and full config objects
-                          const configName = typeof llmConfig === 'string' ? llmConfig : llmConfig.name;
-                          const configKey = typeof llmConfig === 'string' ? llmConfig : `${llmConfig.name}-${index}`;
-                          
-                          return (
-                            <SelectItem key={configKey} value={configName}>
-                              {configName}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Choose a predefined LLM configuration or use overrides below
-                    </p>
+                  {/* Toggle Button Group */}
+                  <div className="p-1 bg-muted/20 border border-border rounded-lg">
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant={llmConfigOption === 'existing' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setLlmConfigOption('existing')}
+                        className="flex-1 transition-all duration-200 text-sm"
+                      >
+                        Use Existing LLM Config
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={llmConfigOption === 'inline' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setLlmConfigOption('inline')}
+                        className="flex-1 transition-all duration-200 text-sm"
+                      >
+                        Define Inline LLM Parameters
+                      </Button>
+                    </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium">LLM Overrides</h4>
-                    <p className="text-xs text-muted-foreground">
-                      These settings will override the selected LLM configuration above
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="model-override">Model Override</Label>
-                        <Input
-                          id="model-override"
-                          value={config.model || ''}
-                          onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                          placeholder="e.g., gpt-4, claude-3-opus"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="max-tokens">Max Tokens</Label>
-                        <Input
-                          id="max-tokens"
-                          type="number"
-                          min="1"
-                          max="32768"
-                          value={config.max_tokens || ''}
-                          onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) || 4096 }))}
-                          placeholder="4096"
-                        />
-                      </div>
-                    </div>
-
+                  {llmConfigOption === 'existing' && (
                     <div className="space-y-2">
-                      <Label htmlFor="temperature">Temperature: {config.temperature}</Label>
-                      <input
-                        id="temperature"
-                        type="range"
-                        min="0"
-                        max="2"
-                        step="0.1"
-                        value={config.temperature || 0.7}
-                        onChange={(e) => setConfig(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Focused (0.0)</span>
-                        <span>Balanced (1.0)</span>
-                        <span>Creative (2.0)</span>
-                      </div>
+                      <Label htmlFor="llm-config">Select LLM Config</Label>
+                      <Select 
+                        value={config.llm_config_id || ''} 
+                        onValueChange={(value) => setConfig(prev => ({ ...prev, llm_config_id: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an LLM configuration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableLLMConfigs.map((llmConfig, index) => {
+                            // Handle both string names and full config objects
+                            const configName = typeof llmConfig === 'string' ? llmConfig : llmConfig.name;
+                            const configKey = typeof llmConfig === 'string' ? llmConfig : `${llmConfig.name}-${index}`;
+                            
+                            return (
+                              <SelectItem key={configKey} value={configName}>
+                                {configName}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
-                </div>
-          )}
+                  )}
 
-          {activeTab === 'behavior' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Zap className="h-4 w-4" />
-                    Agent Behavior Settings
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="max-iterations">Max Iterations</Label>
-                      <Input
-                        id="max-iterations"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={config.max_iterations || ''}
-                        onChange={(e) => setConfig(prev => ({ ...prev, max_iterations: parseInt(e.target.value) || 10 }))}
-                        placeholder="10"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Maximum number of conversation turns before the agent stops automatically
-                      </p>
-                    </div>
-
+                  {llmConfigOption === 'inline' && (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <History className="h-4 w-4" />
-                            <Label htmlFor="include-history">Include History</Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Include entire conversation history in each turn
-                          </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="model-override">Model</Label>
+                          <Input
+                            id="model-override"
+                            value={config.model || ''}
+                            onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                            placeholder="e.g., gpt-4, claude-3-opus"
+                          />
                         </div>
-                        <Switch
-                          id="include-history"
-                          checked={config.include_history || false}
-                          onCheckedChange={(checked) => setConfig(prev => ({ ...prev, include_history: checked }))}
-                        />
+                        <div className="space-y-2">
+                          <Label htmlFor="max-tokens">Max Tokens</Label>
+                          <Input
+                            id="max-tokens"
+                            type="number"
+                            min="1"
+                            max="32768"
+                            value={config.max_tokens || ''}
+                            onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) || 4096 }))}
+                            placeholder="2048"
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-4 w-4" />
-                            <Label htmlFor="auto-mode">Auto Mode</Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Let LLM dynamically select capabilities at runtime
-                          </p>
-                        </div>
-                        <Switch
-                          id="auto-mode"
-                          checked={config.auto || false}
-                          onCheckedChange={(checked) => setConfig(prev => ({ ...prev, auto: checked }))}
+                      <div className="space-y-2">
+                        <Label htmlFor="temperature">Temperature: {config.temperature}</Label>
+                        <input
+                          id="temperature"
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={config.temperature || 0.7}
+                          onChange={(e) => setConfig(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                         />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Focused (0.0)</span>
+                          <span>Balanced (1.0)</span>
+                          <span>Creative (2.0)</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
           )}
+
+
 
           {activeTab === 'capabilities' && (
                 <div className="space-y-6">
