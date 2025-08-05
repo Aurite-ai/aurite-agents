@@ -53,7 +53,11 @@ class LinearWorkflowExecutor:
         logger.debug(f"LinearWorkflowExecutor initialized for workflow: {self.config.name}")
 
     async def execute(
-        self, initial_input: str, session_id: Optional[str] = None, base_session_id: Optional[str] = None
+        self,
+        initial_input: str,
+        session_id: Optional[str] = None,
+        base_session_id: Optional[str] = None,
+        force_logging: Optional[bool] = None,
     ) -> LinearWorkflowExecutionResult:
         """
         Executes the configured linear workflow sequentially.
@@ -107,10 +111,10 @@ class LinearWorkflowExecutor:
                             agent_run_result: AgentRunResult = await self.engine.run_agent(
                                 agent_name=component.name,
                                 user_message=str(current_message),
-                                # Let the engine determine the session logic based on workflow context
                                 session_id=f"{session_id}-{step_index}" if session_id else None,
                                 force_include_history=self.config.include_history,
-                                base_session_id=base_session_id,  # Pass the workflow's base ID
+                                base_session_id=base_session_id,
+                                force_logging=force_logging,
                             )
 
                             # Check the status of the agent run
@@ -136,6 +140,7 @@ class LinearWorkflowExecutor:
                                 workflow_name=component.name,
                                 initial_input=current_message,
                                 session_id=session_id,
+                                force_logging=force_logging,
                             )
                             if workflow_result.error:
                                 raise Exception(f"Nested workflow '{component.name}' failed: {workflow_result.error}")

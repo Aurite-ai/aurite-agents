@@ -104,13 +104,19 @@ class AgentTurnProcessor:
 
             # Try to parse and format MCP tool results
             try:
-                parsed = json.loads(content)
+                # content can be a string representation of a dict, or a dict itself
+                if isinstance(content, str):
+                    parsed = json.loads(content)
+                else:
+                    parsed = content
+
                 if isinstance(parsed, dict) and "content" in parsed:
                     # Extract text content from MCP format
                     text_parts = []
-                    for item in parsed.get("content", []):
-                        if isinstance(item, dict) and item.get("type") == "text":
-                            text_parts.append(item.get("text", ""))
+                    if parsed.get("content"):
+                        for item in parsed.get("content", []):
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text_parts.append(item.get("text", ""))
                     if text_parts:
                         formatted_content = " ".join(text_parts)
                         # Truncate if needed
@@ -142,7 +148,7 @@ class AgentTurnProcessor:
                 turn_number = len([msg for msg in self.messages if msg.get("role") == "assistant"]) + 1
                 turn_input = self._get_turn_input()
                 self.span = self.trace.span(
-                    name=f"Agent Turn {turn_number}",
+                    name=f"{self.config.name} Turn {turn_number}",
                     input=turn_input,
                     metadata={
                         "has_tools": bool(self.tools),
@@ -250,7 +256,7 @@ class AgentTurnProcessor:
                 turn_number = len([msg for msg in self.messages if msg.get("role") == "assistant"]) + 1
                 turn_input = self._get_turn_input()
                 self.span = self.trace.span(
-                    name=f"Agent Turn {turn_number} (streaming)",
+                    name=f"{self.config.name} Turn {turn_number} (streaming)",
                     input=turn_input,
                     metadata={
                         "has_tools": bool(self.tools),
