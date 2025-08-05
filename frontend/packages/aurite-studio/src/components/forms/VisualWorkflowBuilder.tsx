@@ -135,24 +135,17 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
     data.agentConfig.temperature !== undefined ||
     data.agentConfig.max_tokens !== undefined
   );
-  console.log('=== AgentNode Debug ===');
-  console.log('Agent Name:', data?.agentName);
-  console.log('Agent Label:', data?.label);
-  console.log('Full Data Object:', data);
-  console.log('Agent Configuration:', data?.agentConfig);
-  console.log('Is Configured:', isConfigured);
-  console.log('Debug Info:', data?.debugInfo);
-  console.log('========================');
+
 
   return (
     <motion.div 
-      className="relative group min-w-[200px] max-w-[280px] p-4"
+      className="relative group min-w-[150px] max-w-[280px] p-3"
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
       {/* Main Node Card */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
+      <div className="bg-card border border-border rounded-xl p-3 shadow-lg hover:shadow-xl transition-shadow duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
         
         {/* Gradient Accent Bar */}
         <div className={`absolute top-0 left-0 right-0 h-1 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/20'}`} />
@@ -201,10 +194,10 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
         />
         
         {/* Node Icon and Header */}
-        <div className="flex items-start gap-3 mb-3">
-          <div className={`w-10 h-10 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/30'} rounded-lg flex items-center justify-center text-white shadow-md`}>
-            <div className="w-5 h-5 bg-white/90 rounded-sm flex items-center justify-center">
-              <div className="w-2 h-2 bg-current rounded-full" />
+        <div className="flex items-start gap-2 mb-2">
+          <div className={`w-8 h-8 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/30'} rounded-lg flex items-center justify-center text-white shadow-md`}>
+            <div className="w-4 h-4 bg-white/90 rounded-sm flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-current rounded-full" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -492,9 +485,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
       // If no embedded config, try to fetch from API
       if (!agentConfig) {
         try {
-          console.log('🔄 Fetching agent config for edit mode:', step);
           agentConfig = await agentsService.getAgentConfig(step);
-          console.log('✅ Successfully fetched agent config for edit mode:', step, agentConfig);
         } catch (error) {
           console.warn('⚠️ Failed to fetch agent config for edit mode:', step, error);
         }
@@ -551,8 +542,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   useEffect(() => {
     const populateWorkflowForm = async () => {
       if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
-        console.log('🔄 Populating visual workflow form with config:', workflowConfig);
-        
         // Populate form fields
         setWorkflowName(workflowConfig.name || '');
         setWorkflowDescription(workflowConfig.description || '');
@@ -573,7 +562,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         
         // Mark form as populated
         setWorkflowFormPopulated(true);
-        console.log('✅ Visual workflow form populated successfully');
       } else if (!editMode && !workflowFormPopulated) {
         // Initialize form for create mode
         setWorkflowName('');
@@ -604,8 +592,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
 
   // Handle agent drop from palette
   const onAgentDrop = useCallback(async (agentName: string, position: { x: number; y: number }) => {
-    console.log('onAgentDrop - Attempting to fetch config for agent:', agentName);
-    
     // Find an available position that doesn't overlap
     const availablePosition = findAvailablePosition(position);
     
@@ -630,7 +616,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     // Try to fetch the agent configuration
     try {
       const agentConfig = await agentsService.getAgentConfig(agentName);
-      console.log('Successfully fetched agent config:', agentConfig);
       
       // Update the node with the configuration
       setNodes((nds) => 
@@ -682,8 +667,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   // Handle edge deletion
   const onEdgesDelete = useCallback(
     (deletedEdges: Edge[]) => {
-      // Edges are automatically removed by React Flow, this is just for logging
-      console.log('Deleted edges:', deletedEdges.map(e => e.id));
+      // Edges are automatically removed by React Flow
     },
     []
   );
@@ -725,7 +709,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     }
 
     const workflowConfig = convertToWorkflowConfig();
-    console.log('💾 Saving visual workflow config:', workflowConfig);
 
     if (editMode && workflowNameParam) {
       // Edit mode - update existing workflow
@@ -734,7 +717,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         config: workflowConfig
       }, {
         onSuccess: () => {
-          console.log('✅ Visual workflow updated successfully');
           navigate('/workflows');
         },
         onError: (error) => {
@@ -745,7 +727,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
       // Create mode - create new workflow
       createWorkflow.mutate(workflowConfig, {
         onSuccess: () => {
-          console.log('✅ Visual workflow created successfully');
           navigate('/workflows');
         },
         onError: (error) => {
@@ -887,7 +868,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            fitViewOptions={{ padding: 0.3, minZoom: 0.5, maxZoom: 1.5 }}
+            fitViewOptions={{ padding: 0.3, minZoom: 0.05, maxZoom: 8.0 }}
             className="bg-background"
             defaultEdgeOptions={{
               type: 'smoothstep',

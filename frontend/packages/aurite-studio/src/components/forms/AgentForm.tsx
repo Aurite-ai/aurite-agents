@@ -60,25 +60,12 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   // Effect to populate form when agent config is loaded in edit mode
   useEffect(() => {
     if (editMode && agentConfig && agentNameParam && !formPopulated) {
-      console.log('🔄 Populating agent form with config:', agentConfig);
-      
       // Safely extract agent name according to canonical AgentConfig model
       const safeName = typeof agentConfig.name === 'string' 
         ? agentConfig.name 
         : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
           ? String((agentConfig.name as any).name)
           : String(agentConfig.name || 'Unknown Agent');
-      
-      console.log('📝 Setting form fields:', {
-        name: safeName,
-        system_prompt: agentConfig.system_prompt,
-        mcp_servers: agentConfig.mcp_servers,
-        max_iterations: agentConfig.max_iterations,
-        llm_config_id: agentConfig.llm_config_id,
-        model: agentConfig.model,
-        temperature: agentConfig.temperature,
-        max_tokens: agentConfig.max_tokens
-      });
       
       // Populate basic form fields
       setAgentFormName(safeName);
@@ -89,7 +76,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       // Handle LLM configuration with improved logic
       if (agentConfig.llm_config_id) {
         // Agent uses existing LLM configuration
-        console.log('✅ Using existing LLM config:', agentConfig.llm_config_id);
         setLlmConfigOption('existing');
         setSelectedLLMConfig(agentConfig.llm_config_id);
         
@@ -99,7 +85,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         setInlineMaxTokens('');
       } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens !== undefined) {
         // Agent uses inline LLM parameters
-        console.log('✅ Using inline LLM parameters');
         setLlmConfigOption('inline');
         setInlineModel(agentConfig.model || '');
         setInlineTemperature(agentConfig.temperature?.toString() || '');
@@ -109,7 +94,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         setSelectedLLMConfig('');
       } else {
         // No LLM configuration found - default to existing mode
-        console.log('⚠️ No LLM configuration found, defaulting to existing mode');
         setLlmConfigOption('existing');
         setSelectedLLMConfig('');
         setInlineModel('');
@@ -119,9 +103,8 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
-      console.log('✅ Agent form populated successfully');
     } else if (editMode && agentNameParam && !agentConfig && !configLoading) {
-      console.log('❌ Failed to load agent config for:', agentNameParam);
+      // Failed to load agent config
     }
   }, [agentConfig, agentNameParam, editMode, configLoading, formPopulated]);
 
@@ -178,8 +161,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       } : {})
     };
 
-    console.log('💾 Saving agent config:', agentConfig);
-
     if (editMode && agentNameParam) {
       // Edit mode - update existing agent using PUT method
       updateAgent.mutate({
@@ -187,7 +168,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         config: agentConfig
       }, {
         onSuccess: () => {
-          console.log('✅ Agent config updated successfully');
           navigate('/agents');
         },
         onError: (error) => {
@@ -198,7 +178,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       // Create mode - create new agent using POST method
       createAgent.mutate(agentConfig, {
         onSuccess: () => {
-          console.log('✅ New agent config created successfully');
           navigate('/agents');
         },
         onError: (error) => {

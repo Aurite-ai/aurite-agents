@@ -106,27 +106,12 @@ export default function AgentConfigModal({
   // Effect to populate form when agent config is loaded
   useEffect(() => {
     if (agentConfig && agentName && !formPopulated && isOpen) {
-      console.log('🔄 Populating workflow agent form with config:', agentConfig);
-      
       // Safely extract agent name according to canonical AgentConfig model
       const safeName = typeof agentConfig.name === 'string' 
         ? agentConfig.name 
         : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
           ? String((agentConfig.name as any).name)
           : String(agentConfig.name || agentName);
-      
-      console.log('📝 Setting workflow form fields:', {
-        name: safeName,
-        description: agentConfig.description,
-        system_prompt: agentConfig.system_prompt,
-        mcp_servers: agentConfig.mcp_servers,
-        max_iterations: agentConfig.max_iterations,
-        llm_config_id: agentConfig.llm_config_id,
-        model: agentConfig.model,
-        temperature: agentConfig.temperature,
-        max_tokens: agentConfig.max_tokens,
-        exclude_components: agentConfig.exclude_components
-      });
       
       // Populate form fields with fetched configuration
       setConfig({
@@ -154,9 +139,7 @@ export default function AgentConfigModal({
       
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
-      console.log('✅ Workflow agent form populated successfully');
     } else if (agentName && !agentConfig && !configLoading && isOpen && !formPopulated) {
-      console.log('❌ Failed to load agent config for:', agentName, 'using fallback from initialConfig');
       
       // Fallback to initialConfig if API fetch fails
       setConfig({
