@@ -85,6 +85,7 @@ class Agent:
             current_messages=self.conversation_history,
             tools_data=tools_data,
             effective_system_prompt=self.resolved_llm_config.default_system_prompt,
+            trace=self.trace,
         )
 
     async def run_conversation(self) -> AgentRunResult:
