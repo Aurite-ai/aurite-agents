@@ -204,6 +204,8 @@ class AuriteEngine:
         session_id: Optional[str] = None,
         force_logging: Optional[bool] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
         logger.info(f"Facade: Received request to STREAM agent '{agent_name}'")
 
         # Auto-generate session_id if agent wants history but none provided
@@ -317,6 +319,8 @@ class AuriteEngine:
         force_logging: Optional[bool] = None,
         trace: Optional["StatefulTraceClient"] = None,
     ) -> AgentRunResult:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
         # --- Session ID Management ---
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
@@ -418,6 +422,8 @@ class AuriteEngine:
         session_id: Optional[str] = None,
         force_logging: Optional[bool] = None,
     ) -> LinearWorkflowExecutionResult:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
         logger.info(f"Facade: Received request to run Linear Workflow '{workflow_name}' with session_id: {session_id}")
         try:
             workflow_config_dict = self._config_manager.get_config("linear_workflow", workflow_name)
@@ -490,6 +496,8 @@ class AuriteEngine:
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None
     ) -> Any:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
         logger.info(f"Facade: Received request to run Custom Workflow '{workflow_name}'")
         try:
             workflow_config_dict = self._config_manager.get_config("custom_workflow", workflow_name)

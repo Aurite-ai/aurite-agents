@@ -69,7 +69,6 @@ class ConfigManager:
 
         self._config_sources: List[tuple[Path, Path]] = []
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
-        self._force_refresh = os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
         self._db_enabled = os.getenv("AURITE_ENABLE_DB", "false").lower() == "true"
         self._storage_manager: Optional[StorageManager] = None
         self._file_manager: Optional[FileManager] = None
@@ -282,33 +281,22 @@ class ConfigManager:
         return resolved_data
 
     def get_config(self, component_type: str, component_id: str) -> Optional[Dict[str, Any]]:
-        if self._force_refresh:
-            self.refresh()
-
         config = self._component_index.get(component_type, {}).get(component_id)
         if config:
             return self._resolve_paths_in_config(config)
         return None
 
     def list_configs(self, component_type: str) -> List[Dict[str, Any]]:
-        if self._force_refresh:
-            self.refresh()
-
         configs = self._component_index.get(component_type, {}).values()
         return [self._resolve_paths_in_config(c) for c in configs]
 
     def get_all_configs(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        if self._force_refresh:
-            self.refresh()
         return self._component_index
 
     def get_component_index(self) -> List[Dict[str, Any]]:
         """
         Returns a flattened list of all indexed components, with their context.
         """
-        if self._force_refresh:
-            self.refresh()
-
         flat_list = []
         for comp_type, components in self._component_index.items():
             for comp_name, config in components.items():
@@ -359,8 +347,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Listing config sources is only available in file-based mode.")
             return []
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.list_config_sources()
 
     def list_config_files(self, source_name: str) -> List[str]:
@@ -371,8 +357,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Listing config files is only available in file-based mode.")
             return []
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.list_config_files(source_name)
 
     def get_file_content(self, source_name: str, relative_path: str) -> Optional[str]:
@@ -383,8 +367,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Getting file content is only available in file-based mode.")
             return None
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.get_file_content(source_name, relative_path)
 
     def create_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
@@ -395,8 +377,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Creating config files is only available in file-based mode.")
             return False
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.create_config_file(source_name, relative_path, content)
 
     def update_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
@@ -407,8 +387,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Updating config files is only available in file-based mode.")
             return False
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.update_config_file(source_name, relative_path, content)
 
     def delete_config_file(self, source_name: str, relative_path: str) -> bool:
@@ -419,8 +397,6 @@ class ConfigManager:
         if self._db_enabled or not self._file_manager:
             logger.warning("Deleting config files is only available in file-based mode.")
             return False
-        if self._force_refresh:
-            self.refresh()
         return self._file_manager.delete_config_file(source_name, relative_path)
 
     def update_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
