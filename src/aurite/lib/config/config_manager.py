@@ -705,7 +705,7 @@ class ConfigManager:
             A tuple containing a boolean indicating if the component is valid,
             and a list of validation error messages.
         """
-        from .config_models import AgentConfig, ClientConfig, CustomWorkflowConfig, LLMConfig, WorkflowConfig
+        from aurite.lib.models import AgentConfig, ClientConfig, CustomWorkflowConfig, LLMConfig, WorkflowConfig
 
         # Map component types to their Pydantic models
         model_map = {
