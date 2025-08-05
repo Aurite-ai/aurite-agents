@@ -20,6 +20,7 @@ import {
   Position,
   MarkerType,
   ConnectionMode,
+  ConnectionLineType,
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
@@ -120,7 +121,20 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
     }
   };
 
-  const isConfigured = data?.agentConfig && Object.keys(data.agentConfig).length > 2; // More than just type and name
+  const isConfigured = data?.agentConfig && (
+    // Check for meaningful configuration beyond just type and name
+    data.agentConfig.system_prompt || 
+    data.agentConfig.description || 
+    data.agentConfig.llm_config_id || 
+    data.agentConfig.model ||
+    (data.agentConfig.mcp_servers && data.agentConfig.mcp_servers.length > 0) ||
+    (data.agentConfig.exclude_components && data.agentConfig.exclude_components.length > 0) ||
+    data.agentConfig.include_history !== undefined ||
+    data.agentConfig.auto !== undefined ||
+    data.agentConfig.max_iterations !== undefined ||
+    data.agentConfig.temperature !== undefined ||
+    data.agentConfig.max_tokens !== undefined
+  );
   console.log('=== AgentNode Debug ===');
   console.log('Agent Name:', data?.agentName);
   console.log('Agent Label:', data?.label);
@@ -136,10 +150,9 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.2 }}
-      whileHover={{ scale: 1.02 }}
     >
       {/* Main Node Card */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
+      <div className="bg-card border border-border rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
         
         {/* Gradient Accent Bar */}
         <div className={`absolute top-0 left-0 right-0 h-1 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/20'}`} />
@@ -177,11 +190,12 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
         <Handle
           type="target"
           position={Position.Top}
-          className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+          className="w-5 h-5 bg-primary border-2 border-background hover:bg-primary/90 transition-colors duration-150 cursor-crosshair"
           style={{ 
-            top: -8,
+            top: -10,
             borderRadius: '50%',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+            zIndex: 10
           }}
           id="input"
         />
@@ -232,11 +246,12 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
         <Handle
           type="source"
           position={Position.Bottom}
-          className="w-4 h-4 bg-primary border-2 border-background hover:bg-primary/80 transition-all duration-200 cursor-crosshair hover:scale-110"
+          className="w-5 h-5 bg-primary border-2 border-background hover:bg-primary/90 transition-colors duration-150 cursor-crosshair"
           style={{ 
-            bottom: -8,
+            bottom: -10,
             borderRadius: '50%',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+            zIndex: 10
           }}
           id="output"
         />
@@ -426,13 +441,25 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   }, [configModalNodeId, setNodes]);
 
   // Convert workflow steps to visual nodes and edges
-  const convertStepsToVisual = useCallback((steps: string[], agentConfigurations?: Record<string, AgentConfig>) => {
+  const convertStepsToVisual = useCallback(async (steps: string[], agentConfigurations?: Record<string, AgentConfig>) => {
     const newNodes: Node[] = [];
     const newEdges: Edge[] = [];
     
-    steps.forEach((step, index) => {
-      // Get agent configuration if it exists
-      const agentConfig = agentConfigurations?.[step];
+    // Create nodes and try to fetch configurations
+    for (let index = 0; index < steps.length; index++) {
+      const step = steps[index];
+      let agentConfig = agentConfigurations?.[step];
+      
+      // If no embedded config, try to fetch from API
+      if (!agentConfig) {
+        try {
+          console.log('🔄 Fetching agent config for edit mode:', step);
+          agentConfig = await agentsService.getAgentConfig(step);
+          console.log('✅ Successfully fetched agent config for edit mode:', step, agentConfig);
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch agent config for edit mode:', step, error);
+        }
+      }
       
       // Create node for each step
       const node: Node = {
@@ -446,6 +473,13 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
           onConfig: handleNodeConfig,
           // Include agent configuration if it exists
           ...(agentConfig && { agentConfig }),
+          // Add debug info
+          debugInfo: {
+            stepName: step,
+            hasEmbeddedConfig: !!agentConfigurations?.[step],
+            hasFetchedConfig: !!agentConfig,
+            configKeys: agentConfig ? Object.keys(agentConfig) : []
+          }
         },
       };
       newNodes.push(node);
@@ -469,41 +503,49 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         };
         newEdges.push(edge);
       }
-    });
+    }
     
     return { nodes: newNodes, edges: newEdges };
   }, [handleNodeDelete, handleNodeConfig, handleEdgeDelete]);
 
   // Effect to populate workflow form when workflow config is loaded
   useEffect(() => {
-    if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
-      console.log('🔄 Populating visual workflow form with config:', workflowConfig);
-      
-      // Populate form fields
-      setWorkflowName(workflowConfig.name || '');
-      setWorkflowDescription(workflowConfig.description || '');
-      
-      // Convert steps to visual representation
-      if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
-        const { nodes: newNodes, edges: newEdges } = convertStepsToVisual(
-          workflowConfig.steps, 
-          (workflowConfig as any).agent_configurations
-        );
-        setNodes(newNodes);
-        setEdges(newEdges);
+    const populateWorkflowForm = async () => {
+      if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
+        console.log('🔄 Populating visual workflow form with config:', workflowConfig);
+        
+        // Populate form fields
+        setWorkflowName(workflowConfig.name || '');
+        setWorkflowDescription(workflowConfig.description || '');
+        
+        // Convert steps to visual representation
+        if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
+          try {
+            const { nodes: newNodes, edges: newEdges } = await convertStepsToVisual(
+              workflowConfig.steps, 
+              (workflowConfig as any).agent_configurations
+            );
+            setNodes(newNodes);
+            setEdges(newEdges);
+          } catch (error) {
+            console.error('❌ Error converting steps to visual:', error);
+          }
+        }
+        
+        // Mark form as populated
+        setWorkflowFormPopulated(true);
+        console.log('✅ Visual workflow form populated successfully');
+      } else if (!editMode && !workflowFormPopulated) {
+        // Initialize form for create mode
+        setWorkflowName('');
+        setWorkflowDescription('');
+        setNodes([]);
+        setEdges([]);
+        setWorkflowFormPopulated(true);
       }
-      
-      // Mark form as populated
-      setWorkflowFormPopulated(true);
-      console.log('✅ Visual workflow form populated successfully');
-    } else if (!editMode && !workflowFormPopulated) {
-      // Initialize form for create mode
-      setWorkflowName('');
-      setWorkflowDescription('');
-      setNodes([]);
-      setEdges([]);
-      setWorkflowFormPopulated(true);
-    }
+    };
+
+    populateWorkflowForm();
   }, [workflowConfig, workflowNameParam, editMode, workflowFormPopulated, convertStepsToVisual, setNodes, setEdges]);
 
   // Fetch MCP servers on component mount
@@ -816,15 +858,18 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             }}
             connectionLineStyle={{ 
               stroke: '#6366f1', 
-              strokeWidth: 2,
-              strokeDasharray: '5,5'
+              strokeWidth: 3,
+              strokeDasharray: '5,5',
+              strokeLinecap: 'round'
             }}
-            connectionMode={ConnectionMode.Loose}
+            connectionMode={ConnectionMode.Strict}
             snapToGrid={true}
             snapGrid={[20, 20]}
             deleteKeyCode="Delete"
             multiSelectionKeyCode="Shift"
             selectNodesOnDrag={false}
+            connectionRadius={25}
+            connectionLineType={ConnectionLineType.SmoothStep}
           >
             <Controls />
             <MiniMap 
@@ -843,7 +888,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             <span>
               {nodes.length === 0 
                 ? "Drag agents from the left panel to create your workflow"
-                : "Connect: drag from bottom to top blue dots • Delete: hover over agent/connection and click X"
+                : "Connect: drag from bottom blue circle to top blue circle of another agent • Delete: hover and click X"
               }
             </span>
           </div>
@@ -862,7 +907,6 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
           agentName={String(nodes.find(node => node.id === configModalNodeId)?.data?.agentName || 'Agent')}
           initialConfig={nodes.find(node => node.id === configModalNodeId)?.data?.agentConfig || {}}
           availableLLMConfigs={llmConfigs}
-          availableMCPServers={availableMCPServers}
         />
       )}
     </div>

@@ -130,14 +130,13 @@
     "include_history": true
   },
   {
-    "name": "History Test Workflow C",
     "type": "linear_workflow",
-    "description": "Base case duplicate: 2 agents both enabled for history",
     "steps": [
       "History Test Agent C1",
       "History Test Agent C2"
     ],
-    "include_history": true
+    "description": "Base case duplicate: 2 agents both enabled for history",
+    "name": "History Test Workflow C"
   },
   {
     "name": "History Test Workflow D",

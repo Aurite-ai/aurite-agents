@@ -51,14 +51,13 @@
     "type": "agent"
   },
   {
-    "name": "conversation_history_agent",
+    "name": "Weather Agent with Include History",
     "description": "Conversation History Testing Agent",
     "system_prompt": "You are an updated weather assistant",
     "llm_config_id": "anthropic_claude_3_haiku",
     "mcp_servers": [
       "weather_server"
     ],
-    "name": "Weather Agent with Include History",
     "include_history": true,
     "type": "agent"
   },
@@ -73,14 +72,13 @@
     "description": "An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan."
   },
   {
-    "name": "Weather Planning Workflow",
     "type": "linear_workflow",
-    "description": "A linear workflow to plan based on weather data.",
     "steps": [
       "Weather Agent",
       "Weather Planning Workflow Step 2"
     ],
-    "include_history": true
+    "description": "A linear workflow to plan based on weather data.",
+    "name": "Weather Planning Workflow"
   },
   {
     "name": "ExampleCustomWorkflow",

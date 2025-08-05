@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentConfig } from '@/types/api.generated';
 import { useAgentConfig } from '@/hooks/useAgents';
+import { useClientsWithStatus } from '@/hooks/useClients';
 
 interface AgentConfigModalProps {
   isOpen: boolean;
@@ -28,7 +29,6 @@ interface AgentConfigModalProps {
   initialConfig?: Partial<AgentConfig>;
   agentName: string;
   availableLLMConfigs?: (string | { name: string; [key: string]: any })[];
-  availableMCPServers?: (string | { name: string; [key: string]: any })[];
 }
 
 // Simple Switch component using checkbox
@@ -75,8 +75,7 @@ export default function AgentConfigModal({
   onSave,
   initialConfig = {},
   agentName,
-  availableLLMConfigs = [],
-  availableMCPServers = []
+  availableLLMConfigs = []
 }: AgentConfigModalProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [formPopulated, setFormPopulated] = useState(false);
@@ -86,6 +85,9 @@ export default function AgentConfigModal({
     agentName || '',
     !!(agentName && isOpen)
   );
+  
+  // Fetch MCP clients with connection status
+  const { data: clients = [] } = useClientsWithStatus();
   
   // Form state
   const [config, setConfig] = useState<Partial<AgentConfig>>({
@@ -238,7 +240,7 @@ export default function AgentConfigModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       
       {/* Modal */}
-      <div className="relative bg-card border border-border rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] mx-4 flex flex-col overflow-hidden">
+      <div className="relative bg-card border border-border rounded-lg shadow-lg max-w-4xl w-full h-[80vh] mx-4 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between">
@@ -288,7 +290,7 @@ export default function AgentConfigModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {/* Loading State for Agent Config */}
           {configLoading && (
             <div className="flex items-center justify-center py-8">
@@ -509,45 +511,97 @@ export default function AgentConfigModal({
                       Select which MCP servers this agent can use to access tools and resources
                     </p>
 
-                    {availableMCPServers.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {availableMCPServers.map((server, index) => {
-                          // Handle both string names and full server objects
-                          const serverName = typeof server === 'string' ? server : server.name;
-                          const serverKey = typeof server === 'string' ? server : `${server.name}-${index}`;
-                          
-                          return (
-                            <div key={serverKey} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`mcp-${serverName}`}
-                                checked={config.mcp_servers?.includes(serverName) || false}
-                                onChange={() => handleMCPServerToggle(serverName)}
-                                className="rounded"
-                              />
-                              <label htmlFor={`mcp-${serverName}`} className="text-sm">
-                                {serverName}
-                              </label>
-                            </div>
-                          );
-                        })}
+                    {configLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading configuration...
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No MCP servers available</p>
-                      </div>
-                    )}
+                      <div className="space-y-4">
+                        {/* Selected Servers Pills */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-foreground">
+                            Selected MCP Servers ({config.mcp_servers?.length || 0})
+                          </Label>
+                          {config.mcp_servers && config.mcp_servers.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border rounded-lg min-h-[44px]">
+                              {config.mcp_servers.map((server) => (
+                                <div
+                                  key={server}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium"
+                                >
+                                  <span>{server}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMCPServerToggle(server)}
+                                    className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
+                                    aria-label={`Remove ${server}`}
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-muted/20 border border-border rounded-lg min-h-[44px] flex items-center">
+                              <span className="text-sm text-muted-foreground">No servers selected</span>
+                            </div>
+                          )}
+                        </div>
 
-                    {config.mcp_servers && config.mcp_servers.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Selected Servers:</Label>
-                        <div className="flex flex-wrap gap-1">
-                          {config.mcp_servers.map((server) => (
-                            <Badge key={server} variant="secondary" className="text-xs">
-                              {server}
-                            </Badge>
-                          ))}
+                        {/* Available Servers */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-foreground">Available MCP Servers</Label>
+                          <div className="space-y-2">
+                            {clients.map((client) => {
+                              const isSelected = config.mcp_servers?.includes(client.name) || false;
+                              const isConnected = client.status === 'connected';
+                              
+                              return (
+                                <button
+                                  key={client.name}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isConnected) {
+                                      handleMCPServerToggle(client.name);
+                                    }
+                                  }}
+                                  disabled={!isConnected}
+                                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 text-left ${
+                                    isSelected
+                                      ? 'bg-primary/10 border-primary text-primary'
+                                      : isConnected
+                                      ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
+                                      : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                      isSelected
+                                        ? 'bg-primary border-primary'
+                                        : 'border-muted-foreground'
+                                    }`}>
+                                      {isSelected && (
+                                        <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                    <span className="text-sm font-medium">{client.name}</span>
+                                  </div>
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    isConnected
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  }`}>
+                                    {client.status}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
