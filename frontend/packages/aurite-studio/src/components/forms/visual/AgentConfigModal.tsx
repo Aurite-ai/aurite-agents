@@ -353,16 +353,22 @@ export default function AgentConfigModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="max-iterations">Max Iterations</Label>
-                    <Input
+                    <Label htmlFor="max-iterations">Max Iterations: {config.max_iterations}</Label>
+                    <input
                       id="max-iterations"
-                      type="number"
+                      type="range"
                       min="1"
                       max="100"
-                      value={config.max_iterations || ''}
-                      onChange={(e) => setConfig(prev => ({ ...prev, max_iterations: parseInt(e.target.value) || 10 }))}
-                      placeholder="10"
+                      step="1"
+                      value={config.max_iterations || 10}
+                      onChange={(e) => setConfig(prev => ({ ...prev, max_iterations: parseInt(e.target.value) }))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                     />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Quick (1)</span>
+                      <span>Moderate (50)</span>
+                      <span>Extended (100)</span>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Maximum number of conversation turns before the agent stops automatically
                     </p>

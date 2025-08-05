@@ -372,6 +372,45 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     setEdges((eds) => eds.filter(edge => edge.id !== edgeId));
   }, [setEdges]);
 
+  // Helper function to find a position that doesn't overlap with existing nodes
+  const findAvailablePosition = useCallback((targetPosition: { x: number; y: number }) => {
+    const nodeWidth = 280; // Approximate node width
+    const nodeHeight = 120; // Approximate node height
+    const minDistance = 50; // Minimum distance between nodes
+    
+    let bestPosition = { ...targetPosition };
+    let attempts = 0;
+    const maxAttempts = 20;
+    
+    while (attempts < maxAttempts) {
+      let hasOverlap = false;
+      
+      // Check if current position overlaps with any existing node
+      for (const node of nodes) {
+        const dx = Math.abs(bestPosition.x - node.position.x);
+        const dy = Math.abs(bestPosition.y - node.position.y);
+        
+        if (dx < nodeWidth + minDistance && dy < nodeHeight + minDistance) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        break;
+      }
+      
+      // Try a new position slightly offset
+      bestPosition = {
+        x: targetPosition.x + (attempts * 30),
+        y: targetPosition.y + (attempts * 30),
+      };
+      attempts++;
+    }
+    
+    return bestPosition;
+  }, [nodes]);
+
   // Handle edge connections
   const onConnect = useCallback(
     (params: Connection) => {
@@ -465,7 +504,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
       const node: Node = {
         id: `agent-${index}`,
         type: 'agentNode',
-        position: { x: 150, y: 100 + (index * 120) }, // Vertical layout
+        position: { x: 300, y: 150 + (index * 200) }, // Vertical layout with better spacing
         data: {
           label: agentConfig?.name || step,
           agentName: step,
@@ -567,12 +606,15 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   const onAgentDrop = useCallback(async (agentName: string, position: { x: number; y: number }) => {
     console.log('onAgentDrop - Attempting to fetch config for agent:', agentName);
     
+    // Find an available position that doesn't overlap
+    const availablePosition = findAvailablePosition(position);
+    
     // Create initial node without configuration
     const nodeId = `agent-${Date.now()}`;
     const initialNode: Node = {
       id: nodeId,
       type: 'agentNode',
-      position,
+      position: availablePosition,
       data: {
         label: agentName,
         agentName: agentName,
@@ -623,7 +665,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         )
       );
     }
-  }, [setNodes, handleNodeDelete, handleNodeConfig]);
+  }, [setNodes, handleNodeDelete, handleNodeConfig, findAvailablePosition]);
 
   // Handle node deletion
   const onNodesDelete = useCallback(
@@ -845,7 +887,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            fitViewOptions={{ padding: 0.6 }}
+            fitViewOptions={{ padding: 0.3, minZoom: 0.5, maxZoom: 1.5 }}
             className="bg-background"
             defaultEdgeOptions={{
               type: 'smoothstep',
@@ -864,7 +906,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             }}
             connectionMode={ConnectionMode.Strict}
             snapToGrid={true}
-            snapGrid={[20, 20]}
+            snapGrid={[25, 25]}
             deleteKeyCode="Delete"
             multiSelectionKeyCode="Shift"
             selectNodesOnDrag={false}

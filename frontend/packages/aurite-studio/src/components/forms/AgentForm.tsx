@@ -522,15 +522,23 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
               <h2 className="text-lg font-semibold text-primary">Other Parameters</h2>
               
               <div className="space-y-2">
-                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations</Label>
-                <Input
+                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations: {maxIterations}</Label>
+                <input
                   id="max-iterations"
                   ref={maxIterationsRef}
-                  type="number"
+                  type="range"
+                  min="1"
+                  max="100"
+                  step="1"
                   value={maxIterations}
                   onChange={(e) => setMaxIterations(e.target.value)}
-                  className="text-base"
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                 />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Quick (1)</span>
+                  <span>Moderate (50)</span>
+                  <span>Extended (100)</span>
+                </div>
               </div>
             </motion.div>
 
