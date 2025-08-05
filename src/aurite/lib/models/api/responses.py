@@ -17,6 +17,8 @@ __all__ = [
     "ServerDetailedStatus",
     "ServerTestResult",
     "ServerRuntimeInfo",
+    "ComponentInfo",
+    "ComponentCreateResponse",
 ]
 
 
@@ -204,3 +206,22 @@ class ServerRuntimeInfo(BaseModel):
     transport_type: str
     tools_count: int
     registration_time: datetime
+
+
+# --- Component Creation Response Models ---
+class ComponentInfo(BaseModel):
+    """Detailed information about a newly created component."""
+
+    name: str
+    type: str
+    file_path: str
+    context: Optional[str] = None
+    project_name: Optional[str] = None
+    workspace_name: Optional[str] = None
+
+
+class ComponentCreateResponse(BaseModel):
+    """Standardized response for component creation."""
+
+    message: str
+    component: ComponentInfo

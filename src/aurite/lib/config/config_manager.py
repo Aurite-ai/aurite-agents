@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+from ..models.api.responses import ComponentCreateResponse, ComponentInfo
 from .config_utils import find_anchor_files
 from .file_manager import FileManager
 
@@ -528,7 +529,7 @@ class ConfigManager:
         project: Optional[str] = None,
         workspace: bool = False,
         file_path: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[ComponentCreateResponse]:
         # Step 1: Determine context
         context_name = None
         if workspace:
@@ -574,17 +575,19 @@ class ConfigManager:
             {},
         )
 
-        return {
-            "message": "Component created successfully",
-            "component": {
-                "name": component_config["name"],
-                "type": component_type,
-                "file_path": str(target_file.relative_to(Path(context_info["path"]))),
-                "context": context_info.get("context"),
-                "project_name": context_info.get("project_name"),
-                "workspace_name": context_info.get("workspace_name"),
-            },
-        }
+        component_info = ComponentInfo(
+            name=component_config["name"],
+            type=component_type,
+            file_path=str(target_file.relative_to(Path(context_info["path"]))),
+            context=context_info.get("context"),
+            project_name=context_info.get("project_name"),
+            workspace_name=context_info.get("workspace_name"),
+        )
+
+        return ComponentCreateResponse(
+            message="Component created successfully",
+            component=component_info,
+        )
 
     def delete_config(self, component_type: str, component_name: str) -> bool:
         """
