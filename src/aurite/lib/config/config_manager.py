@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+from ..models.api.responses import ComponentCreateResponse
 from .config_utils import find_anchor_files
 from .file_manager import FileManager
 
@@ -528,7 +529,7 @@ class ConfigManager:
         project: Optional[str] = None,
         workspace: bool = False,
         file_path: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[ComponentCreateResponse]:
         # Step 1: Determine context
         context_name = None
         if workspace:
@@ -562,29 +563,22 @@ class ConfigManager:
         # Refresh index to include the new component
         self.refresh()
 
-        # Return success response
-        source_info = self._file_manager.list_config_sources()
-        context_info = next(
-            (
-                s
-                for s in source_info
-                if s.get("project_name") == context_name
-                or (s.get("workspace_name") == context_name and s["context"] == "workspace")
-            ),
-            {},
-        )
+        # Get the full component from the index to ensure we have the complete, resolved version
+        newly_created_component = self.get_config(component_type, component_config["name"])
 
-        return {
-            "message": "Component created successfully",
-            "component": {
-                "name": component_config["name"],
-                "type": component_type,
-                "file_path": str(target_file.relative_to(Path(context_info["path"]))),
-                "context": context_info.get("context"),
-                "project_name": context_info.get("project_name"),
-                "workspace_name": context_info.get("workspace_name"),
-            },
-        }
+        if not newly_created_component:
+            logger.error(f"Could not retrieve newly created component '{component_config['name']}' after creation.")
+            # This case should be rare, but it's a safeguard.
+            # We can still return a success message but with a partial component.
+            return ComponentCreateResponse(
+                message="Component created successfully, but failed to retrieve full data.",
+                component=component_config,
+            )
+
+        return ComponentCreateResponse(
+            message="Component created successfully",
+            component=newly_created_component,
+        )
 
     def delete_config(self, component_type: str, component_name: str) -> bool:
         """
@@ -705,7 +699,7 @@ class ConfigManager:
             A tuple containing a boolean indicating if the component is valid,
             and a list of validation error messages.
         """
-        from .config_models import AgentConfig, ClientConfig, CustomWorkflowConfig, LLMConfig, WorkflowConfig
+        from aurite.lib.models import AgentConfig, ClientConfig, CustomWorkflowConfig, LLMConfig, WorkflowConfig
 
         # Map component types to their Pydantic models
         model_map = {

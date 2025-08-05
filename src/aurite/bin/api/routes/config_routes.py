@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
     ComponentCreate,
+    ComponentCreateResponse,
     ComponentUpdate,
     FileCreateRequest,
     FileUpdateRequest,
@@ -82,7 +83,7 @@ async def get_component_by_id(
     return config
 
 
-@router.post("/components/{component_type}", response_model=Dict[str, str])
+@router.post("/components/{component_type}", response_model=ComponentCreateResponse)
 async def create_component(
     component_type: str,
     component_data: ComponentCreate,
