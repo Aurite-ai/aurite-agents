@@ -1,0 +1,10 @@
+[
+  {
+    "steps": [
+      "agent-alpha",
+      "agent-beta"
+    ],
+    "type": "linear_workflow",
+    "name": "test-workflow-from-cline-789"
+  }
+]
