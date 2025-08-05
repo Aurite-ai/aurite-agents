@@ -133,7 +133,9 @@ markers = [
 pythonpath = [".", "src", "aurite"]
 filterwarnings = [
     "ignore::DeprecationWarning",
+    "ignore::DeprecationWarning:pydantic.*",
     "ignore::UserWarning",
+    "ignore::UserWarning:pydantic.*",
     "ignore::RuntimeWarning",
     "ignore::PendingDeprecationWarning",
     "ignore::pytest.PytestUnknownMarkWarning",
