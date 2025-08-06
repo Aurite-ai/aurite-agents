@@ -107,6 +107,54 @@ The CLI is organized into several main commands.
     aurite api
     ```
 
+=== ":material-desktop-mac: `aurite studio`"
+
+    Starts the Aurite Studio integrated development environment, which launches both the API server and React frontend concurrently. This provides a unified development experience with automatic dependency management and graceful shutdown handling.
+
+    | Option | Description |
+    | --- | --- |
+    | `--rebuild-fresh` | Clean all build artifacts and rebuild frontend packages from scratch |
+
+    !!! info "Integrated Development Environment"
+        The studio command automatically:
+        
+        - Validates Node.js and npm dependencies
+        - Installs frontend workspace dependencies if needed
+        - Builds frontend packages when artifacts are missing
+        - Starts the API server (if not already running)
+        - Launches the React development server on port 3000
+        - Provides unified logging with `[API]` and `[STUDIO]` prefixes
+        - Handles graceful shutdown with Ctrl+C
+
+    **System Requirements**
+    
+    - Node.js >= 18.0.0
+    - npm >= 8.0.0
+
+    **Examples**
+
+    ```bash
+    # Start the integrated development environment
+    aurite studio
+
+    # Start with a fresh rebuild of frontend packages
+    aurite studio --rebuild-fresh
+    ```
+
+    **Fresh Rebuild Process**
+    
+    When using `--rebuild-fresh`, the command performs:
+    
+    1. **Clean Build Artifacts**: Runs `npm run clean` to remove all build outputs
+    2. **Clear npm Cache**: Removes `node_modules/.cache` directory
+    3. **Rebuild Packages**: Runs `npm run build` to rebuild all workspace packages
+    4. **Start Servers**: Proceeds with normal server startup
+
+    **Ports Used**
+    
+    - API Server: Configured port (default 8000)
+    - Studio UI: http://localhost:3000
+
 === ":material-pencil: `aurite edit`"
 
     Starts the Aurite configuration editor TUI, a powerful terminal-based interface for creating and modifying component configurations.
