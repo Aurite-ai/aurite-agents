@@ -111,7 +111,7 @@
     "include_history": false
   },
   {
-    "type": "simple_workflow",
+    "type": "linear_workflow",
     "steps": [
       "History Test Agent A1",
       "History Test Agent A2"
