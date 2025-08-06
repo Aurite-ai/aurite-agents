@@ -185,19 +185,20 @@ class FileManager:
             logger.warning(f"Config source path {source_path} is not a directory.")
             return []
 
-        files = []
+        files = set()  # Use set to avoid duplicates
         for pattern in ["*.json", "*.yaml", "*.yml"]:
             for config_file in source_path.rglob(pattern):
                 try:
                     # Use the source path as the base for the relative path
                     rel_path = config_file.relative_to(source_path)
-                    files.append(str(rel_path))
+                    files.add(str(rel_path))  # Set automatically deduplicates
                 except ValueError:
                     # This can happen if the file is not under the source_path, which would be unexpected
                     logger.warning(f"File {config_file} is not relative to source path {source_path}")
 
-        logger.debug(f"Found {len(files)} files in source '{source_name}'")
-        return files
+        files_list = list(files)  # Convert back to list
+        logger.debug(f"Found {len(files_list)} files in source '{source_name}'")
+        return files_list
 
     def get_file_content(self, source_name: str, relative_path: str) -> Optional[str]:
         """

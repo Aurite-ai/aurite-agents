@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from aurite.aurite import Aurite
-from aurite.lib.config.config_models import ClientConfig
+from aurite.lib.models.config.components import ClientConfig
 from aurite.utils.errors import MCPServerTimeoutError
 
 

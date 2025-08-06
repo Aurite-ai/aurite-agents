@@ -11,10 +11,10 @@ from openai.types.chat.chat_completion_message_tool_call import (
     Function,
 )
 
-from aurite.execution.mcp_host.host import MCPHost
-from aurite.lib.components.agents.agent import Agent
+from aurite.execution.mcp_host import MCPHost
+from aurite.lib.components.agent.agent import Agent
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
-from aurite.lib.config.config_models import AgentConfig, LLMConfig
+from aurite.lib.models.config.components import AgentConfig, LLMConfig
 
 # --- Fixtures ---
 
@@ -77,7 +77,7 @@ async def test_agent_run_conversation_with_tool_use(
         llm_response_turn_1,
         llm_response_turn_2,
     ]
-    mocker.patch("aurite.lib.components.agents.agent.LiteLLMClient", return_value=mock_llm_instance)
+    mocker.patch("aurite.lib.components.agent.agent.LiteLLMClient", return_value=mock_llm_instance)
 
     # Configure the mock host to return a result for the tool call
     mock_host.get_formatted_tools.return_value = [{"name": "get_user_info", "input_schema": {}}]
@@ -129,4 +129,4 @@ async def test_agent_run_conversation_with_tool_use(
 
     # Mock Call Assertions
     assert mock_llm_instance.create_message.call_count == 2
-    mock_host.call_tool.assert_awaited_once_with(name="get_user_info", args={"user_id": "123"})
+    mock_host.call_tool.assert_awaited_once_with(name="get_user_info", args={"user_id": "123"}, agent_config=multi_turn_agent_config)

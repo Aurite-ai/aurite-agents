@@ -17,6 +17,7 @@ from ....lib.models import (
     ProjectUpdate,
     WorkspaceInfo,
 )
+from ....lib.models.api.responses import ComponentCreateResponse
 from ...dependencies import get_api_key, get_config_manager
 
 # Configure logging

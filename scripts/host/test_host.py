@@ -8,8 +8,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.aurite.execution.mcp_host.host import MCPHost
-from src.aurite.lib.config.config_models import ClientConfig
+from src.aurite.execution.mcp_host import MCPHost
+from src.aurite.lib.models.config.components import ClientConfig
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 

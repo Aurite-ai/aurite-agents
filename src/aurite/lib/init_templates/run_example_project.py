@@ -4,7 +4,7 @@ import logging
 from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
-from aurite.lib.config.config_models import AgentConfig, LLMConfig
+from aurite.lib.models.config.components import AgentConfig, LLMConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
