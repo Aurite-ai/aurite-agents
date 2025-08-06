@@ -1,0 +1,31 @@
+[
+  {
+    "type": "simple_workflow",
+    "steps": [
+      "History Test Agent A1",
+      "History Test Agent A2"
+    ],
+    "description": "Testing Purpose",
+    "name": "test nid1"
+  },
+  {
+    "type": "simple_workflow",
+    "steps": [
+      "History Test Agent A2",
+      "History Test Agent B2",
+      "History Test Agent C1",
+      "History Test Agent D1"
+    ],
+    "description": "Testing",
+    "name": "Parallet-test"
+  },
+  {
+    "type": "simple_workflow",
+    "steps": [
+      "History Test Agent A2",
+      "History Test Agent B2",
+      "History Test Agent C1"
+    ],
+    "name": "History Test Workflow A111"
+  }
+]

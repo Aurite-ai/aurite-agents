@@ -36,7 +36,9 @@
     "description": "First agent for Workflow A - history enabled",
     "system_prompt": "You are a weather assistant. Provide weather information concisely.",
     "llm_config_id": "test_llm_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
     "include_history": true
   },
   {
@@ -54,7 +56,9 @@
     "description": "First agent for Workflow B - history enabled",
     "system_prompt": "You are a weather assistant. Provide weather information concisely.",
     "llm_config_id": "test_llm_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
     "include_history": true
   },
   {
@@ -72,7 +76,9 @@
     "description": "First agent for Workflow C - history enabled",
     "system_prompt": "You are a weather assistant. Provide weather information concisely.",
     "llm_config_id": "test_llm_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
     "include_history": true
   },
   {
@@ -90,7 +96,9 @@
     "description": "First agent for Workflow D - history disabled",
     "system_prompt": "You are a weather assistant. Provide weather information concisely.",
     "llm_config_id": "test_llm_haiku",
-    "mcp_servers": ["weather_server"],
+    "mcp_servers": [
+      "weather_server"
+    ],
     "include_history": false
   },
   {
@@ -103,14 +111,13 @@
     "include_history": false
   },
   {
-    "name": "History Test Workflow A",
-    "type": "linear_workflow",
-    "description": "Base case: 2 agents both enabled for history",
+    "type": "simple_workflow",
     "steps": [
       "History Test Agent A1",
       "History Test Agent A2"
     ],
-    "include_history": true
+    "description": "Base case: 2 agents both enabled for history",
+    "name": "History Test Workflow A"
   },
   {
     "name": "History Test Workflow B",
@@ -123,14 +130,13 @@
     "include_history": true
   },
   {
-    "name": "History Test Workflow C",
     "type": "linear_workflow",
-    "description": "Base case duplicate: 2 agents both enabled for history",
     "steps": [
       "History Test Agent C1",
       "History Test Agent C2"
     ],
-    "include_history": true
+    "description": "Base case duplicate: 2 agents both enabled for history",
+    "name": "History Test Workflow C"
   },
   {
     "name": "History Test Workflow D",

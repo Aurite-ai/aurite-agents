@@ -278,4 +278,5 @@ class MCPServersService {
   configToForm = mcpServerConfigToForm;
 }
 
-export default new MCPServersService();
+const mcpServersService = new MCPServersService();
+export default mcpServersService;

@@ -65,8 +65,6 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
   // Effect to populate workflow form when workflow config is loaded
   useEffect(() => {
     if (editMode && workflowConfig && workflowNameParam && !workflowFormPopulated) {
-      console.log('🔄 Populating workflow form with config:', workflowConfig);
-
       // Populate workflow form fields
       setWorkflowName(workflowConfig.name || '');
       setWorkflowDescription(workflowConfig.description || '');
@@ -84,9 +82,8 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
 
       // Mark form as populated to prevent re-population
       setWorkflowFormPopulated(true);
-      console.log('✅ Workflow form populated successfully');
     } else if (editMode && workflowNameParam && !workflowConfig && !workflowConfigLoading) {
-      console.log('❌ Failed to load workflow config for:', workflowNameParam);
+      // Failed to load workflow config
     }
   }, [workflowConfig, workflowNameParam, editMode, workflowConfigLoading, workflowFormPopulated]);
 
@@ -124,8 +121,6 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       description: workflowDescription || undefined
     };
 
-    console.log('💾 Saving workflow config:', workflowConfig);
-
     if (editMode && workflowNameParam) {
       // Edit mode - update existing workflow using PUT method
       updateWorkflow.mutate({
@@ -133,8 +128,6 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
         config: workflowConfig
       }, {
         onSuccess: () => {
-          console.log('✅ Workflow updated successfully');
-
           // Invalidate workflow config cache to force fresh data load
           queryClient.invalidateQueries({
             queryKey: ['workflow-config-by-name', workflowNameParam]
@@ -150,7 +143,6 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       // Create mode - create new workflow using POST method
       createWorkflow.mutate(workflowConfig, {
         onSuccess: () => {
-          console.log('✅ New workflow created successfully');
           navigate('/workflows');
         },
         onError: (error) => {
