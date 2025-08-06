@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, X, Settings } from 'lucide-react';
+import { ArrowLeft, Loader2, X, Settings, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import {
   ReactFlow,
   Node,
@@ -25,6 +25,7 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   EdgeProps,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -324,6 +325,61 @@ const nodeTypes: NodeTypes = {
 // Define custom edge types
 const edgeTypes: EdgeTypes = {
   custom: CustomEdge,
+};
+
+// Custom Zoom Controls Component
+const CustomZoomControls = () => {
+  const { zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
+  
+  const handleZoomToLevel = (zoomLevel: number) => {
+    const currentViewport = getViewport();
+    setViewport({ 
+      x: currentViewport.x, 
+      y: currentViewport.y, 
+      zoom: zoomLevel 
+    }, { duration: 300 });
+  };
+  
+  return (
+    <div className="absolute bottom-6 right-6 z-10 bg-card border border-border rounded-lg shadow-lg p-2 flex flex-col gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleZoomToLevel(2.0)}
+        className="text-xs h-8 w-16"
+        title="Zoom to 200%"
+      >
+        200%
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleZoomToLevel(1.0)}
+        className="text-xs h-8 w-16 bg-primary/20 border border-primary/30"
+        title="Zoom to 100% (Default)"
+      >
+        100%★
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleZoomToLevel(0.5)}
+        className="text-xs h-8 w-16"
+        title="Zoom to 50%"
+      >
+        50%
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleZoomToLevel(0.25)}
+        className="text-xs h-8 w-16"
+        title="Zoom to 25%"
+      >
+        25%
+      </Button>
+    </div>
+  );
 };
 
 export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkflowBuilderProps): React.ReactElement {
@@ -867,7 +923,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             onEdgesDelete={onEdgesDelete}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            fitView
+            defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
             fitViewOptions={{ padding: 0.3, minZoom: 0.05, maxZoom: 8.0 }}
             className="bg-background"
             defaultEdgeOptions={{
