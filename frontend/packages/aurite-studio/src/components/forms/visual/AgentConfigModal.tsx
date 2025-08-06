@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { 
   X, 
   Settings, 
   Bot, 
   Brain, 
   Server, 
-  MessageSquare, 
-  Zap,
   Shield,
   Loader2
 } from 'lucide-react';

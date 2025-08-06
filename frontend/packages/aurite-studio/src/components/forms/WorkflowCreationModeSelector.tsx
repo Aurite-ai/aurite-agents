@@ -4,9 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, FileText, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface WorkflowCreationModeSelectorProps {
-  // No props needed for now
-}
+
 
 export default function WorkflowCreationModeSelector(): React.ReactElement {
   const navigate = useNavigate();

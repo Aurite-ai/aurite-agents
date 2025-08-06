@@ -6,7 +6,7 @@ import {
   ReactFlow,
   Node,
   Edge,
-  addEdge,
+
   useNodesState,
   useEdgesState,
   Connection,
@@ -31,7 +31,6 @@ import '@xyflow/react/dist/style.css';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAgentsWithConfigs } from '@/hooks/useAgents';
 import { useCreateWorkflow, useUpdateWorkflow, useWorkflowConfigByName } from '@/hooks/useWorkflows';
@@ -396,7 +395,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   const [configModalNodeId, setConfigModalNodeId] = useState<string | null>(null);
   
   // Available configurations for dropdowns
-  const [availableMCPServers, setAvailableMCPServers] = useState<string[]>([]);
+  const [, setAvailableMCPServers] = useState<string[]>([]);
   
   // React Flow state
   const initialNodes: Node[] = [];
@@ -406,7 +405,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   
   // API Hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
-  const { data: llmConfigs = [], isLoading: llmsLoading } = useLLMs();
+  const { data: llmConfigs = [] } = useLLMs();
   const createWorkflow = useCreateWorkflow();
   const updateWorkflow = useUpdateWorkflow();
   

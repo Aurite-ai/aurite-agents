@@ -70,7 +70,7 @@ const AgentCard: React.FC<{ agent: Agent; onDragStart: (agentName: string) => vo
 
 export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPaletteProps): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState('');
-  const [draggedAgent, setDraggedAgent] = useState<string | null>(null);
+  const [, setDraggedAgent] = useState<string | null>(null);
 
   // Filter agents based on search term
   const filteredAgents = agents.filter(agent => {
@@ -86,30 +86,9 @@ export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPa
     setDraggedAgent(agentName);
   };
 
-  // Handle drop on the canvas (this will be called by the parent)
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const data = e.dataTransfer.getData('application/json');
-    
-    if (data) {
-      try {
-        const { agentName } = JSON.parse(data);
-        const rect = e.currentTarget.getBoundingClientRect();
-        const position = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        };
-        onAgentDrop(agentName, position);
-        setDraggedAgent(null);
-      } catch (error) {
-        console.error('Error parsing drag data:', error);
-      }
-    }
-  };
 
-  const handleDragEnd = () => {
-    setDraggedAgent(null);
-  };
+
+
 
   return (
     <div className="w-80 bg-card border-r border-border flex flex-col">

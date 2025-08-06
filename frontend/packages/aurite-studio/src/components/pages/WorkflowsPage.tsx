@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Workflow, Plus, Edit, Play, Loader2 } from 'lucide-react';
+import { Workflow, Plus, Play, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import HoverExpandEditButton from '@/components/ui/HoverExpandEditButton';
 import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useExecuteWorkflow, useExecuteCustomWorkflow } from '@/hooks/useWorkflows';
