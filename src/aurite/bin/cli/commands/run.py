@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -16,6 +17,16 @@ logger = console.print
 
 # --- Main Execution Logic ---
 
+_aurite_instance = None
+
+
+async def get_aurite_instance():
+    global _aurite_instance
+    if _aurite_instance is None:
+        _aurite_instance = Aurite(start_dir=Path.cwd())
+        await _aurite_instance._ensure_initialized()
+    return _aurite_instance
+
 
 async def run_component(
     name: str,
@@ -28,6 +39,7 @@ async def run_component(
     """
     Finds a component by name, infers its type, and executes it with rich UI rendering.
     """
+    os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
     output_mode = "default"
     if short:
         output_mode = "short"
@@ -36,8 +48,7 @@ async def run_component(
 
     aurite = None
     try:
-        aurite = Aurite(start_dir=Path.cwd())
-        await aurite._ensure_initialized()
+        aurite = await get_aurite_instance()
 
         component_index = aurite.kernel.config_manager.get_component_index()
         found_components = [item for item in component_index if item["name"] == name]

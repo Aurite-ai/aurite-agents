@@ -7,40 +7,17 @@ for persisting configurations and agent history.
 import json
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, TypeVar  # Added Type, TypeVar
+from typing import Any, Dict, List, Optional
 
-# Assuming models are accessible from here
-from pydantic import BaseModel as PydanticBaseModel  # Alias BaseModel
-from sqlalchemy import delete, func  # Import delete and func
-from sqlalchemy.engine import Engine  # Import Engine for type hint
+from sqlalchemy import delete, func
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm.session import Session
 
-from ...models.config.components import (
-    AgentConfig,
-    CustomWorkflowConfig,
-    LLMConfig,
-    WorkflowConfig,
-)
-
-# Import DB connection utilities and models
-# Use the new factory function name and the modified get_db_session
 from .db_connection import create_db_engine, get_db_session
-from .db_models import (
-    AgentConfigDB,
-    AgentHistoryDB,
-    CustomWorkflowConfigDB,
-    LLMConfigDB,  # Added LLMConfigDB
-    WorkflowConfigDB,
-)
-from .db_models import (
-    Base as SQLAlchemyBase,
-)
+from .db_models import AgentHistoryDB, ComponentDB
+from .db_models import Base as SQLAlchemyBase
 
 logger = logging.getLogger(__name__)
-
-# Define TypeVars for generic function signature
-PydanticModelType = TypeVar("PydanticModelType", bound=PydanticBaseModel)
-DBModelType = TypeVar("DBModelType", bound=SQLAlchemyBase)
 
 
 class StorageManager:
@@ -59,10 +36,10 @@ class StorageManager:
         """
         if engine:
             self._engine = engine
-            logger.info(f"StorageManager initialized with provided engine: {self._engine.url}")
+            logger.info("StorageManager initialized with provided engine.")
         else:
             # Attempt to create default engine if none provided
-            logger.info("No engine provided to StorageManager, attempting to create default engine.")
+            logger.debug("No engine provided to StorageManager, attempting to create default engine.")
             self._engine = create_db_engine()  # type: ignore[assignment] # Ignore None vs Engine mismatch
 
         if not self._engine:
@@ -80,10 +57,10 @@ class StorageManager:
             logger.error("Cannot initialize database: DB engine is not available.")
             return
 
-        logger.info("Initializing database schema...")
+        logger.debug("Initializing database schema...")
         try:
             SQLAlchemyBase.metadata.create_all(bind=self._engine)  # Use the alias
-            logger.info("Database schema initialized successfully.")
+            logger.debug("Database schema initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
             # Depending on the error, we might want to raise it
@@ -91,203 +68,135 @@ class StorageManager:
 
     # --- Configuration Sync Methods ---
 
-    def _sync_config(
-        self,
-        db_session,
-        db_model_cls: Type[DBModelType],  # Use TypeVar for the class
-        pydantic_config: PydanticBaseModel,  # Use TypeVar for the instance
-        pk_field: str = "name",
-    ):
-        """Generic helper to sync a single Pydantic config to a DB model."""
-        pk_value = getattr(pydantic_config, pk_field)
-        db_record = db_session.get(db_model_cls, pk_value)
+    def _upsert_component(self, db: Session, component_type: str, config: Dict[str, Any]):
+        """
+        Helper to create or update a single component in the database.
+        """
+        component_name = config.get("name")
+        if not component_name:
+            logger.warning(f"Skipping component of type '{component_type}' due to missing 'name'.")
+            return
 
-        # Prepare data from Pydantic model, converting types as needed
-        data_to_save = {}
-        # Map Pydantic field names to DB column names where they differ
-        field_map = {
-            "client_ids": "client_ids_json",
-            "exclude_components": "exclude_components_json",
-            "steps": "steps_json",
-            "content": "content_json",  # Added mapping for history content
-            # Add other mappings here if needed in the future
-        }
+        # Attempt to find existing record
+        db_record = db.get(ComponentDB, component_name)
 
-        for db_col_name, model_field in db_model_cls.__table__.columns.items():
-            # Skip primary key and timestamp fields managed by DB/SQLAlchemy
-            if model_field.primary_key or db_col_name in ["created_at", "last_updated"]:
-                continue
+        # Serialize config to JSON-compatible format
+        # Pydantic's model_dump_json can be useful here if we have the model instance
+        # For now, we assume `config` is a dict that can be serialized.
+        # A more robust solution would handle non-serializable types like Path.
+        serializable_config = json.loads(json.dumps(config, default=str))
 
-            # Determine the corresponding Pydantic field name
-            pydantic_field_name = db_col_name
-            # Find the Pydantic name if the DB column name is in the map's values
-            for p_name, db_name in field_map.items():
-                if db_name == db_col_name:
-                    pydantic_field_name = p_name
-                    break  # Found the mapping
-
-            # Get value from Pydantic config using the determined field name
-            pydantic_value = getattr(pydantic_config, pydantic_field_name, None)
-
-            # Handle specific type conversions before adding to data_to_save
-            if isinstance(pydantic_value, Path):
-                # Store Path as string using the DB column name
-                data_to_save[db_col_name] = str(pydantic_value)
-            elif isinstance(pydantic_value, (list, dict)):
-                # Check if the DB column is intended for JSON
-                if db_col_name.endswith("_json"):
-                    # Store list/dict directly using the DB column name
-                    data_to_save[db_col_name] = pydantic_value  # type: ignore[assignment] # Ignore list/dict vs str mismatch
-                else:
-                    # Log a warning if trying to save list/dict to non-JSON field
-                    logger.warning(
-                        f"Attempting to save list/dict from pydantic field '{pydantic_field_name}' "
-                        f"to non-JSON DB column '{db_col_name}' for {db_model_cls.__name__} '{pk_value}'. Skipping."
-                    )
-                    continue  # Skip this field if it's a list/dict but not a JSON column
-            elif pydantic_value is not None:
-                # Store other types directly using the DB column name
-                data_to_save[db_col_name] = pydantic_value
-            # If pydantic_value is None, we don't add it to data_to_save,
-            # allowing DB defaults or existing values (on update) to persist.
-
-        # Now, apply the prepared data_to_save to the DB record
         if db_record:
             # Update existing record
-            logger.debug(f"Updating existing {db_model_cls.__name__} record for '{pk_value}'")
-            for key, value in data_to_save.items():
-                setattr(db_record, key, value)
-            # last_updated is handled by onupdate=datetime.utcnow
+            if db_record.component_type != component_type:
+                logger.warning(
+                    f"Component '{component_name}' exists with type '{db_record.component_type}', "
+                    f"but trying to update with type '{component_type}'. Skipping update."
+                )
+                return
+            logger.debug(f"Updating existing component record for '{component_name}'")
+            db_record.config = serializable_config
         else:
             # Create new record
-            logger.debug(f"Creating new {db_model_cls.__name__} record for '{pk_value}'")
-            # Add the primary key value for creation
-            data_to_save[pk_field] = pk_value
-            # Create instance using the prepared data
-            db_record = db_model_cls(**data_to_save)
-            db_session.add(db_record)
-        # Commit is handled by the get_db_session context manager
+            logger.debug(f"Creating new component record for '{component_name}'")
+            db_record = ComponentDB(
+                name=component_name,
+                component_type=component_type,
+                config=serializable_config,
+            )
+            db.add(db_record)
 
-    def sync_agent_config(self, config: AgentConfig):
-        """Saves or updates an AgentConfig in the database."""
-        if not self._engine:
-            return  # Do nothing if DB is not configured
-        # Pass the engine to get_db_session
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    self._sync_config(db, AgentConfigDB, config)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to sync AgentConfig '{config.name}': {e}",
-                        exc_info=True,
-                    )
-                    # Exception is caught and rolled back by get_db_session
-
-    def sync_workflow_config(self, config: WorkflowConfig):
-        """Saves or updates a WorkflowConfig in the database."""
-        if not self._engine:
-            return
-        # Pass the engine to get_db_session
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    self._sync_config(db, WorkflowConfigDB, config)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to sync WorkflowConfig '{config.name}': {e}",
-                        exc_info=True,
-                    )
-
-    def sync_custom_workflow_config(self, config: CustomWorkflowConfig):
-        """Saves or updates a CustomWorkflowConfig in the database."""
-        if not self._engine:
-            return
-        # Pass the engine to get_db_session
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    self._sync_config(db, CustomWorkflowConfigDB, config)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to sync CustomWorkflowConfig '{config.name}': {e}",
-                        exc_info=True,
-                    )
-
-    def sync_llm_config(self, config: LLMConfig):
-        """Saves or updates an LLMConfig in the database."""
-        if not self._engine:
-            return
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Use 'llm_id' as the primary key field
-                    self._sync_config(db, LLMConfigDB, config, pk_field="llm_id")
-                except Exception as e:
-                    logger.error(
-                        f"Failed to sync LLMConfig '{config.name}': {e}",
-                        exc_info=True,
-                    )
-
-    def sync_all_configs(
-        self,
-        agents: Dict[str, AgentConfig],
-        workflows: Dict[str, WorkflowConfig],
-        custom_workflows: Dict[str, CustomWorkflowConfig],
-        llm_configs: Dict[str, LLMConfig],  # Added llm_configs argument
-    ):
-        """Syncs all provided configurations to the database in a single transaction."""
+    def sync_index_to_db(self, component_index: Dict[str, Dict[str, Dict[str, Any]]]):
+        """
+        Syncs a component index to the database in a single transaction.
+        This will add new components and update existing ones.
+        """
         if not self._engine:
             logger.warning("Database not configured. Skipping config sync.")
             return
 
-        logger.info("Syncing all loaded configurations to database...")
-        # Pass the engine to get_db_session
+        logger.info("Syncing component index to database...")
         with get_db_session(engine=self._engine) as db:
             if not db:
                 logger.error("Failed to get DB session for config sync.")
-                return  # Cannot proceed without a session
+                return
 
             try:
-                # Sync Agents
-                for config in agents.values():
-                    self._sync_config(db, AgentConfigDB, config)
-                logger.debug(f"Synced {len(agents)} agent configs.")
-
-                # Sync Workflows
-                for config in workflows.values():
-                    self._sync_config(
-                        db,
-                        WorkflowConfigDB,
-                        config,
-                    )  # type: ignore[assignment] # Ignore WorkflowConfig vs AgentConfig mismatch
-                logger.debug(f"Synced {len(workflows)} workflow configs.")
-
-                # Sync Custom Workflows
-                for config in custom_workflows.values():
-                    self._sync_config(
-                        db,
-                        CustomWorkflowConfigDB,
-                        config,  # type: ignore[assignment] # Ignore CustomWorkflowConfig vs AgentConfig mismatch
-                    )
-                logger.debug(f"Synced {len(custom_workflows)} custom workflow configs.")
-
-                # Sync LLM Configs
-                for config in llm_configs.values():
-                    self._sync_config(
-                        db,
-                        LLMConfigDB,
-                        config,
-                        pk_field="llm_id",  # Specify primary key field
-                    )  # type: ignore[assignment] # Ignore LLMConfig vs AgentConfig mismatch
-                logger.debug(f"Synced {len(llm_configs)} LLM configs.")
-
-                # Commit happens automatically when exiting 'with' block if no errors
-                logger.info("Successfully synced all configurations to database.")
-
+                total_synced = 0
+                for component_type, components in component_index.items():
+                    for component_config in components.values():
+                        self._upsert_component(db, component_type, component_config)
+                        total_synced += 1
+                logger.info(f"Successfully synced {total_synced} components to the database.")
             except Exception as e:
-                logger.error(f"Failed during bulk config sync: {e}", exc_info=True)
-                # Rollback happens automatically in get_db_session context manager
+                logger.error(f"Failed during bulk component sync: {e}", exc_info=True)
+                # Rollback is handled by the context manager
+
+    def load_index_from_db(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """
+        Loads the entire component index from the database.
+        """
+        if not self._engine:
+            logger.warning("Database not configured. Returning empty index.")
+            return {}
+
+        logger.info("Loading component index from database...")
+        component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for loading index.")
+                return {}
+
+            try:
+                all_components = db.query(ComponentDB).all()
+                for record in all_components:
+                    component_type = record.component_type
+                    component_name = record.name
+                    config = record.config
+
+                    # Ensure the component type key exists
+                    component_index.setdefault(component_type, {})
+                    component_index[component_type][component_name] = config
+
+                logger.info(f"Successfully loaded {len(all_components)} components from the database.")
+                return component_index
+            except Exception as e:
+                logger.error(f"Failed to load component index from database: {e}", exc_info=True)
+                return {}
+
+    def delete_component(self, component_name: str) -> bool:
+        """
+        Deletes a component from the database.
+        """
+        if not self._engine:
+            logger.warning("Database not configured. Cannot delete component.")
+            return False
+
+        logger.info(f"Deleting component '{component_name}' from database...")
+        with self.get_db_session() as db:
+            if not db:
+                logger.error("Failed to get DB session for component deletion.")
+                return False
+
+            try:
+                # Find the record to delete
+                db_record = db.get(ComponentDB, component_name)
+                if db_record:
+                    db.delete(db_record)
+                    logger.info(f"Successfully deleted component '{component_name}'.")
+                    return True
+                else:
+                    logger.warning(f"Component '{component_name}' not found in database.")
+                    return False
+            except Exception as e:
+                logger.error(f"Failed to delete component '{component_name}': {e}", exc_info=True)
+                return False
+
+    def get_db_session(self):
+        """
+        Provides a transactional database session context.
+        """
+        return get_db_session(self._engine)
 
     # --- History Methods ---
 

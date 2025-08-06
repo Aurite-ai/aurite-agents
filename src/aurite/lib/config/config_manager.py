@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from ..models.api.responses import ComponentCreateResponse
+from ..storage.db.db_manager import StorageManager
 from .config_utils import find_anchor_files
 from .file_manager import FileManager
 
@@ -68,19 +69,27 @@ class ConfigManager:
 
         self._config_sources: List[tuple[Path, Path]] = []
         self._component_index: Dict[str, Dict[str, Dict[str, Any]]] = {}
-        self._force_refresh = os.getenv("AURITE_CONFIG_FORCE_REFRESH", "true").lower() == "true"
+        self._db_enabled = os.getenv("AURITE_ENABLE_DB", "false").lower() == "true"
+        self._storage_manager: Optional[StorageManager] = None
+        self._file_manager: Optional[FileManager] = None
 
-        self._initialize_sources()
-        self._build_component_index()
+        if self._db_enabled:
+            logger.info("Database mode is enabled. Loading configuration from DB.")
+            self._storage_manager = StorageManager()
+            self._component_index = self._storage_manager.load_index_from_db()
+        else:
+            logger.info("File-based mode is enabled. Loading configuration from files.")
+            self._initialize_sources()
+            self._build_component_index()
 
-        # Initialize FileManager with our configuration sources
-        self._file_manager = FileManager(
-            config_sources=self._config_sources,
-            project_root=self.project_root,
-            workspace_root=self.workspace_root,
-            project_name=self.project_name,
-            workspace_name=self.workspace_name,
-        )
+            # Initialize FileManager with our configuration sources
+            self._file_manager = FileManager(
+                config_sources=self._config_sources,
+                project_root=self.project_root,
+                workspace_root=self.workspace_root,
+                project_name=self.project_name,
+                workspace_name=self.workspace_name,
+            )
 
     def _initialize_sources(self):
         """Initializes the configuration source paths based on the hierarchical context."""
@@ -272,33 +281,22 @@ class ConfigManager:
         return resolved_data
 
     def get_config(self, component_type: str, component_id: str) -> Optional[Dict[str, Any]]:
-        if self._force_refresh:
-            self.refresh()
-
         config = self._component_index.get(component_type, {}).get(component_id)
         if config:
             return self._resolve_paths_in_config(config)
         return None
 
     def list_configs(self, component_type: str) -> List[Dict[str, Any]]:
-        if self._force_refresh:
-            self.refresh()
-
         configs = self._component_index.get(component_type, {}).values()
         return [self._resolve_paths_in_config(c) for c in configs]
 
     def get_all_configs(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        if self._force_refresh:
-            self.refresh()
         return self._component_index
 
     def get_component_index(self) -> List[Dict[str, Any]]:
         """
         Returns a flattened list of all indexed components, with their context.
         """
-        if self._force_refresh:
-            self.refresh()
-
         flat_list = []
         for comp_type, components in self._component_index.items():
             for comp_name, config in components.items():
@@ -344,94 +342,83 @@ class ConfigManager:
     def list_config_sources(self) -> List[Dict[str, Any]]:
         """
         List all configuration source directories with context information.
-
-        Returns:
-            List of dictionaries containing source directory information
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Listing config sources is only available in file-based mode.")
+            return []
         return self._file_manager.list_config_sources()
 
     def list_config_files(self, source_name: str) -> List[str]:
         """
         List all configuration files for a specific source.
-
-        Args:
-            source_name: The name of the source to list files for.
-
-        Returns:
-            A list of relative file paths.
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Listing config files is only available in file-based mode.")
+            return []
         return self._file_manager.list_config_files(source_name)
 
     def get_file_content(self, source_name: str, relative_path: str) -> Optional[str]:
         """
         Get the content of a specific configuration file.
-
-        Args:
-            source_name: The name of the source the file belongs to.
-            relative_path: The relative path of the file within the source.
-
-        Returns:
-            The file content as a string, or None if not found or invalid.
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Getting file content is only available in file-based mode.")
+            return None
         return self._file_manager.get_file_content(source_name, relative_path)
 
     def create_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
         """
         Create a new configuration file.
-
-        Args:
-            source_name: The name of the source to create the file in.
-            relative_path: The relative path for the new file.
-            content: The content to write to the file.
-
-        Returns:
-            True if the file was created successfully, False otherwise.
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Creating config files is only available in file-based mode.")
+            return False
         return self._file_manager.create_config_file(source_name, relative_path, content)
 
     def update_config_file(self, source_name: str, relative_path: str, content: str) -> bool:
         """
         Update an existing configuration file.
-
-        Args:
-            source_name: The name of the source where the file exists.
-            relative_path: The relative path of the file to update.
-            content: The new content to write to the file.
-
-        Returns:
-            True if the file was updated successfully, False otherwise.
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Updating config files is only available in file-based mode.")
+            return False
         return self._file_manager.update_config_file(source_name, relative_path, content)
 
     def delete_config_file(self, source_name: str, relative_path: str) -> bool:
         """
         Delete an existing configuration file.
-
-        Args:
-            source_name: The name of the source where the file exists.
-            relative_path: The relative path of the file to delete.
-
-        Returns:
-            True if the file was deleted successfully, False otherwise.
+        NOTE: This operation is only supported in file-based mode.
         """
-        if self._force_refresh:
-            self.refresh()
+        if self._db_enabled or not self._file_manager:
+            logger.warning("Deleting config files is only available in file-based mode.")
+            return False
         return self._file_manager.delete_config_file(source_name, relative_path)
 
     def update_component(self, component_type: str, component_name: str, new_config: Dict[str, Any]) -> bool:
         """
-        Updates a component configuration by writing back to its source file.
+        Updates a component configuration by writing back to its source file or the database.
         """
+        if self._db_enabled:
+            if not self._storage_manager:
+                logger.error("StorageManager not initialized. Cannot update component in DB mode.")
+                return False
+            try:
+                # The _upsert_component method is on StorageManager, not ConfigManager
+                with self._storage_manager.get_db_session() as db:
+                    if db:
+                        self._storage_manager._upsert_component(db, component_type, new_config)
+                self.refresh()  # Refresh the in-memory index
+                return True
+            except Exception as e:
+                logger.error(f"Failed to update component '{component_name}' in database: {e}")
+                return False
+
+        # File-based logic
         existing_config = self.get_config(component_type, component_name)
         if not existing_config:
             logger.error(f"Component '{component_name}' of type '{component_type}' not found for update.")
@@ -502,6 +489,12 @@ class ConfigManager:
             return self.project_name
 
         if self.workspace_name:
+            if self._db_enabled or not self._file_manager:
+                # In DB mode, we can't determine context from file sources.
+                # Default to workspace if no project is active.
+                logger.info(f"Using workspace context: {self.workspace_name}")
+                return self.workspace_name
+
             sources = self._file_manager.list_config_sources()
             project_sources = [s for s in sources if s["context"] == "project"]
 
@@ -546,15 +539,26 @@ class ConfigManager:
             logger.error("Could not determine a valid context for component creation.")
             return None
 
-        # Step 2: Determine target file
-        target_file = self._file_manager.find_or_create_component_file(component_type, context_name, file_path)
-        if not target_file:
-            return None
-
-        # Step 3: Add component to file
-        success = self._file_manager.add_component_to_file(target_file, component_config)
-        if not success:
-            return None
+        # Step 2 & 3: Add component to file or DB
+        if self._db_enabled:
+            if not self._storage_manager:
+                logger.error("StorageManager not initialized. Cannot create component in DB mode.")
+                return None
+            # In DB mode, we just upsert the component.
+            # The concept of a "file" doesn't apply.
+            with self._storage_manager.get_db_session() as db:
+                if db:
+                    self._storage_manager._upsert_component(db, component_type, component_config)
+        else:
+            if not self._file_manager:
+                logger.error("FileManager not initialized. Cannot create component in file-based mode.")
+                return None
+            target_file = self._file_manager.find_or_create_component_file(component_type, context_name, file_path)
+            if not target_file:
+                return None
+            success = self._file_manager.add_component_to_file(target_file, component_config)
+            if not success:
+                return None
 
         # set newly created components to not validated
         if component_type == "llm":
@@ -582,9 +586,22 @@ class ConfigManager:
 
     def delete_config(self, component_type: str, component_name: str) -> bool:
         """
-        Deletes a component configuration by removing it from its source file.
-        If the component is the last one in the file, the file will be deleted.
+        Deletes a component configuration from its source file or the database.
         """
+        if self._db_enabled:
+            if not self._storage_manager:
+                logger.error("StorageManager not initialized. Cannot delete component in DB mode.")
+                return False
+            try:
+                success = self._storage_manager.delete_component(component_name)
+                if success:
+                    self.refresh()  # Refresh the in-memory index
+                return success
+            except Exception as e:
+                logger.error(f"Failed to delete component '{component_name}' from database: {e}")
+                return False
+
+        # File-based logic
         try:
             # Find the existing component to get its source file
             existing_config = self._component_index.get(component_type, {}).get(component_name)

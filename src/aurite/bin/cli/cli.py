@@ -1,19 +1,22 @@
 import asyncio
+import os
 from typing import Optional
 
 import typer
 from rich.console import Console
 
+# Relative imports from within the bin directory
+from ...lib.config import ConfigManager
+from ...lib.storage import StorageManager
 from ...utils.cli.fast_loader import list_component_names
 from ..api.api import start as start_api_server
 from ..tui.apps.edit import AuriteEditTUI
-
-# Relative imports from within the bin directory
 from .commands.init import init_project, init_workspace, interactive_init
 from .commands.list import list_all, list_components_by_type, list_index, list_workflows
 from .commands.run import run_component
 from .commands.show import show_components
 
+os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
 app = typer.Typer(
     name="aurite",
     help="A framework for building, testing, and running AI agents.",
@@ -88,6 +91,36 @@ def show(
 ):
     """Displays the configuration for a component or all components of a type."""
     show_components(name, full=full, short=short)
+
+
+@app.command()
+def export():
+    """
+    Exports all configurations from the file system to the database.
+    This command reads from the local config files and upserts them into the DB.
+    """
+    logger("[bold green]Starting configuration export to database...[/bold green]")
+    try:
+        # 1. Load configs from files
+        logger("Loading configurations from file system...")
+        config_manager = ConfigManager()
+        component_index = config_manager.get_all_configs()
+
+        if not component_index:
+            logger("[bold yellow]No configurations found to export.[/bold yellow]")
+            raise typer.Exit()
+
+        # 2. Initialize StorageManager and sync
+        logger("Connecting to database and syncing configurations...")
+        storage_manager = StorageManager()
+        storage_manager.init_db()  # Ensure tables are created
+        storage_manager.sync_index_to_db(component_index)
+
+        logger("\n[bold green]✅ Configuration export completed successfully.[/bold green]")
+
+    except Exception as e:
+        logger(f"\n[bold red]Error during export:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 
 # --- List Commands ---
