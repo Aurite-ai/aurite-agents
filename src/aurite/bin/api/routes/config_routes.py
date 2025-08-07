@@ -68,6 +68,14 @@ async def list_components_by_type(
     _refresh_config_if_needed(config_manager)
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
+
+    valid_types = list(config_manager.get_all_configs().keys())
+    if singular_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(valid_types)}",
+        )
+
     return config_manager.list_configs(singular_type)
 
 
