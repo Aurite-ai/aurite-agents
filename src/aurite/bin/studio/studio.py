@@ -242,23 +242,39 @@ async def immediate_windows_cleanup():
     if frontend_process and frontend_process.returncode is None:
         try:
             console.print("[dim]Force terminating frontend server...[/dim]")
-            subprocess.run([
+            
+            # First try taskkill with process tree termination
+            result = subprocess.run([
                 "taskkill", "/F", "/T", "/PID", str(frontend_process.pid)
+            ], check=False, capture_output=True, text=True)
+            
+            # Also kill any npm processes by name as backup
+            subprocess.run([
+                "taskkill", "/F", "/IM", "npm.cmd"
             ], check=False, capture_output=True)
             
-            # Wait for process to actually terminate and close handles
+            subprocess.run([
+                "taskkill", "/F", "/IM", "node.exe"
+            ], check=False, capture_output=True)
+            
+            # Force kill the process directly
             try:
-                await asyncio.wait_for(frontend_process.wait(), timeout=2.0)
+                frontend_process.kill()
+            except:
+                pass
+            
+            # Wait for process to actually terminate
+            try:
+                await asyncio.wait_for(frontend_process.wait(), timeout=1.0)
             except asyncio.TimeoutError:
                 pass
             
             # Ensure subprocess handles are properly closed
-            if hasattr(frontend_process, 'stdout') and frontend_process.stdout:
-                frontend_process.stdout.close()
-            if hasattr(frontend_process, 'stderr') and frontend_process.stderr:
-                frontend_process.stderr.close()
-            if hasattr(frontend_process, 'stdin') and frontend_process.stdin:
-                frontend_process.stdin.close()
+            try:
+                if hasattr(frontend_process, '_transport') and frontend_process._transport:
+                    frontend_process._transport.close()
+            except Exception:
+                pass
                 
             console.print("[bold green]✓[/bold green] Frontend server terminated")
         except Exception as e:
@@ -282,12 +298,11 @@ async def immediate_windows_cleanup():
                 pass
             
             # Ensure subprocess handles are properly closed
-            if hasattr(api_process, 'stdout') and api_process.stdout:
-                api_process.stdout.close()
-            if hasattr(api_process, 'stderr') and api_process.stderr:
-                api_process.stderr.close()
-            if hasattr(api_process, 'stdin') and api_process.stdin:
-                api_process.stdin.close()
+            try:
+                if hasattr(api_process, '_transport') and api_process._transport:
+                    api_process._transport.close()
+            except Exception:
+                pass
                 
             console.print("[bold green]✓[/bold green] API server terminated")
         except Exception as e:
