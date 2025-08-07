@@ -90,7 +90,7 @@ async def main() -> None:
     server = None
     try:
         # Path to the packaged config used by the agent runner
-        config_path = "src/aurite/lib/init_templates/config/mcp_servers/example_mcp_servers.json"
+        config_path = "src/aurite/init_templates/config/mcp_servers/example_mcp_servers.json"
         server_name = "weather_server"
 
         logging.info(f"Loading config for '{server_name}' from '{config_path}'")
@@ -99,7 +99,7 @@ async def main() -> None:
         # The server_path in the config is relative to the project root created by `aurite init`
         # We need to adjust it to be relative to our current working directory.
         original_path = server_config["server_path"]
-        server_config["server_path"] = os.path.join("src/aurite/lib/init_templates", original_path)
+        server_config["server_path"] = os.path.join("src/aurite/init_templates", original_path)
 
         # The command for a python script is 'python'
         server_config["command"] = "python"

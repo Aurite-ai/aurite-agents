@@ -37,7 +37,7 @@
 #   Starts the API, runs a test query against the "ExampleCustomWorkflow" via the CLI, and then shuts down the API.
 #
 # - testauritecomp:
-#   A convenience function to run all three CLI component tests (agent, linear workflow, custom workflow) in sequence. Benefit is that it only starts the API once.
+#   A convenience function to run all three CLI component tests (agent, simple workflow, custom workflow) in sequence. Benefit is that it only starts the API once.
 #
 # --------------------------------------------------------------------
 
@@ -112,10 +112,10 @@ testauritea() {
     fuser -k 8000/tcp # Find and kill the process using port 8000
 }
 
-# test a linear workflow on the api
-testauritelw() {
-    # Print message for linear workflow test
-    echo -e "\033[1;33mTesting linear workflow on the API...\033[0m"
+# test a simple workflow on the api
+testauritesw() {
+    # Print message for simple workflow test
+    echo -e "\033[1;33mTesting simple workflow on the API...\033[0m"
     start-api &
     sleep 7
     run-cli execute workflow "Weather Planning Workflow" "What is the weather in London?"
@@ -164,3 +164,4 @@ testmcp() {
 poetryi() {
     poetry install --with storage
 }
+

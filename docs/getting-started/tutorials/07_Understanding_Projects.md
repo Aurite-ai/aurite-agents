@@ -49,7 +49,7 @@ You'll see sections for `llms`, `mcp_servers`, and `agents`, among others. For t
 - The `mcp_servers` array: Lists configurations for MCP servers, which provide tools to your agents. `aurite init` includes an example `weather_server`.
 - The `agents` array: This is where we will define our new agent.
 
-_(The `aurite_config.json` file also includes sections for `linear_workflows` and `custom_workflows`. These allow you to define sequences of agents or more complex programmatic workflows, respectively. While not covered in this introductory tutorial, they demonstrate how you can orchestrate multiple components within your Aurite project.)_
+_(The `aurite_config.json` file also includes sections for `simple_workflows` and `custom_workflows`. These allow you to define sequences of agents or more complex programmatic workflows, respectively. While not covered in this introductory tutorial, they demonstrate how you can orchestrate multiple components within your Aurite project.)_
 
 ### 2. Modifying `aurite_config.json` - Configure Your First Agent
 

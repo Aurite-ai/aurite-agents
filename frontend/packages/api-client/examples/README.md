@@ -12,7 +12,7 @@ frontend/packages/api-client/examples/
 ├── execution/                          # Agent and workflow execution
 │   ├── agent-basic.ts                 # Basic agent execution
 │   ├── agent-streaming.ts             # Real-time streaming responses
-│   ├── workflow-linear.ts             # Linear workflow execution
+│   ├── workflow-simple.ts             # Simple workflow execution
 │   └── debug-planning-agent.ts        # Debug specific planning agent
 ├── mcp-host/                          # MCP server and tool management
 │   ├── server-management.ts           # Register/unregister servers
@@ -58,7 +58,7 @@ npx tsx examples/config/reload-configs.ts       # Reload configurations
 # Agent and Workflow Execution
 npx tsx examples/execution/agent-basic.ts       # Basic agent execution
 npx tsx examples/execution/agent-streaming.ts   # Real-time streaming
-npx tsx examples/execution/workflow-linear.ts   # Linear workflow
+npx tsx examples/execution/workflow-simple.ts   # Simple workflow
 npx tsx examples/execution/debug-planning-agent.ts  # Debug specific agent
 
 # MCP Host Management
@@ -76,14 +76,12 @@ npx tsx examples/system/health-check.ts         # System health check
 Essential utilities for development, debugging, and testing:
 
 #### **test-env.ts** - Environment Setup Validation
-
 - Tests environment variable loading from multiple locations
 - Validates API connectivity and authentication
 - Provides clear diagnostics for setup issues
 - Helps troubleshoot connection problems
 
 **Key Features:**
-
 - ✅ Multi-location .env file detection
 - ✅ Environment variable validation
 - ✅ API connectivity testing
@@ -91,14 +89,12 @@ Essential utilities for development, debugging, and testing:
 - ✅ Clear error diagnostics
 
 #### **health-check.ts** - API Health Diagnostics
-
 - Comprehensive API health monitoring
 - Tests all major API endpoints
 - Validates service availability
 - Provides system status overview
 
 **Key Features:**
-
 - ✅ Multi-endpoint health checks
 - ✅ Service status monitoring
 - ✅ Configuration availability testing
@@ -106,14 +102,12 @@ Essential utilities for development, debugging, and testing:
 - ✅ Comprehensive error reporting
 
 #### **analyze-http-requests.ts** - HTTP Request Analysis
-
 - Intercepts and analyzes all HTTP requests from examples
 - Generates detailed request/response reports
 - Provides performance metrics and statistics
 - Creates comprehensive analysis documentation
 
 **Key Features:**
-
 - ✅ Request/response interception
 - ✅ Performance metrics tracking
 - ✅ Endpoint usage statistics
@@ -125,7 +119,6 @@ Essential utilities for development, debugging, and testing:
 These examples demonstrate how to run agents and workflows:
 
 #### **agent-basic.ts** - Basic Agent Execution
-
 - Simple agent execution with complete responses
 - Session management and conversation history
 - Different agent types and configurations
@@ -133,7 +126,6 @@ These examples demonstrate how to run agents and workflows:
 - Execution status monitoring
 
 **Key Features:**
-
 - ✅ Basic agent execution
 - ✅ Session-based conversation history
 - ✅ Multiple agent types
@@ -141,7 +133,6 @@ These examples demonstrate how to run agents and workflows:
 - ✅ Status monitoring
 
 #### **agent-streaming.ts** - Real-time Streaming
-
 - Real-time streaming of agent responses
 - Event-driven architecture with proper event handling
 - Advanced streaming with metrics and tracking
@@ -149,15 +140,13 @@ These examples demonstrate how to run agents and workflows:
 - Concurrent streaming operations
 
 **Key Features:**
-
 - ✅ Real-time response streaming
 - ✅ Event type handling (llm_response, tool_call, tool_output)
 - ✅ Stream cancellation with AbortController
 - ✅ Performance metrics and tracking
 - ✅ Concurrent stream management
 
-#### **workflow-linear.ts** - Linear Workflow Execution
-
+#### **workflow-simple.ts** - Simple Workflow Execution
 - Sequential agent workflow execution
 - Different input types and formats
 - Workflow vs direct agent comparison
@@ -165,7 +154,6 @@ These examples demonstrate how to run agents and workflows:
 - Error handling and graceful degradation
 
 **Key Features:**
-
 - ✅ Sequential workflow execution
 - ✅ Multiple input format handling
 - ✅ Step-by-step result tracking
@@ -173,14 +161,12 @@ These examples demonstrate how to run agents and workflows:
 - ✅ Complex input processing
 
 #### **debug-planning-agent.ts** - Debug Specific Agent
-
 - Targeted debugging for specific agents
 - Detailed conversation history analysis
 - Step-by-step execution tracking
 - Error diagnosis and troubleshooting
 
 **Key Features:**
-
 - ✅ Specific agent debugging
 - ✅ Detailed conversation analysis
 - ✅ Execution step tracking
@@ -191,7 +177,6 @@ These examples demonstrate how to run agents and workflows:
 These examples demonstrate MCP server and tool management:
 
 #### **server-management.ts** - MCP Server Management
-
 - Server registration by name (pre-configured)
 - Server registration with custom configuration
 - Server unregistration and cleanup
@@ -200,7 +185,6 @@ These examples demonstrate MCP server and tool management:
 - Error handling scenarios
 
 **Key Features:**
-
 - ✅ Server registration (by name and config)
 - ✅ Server unregistration
 - ✅ Lifecycle management
@@ -208,7 +192,6 @@ These examples demonstrate MCP server and tool management:
 - ✅ Comprehensive error scenarios
 
 #### **tool-execution.ts** - Direct Tool Calls
-
 - Tool discovery and schema inspection
 - Direct tool calls with various argument types
 - Tool error handling and validation
@@ -216,7 +199,6 @@ These examples demonstrate MCP server and tool management:
 - Tool response analysis and performance testing
 
 **Key Features:**
-
 - ✅ Tool discovery and inspection
 - ✅ Multiple argument types
 - ✅ Concurrent tool execution
@@ -228,7 +210,6 @@ These examples demonstrate MCP server and tool management:
 These examples demonstrate configuration management:
 
 #### **config-listing.ts** - Configuration Exploration
-
 - List all configuration types
 - Explore agent, LLM, and MCP server configurations
 - Workflow configuration analysis
@@ -237,7 +218,6 @@ These examples demonstrate configuration management:
 - Error handling for invalid configurations
 
 **Key Features:**
-
 - ✅ All configuration type listing
 - ✅ Detailed configuration exploration
 - ✅ Search and filtering capabilities
@@ -245,14 +225,12 @@ These examples demonstrate configuration management:
 - ✅ Comprehensive error handling
 
 #### **reload-configs.ts** - Configuration Reloading
-
 - Reload configuration files from disk
 - Refresh configuration cache
 - Handle configuration updates
 - Validate configuration changes
 
 **Key Features:**
-
 - ✅ Configuration file reloading
 - ✅ Cache refresh functionality
 - ✅ Update validation
@@ -263,14 +241,12 @@ These examples demonstrate configuration management:
 These examples demonstrate system-level monitoring and health checks:
 
 #### **health-check.ts** - System Health Monitoring
-
 - System-level health checks
 - Service availability monitoring
 - Resource status validation
 - Performance metrics collection
 
 **Key Features:**
-
 - ✅ System health monitoring
 - ✅ Service availability checks
 - ✅ Resource validation
@@ -279,7 +255,6 @@ These examples demonstrate system-level monitoring and health checks:
 ## 🛠️ Shared Utilities (`shared/`)
 
 ### **client-setup.ts** - Common Setup
-
 Provides shared utilities used across all examples:
 
 - **`createExampleClient()`** - Pre-configured API client
@@ -301,7 +276,7 @@ async function myExample() {
   try {
     // Your API calls here
     const result = await client.execution.runAgent('Weather Agent', {
-      user_message: 'What is the weather?',
+      user_message: 'What is the weather?'
     });
 
     console.log('Result:', result);
@@ -329,67 +304,64 @@ try {
 ### Streaming Pattern
 
 ```typescript
-await client.execution.streamAgent('Agent Name', { user_message: 'Hello' }, event => {
-  switch (event.type) {
-    case 'llm_response':
-      process.stdout.write(event.data.content);
-      break;
-    case 'tool_call':
-      console.log(`\n🔧 Tool: ${event.data.name}`);
-      break;
-    case 'error':
-      console.error('❌ Error:', event.data.message);
-      break;
+await client.execution.streamAgent(
+  'Agent Name',
+  { user_message: 'Hello' },
+  (event) => {
+    switch (event.type) {
+      case 'llm_response':
+        process.stdout.write(event.data.content);
+        break;
+      case 'tool_call':
+        console.log(`\n🔧 Tool: ${event.data.name}`);
+        break;
+      case 'error':
+        console.error('❌ Error:', event.data.message);
+        break;
+    }
   }
-});
+);
 ```
 
 ## 🎯 Key API Client Features Demonstrated
 
 ### ✅ **Agent Execution**
-
 - Basic execution with complete responses
 - Session management and conversation history
 - Real-time streaming with event handling
 - Multiple agent types and configurations
 
 ### ✅ **Workflow Management**
-
-- Linear sequential workflows
+- Simple sequential workflows
 - Complex input processing
 - Step-by-step result tracking
 - Error handling and recovery
 
 ### ✅ **MCP Integration**
-
 - Server registration and management
 - Tool discovery and execution
 - Direct tool calls with various arguments
 - Concurrent operations and performance testing
 
 ### ✅ **Configuration Management**
-
 - Complete configuration exploration
 - Search and filtering capabilities
 - Statistical analysis and summaries
 - Configuration reloading and validation
 
 ### ✅ **Development Tools**
-
 - Environment setup validation
 - HTTP request analysis and reporting
 - Health monitoring and diagnostics
 - Comprehensive error handling
 
 ### ✅ **Error Handling**
-
 - Comprehensive error categorization
 - User-friendly error messages
 - Retry logic and graceful degradation
 - Professional error reporting
 
 ### ✅ **Performance Features**
-
 - Concurrent operations
 - Streaming with cancellation
 - Performance metrics and benchmarking
@@ -409,7 +381,6 @@ export const DEFAULT_CONFIG = {
 ```
 
 **For production use:**
-
 - Use environment variables for API keys
 - Configure appropriate base URLs
 - Implement proper authentication
@@ -430,7 +401,6 @@ NODE_ENV=development
 ### Server Requirements
 
 The examples expect the following to be available:
-
 - **Aurite Server** running on `localhost:8000`
 - **Weather Agent** configured and available
 - **Weather Server** MCP server configured
@@ -440,39 +410,33 @@ The examples expect the following to be available:
 ## 📖 Learning Path
 
 ### 1. **Start with Setup and Validation**
-
-- `test-env.ts` - Validate your environment setup
-- `health-check.ts` - Check API connectivity and health
-- `config/config-listing.ts` - Explore available configurations
+   - `test-env.ts` - Validate your environment setup
+   - `health-check.ts` - Check API connectivity and health
+   - `config/config-listing.ts` - Explore available configurations
 
 ### 2. **Learn Basic Operations**
-
-- `execution/agent-basic.ts` - Learn basic agent execution
-- `config/reload-configs.ts` - Understand configuration management
-- `mcp-host/server-management.ts` - Basic MCP server operations
+   - `execution/agent-basic.ts` - Learn basic agent execution
+   - `config/reload-configs.ts` - Understand configuration management
+   - `mcp-host/server-management.ts` - Basic MCP server operations
 
 ### 3. **Explore Advanced Features**
-
-- `execution/agent-streaming.ts` - Real-time streaming
-- `mcp-host/tool-execution.ts` - Direct tool operations
-- `execution/workflow-linear.ts` - Workflow execution
+   - `execution/agent-streaming.ts` - Real-time streaming
+   - `mcp-host/tool-execution.ts` - Direct tool operations
+   - `execution/workflow-simple.ts` - Workflow execution
 
 ### 4. **Master Development Tools**
-
-- `analyze-http-requests.ts` - HTTP request analysis
-- `execution/debug-planning-agent.ts` - Debugging techniques
-- `system/health-check.ts` - System monitoring
+   - `analyze-http-requests.ts` - HTTP request analysis
+   - `execution/debug-planning-agent.ts` - Debugging techniques
+   - `system/health-check.ts` - System monitoring
 
 ### 5. **Build Applications**
-
-- Combine patterns from multiple examples
-- Implement error handling and user feedback
-- Add performance monitoring and optimization
+   - Combine patterns from multiple examples
+   - Implement error handling and user feedback
+   - Add performance monitoring and optimization
 
 ## 🔍 Development Workflow
 
 ### Testing Your Setup
-
 ```bash
 # 1. Test environment
 npx tsx examples/test-env.ts
@@ -485,7 +449,6 @@ npx tsx examples/config/config-listing.ts
 ```
 
 ### Debugging Issues
-
 ```bash
 # 1. Run HTTP analysis to see all requests
 npx tsx examples/analyze-http-requests.ts
@@ -498,7 +461,6 @@ npx tsx examples/system/health-check.ts
 ```
 
 ### Performance Analysis
-
 ```bash
 # Run HTTP analysis for detailed performance metrics
 npx tsx examples/analyze-http-requests.ts
@@ -531,25 +493,21 @@ For questions about the examples or API client:
 ### Common Issues
 
 **Environment Setup:**
-
 - Run `npx tsx examples/test-env.ts` to validate setup
 - Check `.env` file location and format
 - Verify API key and URL configuration
 
 **API Connectivity:**
-
 - Run `npx tsx examples/health-check.ts` for diagnostics
 - Ensure Aurite server is running on the correct port
 - Check firewall and network settings
 
 **Configuration Issues:**
-
 - Run `npx tsx examples/config/config-listing.ts` to see available configs
 - Use `npx tsx examples/config/reload-configs.ts` to refresh configurations
 - Check configuration file syntax and location
 
 **Performance Issues:**
-
 - Run `npx tsx examples/analyze-http-requests.ts` for detailed analysis
 - Check network latency and server response times
 - Monitor resource usage during execution

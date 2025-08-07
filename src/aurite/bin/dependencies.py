@@ -7,14 +7,12 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, Security, status  # Added status
 from fastapi.security import APIKeyHeader
 
-from ..aurite import Aurite  # Needed for get_aurite
-from ..execution.aurite_engine import AuriteEngine
-from ..execution.mcp_host.mcp_host import MCPHost  # Added for get_host
-from ..lib.config.config_manager import ConfigManager
-
 # Import config/models needed by dependencies
-from ..lib.models.api.server import ServerConfig
-from ..lib.storage.sessions.session_manager import SessionManager
+from ..config import ServerConfig
+from ..config.config_manager import ConfigManager
+from ..execution.facade import ExecutionFacade
+from ..host.host import MCPHost  # Added for get_host
+from ..host_manager import Aurite  # Needed for get_host_manager
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +101,7 @@ async def get_api_key(
 
 # --- Aurite Dependency ---
 # Moved from api.py - might be needed by multiple routers
-async def get_aurite(request: Request) -> Aurite:
+async def get_host_manager(request: Request) -> Aurite:
     """
     Dependency function to get the initialized Aurite instance from app state.
     """
@@ -118,79 +116,61 @@ async def get_aurite(request: Request) -> Aurite:
 
 
 # --- MCPHost Dependency ---
-async def get_host(aurite: Aurite = Depends(get_aurite)) -> MCPHost:
+async def get_host(host_manager: Aurite = Depends(get_host_manager)) -> MCPHost:
     """
     Dependency function to get the MCPHost instance from the Aurite manager.
     """
-    if not aurite.kernel.host:
+    if not host_manager.kernel.host:
         # This case should ideally not happen if Aurite is initialized correctly
         logger.error("MCPHost not found on Aurite instance. This indicates an initialization issue.")
         raise HTTPException(
             status_code=503,
             detail="MCPHost is not available due to an internal error.",
         )
-    return aurite.kernel.host
+    return host_manager.kernel.host
 
 
 # --- ConfigManager Dependency ---
 async def get_config_manager(
-    aurite: Aurite = Depends(get_aurite),
+    host_manager: Aurite = Depends(get_host_manager),
 ) -> ConfigManager:
     """
     Dependency function to get the ConfigManager instance from the Aurite manager.
     """
-    return aurite.get_config_manager()
+    return host_manager.get_config_manager()
 
 
-# --- AuriteEngine Dependency ---
+# --- ExecutionFacade Dependency ---
 async def get_execution_facade(
-    aurite: Aurite = Depends(get_aurite),
-) -> AuriteEngine:
+    host_manager: Aurite = Depends(get_host_manager),
+) -> ExecutionFacade:
     """
-    Dependency function to get the AuriteEngine instance from the Aurite manager.
+    Dependency function to get the ExecutionFacade instance from the Aurite manager.
     """
-    if not aurite.kernel.execution:
+    if not host_manager.kernel.execution:
         # This case should ideally not happen if Aurite is initialized correctly
-        logger.error("AuriteEngine not found on Aurite instance. This indicates an initialization issue.")
+        logger.error("ExecutionFacade not found on Aurite instance. This indicates an initialization issue.")
         raise HTTPException(
             status_code=503,
-            detail="AuriteEngine is not available due to an internal error.",
+            detail="ExecutionFacade is not available due to an internal error.",
         )
-    return aurite.kernel.execution
-
-
-# --- SessionManager Dependency ---
-async def get_session_manager(
-    aurite: Aurite = Depends(get_aurite),
-) -> SessionManager:
-    """
-    Dependency function to get the SessionManager instance from the Aurite manager.
-    """
-    # The SessionManager is now created and held by the AuriteEngine.
-    # This dependency retrieves it from there.
-    if not aurite.kernel.execution or not aurite.kernel.execution._session_manager:
-        logger.error("SessionManager not found. This indicates an initialization issue.")
-        raise HTTPException(
-            status_code=503,
-            detail="SessionManager is not available due to an internal error.",
-        )
-    return aurite.kernel.execution._session_manager
+    return host_manager.kernel.execution
 
 
 async def get_current_project_root(
-    aurite: Aurite = Depends(get_aurite),
+    host_manager: Aurite = Depends(get_host_manager),
 ) -> Path:
     """
     Dependency function to get the current project's root path
     from the Aurite instance.
     """
-    if not aurite.kernel.project_root:
+    if not host_manager.kernel.project_root:
         logger.error(
-            "Current project root not available via aurite.project_root. "
+            "Current project root not available via host_manager.project_root. "
             "This indicates an initialization issue or no active project."
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Project context is not fully initialized or no project is active. Cannot determine project root.",
         )
-    return aurite.kernel.project_root
+    return host_manager.kernel.project_root

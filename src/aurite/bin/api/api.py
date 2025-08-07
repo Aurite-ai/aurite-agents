@@ -13,15 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
 
-# Adjust imports for new location (src/bin -> src)
-from ...aurite import (  # Corrected relative import (up two levels from src/bin/api)
-    Aurite,
-)
-from ...utils.errors import (
+from ...errors import (
     AgentExecutionError,
     ConfigurationError,
-    MCPServerTimeoutError,
     WorkflowExecutionError,
+)
+
+# Adjust imports for new location (src/bin -> src)
+from ...host_manager import (  # Corrected relative import (up two levels from src/bin/api)
+    Aurite,
 )
 
 # Import shared dependencies (relative to parent directory - src/bin)
@@ -31,13 +31,13 @@ from ..dependencies import (
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
-from .routes import main_router
+from .routes import config_manager_routes, facade_routes, mcp_host_routes, system_routes
 
 # Removed CustomWorkflowManager import
 # Hello
 # Configure logging
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "DEBUG").upper(),
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s | %(levelname)s | %(name)s:%(funcName)s:%(lineno)d - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -91,8 +91,17 @@ async def health_check():
     return {"status": "ok"}
 
 
-# main routes
-app.include_router(main_router)
+# --- Application Endpoints ---
+# All application endpoints are now defined in their respective router files.
+
+
+# Include the new routers
+app.include_router(mcp_host_routes.router, prefix="/tools", tags=["MCP Host"])
+app.include_router(config_manager_routes.router, prefix="/config", tags=["Configuration Manager"])
+app.include_router(facade_routes.router, prefix="/execution", tags=["Execution Facade"])
+
+if os.getenv("INCLUDE_SYSTEM_ROUTER", "false").lower() == "true":
+    app.include_router(system_routes.router, prefix="/system", tags=["System Management"])
 
 
 # Custom OpenAPI schema
@@ -152,25 +161,6 @@ async def workflow_execution_error_exception_handler(request: Request, exc: Work
     return JSONResponse(
         status_code=500,  # Internal Server Error
         content={"detail": f"Workflow execution failed: {str(exc)}"},
-    )
-
-
-# Handler for MCPServerTimeoutError
-@app.exception_handler(MCPServerTimeoutError)
-async def mcp_server_timeout_error_handler(request: Request, exc: MCPServerTimeoutError):
-    logger.error(
-        f"MCP server timeout error: {exc} for request {request.url.path} - "
-        f"Server: {exc.server_name}, Timeout: {exc.timeout_seconds}s, Operation: {exc.operation}"
-    )
-    return JSONResponse(
-        status_code=504,  # Gateway Timeout
-        content={
-            "error": "mcp_server_timeout",
-            "detail": str(exc),
-            "server_name": exc.server_name,
-            "timeout_seconds": exc.timeout_seconds,
-            "operation": exc.operation,
-        },
     )
 
 

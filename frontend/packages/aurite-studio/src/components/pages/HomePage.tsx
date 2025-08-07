@@ -237,14 +237,14 @@ export default function HomePage() {
                       </SelectTrigger>
                       <SelectContent>
                         {llmsLoading ? (
-                          <SelectItem value="__loading__" disabled>
+                          <SelectItem value="" disabled>
                             <div className="flex items-center gap-2">
                               <Loader2 className="h-3 w-3 animate-spin" />
                               Loading configurations...
                             </div>
                           </SelectItem>
                         ) : llms.length === 0 ? (
-                          <SelectItem value="__no_llms__" disabled>
+                          <SelectItem value="" disabled>
                             No LLM configurations available
                           </SelectItem>
                         ) : (

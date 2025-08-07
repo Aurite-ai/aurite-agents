@@ -13,7 +13,7 @@ from pathlib import Path
 # Add the src directory to the path so we can import aurite modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aurite.lib.config.config_manager import ConfigManager
+from aurite.config.config_manager import ConfigManager
 
 
 def print_section(title: str):
@@ -117,9 +117,7 @@ def main():
         print(f"\nSkipping project_bravo test - directory not found: {project_bravo_dir}")
 
     # Test 3: From init_templates (nested project)
-    init_templates_dir = (
-        script_dir.parent / "src" / "aurite" / "lib" / "init_templates"
-    )  # ../src/aurite/lib/init_templates/
+    init_templates_dir = script_dir.parent / "src" / "aurite" / "init_templates"  # ../src/aurite/init_templates/
     if init_templates_dir.exists():
         test_from_directory("Init Templates (Nested Project)", init_templates_dir)
     else:

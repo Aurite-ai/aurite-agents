@@ -75,7 +75,7 @@ function getDefaultConfig(environment: Environment): Partial<AuriteConfig> {
       };
     case 'production':
       return {
-        baseUrl: 'https://api.aurite.ai', // Example production URL
+        baseUrl: 'https://api.aurite.dev', // Example production URL
         apiKey: '', // Should be provided via environment variable in production
       };
     default: // development

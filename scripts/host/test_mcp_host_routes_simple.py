@@ -52,7 +52,7 @@ async def test_implemented_endpoints():
         config = {
             "name": "weather_server",
             "transport_type": "stdio",
-            "server_path": "src/aurite/lib/init_templates/mcp_servers/weather_server.py",
+            "server_path": "src/aurite/init_templates/mcp_servers/weather_server.py",
             "timeout": 15.0,
             "capabilities": ["tools", "prompts", "resources"],
         }

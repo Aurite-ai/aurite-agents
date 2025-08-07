@@ -11,7 +11,7 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.aurite.aurite import Aurite
+from src.aurite.host_manager import Aurite
 
 # Set up logging to see all debug messages
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

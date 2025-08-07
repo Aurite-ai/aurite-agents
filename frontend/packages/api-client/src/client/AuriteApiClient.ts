@@ -23,7 +23,7 @@ export class AuriteApiClient {
    * Use this to:
    * - Run agents with user messages
    * - Stream agent responses in real-time
-   * - Execute linear and custom workflows
+   * - Execute simple and custom workflows
    */
   public readonly execution: ExecutionFacadeClient;
 

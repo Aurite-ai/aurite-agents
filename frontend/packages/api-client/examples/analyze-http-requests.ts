@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Enhanced HTTP Request Analysis Script
- *
+ * 
  * This script intercepts all HTTP requests made by the examples,
  * captures detailed request/response information, and generates
  * a comprehensive analysis report.
@@ -64,12 +64,12 @@ const originalFetch = global.fetch;
 global.fetch = async function(input, init) {
   const id = String(++requestId);
   const timestamp = new Date().toISOString();
-
+  
   // Extract request details
   const url = typeof input === 'string' ? input : input.url;
   const method = init?.method || 'GET';
   const headers = {};
-
+  
   // Extract headers
   if (init?.headers) {
     if (init.headers instanceof Headers) {
@@ -84,7 +84,7 @@ global.fetch = async function(input, init) {
       Object.assign(headers, init.headers);
     }
   }
-
+  
   // Extract body
   let body;
   if (init?.body) {
@@ -98,7 +98,7 @@ global.fetch = async function(input, init) {
       body = init.body;
     }
   }
-
+  
   const request = {
     id,
     timestamp,
@@ -107,7 +107,7 @@ global.fetch = async function(input, init) {
     headers,
     body
   };
-
+  
   console.log('\\n🔵 HTTP Request #' + id);
   console.log('   Method:', method);
   console.log('   URL:', url);
@@ -115,23 +115,23 @@ global.fetch = async function(input, init) {
   if (body) {
     console.log('   Body:', JSON.stringify(body, null, 2));
   }
-
+  
   const startTime = Date.now();
-
+  
   try {
     // Make the actual request
     const response = await originalFetch(input, init);
     const duration = Date.now() - startTime;
-
+    
     // Clone response to read body
     const responseClone = response.clone();
-
+    
     // Extract response headers
     const responseHeaders = {};
     response.headers.forEach((value, key) => {
       responseHeaders[key] = value;
     });
-
+    
     // Try to read response body
     let responseBody;
     try {
@@ -144,7 +144,7 @@ global.fetch = async function(input, init) {
     } catch (e) {
       responseBody = '[Unable to read response body]';
     }
-
+    
     const responseData = {
       status: response.status,
       statusText: response.statusText,
@@ -152,7 +152,7 @@ global.fetch = async function(input, init) {
       body: responseBody,
       duration
     };
-
+    
     console.log('\\n🟢 HTTP Response #' + id);
     console.log('   Status:', response.status, response.statusText);
     console.log('   Duration:', duration + 'ms');
@@ -160,25 +160,25 @@ global.fetch = async function(input, init) {
     if (responseBody) {
       console.log('   Body:', JSON.stringify(responseBody, null, 2).substring(0, 500) + '...');
     }
-
+    
     httpTransactions.push({
       request,
       response: responseData
     });
-
+    
     return response;
   } catch (error) {
     const duration = Date.now() - startTime;
-
+    
     console.log('\\n🔴 HTTP Error #' + id);
     console.log('   Duration:', duration + 'ms');
     console.log('   Error:', error.message);
-
+    
     httpTransactions.push({
       request,
       error: error.message
     });
-
+    
     throw error;
   }
 };
@@ -197,33 +197,30 @@ import('./${examplePath.split('/').pop()}').catch(error => {
 });
 `;
 
-async function runExampleWithInterception(example: {
-  name: string;
-  path: string;
-}): Promise<ExampleResult> {
+async function runExampleWithInterception(example: { name: string; path: string }): Promise<ExampleResult> {
   console.log(`\n🚀 Running: ${example.name}`);
   console.log(`   Path: ${example.path}`);
-
+  
   const startTime = Date.now();
-
+  
   // Create a temporary wrapper file in the same directory as the example
   const wrapperPath = example.path.replace('.ts', '-wrapper.ts');
   const wrapperContent = createWrapperScript(example.path);
   writeFileSync(wrapperPath, wrapperContent);
-
+  
   try {
     const { stdout, stderr } = await execAsync(`npx tsx ${wrapperPath}`, {
       cwd: process.cwd(),
       env: { ...process.env, NODE_ENV: 'development' },
       timeout: 30000,
     });
-
+    
     const duration = Date.now() - startTime;
     console.log(`   ✅ Success (${duration}ms)`);
-
+    
     // Extract HTTP transactions from output
     const httpTransactions = extractHttpTransactions(stdout);
-
+    
     return {
       name: example.name,
       path: example.path,
@@ -235,10 +232,10 @@ async function runExampleWithInterception(example: {
   } catch (error: any) {
     const duration = Date.now() - startTime;
     console.log(`   ❌ Failed (${duration}ms)`);
-
+    
     // Extract HTTP transactions even from failed output
     const httpTransactions = extractHttpTransactions(error.stdout || '');
-
+    
     return {
       name: example.name,
       path: example.path,
@@ -253,9 +250,7 @@ async function runExampleWithInterception(example: {
     try {
       const fs = await import('fs');
       fs.unlinkSync(wrapperPath);
-    } catch {
-      /* empty */
-    }
+    } catch {}
   }
 }
 
@@ -279,58 +274,54 @@ function cleanOutput(output: string): string {
 const examples = [
   // Environment
   { name: 'Environment Configuration Demo', path: 'examples/environment-demo.ts' },
-
+  
   // Configuration
   { name: 'Configuration Listing', path: 'examples/config/config-listing.ts' },
   { name: 'Reload Configurations', path: 'examples/config/reload-configs.ts' },
-
+  
   // Execution
   { name: 'Basic Agent Execution', path: 'examples/execution/agent-basic.ts' },
   { name: 'Agent Streaming', path: 'examples/execution/agent-streaming.ts' },
   { name: 'Debug Planning Agent', path: 'examples/execution/debug-planning-agent.ts' },
-  { name: 'Linear Workflow', path: 'examples/execution/workflow-linear.ts' },
-
+  { name: 'Simple Workflow', path: 'examples/execution/workflow-simple.ts' },
+  
   // MCP Host
   { name: 'Server Management', path: 'examples/mcp-host/server-management.ts' },
   { name: 'Tool Execution', path: 'examples/mcp-host/tool-execution.ts' },
-
+  
   // System
   { name: 'Health Check', path: 'examples/system/health-check.ts' },
 ];
 
 async function main() {
   console.log('🎯 Aurite API Client - HTTP Request Analysis');
-  console.log('='.repeat(60));
+  console.log('=' .repeat(60));
   console.log(`📅 Date: ${new Date().toISOString()}`);
   console.log(`📁 Working Directory: ${process.cwd()}`);
   console.log(`🔧 Node Version: ${process.version}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API URL: ${process.env.AURITE_API_URL || 'http://localhost:8000'}`);
   console.log(`🔑 API Key: ${process.env.API_KEY ? '[SET]' : '[NOT SET]'}`);
-
+  
   const results: ExampleResult[] = [];
   const startTime = Date.now();
-
+  
   // Run all examples with HTTP interception
   for (const example of examples) {
     const result = await runExampleWithInterception(example);
     results.push(result);
   }
-
+  
   const totalDuration = Date.now() - startTime;
-
+  
   // Analyze HTTP transactions
   const allTransactions: HttpTransaction[] = [];
   results.forEach(r => allTransactions.push(...r.httpTransactions));
-
+  
   const totalRequests = allTransactions.length;
-  const successfulRequests = allTransactions.filter(
-    t => t.response && t.response.status < 400
-  ).length;
-  const failedRequests = allTransactions.filter(
-    t => t.error || (t.response && t.response.status >= 400)
-  ).length;
-
+  const successfulRequests = allTransactions.filter(t => t.response && t.response.status < 400).length;
+  const failedRequests = allTransactions.filter(t => t.error || (t.response && t.response.status >= 400)).length;
+  
   // Group by endpoint
   const endpointStats = new Map<string, { count: number; successes: number; failures: number }>();
   allTransactions.forEach(t => {
@@ -345,7 +336,7 @@ async function main() {
     }
     endpointStats.set(endpoint, stats);
   });
-
+  
   // Generate markdown report
   let markdown = `# Aurite API Client - HTTP Request Analysis Report
 
@@ -369,10 +360,7 @@ async function main() {
 |----------|-------|---------|--------|
 ${Array.from(endpointStats.entries())
   .sort((a, b) => b[1].count - a[1].count)
-  .map(
-    ([endpoint, stats]) =>
-      `| ${endpoint} | ${stats.count} | ${stats.successes} | ${stats.failures} |`
-  )
+  .map(([endpoint, stats]) => `| ${endpoint} | ${stats.count} | ${stats.successes} | ${stats.failures} |`)
   .join('\n')}
 
 ## Environment
@@ -394,69 +382,66 @@ ${results.map(r => `| ${r.name} | ${r.success ? '✅ Success' : '❌ Failed'} | 
 
   // Add detailed HTTP transaction logs
   for (const result of results) {
-    if (result.httpTransactions.length === 0) {
-      continue;
-    }
-
+    if (result.httpTransactions.length === 0) continue;
+    
     markdown += `\n### ${result.name}\n\n`;
-
+    
     for (const transaction of result.httpTransactions) {
       markdown += `#### Request #${transaction.request.id}\n\n`;
       markdown += `- **Method**: ${transaction.request.method}\n`;
       markdown += `- **URL**: ${transaction.request.url}\n`;
       markdown += `- **Timestamp**: ${transaction.request.timestamp}\n`;
       markdown += `- **Headers**:\n\`\`\`json\n${JSON.stringify(transaction.request.headers, null, 2)}\n\`\`\`\n`;
-
+      
       if (transaction.request.body) {
         markdown += `- **Body**:\n\`\`\`json\n${JSON.stringify(transaction.request.body, null, 2)}\n\`\`\`\n`;
       }
-
+      
       if (transaction.response) {
         markdown += `\n**Response**:\n`;
         markdown += `- **Status**: ${transaction.response.status} ${transaction.response.statusText}\n`;
         markdown += `- **Duration**: ${transaction.response.duration}ms\n`;
         markdown += `- **Headers**:\n\`\`\`json\n${JSON.stringify(transaction.response.headers, null, 2)}\n\`\`\`\n`;
-
+        
         if (transaction.response.body) {
           const bodyStr = JSON.stringify(transaction.response.body, null, 2);
-          const truncated =
-            bodyStr.length > 1000 ? `${bodyStr.substring(0, 1000)}\n... [truncated]` : bodyStr;
+          const truncated = bodyStr.length > 1000 ? bodyStr.substring(0, 1000) + '\n... [truncated]' : bodyStr;
           markdown += `- **Body**:\n\`\`\`json\n${truncated}\n\`\`\`\n`;
         }
       } else if (transaction.error) {
         markdown += `\n**Error**: ${transaction.error}\n`;
       }
-
+      
       markdown += '\n---\n';
     }
   }
-
+  
   // Add example outputs
   markdown += `\n## Example Outputs\n\n`;
-
+  
   for (const result of results) {
     markdown += `\n### ${result.name}\n\n`;
     markdown += `- **Path**: \`${result.path}\`\n`;
     markdown += `- **Status**: ${result.success ? '✅ Success' : '❌ Failed'}\n`;
     markdown += `- **Duration**: ${result.duration}ms\n`;
     markdown += `- **HTTP Requests**: ${result.httpTransactions.length}\n\n`;
-
+    
     if (result.output || result.error) {
       markdown += '#### Output\n\n```\n';
       if (result.output) {
         markdown += result.output;
       }
       if (result.error) {
-        markdown += `\n\n❌ ERROR:\n${result.error}`;
+        markdown += '\n\n❌ ERROR:\n' + result.error;
       }
       markdown += '\n```\n';
     }
   }
-
+  
   // Write report to file
   const reportPath = join(process.cwd(), 'http-request-analysis-report.md');
   writeFileSync(reportPath, markdown);
-
+  
   console.log(`\n\n📄 Report written to: ${reportPath}`);
   console.log('\n📊 Summary:');
   console.log(`   Total Examples: ${results.length}`);

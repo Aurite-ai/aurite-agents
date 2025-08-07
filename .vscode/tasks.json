@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "start-api",
+      "isBackground": true, // Add this
+      "problemMatcher": [],
+      "presentation": {
+        "group": "devGroup",
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+    },
+    {
+      "label": "Run Frontend",
+      "type": "shell",
+      "command": "sleep 5 && yarn dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true, // Add this
+      "problemMatcher": [],
+      "presentation": {
+        "group": "devGroup",
+        "panel": "dedicated",
+        "reveal": "always"
+      },
+    },
+    {
+      "label": "Run Dev",
+      "dependsOn": ["Run Backend", "Run Frontend"],
+      "dependsOrder": "parallel", // This should now work as expected
+      "group": {
+      },
+      "problemMatcher": [],
+      "presentation": {
+      }
+    }
+  ]
+}

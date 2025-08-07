@@ -18,30 +18,12 @@ A production-ready TypeScript client for the Aurite Framework API with comprehen
 
 ## Installation
 
-### Option 1: Install as NPM Package
-
 ```bash
 npm install @aurite/api-client
 # or
 yarn add @aurite/api-client
 # or
 pnpm add @aurite/api-client
-```
-
-### Option 2: Development within Workspace
-
-If you're working within the Aurite Framework repository:
-
-```bash
-# Clone the repository
-git clone https://github.com/aurite-ai/aurite-agents.git
-cd aurite-agents/frontend
-
-# Install dependencies for all packages
-npm install
-
-# Build all packages (required for workspace dependencies)
-npm run build
 ```
 
 ## Quick Start
@@ -68,7 +50,6 @@ console.log(result.final_response?.content);
 The client provides access to four main API modules:
 
 ### 🤖 Execution (`client.execution`)
-
 Execute agents and workflows with streaming support.
 
 ```typescript
@@ -81,7 +62,7 @@ const result = await client.execution.runAgent('Weather Agent', {
 await client.execution.streamAgent(
   'Weather Agent',
   { user_message: 'Tell me about the weather' },
-  event => {
+  (event) => {
     if (event.type === 'llm_response') {
       console.log(event.data.content);
     }
@@ -89,13 +70,12 @@ await client.execution.streamAgent(
 );
 
 // Execute workflows
-const workflowResult = await client.execution.runLinearWorkflow('Data Processing', {
-  input_data: { source: 'api', format: 'json' },
+const workflowResult = await client.execution.runSimpleWorkflow('Data Processing', {
+  input_data: { source: 'api', format: 'json' }
 });
 ```
 
 ### 🔧 Host (`client.host`)
-
 Manage MCP servers and tools.
 
 ```typescript
@@ -107,12 +87,11 @@ await client.host.registerServerByName('weather_server');
 
 // Call a tool directly
 const toolResult = await client.host.callTool('get_weather', {
-  location: 'San Francisco',
+  location: 'San Francisco'
 });
 ```
 
 ### ⚙️ Config (`client.config`)
-
 Manage configurations for agents, LLMs, and servers.
 
 ```typescript
@@ -126,12 +105,11 @@ const agentConfig = await client.config.getConfig('agent', 'Weather Agent');
 await client.config.createConfig('agent', {
   name: 'New Agent',
   llm: 'gpt-4',
-  system_prompt: 'You are a helpful assistant.',
+  system_prompt: 'You are a helpful assistant.'
 });
 ```
 
 ### 🔍 System (`client.system`)
-
 Monitor system health and manage the framework.
 
 ```typescript
@@ -179,7 +157,7 @@ Stream real-time responses from agents:
 await client.execution.streamAgent(
   'Weather Agent',
   { user_message: 'Tell me about the weather' },
-  event => {
+  (event) => {
     switch (event.type) {
       case 'llm_response':
         console.log('LLM Response:', event.data.content);
@@ -205,15 +183,18 @@ Configure the client with custom options:
 ```typescript
 import { createAuriteClient } from '@aurite/api-client';
 
-const client = createAuriteClient('http://localhost:8000', 'your-api-key', {
-  timeout: 30000, // 30 second timeout
-  retryAttempts: 3, // Retry failed requests 3 times
-  retryDelay: 1000, // Wait 1 second between retries
-  headers: {
-    // Custom headers
-    'User-Agent': 'MyApp/1.0.0',
-  },
-});
+const client = createAuriteClient(
+  'http://localhost:8000',
+  'your-api-key',
+  {
+    timeout: 30000,        // 30 second timeout
+    retryAttempts: 3,      // Retry failed requests 3 times
+    retryDelay: 1000,      // Wait 1 second between retries
+    headers: {             // Custom headers
+      'User-Agent': 'MyApp/1.0.0'
+    }
+  }
+);
 ```
 
 ## Examples
@@ -243,7 +224,7 @@ npm run example:integration
   - Debug and troubleshooting
 
 - **Workflow Management**: `examples/execution/`
-  - Linear workflow execution
+  - Simple workflow execution
   - Custom workflow handling
 
 - **MCP Server Management**: `examples/mcp-host/`
@@ -273,21 +254,11 @@ Create a `.env` file:
 
 ```bash
 # API Configuration
-AURITE_API_URL=http://localhost:8000
-API_KEY=your_api_key_here
+AURITE_API_BASE_URL=http://localhost:8000
+AURITE_API_KEY=your_api_key_here
 
 # Environment
 NODE_ENV=development
-```
-
-### Workspace Development
-
-When developing within the Aurite Framework workspace, you can also run examples and tests from the frontend root:
-
-```bash
-# From frontend root directory
-npm run example --workspace=packages/api-client
-npm run test:integration --workspace=packages/api-client
 ```
 
 ### Building
@@ -362,7 +333,7 @@ createAuriteClient(baseUrl: string, apiKey: string, options?: ClientOptions): Au
 - `getStatus()` - Get execution facade status
 - `runAgent(name, request)` - Run an agent synchronously
 - `streamAgent(name, request, onEvent)` - Stream agent responses
-- `runLinearWorkflow(name, request)` - Run a linear workflow
+- `runSimpleWorkflow(name, request)` - Run a simple workflow
 - `runCustomWorkflow(name, request)` - Run a custom workflow
 
 #### Host Client (`client.host`)
@@ -401,27 +372,23 @@ createAuriteClient(baseUrl: string, apiKey: string, options?: ClientOptions): Au
 The client exports comprehensive TypeScript types:
 
 ### Core Types
-
 - `ApiConfig` - Client configuration options
 - `RequestOptions` - Request-specific options
 - `ConfigType` - Configuration type enumeration
 - `ExecutionStatus` - Execution status enumeration
 
 ### Request Types
-
 - `AgentRunRequest` - Agent execution request
 - `WorkflowRunRequest` - Workflow execution request
 - `ToolCallArgs` - Tool call arguments
 
 ### Response Types
-
 - `AgentRunResult` - Agent execution result
 - `WorkflowExecutionResult` - Workflow execution result
 - `StreamEvent` - Streaming event types
 - `ToolCallResult` - Tool call result
 
 ### Error Types
-
 - `ApiError` - API-related errors
 - `TimeoutError` - Request timeout errors
 - `CancellationError` - Request cancellation errors
@@ -431,7 +398,6 @@ The client exports comprehensive TypeScript types:
 ### Common Issues
 
 **Connection Errors:**
-
 ```typescript
 // Ensure the API server is running and accessible
 const client = createAuriteClient('http://localhost:8000', 'your-key');
@@ -443,18 +409,16 @@ try {
 ```
 
 **Authentication Errors:**
-
 ```typescript
 // Verify your API key is correct
 const client = createAuriteClient(baseUrl, 'correct-api-key');
 ```
 
 **Timeout Issues:**
-
 ```typescript
 // Increase timeout for long-running operations
 const client = createAuriteClient(baseUrl, apiKey, {
-  timeout: 60000, // 60 seconds
+  timeout: 60000 // 60 seconds
 });
 ```
 
@@ -468,7 +432,7 @@ process.env.DEBUG = 'aurite:*';
 
 // Or enable in code
 const client = createAuriteClient(baseUrl, apiKey, {
-  debug: true,
+  debug: true
 });
 ```
 
@@ -496,10 +460,10 @@ MIT License - see [LICENSE](../../LICENSE) file for details.
 
 ## Links
 
-- **Repository**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
-- **Documentation**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
+- **Repository**: [https://github.com/aurite/aurite-agents](https://github.com/aurite/aurite-agents)
+- **Documentation**: [https://aurite.dev](https://aurite.dev)
 - **NPM Package**: [https://www.npmjs.com/package/@aurite/api-client](https://www.npmjs.com/package/@aurite/api-client)
-- **Issues**: [GitHub Issues](https://github.com/aurite-ai/aurite-agents/issues)
+- **Issues**: [GitHub Issues](https://github.com/aurite/aurite-agents/issues)
 - **API Reference**: [API Documentation](../../../docs/usage/api_reference.md)
 
 ## Changelog

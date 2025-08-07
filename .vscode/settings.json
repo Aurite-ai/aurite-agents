@@ -16,11 +16,8 @@
     "**/.venv/**": true,
     "notebook-venv/**": true,
     "**/*.egg-info/**": true,
-    "**/py.typed": true,
-    "**/.mypy_cache/**": true
+    "**/.mypy_cache/**": true,
   },
-
-  "markdownAdmonitions.enable": true,
 
   "ruff.lint.ignore": ["F841", "E722"],
   "fileNestingUpdater.autoUpdate": true,
@@ -35,7 +32,7 @@
     "Dockerfile": "Dockerfile.dev, .dockerignore, docker-compose*",
     "pyproject.toml": "poetry.lock, justfile, setup.sh, setup.bat, .pre-commit-config.yaml, .flake8, .isort.cfg, .mypy.ini, .pylintrc, .bandit, .coveragerc, MANIFEST.in",
     ".env": ".env*",
-    "README.md": "usage_guide.md, openapi.yaml, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md, claude.md, mkdocs.yml"
+    "README.md": "usage_guide.md, openapi.yaml, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md, claude.md"
   },
   "files.associations": {
     "*.css": "ansi",
@@ -52,13 +49,9 @@
       "source.organizeImports.ruff": "explicit"
     }
   },
-  "[markdown]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": false // Disable format on save specifically if needed
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -87,6 +80,5 @@
   "[dockerfile]": {
     // Keep existing specific settings
     "editor.formatOnSave": false
-  },
-  "postman.settings.dotenv-detection-notification-visibility": false
+  }
 }

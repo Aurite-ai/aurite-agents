@@ -107,8 +107,7 @@ export class BaseClient {
           );
 
           // Check if this is a retryable error
-          const isRetryable = (response.status >= 500 || response.status === 429) && 
-                             apiError.shouldRetry();
+          const isRetryable = response.status >= 500 || response.status === 429;
 
           if (isRetryable && attempt < retries) {
             lastError = apiError;

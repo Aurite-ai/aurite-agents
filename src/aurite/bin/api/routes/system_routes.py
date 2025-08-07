@@ -13,12 +13,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import BaseModel
 
-from ...dependencies import get_api_key, get_aurite
+from ...dependencies import get_api_key, get_host_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/system", tags=["System Management"])
+router = APIRouter()
 
 
 class SystemInfo(BaseModel):
@@ -618,7 +618,7 @@ async def list_active_processes(api_key: str = Security(get_api_key)):
 @router.get("/health", response_model=HealthCheckResult)
 async def comprehensive_health_check(
     api_key: str = Security(get_api_key),
-    aurite=Depends(get_aurite),
+    host_manager=Depends(get_host_manager),
 ):
     """
     Perform a comprehensive health check of all system components.
@@ -629,12 +629,12 @@ async def comprehensive_health_check(
     # Check API health
     components["api"] = {
         "status": "healthy",
-        "uptime": time.time() - aurite._start_time if hasattr(aurite, "_start_time") else 0,
+        "uptime": time.time() - host_manager._start_time if hasattr(host_manager, "_start_time") else 0,
     }
 
     # Check ConfigManager
     try:
-        config_manager = aurite.get_config_manager()
+        config_manager = host_manager.get_config_manager()
         components["config_manager"] = {
             "status": "healthy",
             "project_root": str(config_manager.project_root),
@@ -649,8 +649,8 @@ async def comprehensive_health_check(
 
     # Check MCPHost
     try:
-        if aurite.kernel.host:
-            host = aurite.kernel.host
+        if host_manager.kernel.host:
+            host = host_manager.kernel.host
             components["mcp_host"] = {
                 "status": "healthy",
                 "registered_servers": len(host.registered_server_names),
@@ -669,9 +669,9 @@ async def comprehensive_health_check(
         }
         issues.append(f"MCPHost error: {e}")
 
-    # Check AuriteEngine
+    # Check ExecutionFacade
     try:
-        if aurite.kernel.execution:
+        if host_manager.kernel.execution:
             components["execution_facade"] = {
                 "status": "healthy",
                 "ready": True,
@@ -679,15 +679,15 @@ async def comprehensive_health_check(
         else:
             components["execution_facade"] = {
                 "status": "degraded",
-                "error": "AuriteEngine not initialized",
+                "error": "ExecutionFacade not initialized",
             }
-            issues.append("AuriteEngine not initialized")
+            issues.append("ExecutionFacade not initialized")
     except Exception as e:
         components["execution_facade"] = {
             "status": "unhealthy",
             "error": str(e),
         }
-        issues.append(f"AuriteEngine error: {e}")
+        issues.append(f"ExecutionFacade error: {e}")
 
     # Check database connectivity
     try:

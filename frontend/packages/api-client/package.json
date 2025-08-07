@@ -62,19 +62,19 @@
   ],
   "author": {
     "name": "Aurite Team",
-    "email": "team@aurite.ai",
-    "url": "https://aurite.ai"
+    "email": "team@aurite.dev",
+    "url": "https://aurite.dev"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aurite-ai/aurite-agents.git",
+    "url": "https://github.com/aurite/aurite-agents.git",
     "directory": "frontend/packages/api-client"
   },
   "bugs": {
-    "url": "https://github.com/aurite-ai/aurite-agents/issues"
+    "url": "https://github.com/aurite/aurite-agents/issues"
   },
-  "homepage": "https://aurite.ai",
+  "homepage": "https://aurite.dev",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

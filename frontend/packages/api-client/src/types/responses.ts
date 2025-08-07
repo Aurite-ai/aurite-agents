@@ -21,8 +21,6 @@ export interface AgentRunResult {
   }>;
   /** Error message if the execution failed */
   error_message?: string;
-  /** Session ID for the execution */
-  session_id?: string;
 }
 
 /**
@@ -35,16 +33,12 @@ export interface WorkflowExecutionResult {
   step_results: Array<{
     step_name: string;
     step_type: string;
-    status: 'success' | 'failed';
     result?: any;
-    error?: string;
   }>;
   /** Final output from the workflow */
   final_output?: any;
   /** Error message if the workflow failed */
   error?: string;
-  /** Session ID for the workflow execution */
-  session_id?: string;
 }
 
 /**

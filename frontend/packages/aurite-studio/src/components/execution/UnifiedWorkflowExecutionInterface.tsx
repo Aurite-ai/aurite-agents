@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  WorkflowExecutionState,
+import { 
+  WorkflowExecutionState, 
   WorkflowExecutionRequest,
   UnifiedWorkflowExecutionInterfaceProps
 } from '@/types/execution';
@@ -25,7 +25,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
   });
 
   // Get both execution hooks
-  const executeLinearWorkflow = useExecuteWorkflow();
+  const executeSimpleWorkflow = useExecuteWorkflow();
   const executeCustomWorkflow = useExecuteCustomWorkflow();
 
   const handleExecute = async (request: WorkflowExecutionRequest) => {
@@ -35,7 +35,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
     }
 
     console.log('🚀 Executing workflow with request:', request);
-
+    
     // Update execution state to show we're starting - clear all previous state
     setExecutionState(prev => ({
       ...prev,
@@ -53,7 +53,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
       // Determine workflow type and use appropriate execution method
       const isCustomWorkflow = workflow.type === 'custom_workflow';
       console.log(`🔍 Workflow type: ${workflow.type}, isCustomWorkflow: ${isCustomWorkflow}`);
-
+      
       let result: any;
       if (isCustomWorkflow) {
         // Execute custom workflow
@@ -64,8 +64,8 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
           }
         });
       } else {
-        // Execute linear workflow
-        result = await executeLinearWorkflow.mutateAsync({
+        // Execute simple workflow
+        result = await executeSimpleWorkflow.mutateAsync({
           workflowName: workflow.name,
           request: {
             initial_input: request.initial_input,
@@ -87,7 +87,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
         finalMessage = (result as any).result || 'Custom workflow completed successfully';
         resultHistory = [];
       } else {
-        // Linear workflow response structure
+        // Simple workflow response structure
         stepResults = (result as any).step_results || [];
         finalMessage = (result as any).final_message;
         resultHistory = (result as any).history || [];
@@ -101,12 +101,12 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
 
       // Map API step results to UI format
       let mappedStepResults: any[] = [];
-
+      
       if (stepResults.length > 0) {
         // Use actual step results if available
         mappedStepResults = stepResults.map((apiStepResult: any, index: number) => {
-          const stepName = apiStepResult.step_name ||
-            (typeof workflow.steps?.[index] === 'string'
+          const stepName = apiStepResult.step_name || 
+            (typeof workflow.steps?.[index] === 'string' 
               ? workflow.steps[index] as string
               : (workflow.steps?.[index] as any)?.name || `Step ${index + 1}`);
 
@@ -139,7 +139,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
         console.log('🔄 No step results from API, creating mock steps based on workflow config');
         mappedStepResults = (workflow.steps || []).map((step, index) => {
           const stepName = typeof step === 'string' ? step : step.name || `Step ${index + 1}`;
-
+          
           return {
             stepIndex: index,
             stepName: stepName,
@@ -150,7 +150,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
             input: index === 0 ? request.initial_input : `Output from ${stepName}`,
             result: {
               final_response: {
-                content: index === (workflow.steps?.length || 1) - 1
+                content: index === (workflow.steps?.length || 1) - 1 
                   ? finalMessage || 'Workflow completed successfully'
                   : `${stepName} completed successfully`
               },
@@ -196,7 +196,7 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
 
     } catch (error) {
       console.error('❌ Workflow execution failed:', error);
-
+      
       setExecutionState(prev => ({
         ...prev,
         status: 'failed',
@@ -243,27 +243,27 @@ export const UnifiedWorkflowExecutionInterface: React.FC<UnifiedWorkflowExecutio
               <h2 className="text-xl font-semibold text-foreground">
                 🔄 Execute Workflow: {workflow.name}
               </h2>
-              <Button
-                variant="ghost"
-                size="icon"
+              <Button 
+                variant="ghost" 
+                size="icon" 
                 onClick={handleClose}
                 className="h-8 w-8"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
-
+            
             {/* Main Content - Side by Side */}
             <div className="flex-1 flex overflow-hidden">
               {/* Left Panel - Workflow Input (40%) */}
               <div className="w-2/5 border-r border-border overflow-y-auto">
-                <WorkflowInputPanel
+                <WorkflowInputPanel 
                   workflow={workflow}
                   onExecute={handleExecute}
                   disabled={executionState.status !== 'idle' && executionState.status !== 'completed' && executionState.status !== 'failed'}
                 />
               </div>
-
+              
               {/* Right Panel - Execution (60%) */}
               <div className="flex-1 flex flex-col">
                 <WorkflowExecutionPanel

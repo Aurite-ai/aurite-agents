@@ -1,123 +1,117 @@
-# :material-server-network: MCP Server Configuration
+# MCP Server Configuration
 
 MCP (Model-Context-Protocol) Servers are the backbone of an agent's capabilities. They are responsible for providing the tools, prompts, and resources that an agent can use to perform tasks. Each `mcp_server` configuration tells the framework how to connect to and interact with a specific server.
 
 An MCP server configuration is a JSON or YAML object with a `type` field set to `"mcp_server"`.
 
-!!! tip "Configuration Location"
+## Core Fields
 
-    MCP Server configurations can be placed in any directory specified in your project's `.aurite` file (e.g., `config/mcp_servers/`). The framework will automatically discover them.
+### `name`
+**Type:** `string` (Required)
+**Description:** A unique identifier for the MCP server. This name is used in an agent's `mcp_servers` list to grant it access to this server. This name will used as a prefix for tools when shown to agents (e.g. `calculator_server-add`)
 
----
+```json
+{
+  "name": "file-system-server"
+}
+```
 
-## Schema
+### `capabilities`
+**Type:** `list[string]` (Required)
+**Description:** A list of the types of components this server provides. Accepted values are `"tools"`, `"prompts"`, and `"resources"`.
 
-<!-- prettier-ignore -->
-!!! info "Transport Types"
-    The `ClientConfig` model defines the structure for an MCP server configuration. There are three main transport types: `stdio`, `http_stream`, and `local`. Each transport type has its own required fields. The framework will infer the transport type based on the fields you provide.
+```json
+{
+  "capabilities": ["tools", "resources"]
+}
+```
 
-=== ":material-format-list-bulleted-type: Core Fields"
+### `description`
+**Type:** `string` (Optional)
+**Description:** A brief, human-readable description of the server's purpose.
 
-    These fields define the fundamental properties of the server.
+```json
+{
+  "description": "A server that provides tools for reading and writing to the local file system."
+}
+```
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
-    | `name` | `string` | Yes | A unique identifier for the MCP server. This name is used in an agent's `mcp_servers` list and as a prefix for its components (e.g., `my_server-tool_name`). |
-    | `description` | `string` | No | A brief, human-readable description of the server's purpose. |
-    | `capabilities` | `list[string]` | Yes | A list of the types of components this server provides. Accepted values are `"tools"`, `"prompts"`, and `"resources"`. |
+### Stdio Transport
 
-=== ":material-transit-connection-variant: Transport Types"
+This is the most common transport for running local Python scripts as servers.
 
-    You must configure one of the following transport types. The framework will automatically infer the `transport_type` based on the fields you provide.
+**`server_path`**
+**Type:** `string` (Required for stdio)
+**Description:** The path to the Python script that runs the MCP server. This path can be relative to the `.aurite` file of its context.
 
-    ---
-    **`stdio`**
+```json
+{
+  "name": "weather-server",
+  "server_path": "mcp_servers/weather_server.py",
+  "capabilities": ["tools"]
+}
+```
 
-    This is the most common transport for running local Python scripts as servers.
+### HTTP Stream Transport
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
-    | `server_path` | `string` or `Path` | Yes | The path to the Python script that runs the MCP server. This path can be relative to the `.aurite` file of its context. |
+This transport is used for connecting to servers that are already running and accessible via an HTTP endpoint.
 
-    ---
-    **`http_stream`**
+**`http_endpoint`**
+**Type:** `string` (Required for http_stream)
+**Description:** The full URL of the server's streaming endpoint.
 
-    This transport is used for connecting to servers that are already running and accessible via an HTTP endpoint.
+**`headers`**
+**Type:** `object` (Optional)
+**Description:** A dictionary of HTTP headers to include in the request (e.g., for authentication).
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
-    | `http_endpoint` | `string` | Yes | The full URL of the server's streaming endpoint. |
-    | `headers` | `dict[str, str]` | No | A dictionary of HTTP headers to include in the request (e.g., for authentication). |
+```json
+{
+  "name": "notion-api-server",
+  "http_endpoint": "https://api.notion.com/v1/mcp",
+  "headers": {
+    "Authorization": "Bearer {NOTION_API_KEY}"
+  },
+  "capabilities": ["tools"]
+}
+```
 
-    ---
-    **`local`**
+### Local Command Transport
 
-    This transport is for running any executable command as a server.
+This transport is for running any executable command as a server.
 
-    | Field | Type | Required | Description |
-    | --- | --- | --- | --- |
-    | `command` | `string` | Yes | The command or executable to run. |
-    | `args` | `list[string]` | No | A list of arguments to pass to the command. |
+**`command`**
+**Type:** `string` (Required for local)
+**Description:** The command or executable to run.
 
-=== ":material-cogs: Advanced Fields"
+**`args`**
+**Type:** `list[string]` (Optional)
+**Description:** A list of arguments to pass to the command.
 
-    These fields provide fine-grained control over the server's behavior.
+```json
+{
+  "name": "my-custom-binary-server",
+  "command": "bin/my_server",
+  "args": ["--port", "8080"],
+  "capabilities": ["tools"]
+}
+```
 
-    | Field | Type | Default | Description |
-    | --- | --- | --- | --- |
-    | `timeout` | `float` | `10.0` | The default timeout in seconds for operations (like tool calls) sent to this server. |
-    | `registration_timeout` | `float` | `30.0` | The timeout in seconds for registering this server. |
-    | `exclude` | `list[string]` | `None` | A list of component names (tools, prompts, or resources) to exclude from this server's offerings. |
-    | `roots` | `list[object]` | `[]` | A list of root objects describing the server's capabilities. This is typically auto-discovered and rarely needs to be set manually. |
+## Advanced Fields
 
----
+### `timeout`
+**Type:** `float` (Optional)
+**Default:** `10.0`
+**Description:** The default timeout in seconds for operations (like tool calls) sent to this server.
 
-## :material-code-json: Configuration Examples
+### `registration_timeout`
+**Type:** `float` (Optional)
+**Default:** `30.0`
+**Description:** The default timeout in seconds for registering this server.
 
-Here are some practical examples for each transport type.
+### `exclude`
+**Type:** `list[string]` (Optional)
+**Description:** A list of component names (tools, prompts, or resources) to exclude from this server's offerings. This is useful if a server script provides many tools, but you only want to expose a subset of them in this particular configuration.
 
-=== "Stdio Transport"
-
-    This example runs a local Python script as an MCP server.
-
-    ```json
-    {
-      "type": "mcp_server",
-      "name": "weather-server",
-      "description": "Provides weather forecast tools.",
-      "server_path": "mcp_servers/weather_server.py",
-      "capabilities": ["tools"]
-    }
-    ```
-
-=== "HTTP Stream Transport"
-
-    This example connects to a custom running service. Note the use of an environment variable in the header for authentication.
-
-    ```json
-    {
-      "type": "mcp_server",
-      "name": "my-remote-service",
-      "description": "Connects to a custom remote service.",
-      "http_endpoint": "https://my-custom-service.com/mcp",
-      "headers": {
-        "X-API-Key": "{MY_SERVICE_API_KEY}"
-      },
-      "capabilities": ["tools", "resources"]
-    }
-    ```
-
-=== "Local Command Transport"
-
-    This example runs a pre-compiled binary as a server.
-
-    ```json
-    {
-      "type": "mcp_server",
-      "name": "my-custom-binary-server",
-      "description": "A server running from a custom binary.",
-      "command": "bin/my_server",
-      "args": ["--port", "8080"],
-      "capabilities": ["tools"]
-    }
-    ```
+### `roots`
+**Type:** `list[object]` (Optional)
+**Description:** A list of root objects that describe the server's capabilities in more detail. This is typically auto-discovered from the server and rarely needs to be set manually. Each root object contains a `uri`, `name`, and `capabilities`.

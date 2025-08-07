@@ -20,7 +20,7 @@ Whether you're creating advanced AI assistants, automating processes, or experim
 -   **Declarative Components:** Define agents, LLMs, tools, and workflows in simple JSON or YAML files.
 -   **Interactive CLI & TUIs:** A rich command-line interface (`aurite`) and two built-in Textual User Interfaces (TUIs) for interactive chat and configuration editing.
 -   **Extensible Tooling:** Connect to any tool or service using the **Model Context Protocol (MCP)**, with built-in support for local and remote servers.
--   **Flexible Orchestration:** Chain agents together in `linear_workflows` for sequential tasks or write custom Python logic in `custom_workflows` for complex orchestration.
+-   **Flexible Orchestration:** Chain agents together in `simple_workflows` for sequential tasks or write custom Python logic in `custom_workflows` for complex orchestration.
 -   **REST API:** A comprehensive FastAPI server that exposes all framework functionality for programmatic access and UI development.
 
 ## Getting Started
@@ -59,37 +59,16 @@ Your application is built by defining and combining different types of component
 -   **[Agents](docs/config/agent.md):** The core actors, powered by an LLM and capable of using tools.
 -   **[LLMs](docs/config/llm.md):** Configurations for different language models (e.g., GPT-4, Claude 3).
 -   **[MCP Servers](docs/config/mcp_server.md):** Connections to external tools and resources.
--   **[Linear Workflows](docs/config/linear_workflow.md):** A sequence of agents to be executed in order.
+-   **[Simple Workflows](docs/config/simple_workflow.md):** A sequence of agents to be executed in order.
 -   **[Custom Workflows](docs/config/custom_workflow.md):** Complex orchestration logic defined in your own Python code.
 
 ### 3. Interfaces
 
 Aurite provides multiple ways to interact with the framework:
 
--   [**Web Interface (Aurite Studio)**](frontend/packages/aurite-studio/): Modern React web application for visual agent management, workflow design, and real-time execution monitoring.
--   [**TypeScript/JavaScript API**](frontend/packages/api-client/): Production-ready API client for building web applications and integrations with full type safety and streaming support.
 -   [**Command-Line Interface (CLI)**](docs/usage/cli_reference.md): The primary tool for managing your projects. Use it to `init`, `list`, `show`, `run`, and `edit` your components.
 -   [**Textual User Interfaces (TUIs)**](docs/usage/tui_guide.md): Rich, in-terminal applications for interactive chat with agents (`aurite run <agent_name>`) and live configuration editing (`aurite edit`).
 -   [**REST API**](docs/usage/api_reference.md): A complete FastAPI server (`aurite api`) that exposes all framework functionality for UIs and programmatic control.
-
-## Frontend Framework
-
-Aurite includes a comprehensive **TypeScript/JavaScript frontend ecosystem** that provides both programmatic access and visual interfaces for the Python framework.
-
-### Frontend Packages
-
--   **[@aurite/api-client](frontend/packages/api-client/)** - Production-ready TypeScript client library with full type safety, retry logic, and streaming support for all framework APIs.
--   **[@aurite/aurite-studio](frontend/packages/aurite-studio/)** - Modern React web interface providing visual management and execution of agents, workflows, and configurations.
-
-### Key Frontend Features
-
--   🔒 **Type Safety**: Full TypeScript support with comprehensive type definitions
--   🔄 **Real-time Streaming**: Live agent responses and execution monitoring
--   🎨 **Modern UI**: Intuitive React interface with responsive design
--   🧪 **Production Ready**: Extensive testing, error handling, and deployment tools
--   📖 **Rich Examples**: Comprehensive examples and integration guides
-
-For complete setup instructions, examples, and API documentation, see the [**Frontend Documentation**](frontend/README.md).
 
 ## Architecture Overview
 
@@ -105,10 +84,6 @@ For a deep dive into the framework's design, see the [**Architecture Overview**]
     -   [Package Installation](docs/getting-started/installation_guides/package_installation_guide.md)
     -   [Repository Installation](docs/getting-started/installation_guides/repository_installation_guide.md)
     -   [Tutorials](docs/getting-started/tutorials/Tutorials_Overview.md)
--   **Frontend**
-    -   [Frontend Overview](frontend/README.md)
-    -   [API Client Documentation](frontend/packages/api-client/README.md)
-    -   [Aurite Studio Guide](frontend/packages/aurite-studio/README.md)
 -   **Usage Guides**
     -   [CLI Reference](docs/usage/cli_reference.md)
     -   [TUI Guide](docs/usage/tui_guide.md)
@@ -118,7 +93,7 @@ For a deep dive into the framework's design, see the [**Architecture Overview**]
     -   [Agent Config](docs/config/agent.md)
     -   [LLM Config](docs/config/llm.md)
     -   [MCP Server Config](docs/config/mcp_server.md)
-    -   [Linear Workflow Config](docs/config/linear_workflow.md)
+    -   [Simple Workflow Config](docs/config/simple_workflow.md)
     -   [Custom Workflow Config](docs/config/custom_workflow.md)
 -   **Architecture**
     -   [Architecture Overview](docs/architecture/overview.md)

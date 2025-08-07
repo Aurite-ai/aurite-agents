@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,6 @@ interface AgentFormProps {
 export default function AgentForm({ editMode = false }: AgentFormProps) {
   const navigate = useNavigate();
   const { name: agentNameParam } = useParams<{ name: string }>();
-  const [searchParams] = useSearchParams();
   
   // Form state
   const [agentFormName, setAgentFormName] = useState('');
@@ -40,12 +39,9 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   const [showAgentDeleteConfirmation, setShowAgentDeleteConfirmation] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState<any>(null);
 
-  // Ref for auto-focus functionality
-  const maxIterationsRef = useRef<HTMLInputElement>(null);
-
   // API Hooks
-  const { data: clients = [] } = useClientsWithStatus();
-  const { data: llms = [] } = useLLMsWithConfigs();
+  const { data: clients = [], isLoading: clientsLoading } = useClientsWithStatus();
+  const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
   
   // Agent-specific hooks
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
@@ -60,12 +56,25 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   // Effect to populate form when agent config is loaded in edit mode
   useEffect(() => {
     if (editMode && agentConfig && agentNameParam && !formPopulated) {
+      console.log('🔄 Populating agent form with config:', agentConfig);
+      
       // Safely extract agent name according to canonical AgentConfig model
       const safeName = typeof agentConfig.name === 'string' 
         ? agentConfig.name 
         : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
           ? String((agentConfig.name as any).name)
           : String(agentConfig.name || 'Unknown Agent');
+      
+      console.log('📝 Setting form fields:', {
+        name: safeName,
+        system_prompt: agentConfig.system_prompt,
+        mcp_servers: agentConfig.mcp_servers,
+        max_iterations: agentConfig.max_iterations,
+        llm_config_id: agentConfig.llm_config_id,
+        model: agentConfig.model,
+        temperature: agentConfig.temperature,
+        max_tokens: agentConfig.max_tokens
+      });
       
       // Populate basic form fields
       setAgentFormName(safeName);
@@ -76,6 +85,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       // Handle LLM configuration with improved logic
       if (agentConfig.llm_config_id) {
         // Agent uses existing LLM configuration
+        console.log('✅ Using existing LLM config:', agentConfig.llm_config_id);
         setLlmConfigOption('existing');
         setSelectedLLMConfig(agentConfig.llm_config_id);
         
@@ -85,6 +95,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         setInlineMaxTokens('');
       } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens !== undefined) {
         // Agent uses inline LLM parameters
+        console.log('✅ Using inline LLM parameters');
         setLlmConfigOption('inline');
         setInlineModel(agentConfig.model || '');
         setInlineTemperature(agentConfig.temperature?.toString() || '');
@@ -94,6 +105,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         setSelectedLLMConfig('');
       } else {
         // No LLM configuration found - default to existing mode
+        console.log('⚠️ No LLM configuration found, defaulting to existing mode');
         setLlmConfigOption('existing');
         setSelectedLLMConfig('');
         setInlineModel('');
@@ -103,8 +115,9 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
+      console.log('✅ Agent form populated successfully');
     } else if (editMode && agentNameParam && !agentConfig && !configLoading) {
-      // Failed to load agent config
+      console.log('❌ Failed to load agent config for:', agentNameParam);
     }
   }, [agentConfig, agentNameParam, editMode, configLoading, formPopulated]);
 
@@ -127,23 +140,6 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
     }
   }, [editMode, formPopulated]);
 
-  // Auto-focus Max Iterations field when focus=max_iterations URL parameter is present
-  useEffect(() => {
-    const focusParam = searchParams.get('focus');
-    if (focusParam === 'max_iterations' && formPopulated && maxIterationsRef.current) {
-      // Small delay to ensure the form is fully rendered
-      setTimeout(() => {
-        maxIterationsRef.current?.focus();
-        maxIterationsRef.current?.select();
-        // Scroll to the field
-        maxIterationsRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }, 500);
-    }
-  }, [searchParams, formPopulated]);
-
   const handleSubmit = () => {
     // Build the agent config object
     const agentConfig = {
@@ -161,6 +157,8 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       } : {})
     };
 
+    console.log('💾 Saving agent config:', agentConfig);
+
     if (editMode && agentNameParam) {
       // Edit mode - update existing agent using PUT method
       updateAgent.mutate({
@@ -168,6 +166,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         config: agentConfig
       }, {
         onSuccess: () => {
+          console.log('✅ Agent config updated successfully');
           navigate('/agents');
         },
         onError: (error) => {
@@ -178,6 +177,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       // Create mode - create new agent using POST method
       createAgent.mutate(agentConfig, {
         onSuccess: () => {
+          console.log('✅ New agent config created successfully');
           navigate('/agents');
         },
         onError: (error) => {
@@ -448,43 +448,35 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
 
               {llmConfigOption === 'inline' && (
                 <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">Model</Label>
+                    <Input
+                      placeholder="e.g., gpt-4, claude-3-opus"
+                      value={inlineModel}
+                      onChange={(e) => setInlineModel(e.target.value)}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-foreground">Model</Label>
+                      <Label className="text-sm font-medium text-foreground">Temperature</Label>
                       <Input
-                        placeholder="e.g., gpt-4, claude-3-opus"
-                        value={inlineModel}
-                        onChange={(e) => setInlineModel(e.target.value)}
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="2"
+                        placeholder="0.7"
+                        value={inlineTemperature}
+                        onChange={(e) => setInlineTemperature(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-foreground">Max Tokens</Label>
                       <Input
                         type="number"
-                        min="1"
-                        max="32768"
                         placeholder="2048"
                         value={inlineMaxTokens}
                         onChange={(e) => setInlineMaxTokens(e.target.value)}
                       />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Temperature: {inlineTemperature || '0.7'}</Label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={inlineTemperature || '0.7'}
-                      onChange={(e) => setInlineTemperature(e.target.value)}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Focused (0.0)</span>
-                      <span>Balanced (1.0)</span>
-                      <span>Creative (2.0)</span>
                     </div>
                   </div>
                 </div>
@@ -501,23 +493,14 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
               <h2 className="text-lg font-semibold text-primary">Other Parameters</h2>
               
               <div className="space-y-2">
-                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations: {maxIterations}</Label>
-                <input
+                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations</Label>
+                <Input
                   id="max-iterations"
-                  ref={maxIterationsRef}
-                  type="range"
-                  min="1"
-                  max="100"
-                  step="1"
+                  type="number"
                   value={maxIterations}
                   onChange={(e) => setMaxIterations(e.target.value)}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  className="text-base"
                 />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Quick (1)</span>
-                  <span>Moderate (50)</span>
-                  <span>Extended (100)</span>
-                </div>
               </div>
             </motion.div>
 

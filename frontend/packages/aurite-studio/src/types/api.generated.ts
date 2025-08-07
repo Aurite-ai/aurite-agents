@@ -13,7 +13,7 @@ export interface ProjectConfig {
   mcp_servers?: Record<string, any>;
   agents?: Record<string, any>;
   llms?: Record<string, any>;
-  linear_workflows?: Record<string, any>;
+  simple_workflows?: Record<string, any>;
   custom_workflows?: Record<string, any>;
 }
 
@@ -36,7 +36,7 @@ export interface AgentConfig {
 
   // LLM Configuration
   llm_config_id?: string;
-
+  
   // LLM Override Parameters (optional, overrides llm_config_id settings)
   model?: string;
   temperature?: number;
@@ -67,13 +67,12 @@ export interface AgentExecutionResult {
   };
   error?: string | null;
   history?: any[];
-  session_id?: string;
 }
 
 // Workflow types
 export interface WorkflowConfig {
   name: string;
-  type: "linear_workflow";
+  type: "simple_workflow";
   steps: string[];
   description?: string;
 }
@@ -84,7 +83,7 @@ export interface WorkflowDisplayModel {
   description?: string;
   stepCount: number;
   stepPreview: string; // "Agent A → Agent B → Agent C"
-  type: 'linear_workflow' | 'custom_workflow';
+  type: 'simple_workflow' | 'custom_workflow';
   status: 'active' | 'inactive' | 'error';
   configFile?: string;
 }
@@ -193,9 +192,9 @@ export interface MCPServerLocalConfig extends Omit<MCPServerConfig, 'transport_t
 }
 
 // Union type for type-safe transport handling
-export type MCPServerTransportConfig =
-  | MCPServerStdioConfig
-  | MCPServerHttpConfig
+export type MCPServerTransportConfig = 
+  | MCPServerStdioConfig 
+  | MCPServerHttpConfig 
   | MCPServerLocalConfig;
 
 // Form fields interface for React components
@@ -204,21 +203,21 @@ export interface MCPServerFormFields {
   name: string;
   description: string;
   capabilities: string[];
-
+  
   // Transport selection
   transport_type: "stdio" | "http_stream" | "local";
-
+  
   // Stdio fields
   server_path: string;
-
+  
   // HTTP fields
   http_endpoint: string;
   headers: Array<{key: string; value: string}>;
-
+  
   // Local fields
   command: string;
   args: string[];
-
+  
   // Advanced fields
   timeout: number;
   registration_timeout: number;
@@ -299,5 +298,5 @@ export interface DeleteResponse {
 }
 
 // Component types
-export type ComponentType = 'agents' | 'clients' | 'llms' | 'linear-workflows' | 'custom-workflows';
-export type ProjectComponentType = 'agents' | 'linear_workflows' | 'custom_workflows' | 'clients' | 'llms';
+export type ComponentType = 'agents' | 'clients' | 'llms' | 'simple-workflows' | 'custom-workflows';
+export type ProjectComponentType = 'agents' | 'simple_workflows' | 'custom_workflows' | 'clients' | 'llms';

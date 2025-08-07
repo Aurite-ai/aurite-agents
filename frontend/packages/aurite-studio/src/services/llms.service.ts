@@ -7,6 +7,7 @@ import {
   ApiError,
   TimeoutError,
   CancellationError,
+  LLMConfig as ApiLLMConfig,
 } from '@aurite/api-client';
 
 class LLMsService {
@@ -262,5 +263,4 @@ class LLMsService {
   }
 }
 
-const llmsService = new LLMsService();
-export default llmsService;
+export default new LLMsService();

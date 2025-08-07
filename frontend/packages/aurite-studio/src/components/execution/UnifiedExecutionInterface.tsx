@@ -290,39 +290,35 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
         (result) => {
           console.log('✅ Streaming execution completed:', result);
           
-        setExecutionState(prev => ({
-          ...prev,
-          status: 'completed',
-          progress: 100,
-          endTime: new Date(),
-          result: {
-            execution_id: 'stream',
-            session_id: result.session_id || request.session_id || 'unknown',
+          setExecutionState(prev => ({
+            ...prev,
             status: 'completed',
-            final_response: result.final_response,
-            tool_calls: [],
-            metadata: {
-              start_time: prev.startTime?.toISOString() || new Date().toISOString(),
-              end_time: new Date().toISOString(),
-              duration_ms: prev.startTime ? Date.now() - prev.startTime.getTime() : 0,
-              token_usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+            progress: 100,
+            endTime: new Date(),
+            result: {
+              execution_id: 'stream',
+              session_id: request.session_id || 'unknown',
+              status: 'completed',
+              final_response: result.final_response,
+              tool_calls: [],
+              metadata: {
+                start_time: prev.startTime?.toISOString() || new Date().toISOString(),
+                end_time: new Date().toISOString(),
+                duration_ms: prev.startTime ? Date.now() - prev.startTime.getTime() : 0,
+                token_usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
+              },
+              history: result.history || []
             },
-            history: result.history || []
-          },
-          currentResponse: result.final_response?.content?.[0]?.text || result.final_response?.content || 'Execution completed'
-        }));
+            currentResponse: result.final_response?.content?.[0]?.text || result.final_response?.content || 'Execution completed'
+          }));
         },
         // onError
         (error) => {
           console.error('❌ Streaming execution failed:', error);
           
-          // Check if this is a max iterations error
-          const isMaxIterationsError = error.includes('maximum iteration limit') || 
-                                     error.includes('max_iterations');
-          
           setExecutionState(prev => ({
             ...prev,
-            status: isMaxIterationsError ? 'max_iterations_reached' : 'failed',
+            status: 'failed',
             progress: 0,
             endTime: new Date(),
             error
@@ -357,7 +353,7 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
           toolCalls: extractedToolCalls, // Add extracted tool calls to execution state
           result: {
             execution_id: 'non-stream',
-            session_id: (result as any).session_id || request.session_id || 'unknown',
+            session_id: request.session_id || 'unknown',
             status: 'completed',
             final_response: result.final_response,
             tool_calls: extractedToolCalls, // Add extracted tool calls to result
@@ -376,68 +372,12 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
       } catch (error) {
         console.error('❌ Non-streaming execution failed:', error);
         
-        // Extract error message and check for max iterations patterns
-        let errorMessage = 'Unknown error occurred';
-        let isMaxIterationsError = false;
-        
-        // Check if this is an ApiError instance (from the API client)
-        if (error && typeof error === 'object' && 'technicalDetails' in error) {
-          const apiError = error as any;
-          
-          // Check if the ApiError has MaxIterationsReachedError in its technical details
-          if (apiError.technicalDetails?.error?.error_type === 'MaxIterationsReachedError') {
-            isMaxIterationsError = true;
-            errorMessage = apiError.technicalDetails.error.message || apiError.userMessage || 'Agent reached maximum iterations';
-          } else {
-            errorMessage = apiError.userMessage || apiError.message || 'API request failed';
-            // Fallback: check message content for max iterations patterns
-            isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
-                                 errorMessage.includes('max_iterations') ||
-                                 errorMessage.includes('iteration limit');
-          }
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-          // Check for max iterations patterns in error message
-          isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
-                               errorMessage.includes('max_iterations') ||
-                               (errorMessage.includes('maximum of') && errorMessage.includes('iterations'));
-        } else if (typeof error === 'string') {
-          errorMessage = error;
-          isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
-                               errorMessage.includes('max_iterations');
-        } else if (error && typeof error === 'object') {
-          // Handle other structured error objects
-          const errorObj = error as any;
-          
-          // Check for MaxIterationsReachedError type
-          if (errorObj.error?.error_type === 'MaxIterationsReachedError') {
-            isMaxIterationsError = true;
-            errorMessage = errorObj.error.message || 'Agent reached maximum iterations';
-          } else if (errorObj.error?.message) {
-            errorMessage = errorObj.error.message;
-            isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
-                                 errorMessage.includes('max_iterations') ||
-                                 (errorMessage.includes('maximum of') && errorMessage.includes('iterations'));
-          } else {
-            errorMessage = errorObj.message || JSON.stringify(errorObj);
-            isMaxIterationsError = errorMessage.includes('maximum iteration limit') || 
-                                 errorMessage.includes('max_iterations');
-          }
-        }
-        
-        console.log('🔍 Error detection results:', { 
-          isMaxIterationsError, 
-          errorMessage, 
-          errorType: typeof error,
-          hasApiErrorStructure: error && typeof error === 'object' && 'technicalDetails' in error
-        });
-        
         setExecutionState(prev => ({
           ...prev,
-          status: isMaxIterationsError ? 'max_iterations_reached' : 'failed',
+          status: 'failed',
           progress: 0,
           endTime: new Date(),
-          error: errorMessage
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
         }));
       }
     }
@@ -541,7 +481,7 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
                   <InputPanel 
                     agent={agent}
                     onExecute={handleExecute}
-                    disabled={executionState.status !== 'idle' && executionState.status !== 'completed' && executionState.status !== 'failed' && executionState.status !== 'max_iterations_reached'}
+                    disabled={executionState.status !== 'idle' && executionState.status !== 'completed' && executionState.status !== 'failed'}
                   />
                 </div>
                 
@@ -551,7 +491,6 @@ export const UnifiedExecutionInterface: React.FC<UnifiedExecutionInterfaceProps>
                     agent={agent}
                     executionState={executionState}
                     onStateChange={setExecutionState}
-                    onClose={handleClose}
                   />
                 </div>
               </div>

@@ -1,159 +1,229 @@
-# :material-api: API Reference
+# Aurite Framework API Reference
+
+## Overview
 
 The Aurite Framework API is organized around four core managers, each with its own base path and specific responsibilities. This document provides a comprehensive reference for all available endpoints.
 
-<!-- prettier-ignore -->
-!!! info "Interactive API Docs"
-    For detailed request/response schemas and to try out the API live, please use the interactive documentation interfaces available when the server is running:
+**Note:** For detailed request/response schemas, refer to the OpenAPI specification available at:
+- `/openapi.json` - OpenAPI JSON schema
+- `/api-docs` - Swagger UI interface
+- `/redoc` - ReDoc documentation interface
 
-    -   `/api-docs` - Swagger UI interface
-    -   `/redoc` - ReDoc documentation interface
-    -   `/openapi.json` - Raw OpenAPI schema
+## Authentication
+
+All API endpoints require authentication via API key. Include the API key in the request headers:
+
+```
+X-API-Key: your-api-key-here
+```
+
+## Base URL
+
+```
+http://localhost:8000
+```
+
+## API Organization
+
+The API is structured around four main paths, each corresponding to a core manager:
+
+1. **`/config`** - Configuration Manager endpoints
+2. **`/tools`** - MCP Host Manager endpoints
+3. **`/execution`** - Execution Facade endpoints
+4. **`/system`** - System management endpoints
+
+---
+
+## 1. Configuration Management APIs (`/config`)
+
+Handles all configuration file operations, component CRUD operations, and project/workspace management.
+
+**📖 For detailed documentation including decision trees and error handling, see [Configuration Manager Routes](./routes/config_manager_routes.md)**
+
+### Component CRUD Operations (Wildcard Approach)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/config/components` | List all component types |
+| GET | `/config/components/{component_type}` | List components by type |
+| POST | `/config/components/{component_type}` | Create new component |
+| GET | `/config/components/{component_type}/{component_id}` | Get component details |
+| PUT | `/config/components/{component_type}/{component_id}` | Update component |
+| DELETE | `/config/components/{component_type}/{component_id}` | Delete component |
+| POST | `/config/components/{component_type}/{component_id}/validate` | Validate component config |
+
+**Component Types:** `agent`, `llm`, `mcp_server`, `simple_workflow`, `custom_workflow`
+
+### Project & Workspace Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/config/projects` | List all projects in workspace |
+| POST | `/config/projects` | Create new project |
+| GET | `/config/projects/{name}` | Get project details |
+| PUT | `/config/projects/{name}` | Update project |
+| DELETE | `/config/projects/{name}` | Delete project |
+| GET | `/config/projects/active` | Get currently active project |
+| GET | `/config/workspaces` | List workspaces |
+| GET | `/config/workspaces/active` | Get the active workspace |
+
+### Configuration File Operations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/config/sources` | List all config sources (project, user, packaged) |
+| POST | `/config/files` | Create new config file |
+| GET | `/config/files/{source_name}` | List config files by source |
+| GET | `/config/files/{source_name}/{file_path}` | Get config file content |
+| PUT | `/config/files/{source_name}/{file_path}` | Update config file |
+| DELETE | `/config/files/{source_name}/{file_path}` | Delete config file |
+| POST | `/config/refresh` | Force refresh config cache |
+| POST | `/config/validate` | Validate all configurations |
 
 ---
 
-## Authentication & Base URL
+## 2. Tool Management APIs (`/tools`)
 
-All API endpoints require authentication via an API key.
+Manages runtime operations for MCP servers, tool discovery, and execution. These endpoints work with servers that are actively registered with the MCPHost instance.
 
-- **Header:** `X-API-Key: your-api-key-here`
-- **Base URL:** `http://localhost:8000`
+**Note:** For MCP server configuration management (create, update, delete configs), use `/config/components/mcp_servers/*` endpoints.
+
+### Tool Discovery & Execution
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tools` | List all available tools from registered servers |
+| GET | `/tools/{tool_name}` | Get tool details |
+| POST | `/tools/{tool_name}/call` | Execute specific tool |
+
+### Runtime Server Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tools/servers` | List currently registered servers (runtime) |
+| GET | `/tools/servers/{server_name}` | Get runtime status of registered server |
+| POST | `/tools/servers/{server_name}/restart` | Restart a registered server |
+| GET | `/tools/servers/{server_name}/tools` | List tools from specific server |
+| POST | `/tools/servers/{server_name}/test` | Test server connection |
+
+### Server Registration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/tools/register/config` | Register server by config object |
+| POST | `/tools/register/{server_name}` | Register server by name from config |
+| DELETE | `/tools/servers/{server_name}` | Unregister server from host |
+
+### Host Status
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/tools/status` | Get MCPHost status |
+
+---
+
+## 3. Execution Management APIs (`/execution`)
+
+Handles agent and workflow execution, execution history, and monitoring.
+
+### Agent Execution
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/execution/agents/{agent_name}/run` | Execute agent (sync) |
+| POST | `/execution/agents/{agent_name}/stream` | Execute agent (streaming) |
+| POST | `/execution/agents/{agent_name}/test` | Test agent configuration |
+| GET | `/execution/agents/{agent_name}/history` | Get agent execution history |
+
+### Workflow Execution
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/execution/workflows/simple/{workflow_name}/run` | Execute simple workflow |
+| POST | `/execution/workflows/custom/{workflow_name}/run` | Execute custom workflow |
+| POST | `/execution/workflows/simple/{workflow_name}/test` | Test simple workflow |
+| POST | `/execution/workflows/custom/{workflow_name}/test` | Test custom workflow |
+| POST | `/execution/workflows/custom/{workflow_name}/validate` | Validate custom workflow Python code |
+| GET | `/execution/workflows/{workflow_name}/history` | Get workflow execution history |
+
+### Execution History & Monitoring
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/execution/history` | List all sessions (paginated) |
+| GET | `/execution/history/{session_id}` | Get session conversation history |
+| DELETE | `/execution/history/{session_id}` | Delete session |
+| POST | `/execution/history/cleanup` | Clean up old sessions (30 days/50 sessions) |
+| GET | `/execution/agents/{agent_name}/history` | Get agent-specific sessions |
+
+### Facade Status
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/execution/status` | Get ExecutionFacade status |
 
 ---
 
-## API Endpoints
+## 4. System Management APIs (`/system`)
 
-The API is structured around four main routers.
+Provides system information, environment management, and monitoring capabilities.
 
-=== ":material-cogs: Configuration (`/config`)"
+### System Information
 
-    Handles all configuration file operations, component CRUD, and project/workspace management.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/system/info` | Get system information |
+| GET | `/system/health` | Comprehensive health check |
+| GET | `/system/version` | Get framework version info |
+| GET | `/system/capabilities` | List system capabilities |
 
-    **Component CRUD**
+### Environment Management
 
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/config/components` | List all component types. |
-    | `GET` | `/config/components/{type}` | List all components of a specific type. |
-    | `POST` | `/config/components/{type}` | Create a new component. |
-    | `GET` | `/config/components/{type}/{id}` | Get a specific component's details. |
-    | `PUT` | `/config/components/{type}/{id}` | Update an existing component. |
-    | `DELETE` | `/config/components/{type}/{id}` | Delete a component. |
-    | `POST` | `/config/components/{type}/{id}/validate` | Validate a component's configuration. |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/system/environment` | Get environment variables |
+| PUT | `/system/environment` | Update environment variables |
+| GET | `/system/dependencies` | List installed dependencies |
+| POST | `/system/dependencies/check` | Check dependency health |
 
-    **Project & Workspace Management**
+### Real-time Monitoring
 
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/config/projects` | List all projects in the current workspace. |
-    | `POST` | `/config/projects` | Create a new project. |
-    | `GET` | `/config/projects/active` | Get the currently active project. |
-    | `GET` | `/config/projects/{name}` | Get details for a specific project. |
-    | `PUT` | `/config/projects/{name}` | Update a project. |
-    | `DELETE` | `/config/projects/{name}` | Delete a project. |
-    | `GET` | `/config/workspaces/active` | Get the active workspace details. |
-
-    **Configuration File Operations**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/config/sources` | List all configuration source directories. |
-    | `GET` | `/config/files/{source}` | List config files within a specific source. |
-    | `POST` | `/config/files` | Create a new configuration file. |
-    | `GET` | `/config/files/{source}/{path}` | Get a config file's content. |
-    | `PUT` | `/config/files/{source}/{path}` | Update a config file's content. |
-    | `DELETE` | `/config/files/{source}/{path}` | Delete a configuration file. |
-    | `POST` | `/config/refresh` | Force a refresh of the configuration index. |
-    | `POST` | `/config/validate` | Validate all loaded configurations. |
-
-=== ":material-tools: MCP Host (`/tools`)"
-
-    Manages runtime operations for MCP servers, tool discovery, and execution.
-
-    **Tool Discovery & Execution**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/tools` | List all available tools from registered servers. |
-    | `GET` | `/tools/{tool_name}` | Get detailed information for a specific tool. |
-    | `POST` | `/tools/{tool_name}/call` | Execute a specific tool with arguments. |
-
-    **Runtime Server Management**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/tools/servers` | List all currently registered MCP servers. |
-    | `GET` | `/tools/servers/{server_name}` | Get detailed runtime status of a server. |
-    | `POST` | `/tools/servers/{server_name}/restart` | Restart a registered server. |
-    | `GET` | `/tools/servers/{server_name}/tools` | List all tools provided by a specific server. |
-    | `POST` | `/tools/servers/{server_name}/test` | Test a server configuration. |
-    | `DELETE` | `/tools/servers/{server_name}` | Unregister a server from the host. |
-
-    **Server Registration**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `POST` | `/tools/register/config` | Register a server using a config object. |
-    | `POST` | `/tools/register/{server_name}` | Register a server by its configured name. |
-
-=== ":material-robot-happy: Execution (`/execution`)"
-
-    Handles agent and workflow execution, history management, and testing.
-
-    **Agent & Workflow Execution**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `POST` | `/execution/agents/{agent_name}/run` | Execute an agent and wait for the result. |
-    | `POST` | `/execution/agents/{agent_name}/stream` | Execute an agent and stream the response. |
-    | `POST` | `/execution/workflows/linear/{workflow_name}/run` | Execute a linear workflow. |
-    | `POST` | `/execution/workflows/custom/{workflow_name}/run` | Execute a custom workflow. |
-
-    **Testing & Validation**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `POST` | `/execution/agents/{agent_name}/test` | Test an agent's configuration. |
-    | `POST` | `/execution/llms/{llm_config_id}/test` | Test an LLM configuration. |
-    | `POST` | `/execution/workflows/linear/{workflow_name}/test` | Test a linear workflow. |
-    | `POST` | `/execution/workflows/custom/{workflow_name}/test` | Test a custom workflow. |
-
-    **Execution History**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/execution/history` | List all sessions (paginated). Filter with `agent_name` or `workflow_name` query params. |
-    | `GET` | `/execution/history/{session_id}` | Get the full history for a specific session. |
-    | `DELETE` | `/execution/history/{session_id}` | Delete a session's history. |
-    | `POST` | `/execution/history/cleanup` | Clean up old sessions based on retention policy. |
-
-=== ":material-server: System (`/system`)"
-
-    Provides system information, environment management, and monitoring.
-
-    **System Information**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/system/info` | Get detailed system information. |
-    | `GET` | `/system/health` | Perform a comprehensive health check. |
-    | `GET` | `/system/version` | Get framework version information. |
-    | `GET` | `/system/capabilities` | List system capabilities and features. |
-
-    **Environment & Dependencies**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/system/environment` | Get environment variables (sensitive values masked). |
-    | `PUT` | `/system/environment` | Update non-sensitive environment variables. |
-    | `GET` | `/system/dependencies` | List all installed Python dependencies. |
-    | `POST` | `/system/dependencies/check` | Check the health of critical dependencies. |
-
-    **Monitoring**
-
-    | Method | Endpoint | Description |
-    | --- | --- | --- |
-    | `GET` | `/system/monitoring/metrics` | Get current system metrics (CPU, memory, etc.). |
-    | `GET` | `/system/monitoring/active` | List active Aurite-related processes. |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/system/monitoring/metrics` | Get system metrics |
+| GET | `/system/monitoring/logs` | Get recent logs (SSE stream) |
+| GET | `/system/monitoring/active` | List active system processes |
 
 ---
+
+## Error Responses
+
+All endpoints follow a consistent error response format:
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+### Common HTTP Status Codes
+
+- `200 OK` - Request succeeded
+- `201 Created` - Resource created successfully
+- `400 Bad Request` - Invalid request parameters
+- `401 Unauthorized` - Missing or invalid API key
+- `404 Not Found` - Resource not found
+- `422 Unprocessable Entity` - Validation error
+- `500 Internal Server Error` - Server error
+
+---
+
+## Rate Limiting
+
+Currently, the API does not implement rate limiting. This may be added in future versions.
+
+---
+
+## Versioning
+
+The API is currently at version 1.0.0. Future versions will maintain backward compatibility where possible, with deprecation notices for breaking changes.
