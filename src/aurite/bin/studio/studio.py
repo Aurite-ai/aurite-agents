@@ -8,6 +8,7 @@ concurrently with unified logging and graceful shutdown.
 import asyncio
 import logging
 import os
+import platform
 import signal
 import sys
 from pathlib import Path
@@ -245,19 +246,37 @@ async def start_frontend_server_process(port: int):
     
     frontend_dir = Path.cwd() / "frontend"
     
+    # On Windows, we need shell=True for subprocess calls
+    is_windows = platform.system() == "Windows"
+    
     try:
         # Start React development server
-        frontend_process = await asyncio.create_subprocess_exec(
-            "npm", "run", "start",
-            cwd=frontend_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env={
-                **os.environ, 
-                # "BROWSER": "none",  # Prevent auto-opening browser
-                "PORT": "3000"      # Explicitly set React dev server port
-            }
-        )
+        if is_windows:
+            # On Windows, use shell=True and pass command as string
+            frontend_process = await asyncio.create_subprocess_shell(
+                "npm run start",
+                cwd=frontend_dir,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env={
+                    **os.environ, 
+                    # "BROWSER": "none",  # Prevent auto-opening browser
+                    "PORT": "3000"      # Explicitly set React dev server port
+                }
+            )
+        else:
+            # On Unix systems, use exec
+            frontend_process = await asyncio.create_subprocess_exec(
+                "npm", "run", "start",
+                cwd=frontend_dir,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env={
+                    **os.environ, 
+                    # "BROWSER": "none",  # Prevent auto-opening browser
+                    "PORT": "3000"      # Explicitly set React dev server port
+                }
+            )
         
         # Stream frontend output with prefix
         async for line in frontend_process.stdout:

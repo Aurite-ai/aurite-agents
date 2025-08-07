@@ -8,6 +8,7 @@ frontend builds, and detecting server states.
 import asyncio
 import logging
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -31,13 +32,17 @@ def check_system_dependencies() -> Tuple[bool, str]:
     Returns:
         Tuple of (success: bool, error_message: str)
     """
+    # On Windows, we need shell=True to properly resolve executables
+    is_windows = platform.system() == "Windows"
+    
     try:
         # Check Node.js
         node_result = subprocess.run(
             ["node", "--version"], 
             capture_output=True, 
             text=True, 
-            timeout=10
+            timeout=10,
+            shell=is_windows
         )
         if node_result.returncode != 0:
             return False, "Node.js is not installed or not accessible"
@@ -50,7 +55,8 @@ def check_system_dependencies() -> Tuple[bool, str]:
             ["npm", "--version"], 
             capture_output=True, 
             text=True, 
-            timeout=10
+            timeout=10,
+            shell=is_windows
         )
         if npm_result.returncode != 0:
             return False, "npm is not installed or not accessible"
@@ -107,6 +113,9 @@ async def install_frontend_dependencies() -> bool:
     
     console.print("[bold blue]Installing frontend dependencies...[/bold blue]")
     
+    # On Windows, we need shell=True for subprocess calls
+    is_windows = platform.system() == "Windows"
+    
     try:
         with Progress(
             SpinnerColumn(),
@@ -115,12 +124,22 @@ async def install_frontend_dependencies() -> bool:
         ) as progress:
             task = progress.add_task("Running npm install...", total=None)
             
-            process = await asyncio.create_subprocess_exec(
-                "npm", "install",
-                cwd=frontend_dir,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
-            )
+            if is_windows:
+                # On Windows, use shell=True and pass command as string
+                process = await asyncio.create_subprocess_shell(
+                    "npm install",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+            else:
+                # On Unix systems, use exec
+                process = await asyncio.create_subprocess_exec(
+                    "npm", "install",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
             
             stdout, _ = await process.communicate()
             
@@ -178,6 +197,9 @@ async def build_frontend_packages() -> bool:
     
     console.print("[bold blue]Building frontend packages...[/bold blue]")
     
+    # On Windows, we need shell=True for subprocess calls
+    is_windows = platform.system() == "Windows"
+    
     try:
         with Progress(
             SpinnerColumn(),
@@ -186,12 +208,22 @@ async def build_frontend_packages() -> bool:
         ) as progress:
             task = progress.add_task("Running npm run build...", total=None)
             
-            process = await asyncio.create_subprocess_exec(
-                "npm", "run", "build",
-                cwd=frontend_dir,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
-            )
+            if is_windows:
+                # On Windows, use shell=True and pass command as string
+                process = await asyncio.create_subprocess_shell(
+                    "npm run build",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+            else:
+                # On Unix systems, use exec
+                process = await asyncio.create_subprocess_exec(
+                    "npm", "run", "build",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
             
             stdout, _ = await process.communicate()
             
@@ -417,6 +449,9 @@ async def clean_frontend_artifacts() -> bool:
     """
     frontend_dir = Path.cwd() / "frontend"
     
+    # On Windows, we need shell=True for subprocess calls
+    is_windows = platform.system() == "Windows"
+    
     try:
         with Progress(
             SpinnerColumn(),
@@ -425,12 +460,22 @@ async def clean_frontend_artifacts() -> bool:
         ) as progress:
             task = progress.add_task("Running npm run clean...", total=None)
             
-            process = await asyncio.create_subprocess_exec(
-                "npm", "run", "clean",
-                cwd=frontend_dir,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
-            )
+            if is_windows:
+                # On Windows, use shell=True and pass command as string
+                process = await asyncio.create_subprocess_shell(
+                    "npm run clean",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+            else:
+                # On Unix systems, use exec
+                process = await asyncio.create_subprocess_exec(
+                    "npm", "run", "clean",
+                    cwd=frontend_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
             
             stdout, _ = await process.communicate()
             
