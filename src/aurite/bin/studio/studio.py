@@ -363,8 +363,7 @@ async def start_frontend_server_process(port: int):
     try:
         # Start React development server
         if is_windows:
-            # On Windows, use a detached process to avoid batch job prompts
-            # and prevent Ctrl+C from being passed to the npm process
+            # On Windows, use cmd /c to avoid batch job prompts
             frontend_process = await asyncio.create_subprocess_exec(
                 "cmd", "/c", "npm run start",
                 cwd=frontend_dir,
@@ -375,7 +374,7 @@ async def start_frontend_server_process(port: int):
                     # "BROWSER": "none",  # Prevent auto-opening browser
                     "PORT": "3000"      # Explicitly set React dev server port
                 },
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
             )
         else:
             # On Unix systems, use exec
