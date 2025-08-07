@@ -214,7 +214,7 @@ class ConfigManager:
             valid, errors = self._validate_component_config(component_type=component_type, config=component_data)
             if not valid:
                 logger.warning(
-                    f"Skipping component {component_id} in {config_file} due to invalid config. Errors: {', '.join(errors)}"
+                    f"Skipping component '{component_id}' in {config_file} due to invalid config: {'; '.join(errors)}"
                 )
                 continue
 
