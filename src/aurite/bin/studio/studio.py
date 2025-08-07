@@ -10,6 +10,7 @@ import logging
 import os
 import platform
 import signal
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -308,11 +309,13 @@ def setup_signal_handlers():
 
 async def cleanup_processes():
     """
-    Clean up running processes gracefully.
+    Clean up running processes gracefully with Windows-specific handling.
     """
     global api_process, frontend_process
     
     console.print("[bold yellow]Shutting down servers...[/bold yellow]")
+    
+    is_windows = platform.system() == "Windows"
     
     # Terminate processes
     processes_to_cleanup = []
@@ -323,6 +326,62 @@ async def cleanup_processes():
     if api_process and api_process.returncode is None:
         processes_to_cleanup.append(("API", api_process))
     
+    # Handle Windows and Unix differently
+    if is_windows:
+        await cleanup_processes_windows(processes_to_cleanup)
+    else:
+        await cleanup_processes_unix(processes_to_cleanup)
+
+
+async def cleanup_processes_windows(processes_to_cleanup):
+    """
+    Windows-specific process cleanup using taskkill for process trees.
+    """
+    for name, process in processes_to_cleanup:
+        try:
+            if process.returncode is None:
+                console.print(f"[dim]Terminating {name} server (Windows)...[/dim]")
+                
+                # For Windows, we need to kill the entire process tree
+                # because npm creates child processes that don't respond to normal termination
+                if name == "Frontend":
+                    # Use taskkill to forcefully terminate the npm process tree
+                    try:
+                        subprocess.run([
+                            "taskkill", "/F", "/T", "/PID", str(process.pid)
+                        ], check=False, capture_output=True)
+                        console.print(f"[dim]Used taskkill to terminate {name} process tree[/dim]")
+                    except Exception as e:
+                        logger.error(f"Error using taskkill for {name}: {e}")
+                        # Fallback to normal kill
+                        process.kill()
+                else:
+                    # For API server, normal termination should work
+                    process.terminate()
+                
+                # Wait briefly for process to exit
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=3.0)
+                    console.print(f"[bold green]✓[/bold green] {name} server terminated")
+                except asyncio.TimeoutError:
+                    # Force kill if still running
+                    try:
+                        process.kill()
+                        await process.wait()
+                        console.print(f"[dim]Force killed {name} server[/dim]")
+                    except Exception as e:
+                        logger.error(f"Error force killing {name}: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Error terminating {name} process on Windows: {e}")
+    
+    console.print("[bold green]✓[/bold green] All servers shut down")
+
+
+async def cleanup_processes_unix(processes_to_cleanup):
+    """
+    Unix-specific process cleanup with graceful shutdown.
+    """
     # Send SIGTERM to all processes
     for name, process in processes_to_cleanup:
         try:
