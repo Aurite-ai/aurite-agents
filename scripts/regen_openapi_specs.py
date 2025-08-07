@@ -1,11 +1,13 @@
 # scripts/regen_openapi_specs.py
+import json
 import sys
 
 import requests
 import yaml
 
 OPENAPI_URL = "http://localhost:8000/openapi.json"
-OUTPUT_FILE = "openapi.yaml"
+OUTPUT_YAML_FILE = "openapi.yaml"
+OUTPUT_JSON_FILE = "openapi.json"
 
 
 # Custom string class to represent literal block scalars
@@ -23,7 +25,7 @@ yaml.add_representer(literal_str, literal_presenter)
 
 
 def regenerate_schema():
-    """Fetches the OpenAPI schema, converts it to YAML, and saves it."""
+    """Fetches the OpenAPI schema, saves it as JSON, converts it to YAML, and saves it."""
     print(f"Fetching OpenAPI schema from {OPENAPI_URL}...")
     try:
         response = requests.get(OPENAPI_URL, timeout=10)
@@ -33,9 +35,20 @@ def regenerate_schema():
         print(f"Please ensure the Aurite API server is running. Details: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print("Converting JSON schema to YAML...")
     openapi_json = response.json()
 
+    # --- Save JSON ---
+    print(f"Writing updated schema to {OUTPUT_JSON_FILE}...")
+    try:
+        with open(OUTPUT_JSON_FILE, "w", encoding="utf-8") as f:
+            json.dump(openapi_json, f, indent=2, ensure_ascii=False)
+            f.write("\n")  # Add newline at end of file
+    except IOError as e:
+        print(f"Error: Could not write to {OUTPUT_JSON_FILE}. Details: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # --- Save YAML ---
+    print("Converting JSON schema to YAML...")
     # Use the custom literal_str class for the description
     if "description" in openapi_json.get("info", {}):
         openapi_json["info"]["description"] = literal_str(openapi_json["info"]["description"])
@@ -52,15 +65,15 @@ def regenerate_schema():
         print(f"Error: Failed to convert JSON to YAML. Details: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Writing updated schema to {OUTPUT_FILE}...")
+    print(f"Writing updated schema to {OUTPUT_YAML_FILE}...")
     try:
-        with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        with open(OUTPUT_YAML_FILE, "w", encoding="utf-8") as f:
             f.write(yaml_string)
     except IOError as e:
-        print(f"Error: Could not write to {OUTPUT_FILE}. Details: {e}", file=sys.stderr)
+        print(f"Error: Could not write to {OUTPUT_YAML_FILE}. Details: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print("\nSuccessfully regenerated openapi.yaml!")
+    print(f"\nSuccessfully regenerated {OUTPUT_JSON_FILE} and {OUTPUT_YAML_FILE}!")
 
 
 if __name__ == "__main__":

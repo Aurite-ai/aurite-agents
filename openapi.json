@@ -1,1 +1,3328 @@
-{"openapi":"3.1.0","info":{"title":"Aurite Agents API","description":"API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP)","version":"1.0.0"},"paths":{"/health":{"get":{"summary":"Health Check","description":"Simple health check endpoint.","operationId":"health_check_health_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}},"/tools/status":{"get":{"tags":["MCP Host"],"summary":"Get Host Status","description":"Get the status of the MCPHost.","operationId":"get_host_status_tools_status_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}},"security":[{"APIKeyHeader":[]}]}},"/tools/":{"get":{"tags":["MCP Host"],"summary":"List Tools","description":"List all available tools from the MCPHost.","operationId":"list_tools_tools__get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"additionalProperties":true,"type":"object"},"type":"array","title":"Response List Tools Tools  Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/tools/servers":{"get":{"tags":["MCP Host"],"summary":"List Registered Servers","description":"List all currently registered MCP servers with runtime information.\n\nReturns runtime information about each registered server including:\n- Server name\n- Transport type\n- Number of tools provided\n- Registration time","operationId":"list_registered_servers_tools_servers_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"$ref":"#/components/schemas/ServerRuntimeInfo"},"type":"array","title":"Response List Registered Servers Tools Servers Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/tools/servers/{server_name}":{"get":{"tags":["MCP Host"],"summary":"Get Server Status","description":"Get detailed runtime status for a specific MCP server.\n\nReturns detailed information including:\n- Registration status\n- Transport type\n- List of tool names provided by this server\n- Session status","operationId":"get_server_status_tools_servers__server_name__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ServerDetailedStatus"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"tags":["MCP Host"],"summary":"Unregister Server","description":"Unregister an MCP server from the host.","operationId":"unregister_server_tools_servers__server_name__delete","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/register/config":{"post":{"tags":["MCP Host"],"summary":"Register Server By Config","description":"Register a new MCP server with the host using a provided configuration.","operationId":"register_server_by_config_tools_register_config_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ClientConfig"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}},"security":[{"APIKeyHeader":[]}]}},"/tools/register/{server_name}":{"post":{"tags":["MCP Host"],"summary":"Register Server By Name","description":"Register a new MCP server with the host by its configured name.","operationId":"register_server_by_name_tools_register__server_name__post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/servers/{server_name}/restart":{"post":{"tags":["MCP Host"],"summary":"Restart Server","description":"Restart a registered MCP server.\nThis is a convenience endpoint that unregisters and then re-registers the server.","operationId":"restart_server_tools_servers__server_name__restart_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/{tool_name}":{"get":{"tags":["MCP Host"],"summary":"Get Tool Details","description":"Get detailed information about a specific tool.\n\nReturns:\n- Tool name and description\n- Which server provides the tool\n- Input schema for the tool","operationId":"get_tool_details_tools__tool_name__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"tool_name","in":"path","required":true,"schema":{"type":"string","title":"Tool Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ToolDetails"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/servers/{server_name}/tools":{"get":{"tags":["MCP Host"],"summary":"Get Server Tools","description":"List all tools provided by a specific registered server.\n\nReturns a list of tools with their full details.","operationId":"get_server_tools_tools_servers__server_name__tools_get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","additionalProperties":true},"title":"Response Get Server Tools Tools Servers  Server Name  Tools Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/servers/{server_name}/test":{"post":{"tags":["MCP Host"],"summary":"Test Server","description":"Test an MCP server configuration by temporarily registering it.\n\nThis endpoint:\n1. Retrieves the server configuration\n2. Temporarily registers the server\n3. Discovers available tools\n4. Optionally tests a tool execution\n5. Unregisters the server\n6. Returns test results","operationId":"test_server_tools_servers__server_name__test_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"server_name","in":"path","required":true,"schema":{"type":"string","title":"Server Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ServerTestResult"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/tools/{tool_name}/call":{"post":{"tags":["MCP Host"],"summary":"Call Tool","description":"Execute a specific tool by name with the given arguments.","operationId":"call_tool_tools__tool_name__call_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"tool_name","in":"path","required":true,"schema":{"type":"string","title":"Tool Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ToolCallArgs"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/components":{"get":{"tags":["Configuration Manager"],"summary":"List Component Types","description":"List all available component types.","operationId":"list_component_types_config_components_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"type":"string"},"type":"array","title":"Response List Component Types Config Components Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/components/{component_type}":{"get":{"tags":["Configuration Manager"],"summary":"List Components By Type","description":"List all available components of a specific type.\nAccepts both singular and plural forms (e.g., 'agent' or 'agents').","operationId":"list_components_by_type_config_components__component_type__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","additionalProperties":true},"title":"Response List Components By Type Config Components  Component Type  Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"post":{"tags":["Configuration Manager"],"summary":"Create Component","description":"Create a new component of the specified type.","operationId":"create_component_config_components__component_type__post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ComponentCreate"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":{"type":"string"},"title":"Response Create Component Config Components  Component Type  Post"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/components/{component_type}/{component_id}":{"get":{"tags":["Configuration Manager"],"summary":"Get Component By Id","description":"Get a specific component by its type and ID.\nAccepts both singular and plural forms for component type (e.g., 'agent' or 'agents').","operationId":"get_component_by_id_config_components__component_type___component_id__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}},{"name":"component_id","in":"path","required":true,"schema":{"type":"string","title":"Component Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Get Component By Id Config Components  Component Type   Component Id  Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"put":{"tags":["Configuration Manager"],"summary":"Update Component","description":"Update an existing component.","operationId":"update_component_config_components__component_type___component_id__put","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}},{"name":"component_id","in":"path","required":true,"schema":{"type":"string","title":"Component Id"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ComponentUpdate"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Update Component Config Components  Component Type   Component Id  Put"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"tags":["Configuration Manager"],"summary":"Delete Component","description":"Delete a component.","operationId":"delete_component_config_components__component_type___component_id__delete","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}},{"name":"component_id","in":"path","required":true,"schema":{"type":"string","title":"Component Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Delete Component Config Components  Component Type   Component Id  Delete"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/components/{component_type}/{component_id}/validate":{"post":{"tags":["Configuration Manager"],"summary":"Validate Component","description":"Validate a component's configuration.","operationId":"validate_component_config_components__component_type___component_id__validate_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"component_type","in":"path","required":true,"schema":{"type":"string","title":"Component Type"}},{"name":"component_id","in":"path","required":true,"schema":{"type":"string","title":"Component Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Validate Component Config Components  Component Type   Component Id  Validate Post"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/sources":{"get":{"tags":["Configuration Manager"],"summary":"List Config Sources","description":"List all configuration source directories with context information.\n\nReturns a list of configuration source directories in priority order,\nincluding their context (project/workspace/user) and associated names.","operationId":"list_config_sources_config_sources_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"additionalProperties":true,"type":"object"},"type":"array","title":"Response List Config Sources Config Sources Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/files/{source_name}":{"get":{"tags":["Configuration Manager"],"summary":"List Config Files By Source","description":"List all configuration files for a specific source.\n\nReturns a list of relative file paths for the given source.","operationId":"list_config_files_by_source_config_files__source_name__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"source_name","in":"path","required":true,"schema":{"type":"string","title":"Source Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"array","items":{"type":"string"},"title":"Response List Config Files By Source Config Files  Source Name  Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/files/{source_name}/{file_path}":{"get":{"tags":["Configuration Manager"],"summary":"Get File Content","description":"Get the content of a specific configuration file.","operationId":"get_file_content_config_files__source_name___file_path__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"source_name","in":"path","required":true,"schema":{"type":"string","title":"Source Name"}},{"name":"file_path","in":"path","required":true,"schema":{"type":"string","title":"File Path"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"string","title":"Response Get File Content Config Files  Source Name   File Path  Get"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"put":{"tags":["Configuration Manager"],"summary":"Update Config File","description":"Update an existing configuration file.","operationId":"update_config_file_config_files__source_name___file_path__put","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"source_name","in":"path","required":true,"schema":{"type":"string","title":"Source Name"}},{"name":"file_path","in":"path","required":true,"schema":{"type":"string","title":"File Path"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FileUpdateRequest"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Update Config File Config Files  Source Name   File Path  Put"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"tags":["Configuration Manager"],"summary":"Delete Config File","description":"Delete an existing configuration file.","operationId":"delete_config_file_config_files__source_name___file_path__delete","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"source_name","in":"path","required":true,"schema":{"type":"string","title":"Source Name"}},{"name":"file_path","in":"path","required":true,"schema":{"type":"string","title":"File Path"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Delete Config File Config Files  Source Name   File Path  Delete"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/files":{"post":{"tags":["Configuration Manager"],"summary":"Create Config File","description":"Create a new configuration file.","operationId":"create_config_file_config_files_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FileCreateRequest"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"additionalProperties":true,"type":"object","title":"Response Create Config File Config Files Post"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/validate":{"post":{"tags":["Configuration Manager"],"summary":"Validate All Components","description":"Validate all components in the system.","operationId":"validate_all_components_config_validate_post","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"additionalProperties":true,"type":"object"},"type":"array","title":"Response Validate All Components Config Validate Post"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/refresh":{"post":{"tags":["Configuration Manager"],"summary":"Refresh Configs","description":"Force refresh all configurations from disk.\nThis will reload all configuration files and rebuild the component index.","operationId":"refresh_configs_config_refresh_post","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"additionalProperties":true,"type":"object","title":"Response Refresh Configs Config Refresh Post"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/projects":{"get":{"tags":["Configuration Manager"],"summary":"List Projects","description":"List all projects in the current workspace.","operationId":"list_projects_config_projects_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"$ref":"#/components/schemas/ProjectInfo"},"type":"array","title":"Response List Projects Config Projects Get"}}}}},"security":[{"APIKeyHeader":[]}]},"post":{"tags":["Configuration Manager"],"summary":"Create Project","description":"Create a new project in the current workspace.","operationId":"create_project_config_projects_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ProjectCreate"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"additionalProperties":true,"type":"object","title":"Response Create Project Config Projects Post"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/projects/active":{"get":{"tags":["Configuration Manager"],"summary":"Get Active Project","description":"Get information about the currently active project.","operationId":"get_active_project_config_projects_active_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"anyOf":[{"$ref":"#/components/schemas/ProjectInfo"},{"type":"null"}],"title":"Response Get Active Project Config Projects Active Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/projects/{name}":{"get":{"tags":["Configuration Manager"],"summary":"Get Project","description":"Get information about a specific project.","operationId":"get_project_config_projects__name__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"name","in":"path","required":true,"schema":{"type":"string","title":"Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ProjectInfo"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"put":{"tags":["Configuration Manager"],"summary":"Update Project","description":"Update a project's configuration.","operationId":"update_project_config_projects__name__put","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"name","in":"path","required":true,"schema":{"type":"string","title":"Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ProjectUpdate"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Update Project Config Projects  Name  Put"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"tags":["Configuration Manager"],"summary":"Delete Project","description":"Delete a project from the workspace.","operationId":"delete_project_config_projects__name__delete","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"name","in":"path","required":true,"schema":{"type":"string","title":"Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"type":"object","additionalProperties":true,"title":"Response Delete Project Config Projects  Name  Delete"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/config/workspaces":{"get":{"tags":["Configuration Manager"],"summary":"List Workspaces","description":"List workspace information (currently supports single workspace).","operationId":"list_workspaces_config_workspaces_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"items":{"$ref":"#/components/schemas/WorkspaceInfo"},"type":"array","title":"Response List Workspaces Config Workspaces Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/config/workspaces/active":{"get":{"tags":["Configuration Manager"],"summary":"Get Active Workspace","description":"Get information about the currently active workspace.","operationId":"get_active_workspace_config_workspaces_active_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"anyOf":[{"$ref":"#/components/schemas/WorkspaceInfo"},{"type":"null"}],"title":"Response Get Active Workspace Config Workspaces Active Get"}}}}},"security":[{"APIKeyHeader":[]}]}},"/execution/status":{"get":{"tags":["Execution Facade"],"summary":"Get Facade Status","description":"Get the status of the AuriteEngine.","operationId":"get_facade_status_execution_status_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}},"security":[{"APIKeyHeader":[]}]}},"/execution/agents/{agent_name}/run":{"post":{"tags":["Execution Facade"],"summary":"Run Agent","description":"Execute an agent by name.","operationId":"run_agent_execution_agents__agent_name__run_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"agent_name","in":"path","required":true,"schema":{"type":"string","title":"Agent Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AgentRunRequest"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/llms/{llm_config_id}/test":{"post":{"tags":["Execution Facade"],"summary":"Test Llm","description":"Test an LLM configuration by running a simple 10 token call\nThis allows you to quickly test LLM configurations without creating a full agent.","operationId":"test_llm_execution_llms__llm_config_id__test_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"llm_config_id","in":"path","required":true,"schema":{"type":"string","title":"Llm Config Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/agents/{agent_name}/test":{"post":{"tags":["Execution Facade"],"summary":"Test Agent","description":"Test an agent's configuration and dependencies.","operationId":"test_agent_execution_agents__agent_name__test_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"agent_name","in":"path","required":true,"schema":{"type":"string","title":"Agent Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/agents/{agent_name}/stream":{"post":{"tags":["Execution Facade"],"summary":"Stream Agent","description":"Execute an agent by name and stream the response.","operationId":"stream_agent_execution_agents__agent_name__stream_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"agent_name","in":"path","required":true,"schema":{"type":"string","title":"Agent Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/AgentRunRequest"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/workflows/linear/{workflow_name}/run":{"post":{"tags":["Execution Facade"],"summary":"Run Linear Workflow","description":"Execute a linear workflow by name.","operationId":"run_linear_workflow_execution_workflows_linear__workflow_name__run_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"workflow_name","in":"path","required":true,"schema":{"type":"string","title":"Workflow Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/WorkflowRunRequest"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/workflows/linear/{workflow_name}/test":{"post":{"tags":["Execution Facade"],"summary":"Test Linear Workflow","description":"Test a linear workflow.","operationId":"test_linear_workflow_execution_workflows_linear__workflow_name__test_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"workflow_name","in":"path","required":true,"schema":{"type":"string","title":"Workflow Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/workflows/custom/{workflow_name}/run":{"post":{"tags":["Execution Facade"],"summary":"Run Custom Workflow","description":"Execute a custom workflow by name.","operationId":"run_custom_workflow_execution_workflows_custom__workflow_name__run_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"workflow_name","in":"path","required":true,"schema":{"type":"string","title":"Workflow Name"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/WorkflowRunRequest"}}}},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/workflows/custom/{workflow_name}/test":{"post":{"tags":["Execution Facade"],"summary":"Test Custom Workflow","description":"Test a custom workflow.","operationId":"test_custom_workflow_execution_workflows_custom__workflow_name__test_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"workflow_name","in":"path","required":true,"schema":{"type":"string","title":"Workflow Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/workflows/custom/{workflow_name}/validate":{"post":{"tags":["Execution Facade"],"summary":"Validate Custom Workflow","description":"Validate a custom workflow.","operationId":"validate_custom_workflow_execution_workflows_custom__workflow_name__validate_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"workflow_name","in":"path","required":true,"schema":{"type":"string","title":"Workflow Name"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/history":{"get":{"tags":["Execution Facade"],"summary":"List Execution History","description":"List execution history sessions with optional filtering by agent or workflow.\nWhen filtering by workflow, returns only parent workflow sessions (not individual agent sessions).\nSupports pagination with offset/limit.","operationId":"list_execution_history_execution_history_get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"agent_name","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"Filter by agent name","title":"Agent Name"},"description":"Filter by agent name"},{"name":"workflow_name","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"Filter by workflow name","title":"Workflow Name"},"description":"Filter by workflow name"},{"name":"limit","in":"query","required":false,"schema":{"type":"integer","maximum":100,"minimum":1,"description":"Maximum number of sessions to return","default":50,"title":"Limit"},"description":"Maximum number of sessions to return"},{"name":"offset","in":"query","required":false,"schema":{"type":"integer","minimum":0,"description":"Number of sessions to skip","default":0,"title":"Offset"},"description":"Number of sessions to skip"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/SessionListResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/history/{session_id}":{"get":{"tags":["Execution Facade"],"summary":"Get Session History","description":"Get the complete execution result for a specific session.\nReturns the same format as the original execution endpoint.\nSupports partial session ID matching (e.g., just the suffix like '826c63d4').","operationId":"get_session_history_execution_history__session_id__get","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"session_id","in":"path","required":true,"schema":{"type":"string","title":"Session Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ExecutionHistoryResponse"}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"tags":["Execution Facade"],"summary":"Delete Session History","description":"Delete a specific session's history.\nReturns 204 No Content on success, 404 if session not found.","operationId":"delete_session_history_execution_history__session_id__delete","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"session_id","in":"path","required":true,"schema":{"type":"string","title":"Session Id"}}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/execution/history/cleanup":{"post":{"tags":["Execution Facade"],"summary":"Cleanup History","description":"Clean up old sessions based on retention policy.\nDeletes sessions older than specified days and keeps only the most recent max_sessions.\nSet days=0 to delete all sessions older than today.","operationId":"cleanup_history_execution_history_cleanup_post","security":[{"APIKeyHeader":[]}],"parameters":[{"name":"days","in":"query","required":false,"schema":{"type":"integer","maximum":365,"minimum":0,"description":"Delete sessions older than this many days","default":30,"title":"Days"},"description":"Delete sessions older than this many days"},{"name":"max_sessions","in":"query","required":false,"schema":{"type":"integer","maximum":1000,"minimum":0,"description":"Maximum number of sessions to keep","default":50,"title":"Max Sessions"},"description":"Maximum number of sessions to keep"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}}},"components":{"schemas":{"AgentRunRequest":{"properties":{"user_message":{"type":"string","title":"User Message"},"system_prompt":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"System Prompt"},"session_id":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Session Id"}},"type":"object","required":["user_message"],"title":"AgentRunRequest","description":"Request model for running an agent."},"ClientConfig":{"properties":{"name":{"type":"string","title":"Name","description":"The unique name of the component."},"description":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Description","description":"A brief description of the component."},"type":{"type":"string","const":"mcp_server","title":"Type","default":"mcp_server"},"transport_type":{"anyOf":[{"type":"string","enum":["stdio","http_stream","local"]},{"type":"null"}],"title":"Transport Type","description":"The transport type for the client."},"server_path":{"anyOf":[{"type":"string","format":"path"},{"type":"string"},{"type":"null"}],"title":"Server Path","description":"Path to the server script for 'stdio' transport."},"http_endpoint":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Http Endpoint","description":"URL endpoint for 'http_stream' transport."},"headers":{"anyOf":[{"additionalProperties":{"type":"string"},"type":"object"},{"type":"null"}],"title":"Headers","description":"HTTP headers for 'http_stream' transport."},"command":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Command","description":"The command to run for 'local' transport."},"args":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"title":"Args","description":"Arguments for the 'local' transport command."},"roots":{"items":{"$ref":"#/components/schemas/RootConfig"},"type":"array","title":"Roots","description":"List of root configurations for this client."},"capabilities":{"items":{"type":"string"},"type":"array","title":"Capabilities","description":"List of capabilities this client provides (e.g., 'tools', 'prompts')."},"timeout":{"type":"number","title":"Timeout","description":"Default timeout in seconds for client operations.","default":10.0},"registration_timeout":{"type":"number","title":"Registration Timeout","description":"Timeout for registering the mcp client","default":30.0},"exclude":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"title":"Exclude","description":"List of component names (prompt, resource, tool) to exclude from this client."}},"type":"object","required":["name","capabilities"],"title":"ClientConfig","description":"Configuration for an MCP client"},"ComponentCreate":{"properties":{"name":{"type":"string","title":"Name","description":"Unique name for the component"},"config":{"additionalProperties":true,"type":"object","title":"Config","description":"Component configuration"}},"type":"object","required":["name","config"],"title":"ComponentCreate","description":"Request model for creating a new component"},"ComponentUpdate":{"properties":{"config":{"additionalProperties":true,"type":"object","title":"Config","description":"Updated component configuration"}},"type":"object","required":["config"],"title":"ComponentUpdate","description":"Request model for updating an existing component"},"ExecutionHistoryResponse":{"properties":{"result_type":{"type":"string","title":"Result Type"},"execution_result":{"additionalProperties":true,"type":"object","title":"Execution Result"},"metadata":{"$ref":"#/components/schemas/SessionMetadata"}},"type":"object","required":["result_type","execution_result","metadata"],"title":"ExecutionHistoryResponse","description":"Unified response model for both agent and workflow execution history"},"FileCreateRequest":{"properties":{"source_name":{"type":"string","title":"Source Name"},"relative_path":{"type":"string","title":"Relative Path"},"content":{"type":"string","title":"Content"}},"type":"object","required":["source_name","relative_path","content"],"title":"FileCreateRequest"},"FileUpdateRequest":{"properties":{"content":{"type":"string","title":"Content"}},"type":"object","required":["content"],"title":"FileUpdateRequest"},"HTTPValidationError":{"properties":{"detail":{"items":{"$ref":"#/components/schemas/ValidationError"},"type":"array","title":"Detail"}},"type":"object","title":"HTTPValidationError"},"ProjectCreate":{"properties":{"name":{"type":"string","pattern":"^[a-zA-Z0-9_-]+$","title":"Name","description":"Project name"},"description":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Description","description":"Project description"}},"type":"object","required":["name"],"title":"ProjectCreate","description":"Request model for creating a new project"},"ProjectInfo":{"properties":{"name":{"type":"string","title":"Name"},"path":{"type":"string","title":"Path"},"is_active":{"type":"boolean","title":"Is Active"},"include_configs":{"items":{"type":"string"},"type":"array","title":"Include Configs"},"description":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Description"},"created_at":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Created At"}},"type":"object","required":["name","path","is_active","include_configs"],"title":"ProjectInfo","description":"Response model for project information"},"ProjectUpdate":{"properties":{"description":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Description","description":"Project description"},"include_configs":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"title":"Include Configs","description":"Configuration directories"},"new_name":{"anyOf":[{"type":"string","pattern":"^[a-zA-Z0-9_-]+$"},{"type":"null"}],"title":"New Name","description":"New project name for renaming"}},"type":"object","title":"ProjectUpdate","description":"Request model for updating a project"},"RootConfig":{"properties":{"uri":{"type":"string","title":"Uri","description":"The URI of the root."},"name":{"type":"string","title":"Name","description":"The name of the root."},"capabilities":{"items":{"type":"string"},"type":"array","title":"Capabilities","description":"A list of capabilities provided by this root."}},"type":"object","required":["uri","name","capabilities"],"title":"RootConfig","description":"Configuration for an MCP root"},"ServerDetailedStatus":{"properties":{"name":{"type":"string","title":"Name"},"registered":{"type":"boolean","title":"Registered"},"status":{"type":"string","title":"Status"},"transport_type":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Transport Type"},"tools":{"items":{"type":"string"},"type":"array","title":"Tools"},"registration_time":{"anyOf":[{"type":"string","format":"date-time"},{"type":"null"}],"title":"Registration Time"},"session_active":{"type":"boolean","title":"Session Active"}},"type":"object","required":["name","registered","status","transport_type","tools","registration_time","session_active"],"title":"ServerDetailedStatus","description":"Detailed runtime status for a specific MCP server."},"ServerRuntimeInfo":{"properties":{"name":{"type":"string","title":"Name"},"status":{"type":"string","title":"Status","default":"active"},"transport_type":{"type":"string","title":"Transport Type"},"tools_count":{"type":"integer","title":"Tools Count"},"registration_time":{"type":"string","format":"date-time","title":"Registration Time"}},"type":"object","required":["name","transport_type","tools_count","registration_time"],"title":"ServerRuntimeInfo","description":"Runtime information about a registered MCP server."},"ServerTestResult":{"properties":{"status":{"type":"string","title":"Status"},"server_name":{"type":"string","title":"Server Name"},"connection_time":{"anyOf":[{"type":"number"},{"type":"null"}],"title":"Connection Time"},"tools_discovered":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"title":"Tools Discovered"},"test_tool_result":{"anyOf":[{"additionalProperties":true,"type":"object"},{"type":"null"}],"title":"Test Tool Result"},"error":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Error"}},"type":"object","required":["status","server_name","connection_time","tools_discovered","test_tool_result","error"],"title":"ServerTestResult","description":"Result of testing an MCP server configuration."},"SessionListResponse":{"properties":{"sessions":{"items":{"$ref":"#/components/schemas/SessionMetadata"},"type":"array","title":"Sessions"},"total":{"type":"integer","title":"Total"},"offset":{"type":"integer","title":"Offset"},"limit":{"type":"integer","title":"Limit"}},"type":"object","required":["sessions","total","offset","limit"],"title":"SessionListResponse"},"SessionMetadata":{"properties":{"session_id":{"type":"string","title":"Session Id"},"name":{"type":"string","title":"Name"},"created_at":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Created At"},"last_updated":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Last Updated"},"message_count":{"anyOf":[{"type":"integer"},{"type":"null"}],"title":"Message Count"},"is_workflow":{"type":"boolean","title":"Is Workflow","default":false},"agents_involved":{"anyOf":[{"additionalProperties":{"type":"string"},"type":"object"},{"type":"null"}],"title":"Agents Involved"},"base_session_id":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Base Session Id"}},"type":"object","required":["session_id","name"],"title":"SessionMetadata"},"ToolCallArgs":{"properties":{"args":{"additionalProperties":true,"type":"object","title":"Args"}},"type":"object","required":["args"],"title":"ToolCallArgs"},"ToolDetails":{"properties":{"name":{"type":"string","title":"Name"},"description":{"type":"string","title":"Description"},"server_name":{"type":"string","title":"Server Name"},"inputSchema":{"additionalProperties":true,"type":"object","title":"Inputschema"}},"type":"object","required":["name","description","server_name","inputSchema"],"title":"ToolDetails","description":"Detailed information about a specific tool."},"ValidationError":{"properties":{"loc":{"items":{"anyOf":[{"type":"string"},{"type":"integer"}]},"type":"array","title":"Location"},"msg":{"type":"string","title":"Message"},"type":{"type":"string","title":"Error Type"}},"type":"object","required":["loc","msg","type"],"title":"ValidationError"},"WorkflowRunRequest":{"properties":{"initial_input":{"title":"Initial Input"},"session_id":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Session Id"}},"type":"object","required":["initial_input"],"title":"WorkflowRunRequest","description":"Request model for running a workflow."},"WorkspaceInfo":{"properties":{"name":{"type":"string","title":"Name"},"path":{"type":"string","title":"Path"},"projects":{"items":{"type":"string"},"type":"array","title":"Projects"},"include_configs":{"items":{"type":"string"},"type":"array","title":"Include Configs"},"is_active":{"type":"boolean","title":"Is Active"},"description":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Description"}},"type":"object","required":["name","path","projects","include_configs","is_active"],"title":"WorkspaceInfo","description":"Response model for workspace information"}},"securitySchemes":{"APIKeyHeader":{"type":"apiKey","in":"header","name":"X-API-Key"}}}}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Aurite Agents API",
+    "description": "API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP)",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Simple health check endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "get": {
+        "summary": "Mcp Health Check",
+        "description": "Health check for the MCP server.",
+        "operationId": "mcp_health_check_mcp_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/status": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Get Host Status",
+        "description": "Get the status of the MCPHost.",
+        "operationId": "get_host_status_tools_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/tools/": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "List Tools",
+        "description": "List all available tools from the MCPHost.",
+        "operationId": "list_tools_tools__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Tools Tools  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/tools/servers": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "List Registered Servers",
+        "description": "List all currently registered MCP servers with runtime information.\n\nReturns runtime information about each registered server including:\n- Server name\n- Transport type\n- Number of tools provided\n- Registration time",
+        "operationId": "list_registered_servers_tools_servers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServerRuntimeInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Registered Servers Tools Servers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/tools/servers/{server_name}": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Get Server Status",
+        "description": "Get detailed runtime status for a specific MCP server.\n\nReturns detailed information including:\n- Registration status\n- Transport type\n- List of tool names provided by this server\n- Session status",
+        "operationId": "get_server_status_tools_servers__server_name__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerDetailedStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Unregister Server",
+        "description": "Unregister an MCP server from the host.",
+        "operationId": "unregister_server_tools_servers__server_name__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/register/config": {
+      "post": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Register Server By Config",
+        "description": "Register a new MCP server with the host using a provided configuration.",
+        "operationId": "register_server_by_config_tools_register_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/tools/register/{server_name}": {
+      "post": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Register Server By Name",
+        "description": "Register a new MCP server with the host by its configured name.",
+        "operationId": "register_server_by_name_tools_register__server_name__post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/servers/{server_name}/restart": {
+      "post": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Restart Server",
+        "description": "Restart a registered MCP server.\nThis is a convenience endpoint that unregisters and then re-registers the server.",
+        "operationId": "restart_server_tools_servers__server_name__restart_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/{tool_name}": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Get Tool Details",
+        "description": "Get detailed information about a specific tool.\n\nReturns:\n- Tool name and description\n- Which server provides the tool\n- Input schema for the tool",
+        "operationId": "get_tool_details_tools__tool_name__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/servers/{server_name}/tools": {
+      "get": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Get Server Tools",
+        "description": "List all tools provided by a specific registered server.\n\nReturns a list of tools with their full details.",
+        "operationId": "get_server_tools_tools_servers__server_name__tools_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Server Tools Tools Servers  Server Name  Tools Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/servers/{server_name}/test": {
+      "post": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Test Server",
+        "description": "Test an MCP server configuration by temporarily registering it.\n\nThis endpoint:\n1. Retrieves the server configuration\n2. Temporarily registers the server\n3. Discovers available tools\n4. Optionally tests a tool execution\n5. Unregisters the server\n6. Returns test results",
+        "operationId": "test_server_tools_servers__server_name__test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "server_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Server Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/{tool_name}/call": {
+      "post": {
+        "tags": [
+          "MCP Host"
+        ],
+        "summary": "Call Tool",
+        "description": "Execute a specific tool by name with the given arguments.",
+        "operationId": "call_tool_tools__tool_name__call_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolCallArgs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/components": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Component Types",
+        "description": "List all available component types.",
+        "operationId": "list_component_types_config_components_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response List Component Types Config Components Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/components/{component_type}": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Components By Type",
+        "description": "List all available components of a specific type.\nAccepts both singular and plural forms (e.g., 'agent' or 'agents').",
+        "operationId": "list_components_by_type_config_components__component_type__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Components By Type Config Components  Component Type  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Create Component",
+        "description": "Create a new component of the specified type.",
+        "operationId": "create_component_config_components__component_type__post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComponentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComponentCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/components/{component_type}/{component_id}": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Get Component By Id",
+        "description": "Get a specific component by its type and ID.\nAccepts both singular and plural forms for component type (e.g., 'agent' or 'agents').",
+        "operationId": "get_component_by_id_config_components__component_type___component_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Component By Id Config Components  Component Type   Component Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Update Component",
+        "description": "Update an existing component.",
+        "operationId": "update_component_config_components__component_type___component_id__put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComponentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Component Config Components  Component Type   Component Id  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Delete Component",
+        "description": "Delete a component.",
+        "operationId": "delete_component_config_components__component_type___component_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Component Config Components  Component Type   Component Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/components/{component_type}/{component_id}/validate": {
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Validate Component",
+        "description": "Validate a component's configuration.",
+        "operationId": "validate_component_config_components__component_type___component_id__validate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Validate Component Config Components  Component Type   Component Id  Validate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/sources": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Config Sources",
+        "description": "List all configuration source directories with context information.\n\nReturns a list of configuration source directories in priority order,\nincluding their context (project/workspace/user) and associated names.",
+        "operationId": "list_config_sources_config_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Config Sources Config Sources Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/files/{source_name}": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Config Files By Source",
+        "description": "List all configuration files for a specific source.\n\nReturns a list of relative file paths for the given source.",
+        "operationId": "list_config_files_by_source_config_files__source_name__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Config Files By Source Config Files  Source Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/files/{source_name}/{file_path}": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Get File Content",
+        "description": "Get the content of a specific configuration file.",
+        "operationId": "get_file_content_config_files__source_name___file_path__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Name"
+            }
+          },
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "title": "Response Get File Content Config Files  Source Name   File Path  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Update Config File",
+        "description": "Update an existing configuration file.",
+        "operationId": "update_config_file_config_files__source_name___file_path__put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Name"
+            }
+          },
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Path"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Config File Config Files  Source Name   File Path  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Delete Config File",
+        "description": "Delete an existing configuration file.",
+        "operationId": "delete_config_file_config_files__source_name___file_path__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Name"
+            }
+          },
+          {
+            "name": "file_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Config File Config Files  Source Name   File Path  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/files": {
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Create Config File",
+        "description": "Create a new configuration file.",
+        "operationId": "create_config_file_config_files_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Config File Config Files Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/validate": {
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Validate All Components",
+        "description": "Validate all components in the system.",
+        "operationId": "validate_all_components_config_validate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Validate All Components Config Validate Post"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/refresh": {
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Refresh Configs",
+        "description": "Force refresh all configurations from disk.\nThis will reload all configuration files and rebuild the component index.",
+        "operationId": "refresh_configs_config_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Refresh Configs Config Refresh Post"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/projects": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Projects",
+        "description": "List all projects in the current workspace.",
+        "operationId": "list_projects_config_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Projects Config Projects Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Create Project",
+        "description": "Create a new project in the current workspace.",
+        "operationId": "create_project_config_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Project Config Projects Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/projects/active": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Get Active Project",
+        "description": "Get information about the currently active project.",
+        "operationId": "get_active_project_config_projects_active_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Active Project Config Projects Active Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/projects/{name}": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Get Project",
+        "description": "Get information about a specific project.",
+        "operationId": "get_project_config_projects__name__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Update Project",
+        "description": "Update a project's configuration.",
+        "operationId": "update_project_config_projects__name__put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Project Config Projects  Name  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a project from the workspace.",
+        "operationId": "delete_project_config_projects__name__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Project Config Projects  Name  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/workspaces": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "List Workspaces",
+        "description": "List workspace information (currently supports single workspace).",
+        "operationId": "list_workspaces_config_workspaces_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Workspaces Config Workspaces Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/config/workspaces/active": {
+      "get": {
+        "tags": [
+          "Configuration Manager"
+        ],
+        "summary": "Get Active Workspace",
+        "description": "Get information about the currently active workspace.",
+        "operationId": "get_active_workspace_config_workspaces_active_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Active Workspace Config Workspaces Active Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/execution/status": {
+      "get": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Get Facade Status",
+        "description": "Get the status of the AuriteEngine.",
+        "operationId": "get_facade_status_execution_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/execution/agents/{agent_name}/run": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Run Agent",
+        "description": "Execute an agent by name.",
+        "operationId": "run_agent_execution_agents__agent_name__run_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/llms/{llm_config_id}/test": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Test Llm",
+        "description": "Test an LLM configuration by running a simple 10 token call\nThis allows you to quickly test LLM configurations without creating a full agent.",
+        "operationId": "test_llm_execution_llms__llm_config_id__test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "llm_config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Llm Config Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/agents/{agent_name}/test": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Test Agent",
+        "description": "Test an agent's configuration and dependencies.",
+        "operationId": "test_agent_execution_agents__agent_name__test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/agents/{agent_name}/stream": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Stream Agent",
+        "description": "Execute an agent by name and stream the response.",
+        "operationId": "stream_agent_execution_agents__agent_name__stream_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/workflows/linear/{workflow_name}/run": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Run Linear Workflow",
+        "description": "Execute a linear workflow by name.",
+        "operationId": "run_linear_workflow_execution_workflows_linear__workflow_name__run_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/workflows/linear/{workflow_name}/test": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Test Linear Workflow",
+        "description": "Test a linear workflow.",
+        "operationId": "test_linear_workflow_execution_workflows_linear__workflow_name__test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/workflows/custom/{workflow_name}/run": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Run Custom Workflow",
+        "description": "Execute a custom workflow by name.",
+        "operationId": "run_custom_workflow_execution_workflows_custom__workflow_name__run_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/workflows/custom/{workflow_name}/test": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Test Custom Workflow",
+        "description": "Test a custom workflow.",
+        "operationId": "test_custom_workflow_execution_workflows_custom__workflow_name__test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/workflows/custom/{workflow_name}/validate": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Validate Custom Workflow",
+        "description": "Validate a custom workflow.",
+        "operationId": "validate_custom_workflow_execution_workflows_custom__workflow_name__validate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/history": {
+      "get": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "List Execution History",
+        "description": "List execution history sessions with optional filtering by agent or workflow.\nWhen filtering by workflow, returns only parent workflow sessions (not individual agent sessions).\nSupports pagination with offset/limit.",
+        "operationId": "list_execution_history_execution_history_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by agent name",
+              "title": "Agent Name"
+            },
+            "description": "Filter by agent name"
+          },
+          {
+            "name": "workflow_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by workflow name",
+              "title": "Workflow Name"
+            },
+            "description": "Filter by workflow name"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Maximum number of sessions to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of sessions to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of sessions to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of sessions to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/history/{session_id}": {
+      "get": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Get Session History",
+        "description": "Get the complete execution result for a specific session.\nReturns the same format as the original execution endpoint.\nSupports partial session ID matching (e.g., just the suffix like '826c63d4').",
+        "operationId": "get_session_history_execution_history__session_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Delete Session History",
+        "description": "Delete a specific session's history.\nReturns 204 No Content on success, 404 if session not found.",
+        "operationId": "delete_session_history_execution_history__session_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution/history/cleanup": {
+      "post": {
+        "tags": [
+          "Execution Facade"
+        ],
+        "summary": "Cleanup History",
+        "description": "Clean up old sessions based on retention policy.\nDeletes sessions older than specified days and keeps only the most recent max_sessions.\nSet days=0 to delete all sessions older than today.",
+        "operationId": "cleanup_history_execution_history_cleanup_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 0,
+              "description": "Delete sessions older than this many days",
+              "default": 30,
+              "title": "Days"
+            },
+            "description": "Delete sessions older than this many days"
+          },
+          {
+            "name": "max_sessions",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 0,
+              "description": "Maximum number of sessions to keep",
+              "default": 50,
+              "title": "Max Sessions"
+            },
+            "description": "Maximum number of sessions to keep"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentRunRequest": {
+        "properties": {
+          "user_message": {
+            "type": "string",
+            "title": "User Message"
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_message"
+        ],
+        "title": "AgentRunRequest",
+        "description": "Request model for running an agent."
+      },
+      "ClientConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The unique name of the component."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A brief description of the component."
+          },
+          "type": {
+            "type": "string",
+            "const": "mcp_server",
+            "title": "Type",
+            "default": "mcp_server"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stdio",
+                  "http_stream",
+                  "local"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type",
+            "description": "The transport type for the client."
+          },
+          "server_path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "path"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Path",
+            "description": "Path to the server script for 'stdio' transport."
+          },
+          "http_endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Endpoint",
+            "description": "URL endpoint for 'http_stream' transport."
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers",
+            "description": "HTTP headers for 'http_stream' transport."
+          },
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command",
+            "description": "The command to run for 'local' transport."
+          },
+          "args": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Args",
+            "description": "Arguments for the 'local' transport command."
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/RootConfig"
+            },
+            "type": "array",
+            "title": "Roots",
+            "description": "List of root configurations for this client."
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities",
+            "description": "List of capabilities this client provides (e.g., 'tools', 'prompts')."
+          },
+          "timeout": {
+            "type": "number",
+            "title": "Timeout",
+            "description": "Default timeout in seconds for client operations.",
+            "default": 10.0
+          },
+          "registration_timeout": {
+            "type": "number",
+            "title": "Registration Timeout",
+            "description": "Timeout for registering the mcp client",
+            "default": 30.0
+          },
+          "exclude": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude",
+            "description": "List of component names (prompt, resource, tool) to exclude from this client."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "capabilities"
+        ],
+        "title": "ClientConfig",
+        "description": "Configuration for an MCP client"
+      },
+      "ComponentCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Unique name for the component"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config",
+            "description": "Component configuration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "config"
+        ],
+        "title": "ComponentCreate",
+        "description": "Request model for creating a new component"
+      },
+      "ComponentCreateResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "component": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Component"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "component"
+        ],
+        "title": "ComponentCreateResponse",
+        "description": "Standardized response for component creation."
+      },
+      "ComponentUpdate": {
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config",
+            "description": "Updated component configuration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "title": "ComponentUpdate",
+        "description": "Request model for updating an existing component"
+      },
+      "ExecutionHistoryResponse": {
+        "properties": {
+          "result_type": {
+            "type": "string",
+            "title": "Result Type"
+          },
+          "execution_result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Execution Result"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/SessionMetadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_type",
+          "execution_result",
+          "metadata"
+        ],
+        "title": "ExecutionHistoryResponse",
+        "description": "Unified response model for both agent and workflow execution history"
+      },
+      "FileCreateRequest": {
+        "properties": {
+          "source_name": {
+            "type": "string",
+            "title": "Source Name"
+          },
+          "relative_path": {
+            "type": "string",
+            "title": "Relative Path"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_name",
+          "relative_path",
+          "content"
+        ],
+        "title": "FileCreateRequest"
+      },
+      "FileUpdateRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "FileUpdateRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name",
+            "description": "Project name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Project description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectCreate",
+        "description": "Request model for creating a new project"
+      },
+      "ProjectInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "include_configs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Include Configs"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "is_active",
+          "include_configs"
+        ],
+        "title": "ProjectInfo",
+        "description": "Response model for project information"
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Project description"
+          },
+          "include_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include Configs",
+            "description": "Configuration directories"
+          },
+          "new_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Name",
+            "description": "New project name for renaming"
+          }
+        },
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Request model for updating a project"
+      },
+      "RootConfig": {
+        "properties": {
+          "uri": {
+            "type": "string",
+            "title": "Uri",
+            "description": "The URI of the root."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the root."
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities",
+            "description": "A list of capabilities provided by this root."
+          }
+        },
+        "type": "object",
+        "required": [
+          "uri",
+          "name",
+          "capabilities"
+        ],
+        "title": "RootConfig",
+        "description": "Configuration for an MCP root"
+      },
+      "ServerDetailedStatus": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "registered": {
+            "type": "boolean",
+            "title": "Registered"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "registration_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Time"
+          },
+          "session_active": {
+            "type": "boolean",
+            "title": "Session Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "registered",
+          "status",
+          "transport_type",
+          "tools",
+          "registration_time",
+          "session_active"
+        ],
+        "title": "ServerDetailedStatus",
+        "description": "Detailed runtime status for a specific MCP server."
+      },
+      "ServerRuntimeInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "active"
+          },
+          "transport_type": {
+            "type": "string",
+            "title": "Transport Type"
+          },
+          "tools_count": {
+            "type": "integer",
+            "title": "Tools Count"
+          },
+          "registration_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registration Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "transport_type",
+          "tools_count",
+          "registration_time"
+        ],
+        "title": "ServerRuntimeInfo",
+        "description": "Runtime information about a registered MCP server."
+      },
+      "ServerTestResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "server_name": {
+            "type": "string",
+            "title": "Server Name"
+          },
+          "connection_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Time"
+          },
+          "tools_discovered": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools Discovered"
+          },
+          "test_tool_result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Tool Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "server_name",
+          "connection_time",
+          "tools_discovered",
+          "test_tool_result",
+          "error"
+        ],
+        "title": "ServerTestResult",
+        "description": "Result of testing an MCP server configuration."
+      },
+      "SessionListResponse": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionMetadata"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "SessionListResponse"
+      },
+      "SessionMetadata": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated"
+          },
+          "message_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Count"
+          },
+          "is_workflow": {
+            "type": "boolean",
+            "title": "Is Workflow",
+            "default": false
+          },
+          "agents_involved": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agents Involved"
+          },
+          "base_session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "name"
+        ],
+        "title": "SessionMetadata"
+      },
+      "ToolCallArgs": {
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args"
+          }
+        },
+        "type": "object",
+        "required": [
+          "args"
+        ],
+        "title": "ToolCallArgs"
+      },
+      "ToolDetails": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "server_name": {
+            "type": "string",
+            "title": "Server Name"
+          },
+          "inputSchema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Inputschema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "server_name",
+          "inputSchema"
+        ],
+        "title": "ToolDetails",
+        "description": "Detailed information about a specific tool."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkflowRunRequest": {
+        "properties": {
+          "initial_input": {
+            "title": "Initial Input"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "initial_input"
+        ],
+        "title": "WorkflowRunRequest",
+        "description": "Request model for running a workflow."
+      },
+      "WorkspaceInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "projects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "include_configs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Include Configs"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "projects",
+          "include_configs",
+          "is_active"
+        ],
+        "title": "WorkspaceInfo",
+        "description": "Response model for workspace information"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

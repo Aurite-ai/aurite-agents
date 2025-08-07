@@ -24,5 +24,11 @@ mcp = FastMCP.from_openapi(
     # route_maps=[...],  # Optional: advanced customization
 )
 
-if __name__ == "__main__":
+
+async def start():
+    """Start the MCP server."""
     mcp.run(transport="http", port=8123)
+
+
+if __name__ == "__main__":
+    start()

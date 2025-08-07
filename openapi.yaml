@@ -1,14 +1,8 @@
 openapi: 3.1.0
 info:
   title: Aurite Agents API
-  description: |
-    API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP).
-    
-    ## Authentication
-    All endpoints (except /health and /system/health) require an API key to be passed in the `X-API-Key` header.
-    
-    ## Base URL
-    The default base URL is `http://localhost:8000`
+  description: |-
+    API for the Aurite Agents framework - a Python framework for building AI agents using the Model Context Protocol (MCP)
   version: 1.0.0
 paths:
   /health:
@@ -21,208 +15,18 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-
-  # System Endpoints
-  /system/info:
+              schema: {}
+  /mcp:
     get:
-      summary: Get System Information
-      description: Get detailed system information including platform, Python version, and hardware details.
-      tags:
-        - System
+      summary: Mcp Health Check
+      description: Health check for the MCP server.
+      operationId: mcp_health_check_mcp_get
       responses:
         '200':
-          description: System information
+          description: Successful Response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/SystemInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /system/version:
-    get:
-      summary: Get Framework Version
-      description: Get Aurite Framework version information.
-      tags:
-        - System
-      responses:
-        '200':
-          description: Framework version information
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FrameworkVersion'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /system/capabilities:
-    get:
-      summary: Get System Capabilities
-      description: List system capabilities and available features.
-      tags:
-        - System
-      responses:
-        '200':
-          description: System capabilities
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemCapabilities'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /system/environment:
-    get:
-      summary: Get Environment Variables
-      description: Get environment variables (sensitive values are masked).
-      tags:
-        - System
-      responses:
-        '200':
-          description: List of environment variables
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/EnvironmentVariable'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    put:
-      summary: Update Environment Variables
-      description: Update environment variables (only non-sensitive variables can be updated).
-      tags:
-        - System
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EnvironmentUpdate'
-      responses:
-        '200':
-          description: Environment variables update result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  updated:
-                    type: array
-                    items:
-                      type: string
-                  errors:
-                    type: array
-                    items:
-                      type: string
-                  status:
-                    type: string
-                    enum: [success, partial]
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /system/dependencies:
-    get:
-      summary: List Dependencies
-      description: List all installed Python dependencies.
-      tags:
-        - System
-      responses:
-        '200':
-          description: List of dependencies
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DependencyInfo'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /system/dependencies/check:
-    post:
-      summary: Check Dependency Health
-      description: Check the health of critical dependencies.
-      tags:
-        - System
-      responses:
-        '200':
-          description: Dependency health check results
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DependencyHealth'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /system/monitoring/metrics:
-    get:
-      summary: Get System Metrics
-      description: Get current system metrics including CPU, memory, and disk usage.
-      tags:
-        - System
-      responses:
-        '200':
-          description: System metrics
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemMetrics'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /system/monitoring/active:
-    get:
-      summary: List Active Processes
-      description: List active Aurite-related processes.
-      tags:
-        - System
-      responses:
-        '200':
-          description: List of active processes
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ActiveProcess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /system/health:
-    get:
-      summary: Comprehensive Health Check
-      description: Perform a comprehensive health check of all system components.
-      tags:
-        - System
-      responses:
-        '200':
-          description: Health check results
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthCheckResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # MCP Host Endpoints
+              schema: {}
   /tools/status:
     get:
       tags:
@@ -235,17 +39,9 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "active"
-                  tool_count:
-                    type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+              schema: {}
+      security:
+      - APIKeyHeader: []
   /tools/:
     get:
       tags:
@@ -387,20 +183,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  name:
-                    type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
   /tools/register/{server_name}:
     post:
       tags:
@@ -428,22 +213,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  name:
-                    type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /tools/servers/{server_name}/restart:
     post:
       tags:
@@ -474,22 +244,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  name:
-                    type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /tools/{tool_name}:
     get:
       tags:
@@ -522,10 +277,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolDetails'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '422':
           description: Validation Error
           content:
@@ -561,10 +312,8 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                title: Response Get Server Tools Tools Servers  Server Name  Tools
+                  Get
         '422':
           description: Validation Error
           content:
@@ -609,10 +358,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerTestResult'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '422':
           description: Validation Error
           content:
@@ -652,23 +397,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          description: Gateway Timeout - MCP server timeout
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # Configuration Manager Endpoints
+                $ref: '#/components/schemas/HTTPValidationError'
   /config/components:
     get:
       tags:
@@ -751,22 +480,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          description: Component already exists
+                $ref: '#/components/schemas/ComponentCreateResponse'
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /config/components/{component_type}/{component_id}:
     get:
       tags:
@@ -846,10 +566,11 @@ paths:
                 title: Response Update Component Config Components  Component Type   Component
                   Id  Put
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
       - Configuration Manager
@@ -882,10 +603,11 @@ paths:
                 title: Response Delete Component Config Components  Component Type   Component
                   Id  Delete
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /config/components/{component_type}/{component_id}/validate:
     post:
       tags:
@@ -1054,13 +776,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                type: object
+                additionalProperties: true
+                title: Response Update Config File Config Files  Source Name   File
+                  Path  Put
         '422':
           description: Validation Error
           content:
@@ -1094,13 +813,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                type: object
+                additionalProperties: true
+                title: Response Delete Config File Config Files  Source Name   File
+                  Path  Delete
         '422':
           description: Validation Error
           content:
@@ -1126,17 +842,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          description: File already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                additionalProperties: true
+                type: object
+                title: Response Create Config File Config Files Post
         '422':
           description: Validation Error
           content:
@@ -1226,10 +934,13 @@ paths:
                 type: object
                 title: Response Create Project Config Projects Post
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
   /config/projects/active:
     get:
       tags:
@@ -1309,10 +1020,11 @@ paths:
                 additionalProperties: true
                 title: Response Update Project Config Projects  Name  Put
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
       - Configuration Manager
@@ -1338,10 +1050,11 @@ paths:
                 additionalProperties: true
                 title: Response Delete Project Config Projects  Name  Delete
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /config/workspaces:
     get:
       tags:
@@ -1392,15 +1105,9 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "active"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+              schema: {}
+      security:
+      - APIKeyHeader: []
   /execution/agents/{agent_name}/run:
     post:
       tags:
@@ -1434,101 +1141,38 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-        '401':
-          description: Authentication Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
-        '404':
-          description: Configuration Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/llms/{llm_config_id}/test:
     post:
-      summary: Test LLM Configuration
-      description: |
-        Test an LLM configuration by running a simple validation call.
-        This allows you to quickly test LLM configurations without creating a full agent.
       tags:
-        - Execution Facade
+      - Execution Facade
+      summary: Test Llm
+      description: 'Test an LLM configuration by running a simple 10 token call
+
+        This allows you to quickly test LLM configurations without creating a full
+        agent.'
       operationId: test_llm_execution_llms__llm_config_id__test_post
       security:
-        - APIKeyHeader: []
+      - APIKeyHeader: []
       parameters:
-        - name: llm_config_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the LLM configuration to test
+      - name: llm_config_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Llm Config Id
       responses:
         '200':
-          description: LLM test successful
+          description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  llm_config_id:
-                    type: string
-                  metadata:
-                    type: object
-                    properties:
-                      provider:
-                        type: string
-                      model:
-                        type: string
-                      temperature:
-                        type: number
-                      max_tokens:
-                        type: integer
-        '404':
-          description: LLM configuration not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
+              schema: {}
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-        '500':
-          description: LLM test failed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  llm_config_id:
-                    type: string
-                  error:
-                    type: object
-                    properties:
-                      message:
-                        type: string
-                      error_type:
-                        type: string
   /execution/agents/{agent_name}/test:
     post:
       tags:
@@ -1556,20 +1200,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/agents/{agent_name}/stream:
     post:
       tags:
@@ -1596,21 +1227,8 @@ paths:
         '200':
           description: Successful Response
           content:
-            text/event-stream:
-              schema:
-                type: string
-        '401':
-          description: Authentication Error
-          content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
-        '404':
-          description: Configuration Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StructuredError'
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -1650,24 +1268,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          description: Configuration Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          description: Workflow execution failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/workflows/linear/{workflow_name}/test:
     post:
       tags:
@@ -1695,20 +1296,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/workflows/custom/{workflow_name}/run:
     post:
       tags:
@@ -1742,24 +1330,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          description: Configuration Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          description: Workflow execution failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/workflows/custom/{workflow_name}/test:
     post:
       tags:
@@ -1787,20 +1358,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/workflows/custom/{workflow_name}/validate:
     post:
       tags:
@@ -1828,27 +1386,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/history:
     get:
-      summary: List Execution History
-      description: |
-        List execution history sessions with optional filtering by agent or workflow.
-        When filtering by workflow, returns only parent workflow sessions (not individual agent sessions).
-        Supports pagination with offset/limit.
       tags:
       - Execution Facade
       summary: List Execution History
@@ -1870,21 +1410,29 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: Filter by agent name
+          title: Agent Name
         description: Filter by agent name
       - name: workflow_name
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by workflow name
+          title: Workflow Name
         description: Filter by workflow name
       - name: limit
         in: query
         required: false
         schema:
           type: integer
-          minimum: 1
           maximum: 100
+          minimum: 1
+          description: Maximum number of sessions to return
           default: 50
+          title: Limit
         description: Maximum number of sessions to return
       - name: offset
         in: query
@@ -1892,7 +1440,9 @@ paths:
         schema:
           type: integer
           minimum: 0
+          description: Number of sessions to skip
           default: 0
+          title: Offset
         description: Number of sessions to skip
       responses:
         '200':
@@ -1902,79 +1452,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/SessionListResponse'
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/history/{session_id}:
     get:
       tags:
       - Execution Facade
       summary: Get Session History
-      description: |
-        Get the complete execution result for a specific session.
+      description: 'Get the complete execution result for a specific session.
+
         Returns the same format as the original execution endpoint.
-        Supports partial session ID matching (e.g., just the suffix like '826c63d4').
-      tags:
-        - Execution Facade
+
+        Supports partial session ID matching (e.g., just the suffix like ''826c63d4'').'
+      operationId: get_session_history_execution_history__session_id__get
+      security:
+      - APIKeyHeader: []
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Session ID (supports partial matching)
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
       responses:
         '200':
-          description: Session execution result
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionHistoryResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
       - Execution Facade
       summary: Delete Session History
-      description: |
-        Delete a specific session's history.
-        Returns 204 No Content on success, 404 if session not found.
-      tags:
-        - Execution Facade
-      parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Session ID
-      responses:
-        '204':
-          description: Session deleted successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+      description: 'Delete a specific session''s history.
 
+        Returns 204 No Content on success, 404 if session not found.'
+      operationId: delete_session_history_execution_history__session_id__delete
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /execution/history/cleanup:
     post:
-      summary: Cleanup History
-      description: |
-        Clean up old sessions based on retention policy.
-        Deletes sessions older than specified days and keeps only the most recent max_sessions.
-        Set days=0 to delete all sessions older than today.
       tags:
       - Execution Facade
       summary: Cleanup History
@@ -1988,24 +1534,28 @@ paths:
       security:
       - APIKeyHeader: []
       parameters:
-        - name: days
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            maximum: 365
-            default: 30
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 0
           description: Delete sessions older than this many days
-        - name: max_sessions
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            maximum: 1000
-            default: 50
+          default: 30
+          title: Days
+        description: Delete sessions older than this many days
+      - name: max_sessions
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 0
           description: Maximum number of sessions to keep
+          default: 50
+          title: Max Sessions
+        description: Maximum number of sessions to keep
       responses:
         '200':
           description: Successful Response
@@ -2017,17 +1567,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AgentRunRequest:
@@ -2632,324 +2172,3 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-
-    # Additional schemas for system endpoints and error handling
-    Error:
-      type: object
-      properties:
-        detail:
-          type: string
-          description: Error message
-        status:
-          type: integer
-          description: HTTP status code
-
-    StructuredError:
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            message:
-              type: string
-            error_type:
-              type: string
-            details:
-              type: object
-              additionalProperties: true
-
-    MessageResponse:
-      type: object
-      required:
-        - message
-      properties:
-        message:
-          type: string
-      description: Standard message response
-
-    # System Schemas
-    SystemInfo:
-      type: object
-      required:
-        - platform
-        - platform_version
-        - python_version
-        - python_implementation
-        - hostname
-        - cpu_count
-        - architecture
-        - os_details
-      properties:
-        platform:
-          type: string
-        platform_version:
-          type: string
-        python_version:
-          type: string
-        python_implementation:
-          type: string
-        hostname:
-          type: string
-        cpu_count:
-          type: integer
-        architecture:
-          type: string
-        os_details:
-          type: object
-          additionalProperties:
-            type: string
-
-    FrameworkVersion:
-      type: object
-      required:
-        - version
-        - name
-        - description
-        - authors
-        - license
-        - repository
-        - python_requirement
-      properties:
-        version:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        authors:
-          type: array
-          items:
-            type: string
-        license:
-          type: string
-        repository:
-          type: string
-        python_requirement:
-          type: string
-
-    SystemCapabilities:
-      type: object
-      required:
-        - mcp_support
-        - api_enabled
-        - cli_enabled
-        - tui_enabled
-        - available_transports
-        - supported_llm_providers
-        - storage_backends
-        - optional_features
-      properties:
-        mcp_support:
-          type: boolean
-        api_enabled:
-          type: boolean
-        cli_enabled:
-          type: boolean
-        tui_enabled:
-          type: boolean
-        available_transports:
-          type: array
-          items:
-            type: string
-        supported_llm_providers:
-          type: array
-          items:
-            type: string
-        storage_backends:
-          type: array
-          items:
-            type: string
-        optional_features:
-          type: object
-          additionalProperties:
-            type: boolean
-
-    EnvironmentVariable:
-      type: object
-      required:
-        - name
-        - value
-        - is_sensitive
-      properties:
-        name:
-          type: string
-        value:
-          type: string
-          nullable: true
-        is_sensitive:
-          type: boolean
-          default: false
-
-    EnvironmentUpdate:
-      type: object
-      required:
-        - variables
-      properties:
-        variables:
-          type: object
-          additionalProperties:
-            type: string
-
-    DependencyInfo:
-      type: object
-      required:
-        - name
-        - version
-      properties:
-        name:
-          type: string
-        version:
-          type: string
-        location:
-          type: string
-          nullable: true
-        summary:
-          type: string
-          nullable: true
-
-    DependencyHealth:
-      type: object
-      required:
-        - name
-        - installed
-        - importable
-      properties:
-        name:
-          type: string
-        installed:
-          type: boolean
-        version:
-          type: string
-          nullable: true
-        importable:
-          type: boolean
-        error:
-          type: string
-          nullable: true
-
-    SystemMetrics:
-      type: object
-      required:
-        - timestamp
-        - cpu_percent
-        - memory_usage
-        - disk_usage
-        - process_info
-        - python_info
-      properties:
-        timestamp:
-          type: string
-          format: date-time
-        cpu_percent:
-          type: number
-        memory_usage:
-          type: object
-          additionalProperties: true
-        disk_usage:
-          type: object
-          additionalProperties: true
-        process_info:
-          type: object
-          additionalProperties: true
-        python_info:
-          type: object
-          additionalProperties: true
-
-    ActiveProcess:
-      type: object
-      required:
-        - name
-        - pid
-        - status
-        - cpu_percent
-        - memory_percent
-        - create_time
-        - cmdline
-      properties:
-        name:
-          type: string
-        pid:
-          type: integer
-        status:
-          type: string
-        cpu_percent:
-          type: number
-        memory_percent:
-          type: number
-        create_time:
-          type: string
-          format: date-time
-        cmdline:
-          type: array
-          items:
-            type: string
-
-    HealthCheckResult:
-      type: object
-      required:
-        - status
-        - timestamp
-        - components
-        - issues
-      properties:
-        status:
-          type: string
-          enum: [healthy, degraded, unhealthy]
-        timestamp:
-          type: string
-          format: date-time
-        components:
-          type: object
-          additionalProperties:
-            type: object
-            additionalProperties: true
-        issues:
-          type: array
-          items:
-            type: string
-
-  responses:
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    
-    Unauthorized:
-      description: Unauthorized - Invalid or missing API key
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    InternalServerError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    ValidationError:
-      description: Validation Error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/HTTPValidationError'
-
-tags:
-  - name: System
-    description: System health, monitoring, and information endpoints
-  - name: MCP Host
-    description: MCP server management and tool operations
-  - name: Configuration Manager
-    description: Component and configuration management
-  - name: Execution Facade
-    description: Agent and workflow execution operations
