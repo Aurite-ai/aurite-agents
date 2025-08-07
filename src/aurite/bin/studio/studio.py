@@ -245,11 +245,27 @@ async def immediate_windows_cleanup():
             subprocess.run([
                 "taskkill", "/F", "/T", "/PID", str(frontend_process.pid)
             ], check=False, capture_output=True)
+            
+            # Wait for process to actually terminate and close handles
+            try:
+                await asyncio.wait_for(frontend_process.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                pass
+            
+            # Ensure subprocess handles are properly closed
+            if hasattr(frontend_process, 'stdout') and frontend_process.stdout:
+                frontend_process.stdout.close()
+            if hasattr(frontend_process, 'stderr') and frontend_process.stderr:
+                frontend_process.stderr.close()
+            if hasattr(frontend_process, 'stdin') and frontend_process.stdin:
+                frontend_process.stdin.close()
+                
             console.print("[bold green]✓[/bold green] Frontend server terminated")
         except Exception as e:
             logger.error(f"Error force killing frontend process: {e}")
             try:
                 frontend_process.kill()
+                await asyncio.sleep(0.1)  # Brief wait for cleanup
             except:
                 pass
     
@@ -258,11 +274,29 @@ async def immediate_windows_cleanup():
         try:
             console.print("[dim]Force terminating API server...[/dim]")
             api_process.kill()
+            
+            # Wait for process to actually terminate and close handles
+            try:
+                await asyncio.wait_for(api_process.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                pass
+            
+            # Ensure subprocess handles are properly closed
+            if hasattr(api_process, 'stdout') and api_process.stdout:
+                api_process.stdout.close()
+            if hasattr(api_process, 'stderr') and api_process.stderr:
+                api_process.stderr.close()
+            if hasattr(api_process, 'stdin') and api_process.stdin:
+                api_process.stdin.close()
+                
             console.print("[bold green]✓[/bold green] API server terminated")
         except Exception as e:
             logger.error(f"Error force killing API process: {e}")
     
     console.print("[bold green]All servers terminated[/bold green]")
+    
+    # Give a moment for all cleanup to complete
+    await asyncio.sleep(0.2)
 
 
 async def start_api_server_process(port: int):
@@ -464,11 +498,26 @@ async def cleanup_processes_windows(processes_to_cleanup):
                         console.print(f"[dim]Force killed {name} server[/dim]")
                     except Exception as e:
                         logger.error(f"Error force killing {name}: {e}")
+                
+                # Ensure subprocess handles are properly closed
+                try:
+                    if hasattr(process, 'stdout') and process.stdout:
+                        process.stdout.close()
+                    if hasattr(process, 'stderr') and process.stderr:
+                        process.stderr.close()
+                    if hasattr(process, 'stdin') and process.stdin:
+                        process.stdin.close()
+                except Exception as e:
+                    # Ignore errors during handle cleanup
+                    pass
                         
         except Exception as e:
             logger.error(f"Error terminating {name} process on Windows: {e}")
     
     console.print("[bold green]✓[/bold green] All servers shut down")
+    
+    # Give a moment for all cleanup to complete
+    await asyncio.sleep(0.1)
 
 
 async def cleanup_processes_unix(processes_to_cleanup):
