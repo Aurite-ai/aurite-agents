@@ -186,6 +186,10 @@ async def start_concurrent_servers(start_api: bool, api_port: int, frontend_port
     frontend_task = asyncio.create_task(start_frontend_server_process(frontend_port))
     tasks.append(frontend_task)
     
+    # Add shutdown monitoring task
+    shutdown_task = asyncio.create_task(monitor_shutdown())
+    tasks.append(shutdown_task)
+    
     # Display startup success message
     console.print(Panel.fit(
         f"[bold green]🚀 Aurite Studio is running![/bold green]\n\n"
@@ -198,10 +202,67 @@ async def start_concurrent_servers(start_api: bool, api_port: int, frontend_port
     
     # Wait for shutdown signal or process completion
     try:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        
+        # Cancel remaining tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+                
     except Exception as e:
         logger.error(f"Error in concurrent server execution: {e}", exc_info=True)
         raise
+
+
+async def monitor_shutdown():
+    """
+    Monitor for shutdown event and handle immediate termination on Windows.
+    """
+    await shutdown_event.wait()
+    
+    # Immediate cleanup on Windows
+    if platform.system() == "Windows":
+        console.print("\n[bold yellow]Shutdown signal received, terminating processes...[/bold yellow]")
+        await immediate_windows_cleanup()
+    
+    # For Unix systems, let the normal cleanup handle it
+    return
+
+
+async def immediate_windows_cleanup():
+    """
+    Immediate process termination for Windows to avoid hanging.
+    """
+    global api_process, frontend_process
+    
+    # Kill frontend process immediately using taskkill
+    if frontend_process and frontend_process.returncode is None:
+        try:
+            console.print("[dim]Force terminating frontend server...[/dim]")
+            subprocess.run([
+                "taskkill", "/F", "/T", "/PID", str(frontend_process.pid)
+            ], check=False, capture_output=True)
+            console.print("[bold green]✓[/bold green] Frontend server terminated")
+        except Exception as e:
+            logger.error(f"Error force killing frontend process: {e}")
+            try:
+                frontend_process.kill()
+            except:
+                pass
+    
+    # Kill API process
+    if api_process and api_process.returncode is None:
+        try:
+            console.print("[dim]Force terminating API server...[/dim]")
+            api_process.kill()
+            console.print("[bold green]✓[/bold green] API server terminated")
+        except Exception as e:
+            logger.error(f"Error force killing API process: {e}")
+    
+    console.print("[bold green]All servers terminated[/bold green]")
 
 
 async def start_api_server_process(port: int):
@@ -301,10 +362,42 @@ def setup_signal_handlers():
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, initiating shutdown...")
         shutdown_event.set()
+        # On Windows, we need to be more aggressive about stopping processes
+        if platform.system() == "Windows":
+            asyncio.create_task(force_cleanup_on_signal())
     
     # Handle SIGINT (Ctrl+C) and SIGTERM
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
+
+async def force_cleanup_on_signal():
+    """
+    Force cleanup when signal is received (Windows-specific).
+    """
+    global api_process, frontend_process
+    
+    # Give a brief moment for normal shutdown to start
+    await asyncio.sleep(0.5)
+    
+    # If processes are still running, force terminate them
+    if frontend_process and frontend_process.returncode is None:
+        try:
+            if platform.system() == "Windows":
+                # Use taskkill immediately on Windows
+                subprocess.run([
+                    "taskkill", "/F", "/T", "/PID", str(frontend_process.pid)
+                ], check=False, capture_output=True)
+            else:
+                frontend_process.kill()
+        except Exception as e:
+            logger.error(f"Error force killing frontend process: {e}")
+    
+    if api_process and api_process.returncode is None:
+        try:
+            api_process.kill()
+        except Exception as e:
+            logger.error(f"Error force killing API process: {e}")
 
 
 async def cleanup_processes():
