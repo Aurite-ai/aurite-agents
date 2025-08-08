@@ -62,6 +62,7 @@ The `AgentConfig` defines the structure for an agent configuration. Below are th
     | --- | --- | --- | --- |
     | `max_iterations` | `integer` | `50` | The maximum number of conversational turns before stopping automatically. This is a safeguard to prevent infinite loops. |
     | `include_history` | `boolean` | `None` | If `true`, the entire conversation history is included in each turn. If `false` or `None`, the agent is stateless and only sees the latest message. |
+    | `include_logging` | `boolean` | `None` | If `true`, enables detailed logging to Langfuse for this agent. If `false`, disables it. If `None`, behavior is determined by the parent workflow or the `LANGFUSE_ENABLED` environment variable. |
 
 ---
 
@@ -135,5 +136,19 @@ Here are some practical examples of agent configurations.
         },
         "required": ["input_format", "output_format"]
       }
+    }
+    ```
+
+=== "Agent with Logging Disabled"
+
+    This agent explicitly disables Langfuse logging, which can be useful for high-volume or sensitive tasks.
+
+    ```json
+    {
+      "type": "agent",
+      "name": "pii-stripping-agent",
+      "description": "An agent that removes personally identifiable information from text.",
+      "llm_config_id": "gpt-3.5-turbo",
+      "include_logging": false
     }
     ```

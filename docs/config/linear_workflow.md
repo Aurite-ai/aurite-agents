@@ -24,6 +24,7 @@ The `WorkflowConfig` defines the structure for a linear workflow.
     | `description`     | `string`                 | No       | A brief, human-readable description of what the workflow accomplishes.                                                              |
     | `steps`           | `list[string or object]` | Yes      | An ordered list of the components to execute. See "Steps Configuration" below for details.                                          |
     | `include_history` | `boolean`                | `None`   | If set, overrides the `include_history` setting for all agents in the workflow, forcing them all to either save or discard history. |
+    | `include_logging` | `boolean`                | `None`   | If set, overrides the `include_logging` setting for all components in the workflow, forcing them all to either enable or disable Langfuse logging. |
 
 === ":material-step-forward: Steps Configuration"
 
@@ -78,6 +79,20 @@ The `WorkflowConfig` defines the structure for a linear workflow.
       "description": "A multi-agent support flow that remembers the conversation.",
       "include_history": true,
       "steps": ["greeting-agent", "support-agent", "followup-agent"]
+    }
+    ```
+
+=== "Workflow with Logging Override"
+
+    This workflow disables Langfuse logging for all its steps, which is useful for high-throughput pipelines where detailed tracing is not required.
+
+    ```json
+    {
+      "type": "linear_workflow",
+      "name": "fast-data-pipeline",
+      "description": "A high-speed data processing pipeline with logging disabled.",
+      "include_logging": false,
+      "steps": ["ingest-data-agent", "transform-data-agent", "load-data-agent"]
     }
     ```
 
