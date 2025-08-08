@@ -264,6 +264,39 @@ class WorkflowConfig(BaseComponentConfig):
     )
 
 
+# --- Graph Workflow Configuration ---
+
+
+class GraphWorkflowNode(BaseModel):
+    node_id: str = Field(description="The identifier for the node in the graph workflow.")
+    name: str = Field(description="The name of the component to run in the workflow step.")
+    type: Literal["agent"] = Field(
+        description="The type of the component."
+    )  # Only allow agents for now. Todo: allow other types
+
+
+class GraphWorkflowEdge(BaseModel):
+    from_node: str = Field(description="The node_id of the node this edge is from.", alias="from")
+    to_node: str = Field(description="The node_id of the node this edge is to.", alias="to")
+
+
+class GraphWorkflowConfig(BaseComponentConfig):
+    """
+    Configuration for graph workflows
+    """
+
+    type: Literal["graph_workflow"] = "graph_workflow"
+    nodes: List[GraphWorkflowNode] = Field(description="List of nodes in the graph.")
+    edges: List[GraphWorkflowEdge] = Field(description="List of edges in the graph.")
+    include_history: Optional[bool] = Field(
+        default=None, description="If set, overrides the include_history setting for all agents in this workflow."
+    )
+    include_logging: Optional[bool] = Field(
+        default=None,
+        description="If set, overrides the include_logging setting for all agents in this workflow.",
+    )
+
+
 # --- Custom Workflow Configuration ---
 
 
