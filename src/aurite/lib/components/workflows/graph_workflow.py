@@ -109,7 +109,7 @@ class GraphWorkflowExecutor:
             if not start_nodes:
                 raise ValueError("Graph workflow has no start nodes (nodes with in-degree 0)")
 
-            logger.info(f"Starting execution of {len(start_nodes)} initial nodes: {start_nodes}")
+            logger.debug(f"Starting execution of {len(start_nodes)} initial nodes: {start_nodes}")
 
             # Start initial nodes
             for node_id in start_nodes:
@@ -154,7 +154,7 @@ class GraphWorkflowExecutor:
                         completed_nodes.add(completed_node_id)
                         del running_tasks[completed_node_id]
 
-                        logger.info(f"Node '{completed_node_id}' completed successfully")
+                        logger.debug(f"Node '{completed_node_id}' completed successfully")
 
                         # Check if this completion enables any new nodes to run
                         for successor_node_id in self.graph.successors(completed_node_id):
@@ -187,7 +187,7 @@ class GraphWorkflowExecutor:
                                         )
                                     )
                                     running_tasks[successor_node_id] = task
-                                    logger.info(
+                                    logger.debug(
                                         f"Started node '{successor_node_id}' with input from predecessors: {predecessors}"
                                     )
 
