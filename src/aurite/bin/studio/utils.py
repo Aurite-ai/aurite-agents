@@ -162,23 +162,25 @@ def check_build_artifacts() -> bool:
     Check if frontend build artifacts exist.
     
     Returns:
-        True if both api-client and aurite-studio builds exist, False otherwise
+        True if api-client build exists (aurite-studio builds on-demand), False otherwise
     """
     frontend_dir = Path.cwd() / "frontend"
     
-    # Check api-client build
-    api_client_dist = frontend_dir / "packages" / "api-client" / "dist-cjs"
+    # Check api-client build - this is the critical dependency
+    api_client_dist = frontend_dir / "packages" / "api-client" / "dist"
     if not api_client_dist.exists():
         logger.debug("API client build artifacts not found")
         return False
     
-    # Check aurite-studio build
-    studio_build = frontend_dir / "packages" / "aurite-studio" / "build"
-    if not studio_build.exists():
-        logger.debug("Aurite Studio build artifacts not found")
+    # Check for key build files in api-client dist
+    index_js = api_client_dist / "index.js"
+    index_dts = api_client_dist / "index.d.ts"
+    
+    if not (index_js.exists() and index_dts.exists()):
+        logger.debug("API client build artifacts incomplete")
         return False
     
-    logger.debug("Frontend build artifacts found")
+    logger.debug("API client build artifacts found")
     return True
 
 
