@@ -13,16 +13,19 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /build
 
-# Copy dependency file first for better caching
-COPY pyproject.toml .
+# Copy the entire project context
+# .dockerignore will handle exclusions
+COPY . .
 
-# Copy source code needed for editable install
-COPY src/ ./src/
-COPY config/ ./config/
-# tests/ directory is not needed for production build
+# Install poetry
+RUN pip install poetry
 
-# Install the package in editable mode (runtime dependencies only)
-RUN pip install --no-cache-dir -e .
+# Configure poetry to install packages to the system python
+RUN poetry config virtualenvs.create false
+
+# Install all dependencies, including the project itself in editable mode, from the lock file.
+# This is the single source of truth for dependencies.
+RUN poetry install --with storage
 
 # Runtime stage
 FROM python:3.12-slim
@@ -47,8 +50,6 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 # Copy the source code (needed for editable install runtime and reload)
 COPY --from=builder /build/src/ ./src/
-# Copy the config directory
-COPY --from=builder /build/config/ ./config/
 # Copy pyproject.toml (might be needed by runtime tools or for reference)
 COPY --from=builder /build/pyproject.toml .
 # tests/ directory is not copied to the production image
@@ -61,10 +62,10 @@ RUN mkdir -p /app/cache && chown -R appuser:appuser /app /app/cache && chmod 755
 USER appuser
 
 # Set environment variables
-# - PYTHONPATH ensures modules in /app are found
+# - PYTHONPATH ensures modules in /app/src are found
 # - PROJECT_CONFIG_PATH points to the desired config file
 # - Other vars as needed
-ENV PYTHONPATH=/app \
+ENV PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \
     ENV=production \
     CACHE_DIR=/app/cache \
@@ -80,7 +81,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
     CMD nc -z localhost 8000 && curl -f http://localhost:8000/health || exit 1
 
-# Command to run the development server with auto-reload
-# Point to the correct app location: src.bin.api:app
+# Command to run the application
+# Point to the correct app location: aurite.bin.api.api:app
 # Use port 8000
-CMD ["python", "-m", "uvicorn", "src.bin.api.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "aurite.bin.api.api:app", "--host", "0.0.0.0", "--port", "8000"]
