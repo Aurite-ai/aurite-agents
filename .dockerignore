@@ -69,3 +69,9 @@ docs/
 .flaskenv*
 !.env.project
 !.env.vault
+frontend/
+scripts/
+.clinerules/
+.github/
+.aurite_cache/
+tests/
