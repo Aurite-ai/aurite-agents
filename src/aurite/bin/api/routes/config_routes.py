@@ -215,6 +215,13 @@ async def update_component(
     full_config = component_data.config.copy()
     full_config["name"] = component_id
 
+    is_valid, validation_errors = config_manager._validate_component_config(singular_type, full_config)
+    if not is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Component configuration validation failed: {'; '.join(validation_errors)}",
+        )
+
     # Use the existing update_component method
     success = config_manager.update_component(singular_type, component_id, full_config)
 

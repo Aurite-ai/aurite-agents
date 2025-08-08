@@ -211,6 +211,13 @@ class ConfigManager:
                 logger.warning(f"Skipping component in {config_file} due to missing 'type' or 'name'.")
                 continue
 
+            valid, errors = self._validate_component_config(component_type=component_type, config=component_data)
+            if not valid:
+                logger.warning(
+                    f"Skipping component '{component_id}' in {config_file} due to invalid config: {'; '.join(errors)}"
+                )
+                continue
+
             self._component_index.setdefault(component_type, {})
 
             # Honor the priority of sources: if a component is already indexed, skip
@@ -716,7 +723,13 @@ class ConfigManager:
             A tuple containing a boolean indicating if the component is valid,
             and a list of validation error messages.
         """
-        from ..models.config.components import AgentConfig, ClientConfig, CustomWorkflowConfig, LLMConfig, WorkflowConfig
+        from ..models.config.components import (
+            AgentConfig,
+            ClientConfig,
+            CustomWorkflowConfig,
+            LLMConfig,
+            WorkflowConfig,
+        )
 
         # Map component types to their Pydantic models
         model_map = {
