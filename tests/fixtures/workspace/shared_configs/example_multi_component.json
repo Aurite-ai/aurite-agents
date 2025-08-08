@@ -72,13 +72,13 @@
     "description": "An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan."
   },
   {
-    "type": "linear_workflow",
+    "description": "Update",
     "steps": [
       "Weather Agent",
       "Weather Planning Workflow Step 2"
     ],
-    "description": "A linear workflow to plan based on weather data.",
-    "name": "Weather Planning Workflow"
+    "name": "Weather Planning Workflow",
+    "type": "linear_workflow"
   },
   {
     "name": "ExampleCustomWorkflow",
