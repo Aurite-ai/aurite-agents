@@ -51,6 +51,13 @@ class GraphWorkflowExecutor:
         logger.debug(f"GraphWorkflowExecutor initialized for workflow: {self.config.name}")
 
     def _build_and_verify_graph(self):
+        node_config_map = {node.node_id: node for node in self.config.nodes}
+        for edge in self.config.edges:
+            if edge.from_node not in node_config_map:
+                raise ValueError(f"Edge {edge} references undefined node: {edge.from_node}")
+            if edge.to_node not in node_config_map:
+                raise ValueError(f"Edge {edge} references undefined node: {edge.to_node}")
+
         self.graph = nx.DiGraph()
 
         self.graph.add_nodes_from([n.node_id for n in self.config.nodes])
