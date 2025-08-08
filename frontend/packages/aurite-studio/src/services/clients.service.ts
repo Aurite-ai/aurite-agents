@@ -1,18 +1,10 @@
 import apiClient from './apiClient';
-import { 
-  ClientConfig as LocalClientConfig,
-  MCPServerConfig,
-  SuccessResponse
-} from '../types';
-import {
-  ApiError,
-  TimeoutError,
-  CancellationError,
-  ToolDetails,
-} from '@aurite/api-client';
-import { 
-  validateMCPServerConfig
-} from '../utils/mcpValidation';
+import { ClientConfig as LocalClientConfig, MCPServerConfig, SuccessResponse } from '../types';
+import { ApiError, TimeoutError, CancellationError, ToolDetails } from '@aurite/api-client';
+import { validateMCPServerConfig } from '../utils/mcpValidation';
+
+// Type definition for all possible service errors
+type ServiceError = ApiError | TimeoutError | CancellationError | Error | unknown;
 
 class ClientsService {
   // List all registered MCP clients/servers
@@ -29,17 +21,17 @@ class ClientsService {
   async listActiveClients(): Promise<string[]> {
     try {
       const servers = await apiClient.host.listRegisteredServers();
-      
+
       if (!servers) {
         console.warn('listRegisteredServers() returned undefined/null');
         return [];
       }
-      
+
       if (!Array.isArray(servers)) {
         console.warn('listRegisteredServers() returned non-array:', typeof servers, servers);
         return [];
       }
-      
+
       return servers.map(server => server.name);
     } catch (error) {
       this.handleError(error, 'Failed to list active clients');
@@ -90,7 +82,10 @@ class ClientsService {
   }
 
   // Create new client configuration
-  async createClientConfig(filename: string, config: LocalClientConfig): Promise<LocalClientConfig> {
+  async createClientConfig(
+    filename: string,
+    config: LocalClientConfig
+  ): Promise<LocalClientConfig> {
     try {
       const apiConfig = this.mapToApiClientConfig(config);
       const result = await apiClient.config.createConfig('mcp_server', apiConfig);
@@ -102,7 +97,10 @@ class ClientsService {
   }
 
   // Update client configuration
-  async updateClientConfig(filename: string, config: LocalClientConfig): Promise<LocalClientConfig> {
+  async updateClientConfig(
+    filename: string,
+    config: LocalClientConfig
+  ): Promise<LocalClientConfig> {
     try {
       const apiConfig = this.mapToApiClientConfig(config);
       const result = await apiClient.config.updateConfig('mcp_server', filename, apiConfig);
@@ -129,7 +127,7 @@ class ClientsService {
       await apiClient.host.registerServerByName(config.name);
       return {
         status: 'success',
-        message: `Client ${config.name} registered successfully`
+        message: `Client ${config.name} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register client ${config.name}`);
@@ -143,7 +141,7 @@ class ClientsService {
       await apiClient.host.unregisterServer(clientName);
       return {
         status: 'success',
-        message: `Client ${clientName} unregistered successfully`
+        message: `Client ${clientName} unregistered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to unregister client ${clientName}`);
@@ -173,17 +171,17 @@ class ClientsService {
     registration: SuccessResponse;
   }> {
     const filename = this.generateConfigFilename(config.name);
-    
+
     try {
       // First create the config file
       await this.createClientConfig(filename, config);
-      
+
       // Then register the client
       const registration = await this.registerClient(config);
-      
+
       return {
         configFile: filename,
-        registration
+        registration,
       };
     } catch (error) {
       this.handleError(error, `Failed to create and register client ${config.name}`);
@@ -211,7 +209,7 @@ class ClientsService {
     try {
       const [registeredClients, activeClients] = await Promise.all([
         this.listClients(),
-        this.listActiveClients()
+        this.listActiveClients(),
       ]);
 
       const registered = registeredClients.includes(clientName);
@@ -221,7 +219,7 @@ class ClientsService {
       if (registered) {
         try {
           config = await this.getClientById(clientName);
-        } catch (error) {
+        } catch {
           // Config might not exist even if registered
         }
       }
@@ -229,13 +227,13 @@ class ClientsService {
       return {
         registered,
         active,
-        config
+        config,
       };
     } catch (error) {
       this.handleError(error, `Failed to get client status for ${clientName}`);
       return {
         registered: false,
-        active: false
+        active: false,
       };
     }
   }
@@ -264,7 +262,7 @@ class ClientsService {
   }
 
   // Create new MCP server configuration
-  async createMCPServer(name: string, config: MCPServerConfig): Promise<{message: string}> {
+  async createMCPServer(name: string, config: MCPServerConfig): Promise<{ message: string }> {
     try {
       // Store config in flat format that FastAPI expects (not nested)
       return await apiClient.config.createConfig('mcp_server', config);
@@ -275,7 +273,7 @@ class ClientsService {
   }
 
   // Update MCP server configuration
-  async updateMCPServer(id: string, config: MCPServerConfig): Promise<{message: string}> {
+  async updateMCPServer(id: string, config: MCPServerConfig): Promise<{ message: string }> {
     try {
       // Store config in flat format that FastAPI expects (not nested)
       return await apiClient.config.updateConfig('mcp_server', id, config);
@@ -286,7 +284,7 @@ class ClientsService {
   }
 
   // Delete MCP server configuration
-  async deleteMCPServer(id: string): Promise<{message: string}> {
+  async deleteMCPServer(id: string): Promise<{ message: string }> {
     try {
       return await apiClient.config.deleteConfig('mcp_server', id);
     } catch (error) {
@@ -306,7 +304,10 @@ class ClientsService {
   }
 
   // Create with validation
-  async createMCPServerWithValidation(name: string, config: MCPServerConfig): Promise<{message: string}> {
+  async createMCPServerWithValidation(
+    name: string,
+    config: MCPServerConfig
+  ): Promise<{ message: string }> {
     const errors = validateMCPServerConfig(config);
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
@@ -315,7 +316,10 @@ class ClientsService {
   }
 
   // Update with validation
-  async updateMCPServerWithValidation(id: string, config: MCPServerConfig): Promise<{message: string}> {
+  async updateMCPServerWithValidation(
+    id: string,
+    config: MCPServerConfig
+  ): Promise<{ message: string }> {
     const errors = validateMCPServerConfig(config);
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
@@ -327,10 +331,10 @@ class ClientsService {
   async registerMCPServer(serverName: string): Promise<SuccessResponse> {
     try {
       await apiClient.host.registerServerByName(serverName);
-      
+
       return {
         status: 'success',
-        message: `MCP server ${serverName} registered successfully`
+        message: `MCP server ${serverName} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register MCP server ${serverName}`);
@@ -344,7 +348,7 @@ class ClientsService {
       await apiClient.host.unregisterServer(serverName);
       return {
         status: 'success',
-        message: `MCP server ${serverName} unregistered successfully`
+        message: `MCP server ${serverName} unregistered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to unregister MCP server ${serverName}`);
@@ -363,7 +367,7 @@ class ClientsService {
   }
 
   // Helper method to handle errors with user-friendly messages
-  private handleError(error: unknown, context: string): void {
+  private handleError(error: ServiceError, context: string): void {
     if (error instanceof ApiError) {
       console.error('%s: %s', context, String(error.getDisplayMessage()), error.toJSON());
     } else if (error instanceof TimeoutError) {
@@ -408,7 +412,7 @@ class ClientsService {
     // Handle both flat and nested config structures during transition
     // Prioritize flat format (new) over nested format (old)
     let config;
-    
+
     if (apiConfig.config && typeof apiConfig.config === 'object') {
       // Legacy nested format: { config: { ... }, name: ..., ... }
       config = apiConfig.config;
@@ -418,10 +422,10 @@ class ClientsService {
       config = apiConfig;
       console.log('📋 Using flat config format (current)');
     }
-    
+
     return {
       name: config.name || apiConfig.name,
-      type: "mcp_server",
+      type: 'mcp_server',
       capabilities: config.capabilities || [],
       description: config.description,
       transport_type: config.transport_type,
