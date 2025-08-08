@@ -42,7 +42,7 @@
             {
                 "type": "agent",
                 "name": "Yellow Agent",
-                "node_id": "y1"
+                "node_id": "y1----------"
             },
             {
                 "type": "agent",
@@ -58,7 +58,7 @@
         "edges": [
             {
                 "from": "r1",
-                "to": "y1"
+                "to": "y1----------"
             },
             {
                 "from": "r1",
@@ -69,8 +69,72 @@
                 "to": "r2"
             },
             {
-                "from": "y1",
+                "from": "y1----------",
                 "to": "r2"
+            }
+        ]
+    },
+    {
+        "name": "Parallel Graph Workflow",
+        "description": "Example parallel graph workflow",
+        "type": "graph_workflow",
+        "nodes": [
+            {
+                "type": "agent",
+                "name": "Red Agent",
+                "node_id": "r1a"
+            },
+            {
+                "type": "agent",
+                "name": "Yellow Agent",
+                "node_id": "y1a"
+            },
+            {
+                "type": "agent",
+                "name": "Blue Agent",
+                "node_id": "b2a"
+            },
+            {
+                "type": "agent",
+                "name": "Red Agent",
+                "node_id": "r3a"
+            },
+            {
+                "type": "agent",
+                "name": "Red Agent",
+                "node_id": "r1b"
+            },
+            {
+                "type": "agent",
+                "name": "Yellow Agent",
+                "node_id": "y2b"
+            },
+            {
+                "type": "agent",
+                "name": "Blue Agent",
+                "node_id": "b3b"
+            }
+        ],
+        "edges": [
+            {
+                "from": "r1a",
+                "to": "b2a"
+            },
+            {
+                "from": "y1a",
+                "to": "b2a"
+            },
+            {
+                "from": "b2a",
+                "to": "r3a"
+            },
+            {
+                "from": "r1b",
+                "to": "y2b"
+            },
+            {
+                "from": "y2b",
+                "to": "b3b"
             }
         ]
     }
