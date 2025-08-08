@@ -29,9 +29,9 @@
     "format:check": "npm run format:check --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "validate": "npm run validate --workspaces",
-    "prepare": "husky install || true",
     "rebuild": "npm run clean && npm run build",
-    "rebuild:fresh": "npm run clean && rm -rf node_modules/.cache && npm run build"
+    "rebuild:fresh": "npm run clean && rm -rf node_modules/.cache && npm run build",
+    "prepare": "husky"
   },
   "keywords": [
     "aurite",
@@ -64,8 +64,16 @@
     "npm": ">=8.0.0"
   },
   "devDependencies": {
-    "husky": "^8.0.3",
-    "lint-staged": "^15.2.0"
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@eslint/js": "^9.32.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint": "^9.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.6.2"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

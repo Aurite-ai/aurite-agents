@@ -1,0 +1,2 @@
+# Run commitlint on commit message
+cd frontend && npx --no -- commitlint --edit $1
