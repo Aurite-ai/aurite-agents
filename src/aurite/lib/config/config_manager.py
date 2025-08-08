@@ -419,7 +419,14 @@ class ConfigManager:
                 with self._storage_manager.get_db_session() as db:
                     if db:
                         self._storage_manager._upsert_component(db, component_type, new_config)
-                self.refresh()  # Refresh the in-memory index
+
+                # Update in-memory index
+                if component_name in self._component_index.get(component_type, {}):
+                    self._component_index[component_type][component_name].update(new_config)
+                else:
+                    self._component_index.setdefault(component_type, {})[component_name] = new_config
+                logger.debug(f"Updated component '{component_name}' in-memory (DB mode).")
+
                 return True
             except Exception as e:
                 logger.error(f"Failed to update component '{component_name}' in database: {e}")
@@ -477,10 +484,17 @@ class ConfigManager:
 
         success = self.update_config_file(source_name, str(relative_path), updated_content)
 
-        # Reset LLM validation entry to None if an LLM component was updated
-        if success and component_type == "llm":
-            self.llm_validations[component_name] = None
-            logger.debug(f"Reset validation entry for LLM '{component_name}' due to configuration update.")
+        if success:
+            # Update in-memory index
+            if component_name in self._component_index.get(component_type, {}):
+                # Preserve internal fields by updating the existing config
+                self._component_index[component_type][component_name].update(new_config)
+                logger.debug(f"Updated component '{component_name}' in-memory.")
+
+            # Reset LLM validation entry to None if an LLM component was updated
+            if component_type == "llm":
+                self.llm_validations[component_name] = None
+                logger.debug(f"Reset validation entry for LLM '{component_name}' due to configuration update.")
 
         return success
 
@@ -546,16 +560,16 @@ class ConfigManager:
             logger.error("Could not determine a valid context for component creation.")
             return None
 
-        # Step 2 & 3: Add component to file or DB
+        # Step 2 & 3: Add component to file or DB and update index
         if self._db_enabled:
             if not self._storage_manager:
                 logger.error("StorageManager not initialized. Cannot create component in DB mode.")
                 return None
-            # In DB mode, we just upsert the component.
-            # The concept of a "file" doesn't apply.
             with self._storage_manager.get_db_session() as db:
                 if db:
                     self._storage_manager._upsert_component(db, component_type, component_config)
+            # Update in-memory index for DB mode
+            self._component_index.setdefault(component_type, {})[component_config["name"]] = component_config
         else:
             if not self._file_manager:
                 logger.error("FileManager not initialized. Cannot create component in file-based mode.")
@@ -567,20 +581,27 @@ class ConfigManager:
             if not success:
                 return None
 
+            # Update in-memory index for file mode by re-parsing the modified file
+            context_root = None
+            for source_dir, c_root in self._config_sources:
+                if str(target_file).startswith(str(source_dir)):
+                    context_root = c_root
+                    break
+            if context_root:
+                self._parse_and_index_file(target_file, context_root)
+            else:
+                logger.warning(f"Could not determine context for {target_file}, refreshing full index.")
+                self.refresh()
+
         # set newly created components to not validated
         if component_type == "llm":
             self.llm_validations[component_config["name"]] = None
-
-        # Refresh index to include the new component
-        self.refresh()
 
         # Get the full component from the index to ensure we have the complete, resolved version
         newly_created_component = self.get_config(component_type, component_config["name"])
 
         if not newly_created_component:
             logger.error(f"Could not retrieve newly created component '{component_config['name']}' after creation.")
-            # This case should be rare, but it's a safeguard.
-            # We can still return a success message but with a partial component.
             return ComponentCreateResponse(
                 message="Component created successfully, but failed to retrieve full data.",
                 component=component_config,
@@ -602,7 +623,11 @@ class ConfigManager:
             try:
                 success = self._storage_manager.delete_component(component_name)
                 if success:
-                    self.refresh()  # Refresh the in-memory index
+                    # Remove from the in-memory index
+                    if component_name in self._component_index.get(component_type, {}):
+                        del self._component_index[component_type][component_name]
+                        if not self._component_index[component_type]:
+                            del self._component_index[component_type]
                 return success
             except Exception as e:
                 logger.error(f"Failed to delete component '{component_name}' from database: {e}")
