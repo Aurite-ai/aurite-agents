@@ -201,3 +201,4 @@ demo-config/*
 docs/aurite-studio/*
 .langfuse_logs/
 !src/aurite/lib
+src/aurite/lib/init_templates/.aurite_cache/

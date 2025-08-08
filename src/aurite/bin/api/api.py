@@ -8,7 +8,7 @@ from typing import Callable  # Added List
 
 import uvicorn
 from dotenv import load_dotenv  # Add this import
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
@@ -89,6 +89,12 @@ app = FastAPI(
 async def health_check():
     """Simple health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/mcp", status_code=200)
+async def mcp_health_check():
+    """Health check for the MCP server."""
+    return {"status": "mcp server is running"}
 
 
 # main routes
@@ -275,21 +281,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# --- Health Check Endpoint (Moved earlier) ---
-
-
-# Catch-all route to serve index.html for client-side routing
-# IMPORTANT: This must come AFTER all other API routes
-@app.get("/{full_path:path}", include_in_schema=False)
-async def serve_react_app(full_path: str):  # Parameter name doesn't matter much here
-    # This is a placeholder for serving a frontend.
-    # For now, it will return a 404 for any path not matching an API route.
-    raise HTTPException(status_code=404, detail="Not Found")
-
-
-# --- End Serve React Frontend Build ---
 
 
 def start():

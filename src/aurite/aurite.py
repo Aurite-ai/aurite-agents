@@ -181,6 +181,12 @@ class Aurite:
             await self.kernel.initialize()
             self._initialized = True
 
+    def initialize(self):
+        """
+        Initializes the Aurite framework.
+        """
+        logger.warning("The initialize method is no longer needed and will be removed in a future update.")
+
     def get_config_manager(self) -> ConfigManager:
         # This method is now primarily for external use; internal access
         # should be through the kernel.

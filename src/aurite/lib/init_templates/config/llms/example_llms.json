@@ -9,5 +9,26 @@
     "max_tokens": 1500,
     "default_system_prompt": "You are a helpful AI assistant.",
     "api_key_env_var": "OPENAI_API_KEY"
+  },
+  {
+    "name": "gemini_latest",
+    "description": "Google Gemini 2.5 Pro model configuration for advanced tasks.",
+    "type": "llm",
+    "provider": "gemini",
+    "model": "gemini-2.5-pro",
+    "temperature": 0.7,
+    "max_tokens": 1500,
+    "default_system_prompt": "You are a helpful AI assistant.",
+    "api_key_env_var": "GOOGLE_API_KEY"
+  },
+  {
+    "name": "claude_latest",
+    "type": "llm",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.5,
+    "max_tokens": 2048,
+    "default_system_prompt": "You are a helpful AI assistant by Anthropic.",
+    "api_key_env_var": "ANTHROPIC_API_KEY"
   }
 ]

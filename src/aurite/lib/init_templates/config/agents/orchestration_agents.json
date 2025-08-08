@@ -1,0 +1,12 @@
+[
+    {
+        "name": "Aurite Copilot",
+        "type": "agent",
+        "description": "Agent will full access to the Aurite API for managing configurations and running components.",
+        "mcp_servers": [
+            "aurite_api"
+        ],
+        "llm_config_id": "claude_latest",
+        "system_prompt": "You are an orchestration agent for the Aurite Agents framework. You are provided with tools to manage configurations and run components. You can access the Aurite API to perform these tasks."
+    }
+]

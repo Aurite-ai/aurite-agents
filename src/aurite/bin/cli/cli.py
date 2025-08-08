@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 from typing import Optional
 
 import typer
@@ -10,12 +11,12 @@ from ...lib.config import ConfigManager
 from ...lib.storage import StorageManager
 from ...utils.cli.fast_loader import list_component_names
 from ..api.api import start as start_api_server
+from ..studio import start_studio
 from ..tui.apps.edit import AuriteEditTUI
 from .commands.init import init_project, init_workspace, interactive_init
 from .commands.list import list_all, list_components_by_type, list_index, list_workflows
 from .commands.run import run_component
 from .commands.show import show_components
-from ..studio import start_studio
 
 os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
 app = typer.Typer(
@@ -76,25 +77,52 @@ def api():
 
 
 @app.command()
+def mcp(
+    transport: str = typer.Option(
+        "http", "--transport", "-t", help="Transport protocol for the MCP server (default: http)"
+    ),
+    port: int = typer.Option(8123, "--port", "-p", help="Port for the MCP server (default: 8123)"),
+):
+    """
+    Starts the Aurite MCP server.
+
+    This command runs the MCP server, allowing for
+    communication with other components in the Aurite framework.
+    """
+
+    logger("[bold green]Starting Aurite MCP server on port 8123...[/bold green]")
+    subprocess.run(
+        [
+            "fastmcp",
+            "run",
+            "src/aurite/bin/api/mcp_api_wrapper.py",
+            "--transport",
+            transport,
+            "--port",
+            str(port),
+        ]
+    )
+
+
+@app.command()
 def studio(
     rebuild_fresh: bool = typer.Option(
-        False, 
-        "--rebuild-fresh", 
-        help="Clean all build artifacts and rebuild frontend packages from scratch"
-    )
+        False, "--rebuild-fresh", help="Clean all build artifacts and rebuild frontend packages from scratch"
+    ),
 ):
     """
     Starts the Aurite Studio integrated development environment.
-    
+
     This command starts both the API server and React frontend concurrently,
     providing a unified development experience with automatic dependency
     management and graceful shutdown handling.
     """
+
     async def main_studio():
         success = await start_studio(rebuild_fresh=rebuild_fresh)
         if not success:
             raise typer.Exit(code=1)
-    
+
     asyncio.run(main_studio())
 
 
