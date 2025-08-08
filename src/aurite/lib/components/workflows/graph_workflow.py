@@ -185,7 +185,7 @@ class GraphWorkflowExecutor:
                                     )
 
                     except Exception as e:
-                        logger.error(f"Node '{completed_node_id}' failed with error: {e}", exc_info=True)
+                        logger.error(f"Node '{completed_node_id}' failed with error: {e}")
                         # Clean up remaining tasks
                         for remaining_task in running_tasks.values():
                             remaining_task.cancel()
@@ -200,23 +200,12 @@ class GraphWorkflowExecutor:
                         )
 
             # All nodes completed successfully
-            # Find final output nodes (nodes with out-degree 0) and concatenate their results
-            final_nodes = [node_id for node_id in self.graph.nodes if self.graph.out_degree[node_id] == 0]
-
-            if not final_nodes:
-                # If no final nodes, use all nodes' results
-                final_nodes = list(self.graph.nodes)
-
-            final_outputs = []
-            for node_id in final_nodes:
-                if node_id in node_results:
-                    result = node_results[node_id].result
-                    if isinstance(result, str):
-                        final_outputs.append(result)
-                    else:
-                        final_outputs.append(str(result))
-
-            final_output = "\n\n".join(final_outputs) if final_outputs else ""
+            # Find final output nodes (nodes with out-degree 0) and combine their results
+            final_outputs = {
+                node_id: node_results[node_id].result
+                for node_id in self.graph.nodes
+                if self.graph.out_degree[node_id] == 0
+            }
 
             logger.info(f"Graph workflow '{workflow_name}' completed successfully")
 
@@ -224,7 +213,7 @@ class GraphWorkflowExecutor:
                 workflow_name=workflow_name,
                 status="completed",
                 node_results=node_results,
-                final_output=final_output,
+                final_output=final_outputs,
                 error=None,
                 session_id=session_id,
             )
