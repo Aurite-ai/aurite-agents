@@ -1,26 +1,4 @@
 [project]
-name = "aurite"
-version = "0.3.28"
-description = "Aurite Agents is an agent development and runtime framework."
-authors = [
-    { name = "Ryan W", email = "ryan@aurite.ai" },
-    { name = "Blake R", email = "blake@aurite.ai" },
-    { name = "Patrick W", email = "patrick@aurite.ai" },
-    { name = "Jiten Oswal", email = "jiten@aurite.ai" },
-]
-license = { file = "LICENSE" }
-readme = "README.md"
-requires-python = ">=3.11,<4.0.0"
-keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
-]
 dependencies = [
     "mcp (>=1.10.1,<2.0.0)",
     "pydantic (>=2.11.7,<3.0.0)",
@@ -44,10 +22,32 @@ dependencies = [
     "textual[syntax] (>=3.5.0,<4.0.0)",
     "toml (>=0.10.2,<0.11.0)",
     "langfuse (>=2,<3)",
+    "networkx (>=3.5,<4.0)",
     # NOTE: Using core LiteLLM without [proxy] extra to avoid dependency conflicts
     # The [proxy] extra brings in heavy dependencies that conflict with FastMCP's rich requirements
     "litellm (>=1.75.4,<2.0.0)",
-    "fastmcp (>=2.11.3,<3.0.0)",
+    "fastmcp (>=2.11.3,<3.0.0)",,
+]name = "aurite"
+version = "0.3.28"
+description = "Aurite Agents is an agent development and runtime framework."
+authors = [
+    { name = "Ryan W", email = "ryan@aurite.ai" },
+    { name = "Blake R", email = "blake@aurite.ai" },
+    { name = "Patrick W", email = "patrick@aurite.ai" },
+    { name = "Jiten Oswal", email = "jiten@aurite.ai" },
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.11,<4.0.0"
+keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 
 [project.urls]
