@@ -108,6 +108,45 @@ class LinearWorkflowExecutionResult(BaseModel):
         return str(self.final_output) if self.final_output is not None else None
 
 
+class GraphWorkflowNodeResult(BaseModel):
+    name: str = Field(description="The name of the component executed in this node")
+    type: str = Field(description="The type of the component executed in this node")
+    result: Any = Field(description="The result of this node's execution")
+
+
+class GraphWorkflowExecutionResult(BaseModel):
+    """
+    Standardized Pydantic model for the output of a Graph Workflow execution.
+    """
+
+    workflow_name: str = Field(description="The name of the executed workflow.")
+    status: str = Field(description="The final status of the workflow (e.g., 'completed', 'failed').")
+
+    node_results: dict[str, GraphWorkflowNodeResult] = Field(
+        description="A dictionary containing the result of each node in the workflow, indexed by the node_id",
+    )
+
+    # The final output from the last step in the workflow
+    final_output: Optional[Any] = Field(None, description="The final output from the last step of the workflow.")
+
+    error: Optional[str] = Field(None, description="An error message if the workflow execution failed.")
+
+    session_id: Optional[str] = Field(None, description="The session ID used for this workflow run.")
+
+    @property
+    def final_message(self) -> Optional[str]:
+        """
+        A convenience property to extract the primary text if the final output
+        was from an agent, for easy display.
+        """
+        if isinstance(self.final_output, str):
+            return self.final_output
+        # The final output from an agent step is now just the content string.
+        # If the whole workflow's final_output is the result of an agent step,
+        # it will be a string.
+        return str(self.final_output) if self.final_output is not None else None
+
+
 # This is needed to allow the recursive type hint in LinearWorkflowStepResult
 LinearWorkflowStepResult.model_rebuild()
 

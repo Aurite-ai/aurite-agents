@@ -727,6 +727,7 @@ class ConfigManager:
             AgentConfig,
             ClientConfig,
             CustomWorkflowConfig,
+            GraphWorkflowConfig,
             LLMConfig,
             WorkflowConfig,
         )
@@ -738,6 +739,7 @@ class ConfigManager:
             "mcp_server": ClientConfig,
             "linear_workflow": WorkflowConfig,
             "custom_workflow": CustomWorkflowConfig,
+            "graph_workflow": GraphWorkflowConfig,
         }
 
         model_class = model_map.get(component_type)
